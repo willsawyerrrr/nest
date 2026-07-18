@@ -10,7 +10,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "vitest run",
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,6 +21,7 @@
     "oxlint": "^1.74.0",
     "prettier": "^3.9.5",
     "supabase": "^2.109.1",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
   }
 }

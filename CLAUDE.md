@@ -29,5 +29,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Claude drives pull requests autonomously in this repo — opening, updating, and
   merging them — without per-turn confirmation. Branches merge once CI is green.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
-  reducing CI time takes priority over other work. CI checks run in parallel
-  after a single dependency install.
+  reducing CI time takes priority over other work. Checks run sequentially in a
+  single job after one dependency install: on a 2-vCPU hosted runner, running the
+  CPU-bound checks concurrently only causes contention and inflates each one
+  without improving wall-clock time.

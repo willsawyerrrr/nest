@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown } from '@budget/tax'
+import { render, screen, within } from '../test/render'
 import { TaxEstimateView } from './TaxEstimateView'
 
 const breakdown: TaxBreakdown = {
@@ -53,28 +53,28 @@ describe('TaxEstimateView', () => {
   it('renders per-member annual and fortnightly figures by name', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
 
-    const willRow = screen.getByRole('row', { name: /Will/ })
-    expect(within(willRow).getByText('$100,000.00')).toBeInTheDocument()
-    expect(within(willRow).getByText('$25,000.00')).toBeInTheDocument()
-    expect(within(willRow).getByText('$75,000.00')).toBeInTheDocument()
-    expect(within(willRow).getByText('$3,846.15')).toBeInTheDocument()
-    expect(within(willRow).getByText('$961.54')).toBeInTheDocument()
-    expect(within(willRow).getByText('$2,884.61')).toBeInTheDocument()
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(within(willCard).getByText('$100,000.00')).toBeInTheDocument()
+    expect(within(willCard).getByText('$25,000.00')).toBeInTheDocument()
+    expect(within(willCard).getByText('$75,000.00')).toBeInTheDocument()
+    expect(within(willCard).getByText('$3,846.15')).toBeInTheDocument()
+    expect(within(willCard).getByText('$961.54')).toBeInTheDocument()
+    expect(within(willCard).getByText('$2,884.61')).toBeInTheDocument()
 
-    const samRow = screen.getByRole('row', { name: /Sam/ })
-    expect(within(samRow).getByText('$60,000.00')).toBeInTheDocument()
-    expect(within(samRow).getByText('$50,000.00')).toBeInTheDocument()
+    const samCard = screen.getByRole('region', { name: 'Sam' })
+    expect(within(samCard).getByText('$60,000.00')).toBeInTheDocument()
+    expect(within(samCard).getByText('$50,000.00')).toBeInTheDocument()
   })
 
   it('renders the household totals', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
 
-    const householdRow = screen.getByRole('row', { name: /Household/ })
-    expect(within(householdRow).getByText('$160,000.00')).toBeInTheDocument()
-    expect(within(householdRow).getByText('$35,000.00')).toBeInTheDocument()
-    expect(within(householdRow).getByText('$125,000.00')).toBeInTheDocument()
-    expect(within(householdRow).getByText('$6,153.84')).toBeInTheDocument()
-    expect(within(householdRow).getByText('$4,807.68')).toBeInTheDocument()
+    const householdCard = screen.getByRole('region', { name: 'Household' })
+    expect(within(householdCard).getByText('$160,000.00')).toBeInTheDocument()
+    expect(within(householdCard).getByText('$35,000.00')).toBeInTheDocument()
+    expect(within(householdCard).getByText('$125,000.00')).toBeInTheDocument()
+    expect(within(householdCard).getByText('$6,153.84')).toBeInTheDocument()
+    expect(within(householdCard).getByText('$4,807.68')).toBeInTheDocument()
   })
 
   it('shows the financial year in the heading', () => {
@@ -96,5 +96,6 @@ describe('TaxEstimateView', () => {
 
     expect(screen.getByText(/add income on the income tab/i)).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })
 })

@@ -1,183 +1,39 @@
-.signin,
-.onboarding,
-.home {
+/*
+ * Layout that preserves iOS PWA safe-area handling under `viewport-fit=cover`.
+ * Pre-auth screens fill the viewport and clear every inset. The signed-in shell
+ * pads content for the notch/Dynamic Island at the top and reserves room for the
+ * fixed bottom tab bar, which itself clears the iOS home-bar inset.
+ */
+
+.full-screen {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  place-content: center;
-  place-items: center;
   min-height: 100dvh;
   padding-top: max(24px, env(safe-area-inset-top));
   padding-right: max(24px, env(safe-area-inset-right));
   padding-bottom: max(24px, env(safe-area-inset-bottom));
   padding-left: max(24px, env(safe-area-inset-left));
-  text-align: center;
 }
 
-.onboarding form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  max-width: 320px;
-  text-align: left;
+.app-shell {
+  min-height: 100dvh;
 }
 
-.onboarding input {
-  font-size: 16px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-}
-
-.signin button,
-.onboarding button,
-.home button {
-  font-size: 16px;
-  padding: 10px 20px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.app-nav {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  gap: 8px;
-  padding-top: max(12px, env(safe-area-inset-top));
+.page {
+  padding-top: max(16px, env(safe-area-inset-top));
   padding-right: max(16px, env(safe-area-inset-right));
-  padding-bottom: 12px;
   padding-left: max(16px, env(safe-area-inset-left));
-  border-bottom: 1px solid #e2e8f0;
-  background: var(--bg);
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 
-.app-nav button {
-  font-size: 16px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: transparent;
-  cursor: pointer;
-}
-
-.app-nav button[aria-current='true'] {
-  background: #0f172a;
-  color: #fff;
-  border-color: #0f172a;
-}
-
-.income {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  max-width: 480px;
-  margin: 0 auto;
-  padding-top: 24px;
-  padding-right: max(24px, env(safe-area-inset-right));
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
-  padding-left: max(24px, env(safe-area-inset-left));
-}
-
-.income section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.income-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.income-list li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.income-list li > div:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.income-list-actions,
-.income-form-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.income-form,
-.tax-profile-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.income button,
-.income input,
-.income select {
-  font-size: 16px;
-}
-
-.income input,
-.income select {
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-}
-
-.income button {
-  padding: 10px 20px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: transparent;
-  cursor: pointer;
-}
-
-.tax {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 720px;
-  margin: 0 auto;
-  padding-top: 24px;
-  padding-right: max(24px, env(safe-area-inset-right));
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
-  padding-left: max(24px, env(safe-area-inset-left));
-}
-
-.tax-estimate {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.tax-estimate th,
-.tax-estimate td {
-  padding: 8px 10px;
-  border: 1px solid #e2e8f0;
-  text-align: right;
-}
-
-.tax-estimate thead th,
-.tax-estimate th[scope='row'] {
-  text-align: left;
-}
-
-.tax-estimate tfoot th,
-.tax-estimate tfoot td {
-  font-weight: 600;
+.tab-bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+  background: var(--mantine-color-body);
+  border-top: 1px solid var(--mantine-color-default-border);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }

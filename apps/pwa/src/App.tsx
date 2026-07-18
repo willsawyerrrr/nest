@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Center, Group, Loader, Text, UnstyledButton } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
 import {
   configsByYear,
@@ -21,6 +22,14 @@ import { IncomeScreen } from './components/IncomeScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import './App.css'
 
+function LoadingScreen() {
+  return (
+    <Center h="100dvh">
+      <Loader />
+    </Center>
+  )
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
@@ -37,7 +46,7 @@ export default function App() {
   }, [])
 
   if (loading) {
-    return <p>Loading…</p>
+    return <LoadingScreen />
   }
 
   if (!session) {
@@ -60,7 +69,7 @@ function AuthedApp({ session }: { session: Session }) {
   const { households, loading, reload } = useHousehold()
 
   if (loading) {
-    return <p>Loading…</p>
+    return <LoadingScreen />
   }
 
   const household = households?.[0]
@@ -97,35 +106,56 @@ function AuthedApp({ session }: { session: Session }) {
 
 type View = 'home' | 'income' | 'tax'
 
+const NAV_ITEMS: { view: View; label: string }[] = [
+  { view: 'home', label: 'Home' },
+  { view: 'income', label: 'Income' },
+  { view: 'tax', label: 'Tax' },
+]
+
 function HouseholdApp({ household, session }: { household: Household; session: Session }) {
   const [view, setView] = useState<View>('home')
 
   return (
-    <>
-      <nav className="app-nav" aria-label="Primary">
-        <button type="button" aria-current={view === 'home'} onClick={() => setView('home')}>
-          Home
-        </button>
-        <button type="button" aria-current={view === 'income'} onClick={() => setView('income')}>
-          Income
-        </button>
-        <button type="button" aria-current={view === 'tax'} onClick={() => setView('tax')}>
-          Tax
-        </button>
+    <div className="app-shell">
+      <main className="page">
+        {view === 'home' ? (
+          <HomeScreen
+            householdName={household.name}
+            inviteCode={household.invite_code}
+            email={session.user.email ?? ''}
+            onSignOut={() => void supabase.auth.signOut()}
+          />
+        ) : view === 'income' ? (
+          <IncomeSection householdId={household.id} />
+        ) : (
+          <TaxSection householdId={household.id} />
+        )}
+      </main>
+      <nav className="tab-bar" aria-label="Primary">
+        <Group gap={0} grow>
+          {NAV_ITEMS.map((item) => {
+            const active = view === item.view
+            return (
+              <UnstyledButton
+                key={item.view}
+                aria-current={active}
+                onClick={() => setView(item.view)}
+                py="sm"
+                ta="center"
+              >
+                <Text
+                  size="sm"
+                  fw={active ? 700 : 500}
+                  c={active ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
+                >
+                  {item.label}
+                </Text>
+              </UnstyledButton>
+            )
+          })}
+        </Group>
       </nav>
-      {view === 'home' ? (
-        <HomeScreen
-          householdName={household.name}
-          inviteCode={household.invite_code}
-          email={session.user.email ?? ''}
-          onSignOut={() => void supabase.auth.signOut()}
-        />
-      ) : view === 'income' ? (
-        <IncomeSection householdId={household.id} />
-      ) : (
-        <TaxSection householdId={household.id} />
-      )}
-    </>
+    </div>
   )
 }
 
@@ -135,7 +165,7 @@ function IncomeSection({ householdId }: { householdId: string }) {
   const taxProfiles = useTaxProfiles(householdId)
 
   if (membersLoading || incomes.loading || taxProfiles.loading || !members) {
-    return <p>Loading…</p>
+    return <LoadingScreen />
   }
 
   return (
@@ -182,7 +212,7 @@ function TaxSection({ householdId }: { householdId: string }) {
   const taxProfiles = useTaxProfiles(householdId)
 
   if (membersLoading || incomes.loading || taxProfiles.loading || !members) {
-    return <p>Loading…</p>
+    return <LoadingScreen />
   }
 
   const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG

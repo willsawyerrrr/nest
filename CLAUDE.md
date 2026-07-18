@@ -8,11 +8,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 
 ## Fixed scope decisions
 
-- Platform: iOS + web on one shared backend.
-- Data: cloud-hosted, managed, relational (Postgres assumed).
+- Platform: one PWA for both iOS (installed via Safari) and web. No native app.
+- Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
+  Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
+- Language: TypeScript across PWA and edge functions; tax engine is a shared
+  package.
 - Transaction sources: Up Bank API + manual entry; ingestion is source-agnostic.
 - Tax: full AU income tax, versioned per financial year.
-- Tech stack: **not yet chosen** — do not assume a framework until decided.
+- Still open: PWA frontend framework; auth method.
 
 ## Conventions
 

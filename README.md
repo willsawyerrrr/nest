@@ -15,12 +15,17 @@ liability, plan spending, and track savings goals.
 
 ## Scope decisions
 
-- **Platform:** iOS + web, sharing one backend.
-- **Data:** cloud-hosted, managed. Shared by both household members.
+- **Platform:** a single PWA serving both iOS (installed via Safari) and web.
+- **Backend:** [Supabase](https://supabase.com/) (Sydney region, Pro) — managed
+  Postgres, Auth, PostgREST, Edge Functions, Vault. Clients use direct PostgREST
+  with Row-Level Security for CRUD; edge functions handle the tax engine and Up
+  sync. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **Language:** TypeScript across the PWA and edge functions; the tax engine is a
+  shared package used by both.
 - **Transaction sources:** [Up Bank API](https://developer.up.com.au/) feeds +
   manual entry. Import layer designed to accept other sources later.
 - **Tax:** full AU income tax modelling, versioned per financial year.
-- **Tech stack:** deferred. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **Still open:** PWA frontend framework and auth method.
 
 ## Documentation
 
@@ -31,4 +36,5 @@ liability, plan spending, and track savings goals.
 
 ## Status
 
-Planning. Framework not yet chosen; data model and tax design being defined first.
+Planning (Phase 0). Backend architecture settled; PWA frontend framework and auth
+method still to choose before Phase 1 build begins.

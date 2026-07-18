@@ -7,7 +7,9 @@ Phase 1.
 
 - [x] Scope decisions (platform, data, feeds, tax depth).
 - [x] Architecture, data model, and tax design docs.
-- [ ] Choose tech stack (backend, clients, auth, hosting).
+- [x] Backend stack: Supabase + PWA + TypeScript; direct PostgREST + RLS.
+- [ ] Choose PWA frontend framework and auth method.
+- [ ] Supabase project (Sydney, Pro); CLI + local Docker stack.
 - [ ] Repo tooling: linting, formatting, CI, test runner.
 
 ## Phase 1 — Ledger core

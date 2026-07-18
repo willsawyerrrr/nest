@@ -14,7 +14,8 @@
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "supabase": "supabase"
+    "supabase": "supabase",
+    "db:types": "supabase gen types typescript --local > apps/pwa/src/lib/database.types.ts && prettier --write apps/pwa/src/lib/database.types.ts"
   },
   "devDependencies": {
     "oxlint": "^1.74.0",

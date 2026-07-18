@@ -33,7 +33,7 @@ below; income + tax is built first because it needs no transaction data.
 
 ## Now — Income + tax estimate (no ingestion required)
 
-- [ ] `income` + `tax_profile` schema (RLS, tests, types).
+- [x] `income` + `tax_profile` schema (RLS, tests, types).
 - [ ] Verified FY2027 tax config (real ATO figures) + marginal HELP model.
 - [ ] Tax computation: annualize incomes → per-person + household estimate.
 - [ ] Income management UI.

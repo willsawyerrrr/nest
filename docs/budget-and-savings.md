@@ -178,4 +178,12 @@ Navigation stays state-based (no router) for now.
   inflow to a specific budget category so it nets against that spend.
 - **Actual-spend reconciliation and real balances** — reconcile spend against the
   budget and populate goal balances from Up ingestion.
+- **Linking targets to Up Saver accounts** — the Up API exposes account types
+  `SAVER`, `TRANSACTIONAL`, and `HOME_LOAN`, including balances and transactions.
+  In the ingestion phase, a Temporary or Savings item can link to an Up Saver to
+  reconcile real progress against its target. Maybuy is not exposed by the Up API
+  (no documented resource or account type); Maybuy transactions can leak into the
+  transactions feed (`up-banking/api#148`) but there is no clean Maybuy
+  target/progress resource, so Maybuy-backed temporary items are tracked manually
+  (or via the underlying Saver, where one applies).
 - **Routing** — navigation stays state-based for now.

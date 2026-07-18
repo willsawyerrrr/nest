@@ -17,12 +17,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Auth: Supabase Auth via Google OAuth (consent screen published).
 - Language: TypeScript across PWA and edge functions; tax engine is a shared
   package.
-- Transaction sources: Up Bank API + manual entry; ingestion is source-agnostic.
-- Tax: full AU income tax, versioned per financial year.
-- Single shared household: the two partners share ONE household — no
-  multi-household UI (no picker or switcher). `household_id` + RLS remain to
-  isolate the household's data from all other Supabase users. A partner joins the
-  household via an invite code (`join_household` RPC); no email infrastructure.
+- Household & money: the two partners share ONE household with money fully
+  pooled — no multi-household UI (no picker or switcher), no per-person budgets
+  or splitting. All household members can manage everything: RLS is gated on
+  household membership only, and record attribution to a member is a
+  tax/reporting tag, not a permission. `household_id` + RLS isolate the
+  household's data from all other Supabase users. A partner joins via an invite
+  code (`join_household` RPC); no email infrastructure.
+- Income: the household owns many projection-based incomes — each a salary,
+  wage, or other regular income on a schedule — each tagged to a member for tax.
+- Tax: full AU income tax, versioned per financial year; estimate-only
+  (actual-paid tracking deferred), per-person, modelling HELP debt and
+  private-hospital cover; target financial year FY2027.
+- Ingestion: both partners bank with Up, but transaction ingestion is deferred;
+  spending plans and savings goals depend on it. Sources (Up Bank API + manual
+  entry) are source-agnostic.
 
 ## Conventions
 

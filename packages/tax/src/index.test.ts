@@ -23,36 +23,36 @@ const FIXTURE_CONFIG: TaxYearConfig = {
   financialYear: 2027,
   residency: 'resident',
   brackets: [
-    { upToCents: 1_800_000, rate: 0.0 },
-    { upToCents: 4_500_000, rate: 0.15 },
-    { upToCents: 12_000_000, rate: 0.3 },
-    { upToCents: 18_000_000, rate: 0.4 },
+    { upToCents: 18_000_00, rate: 0.0 },
+    { upToCents: 45_000_00, rate: 0.15 },
+    { upToCents: 120_000_00, rate: 0.3 },
+    { upToCents: 180_000_00, rate: 0.4 },
     { upToCents: null, rate: 0.5 },
   ],
   medicareLevy: {
     rate: 0.02,
-    lowIncomeThresholdCents: 2_400_000,
+    lowIncomeThresholdCents: 24_000_00,
     phaseInRate: 0.1,
   },
   medicareLevySurcharge: {
     tiers: [
-      { incomeOverCents: 9_000_000, familyIncomeOverCents: 18_000_000, rate: 0.01 },
-      { incomeOverCents: 10_500_000, familyIncomeOverCents: 21_000_000, rate: 0.0125 },
-      { incomeOverCents: 14_000_000, familyIncomeOverCents: 28_000_000, rate: 0.015 },
+      { incomeOverCents: 90_000_00, familyIncomeOverCents: 180_000_00, rate: 0.01 },
+      { incomeOverCents: 105_000_00, familyIncomeOverCents: 210_000_00, rate: 0.0125 },
+      { incomeOverCents: 140_000_00, familyIncomeOverCents: 280_000_00, rate: 0.015 },
     ],
-    familyDependentChildIncrementCents: 150_000,
+    familyDependentChildIncrementCents: 1_500_00,
   },
   lito: {
-    maxOffsetCents: 70_000,
+    maxOffsetCents: 700_00,
     taperRules: [
-      { incomeOverCents: 3_750_000, reductionPerDollar: 0.04 },
-      { incomeOverCents: 4_500_000, reductionPerDollar: 0.01 },
+      { incomeOverCents: 37_500_00, reductionPerDollar: 0.04 },
+      { incomeOverCents: 45_000_00, reductionPerDollar: 0.01 },
     ],
   },
   helpRepayment: {
     marginalBands: [
-      { incomeOverCents: 5_000_000, rate: 0.1 },
-      { incomeOverCents: 8_000_000, rate: 0.3 },
+      { incomeOverCents: 50_000_00, rate: 0.1 },
+      { incomeOverCents: 80_000_00, rate: 0.3 },
     ],
     maxRepaymentRate: 0.15,
   },
@@ -98,201 +98,201 @@ describe('taxableIncome', () => {
   it('sums assessable components then subtracts deductions', () => {
     const input: TaxInput = {
       assessableIncome: {
-        salaryOrWagesCents: 8_000_000,
-        businessCents: 1_000_000,
-        investmentCents: 500_000,
-        otherCents: 500_000,
+        salaryOrWagesCents: 80_000_00,
+        businessCents: 10_000_00,
+        investmentCents: 5_000_00,
+        otherCents: 5_000_00,
       },
-      deductionsCents: 1_000_000,
+      deductionsCents: 10_000_00,
       residency: 'resident',
       privateHospitalCover: false,
       helpDebtCents: 0,
       paygWithheldCents: 0,
     }
-    expect(taxableIncome(input)).toBe(9_000_000)
+    expect(taxableIncome(input)).toBe(90_000_00)
   })
 
   it('floors at zero when deductions exceed assessable income', () => {
-    expect(taxableIncome(inputForSalary(1_000_000, { deductionsCents: 1_500_000 }))).toBe(0)
+    expect(taxableIncome(inputForSalary(10_000_00, { deductionsCents: 15_000_00 }))).toBe(0)
   })
 })
 
 describe('incomeTax', () => {
   it('charges nothing below the tax-free threshold', () => {
-    expect(incomeTax(1_500_000, FIXTURE_CONFIG)).toBe(0)
+    expect(incomeTax(15_000_00, FIXTURE_CONFIG)).toBe(0)
   })
 
   it('charges nothing exactly at the tax-free threshold', () => {
-    expect(incomeTax(1_800_000, FIXTURE_CONFIG)).toBe(0)
+    expect(incomeTax(18_000_00, FIXTURE_CONFIG)).toBe(0)
   })
 
   it('applies each bracket at its upper edge', () => {
     // 0 + (4,500,000 − 1,800,000) × 0.15
-    expect(incomeTax(4_500_000, FIXTURE_CONFIG)).toBe(405_000)
+    expect(incomeTax(45_000_00, FIXTURE_CONFIG)).toBe(4_050_00)
     // + (12,000,000 − 4,500,000) × 0.30
-    expect(incomeTax(12_000_000, FIXTURE_CONFIG)).toBe(2_655_000)
+    expect(incomeTax(120_000_00, FIXTURE_CONFIG)).toBe(26_550_00)
     // + (18,000,000 − 12,000,000) × 0.40
-    expect(incomeTax(18_000_000, FIXTURE_CONFIG)).toBe(5_055_000)
+    expect(incomeTax(180_000_00, FIXTURE_CONFIG)).toBe(50_550_00)
     // + (20,000,000 − 18,000,000) × 0.50
-    expect(incomeTax(20_000_000, FIXTURE_CONFIG)).toBe(6_055_000)
+    expect(incomeTax(200_000_00, FIXTURE_CONFIG)).toBe(60_550_00)
   })
 
   it('applies the marginal rate part-way through a bracket', () => {
     // 405,000 + (5,000,000 − 4,500,000) × 0.30
-    expect(incomeTax(5_000_000, FIXTURE_CONFIG)).toBe(555_000)
+    expect(incomeTax(50_000_00, FIXTURE_CONFIG)).toBe(5_550_00)
   })
 })
 
 describe('lowIncomeTaxOffset', () => {
   it('gives the full offset below the first taper threshold', () => {
-    expect(lowIncomeTaxOffset(1_500_000, FIXTURE_CONFIG)).toBe(70_000)
+    expect(lowIncomeTaxOffset(15_000_00, FIXTURE_CONFIG)).toBe(700_00)
   })
 
   it('tapers within the first band', () => {
     // 70,000 − 0.04 × (4,000,000 − 3,750,000)
-    expect(lowIncomeTaxOffset(4_000_000, FIXTURE_CONFIG)).toBe(60_000)
+    expect(lowIncomeTaxOffset(40_000_00, FIXTURE_CONFIG)).toBe(600_00)
   })
 
   it('tapers across both bands', () => {
     // 70,000 − [0.04 × (4,500,000 − 3,750,000) + 0.01 × (6,000,000 − 4,500,000)]
-    expect(lowIncomeTaxOffset(6_000_000, FIXTURE_CONFIG)).toBe(25_000)
+    expect(lowIncomeTaxOffset(60_000_00, FIXTURE_CONFIG)).toBe(250_00)
   })
 
   it('floors at zero once fully tapered', () => {
-    expect(lowIncomeTaxOffset(9_000_000, FIXTURE_CONFIG)).toBe(0)
+    expect(lowIncomeTaxOffset(90_000_00, FIXTURE_CONFIG)).toBe(0)
   })
 })
 
 describe('medicareLevy', () => {
   it('charges nothing at or below the low-income threshold', () => {
-    expect(medicareLevy(2_400_000, FIXTURE_CONFIG)).toBe(0)
+    expect(medicareLevy(24_000_00, FIXTURE_CONFIG)).toBe(0)
   })
 
   it('phases in above the threshold', () => {
     // min(0.02 × 2,700,000, 0.10 × (2,700,000 − 2,400,000)) = min(54,000, 30,000)
-    expect(medicareLevy(2_700_000, FIXTURE_CONFIG)).toBe(30_000)
+    expect(medicareLevy(27_000_00, FIXTURE_CONFIG)).toBe(300_00)
   })
 
   it('reaches the full rate at the phase-in ceiling', () => {
     // 0.02 × 3,000,000 == 0.10 × (3,000,000 − 2,400,000) == 60,000
-    expect(medicareLevy(3_000_000, FIXTURE_CONFIG)).toBe(60_000)
+    expect(medicareLevy(30_000_00, FIXTURE_CONFIG)).toBe(600_00)
   })
 
   it('charges the full rate well above the ceiling', () => {
-    expect(medicareLevy(4_000_000, FIXTURE_CONFIG)).toBe(80_000)
+    expect(medicareLevy(40_000_00, FIXTURE_CONFIG)).toBe(800_00)
   })
 })
 
 describe('medicareLevySurcharge', () => {
   it('is exempt with private hospital cover', () => {
-    expect(medicareLevySurcharge(15_000_000, true, FIXTURE_CONFIG)).toBe(0)
+    expect(medicareLevySurcharge(150_000_00, true, FIXTURE_CONFIG)).toBe(0)
   })
 
   it('charges nothing below the first tier', () => {
-    expect(medicareLevySurcharge(8_000_000, false, FIXTURE_CONFIG)).toBe(0)
+    expect(medicareLevySurcharge(80_000_00, false, FIXTURE_CONFIG)).toBe(0)
   })
 
   it('applies the first tier rate to the whole income', () => {
-    expect(medicareLevySurcharge(10_000_000, false, FIXTURE_CONFIG)).toBe(100_000)
+    expect(medicareLevySurcharge(100_000_00, false, FIXTURE_CONFIG)).toBe(1_000_00)
   })
 
   it('applies the second tier rate', () => {
-    expect(medicareLevySurcharge(11_000_000, false, FIXTURE_CONFIG)).toBe(137_500)
+    expect(medicareLevySurcharge(110_000_00, false, FIXTURE_CONFIG)).toBe(1_375_00)
   })
 
   it('applies the top tier rate', () => {
-    expect(medicareLevySurcharge(15_000_000, false, FIXTURE_CONFIG)).toBe(225_000)
+    expect(medicareLevySurcharge(150_000_00, false, FIXTURE_CONFIG)).toBe(2_250_00)
   })
 })
 
 describe('helpRepayment', () => {
   it('charges nothing at or below the first band floor', () => {
-    expect(helpRepayment(4_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(0)
-    expect(helpRepayment(5_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(0)
+    expect(helpRepayment(40_000_00, 50_000_00, FIXTURE_CONFIG)).toBe(0)
+    expect(helpRepayment(50_000_00, 50_000_00, FIXTURE_CONFIG)).toBe(0)
   })
 
   it('charges the marginal rate only on income above the floor', () => {
     // 0.10 × (6,000,000 − 5,000,000)
-    expect(helpRepayment(6_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(100_000)
+    expect(helpRepayment(60_000_00, 50_000_00, FIXTURE_CONFIG)).toBe(1_000_00)
   })
 
   it('accumulates marginal rates across bands', () => {
     // 0.10 × (8,000,000 − 5,000,000) + 0.30 × (9,000,000 − 8,000,000)
-    expect(helpRepayment(9_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(600_000)
+    expect(helpRepayment(90_000_00, 50_000_00, FIXTURE_CONFIG)).toBe(6_000_00)
   })
 
   it('caps the repayment at the maximum rate of whole income', () => {
     // marginal = 0.10 × 3,000,000 + 0.30 × 12,000,000 = 3,900,000;
     // cap = 0.15 × 20,000,000 = 3,000,000, which binds.
-    expect(helpRepayment(20_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(3_000_000)
+    expect(helpRepayment(200_000_00, 50_000_00, FIXTURE_CONFIG)).toBe(30_000_00)
   })
 
   it('caps the repayment at the outstanding debt', () => {
-    expect(helpRepayment(20_000_000, 50_000, FIXTURE_CONFIG)).toBe(50_000)
+    expect(helpRepayment(200_000_00, 500_00, FIXTURE_CONFIG)).toBe(500_00)
   })
 })
 
 describe('computeTax', () => {
   it('returns a zero liability and a refund below the tax-free threshold', () => {
     const result = computeTax(
-      inputForSalary(1_500_000, { paygWithheldCents: 100_000 }),
+      inputForSalary(15_000_00, { paygWithheldCents: 1_000_00 }),
       FIXTURE_CONFIG,
     )
     expect(result).toEqual({
-      taxableIncomeCents: 1_500_000,
+      taxableIncomeCents: 15_000_00,
       incomeTaxCents: 0,
-      litoOffsetCents: 70_000,
+      litoOffsetCents: 700_00,
       medicareLevyCents: 0,
       medicareLevySurchargeCents: 0,
       helpRepaymentCents: 0,
       totalLiabilityCents: 0,
-      paygWithheldCents: 100_000,
-      balanceCents: -100_000,
+      paygWithheldCents: 1_000_00,
+      balanceCents: -1_000_00,
     })
   })
 
   it('never lets the offset push net income tax below zero', () => {
     // Gross income tax 30,000 < LITO 70,000, so net income tax is floored at 0.
-    const result = computeTax(inputForSalary(2_000_000), FIXTURE_CONFIG)
-    expect(result.incomeTaxCents).toBe(30_000)
-    expect(result.litoOffsetCents).toBe(70_000)
+    const result = computeTax(inputForSalary(20_000_00), FIXTURE_CONFIG)
+    expect(result.incomeTaxCents).toBe(300_00)
+    expect(result.litoOffsetCents).toBe(700_00)
     expect(result.totalLiabilityCents).toBe(0)
   })
 
   it('computes an amount owing for a high earner with HELP debt', () => {
     const result = computeTax(
-      inputForSalary(10_000_000, { helpDebtCents: 2_000_000, paygWithheldCents: 2_000_000 }),
+      inputForSalary(100_000_00, { helpDebtCents: 20_000_00, paygWithheldCents: 20_000_00 }),
       FIXTURE_CONFIG,
     )
     expect(result).toEqual({
-      taxableIncomeCents: 10_000_000,
-      incomeTaxCents: 2_055_000,
+      taxableIncomeCents: 100_000_00,
+      incomeTaxCents: 20_550_00,
       litoOffsetCents: 0,
-      medicareLevyCents: 200_000,
-      medicareLevySurchargeCents: 100_000,
+      medicareLevyCents: 2_000_00,
+      medicareLevySurchargeCents: 1_000_00,
       // marginal: 0.10 × (8,000,000 − 5,000,000) + 0.30 × (10,000,000 − 8,000,000)
-      helpRepaymentCents: 900_000,
-      totalLiabilityCents: 3_255_000,
-      paygWithheldCents: 2_000_000,
-      balanceCents: 1_255_000,
+      helpRepaymentCents: 9_000_00,
+      totalLiabilityCents: 32_550_00,
+      paygWithheldCents: 20_000_00,
+      balanceCents: 12_550_00,
     })
   })
 
   it('computes an estimated refund with private cover and taper relief', () => {
     const result = computeTax(
-      inputForSalary(4_000_000, { privateHospitalCover: true, paygWithheldCents: 700_000 }),
+      inputForSalary(40_000_00, { privateHospitalCover: true, paygWithheldCents: 7_000_00 }),
       FIXTURE_CONFIG,
     )
     expect(result).toEqual({
-      taxableIncomeCents: 4_000_000,
-      incomeTaxCents: 330_000,
-      litoOffsetCents: 60_000,
-      medicareLevyCents: 80_000,
+      taxableIncomeCents: 40_000_00,
+      incomeTaxCents: 3_300_00,
+      litoOffsetCents: 600_00,
+      medicareLevyCents: 800_00,
       medicareLevySurchargeCents: 0,
       helpRepaymentCents: 0,
-      totalLiabilityCents: 350_000,
-      paygWithheldCents: 700_000,
-      balanceCents: -350_000,
+      totalLiabilityCents: 3_500_00,
+      paygWithheldCents: 7_000_00,
+      balanceCents: -3_500_00,
     })
   })
 })
@@ -310,8 +310,8 @@ describe('FY2027_CONFIG', () => {
   })
 
   it('charges no tax below the tax-free threshold', () => {
-    const result = computeTax(inputForSalary(1_500_000), FY2027_CONFIG)
-    expect(result.taxableIncomeCents).toBe(1_500_000)
+    const result = computeTax(inputForSalary(15_000_00), FY2027_CONFIG)
+    expect(result.taxableIncomeCents).toBe(15_000_00)
     expect(result.incomeTaxCents).toBe(0)
     expect(result.medicareLevyCents).toBe(0)
     expect(result.totalLiabilityCents).toBe(0)
@@ -319,29 +319,29 @@ describe('FY2027_CONFIG', () => {
 
   it('applies the 15% lowest rate from 1 July 2026', () => {
     // Tax at $45,000 = 15c per $1 over $18,200 = 0.15 × 26,800 = $4,020.
-    expect(incomeTax(4_500_000, FY2027_CONFIG)).toBe(402_000)
+    expect(incomeTax(45_000_00, FY2027_CONFIG)).toBe(4_020_00)
     // Tax at $190,000 = $51,370 (the 2025-26 $51,638 less 1% of $26,800).
-    expect(incomeTax(19_000_000, FY2027_CONFIG)).toBe(5_137_000)
+    expect(incomeTax(190_000_00, FY2027_CONFIG)).toBe(51_370_00)
   })
 
   it('computes a mid-bracket earner with HELP debt and private cover', () => {
     const result = computeTax(
-      inputForSalary(8_000_000, { privateHospitalCover: true, helpDebtCents: 3_000_000 }),
+      inputForSalary(80_000_00, { privateHospitalCover: true, helpDebtCents: 30_000_00 }),
       FY2027_CONFIG,
     )
-    expect(result.incomeTaxCents).toBe(1_452_000)
-    expect(result.medicareLevyCents).toBe(160_000)
+    expect(result.incomeTaxCents).toBe(14_520_00)
+    expect(result.medicareLevyCents).toBe(1_600_00)
     expect(result.medicareLevySurchargeCents).toBe(0) // private cover exempts
     // Marginal HELP: 15c per $1 over $69,528 = 0.15 × $10,472 = $1,570.80.
-    expect(result.helpRepaymentCents).toBe(157_080)
-    expect(result.totalLiabilityCents).toBe(1_769_080)
+    expect(result.helpRepaymentCents).toBe(1_570_80)
+    expect(result.totalLiabilityCents).toBe(17_690_80)
   })
 
   it('applies the top surcharge tier to a high earner without cover', () => {
-    const withoutCover = computeTax(inputForSalary(20_000_000), FY2027_CONFIG)
-    expect(withoutCover.medicareLevySurchargeCents).toBe(300_000) // 1.5% × $200,000
+    const withoutCover = computeTax(inputForSalary(200_000_00), FY2027_CONFIG)
+    expect(withoutCover.medicareLevySurchargeCents).toBe(3_000_00) // 1.5% × $200,000
     const withCover = computeTax(
-      inputForSalary(20_000_000, { privateHospitalCover: true }),
+      inputForSalary(200_000_00, { privateHospitalCover: true }),
       FY2027_CONFIG,
     )
     expect(withCover.medicareLevySurchargeCents).toBe(0)
@@ -349,11 +349,11 @@ describe('FY2027_CONFIG', () => {
 
   it('caps HELP at 10% of repayment income for very high earners', () => {
     // $250,000: marginal exceeds the 10% cap, so repayment = 10% × $250,000.
-    expect(helpRepayment(25_000_000, 5_000_000_00, FY2027_CONFIG)).toBe(2_500_000)
+    expect(helpRepayment(250_000_00, 5_000_000_00, FY2027_CONFIG)).toBe(25_000_00)
   })
 
   it('gives the maximum LITO below the first taper threshold', () => {
-    expect(lowIncomeTaxOffset(3_000_000, FY2027_CONFIG)).toBe(70_000)
-    expect(lowIncomeTaxOffset(6_666_700, FY2027_CONFIG)).toBe(0) // cuts out at $66,667
+    expect(lowIncomeTaxOffset(30_000_00, FY2027_CONFIG)).toBe(700_00)
+    expect(lowIncomeTaxOffset(66_667_00, FY2027_CONFIG)).toBe(0) // cuts out at $66,667
   })
 })

@@ -26,10 +26,10 @@ export const FY2027_CONFIG: TaxYearConfig = {
   // Thresholds and the 30/37/45% rates carry the 2025-26 schedule unchanged:
   //   https://www.ato.gov.au/tax-rates-and-codes/tax-rates-australian-residents
   brackets: [
-    { upToCents: 1_820_000, rate: 0.0 }, // $0 – $18,200
-    { upToCents: 4_500_000, rate: 0.15 }, // $18,201 – $45,000
-    { upToCents: 13_500_000, rate: 0.3 }, // $45,001 – $135,000
-    { upToCents: 19_000_000, rate: 0.37 }, // $135,001 – $190,000
+    { upToCents: 18_200_00, rate: 0.0 }, // $0 – $18,200
+    { upToCents: 45_000_00, rate: 0.15 }, // $18,201 – $45,000
+    { upToCents: 135_000_00, rate: 0.3 }, // $45,001 – $135,000
+    { upToCents: 190_000_00, rate: 0.37 }, // $135,001 – $190,000
     { upToCents: null, rate: 0.45 }, // $190,001 +
   ],
 
@@ -44,7 +44,7 @@ export const FY2027_CONFIG: TaxYearConfig = {
   // upper $77,028 — same sources, likewise 2025-26 PROVISIONAL.
   medicareLevy: {
     rate: 0.02,
-    lowIncomeThresholdCents: 2_801_100, // $28,011 (2025-26, PROVISIONAL)
+    lowIncomeThresholdCents: 28_011_00, // $28,011 (2025-26, PROVISIONAL)
     phaseInRate: 0.1,
   },
 
@@ -55,21 +55,21 @@ export const FY2027_CONFIG: TaxYearConfig = {
   //   https://www.ato.gov.au/individuals-and-families/medicare-and-private-health-insurance/medicare-levy-surcharge/medicare-levy-surcharge-income-thresholds-and-rates
   medicareLevySurcharge: {
     tiers: [
-      { incomeOverCents: 10_500_000, familyIncomeOverCents: 21_000_000, rate: 0.01 },
-      { incomeOverCents: 12_300_000, familyIncomeOverCents: 24_600_000, rate: 0.0125 },
-      { incomeOverCents: 16_400_000, familyIncomeOverCents: 32_800_000, rate: 0.015 },
+      { incomeOverCents: 105_000_00, familyIncomeOverCents: 210_000_00, rate: 0.01 },
+      { incomeOverCents: 123_000_00, familyIncomeOverCents: 246_000_00, rate: 0.0125 },
+      { incomeOverCents: 164_000_00, familyIncomeOverCents: 328_000_00, rate: 0.015 },
     ],
-    familyDependentChildIncrementCents: 150_000, // +$1,500 per child after first
+    familyDependentChildIncrementCents: 1_500_00, // +$1,500 per child after first
   },
 
   // Low Income Tax Offset: max $700; 5c/$1 over $37,500, then 1.5c/$1 over
   // $45,000; cuts out at $66,667. Legislated, not indexed.
   //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/tax-offsets/low-income-tax-offset
   lito: {
-    maxOffsetCents: 70_000, // $700
+    maxOffsetCents: 700_00, // $700
     taperRules: [
-      { incomeOverCents: 3_750_000, reductionPerDollar: 0.05 }, // over $37,500
-      { incomeOverCents: 4_500_000, reductionPerDollar: 0.015 }, // over $45,000
+      { incomeOverCents: 37_500_00, reductionPerDollar: 0.05 }, // over $37,500
+      { incomeOverCents: 45_000_00, reductionPerDollar: 0.015 }, // over $45,000
     ],
   },
 
@@ -83,8 +83,8 @@ export const FY2027_CONFIG: TaxYearConfig = {
   //   https://www.ato.gov.au/tax-rates-and-codes/study-and-training-support-loans-rates-and-repayment-thresholds
   helpRepayment: {
     marginalBands: [
-      { incomeOverCents: 6_952_800, rate: 0.15 }, // over $69,528
-      { incomeOverCents: 12_971_700, rate: 0.17 }, // over $129,717
+      { incomeOverCents: 69_528_00, rate: 0.15 }, // over $69,528
+      { incomeOverCents: 129_717_00, rate: 0.17 }, // over $129,717
     ],
     maxRepaymentRate: 0.1,
   },

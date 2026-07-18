@@ -31,7 +31,11 @@ versioned config per financial year, because AU rates and thresholds change year
 5. **Medicare levy surcharge** — income-tested; applies only without private
    hospital cover and above the surcharge threshold.
 6. **HELP/HECS repayment** — income-tested compulsory repayment on repayment
-   income, using the year's rate schedule.
+   income. From 1 July 2025 (FY2026 onward) it is **marginal**: a rate applies to
+   repayment income within each band above the first band's floor, and the total
+   is capped at a maximum fraction of the whole repayment income (the cap binds
+   only at high incomes, reproducing the ATO's whole-of-income top band). Capped
+   at the outstanding debt.
 7. **Total liability** = income tax − offsets + Medicare levy + surcharge +
    HELP repayment.
 8. **Balance** = total liability − PAYG withheld. Positive = amount owing;
@@ -58,13 +62,23 @@ lito:
   max_offset_cents: ...
   taper_rules: [ ... ]
 help_repayment:
-  rates: [ { income_over_cents, rate } ]
+  marginal_bands: [ { income_over_cents, rate } ]  # marginal, ordered by floor
+  max_repayment_rate: 0.10                          # cap on whole repayment income
 super_guarantee_rate: 0.12
 ```
 
 > **Values above are illustrative.** Each FY's real figures must be sourced from
 > the ATO and stored as a config record. The engine reads config; it never assumes
 > a rate. Ship one verified config per supported financial year.
+
+## Shipped configs
+
+- **FY2027** (`FY2027_CONFIG`, also in `configsByYear`) — a verified resident
+  config with real ATO figures for 2026-27, including the Budget top-up cut that
+  drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
+  carries its `ato.gov.au` source in a comment; figures the ATO has not yet
+  published for 2026-27 (the Medicare levy low-income thresholds) reuse the
+  2025-26 values and are flagged provisional. See `packages/tax/src/configs.ts`.
 
 ## Testing
 

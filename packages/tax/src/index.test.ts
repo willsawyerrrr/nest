@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeTax,
+  configsByYear,
   financialYearForDate,
+  FY2027_CONFIG,
   helpRepayment,
   incomeTax,
   lowIncomeTaxOffset,
@@ -34,10 +36,11 @@ const FIXTURE_CONFIG: TaxYearConfig = {
   },
   medicareLevySurcharge: {
     tiers: [
-      { incomeOverCents: 9_000_000, rate: 0.01 },
-      { incomeOverCents: 10_500_000, rate: 0.0125 },
-      { incomeOverCents: 14_000_000, rate: 0.015 },
+      { incomeOverCents: 9_000_000, familyIncomeOverCents: 18_000_000, rate: 0.01 },
+      { incomeOverCents: 10_500_000, familyIncomeOverCents: 21_000_000, rate: 0.0125 },
+      { incomeOverCents: 14_000_000, familyIncomeOverCents: 28_000_000, rate: 0.015 },
     ],
+    familyDependentChildIncrementCents: 150_000,
   },
   lito: {
     maxOffsetCents: 70_000,
@@ -47,11 +50,11 @@ const FIXTURE_CONFIG: TaxYearConfig = {
     ],
   },
   helpRepayment: {
-    rates: [
-      { incomeOverCents: 5_000_000, rate: 0.01 },
-      { incomeOverCents: 7_000_000, rate: 0.02 },
-      { incomeOverCents: 10_000_000, rate: 0.05 },
+    marginalBands: [
+      { incomeOverCents: 5_000_000, rate: 0.1 },
+      { incomeOverCents: 8_000_000, rate: 0.3 },
     ],
+    maxRepaymentRate: 0.15,
   },
   superGuaranteeRate: 0.12,
 }
@@ -203,24 +206,29 @@ describe('medicareLevySurcharge', () => {
 })
 
 describe('helpRepayment', () => {
-  it('charges nothing below the first threshold', () => {
+  it('charges nothing at or below the first band floor', () => {
     expect(helpRepayment(4_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(0)
+    expect(helpRepayment(5_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(0)
   })
 
-  it('applies the first band rate to the whole repayment income', () => {
-    expect(helpRepayment(6_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(60_000)
+  it('charges the marginal rate only on income above the floor', () => {
+    // 0.10 × (6,000,000 − 5,000,000)
+    expect(helpRepayment(6_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(100_000)
   })
 
-  it('applies a higher band rate', () => {
-    expect(helpRepayment(8_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(160_000)
+  it('accumulates marginal rates across bands', () => {
+    // 0.10 × (8,000,000 − 5,000,000) + 0.30 × (9,000,000 − 8,000,000)
+    expect(helpRepayment(9_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(600_000)
   })
 
-  it('applies the top band rate', () => {
-    expect(helpRepayment(12_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(600_000)
+  it('caps the repayment at the maximum rate of whole income', () => {
+    // marginal = 0.10 × 3,000,000 + 0.30 × 12,000,000 = 3,900,000;
+    // cap = 0.15 × 20,000,000 = 3,000,000, which binds.
+    expect(helpRepayment(20_000_000, 5_000_000, FIXTURE_CONFIG)).toBe(3_000_000)
   })
 
   it('caps the repayment at the outstanding debt', () => {
-    expect(helpRepayment(12_000_000, 50_000, FIXTURE_CONFIG)).toBe(50_000)
+    expect(helpRepayment(20_000_000, 50_000, FIXTURE_CONFIG)).toBe(50_000)
   })
 })
 
@@ -262,10 +270,11 @@ describe('computeTax', () => {
       litoOffsetCents: 0,
       medicareLevyCents: 200_000,
       medicareLevySurchargeCents: 100_000,
-      helpRepaymentCents: 200_000,
-      totalLiabilityCents: 2_555_000,
+      // marginal: 0.10 × (8,000,000 − 5,000,000) + 0.30 × (10,000,000 − 8,000,000)
+      helpRepaymentCents: 900_000,
+      totalLiabilityCents: 3_255_000,
       paygWithheldCents: 2_000_000,
-      balanceCents: 555_000,
+      balanceCents: 1_255_000,
     })
   })
 
@@ -285,5 +294,66 @@ describe('computeTax', () => {
       paygWithheldCents: 700_000,
       balanceCents: -350_000,
     })
+  })
+})
+
+/**
+ * Sanity checks against the verified FY2027 config (real ATO figures). These
+ * assert known income points reproduce the ATO's published rules — not just the
+ * engine's arithmetic. See packages/tax/src/configs.ts for sources.
+ */
+describe('FY2027_CONFIG', () => {
+  it('is registered in configsByYear', () => {
+    expect(configsByYear[2027]).toBe(FY2027_CONFIG)
+    expect(FY2027_CONFIG.financialYear).toBe(2027)
+    expect(FY2027_CONFIG.residency).toBe('resident')
+  })
+
+  it('charges no tax below the tax-free threshold', () => {
+    const result = computeTax(inputForSalary(1_500_000), FY2027_CONFIG)
+    expect(result.taxableIncomeCents).toBe(1_500_000)
+    expect(result.incomeTaxCents).toBe(0)
+    expect(result.medicareLevyCents).toBe(0)
+    expect(result.totalLiabilityCents).toBe(0)
+  })
+
+  it('applies the 15% lowest rate from 1 July 2026', () => {
+    // Tax at $45,000 = 15c per $1 over $18,200 = 0.15 × 26,800 = $4,020.
+    expect(incomeTax(4_500_000, FY2027_CONFIG)).toBe(402_000)
+    // Tax at $190,000 = $51,370 (the 2025-26 $51,638 less 1% of $26,800).
+    expect(incomeTax(19_000_000, FY2027_CONFIG)).toBe(5_137_000)
+  })
+
+  it('computes a mid-bracket earner with HELP debt and private cover', () => {
+    const result = computeTax(
+      inputForSalary(8_000_000, { privateHospitalCover: true, helpDebtCents: 3_000_000 }),
+      FY2027_CONFIG,
+    )
+    expect(result.incomeTaxCents).toBe(1_452_000)
+    expect(result.medicareLevyCents).toBe(160_000)
+    expect(result.medicareLevySurchargeCents).toBe(0) // private cover exempts
+    // Marginal HELP: 15c per $1 over $69,528 = 0.15 × $10,472 = $1,570.80.
+    expect(result.helpRepaymentCents).toBe(157_080)
+    expect(result.totalLiabilityCents).toBe(1_769_080)
+  })
+
+  it('applies the top surcharge tier to a high earner without cover', () => {
+    const withoutCover = computeTax(inputForSalary(20_000_000), FY2027_CONFIG)
+    expect(withoutCover.medicareLevySurchargeCents).toBe(300_000) // 1.5% × $200,000
+    const withCover = computeTax(
+      inputForSalary(20_000_000, { privateHospitalCover: true }),
+      FY2027_CONFIG,
+    )
+    expect(withCover.medicareLevySurchargeCents).toBe(0)
+  })
+
+  it('caps HELP at 10% of repayment income for very high earners', () => {
+    // $250,000: marginal exceeds the 10% cap, so repayment = 10% × $250,000.
+    expect(helpRepayment(25_000_000, 5_000_000_00, FY2027_CONFIG)).toBe(2_500_000)
+  })
+
+  it('gives the maximum LITO below the first taper threshold', () => {
+    expect(lowIncomeTaxOffset(3_000_000, FY2027_CONFIG)).toBe(70_000)
+    expect(lowIncomeTaxOffset(6_666_700, FY2027_CONFIG)).toBe(0) // cuts out at $66,667
   })
 })

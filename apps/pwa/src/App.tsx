@@ -64,6 +64,16 @@ function AuthedApp({ session }: { session: Session }) {
           }
           await reload()
         }}
+        onJoin={async (code, memberName) => {
+          const { error } = await supabase.rpc('join_household', {
+            p_code: code,
+            p_member_name: memberName,
+          })
+          if (error) {
+            throw error
+          }
+          await reload()
+        }}
       />
     )
   }
@@ -71,6 +81,7 @@ function AuthedApp({ session }: { session: Session }) {
   return (
     <HomeScreen
       householdName={household.name}
+      inviteCode={household.invite_code}
       email={session.user.email ?? ''}
       onSignOut={() => void supabase.auth.signOut()}
     />

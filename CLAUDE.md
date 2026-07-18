@@ -19,6 +19,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   package.
 - Transaction sources: Up Bank API + manual entry; ingestion is source-agnostic.
 - Tax: full AU income tax, versioned per financial year.
+- Single shared household: the two partners share ONE household — no
+  multi-household UI (no picker or switcher). `household_id` + RLS remain to
+  isolate the household's data from all other Supabase users. A partner joins the
+  household via an invite code (`join_household` RPC); no email infrastructure.
 
 ## Conventions
 

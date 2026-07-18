@@ -1,8 +1,9 @@
 # Budget & savings
 
 The plan-only, fortnightly budget: how money in (inflows) is classified for tax,
-how it is allocated across grouped budget lines, and how savings goals and
-short-lived temporary items accumulate toward a target. It replaces the
+how it is allocated across grouped budget lines, how savings goals project
+toward a target, and how short-lived temporary items run until a target date. It
+replaces the
 household's spreadsheet with no transaction data — projections only. Actual-spend
 reconciliation arrives later with Up ingestion.
 
@@ -64,25 +65,32 @@ A budget line = `household_id`, `group`, `name`, `amount` + `frequency`
 
 ## Targets — goals & temporary items
 
-A goal and a temporary item are the same underlying mechanic: **accumulate a
-contribution toward a target**. They share one foundation with two flavors.
+A goal and a temporary item are both budget lines with a completion condition,
+but they differ in how completion is defined: a **goal is target-driven** (an
+app-projected progress toward a target amount), while a **temporary item is
+date-driven** (an active outflow until a target date, with no app-side funding
+math).
 
 ### Savings goal (persists)
 
 - Fields: `name`, `target amount`, optional `target date`, `current balance`
   (entered manually for now; sourced from real balances later via ingestion).
 - A Savings budget line links to a goal. Allow **many lines → one goal**; the
-  goal's fortnightly contribution is the sum of its linked lines.
+  goal's fortnightly contribution is the sum of its linked lines. Only the
+  contribution is entered, never derived.
 - Progress and ETA are projected from `current + contribution × fortnights`.
 
-### Temporary item (self-expiring)
+### Temporary item (date-driven)
 
-- Fields: `name`, `target`, `fortnightly contribution` **or** `target date` (set
-  one, derive the other), `start date`.
-- It is a fortnightly outflow while active.
-- **Auto-expires** when funded (`contribution × fortnights ≥ target`) or once the
-  end date passes, then drops out of the live fortnightly buffer.
-- A manual "done" override marks it complete early.
+- The app does **not** calculate contributions, funding, or expiry from a target
+  amount. An **external source of truth** (e.g. an Up Saver or Maybuy) owns the
+  actual balance saved toward the item.
+- Fields: `name`, `contribution` (the fortnightly amount put in — a budget
+  outflow in the Temporary group), `target date`.
+- **Expiry is date-driven:** the item is an active fortnightly outflow until its
+  target date, after which it drops out of the live fortnightly buffer. There is
+  no auto-expire-when-funded calculation and no app-owned target-amount funding
+  math.
 
 ## Summary / reconciliation
 
@@ -125,15 +133,16 @@ income tables.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),
     `current_cents` (manual for now).
   - Many budget lines link to one goal.
-- **TemporaryItem** — a self-expiring target.
-  - `id`, `household_id`, `name`, `target_cents`, `contribution_cents`
-    (fortnightly) or `target_date`, `start_date`, `done` (manual override).
+- **TemporaryItem** — a date-driven budget line.
+  - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
+    `target_date`.
 
 ### Derived / computed (not stored)
 
 - Fortnightly and annual normalization of every inflow and budget line.
 - Summary reconciliation (Available, Outgoings, Savings block, buffer, portions).
-- Goal progress and ETA; temporary-item funded/expiry state.
+- Goal progress and ETA; temporary-item active/expired state from its target
+  date.
 
 ## Computation
 
@@ -146,8 +155,8 @@ database access. It handles:
   buffer, and per-group portions.
 - **Goal projection** — progress and ETA from current balance, summed
   contribution, and target.
-- **Temporary projection** — derive contribution from date (or vice versa) and
-  compute funded/expiry state.
+- **Temporary expiry** — determine whether a temporary item is still an active
+  fortnightly outflow from its target date.
 
 ## UI (Mantine, mobile-first)
 
@@ -166,8 +175,8 @@ Navigation stays state-based (no router) for now.
    types.
 2. **Budget + goals + temporary schema** — budget lines with groups; savings
    goals; temporary items. RLS, tests, types.
-3. **`@budget/plan`** — pure computation package (normalization, summary,
-   goal/temporary projection) + tests.
+3. **`@budget/plan`** — pure computation package (normalization, summary, goal
+   projection, temporary expiry) + tests.
 4. **Budget CRUD UI.**
 5. **Summary / reconciliation UI.**
 6. **Goals + Temporary UI.**

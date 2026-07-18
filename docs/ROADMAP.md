@@ -12,10 +12,17 @@ plan against reality.
 - **All household members manage everything** — RLS is gated on household
   membership only; member attribution on a record is a tax/reporting tag, not a
   permission.
-- **Income is projection-based.** The household owns many incomes, each a salary
-  (annual gross), a wage (rate × standard hours), or other regular income, on a
-  schedule, and each tagged to a member for tax. Projections, not reconciled
-  against actual deposits.
+- **Money-in is modelled as inflows.** The household owns many projection-based
+  inflows, each on a schedule, split by taxability:
+  - **Taxable income** — a salary (annual gross), a wage (rate × standard hours),
+    or other regular income, each tagged to a member and feeding the tax estimate
+    (AU tax is assessed per person).
+  - **Non-taxable inflows** — money in excluded from tax (e.g. a work
+    reimbursement) that adds directly to available cash; no member tag required,
+    and more kinds are expected.
+
+  Inflows are projections, not reconciled against actual deposits. Future
+  enhancement: assign an inflow to a budget category to net against that spend.
 - **Tax is estimate-only.** Per-person estimated liability and take-home from
   projected income; models HELP repayment and private-hospital cover. Target
   financial year: FY2027. Tracking actual tax paid is deferred.
@@ -39,29 +46,37 @@ plan against reality.
 - Ledger schema: accounts, transactions, categories (schema only).
 - Income + tax-profile schema.
 - Verified FY2027 tax config + marginal HELP model; pure tax engine.
+- Inflows model: taxable / non-taxable split, member-tagged taxable income,
+  quarterly and biannual schedules; only taxable inflows feed the tax estimate.
+- Income + tax-estimate UI: inflow management and the tax view (per-person
+  breakdown + household take-home, annual and fortnightly).
+- Budget, savings-goal, and temporary-item schema (RLS, tests, types).
+- `@budget/plan` pure math package: schedule normalization, summary
+  reconciliation, goal projection, temporary expiry.
+- Mantine mobile-first restyle.
 - Up Bank sync scaffold (not yet functional).
 
-## Now — Income + tax estimate
+## Now — Budget (plan-only)
 
-- [x] `income` + `tax_profile` schema (RLS, tests, types).
-- [x] Verified FY2027 tax config (real ATO figures) + marginal HELP model.
-- [ ] Tax computation: annualize incomes → per-person + household estimate.
-- [ ] Income management UI.
-- [ ] Tax-estimate view (per-person breakdown + household take-home, annual and
-      fortnightly).
+The income + tax-estimate slice is complete; the budget schema and `@budget/plan`
+math are done, and the Budget UI is in progress. This finishes the outgoings side
+of the plan.
 
-## Next — Budget + summary (plan-only)
+- [ ] Budget CRUD UI: grouped-line management (Needs / Wants / Discretionary /
+      Temporary / Savings / Investments), each line amount + frequency normalised
+      to a fortnight.
 
-- [ ] Extend the schedule enum with quarterly and biannual.
-- [ ] Budget model: grouped categories with amount + frequency per line,
-      normalised to fortnightly.
-- [ ] Summary reconciliation: after-tax income − outgoings − savings = remaining
-      buffer, with each group's fortnightly / annual / portion.
+## Next — Summary + reconciliation (plan-only)
+
+- [ ] Summary UI: after-tax income + non-taxable inflows − outgoings − savings
+      block = remaining buffer, with each group's fortnightly / annual / portion.
 
 ## Then — Savings goals
 
-- [ ] Goals with target amounts and dates.
-- [ ] Fortnightly contributions linked to goals; Temporary items with expiry.
+- [ ] Goals UI: target amounts and dates, manual current balance, projected
+      progress + ETA; link Savings lines to a goal.
+- [ ] Temporary items: date-driven fortnightly outflows that expire at a target
+      date.
 
 ## Later — Up ingestion + reconciliation
 

@@ -26,8 +26,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tax/reporting tag, not a permission. `household_id` + RLS isolate the
   household's data from all other Supabase users. A partner joins via an invite
   code (`join_household` RPC); no email infrastructure.
-- Income: the household owns many projection-based incomes — each a salary,
-  wage, or other regular income on a schedule — each tagged to a member for tax.
+- Inflows: the household owns many projection-based inflows, split by taxability
+  — taxable income (salary, wage, or other regular income on a schedule, each
+  tagged to a member for tax) and non-taxable inflows (e.g. reimbursements,
+  excluded from tax and added to available cash).
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027.

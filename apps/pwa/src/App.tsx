@@ -17,8 +17,11 @@ import { useInflows, type Inflow } from './hooks/useInflows'
 import { useTaxProfiles, type TaxProfile } from './hooks/useTaxProfiles'
 import { SignInScreen } from './components/SignInScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
+import { useBudgetLines } from './hooks/useBudgetLines'
+import { useTemporaryItems } from './hooks/useTemporaryItems'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
+import { BudgetScreen } from './components/BudgetScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import './App.css'
 
@@ -104,11 +107,12 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'home' | 'inflows' | 'tax'
+type View = 'home' | 'inflows' | 'budget' | 'tax'
 
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'home', label: 'Home' },
   { view: 'inflows', label: 'Inflows' },
+  { view: 'budget', label: 'Budget' },
   { view: 'tax', label: 'Tax' },
 ]
 
@@ -127,6 +131,8 @@ function HouseholdApp({ household, session }: { household: Household; session: S
           />
         ) : view === 'inflows' ? (
           <InflowsSection householdId={household.id} />
+        ) : view === 'budget' ? (
+          <BudgetSection householdId={household.id} />
         ) : (
           <TaxSection householdId={household.id} />
         )}
@@ -178,6 +184,28 @@ function InflowsSection({ householdId }: { householdId: string }) {
       onUpdateInflow={inflows.update}
       onDeleteInflow={inflows.remove}
       onUpsertTaxProfile={taxProfiles.upsert}
+    />
+  )
+}
+
+function BudgetSection({ householdId }: { householdId: string }) {
+  const budgetLines = useBudgetLines(householdId)
+  const temporaryItems = useTemporaryItems(householdId)
+
+  if (budgetLines.loading || temporaryItems.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <BudgetScreen
+      lines={budgetLines.lines ?? []}
+      temporaryItems={temporaryItems.items ?? []}
+      onCreateLine={budgetLines.create}
+      onUpdateLine={budgetLines.update}
+      onDeleteLine={budgetLines.remove}
+      onCreateItem={temporaryItems.create}
+      onUpdateItem={temporaryItems.update}
+      onDeleteItem={temporaryItems.remove}
     />
   )
 }

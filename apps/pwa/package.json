@@ -11,10 +11,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@budget/plan": "workspace:*",
     "@budget/tax": "workspace:*",
     "@mantine/core": "^9.4.1",
+    "@mantine/dates": "^9.4.1",
     "@mantine/hooks": "^9.4.1",
     "@supabase/supabase-js": "^2.47.10",
+    "dayjs": "^1.11.13",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

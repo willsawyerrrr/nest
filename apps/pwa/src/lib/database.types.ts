@@ -160,7 +160,7 @@ export type Database = {
         }
         Relationships: []
       }
-      income: {
+      inflows: {
         Row: {
           amount_cents: number | null
           created_at: string
@@ -168,10 +168,11 @@ export type Database = {
           hours_per_period: number | null
           household_id: string
           id: string
-          member_id: string
+          member_id: string | null
           name: string
-          schedule: Database['public']['Enums']['income_schedule']
-          type: Database['public']['Enums']['income_type']
+          schedule: Database['public']['Enums']['frequency']
+          taxable: boolean
+          type: Database['public']['Enums']['inflow_type']
           updated_at: string
         }
         Insert: {
@@ -181,10 +182,11 @@ export type Database = {
           hours_per_period?: number | null
           household_id: string
           id?: string
-          member_id: string
+          member_id?: string | null
           name: string
-          schedule: Database['public']['Enums']['income_schedule']
-          type: Database['public']['Enums']['income_type']
+          schedule: Database['public']['Enums']['frequency']
+          taxable?: boolean
+          type: Database['public']['Enums']['inflow_type']
           updated_at?: string
         }
         Update: {
@@ -194,22 +196,23 @@ export type Database = {
           hours_per_period?: number | null
           household_id?: string
           id?: string
-          member_id?: string
+          member_id?: string | null
           name?: string
-          schedule?: Database['public']['Enums']['income_schedule']
-          type?: Database['public']['Enums']['income_type']
+          schedule?: Database['public']['Enums']['frequency']
+          taxable?: boolean
+          type?: Database['public']['Enums']['inflow_type']
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'income_household_id_fkey'
+            foreignKeyName: 'inflows_household_id_fkey'
             columns: ['household_id']
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'income_member_id_household_id_fkey'
+            foreignKeyName: 'inflows_member_id_household_id_fkey'
             columns: ['member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'
@@ -407,8 +410,8 @@ export type Database = {
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
       category_kind: 'income' | 'expense'
-      income_schedule: 'weekly' | 'fortnightly' | 'monthly' | 'annual'
-      income_type: 'salary' | 'wage' | 'other'
+      frequency: 'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual'
+      inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement'
       ledger_source: 'up' | 'manual'
       tax_residency: 'resident' | 'foreign_resident'
       transaction_kind: 'income' | 'expense' | 'transfer'
@@ -539,8 +542,8 @@ export const Constants = {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
       category_kind: ['income', 'expense'],
-      income_schedule: ['weekly', 'fortnightly', 'monthly', 'annual'],
-      income_type: ['salary', 'wage', 'other'],
+      frequency: ['weekly', 'fortnightly', 'monthly', 'annual', 'quarterly', 'biannual'],
+      inflow_type: ['salary', 'wage', 'other', 'reimbursement'],
       ledger_source: ['up', 'manual'],
       tax_residency: ['resident', 'foreign_resident'],
       transaction_kind: ['income', 'expense', 'transfer'],

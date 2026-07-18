@@ -61,7 +61,7 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
 
       {estimate.annualGrossCents === 0 ? (
         <Text c="dimmed">
-          No income to estimate yet. Add income on the Income tab to see a tax estimate.
+          No income to estimate yet. Add a taxable inflow on the Inflows tab to see a tax estimate.
         </Text>
       ) : wide ? (
         <Table.ScrollContainer minWidth={0}>

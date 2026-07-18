@@ -6,10 +6,11 @@
 \set ON_ERROR_STOP on
 begin;
 
--- Two users in separate households: Alice and Bob.
+-- Three users: Alice and Bob start in separate households; Carol later joins Alice.
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'alice@example.com'),
-  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'bob@example.com');
+  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'bob@example.com'),
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'carol@example.com');
 
 -- ── Act as Alice ─────────────────────────────────────────────────────────────
 set local role authenticated;
@@ -17,6 +18,9 @@ select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-1111111
 
 select public.create_household('Alice House', 'Alice') as hid \gset
 select set_config('test.hid', :'hid', false);
+
+select invite_code as code from public.households where id = current_setting('test.hid')::uuid \gset
+select set_config('test.code', :'code', false);
 
 do $$ begin
   assert (select count(*) from public.households) = 1, 'Alice should see exactly her household';
@@ -54,6 +58,23 @@ begin
 exception
   when insufficient_privilege then
     raise notice 'PASS: Bob blocked from inserting into Alice''s household';
+end $$;
+
+-- ── Act as Carol: join Alice's household by invite code ──────────────────────
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","email":"carol@example.com"}', true);
+
+do $$ begin
+  assert (select count(*) from public.households) = 0, 'Carol must not see Alice''s household before joining';
+end $$;
+
+select public.join_household(current_setting('test.code'), 'Carol');
+
+do $$ begin
+  assert (select count(*) from public.households) = 1, 'Carol should see Alice''s household after joining';
+  assert (select id from public.households) = current_setting('test.hid')::uuid, 'Carol should be in Alice''s household';
+  assert (select count(*) from public.members) = 2, 'Carol should see both herself and Alice';
+  assert (select count(*) from public.accounts) = 1, 'Carol should see Alice''s account';
+  assert (select count(*) from public.transactions) = 1, 'Carol should see Alice''s transaction';
 end $$;
 
 rollback;

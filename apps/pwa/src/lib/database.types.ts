@@ -137,6 +137,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          invite_code: string
           name: string
           timezone: string
           updated_at: string
@@ -144,6 +145,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          invite_code?: string
           name: string
           timezone?: string
           updated_at?: string
@@ -151,6 +153,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          invite_code?: string
           name?: string
           timezone?: string
           updated_at?: string
@@ -288,6 +291,10 @@ export type Database = {
         Returns: string
       }
       household_ids_for_current_user: { Args: never; Returns: string[] }
+      join_household: {
+        Args: { p_code: string; p_member_name: string }
+        Returns: string
+      }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'

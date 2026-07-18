@@ -4,6 +4,8 @@
  * computation lives in exactly one place. Pure — no I/O, no side effects.
  */
 
+export { FY2027_CONFIG, configsByYear } from './configs'
+
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number
 
@@ -52,29 +54,37 @@ export interface MedicareLevyConfig {
 
 /**
  * Medicare levy surcharge tiers, ordered ascending by threshold. The surcharge
- * applies the rate of the highest tier whose `incomeOverCents` the income
+ * applies the rate of the highest tier whose single `incomeOverCents` the income
  * exceeds, to the whole income (it is not marginal).
  */
 export interface MedicareLevySurchargeConfig {
   readonly tiers: readonly MedicareLevySurchargeTier[]
+  /** Family threshold increase per MLS dependent child after the first. */
+  readonly familyDependentChildIncrementCents: Money
 }
 
 /** One Medicare levy surcharge tier. */
 export interface MedicareLevySurchargeTier {
+  /** Single income floor above which this tier's `rate` applies. */
   readonly incomeOverCents: Money
+  /** Family income floor for the same tier; carried for household modelling. */
+  readonly familyIncomeOverCents: Money
   readonly rate: number
 }
 
 /**
- * HELP/HECS compulsory repayment schedule, ordered ascending by threshold. The
- * repayment applies the rate of the highest band whose `incomeOverCents` the
- * repayment income exceeds, to the whole repayment income.
+ * HELP/HECS compulsory repayment schedule. From 1 July 2025 the repayment is
+ * marginal: `rate` applies to repayment income within each band above that
+ * band's floor, and the total is then capped at `maxRepaymentRate` of the whole
+ * repayment income (the cap binds only at high incomes). Bands are ordered
+ * ascending by floor; no repayment is due at or below the first band's floor.
  */
 export interface HelpRepaymentConfig {
-  readonly rates: readonly HelpRepaymentBand[]
+  readonly marginalBands: readonly HelpRepaymentBand[]
+  readonly maxRepaymentRate: number
 }
 
-/** One HELP/HECS repayment band. */
+/** One marginal HELP/HECS band: `rate` on repayment income above `incomeOverCents`. */
 export interface HelpRepaymentBand {
   readonly incomeOverCents: Money
   readonly rate: number
@@ -219,6 +229,8 @@ export function medicareLevySurcharge(
 
 /**
  * Computes the compulsory HELP/HECS repayment, capped at the outstanding debt.
+ * Marginal across `marginalBands`, then limited to `maxRepaymentRate` of the
+ * whole repayment income; nil at or below the first band's floor.
  * Simplification: repayment income is taken as taxable income (per docs/TAX.md it
  * technically also includes reportable super and net investment losses, modelled
  * as a follow-up).
@@ -228,13 +240,19 @@ export function helpRepayment(
   helpDebtCents: Money,
   config: TaxYearConfig,
 ): Money {
-  let rate = 0
-  for (const band of config.helpRepayment.rates) {
+  const { marginalBands, maxRepaymentRate } = config.helpRepayment
+  let marginal = 0
+  for (let i = 0; i < marginalBands.length; i++) {
+    const band = marginalBands[i]!
     if (repaymentIncomeCents <= band.incomeOverCents) break
-    rate = band.rate
+    const next = marginalBands[i + 1]
+    const bandTop = next
+      ? Math.min(repaymentIncomeCents, next.incomeOverCents)
+      : repaymentIncomeCents
+    marginal += (bandTop - band.incomeOverCents) * band.rate
   }
-  const repayment = roundCents(repaymentIncomeCents * rate)
-  return Math.min(repayment, Math.max(0, helpDebtCents))
+  const capped = Math.min(marginal, repaymentIncomeCents * maxRepaymentRate)
+  return Math.min(roundCents(capped), Math.max(0, helpDebtCents))
 }
 
 /**

@@ -36,6 +36,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 ## Conventions
 
 - Money is stored as integer minor units (cents); never floats.
+- Integer-cent numeric literals are grouped to read as dollars: a trailing `_NN`
+  for the cents, then `_NNN` groups for the dollars (e.g. `18_200_00` = $18,200.00).
 - Financial year = AU FY (1 Jul – 30 Jun), labelled by the ending year.
 - Tax rates/thresholds live in versioned config, never hardcoded in logic.
 - Commit messages: Conventional Commits, first word capitalised, scoped where it

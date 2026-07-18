@@ -13,12 +13,12 @@ import {
 import { supabase } from './lib/supabase'
 import { useHousehold, type Household } from './hooks/useHousehold'
 import { useMembers } from './hooks/useMembers'
-import { useIncomes, type Income } from './hooks/useIncomes'
+import { useInflows, type Inflow } from './hooks/useInflows'
 import { useTaxProfiles, type TaxProfile } from './hooks/useTaxProfiles'
 import { SignInScreen } from './components/SignInScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { HomeScreen } from './components/HomeScreen'
-import { IncomeScreen } from './components/IncomeScreen'
+import { InflowScreen } from './components/InflowScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import './App.css'
 
@@ -104,11 +104,11 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'home' | 'income' | 'tax'
+type View = 'home' | 'inflows' | 'tax'
 
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'home', label: 'Home' },
-  { view: 'income', label: 'Income' },
+  { view: 'inflows', label: 'Inflows' },
   { view: 'tax', label: 'Tax' },
 ]
 
@@ -125,8 +125,8 @@ function HouseholdApp({ household, session }: { household: Household; session: S
             email={session.user.email ?? ''}
             onSignOut={() => void supabase.auth.signOut()}
           />
-        ) : view === 'income' ? (
-          <IncomeSection householdId={household.id} />
+        ) : view === 'inflows' ? (
+          <InflowsSection householdId={household.id} />
         ) : (
           <TaxSection householdId={household.id} />
         )}
@@ -159,38 +159,41 @@ function HouseholdApp({ household, session }: { household: Household; session: S
   )
 }
 
-function IncomeSection({ householdId }: { householdId: string }) {
+function InflowsSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
-  const incomes = useIncomes(householdId)
+  const inflows = useInflows(householdId)
   const taxProfiles = useTaxProfiles(householdId)
 
-  if (membersLoading || incomes.loading || taxProfiles.loading || !members) {
+  if (membersLoading || inflows.loading || taxProfiles.loading || !members) {
     return <LoadingScreen />
   }
 
   return (
-    <IncomeScreen
+    <InflowScreen
       members={members}
-      incomes={incomes.incomes ?? []}
+      inflows={inflows.inflows ?? []}
       taxProfiles={taxProfiles.profiles ?? []}
       financialYear={taxProfiles.financialYear}
-      onCreateIncome={incomes.create}
-      onUpdateIncome={incomes.update}
-      onDeleteIncome={incomes.remove}
+      onCreateInflow={inflows.create}
+      onUpdateInflow={inflows.update}
+      onDeleteInflow={inflows.remove}
       onUpsertTaxProfile={taxProfiles.upsert}
     />
   )
 }
 
-/** Maps an `income` row to the tax engine's `IncomeInput`. */
-function toIncomeInput(income: Income): IncomeInput {
+/**
+ * Maps a taxable `inflow` row to the tax engine's `IncomeInput`. Only taxable
+ * inflows reach the tax estimate, so the type is never `reimbursement` here.
+ */
+function toIncomeInput(inflow: Inflow): IncomeInput {
   return {
-    memberId: income.member_id,
-    type: income.type,
-    schedule: income.schedule,
-    amountCents: income.amount_cents ?? undefined,
-    hourlyRateCents: income.hourly_rate_cents ?? undefined,
-    hoursPerPeriod: income.hours_per_period ?? undefined,
+    memberId: inflow.member_id ?? '',
+    type: inflow.type as 'salary' | 'wage' | 'other',
+    schedule: inflow.schedule,
+    amountCents: inflow.amount_cents ?? undefined,
+    hourlyRateCents: inflow.hourly_rate_cents ?? undefined,
+    hoursPerPeriod: inflow.hours_per_period ?? undefined,
   }
 }
 
@@ -208,16 +211,16 @@ function toTaxProfileInput(profile: TaxProfile): TaxProfileInput {
 
 function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
-  const incomes = useIncomes(householdId)
+  const inflows = useInflows(householdId)
   const taxProfiles = useTaxProfiles(householdId)
 
-  if (membersLoading || incomes.loading || taxProfiles.loading || !members) {
+  if (membersLoading || inflows.loading || taxProfiles.loading || !members) {
     return <LoadingScreen />
   }
 
   const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
   const estimate = estimateHouseholdTax(
-    (incomes.incomes ?? []).map(toIncomeInput),
+    (inflows.inflows ?? []).filter((inflow) => inflow.taxable).map(toIncomeInput),
     (taxProfiles.profiles ?? []).map(toTaxProfileInput),
     config,
   )

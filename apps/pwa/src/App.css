@@ -19,6 +19,9 @@
 }
 
 .page {
+  box-sizing: border-box;
+  max-width: 40rem;
+  margin-inline: auto;
   padding-top: max(16px, env(safe-area-inset-top));
   padding-right: max(16px, env(safe-area-inset-right));
   padding-left: max(16px, env(safe-area-inset-left));

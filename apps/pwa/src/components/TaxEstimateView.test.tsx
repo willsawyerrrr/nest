@@ -94,7 +94,7 @@ describe('TaxEstimateView', () => {
     }
     render(<TaxEstimateView estimate={empty} financialYear={2027} memberName={memberName} />)
 
-    expect(screen.getByText(/add income on the income tab/i)).toBeInTheDocument()
+    expect(screen.getByText(/add a taxable inflow on the inflows tab/i)).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })

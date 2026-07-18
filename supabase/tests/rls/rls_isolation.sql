@@ -40,18 +40,24 @@ do $$ begin
   assert (select count(*) from public.transactions) = 1, 'Alice should see her transaction';
 end $$;
 
--- Alice's income and tax profile, attributed to her own member.
+-- Alice's inflows and tax profile. A taxable inflow is attributed to her own
+-- member; a non-taxable inflow (a reimbursement) carries no member tag.
 select id as mid from public.members where household_id = current_setting('test.hid')::uuid \gset
 select set_config('test.mid', :'mid', false);
 
-insert into public.income (household_id, member_id, name, type, schedule, amount_cents)
+insert into public.inflows (household_id, member_id, name, type, schedule, amount_cents)
   values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'Acme salary', 'salary', 'annual', 12000000);
+
+insert into public.inflows (household_id, name, taxable, type, schedule, amount_cents)
+  values (current_setting('test.hid')::uuid, 'Travel reimbursement', false, 'reimbursement', 'monthly', 8000);
 
 insert into public.tax_profile (household_id, member_id, financial_year)
   values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 2027);
 
 do $$ begin
-  assert (select count(*) from public.income) = 1, 'Alice should see her income';
+  assert (select count(*) from public.inflows) = 2, 'Alice should see both her inflows';
+  assert (select count(*) from public.inflows where taxable = false and member_id is null) = 1,
+    'Alice should be able to create a non-taxable inflow with no member tag';
   assert (select count(*) from public.tax_profile) = 1, 'Alice should see her tax profile';
 end $$;
 
@@ -62,7 +68,7 @@ do $$ begin
   assert (select count(*) from public.households) = 0, 'Bob must not see Alice''s household';
   assert (select count(*) from public.accounts) = 0, 'Bob must not see Alice''s accounts';
   assert (select count(*) from public.transactions) = 0, 'Bob must not see Alice''s transactions';
-  assert (select count(*) from public.income) = 0, 'Bob must not see Alice''s income';
+  assert (select count(*) from public.inflows) = 0, 'Bob must not see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 0, 'Bob must not see Alice''s tax profiles';
 end $$;
 
@@ -92,7 +98,7 @@ do $$ begin
   assert (select count(*) from public.members) = 2, 'Carol should see both herself and Alice';
   assert (select count(*) from public.accounts) = 1, 'Carol should see Alice''s account';
   assert (select count(*) from public.transactions) = 1, 'Carol should see Alice''s transaction';
-  assert (select count(*) from public.income) = 1, 'Carol should see Alice''s income';
+  assert (select count(*) from public.inflows) = 2, 'Carol should see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
 end $$;
 

@@ -1,43 +1,60 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
+import {
+  Button,
+  Card,
+  Group,
+  NumberInput,
+  SegmentedControl,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
-import type { Income, IncomeInput, IncomeSchedule, IncomeType } from '../hooks/useIncomes'
+import type { Frequency, Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 
-interface IncomeFormProps {
+interface InflowFormProps {
   members: Member[]
-  initial?: Income
-  onSubmit: (input: IncomeInput) => void | Promise<void>
+  initial?: Inflow
+  onSubmit: (input: InflowInput) => void | Promise<void>
   onCancel?: () => void
 }
 
-const TYPES: { value: IncomeType; label: string }[] = [
+const TYPES: { value: InflowType; label: string }[] = [
   { value: 'salary', label: 'Salary' },
   { value: 'wage', label: 'Wage' },
   { value: 'other', label: 'Other' },
 ]
 
-const SCHEDULES: { value: IncomeSchedule; label: string }[] = [
+const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'fortnightly', label: 'Fortnightly' },
   { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'biannual', label: 'Biannual' },
   { value: 'annual', label: 'Annual' },
 ]
 
-/** The unit of one pay period, for labelling the gross amount by schedule. */
-const PERIOD_NOUN: Record<IncomeSchedule, string> = {
+/** The unit of one pay period, for labelling the gross amount by frequency. */
+const PERIOD_NOUN: Record<Frequency, string> = {
   weekly: 'week',
   fortnightly: 'fortnight',
   monthly: 'month',
+  quarterly: 'quarter',
+  biannual: 'half-year',
   annual: 'year',
 }
 
-/** Presentational add/edit form for a single income. Persistence lives in the caller. */
-export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormProps) {
+/** Presentational add/edit form for a single inflow. Persistence lives in the caller. */
+export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
+  const [taxable, setTaxable] = useState(initial?.taxable ?? true)
   const [memberId, setMemberId] = useState(initial?.member_id ?? members[0]?.id ?? '')
-  const [type, setType] = useState<IncomeType>(initial?.type ?? 'salary')
-  const [schedule, setSchedule] = useState<IncomeSchedule>(initial?.schedule ?? 'fortnightly')
+  const [type, setType] = useState<InflowType>(
+    initial && initial.type !== 'reimbursement' ? initial.type : 'salary',
+  )
+  const [schedule, setSchedule] = useState<Frequency>(initial?.schedule ?? 'fortnightly')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [hourlyRate, setHourlyRate] = useState<number | string>(
     centsToDollars(initial?.hourly_rate_cents),
@@ -46,10 +63,10 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const isWage = type === 'wage'
+  const isWage = taxable && type === 'wage'
   const canSubmit =
     name.trim() !== '' &&
-    memberId !== '' &&
+    (taxable ? memberId !== '' : true) &&
     (isWage ? hourlyRate !== '' && hours !== '' : amount !== '') &&
     !submitting
 
@@ -60,10 +77,11 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
     }
     setSubmitting(true)
     setError(null)
-    const input: IncomeInput = {
+    const input: InflowInput = {
       name: name.trim(),
-      member_id: memberId,
-      type,
+      taxable,
+      member_id: taxable ? memberId : null,
+      type: taxable ? type : 'reimbursement',
       schedule,
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
@@ -72,7 +90,7 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
     try {
       await onSubmit(input)
     } catch {
-      setError('Could not save this income. Please try again.')
+      setError('Could not save this inflow. Please try again.')
       setSubmitting(false)
     }
   }
@@ -80,41 +98,56 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
   return (
     <Card withBorder radius="md" p="md" component="form" onSubmit={handleSubmit}>
       <Stack gap="md">
+        <SegmentedControl
+          fullWidth
+          aria-label="Taxability"
+          value={taxable ? 'taxable' : 'nontaxable'}
+          onChange={(value) => setTaxable(value === 'taxable')}
+          data={[
+            { value: 'taxable', label: 'Taxable income' },
+            { value: 'nontaxable', label: 'Non-taxable inflow' },
+          ]}
+        />
+
         <TextInput
           label="Name"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
-        <Select
-          label="Member"
-          data={members.map((member) => ({ value: member.id, label: member.name }))}
-          value={memberId}
-          onChange={(value) => setMemberId(value ?? '')}
-          allowDeselect={false}
-        />
+        {taxable && (
+          <>
+            <Select
+              label="Member"
+              data={members.map((member) => ({ value: member.id, label: member.name }))}
+              value={memberId}
+              onChange={(value) => setMemberId(value ?? '')}
+              allowDeselect={false}
+            />
+
+            <Select
+              label="Type"
+              data={TYPES}
+              value={type}
+              onChange={(value) => value && setType(value as InflowType)}
+              allowDeselect={false}
+            />
+          </>
+        )}
 
         <Select
-          label="Type"
-          data={TYPES}
-          value={type}
-          onChange={(value) => value && setType(value as IncomeType)}
-          allowDeselect={false}
-        />
-
-        <Select
-          label="Schedule"
+          label="Frequency"
           description={
             <>
               How often you receive this amount. The app converts everything to{' '}
-              <b>fortnightly and annual</b> regardless of your actual pay cycle. On an annual
-              salary? Choose <b>Annual</b> and enter your yearly gross — even if you&apos;re paid
+              <b>fortnightly and annual</b> regardless of your actual cycle. On an annual salary?
+              Choose <b>Annual</b> and enter your yearly gross — even if you&apos;re paid
               fortnightly.
             </>
           }
           data={SCHEDULES}
           value={schedule}
-          onChange={(value) => value && setSchedule(value as IncomeSchedule)}
+          onChange={(value) => value && setSchedule(value as Frequency)}
           allowDeselect={false}
         />
 
@@ -133,7 +166,7 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
             />
             <NumberInput
               label="Hours per period"
-              description="Hours worked each pay period. Gross = rate × hours × pay periods."
+              description="Hours worked each period. Gross = rate × hours × periods."
               min={0}
               decimalScale={2}
               hideControls
@@ -143,8 +176,12 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
           </>
         ) : (
           <NumberInput
-            label={`Gross amount per ${PERIOD_NOUN[schedule]}`}
-            description="Gross pay (before tax) for one pay period."
+            label={`Amount per ${PERIOD_NOUN[schedule]}`}
+            description={
+              taxable
+                ? 'Gross pay (before tax) for one period.'
+                : 'Amount received each period; excluded from tax.'
+            }
             prefix="$"
             thousandSeparator
             decimalScale={2}
@@ -163,7 +200,7 @@ export function IncomeForm({ members, initial, onSubmit, onCancel }: IncomeFormP
 
         <Group grow>
           <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add income'}
+            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add inflow'}
           </Button>
           {onCancel && (
             <Button type="button" variant="default" onClick={onCancel}>

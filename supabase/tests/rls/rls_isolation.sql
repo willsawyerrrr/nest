@@ -40,6 +40,21 @@ do $$ begin
   assert (select count(*) from public.transactions) = 1, 'Alice should see her transaction';
 end $$;
 
+-- Alice's income and tax profile, attributed to her own member.
+select id as mid from public.members where household_id = current_setting('test.hid')::uuid \gset
+select set_config('test.mid', :'mid', false);
+
+insert into public.income (household_id, member_id, name, type, schedule, amount_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'Acme salary', 'salary', 'annual', 12000000);
+
+insert into public.tax_profile (household_id, member_id, financial_year)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 2027);
+
+do $$ begin
+  assert (select count(*) from public.income) = 1, 'Alice should see her income';
+  assert (select count(*) from public.tax_profile) = 1, 'Alice should see her tax profile';
+end $$;
+
 -- ── Act as Bob (same role, different JWT) ────────────────────────────────────
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@example.com"}', true);
 
@@ -47,6 +62,8 @@ do $$ begin
   assert (select count(*) from public.households) = 0, 'Bob must not see Alice''s household';
   assert (select count(*) from public.accounts) = 0, 'Bob must not see Alice''s accounts';
   assert (select count(*) from public.transactions) = 0, 'Bob must not see Alice''s transactions';
+  assert (select count(*) from public.income) = 0, 'Bob must not see Alice''s income';
+  assert (select count(*) from public.tax_profile) = 0, 'Bob must not see Alice''s tax profiles';
 end $$;
 
 -- Bob must be blocked from writing into Alice's household (RLS WITH CHECK).
@@ -75,6 +92,8 @@ do $$ begin
   assert (select count(*) from public.members) = 2, 'Carol should see both herself and Alice';
   assert (select count(*) from public.accounts) = 1, 'Carol should see Alice''s account';
   assert (select count(*) from public.transactions) = 1, 'Carol should see Alice''s transaction';
+  assert (select count(*) from public.income) = 1, 'Carol should see Alice''s income';
+  assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
 end $$;
 
 rollback;

@@ -160,6 +160,63 @@ export type Database = {
         }
         Relationships: []
       }
+      income: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          hourly_rate_cents: number | null
+          hours_per_period: number | null
+          household_id: string
+          id: string
+          member_id: string
+          name: string
+          schedule: Database['public']['Enums']['income_schedule']
+          type: Database['public']['Enums']['income_type']
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          hourly_rate_cents?: number | null
+          hours_per_period?: number | null
+          household_id: string
+          id?: string
+          member_id: string
+          name: string
+          schedule: Database['public']['Enums']['income_schedule']
+          type: Database['public']['Enums']['income_type']
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          hourly_rate_cents?: number | null
+          hours_per_period?: number | null
+          household_id?: string
+          id?: string
+          member_id?: string
+          name?: string
+          schedule?: Database['public']['Enums']['income_schedule']
+          type?: Database['public']['Enums']['income_type']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'income_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'income_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
@@ -195,6 +252,57 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
+          },
+        ]
+      }
+      tax_profile: {
+        Row: {
+          created_at: string
+          financial_year: number
+          has_private_hospital_cover: boolean
+          help_debt_cents: number
+          household_id: string
+          id: string
+          member_id: string
+          residency: Database['public']['Enums']['tax_residency']
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          financial_year: number
+          has_private_hospital_cover?: boolean
+          help_debt_cents?: number
+          household_id: string
+          id?: string
+          member_id: string
+          residency?: Database['public']['Enums']['tax_residency']
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          financial_year?: number
+          has_private_hospital_cover?: boolean
+          help_debt_cents?: number
+          household_id?: string
+          id?: string
+          member_id?: string
+          residency?: Database['public']['Enums']['tax_residency']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'tax_profile_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'tax_profile_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
           },
         ]
       }
@@ -299,7 +407,10 @@ export type Database = {
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
       category_kind: 'income' | 'expense'
+      income_schedule: 'weekly' | 'fortnightly' | 'monthly' | 'annual'
+      income_type: 'salary' | 'wage' | 'other'
       ledger_source: 'up' | 'manual'
+      tax_residency: 'resident' | 'foreign_resident'
       transaction_kind: 'income' | 'expense' | 'transfer'
       transaction_status: 'pending' | 'settled'
     }
@@ -428,7 +539,10 @@ export const Constants = {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
       category_kind: ['income', 'expense'],
+      income_schedule: ['weekly', 'fortnightly', 'monthly', 'annual'],
+      income_type: ['salary', 'wage', 'other'],
       ledger_source: ['up', 'manual'],
+      tax_residency: ['resident', 'foreign_resident'],
       transaction_kind: ['income', 'expense', 'transfer'],
       transaction_status: ['pending', 'settled'],
     },

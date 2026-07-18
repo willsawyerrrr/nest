@@ -65,5 +65,7 @@ pnpm build         # production build
 
 ## Status
 
-Phase 0 complete. Phase 1 (ledger core) in progress: monorepo scaffold and the
-React PWA shell with Google OAuth are in place; schema + RLS migrations next.
+Foundations, Google OAuth auth, and household setup with partner-join-by-invite
+are live in production. Current focus is the income + tax-estimate slice, which
+needs no transaction ingestion. Up ingestion, ledger UI, spending plans, and
+savings goals follow. See [`docs/ROADMAP.md`](docs/ROADMAP.md).

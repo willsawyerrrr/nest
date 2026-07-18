@@ -1,51 +1,68 @@
 # Roadmap
 
-Phased so each phase is independently useful. Framework chosen at the start of
-Phase 1.
+Phased so each phase is independently useful. Reflects the product decisions
+below; income + tax is built first because it needs no transaction data.
 
-## Phase 0 — Foundations (current)
+## Product decisions
 
-- [x] Scope decisions (platform, data, feeds, tax depth).
-- [x] Architecture, data model, and tax design docs.
-- [x] Backend stack: Supabase + PWA + TypeScript; direct PostgREST + RLS.
-- [x] Frontend framework (React PWA) and auth method (Google OAuth).
-- [ ] Supabase project (Sydney, Pro); CLI + local Docker stack.
-- [ ] Repo tooling: linting, formatting, CI, test runner.
+- **Single shared household; money fully pooled.** No per-person budgets, no
+  splitting, no "who owes whom".
+- **All household members manage everything** — RLS is gated on household
+  membership only; member attribution on a record is a tax/reporting tag, not a
+  permission.
+- **Income is projection-based.** The household owns many incomes, each a salary
+  (annual gross), a wage (rate × standard hours), or other regular income, on a
+  schedule, and each tagged to a member for tax. Entries are projections, not
+  reconciled against actual deposits.
+- **Tax is estimate-only.** Per-person estimated liability and take-home from
+  projected income; models HELP repayment and private-hospital cover. Target
+  financial year: FY2027. Tracking actual tax paid (PAYG withheld) is deferred.
+- **Both bank with Up, but transaction ingestion is deferred.** Spending plans
+  and savings goals track against actual spending and balances, so they wait
+  until ingestion exists.
 
-## Phase 1 — Ledger core
+## Done
 
-- [ ] Data model migrations: household, members, accounts, transactions,
-      categories.
-- [ ] Manual transaction entry (income/expense/transfer).
-- [ ] Category management + transfer exclusion from reporting.
-- [ ] Basic web + iOS views: account list, transaction list.
+- Foundations: stack, monorepo scaffold, CI (`check` + `rls` jobs, under a
+  minute), `main` protection ruleset, Vercel hosting.
+- Household, members, and RLS isolation (schema + automated CI tests).
+- Onboarding + Google OAuth; partner join via invite code (live in production).
+- Ledger schema: accounts, transactions, categories (schema only, no UI yet).
+- Pure tax engine (verified FY2027 config in progress).
+- Up Bank sync scaffold (not yet functional).
 
-## Phase 2 — Up Bank integration
+## Now — Income + tax estimate (no ingestion required)
 
-- [ ] Per-member Up token linking (encrypted at rest).
-- [ ] Account + transaction sync; dedupe via `external_id`.
-- [ ] Webhook handling for near-real-time updates.
-- [ ] Source-category → household-category mapping.
+- [ ] `income` + `tax_profile` schema (RLS, tests, types).
+- [ ] Verified FY2027 tax config (real ATO figures) + marginal HELP model.
+- [ ] Tax computation: annualize incomes → per-person + household estimate.
+- [ ] Income management UI.
+- [ ] Tax-estimate view (per-person breakdown + household take-home).
 
-## Phase 3 — Tax engine
+## Next — Up ingestion
 
-- [ ] Versioned `TaxYearConfig` with one verified FY loaded.
-- [ ] Pure tax engine + golden-file tests.
-- [ ] Payslip/income-event entry feeding taxable income and withholding.
-- [ ] Per-member liability vs withheld dashboard.
+- [ ] Per-member Up token in Vault; webhook registration + signature handling.
+- [ ] Account + transaction sync; scheduled poll; dedupe on `external_id`.
+- [ ] Source-category to household-category mapping.
 
-## Phase 4 — Spending plans
+## Then — Ledger UI
 
-- [ ] Budgets and budget lines per category/period.
-- [ ] Actual-vs-plan reporting.
+- [ ] Accounts and transactions views over synced data.
+- [ ] Manual entry + category management.
 
-## Phase 5 — Savings goals
+## Then — Spending plans
 
-- [ ] Goals with targets and dates; progress tracking.
-- [ ] Required-contribution-rate calculation.
+- [ ] Household budgets: category limits per period; actual-vs-plan over real
+      transactions.
+
+## Then — Savings goals
+
+- [ ] Goals with targets and dates; progress from real balances.
 
 ## Later
 
-- Additional bank sources / CSV import.
-- Non-resident and part-year tax cases.
-- Notifications, forecasting, shared insights.
+- Reconcile projected income against actual deposits.
+- Track actual tax paid (PAYG withheld) for a refund/bill vs estimate.
+- Joint-income ownership split; net worth (assets and liabilities); recurring
+  bills and forecasting; non-resident and part-year tax; notifications;
+  additional bank sources / CSV import.

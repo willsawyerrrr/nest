@@ -159,6 +159,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
               prefix="$"
               thousandSeparator
               decimalScale={2}
+              fixedDecimalScale
               min={0}
               hideControls
               value={hourlyRate}
@@ -185,6 +186,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
             prefix="$"
             thousandSeparator
             decimalScale={2}
+            fixedDecimalScale
             min={0}
             hideControls
             value={amount}

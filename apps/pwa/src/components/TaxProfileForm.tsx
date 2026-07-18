@@ -70,6 +70,7 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
           prefix="$"
           thousandSeparator
           decimalScale={2}
+          fixedDecimalScale
           min={0}
           hideControls
           value={helpDebt}

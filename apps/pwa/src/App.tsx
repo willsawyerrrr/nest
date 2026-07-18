@@ -101,18 +101,18 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'home' | 'inflows' | 'budget' | 'summary' | 'tax'
+type View = 'summary' | 'inflows' | 'budget' | 'tax' | 'home'
 
 const NAV_ITEMS: { view: View; label: string }[] = [
-  { view: 'home', label: 'Home' },
+  { view: 'summary', label: 'Summary' },
   { view: 'inflows', label: 'Inflows' },
   { view: 'budget', label: 'Budget' },
-  { view: 'summary', label: 'Summary' },
   { view: 'tax', label: 'Tax' },
+  { view: 'home', label: 'Household' },
 ]
 
 function HouseholdApp({ household, session }: { household: Household; session: Session }) {
-  const [view, setView] = useState<View>('home')
+  const [view, setView] = useState<View>('summary')
 
   return (
     <div className="app-shell">

@@ -10,9 +10,11 @@ __pycache__/
 
 # Build output
 dist/
+dev-dist/
 build/
 .next/
 *.log
+*.tsbuildinfo
 
 # OS / editor
 .DS_Store

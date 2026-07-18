@@ -26,3 +26,5 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Commit messages: Conventional Commits, first word capitalised, scoped where it
   helps (e.g. `feat(tax): Add LITO taper`).
 - Feature work on branches → PRs; keep `main` releasable.
+- Claude drives pull requests autonomously in this repo — opening, updating, and
+  merging them — without per-turn confirmation. Branches merge once CI is green.

@@ -7,7 +7,10 @@
   place-content: center;
   place-items: center;
   min-height: 100dvh;
-  padding: 24px;
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-right: max(24px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: max(24px, env(safe-area-inset-left));
   text-align: center;
 }
 
@@ -38,10 +41,17 @@
 }
 
 .app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: 12px;
+  padding-left: max(16px, env(safe-area-inset-left));
   border-bottom: 1px solid #e2e8f0;
+  background: var(--bg);
 }
 
 .app-nav button {
@@ -65,7 +75,10 @@
   gap: 32px;
   max-width: 480px;
   margin: 0 auto;
-  padding: 24px;
+  padding-top: 24px;
+  padding-right: max(24px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: max(24px, env(safe-area-inset-left));
 }
 
 .income section {
@@ -133,4 +146,38 @@
   border: 1px solid #cbd5e1;
   background: transparent;
   cursor: pointer;
+}
+
+.tax {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: 24px;
+  padding-right: max(24px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: max(24px, env(safe-area-inset-left));
+}
+
+.tax-estimate {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.tax-estimate th,
+.tax-estimate td {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  text-align: right;
+}
+
+.tax-estimate thead th,
+.tax-estimate th[scope='row'] {
+  text-align: left;
+}
+
+.tax-estimate tfoot th,
+.tax-estimate tfoot td {
+  font-weight: 600;
 }

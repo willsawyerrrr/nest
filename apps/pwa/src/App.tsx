@@ -1,14 +1,24 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import {
+  configsByYear,
+  estimateHouseholdTax,
+  financialYearForDate,
+  FY2027_CONFIG,
+  type IncomeInput,
+  type Residency,
+  type TaxProfileInput,
+} from '@budget/tax'
 import { supabase } from './lib/supabase'
 import { useHousehold, type Household } from './hooks/useHousehold'
 import { useMembers } from './hooks/useMembers'
-import { useIncomes } from './hooks/useIncomes'
-import { useTaxProfiles } from './hooks/useTaxProfiles'
+import { useIncomes, type Income } from './hooks/useIncomes'
+import { useTaxProfiles, type TaxProfile } from './hooks/useTaxProfiles'
 import { SignInScreen } from './components/SignInScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { HomeScreen } from './components/HomeScreen'
 import { IncomeScreen } from './components/IncomeScreen'
+import { TaxEstimateView } from './components/TaxEstimateView'
 import './App.css'
 
 export default function App() {
@@ -85,7 +95,7 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'home' | 'income'
+type View = 'home' | 'income' | 'tax'
 
 function HouseholdApp({ household, session }: { household: Household; session: Session }) {
   const [view, setView] = useState<View>('home')
@@ -99,6 +109,9 @@ function HouseholdApp({ household, session }: { household: Household; session: S
         <button type="button" aria-current={view === 'income'} onClick={() => setView('income')}>
           Income
         </button>
+        <button type="button" aria-current={view === 'tax'} onClick={() => setView('tax')}>
+          Tax
+        </button>
       </nav>
       {view === 'home' ? (
         <HomeScreen
@@ -107,8 +120,10 @@ function HouseholdApp({ household, session }: { household: Household; session: S
           email={session.user.email ?? ''}
           onSignOut={() => void supabase.auth.signOut()}
         />
-      ) : (
+      ) : view === 'income' ? (
         <IncomeSection householdId={household.id} />
+      ) : (
+        <TaxSection householdId={household.id} />
       )}
     </>
   )
@@ -133,6 +148,56 @@ function IncomeSection({ householdId }: { householdId: string }) {
       onUpdateIncome={incomes.update}
       onDeleteIncome={incomes.remove}
       onUpsertTaxProfile={taxProfiles.upsert}
+    />
+  )
+}
+
+/** Maps an `income` row to the tax engine's `IncomeInput`. */
+function toIncomeInput(income: Income): IncomeInput {
+  return {
+    memberId: income.member_id,
+    type: income.type,
+    schedule: income.schedule,
+    amountCents: income.amount_cents ?? undefined,
+    hourlyRateCents: income.hourly_rate_cents ?? undefined,
+    hoursPerPeriod: income.hours_per_period ?? undefined,
+  }
+}
+
+/** Maps a `tax_profile` row to the tax engine's `TaxProfileInput`. */
+function toTaxProfileInput(profile: TaxProfile): TaxProfileInput {
+  const residency: Residency =
+    profile.residency === 'foreign_resident' ? 'foreignResident' : 'resident'
+  return {
+    memberId: profile.member_id,
+    residency,
+    privateHospitalCover: profile.has_private_hospital_cover,
+    helpDebtCents: profile.help_debt_cents,
+  }
+}
+
+function TaxSection({ householdId }: { householdId: string }) {
+  const { members, loading: membersLoading } = useMembers()
+  const incomes = useIncomes(householdId)
+  const taxProfiles = useTaxProfiles(householdId)
+
+  if (membersLoading || incomes.loading || taxProfiles.loading || !members) {
+    return <p>Loading…</p>
+  }
+
+  const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
+  const estimate = estimateHouseholdTax(
+    (incomes.incomes ?? []).map(toIncomeInput),
+    (taxProfiles.profiles ?? []).map(toTaxProfileInput),
+    config,
+  )
+  const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
+
+  return (
+    <TaxEstimateView
+      estimate={estimate}
+      financialYear={taxProfiles.financialYear}
+      memberName={memberName}
     />
   )
 }

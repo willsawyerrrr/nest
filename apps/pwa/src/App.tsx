@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
+import { useHousehold } from './hooks/useHousehold'
 import { SignInScreen } from './components/SignInScreen'
+import { OnboardingScreen } from './components/OnboardingScreen'
+import { HomeScreen } from './components/HomeScreen'
 import './App.css'
 
 export default function App() {
@@ -36,13 +39,40 @@ export default function App() {
     )
   }
 
+  return <AuthedApp session={session} />
+}
+
+function AuthedApp({ session }: { session: Session }) {
+  const { households, loading, reload } = useHousehold()
+
+  if (loading) {
+    return <p>Loading…</p>
+  }
+
+  const household = households?.[0]
+
+  if (!household) {
+    return (
+      <OnboardingScreen
+        onCreate={async (name, memberName) => {
+          const { error } = await supabase.rpc('create_household', {
+            p_name: name,
+            p_member_name: memberName,
+          })
+          if (error) {
+            throw error
+          }
+          await reload()
+        }}
+      />
+    )
+  }
+
   return (
-    <main>
-      <h1>Personal Budget</h1>
-      <p>Signed in as {session.user.email}</p>
-      <button type="button" onClick={() => void supabase.auth.signOut()}>
-        Sign out
-      </button>
-    </main>
+    <HomeScreen
+      householdName={household.name}
+      email={session.user.email ?? ''}
+      onSignOut={() => void supabase.auth.signOut()}
+    />
   )
 }

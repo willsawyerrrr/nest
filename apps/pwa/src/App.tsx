@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { useHousehold } from './hooks/useHousehold'
+import { useHousehold, type Household } from './hooks/useHousehold'
+import { useMembers } from './hooks/useMembers'
+import { useIncomes } from './hooks/useIncomes'
+import { useTaxProfiles } from './hooks/useTaxProfiles'
 import { SignInScreen } from './components/SignInScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { HomeScreen } from './components/HomeScreen'
+import { IncomeScreen } from './components/IncomeScreen'
 import './App.css'
 
 export default function App() {
@@ -78,12 +82,57 @@ function AuthedApp({ session }: { session: Session }) {
     )
   }
 
+  return <HouseholdApp household={household} session={session} />
+}
+
+type View = 'home' | 'income'
+
+function HouseholdApp({ household, session }: { household: Household; session: Session }) {
+  const [view, setView] = useState<View>('home')
+
   return (
-    <HomeScreen
-      householdName={household.name}
-      inviteCode={household.invite_code}
-      email={session.user.email ?? ''}
-      onSignOut={() => void supabase.auth.signOut()}
+    <>
+      <nav className="app-nav" aria-label="Primary">
+        <button type="button" aria-current={view === 'home'} onClick={() => setView('home')}>
+          Home
+        </button>
+        <button type="button" aria-current={view === 'income'} onClick={() => setView('income')}>
+          Income
+        </button>
+      </nav>
+      {view === 'home' ? (
+        <HomeScreen
+          householdName={household.name}
+          inviteCode={household.invite_code}
+          email={session.user.email ?? ''}
+          onSignOut={() => void supabase.auth.signOut()}
+        />
+      ) : (
+        <IncomeSection householdId={household.id} />
+      )}
+    </>
+  )
+}
+
+function IncomeSection({ householdId }: { householdId: string }) {
+  const { members, loading: membersLoading } = useMembers()
+  const incomes = useIncomes(householdId)
+  const taxProfiles = useTaxProfiles(householdId)
+
+  if (membersLoading || incomes.loading || taxProfiles.loading || !members) {
+    return <p>Loading…</p>
+  }
+
+  return (
+    <IncomeScreen
+      members={members}
+      incomes={incomes.incomes ?? []}
+      taxProfiles={taxProfiles.profiles ?? []}
+      financialYear={taxProfiles.financialYear}
+      onCreateIncome={incomes.create}
+      onUpdateIncome={incomes.update}
+      onDeleteIncome={incomes.remove}
+      onUpsertTaxProfile={taxProfiles.upsert}
     />
   )
 }

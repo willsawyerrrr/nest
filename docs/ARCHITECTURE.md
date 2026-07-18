@@ -8,6 +8,10 @@
   **Pro** tier (no project pausing; daily backups).
 - **Clients:** a single **React PWA** (TypeScript) serving both iOS (installed
   via Safari → Add to Home Screen) and web. One frontend, no native app.
+- **Frontend hosting:** [Vercel](https://vercel.com/) — the PWA's static build is
+  deployed from the repo (Root Directory `apps/pwa`, Vite preset). Merges to
+  `main` deploy to production; each PR gets a preview deployment. `apps/pwa/vercel.json`
+  provides the SPA fallback rewrite. `VITE_SUPABASE_*` are set as Vercel env vars.
 - **Shared code:** TypeScript packages shared between the PWA and edge functions
   (notably the tax engine).
 

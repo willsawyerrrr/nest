@@ -1,20 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Center, Group, Loader, Text, UnstyledButton } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
-import {
-  configsByYear,
-  estimateHouseholdTax,
-  financialYearForDate,
-  FY2027_CONFIG,
-  type IncomeInput,
-  type Residency,
-  type TaxProfileInput,
-} from '@budget/tax'
+import { summarise } from '@budget/plan'
 import { supabase } from './lib/supabase'
 import { useHousehold, type Household } from './hooks/useHousehold'
 import { useMembers } from './hooks/useMembers'
-import { useInflows, type Inflow } from './hooks/useInflows'
-import { useTaxProfiles, type TaxProfile } from './hooks/useTaxProfiles'
+import { useInflows } from './hooks/useInflows'
+import { useTaxProfiles } from './hooks/useTaxProfiles'
 import { SignInScreen } from './components/SignInScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { useBudgetLines } from './hooks/useBudgetLines'
@@ -23,6 +15,8 @@ import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
+import { SummaryView } from './components/SummaryView'
+import { estimateHouseholdTaxFromRows } from './lib/tax'
 import './App.css'
 
 function LoadingScreen() {
@@ -107,12 +101,13 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'home' | 'inflows' | 'budget' | 'tax'
+type View = 'home' | 'inflows' | 'budget' | 'summary' | 'tax'
 
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'home', label: 'Home' },
   { view: 'inflows', label: 'Inflows' },
   { view: 'budget', label: 'Budget' },
+  { view: 'summary', label: 'Summary' },
   { view: 'tax', label: 'Tax' },
 ]
 
@@ -133,6 +128,8 @@ function HouseholdApp({ household, session }: { household: Household; session: S
           <InflowsSection householdId={household.id} />
         ) : view === 'budget' ? (
           <BudgetSection householdId={household.id} />
+        ) : view === 'summary' ? (
+          <SummarySection householdId={household.id} />
         ) : (
           <TaxSection householdId={household.id} />
         )}
@@ -210,33 +207,6 @@ function BudgetSection({ householdId }: { householdId: string }) {
   )
 }
 
-/**
- * Maps a taxable `inflow` row to the tax engine's `IncomeInput`. Only taxable
- * inflows reach the tax estimate, so the type is never `reimbursement` here.
- */
-function toIncomeInput(inflow: Inflow): IncomeInput {
-  return {
-    memberId: inflow.member_id ?? '',
-    type: inflow.type as 'salary' | 'wage' | 'other',
-    schedule: inflow.schedule,
-    amountCents: inflow.amount_cents ?? undefined,
-    hourlyRateCents: inflow.hourly_rate_cents ?? undefined,
-    hoursPerPeriod: inflow.hours_per_period ?? undefined,
-  }
-}
-
-/** Maps a `tax_profile` row to the tax engine's `TaxProfileInput`. */
-function toTaxProfileInput(profile: TaxProfile): TaxProfileInput {
-  const residency: Residency =
-    profile.residency === 'foreign_resident' ? 'foreignResident' : 'resident'
-  return {
-    memberId: profile.member_id,
-    residency,
-    privateHospitalCover: profile.has_private_hospital_cover,
-    helpDebtCents: profile.help_debt_cents,
-  }
-}
-
 function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
@@ -246,12 +216,7 @@ function TaxSection({ householdId }: { householdId: string }) {
     return <LoadingScreen />
   }
 
-  const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
-  const estimate = estimateHouseholdTax(
-    (inflows.inflows ?? []).filter((inflow) => inflow.taxable).map(toIncomeInput),
-    (taxProfiles.profiles ?? []).map(toTaxProfileInput),
-    config,
-  )
+  const estimate = estimateHouseholdTaxFromRows(inflows.inflows ?? [], taxProfiles.profiles ?? [])
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   return (
@@ -261,4 +226,37 @@ function TaxSection({ householdId }: { householdId: string }) {
       memberName={memberName}
     />
   )
+}
+
+function SummarySection({ householdId }: { householdId: string }) {
+  const inflows = useInflows(householdId)
+  const taxProfiles = useTaxProfiles(householdId)
+  const budgetLines = useBudgetLines(householdId)
+  const temporaryItems = useTemporaryItems(householdId)
+
+  if (inflows.loading || taxProfiles.loading || budgetLines.loading || temporaryItems.loading) {
+    return <LoadingScreen />
+  }
+
+  const estimate = estimateHouseholdTaxFromRows(inflows.inflows ?? [], taxProfiles.profiles ?? [])
+  const summary = summarise(
+    {
+      afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents,
+      nonTaxableInflows: (inflows.inflows ?? [])
+        .filter((inflow) => !inflow.taxable)
+        .map((inflow) => ({ amountCents: inflow.amount_cents ?? 0, frequency: inflow.schedule })),
+      budgetLines: (budgetLines.lines ?? []).map((line) => ({
+        group: line.line_group,
+        amountCents: line.amount_cents,
+        frequency: line.frequency,
+      })),
+      temporaryItems: (temporaryItems.items ?? []).map((item) => ({
+        contributionCents: item.contribution_cents,
+        targetDate: item.target_date,
+      })),
+    },
+    new Date(),
+  )
+
+  return <SummaryView summary={summary} />
 }

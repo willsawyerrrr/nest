@@ -145,7 +145,7 @@ describe('InflowForm', () => {
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('Old job')
     expect(screen.getByRole('combobox', { name: /member/i })).toHaveValue('Sam')
-    expect(screen.getByLabelText(/amount/i)).toHaveValue('$5,000')
+    expect(screen.getByLabelText(/amount/i)).toHaveValue('$5,000.00')
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
   })
 

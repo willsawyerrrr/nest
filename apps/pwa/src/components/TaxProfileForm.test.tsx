@@ -54,7 +54,7 @@ describe('TaxProfileForm', () => {
 
     expect(screen.getByRole('combobox', { name: /residency/i })).toHaveValue('Resident')
     expect(screen.getByLabelText(/private hospital cover/i)).toBeChecked()
-    expect(screen.getByLabelText(/help debt/i)).toHaveValue('$10,000')
+    expect(screen.getByLabelText(/help debt/i)).toHaveValue('$10,000.00')
   })
 
   it('shows an error when saving fails', async () => {

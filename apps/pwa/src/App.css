@@ -1,4 +1,6 @@
-.signin {
+.signin,
+.onboarding,
+.home {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -9,7 +11,25 @@
   text-align: center;
 }
 
-.signin button {
+.onboarding form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  text-align: left;
+}
+
+.onboarding input {
+  font-size: 16px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.signin button,
+.onboarding button,
+.home button {
   font-size: 16px;
   padding: 10px 20px;
   border-radius: 8px;

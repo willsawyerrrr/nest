@@ -4,8 +4,9 @@ import { cleanup } from '@testing-library/react'
 
 afterEach(cleanup)
 
-// Mantine components rely on browser APIs jsdom does not implement.
-window.matchMedia ??= (query: string) =>
+// happy-dom resolves media queries against its default viewport, which would
+// select the wide layout. Pin matchMedia so components render deterministically.
+window.matchMedia = (query: string) =>
   ({
     matches: false,
     media: query,
@@ -16,13 +17,3 @@ window.matchMedia ??= (query: string) =>
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }) as unknown as MediaQueryList
-
-window.HTMLElement.prototype.scrollIntoView = vi.fn()
-
-class ResizeObserverMock {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-
-window.ResizeObserver ??= ResizeObserverMock

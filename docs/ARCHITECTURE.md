@@ -6,8 +6,8 @@
   Auth, auto-generated REST API (PostgREST), Edge Functions (Deno/TypeScript),
   Vault (secrets), and Storage. Hosted in the **Sydney (AU)** region on the
   **Pro** tier (no project pausing; daily backups).
-- **Clients:** a single **PWA** (TypeScript) serving both iOS (installed via
-  Safari → Add to Home Screen) and web. One frontend, no native app.
+- **Clients:** a single **React PWA** (TypeScript) serving both iOS (installed
+  via Safari → Add to Home Screen) and web. One frontend, no native app.
 - **Shared code:** TypeScript packages shared between the PWA and edge functions
   (notably the tax engine).
 
@@ -34,7 +34,11 @@ is CRUD over RLS.
 
 - **Database** — Postgres, source of truth. Every domain row carries a
   `household_id`.
-- **Auth** — Supabase Auth. Two accounts, one shared household.
+- **Auth** — Supabase Auth via **Google OAuth**. Two accounts, one shared
+  household. The Google consent screen is *published* (basic email/profile scopes
+  need no verification review) to avoid the 7-day refresh-token expiry of testing
+  mode. Note the iOS standalone-PWA OAuth redirect quirk — the round-trip may
+  return to Safari rather than the installed app; handled via redirect-URL config.
 - **PWA** — consumes PostgREST directly (RLS-enforced) and calls edge functions
   for tax + Up.
 - **Tax engine** — pure, versioned TypeScript package. Imported by the edge
@@ -75,7 +79,8 @@ is CRUD over RLS.
   version-controlled; TypeScript types are generated from the schema.
 - Tax package and edge functions are unit-tested in CI.
 
-## Open decisions
+## Next up (Phase 1)
 
-- **PWA frontend framework** (e.g. React/Next.js vs SvelteKit vs …).
-- **Auth method** — email/password, magic link, or OAuth provider.
+- Supabase project (Sydney, Pro) + CLI local stack.
+- Initial schema migrations and RLS policies (see [`DATA_MODEL.md`](DATA_MODEL.md)).
+- React PWA shell with Google OAuth sign-in.

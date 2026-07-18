@@ -8,7 +8,7 @@ Phase 1.
 - [x] Scope decisions (platform, data, feeds, tax depth).
 - [x] Architecture, data model, and tax design docs.
 - [x] Backend stack: Supabase + PWA + TypeScript; direct PostgREST + RLS.
-- [ ] Choose PWA frontend framework and auth method.
+- [x] Frontend framework (React PWA) and auth method (Google OAuth).
 - [ ] Supabase project (Sydney, Pro); CLI + local Docker stack.
 - [ ] Repo tooling: linting, formatting, CI, test runner.
 

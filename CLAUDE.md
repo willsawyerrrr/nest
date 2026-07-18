@@ -11,11 +11,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Platform: one PWA for both iOS (installed via Safari) and web. No native app.
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
+- Frontend: React PWA (TypeScript); one frontend for iOS + web.
+- Auth: Supabase Auth via Google OAuth (consent screen published).
 - Language: TypeScript across PWA and edge functions; tax engine is a shared
   package.
 - Transaction sources: Up Bank API + manual entry; ingestion is source-agnostic.
 - Tax: full AU income tax, versioned per financial year.
-- Still open: PWA frontend framework; auth method.
 
 ## Conventions
 

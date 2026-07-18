@@ -15,7 +15,8 @@ liability, plan spending, and track savings goals.
 
 ## Scope decisions
 
-- **Platform:** a single PWA serving both iOS (installed via Safari) and web.
+- **Platform:** a single React PWA serving both iOS (installed via Safari) and
+  web, with Supabase Auth via Google OAuth.
 - **Backend:** [Supabase](https://supabase.com/) (Sydney region, Pro) — managed
   Postgres, Auth, PostgREST, Edge Functions, Vault. Clients use direct PostgREST
   with Row-Level Security for CRUD; edge functions handle the tax engine and Up
@@ -25,7 +26,6 @@ liability, plan spending, and track savings goals.
 - **Transaction sources:** [Up Bank API](https://developer.up.com.au/) feeds +
   manual entry. Import layer designed to accept other sources later.
 - **Tax:** full AU income tax modelling, versioned per financial year.
-- **Still open:** PWA frontend framework and auth method.
 
 ## Documentation
 
@@ -36,5 +36,5 @@ liability, plan spending, and track savings goals.
 
 ## Status
 
-Planning (Phase 0). Backend architecture settled; PWA frontend framework and auth
-method still to choose before Phase 1 build begins.
+Planning (Phase 0) complete — stack settled end to end. Next: Phase 1 (ledger
+core) — Supabase project, schema + RLS, and the React PWA shell.

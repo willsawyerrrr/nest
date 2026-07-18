@@ -85,6 +85,57 @@ export type Database = {
           },
         ]
       }
+      budget_line: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          frequency: Database['public']['Enums']['frequency']
+          goal_id: string | null
+          household_id: string
+          id: string
+          line_group: Database['public']['Enums']['budget_group']
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          frequency: Database['public']['Enums']['frequency']
+          goal_id?: string | null
+          household_id: string
+          id?: string
+          line_group: Database['public']['Enums']['budget_group']
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          frequency?: Database['public']['Enums']['frequency']
+          goal_id?: string | null
+          household_id?: string
+          id?: string
+          line_group?: Database['public']['Enums']['budget_group']
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'budget_line_goal_id_household_id_fkey'
+            columns: ['goal_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'savings_goal'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'budget_line_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -258,6 +309,47 @@ export type Database = {
           },
         ]
       }
+      savings_goal: {
+        Row: {
+          created_at: string
+          current_balance_cents: number
+          household_id: string
+          id: string
+          name: string
+          target_amount_cents: number
+          target_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance_cents?: number
+          household_id: string
+          id?: string
+          name: string
+          target_amount_cents: number
+          target_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_balance_cents?: number
+          household_id?: string
+          id?: string
+          name?: string
+          target_amount_cents?: number
+          target_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'savings_goal_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       tax_profile: {
         Row: {
           created_at: string
@@ -306,6 +398,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'members'
             referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      temporary_item: {
+        Row: {
+          contribution_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          name: string
+          target_date: string
+          updated_at: string
+        }
+        Insert: {
+          contribution_cents: number
+          created_at?: string
+          household_id: string
+          id?: string
+          name: string
+          target_date: string
+          updated_at?: string
+        }
+        Update: {
+          contribution_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          name?: string
+          target_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'temporary_item_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -409,6 +539,7 @@ export type Database = {
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
+      budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
       frequency: 'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement'
@@ -541,6 +672,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
+      budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
       frequency: ['weekly', 'fortnightly', 'monthly', 'annual', 'quarterly', 'biannual'],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement'],

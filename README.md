@@ -34,7 +34,36 @@ liability, plan spending, and track savings goals.
 - [`docs/TAX.md`](docs/TAX.md) — AU tax modelling design.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased delivery plan.
 
+## Repository layout
+
+```
+apps/pwa        React PWA (Vite, TypeScript) — iOS + web
+packages/tax    Shared, pure tax engine (used by the PWA and edge functions)
+supabase        Postgres migrations, edge functions, and local config
+```
+
+## Development
+
+Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
+
+```sh
+pnpm install                 # install all workspaces
+cp apps/pwa/.env.example apps/pwa/.env   # fill in Supabase URL + anon key
+pnpm --filter @budget/pwa dev            # run the PWA
+pnpm supabase start          # start the local Postgres/API stack (Docker)
+```
+
+Workspace-wide checks (also run in CI):
+
+```sh
+pnpm lint          # oxlint
+pnpm format:check  # prettier
+pnpm typecheck     # tsc across packages
+pnpm test          # vitest across packages
+pnpm build         # production build
+```
+
 ## Status
 
-Planning (Phase 0) complete — stack settled end to end. Next: Phase 1 (ledger
-core) — Supabase project, schema + RLS, and the React PWA shell.
+Phase 0 complete. Phase 1 (ledger core) in progress: monorepo scaffold and the
+React PWA shell with Google OAuth are in place; schema + RLS migrations next.

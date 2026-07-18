@@ -54,7 +54,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Claude drives pull requests autonomously in this repo — opening, updating, and
   merging them — without per-turn confirmation. Branches merge once CI is green.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
-  reducing CI time takes priority over other work. Checks run sequentially in a
-  single job after one dependency install: on a 2-vCPU hosted runner, running the
-  CPU-bound checks concurrently only causes contention and inflates each one
-  without improving wall-clock time.
+  reducing CI time takes priority over other work. CI runs as separate parallel
+  jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite), and
+  `rls` (RLS isolation on a Postgres service) — each on its own runner, so overall
+  wall-clock is the slowest single job, not the sum. Steps WITHIN a job stay
+  sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
+  causes contention and inflates each one without improving wall-clock time.
+  Splitting into separate jobs avoids that by giving each its own runner.

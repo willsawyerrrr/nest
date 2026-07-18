@@ -8,19 +8,22 @@ export function formatCents(cents: number): string {
   return currency.format(cents / 100)
 }
 
-/** Renders integer cents as a plain dollars string for form inputs (e.g. `1234.56`). */
-export function centsToDollarInput(cents: number | null | undefined): string {
+/** Integer cents as a dollars number for a `NumberInput` value, or `''` when unset. */
+export function centsToDollars(cents: number | null | undefined): number | '' {
   if (cents == null) {
     return ''
   }
-  return (cents / 100).toFixed(2)
+  return cents / 100
 }
 
-/** Parses a dollars input into integer cents, rounding to the nearest cent. */
-export function dollarsToCents(value: string): number {
-  const dollars = Number.parseFloat(value)
+/** A `NumberInput` dollars value as integer cents, or `null` when blank. */
+export function dollarsToCents(value: number | string): number | null {
+  if (value === '' || value == null) {
+    return null
+  }
+  const dollars = typeof value === 'number' ? value : Number.parseFloat(value)
   if (!Number.isFinite(dollars)) {
-    return 0
+    return null
   }
   return Math.round(dollars * 100)
 }

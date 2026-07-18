@@ -1,3 +1,5 @@
+import { Button, Center, Stack, Text, Title } from '@mantine/core'
+
 interface SignInScreenProps {
   onSignIn: () => void
 }
@@ -5,12 +7,18 @@ interface SignInScreenProps {
 /** Presentational sign-in screen. Wiring to Supabase auth lives in the caller. */
 export function SignInScreen({ onSignIn }: SignInScreenProps) {
   return (
-    <main className="signin">
-      <h1>Personal Budget</h1>
-      <p>Track income, tax, spending, and savings for your household.</p>
-      <button type="button" onClick={onSignIn}>
-        Continue with Google
-      </button>
-    </main>
+    <Center component="main" className="full-screen">
+      <Stack align="center" gap="lg" maw={360} w="100%">
+        <Title order={1} ta="center">
+          Personal Budget
+        </Title>
+        <Text c="dimmed" ta="center">
+          Track income, tax, spending, and savings for your household.
+        </Text>
+        <Button size="md" fullWidth onClick={onSignIn}>
+          Continue with Google
+        </Button>
+      </Stack>
+    </Center>
   )
 }

@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { render, screen, waitFor } from '../test/render'
 import { IncomeForm } from './IncomeForm'
 import type { Member } from '../hooks/useMembers'
 import type { Income } from '../hooks/useIncomes'
@@ -25,14 +26,25 @@ const members: Member[] = [
   },
 ]
 
+/** Picks an option from a Mantine `Select` identified by its label. */
+async function selectOption(
+  user: ReturnType<typeof userEvent.setup>,
+  label: RegExp,
+  option: string,
+) {
+  await user.click(screen.getByRole('combobox', { name: label }))
+  await user.click(await screen.findByRole('option', { name: option }))
+}
+
 describe('IncomeForm', () => {
   it('submits a salary income with dollars converted to cents', async () => {
+    const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<IncomeForm members={members} onSubmit={onSubmit} />)
 
-    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Day job' } })
-    fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '1234.56' } })
-    fireEvent.click(screen.getByRole('button', { name: /add income/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await user.type(screen.getByLabelText(/amount/i), '1234.56')
+    await user.click(screen.getByRole('button', { name: /add income/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -48,14 +60,15 @@ describe('IncomeForm', () => {
   })
 
   it('submits a wage income with rate and hours', async () => {
+    const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<IncomeForm members={members} onSubmit={onSubmit} />)
 
-    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Shifts' } })
-    fireEvent.change(screen.getByLabelText(/type/i), { target: { value: 'wage' } })
-    fireEvent.change(screen.getByLabelText(/hourly rate/i), { target: { value: '45' } })
-    fireEvent.change(screen.getByLabelText(/hours per period/i), { target: { value: '38' } })
-    fireEvent.click(screen.getByRole('button', { name: /add income/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Shifts')
+    await selectOption(user, /type/i, 'Wage')
+    await user.type(screen.getByLabelText(/hourly rate/i), '45')
+    await user.type(screen.getByLabelText(/hours per period/i), '38')
+    await user.click(screen.getByRole('button', { name: /add income/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -70,16 +83,17 @@ describe('IncomeForm', () => {
     )
   })
 
-  it('disables submit until required fields are filled', () => {
+  it('disables submit until required fields are filled', async () => {
+    const user = userEvent.setup()
     render(<IncomeForm members={members} onSubmit={vi.fn()} />)
 
     const button = screen.getByRole('button', { name: /add income/i })
     expect(button).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Day job' } })
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
     expect(button).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '100' } })
+    await user.type(screen.getByLabelText(/amount/i), '100')
     expect(button).toBeEnabled()
   })
 
@@ -100,18 +114,19 @@ describe('IncomeForm', () => {
     render(<IncomeForm members={members} initial={income} onSubmit={vi.fn()} />)
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('Old job')
-    expect(screen.getByLabelText(/member/i)).toHaveValue('m2')
-    expect(screen.getByLabelText(/amount/i)).toHaveValue(5000)
+    expect(screen.getByRole('combobox', { name: /member/i })).toHaveValue('Sam')
+    expect(screen.getByLabelText(/amount/i)).toHaveValue('$5,000')
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
   })
 
   it('shows an error when saving fails', async () => {
+    const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
     render(<IncomeForm members={members} onSubmit={onSubmit} />)
 
-    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Day job' } })
-    fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '100' } })
-    fireEvent.click(screen.getByRole('button', { name: /add income/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await user.type(screen.getByLabelText(/amount/i), '100')
+    await user.click(screen.getByRole('button', { name: /add income/i }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
   })

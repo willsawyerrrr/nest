@@ -1,4 +1,14 @@
 import { useState, type FormEvent } from 'react'
+import {
+  Button,
+  Card,
+  Center,
+  SegmentedControl,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core'
 
 interface OnboardingScreenProps {
   onCreate: (name: string, memberName: string) => void | Promise<void>
@@ -48,70 +58,66 @@ export function OnboardingScreen({ onCreate, onJoin }: OnboardingScreenProps) {
   }
 
   return (
-    <main className="onboarding">
-      <h1>{mode === 'create' ? 'Create your household' : 'Join a household'}</h1>
-      <p>
-        {mode === 'create'
-          ? 'Name your household and yourself to get started.'
-          : 'Enter the invite code your partner shared with you.'}
-      </p>
-      <div role="tablist" aria-label="Onboarding mode">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'create'}
-          onClick={() => switchMode('create')}
-        >
-          Create
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'join'}
-          onClick={() => switchMode('join')}
-        >
-          Join
-        </button>
-      </div>
-      <form onSubmit={handleSubmit}>
-        {mode === 'create' ? (
-          <>
-            <label htmlFor="household-name">Household name</label>
-            <input
-              id="household-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              autoFocus
-            />
-          </>
-        ) : (
-          <>
-            <label htmlFor="invite-code">Invite code</label>
-            <input
-              id="invite-code"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              autoFocus
-            />
-          </>
-        )}
-        <label htmlFor="member-name">Your name</label>
-        <input
-          id="member-name"
-          value={memberName}
-          onChange={(event) => setMemberName(event.target.value)}
-        />
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={!canSubmit}>
-          {mode === 'create'
-            ? submitting
-              ? 'Creating…'
-              : 'Create household'
-            : submitting
-              ? 'Joining…'
-              : 'Join household'}
-        </button>
-      </form>
-    </main>
+    <Center component="main" className="full-screen">
+      <Card withBorder shadow="sm" radius="md" p="lg" maw={400} w="100%">
+        <Stack gap="md">
+          <Title order={2}>
+            {mode === 'create' ? 'Create your household' : 'Join a household'}
+          </Title>
+          <Text c="dimmed">
+            {mode === 'create'
+              ? 'Name your household and yourself to get started.'
+              : 'Enter the invite code your partner shared with you.'}
+          </Text>
+          <SegmentedControl
+            fullWidth
+            value={mode}
+            onChange={(value) => switchMode(value as Mode)}
+            data={[
+              { value: 'create', label: 'Create' },
+              { value: 'join', label: 'Join' },
+            ]}
+          />
+          <form onSubmit={handleSubmit}>
+            <Stack gap="md">
+              {mode === 'create' ? (
+                <TextInput
+                  label="Household name"
+                  value={name}
+                  onChange={(event) => setName(event.currentTarget.value)}
+                  autoFocus
+                />
+              ) : (
+                <TextInput
+                  label="Invite code"
+                  value={code}
+                  onChange={(event) => setCode(event.currentTarget.value)}
+                  autoFocus
+                />
+              )}
+              <TextInput
+                label="Your name"
+                value={memberName}
+                onChange={(event) => setMemberName(event.currentTarget.value)}
+              />
+              {error && (
+                <Text role="alert" c="red" size="sm">
+                  {error}
+                </Text>
+              )}
+              <Button type="submit" fullWidth disabled={!canSubmit}>
+                {mode === 'create'
+                  ? submitting
+                    ? 'Creating…'
+                    : 'Create household'
+                  : submitting
+                    ? 'Joining…'
+                    : 'Join household'}
+              </Button>
+            </Stack>
+          </form>
+        </Stack>
+      </Card>
+    </Center>
   )
 }

@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { render, screen, waitFor } from '../test/render'
 import { TaxProfileForm } from './TaxProfileForm'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
@@ -16,15 +17,15 @@ const member: Member = {
 
 describe('TaxProfileForm', () => {
   it('submits residency, cover, and HELP debt converted to cents', async () => {
+    const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<TaxProfileForm member={member} onSubmit={onSubmit} />)
 
-    fireEvent.change(screen.getByLabelText(/residency/i), {
-      target: { value: 'foreign_resident' },
-    })
-    fireEvent.click(screen.getByLabelText(/private hospital cover/i))
-    fireEvent.change(screen.getByLabelText(/help debt/i), { target: { value: '25000' } })
-    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await user.click(screen.getByRole('combobox', { name: /residency/i }))
+    await user.click(await screen.findByRole('option', { name: 'Foreign resident' }))
+    await user.click(screen.getByLabelText(/private hospital cover/i))
+    await user.type(screen.getByLabelText(/help debt/i), '25000')
+    await user.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -51,16 +52,17 @@ describe('TaxProfileForm', () => {
     }
     render(<TaxProfileForm member={member} initial={profile} onSubmit={vi.fn()} />)
 
-    expect(screen.getByLabelText(/residency/i)).toHaveValue('resident')
+    expect(screen.getByRole('combobox', { name: /residency/i })).toHaveValue('Resident')
     expect(screen.getByLabelText(/private hospital cover/i)).toBeChecked()
-    expect(screen.getByLabelText(/help debt/i)).toHaveValue(10000)
+    expect(screen.getByLabelText(/help debt/i)).toHaveValue('$10,000')
   })
 
   it('shows an error when saving fails', async () => {
+    const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
     render(<TaxProfileForm member={member} onSubmit={onSubmit} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await user.click(screen.getByRole('button', { name: /save/i }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
   })

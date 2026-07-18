@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button, Stack, Title } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { Income, IncomeInput } from '../hooks/useIncomes'
 import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
@@ -37,9 +38,9 @@ export function IncomeScreen({
   }
 
   return (
-    <main className="income">
-      <section>
-        <h2>Incomes</h2>
+    <Stack gap="xl">
+      <Stack gap="md">
+        <Title order={2}>Incomes</Title>
         <IncomeList
           incomes={incomes}
           members={members}
@@ -71,14 +72,14 @@ export function IncomeScreen({
             onCancel={closeForm}
           />
         ) : (
-          <button type="button" onClick={() => setAdding(true)}>
+          <Button fullWidth onClick={() => setAdding(true)}>
             Add income
-          </button>
+          </Button>
         )}
-      </section>
+      </Stack>
 
-      <section>
-        <h2>Tax profiles (FY{financialYear})</h2>
+      <Stack gap="md">
+        <Title order={2}>Tax profiles (FY{financialYear})</Title>
         {members.map((member) => (
           <TaxProfileForm
             key={member.id}
@@ -87,7 +88,7 @@ export function IncomeScreen({
             onSubmit={onUpsertTaxProfile}
           />
         ))}
-      </section>
-    </main>
+      </Stack>
+    </Stack>
   )
 }

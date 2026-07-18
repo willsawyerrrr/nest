@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { Button, Card, Checkbox, NumberInput, Select, Stack, Text, Title } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput, TaxResidency } from '../hooks/useTaxProfiles'
-import { centsToDollarInput, dollarsToCents } from '../lib/money'
+import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface TaxProfileFormProps {
   member: Member
@@ -18,14 +19,12 @@ const RESIDENCIES: { value: TaxResidency; label: string }[] = [
 export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProps) {
   const [residency, setResidency] = useState<TaxResidency>(initial?.residency ?? 'resident')
   const [hasCover, setHasCover] = useState(initial?.has_private_hospital_cover ?? false)
-  const [helpDebt, setHelpDebt] = useState(centsToDollarInput(initial?.help_debt_cents))
+  const [helpDebt, setHelpDebt] = useState<number | string>(
+    centsToDollars(initial?.help_debt_cents),
+  )
   const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const coverId = `tax-cover-${member.id}`
-  const residencyId = `tax-residency-${member.id}`
-  const helpId = `tax-help-${member.id}`
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -37,7 +36,7 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
         member_id: member.id,
         residency,
         has_private_hospital_cover: hasCover,
-        help_debt_cents: helpDebt.trim() === '' ? 0 : dollarsToCents(helpDebt),
+        help_debt_cents: dollarsToCents(helpDebt) ?? 0,
       })
       setSaved(true)
     } catch {
@@ -48,48 +47,50 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
   }
 
   return (
-    <form className="tax-profile-form" onSubmit={handleSubmit}>
-      <h3>{member.name}</h3>
+    <Card withBorder radius="md" p="md" component="form" onSubmit={handleSubmit}>
+      <Stack gap="md">
+        <Title order={3}>{member.name}</Title>
 
-      <label htmlFor={residencyId}>Residency</label>
-      <select
-        id={residencyId}
-        value={residency}
-        onChange={(event) => setResidency(event.target.value as TaxResidency)}
-      >
-        {RESIDENCIES.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-
-      <label htmlFor={coverId}>
-        <input
-          id={coverId}
-          type="checkbox"
-          checked={hasCover}
-          onChange={(event) => setHasCover(event.target.checked)}
+        <Select
+          label="Residency"
+          data={RESIDENCIES}
+          value={residency}
+          onChange={(value) => value && setResidency(value as TaxResidency)}
+          allowDeselect={false}
         />
-        Private hospital cover
-      </label>
 
-      <label htmlFor={helpId}>HELP debt ($)</label>
-      <input
-        id={helpId}
-        type="number"
-        min="0"
-        step="0.01"
-        value={helpDebt}
-        onChange={(event) => setHelpDebt(event.target.value)}
-      />
+        <Checkbox
+          label="Private hospital cover"
+          checked={hasCover}
+          onChange={(event) => setHasCover(event.currentTarget.checked)}
+        />
 
-      {error && <p role="alert">{error}</p>}
-      {saved && !error && <p role="status">Saved</p>}
+        <NumberInput
+          label="HELP debt"
+          prefix="$"
+          thousandSeparator
+          decimalScale={2}
+          min={0}
+          hideControls
+          value={helpDebt}
+          onChange={setHelpDebt}
+        />
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Saving…' : 'Save'}
-      </button>
-    </form>
+        {error && (
+          <Text role="alert" c="red" size="sm">
+            {error}
+          </Text>
+        )}
+        {saved && !error && (
+          <Text role="status" c="green" size="sm">
+            Saved
+          </Text>
+        )}
+
+        <Button type="submit" fullWidth disabled={submitting}>
+          {submitting ? 'Saving…' : 'Save'}
+        </Button>
+      </Stack>
+    </Card>
   )
 }

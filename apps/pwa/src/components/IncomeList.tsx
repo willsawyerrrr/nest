@@ -1,3 +1,4 @@
+import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { Income } from '../hooks/useIncomes'
 import { formatCents } from '../lib/money'
@@ -23,31 +24,48 @@ export function IncomeList({ incomes, members, onEdit, onDelete }: IncomeListPro
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   if (incomes.length === 0) {
-    return <p>No incomes yet. Add one to get started.</p>
+    return (
+      <Text c="dimmed" ta="center">
+        No incomes yet. Add one to get started.
+      </Text>
+    )
   }
 
   return (
-    <ul className="income-list">
+    <Stack gap="sm">
       {incomes.map((income) => (
-        <li key={income.id}>
-          <div>
-            <strong>{income.name}</strong>
-            <span>{memberName(income.member_id)}</span>
-            <span>
-              {income.type} · {income.schedule}
-            </span>
-            <span>{describeAmount(income)}</span>
-          </div>
-          <div className="income-list-actions">
-            <button type="button" onClick={() => onEdit(income)}>
-              Edit
-            </button>
-            <button type="button" onClick={() => onDelete(income.id)}>
-              Delete
-            </button>
-          </div>
-        </li>
+        <Card key={income.id} withBorder radius="md" p="md">
+          <Stack gap="sm">
+            <Group justify="space-between" align="flex-start" wrap="nowrap">
+              <Stack gap={2} style={{ minWidth: 0 }}>
+                <Text fw={600}>{income.name}</Text>
+                <Text size="sm" c="dimmed">
+                  {memberName(income.member_id)}
+                </Text>
+                <Text size="lg" fw={700}>
+                  {describeAmount(income)}
+                </Text>
+              </Stack>
+              <Group gap={4}>
+                <Badge variant="light" tt="capitalize">
+                  {income.type}
+                </Badge>
+                <Badge variant="outline" tt="capitalize">
+                  {income.schedule}
+                </Badge>
+              </Group>
+            </Group>
+            <Group grow>
+              <Button variant="light" size="sm" onClick={() => onEdit(income)}>
+                Edit
+              </Button>
+              <Button variant="subtle" color="red" size="sm" onClick={() => onDelete(income.id)}>
+                Delete
+              </Button>
+            </Group>
+          </Stack>
+        </Card>
       ))}
-    </ul>
+    </Stack>
   )
 }

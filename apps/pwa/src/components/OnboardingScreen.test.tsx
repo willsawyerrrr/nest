@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { describe, expect, it, vi } from 'vitest'
 import { OnboardingScreen } from './OnboardingScreen'
 
@@ -22,7 +22,7 @@ describe('OnboardingScreen', () => {
     const onJoin = vi.fn()
     render(<OnboardingScreen onCreate={vi.fn()} onJoin={onJoin} />)
 
-    fireEvent.click(screen.getByRole('tab', { name: /join/i }))
+    fireEvent.click(screen.getByRole('radio', { name: /join/i }))
     fireEvent.change(screen.getByLabelText(/invite code/i), {
       target: { value: 'abcd1234' },
     })
@@ -70,7 +70,7 @@ describe('OnboardingScreen', () => {
     const onJoin = vi.fn().mockRejectedValue(new Error('boom'))
     render(<OnboardingScreen onCreate={vi.fn()} onJoin={onJoin} />)
 
-    fireEvent.click(screen.getByRole('tab', { name: /join/i }))
+    fireEvent.click(screen.getByRole('radio', { name: /join/i }))
     fireEvent.change(screen.getByLabelText(/invite code/i), {
       target: { value: 'abcd1234' },
     })

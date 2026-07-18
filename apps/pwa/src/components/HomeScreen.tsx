@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Button, Card, Center, Code, CopyButton, Group, Stack, Text, Title } from '@mantine/core'
 
 interface HomeScreenProps {
   householdName: string
@@ -9,31 +9,33 @@ interface HomeScreenProps {
 
 /** Presentational signed-in home. Supabase wiring lives in the caller. */
 export function HomeScreen({ householdName, inviteCode, email, onSignOut }: HomeScreenProps) {
-  const [copied, setCopied] = useState(false)
-
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteCode)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   return (
-    <main className="home">
-      <h1>{householdName}</h1>
-      <p>Signed in as {email}</p>
-      <p>
-        Invite code: <strong>{inviteCode}</strong>{' '}
-        <button type="button" onClick={copyCode}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </p>
-      <p>Share this code with your partner so they can join your household.</p>
-      <button type="button" onClick={onSignOut}>
-        Sign out
-      </button>
-    </main>
+    <Center>
+      <Card withBorder shadow="sm" radius="md" p="lg" maw={420} w="100%" mt="lg">
+        <Stack align="center" gap="md">
+          <Title order={1} ta="center">
+            {householdName}
+          </Title>
+          <Text c="dimmed">Signed in as {email}</Text>
+          <Group gap="xs" justify="center" wrap="wrap">
+            <Text>Invite code:</Text>
+            <Code fz="md">{inviteCode}</Code>
+            <CopyButton value={inviteCode}>
+              {({ copied, copy }) => (
+                <Button size="xs" variant="light" onClick={copy}>
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              )}
+            </CopyButton>
+          </Group>
+          <Text size="sm" c="dimmed" ta="center">
+            Share this code with your partner so they can join your household.
+          </Text>
+          <Button variant="default" fullWidth onClick={onSignOut}>
+            Sign out
+          </Button>
+        </Stack>
+      </Card>
+    </Center>
   )
 }

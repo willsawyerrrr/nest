@@ -6,6 +6,15 @@
 
 export { FY2027_CONFIG, configsByYear } from './configs'
 
+export { annualGrossCents, estimateHouseholdTax } from './estimate'
+export type {
+  HouseholdTaxEstimate,
+  IncomeInput,
+  IncomeSchedule,
+  MemberTaxEstimate,
+  TaxProfileInput,
+} from './estimate'
+
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number
 

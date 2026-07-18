@@ -28,3 +28,6 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Feature work on branches → PRs; keep `main` releasable.
 - Claude drives pull requests autonomously in this repo — opening, updating, and
   merging them — without per-turn confirmation. Branches merge once CI is green.
+- CI must complete in under 1 minute. If a run exceeds that, diagnosing and
+  reducing CI time takes priority over other work. CI checks run in parallel
+  after a single dependency install.

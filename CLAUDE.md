@@ -29,6 +29,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027.
+- Budgeting is plan-only and fortnightly: the household allocates projected
+  after-tax income across grouped categories (Needs / Wants / Discretionary /
+  Temporary / Savings / Investments) with a live remaining buffer; actual-spend
+  reconciliation via Up ingestion is a later enhancement.
 - Ingestion: both partners bank with Up, but transaction ingestion is deferred;
   spending plans and savings goals depend on it. Sources (Up Bank API + manual
   entry) are source-agnostic.

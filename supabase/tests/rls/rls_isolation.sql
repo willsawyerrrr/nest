@@ -95,6 +95,18 @@ do $$ begin
   assert (select count(*) from public.temporary_item) = 1, 'Alice should see her temporary item';
 end $$;
 
+-- Alice links her goal to a same-household account (in practice a synced Up
+-- saver); the composite FK on (id, household_id) accepts a same-household link.
+update public.savings_goal
+  set linked_account_id = current_setting('test.aid')::uuid
+  where id = current_setting('test.gid')::uuid;
+
+do $$ begin
+  assert (select linked_account_id from public.savings_goal where id = current_setting('test.gid')::uuid)
+    = current_setting('test.aid')::uuid,
+    'Alice should be able to link her goal to her own account';
+end $$;
+
 -- ── Up token: Vault storage is service-role-only, never client-readable ──────
 
 -- The token RPCs must not be executable by an authenticated (client) role.

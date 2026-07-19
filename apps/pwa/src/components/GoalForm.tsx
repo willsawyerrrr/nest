@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { Goal, GoalInput } from '../hooks/useGoals'
+import type { Saver } from '../hooks/useSavers'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface GoalFormProps {
   initial?: Goal
+  savers: Saver[]
   onSubmit: (input: GoalInput) => void | Promise<void>
   onCancel?: () => void
 }
 
 /** Presentational add/edit form for a single savings goal. Persistence lives in the caller. */
-export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
+export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [targetAmount, setTargetAmount] = useState<number | string>(
     centsToDollars(initial?.target_amount_cents),
@@ -19,6 +21,9 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
   const [targetDate, setTargetDate] = useState<string | null>(initial?.target_date ?? null)
   const [currentBalance, setCurrentBalance] = useState<number | string>(
     centsToDollars(initial?.current_balance_cents),
+  )
+  const [linkedAccountId, setLinkedAccountId] = useState<string | null>(
+    initial?.linked_account_id ?? null,
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +42,7 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
       target_amount_cents: dollarsToCents(targetAmount) ?? 0,
       target_date: targetDate,
       current_balance_cents: dollarsToCents(currentBalance) ?? 0,
+      linked_account_id: linkedAccountId,
     }
     try {
       await onSubmit(input)
@@ -79,19 +85,38 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
           onChange={setTargetDate}
         />
 
-        <NumberInput
-          label="Current balance"
-          size="sm"
-          description="Entered manually for now."
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
-          min={0}
-          hideControls
-          value={currentBalance}
-          onChange={setCurrentBalance}
-        />
+        {savers.length > 0 ? (
+          <Select
+            label="Up saver"
+            size="sm"
+            description="Optional. Pulls the current balance from a synced Up saver."
+            placeholder="Not linked"
+            clearable
+            data={savers.map((saver) => ({ value: saver.id, label: saver.name }))}
+            value={linkedAccountId}
+            onChange={setLinkedAccountId}
+          />
+        ) : (
+          <Text size="xs" c="dimmed">
+            Connect Up and sync to link a saver.
+          </Text>
+        )}
+
+        {linkedAccountId === null && (
+          <NumberInput
+            label="Current balance"
+            size="sm"
+            description="Entered manually for now."
+            prefix="$"
+            thousandSeparator
+            decimalScale={2}
+            fixedDecimalScale
+            min={0}
+            hideControls
+            value={currentBalance}
+            onChange={setCurrentBalance}
+          />
+        )}
 
         {error && (
           <Text role="alert" c="red" size="sm">

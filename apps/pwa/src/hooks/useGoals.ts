@@ -10,6 +10,7 @@ export interface GoalInput {
   target_amount_cents: number
   target_date: string | null
   current_balance_cents: number
+  linked_account_id: string | null
 }
 
 export interface UseGoalsResult {

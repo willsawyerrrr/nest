@@ -106,7 +106,11 @@ deprioritised behind it.
       `public.accounts` on conflict `(source, external_id)` — idempotent, joint
       accounts shared (owner null), individual accounts attributed to the member.
       Transaction sync stays deferred to the ledger phase below.
-- [ ] Reflect real saver balances against savings goals (progress + ETA).
+- [x] Reflect real saver balances against savings goals (progress + ETA). A goal
+      carries a nullable `linked_account_id`; the goal form offers an "Up saver"
+      picker from the household's synced savers, and a linked goal draws its
+      current balance from the saver's `balance_cents` for progress, ETA, and
+      display, falling back to the manual `current_balance_cents` when unlinked.
 
 ## Later — Up ledger + reconciliation (deprioritised)
 

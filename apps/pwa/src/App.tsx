@@ -13,6 +13,7 @@ import { OnboardingScreen } from './components/OnboardingScreen'
 import { useBudgetLines } from './hooks/useBudgetLines'
 import { useTemporaryItems } from './hooks/useTemporaryItems'
 import { useGoals } from './hooks/useGoals'
+import { useSavers } from './hooks/useSavers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
@@ -239,8 +240,9 @@ function BudgetSection({ householdId }: { householdId: string }) {
 function GoalsSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)
   const budgetLines = useBudgetLines(householdId)
+  const savers = useSavers()
 
-  if (goals.loading || budgetLines.loading) {
+  if (goals.loading || budgetLines.loading || savers.loading) {
     return <LoadingScreen />
   }
 
@@ -248,6 +250,7 @@ function GoalsSection({ householdId }: { householdId: string }) {
     <GoalScreen
       goals={goals.goals ?? []}
       lines={budgetLines.lines ?? []}
+      savers={savers.savers ?? []}
       onCreateGoal={goals.create}
       onUpdateGoal={goals.update}
       onDeleteGoal={goals.remove}

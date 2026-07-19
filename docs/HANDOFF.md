@@ -123,5 +123,8 @@ temporary_item, savings_goal, households / members (households carry a nullable
 - Rotate the Supabase Management API token when done with it.
 - Up saver-account sync is live: `up-sync` polls each connected member's Up
   accounts and upserts balances into `public.accounts` (idempotent, deduped on
-  `(source, external_id)`). Next is reflecting those balances against savings-goal
-  progress ([`ROADMAP.md`](ROADMAP.md)). Spend/ledger reconciliation is deprioritised.
+  `(source, external_id)`). Savings goals link to those savers: `savings_goal`
+  carries a nullable `linked_account_id` (composite FK on `(id, household_id)`,
+  `on delete set null`), the goal form offers an "Up saver" picker, and a linked
+  goal's current balance comes from the saver's `balance_cents` instead of the
+  manual `current_balance_cents`. Spend/ledger reconciliation is deprioritised.

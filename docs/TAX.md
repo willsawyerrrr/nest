@@ -154,7 +154,20 @@ super:
   and HELP thresholds.
 - Non-resident and part-year cases as follow-ups.
 
+## Presentation
+
+The Tax tab shows a full per-member breakdown of how the total tax is built up,
+annual and fortnightly. Each member card lists the components — income tax on the
+brackets, less the Low Income Tax Offset, the Medicare levy, the Medicare levy
+surcharge, the HELP/HECS repayment, and Division 293 tax — culminating in the
+total tax, then the gross → less super → less tax → take-home framing. Income
+tax, the Medicare levy, and the total always show; the optional components appear
+only when they apply, with any nil components named beneath so a reader knows
+they were considered. A footnote reiterates that the estimate excludes capital
+gains tax.
+
 ## Out of scope (initially)
 
 - Capital gains tax, franking credits, negative gearing schedules, PAYG
-  instalments, and business/GST accounting. Model as future extensions.
+  instalments, and business/GST accounting. Model as future extensions. The Tax
+  tab notes the capital-gains exclusion so the estimate is not read as complete.

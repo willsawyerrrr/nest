@@ -73,7 +73,10 @@ phase.
   (`interval_weeks`); only taxable inflows feed the tax estimate.
 - Income + tax-estimate UI: inflow management and the tax view (per-person
   breakdown + household take-home, annual and fortnightly, as per-card tables).
-  Tax profiles are edited on the Household tab.
+  Each member card shows a full component breakdown — income tax, Low Income Tax
+  Offset, Medicare levy, surcharge, HELP/HECS repayment, and Division 293 tax
+  building up to the total, with a footnote that capital gains tax is out of scope
+  and not modelled. Tax profiles are edited on the Household tab.
 - Budget, savings-goal, and temporary-item schema (RLS, tests, types).
 - `@budget/plan` pure math package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry.

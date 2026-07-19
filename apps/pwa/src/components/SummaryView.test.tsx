@@ -52,6 +52,17 @@ describe('SummaryView', () => {
     }
   })
 
+  it('renders the allocation donut with a legend of each slice plus the buffer', () => {
+    render(<SummaryView summary={summary} />)
+
+    const donut = screen.getByRole('region', { name: 'Allocation' })
+    expect(within(donut).getByText('Fortnightly allocation')).toBeInTheDocument()
+    // Legend lists each non-empty group and the leftover buffer with its share.
+    expect(within(donut).getByText('Needs')).toBeInTheDocument()
+    expect(within(donut).getByText('Buffer')).toBeInTheDocument()
+    expect(within(donut).getByText('40.0%')).toBeInTheDocument()
+  })
+
   it('renders the running after-outgoing and after-saving figures', () => {
     render(<SummaryView summary={summary} />)
 

@@ -14,7 +14,7 @@ interface BudgetLineListProps {
   onDelete: (id: string) => void
 }
 
-/** One budget line's display card, with its normalized fortnightly amount and controls. */
+/** One budget line as a compact single row: name, amount, frequency, fortnightly amount, controls. */
 function BudgetLineCard({
   line,
   onEdit,
@@ -26,36 +26,33 @@ function BudgetLineCard({
 }) {
   const fortnightly = fortnightlyCents(line.amount_cents, line.frequency)
   return (
-    <Card withBorder radius="md" p="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Text fw={600}>{line.name}</Text>
-            <Text size="sm" c="dimmed">
+    <Card withBorder radius="md" p="xs">
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {line.name}
+          </Text>
+          <Group gap={6} wrap="nowrap">
+            <Text size="xs" c="dimmed">
               {formatCents(line.amount_cents)}
             </Text>
-          </Stack>
-          <Stack gap={4} align="flex-end">
-            <Badge variant="outline" tt="capitalize">
+            <Badge size="xs" variant="light" tt="capitalize">
               {line.frequency}
             </Badge>
-            <Text size="lg" fw={700}>
-              {formatCents(fortnightly)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              per fortnight
-            </Text>
-          </Stack>
-        </Group>
-        <Group grow>
-          <Button variant="light" size="sm" onClick={onEdit}>
+          </Group>
+        </Stack>
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Text fw={700} size="sm">
+            {formatCents(fortnightly)}
+          </Text>
+          <Button variant="subtle" size="compact-xs" onClick={onEdit}>
             Edit
           </Button>
-          <Button variant="subtle" color="red" size="sm" onClick={onDelete}>
+          <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
             Delete
           </Button>
         </Group>
-      </Stack>
+      </Group>
     </Card>
   )
 }
@@ -88,7 +85,7 @@ export function BudgetLineList({
   }
 
   return (
-    <Stack gap="xl">
+    <Stack gap="lg">
       {BUDGET_GROUPS.map(({ value: group, label }) => {
         const groupLines = lines.filter((line) => line.line_group === group)
         const subtotal = groupLines.reduce(
@@ -96,7 +93,7 @@ export function BudgetLineList({
           0,
         )
         return (
-          <Stack key={group} gap="sm">
+          <Stack key={group} gap="xs">
             <Group justify="space-between" align="baseline" wrap="nowrap">
               <Title order={3}>{label}</Title>
               <Text fw={700} aria-label={`${label} fortnightly subtotal`}>

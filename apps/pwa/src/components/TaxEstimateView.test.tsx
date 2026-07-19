@@ -104,6 +104,29 @@ describe('TaxEstimateView', () => {
     expect(screen.getByRole('heading', { name: /FY2027/ })).toBeInTheDocument()
   })
 
+  it('shows concessional super and a Division 293 line for a member with contributions', () => {
+    const willWithSuper: MemberTaxEstimate = {
+      ...will,
+      annualConcessionalContributionsCents: 26_000_00,
+      breakdown: { ...breakdown, division293Cents: 1_500_00 },
+    }
+    const withSuper: HouseholdTaxEstimate = { ...estimate, members: [willWithSuper, sam] }
+    render(<TaxEstimateView estimate={withSuper} financialYear={2027} memberName={memberName} />)
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    // Annual $26,000 and its fortnightly split $1,000 both shown.
+    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent('$26,000.00/yr')
+    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent(
+      '$1,000.00/fortnight',
+    )
+    expect(within(willCard).getByText(/Division 293 tax/)).toHaveTextContent('$1,500.00')
+
+    // Sam has no contributions, so neither line appears.
+    const samCard = screen.getByRole('region', { name: 'Sam' })
+    expect(within(samCard).queryByText(/Concessional super/)).not.toBeInTheDocument()
+    expect(within(samCard).queryByText(/Division 293 tax/)).not.toBeInTheDocument()
+  })
+
   it('shows an empty state prompting to add income when gross is zero', () => {
     const empty: HouseholdTaxEstimate = {
       members: [],

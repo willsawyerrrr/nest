@@ -1,5 +1,14 @@
 import type { Account } from '../hooks/useAccounts'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
+import type { SuperContributionKind } from '../hooks/useSuperContributions'
+
+/** Human-readable labels for each super-contribution kind, for forms and lists. */
+export const SUPER_CONTRIBUTION_KINDS: { value: SuperContributionKind; label: string }[] = [
+  { value: 'salary_sacrifice', label: 'Salary sacrifice' },
+  { value: 'personal_deductible', label: 'Personal (deductible)' },
+  { value: 'personal_non_concessional', label: 'Personal (non-concessional)' },
+  { value: 'spouse', label: 'Spouse' },
+]
 
 /**
  * The account name for a member's super: the fund name when given, otherwise a

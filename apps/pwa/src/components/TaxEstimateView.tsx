@@ -41,8 +41,26 @@ function PeriodRow({
   )
 }
 
-/** One row's annual and fortnightly gross/tax/after-tax figures as a compact table. */
-function FiguresCard({ name, row }: { name: string; row: Row }) {
+/** Fortnights per financial year, for splitting an annual concessional figure. */
+const FORTNIGHTS_PER_YEAR = 26
+
+/**
+ * One row's annual and fortnightly gross/tax/after-tax figures as a compact
+ * table. When `concessionalCents` is positive, its annual and fortnightly split
+ * is noted below with a reminder that gross is reduced before tax; a positive
+ * `division293Cents` adds the extra high-income super tax on the same note.
+ */
+function FiguresCard({
+  name,
+  row,
+  concessionalCents = 0,
+  division293Cents = 0,
+}: {
+  name: string
+  row: Row
+  concessionalCents?: number
+  division293Cents?: number
+}) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
       <Stack gap="xs">
@@ -79,6 +97,18 @@ function FiguresCard({ name, row }: { name: string; row: Row }) {
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
+        {concessionalCents > 0 && (
+          <Text size="xs" c="dimmed">
+            Concessional super: {formatCents(concessionalCents)}/yr ·{' '}
+            {formatCents(Math.round(concessionalCents / FORTNIGHTS_PER_YEAR))}/fortnight — deducted
+            from gross, so taxable income and after-tax cash are shown after super.
+          </Text>
+        )}
+        {division293Cents > 0 && (
+          <Text size="xs" c="dimmed">
+            Division 293 tax: {formatCents(division293Cents)} (included in tax above)
+          </Text>
+        )}
       </Stack>
     </Card>
   )
@@ -98,7 +128,13 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
         <Stack gap="sm">
           <FiguresCard name="Household" row={estimate} />
           {estimate.members.map((member) => (
-            <FiguresCard key={member.memberId} name={memberName(member.memberId)} row={member} />
+            <FiguresCard
+              key={member.memberId}
+              name={memberName(member.memberId)}
+              row={member}
+              concessionalCents={member.annualConcessionalContributionsCents}
+              division293Cents={member.breakdown.division293Cents}
+            />
           ))}
         </Stack>
       )}

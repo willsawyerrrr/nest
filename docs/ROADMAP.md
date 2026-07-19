@@ -98,10 +98,14 @@ phase.
   Goals · Tax · Super · Household. Keyboard shortcuts: ⌘/Ctrl+1–8 jump to a tab,
   ⌘/Ctrl+Shift+←/→ cycle.
 - Super tab: per-member fund name and current balance for the financial year,
-  the balance held as a manual account linked from `super_profile`. Net worth
-  tab: sum of every account's `balance_cents` (assets only; liabilities not yet
-  modelled), split into Super vs Other accounts. Super contributions and the
-  super/tax integration remain deferred (see below).
+  the balance held as a manual account linked from `super_profile`, plus
+  add/edit/delete of each member's `super_contribution` rows (kind, amount or
+  percent-of-salary, frequency, FHSS flag, and a spouse contributor). Concessional
+  contributions (salary sacrifice + personal deductible) reduce the tax estimate —
+  lowering taxable income (a Division 293 line shows for high earners) and the
+  after-tax income the Summary budgets, since that cash is diverted to super.
+  Net worth tab: sum of every account's `balance_cents` (assets only; liabilities
+  not yet modelled), split into Super vs Other accounts.
 - Per-member Up token connection: each member pastes their Up personal access
   token, validated against Up and stored encrypted in Vault. The token is written
   and read only via SECURITY DEFINER RPCs granted to `service_role` alone
@@ -152,10 +156,12 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       column. RLS + isolation tests; types regenerate with the first consumer.
 - [ ] Balances as assets: surface each person's super balance as an asset,
       seeding the net-worth view.
-- [ ] Tax integration (`@budget/tax`): concessional contributions (salary
+- [x] Tax integration (`@budget/tax`): concessional contributions (salary
       sacrifice + personal deductible) reduce taxable income; 15% contributions
       tax within the fund; Division 293 extra 15% where income + concessional
-      contributions exceed $250k.
+      contributions exceed $250k. The Tax tab resolves each member's concessional
+      total from their contribution rows (amount annualised by frequency, percent
+      applied to gross salary) and shows the concessional and Division 293 lines.
 - [ ] Contribution caps + co-contribution: concessional cap ($32,500 for
       FY2027) with carry-forward when total super balance < $500k;
       non-concessional cap ($130,000 for FY2027) with bring-forward (up to
@@ -163,8 +169,9 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       FY-specific and live in the versioned config.
 - [ ] Retirement projection (pure math): projected balance at preservation age
       under user-editable return, inflation, and contribution-growth assumptions.
-- [ ] Super UI: per-person management + display, with tax impact and projection
-      surfaced.
+- [x] Super UI: per-person contribution management + display on the Super tab,
+      with the concessional tax impact surfaced on the Tax tab.
+- [ ] Projection UI: the retirement projection surfaced in the Super tab.
 
 ## Later
 

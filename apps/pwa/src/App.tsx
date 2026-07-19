@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { Center, Loader } from '@mantine/core'
+import { Box, Center, Loader } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
 import { summarise } from '@budget/plan'
 import { supabase } from './lib/supabase'
@@ -22,7 +22,7 @@ import { BudgetScreen } from './components/BudgetScreen'
 import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
-import { NAV_ITEMS, TabBar } from './components/TabBar'
+import { GroupedTabBar, NAV_ITEMS, TabBar } from './components/TabBar'
 import { estimateHouseholdTaxFromRows } from './lib/tax'
 import './App.css'
 
@@ -150,7 +150,18 @@ function HouseholdApp({
           <Route path="*" element={<Navigate to="/summary" replace />} />
         </Routes>
       </main>
-      <TabBar items={NAV_ITEMS} />
+      {/*
+       * Two bars share one route table: the full horizontal bar on tablet and
+       * up, the grouped-sections variant on mobile. The full bar stays mounted
+       * at every width (only hidden below `sm`) so it keeps owning the nav
+       * hotkeys for both variants.
+       */}
+      <Box visibleFrom="sm">
+        <TabBar items={NAV_ITEMS} />
+      </Box>
+      <Box hiddenFrom="sm">
+        <GroupedTabBar items={NAV_ITEMS} />
+      </Box>
     </div>
   )
 }

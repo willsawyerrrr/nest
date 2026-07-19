@@ -1,6 +1,7 @@
 /* eslint-disable react/only-export-components -- co-locate the nav item table with the tab bar that renders it. */
+import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Text } from '@mantine/core'
+import { Menu, Text, UnstyledButton } from '@mantine/core'
 import { useHotkeys, type HotkeyItem } from '@mantine/hooks'
 
 export type NavItem = { path: string; label: string }
@@ -14,6 +15,31 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/tax', label: 'Tax' },
   { path: '/household', label: 'Household' },
 ]
+
+/** A named section of the bottom bar, resolved to the nav items it fronts. */
+export type NavGroup = { label: string; items: NavItem[] }
+
+/**
+ * Section labels over nav-item paths, in display order. The grouped bottom bar
+ * is built from this table so a new tab slots into a group by listing its path.
+ */
+export const NAV_GROUPING: { label: string; paths: string[] }[] = [
+  { label: 'Overview', paths: ['/summary'] },
+  { label: 'Money', paths: ['/inflows'] },
+  { label: 'Plan', paths: ['/budget', '/goals'] },
+  { label: 'Settings', paths: ['/tax', '/household'] },
+]
+
+/** Resolves `grouping` against `items`, dropping paths with no matching item. */
+export function buildNavGroups(items: NavItem[], grouping = NAV_GROUPING): NavGroup[] {
+  const byPath = new Map(items.map((item) => [item.path, item]))
+  return grouping.map((group) => ({
+    label: group.label,
+    items: group.paths
+      .map((path) => byPath.get(path))
+      .filter((item): item is NavItem => item !== undefined),
+  }))
+}
 
 /** Wraps `index` into `[0, length)`, cycling past either end. */
 export function cycleIndex(index: number, length: number) {
@@ -54,18 +80,82 @@ export function TabBar({ items }: { items: NavItem[] }) {
       <div className="tab-bar__list">
         {items.map((item) => (
           <NavLink key={item.path} to={item.path} className="tab-bar__tab">
-            {({ isActive }) => (
-              <Text
-                size="sm"
-                fw={isActive ? 700 : 500}
-                c={isActive ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
-              >
-                {item.label}
-              </Text>
-            )}
+            {({ isActive }) => <NavLabel label={item.label} active={isActive} />}
           </NavLink>
         ))}
       </div>
     </nav>
+  )
+}
+
+/** Bottom-bar label, bold and tinted while its target (or group) is active. */
+function NavLabel({ label, active }: { label: string; active: boolean }) {
+  return (
+    <Text
+      size="sm"
+      fw={active ? 700 : 500}
+      c={active ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
+    >
+      {label}
+    </Text>
+  )
+}
+
+/**
+ * Fixed bottom bar that collapses the tabs into `NAV_GROUPING` sections. A
+ * single-item group navigates straight to its route; a multi-item group opens a
+ * menu to pick the destination. The group holding the current route is
+ * highlighted. Hotkeys and cycling stay owned by {@link TabBar}, which is
+ * mounted alongside this variant, so both bars share one set of shortcuts.
+ */
+export function GroupedTabBar({ items }: { items: NavItem[] }) {
+  const { pathname } = useLocation()
+  const groups = buildNavGroups(items)
+
+  return (
+    <nav className="tab-bar" aria-label="Primary">
+      <div className="tab-bar__list">
+        {groups.map((group) => {
+          const [only] = group.items
+          return group.items.length === 1 && only ? (
+            <NavLink key={group.label} to={only.path} className="tab-bar__tab">
+              {({ isActive }) => <NavLabel label={group.label} active={isActive} />}
+            </NavLink>
+          ) : (
+            <NavGroupMenu key={group.label} group={group} pathname={pathname} />
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
+
+/** A multi-item section: a toggle that opens a menu of its destinations. */
+function NavGroupMenu({ group, pathname }: { group: NavGroup; pathname: string }) {
+  const [opened, setOpened] = useState(false)
+  const active = tabIndexForPath(group.items, pathname) !== -1
+  const menuId = `nav-group-${group.label.toLowerCase()}`
+
+  return (
+    <Menu opened={opened} onChange={setOpened} position="top" withinPortal>
+      <Menu.Target>
+        <UnstyledButton
+          className="tab-bar__tab"
+          aria-label={group.label}
+          aria-haspopup="menu"
+          aria-expanded={opened}
+          aria-controls={menuId}
+        >
+          <NavLabel label={group.label} active={active} />
+        </UnstyledButton>
+      </Menu.Target>
+      <Menu.Dropdown id={menuId}>
+        {group.items.map((item) => (
+          <Menu.Item key={item.path} component={NavLink} to={item.path}>
+            {item.label}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
   )
 }

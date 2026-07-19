@@ -2,7 +2,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '../test/render'
-import { cycleIndex, NAV_ITEMS, TabBar } from './TabBar'
+import { buildNavGroups, cycleIndex, GroupedTabBar, NAV_ITEMS, TabBar } from './TabBar'
 
 /** Reads the active route so tests can assert where a shortcut navigated. */
 function LocationDisplay() {
@@ -73,6 +73,67 @@ describe('TabBar', () => {
     await user.keyboard('{Control>}{Shift>}{ArrowLeft}{/Shift}{/Control}')
 
     expect(pathname()).toBe('/household')
+  })
+})
+
+function renderGroupedTabBar(initialPath: string) {
+  render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <GroupedTabBar items={NAV_ITEMS} />
+      <LocationDisplay />
+    </MemoryRouter>,
+  )
+}
+
+describe('GroupedTabBar', () => {
+  it('navigates directly from a single-item group', async () => {
+    const user = userEvent.setup()
+    renderGroupedTabBar('/budget')
+
+    await user.click(screen.getByRole('link', { name: 'Overview' }))
+
+    expect(pathname()).toBe('/summary')
+  })
+
+  it('opens a multi-item group and navigates to a chosen destination', async () => {
+    const user = userEvent.setup()
+    renderGroupedTabBar('/summary')
+
+    const toggle = screen.getByRole('button', { name: 'Plan' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await user.click(screen.getByRole('menuitem', { name: 'Goals' }))
+
+    expect(pathname()).toBe('/goals')
+  })
+
+  it('marks the active destination within an open group', async () => {
+    const user = userEvent.setup()
+    renderGroupedTabBar('/goals')
+
+    await user.click(screen.getByRole('button', { name: 'Plan' }))
+
+    expect(screen.getByRole('menuitem', { name: 'Goals' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('menuitem', { name: 'Budget' })).not.toHaveAttribute('aria-current')
+  })
+})
+
+describe('buildNavGroups', () => {
+  it('resolves grouping paths to their nav items', () => {
+    const groups = buildNavGroups(NAV_ITEMS)
+
+    expect(groups.map((group) => group.label)).toEqual(['Overview', 'Money', 'Plan', 'Settings'])
+    expect(groups[2]?.items.map((item) => item.path)).toEqual(['/budget', '/goals'])
+  })
+
+  it('drops grouping paths with no matching nav item', () => {
+    const groups = buildNavGroups([{ path: '/summary', label: 'Summary' }])
+
+    expect(groups[0]?.items).toHaveLength(1)
+    expect(groups[1]?.items).toHaveLength(0)
   })
 })
 

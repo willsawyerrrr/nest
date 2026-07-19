@@ -1,9 +1,9 @@
 /*
  * Layout that preserves iOS PWA safe-area handling under `viewport-fit=cover`.
  * Pre-auth screens fill the viewport and clear every inset. On desktop the
- * signed-in shell pads content for the notch at the top and reserves room for
- * the fixed bottom tab bar; on mobile it reserves room for the fixed top app
- * bar instead, and each fixed bar clears its adjacent safe-area inset.
+ * signed-in shell reserves room on the left for the persistent sidebar; on
+ * mobile it reserves room for the fixed top app bar instead, and each fixed
+ * element clears its adjacent safe-area inset.
  */
 
 .full-screen {
@@ -25,49 +25,41 @@
   margin-inline: auto;
   padding-top: max(16px, env(safe-area-inset-top));
   padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   padding-left: max(16px, env(safe-area-inset-left));
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
-}
-
-.tab-bar {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 200;
-  background: var(--mantine-color-body);
-  border-top: 1px solid var(--mantine-color-default-border);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
 }
 
 /*
- * Tabs share the width evenly when they fit; if labels ever grow past the
- * viewport the row scrolls horizontally rather than wrapping or overflowing.
+ * Desktop sidebar: a fixed, always-visible left rail listing every nav item.
+ * `TabBar` shows it from `sm` up; the shell reserves its width so content never
+ * slides under it. It clears the left and vertical safe-area insets and scrolls
+ * internally if the item list ever outgrows the viewport.
  */
-.tab-bar__list {
-  display: flex;
-  overflow-x: auto;
-  scrollbar-width: none;
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+  width: 15rem;
+  overflow-y: auto;
+  background: var(--mantine-color-body);
+  border-right: 1px solid var(--mantine-color-default-border);
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-right: 12px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
 }
 
-.tab-bar__list::-webkit-scrollbar {
-  display: none;
-}
-
-.tab-bar__tab {
-  flex: 1 0 auto;
-  min-width: 3.75rem;
-  padding-block: var(--mantine-spacing-sm);
-  text-align: center;
-  text-decoration: none;
-  white-space: nowrap;
+@media (min-width: 48em) {
+  .app-shell {
+    padding-left: 15rem;
+  }
 }
 
 /*
  * Mobile top app bar: a fixed brand/hamburger row that clears the notch inset.
- * `TabBar` hides it from `sm` up, where the bottom bar takes over instead.
+ * `TabBar` hides it from `sm` up, where the sidebar takes over instead.
  */
 .top-bar {
   position: fixed;
@@ -90,12 +82,11 @@
 }
 
 /*
- * Below `sm` the drawer variant replaces the bottom bar: reserve room for the
- * fixed top bar and drop the bottom-bar allowance the desktop layout leaves.
+ * Below `sm` the top bar and its hamburger drawer replace the sidebar: reserve
+ * room for the fixed top bar above the content.
  */
 @media (max-width: 48em) {
   .page {
     padding-top: calc(56px + env(safe-area-inset-top) + var(--mantine-spacing-md));
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 }

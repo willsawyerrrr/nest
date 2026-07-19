@@ -14,6 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/goals', label: 'Goals' },
   { path: '/tax', label: 'Tax' },
   { path: '/super', label: 'Super' },
+  { path: '/gifts', label: 'Gifts' },
   { path: '/household', label: 'Household' },
 ]
 

@@ -17,6 +17,7 @@ import { useSavers } from './hooks/useSavers'
 import { useAccounts } from './hooks/useAccounts'
 import { useSuperProfiles } from './hooks/useSuperProfiles'
 import { useSuperContributions } from './hooks/useSuperContributions'
+import { useGifts } from './hooks/useGifts'
 import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
@@ -27,6 +28,7 @@ import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
 import { SuperScreen } from './components/SuperScreen'
+import { GiftsScreen } from './components/GiftsScreen'
 import { NetWorthView } from './components/NetWorthView'
 import { NAV_ITEMS, TabBar } from './components/TabBar'
 import {
@@ -150,6 +152,7 @@ function HouseholdApp({
           <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route path="/super" element={<SuperSection householdId={household.id} />} />
+          <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
           <Route
             path="/household"
             element={
@@ -393,6 +396,35 @@ function SuperSection({ householdId }: { householdId: string }) {
       onCreateContribution={contributions.create}
       onUpdateContribution={contributions.update}
       onDeleteContribution={contributions.remove}
+    />
+  )
+}
+
+function GiftsSection({ householdId }: { householdId: string }) {
+  const gifts = useGifts(householdId)
+
+  if (gifts.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <GiftsScreen
+      recipients={gifts.recipients ?? []}
+      occasions={gifts.occasions ?? []}
+      budgets={gifts.budgets ?? []}
+      purchases={gifts.purchases ?? []}
+      onCreateRecipient={gifts.createRecipient}
+      onUpdateRecipient={gifts.updateRecipient}
+      onDeleteRecipient={gifts.removeRecipient}
+      onCreateOccasion={gifts.createOccasion}
+      onUpdateOccasion={gifts.updateOccasion}
+      onDeleteOccasion={gifts.removeOccasion}
+      onCreateBudget={gifts.createBudget}
+      onUpdateBudget={gifts.updateBudget}
+      onDeleteBudget={gifts.removeBudget}
+      onCreatePurchase={gifts.createPurchase}
+      onUpdatePurchase={gifts.updatePurchase}
+      onDeletePurchase={gifts.removePurchase}
     />
   )
 }

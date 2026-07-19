@@ -216,8 +216,8 @@ transactions, categories). `accounts` is populated by `up-sync` for Up savers;
 
 ## Open items / next
 
-- **Superannuation** — to be scoped in the next roadmap discussion; not yet
-  modelled anywhere.
+- **Superannuation** — the active next phase (full modelling), scoped and
+  sub-phased in [`ROADMAP.md`](ROADMAP.md); not yet modelled in code.
 - **`service_role` grant policy** — decide whether to keep grants surgical
   (per-feature, as now) or broaden them. Current stance is surgical; any new
   server-side code must add its own grants.

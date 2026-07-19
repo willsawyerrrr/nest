@@ -21,8 +21,12 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
 
-  test:
+  test-shard:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -31,7 +35,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/2
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [test-shard]
+    steps:
+      - run: echo "all shards passed"
 
   functions:
     runs-on: ubuntu-latest

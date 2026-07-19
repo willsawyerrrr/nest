@@ -53,6 +53,7 @@ describe('InflowForm', () => {
         member_id: 'm1',
         type: 'salary',
         schedule: 'fortnightly',
+        interval_weeks: null,
         amount_cents: 123456,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -78,6 +79,7 @@ describe('InflowForm', () => {
         member_id: 'm1',
         type: 'wage',
         schedule: 'fortnightly',
+        interval_weeks: null,
         amount_cents: null,
         hourly_rate_cents: 4500,
         hours_per_period: 38,
@@ -105,7 +107,42 @@ describe('InflowForm', () => {
         member_id: null,
         type: 'reimbursement',
         schedule: 'fortnightly',
+        interval_weeks: null,
         amount_cents: 8000,
+        hourly_rate_cents: null,
+        hours_per_period: null,
+      }),
+    )
+  })
+
+  it('reveals the weeks input for the every-N-weeks cadence and submits the interval', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    expect(screen.queryByLabelText(/weeks between payments/i)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/name/i), 'On-call')
+    await user.type(screen.getByLabelText(/amount/i), '300')
+    await selectOption(user, /frequency/i, 'Every N weeks')
+
+    const weeks = screen.getByLabelText(/weeks between payments/i)
+    expect(weeks).toBeInTheDocument()
+    // Without a valid interval the form cannot submit.
+    expect(screen.getByRole('button', { name: /add inflow/i })).toBeDisabled()
+
+    await user.type(weeks, '4')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        name: 'On-call',
+        taxable: true,
+        member_id: 'm1',
+        type: 'salary',
+        schedule: 'every_n_weeks',
+        interval_weeks: 4,
+        amount_cents: 30000,
         hourly_rate_cents: null,
         hours_per_period: null,
       }),
@@ -135,6 +172,7 @@ describe('InflowForm', () => {
       taxable: true,
       type: 'salary',
       schedule: 'monthly',
+      interval_weeks: null,
       amount_cents: 500000,
       hourly_rate_cents: null,
       hours_per_period: null,

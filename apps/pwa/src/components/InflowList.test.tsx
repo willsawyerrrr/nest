@@ -19,6 +19,7 @@ const members: Member[] = [
 
 const base = {
   household_id: 'h1',
+  interval_weeks: null,
   created_at: '',
   updated_at: '',
 }

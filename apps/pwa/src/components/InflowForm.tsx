@@ -34,6 +34,7 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'biannual', label: 'Biannual' },
   { value: 'annual', label: 'Annual' },
+  { value: 'every_n_weeks', label: 'Every N weeks' },
 ]
 
 /** The unit of one pay period, for labelling the gross amount by frequency. */
@@ -44,6 +45,7 @@ const PERIOD_NOUN: Record<Frequency, string> = {
   quarterly: 'quarter',
   biannual: 'half-year',
   annual: 'year',
+  every_n_weeks: 'payment',
 }
 
 /** Presentational add/edit form for a single inflow. Persistence lives in the caller. */
@@ -55,6 +57,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     initial && initial.type !== 'reimbursement' ? initial.type : 'salary',
   )
   const [schedule, setSchedule] = useState<Frequency>(initial?.schedule ?? 'fortnightly')
+  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [hourlyRate, setHourlyRate] = useState<number | string>(
     centsToDollars(initial?.hourly_rate_cents),
@@ -64,10 +67,13 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [error, setError] = useState<string | null>(null)
 
   const isWage = taxable && type === 'wage'
+  const isEveryNWeeks = schedule === 'every_n_weeks'
+  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
   const canSubmit =
     name.trim() !== '' &&
     (taxable ? memberId !== '' : true) &&
     (isWage ? hourlyRate !== '' && hours !== '' : amount !== '') &&
+    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
     !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -83,6 +89,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       member_id: taxable ? memberId : null,
       type: taxable ? type : 'reimbursement',
       schedule,
+      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
@@ -155,6 +162,20 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           onChange={(value) => value && setSchedule(value as Frequency)}
           allowDeselect={false}
         />
+
+        {isEveryNWeeks && (
+          <NumberInput
+            label="Weeks between payments"
+            size="sm"
+            description="How many weeks apart each payment lands (e.g. 4 for once every four weeks)."
+            min={1}
+            step={1}
+            allowDecimal={false}
+            hideControls
+            value={intervalWeeks}
+            onChange={setIntervalWeeks}
+          />
+        )}
 
         {isWage ? (
           <>

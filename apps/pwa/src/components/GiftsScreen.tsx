@@ -310,7 +310,7 @@ function GiftGroupCard({
   onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
   onDeletePurchase: (id: string) => Promise<void>
 }) {
-  const [opened, { toggle }] = useDisclosure(group.rows.length > 0)
+  const [opened, { toggle }] = useDisclosure(false)
   const [addingBudget, setAddingBudget] = useState(false)
 
   return (

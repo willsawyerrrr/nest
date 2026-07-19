@@ -37,8 +37,11 @@ phase.
   the fund, with Division 293 for high earners; concessional and non-concessional
   caps (with carry-forward / bring-forward) and the government co-contribution are
   modelled. Balances are tracked as assets, seeding a net-worth view, and project
-  to retirement under user-editable return assumptions. All caps and thresholds
-  live in the versioned per-FY config alongside the tax config.
+  to retirement under user-editable return assumptions. Each balance is a dated
+  baseline that auto-accrues the member's modelled contributions between manual
+  true-ups, so it stays current under payday super with no external integration.
+  All caps and thresholds live in the versioned per-FY config alongside the tax
+  config.
 - **Budgeting is plan-only and fortnightly.** The household allocates projected
   after-tax income across grouped categories — Needs, Wants, Discretionary,
   Temporary, Savings, Investments — each line an amount + frequency normalised to
@@ -161,8 +164,16 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       `super_contribution` child table (kind, amount-or-percent, schedule, FHSS
       flag, spouse contributor). Balance is held as a linked account, not a
       column. RLS + isolation tests; types regenerate with the first consumer.
-- [ ] Balances as assets: surface each person's super balance as an asset,
+- [x] Balances as assets: surface each person's super balance as an asset,
       seeding the net-worth view.
+- [x] Auto-accruing balance: the stored balance is a dated baseline
+      (`super_profile.balance_as_of`), and the effective current balance =
+      baseline + the member's modelled net contributions accrued since that date
+      (contributions only — no investment growth), so it stays current under
+      payday super with no external integration. Saving is a "true-up" that
+      re-confirms the actual balance and resets the as-of date to today. The Super
+      tab shows the effective balance with a baseline + accrued breakdown; the Net
+      worth tab totals super accounts at their effective balance.
 - [x] Tax integration (`@budget/tax`): concessional contributions (salary
       sacrifice + personal deductible) reduce taxable income; 15% contributions
       tax within the fund; Division 293 extra 15% where income + concessional
@@ -248,6 +259,13 @@ the versioned per-FY config, verified as the FY2027 tax config was.
     dose / frequency / unit cost roll up to a recurring cost that feeds a Needs
     budget line via a new `derived_source` value — the same mechanism, a different
     tracker.
+- **Auto-fetch real super balances via CDR.** Replace the periodic manual
+  true-up by pulling each fund's actual balance directly, once superannuation
+  enters the Consumer Data Right. Super is not in CDR scope today (CDR covers
+  banking and energy, with super flagged for a future designation but not
+  designated); screen-scraping aggregators exist but are B2B and being phased out
+  as CDR expands. So contribution-based accrual is the pragmatic path until CDR
+  covers super, at which point a true-up could be automated from the real balance.
 - **Up ledger + reconciliation.** Pulling actual Up transactions to reconcile
   spend and tax against the plan — the heaviest phase, deferred behind super:
   - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on

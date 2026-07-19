@@ -4,6 +4,7 @@ import type { Member } from '../hooks/useMembers'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
 import type { SuperCapSummary } from '../lib/tax'
+import { accruedBalanceCents } from '../lib/super'
 import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
 import { SuperContributionList } from './SuperContributionList'
 import { SuperCapsSummary } from './SuperCapsSummary'
@@ -67,6 +68,8 @@ export function SuperScreen({
               member={member}
               initialFundName={profile?.fund_name}
               initialBalanceCents={account?.balance_cents}
+              balanceAsOf={profile?.balance_as_of ?? null}
+              netAnnualContributionCents={netContributionByMember.get(member.id) ?? 0}
               onSubmit={(values) => onSave(member, values)}
             />
             {capSummary && <SuperCapsSummary summary={capSummary} />}
@@ -90,10 +93,16 @@ export function SuperScreen({
         entries={members.map((member) => {
           const profile = profiles.find((candidate) => candidate.member_id === member.id)
           const account = accounts.find((candidate) => candidate.id === profile?.linked_account_id)
+          const netAnnualContributionCents = netContributionByMember.get(member.id) ?? 0
           return {
             member,
-            currentBalanceCents: account?.balance_cents ?? 0,
-            netAnnualContributionCents: netContributionByMember.get(member.id) ?? 0,
+            currentBalanceCents: accruedBalanceCents(
+              account?.balance_cents ?? 0,
+              profile?.balance_as_of ?? null,
+              netAnnualContributionCents,
+              new Date(),
+            ),
+            netAnnualContributionCents,
           }
         })}
       />

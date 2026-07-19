@@ -79,7 +79,7 @@ config alongside the tax parameters, not a table.
   - `id`, `household_id`, `member_id`, `financial_year` (int, ending year),
     `fund_name` (nullable), `sg_rate_override` (nullable — overrides the config
     SG rate), `linked_account_id` (nullable), `carry_forward_cap_cents`
-    (default 0), `created_at`, `updated_at`.
+    (default 0), `balance_as_of` (date, nullable), `created_at`, `updated_at`.
   - Unique on `(member_id, financial_year)`.
   - `linked_account_id` optionally points at one of the household's accounts whose
     `balance_cents` is the member's super balance — the same balance-source
@@ -89,6 +89,18 @@ config alongside the tax parameters, not a table.
   - `carry_forward_cap_cents` is a manually entered unused concessional cap
     carried from up to 5 prior years (eligible when total super balance <
     $500,000); it raises the effective cap for the year.
+  - `balance_as_of` is the date the linked account's `balance_cents` was last
+    confirmed (a "true-up"). It turns the stored balance into a **dated baseline**:
+    the **effective current balance** = `balance_cents` + the member's modelled net
+    annual contributions accrued from `balance_as_of` to today (contributions
+    only — no investment growth applied to the live figure), so the figure stays
+    current under payday super without any external integration. Saving a balance
+    is a true-up: it rewrites `balance_cents` and resets `balance_as_of` to today.
+    Null treats the stored balance as current (no accrual). The Super tab shows the
+    effective balance with a baseline + accrued breakdown, and the Net worth tab
+    sums super accounts at their effective balance. Net annual contribution reuses
+    the tax engine's `netAnnualSuperContributionByMember`: `(concessional +
+    employer SG) × (1 − contributions tax) + non-concessional + co-contribution`.
 - **super_contribution** — a recurring contribution for a member and year.
   - `id`, `household_id`, `member_id`, `financial_year`,
     `kind` (`salary_sacrifice` | `personal_deductible` |

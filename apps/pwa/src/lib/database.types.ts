@@ -617,6 +617,7 @@ export type Database = {
       }
       super_profile: {
         Row: {
+          balance_as_of: string | null
           carry_forward_cap_cents: number
           created_at: string
           financial_year: number
@@ -629,6 +630,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          balance_as_of?: string | null
           carry_forward_cap_cents?: number
           created_at?: string
           financial_year: number
@@ -641,6 +643,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          balance_as_of?: string | null
           carry_forward_cap_cents?: number
           created_at?: string
           financial_year?: number

@@ -48,6 +48,28 @@ describe('SuperProfileForm', () => {
     expect(screen.getByLabelText(/current balance/i)).toHaveValue('$50,000.00')
   })
 
+  it('shows the effective balance and accrual breakdown for a dated baseline', () => {
+    render(
+      <SuperProfileForm
+        member={member}
+        initialBalanceCents={10_000_00}
+        balanceAsOf="2025-07-20"
+        netAnnualContributionCents={12_000_00}
+        today={new Date('2026-07-20T00:00:00Z')}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    // Baseline $10,000 + a full year of $12,000 contributions = $22,000 today.
+    expect(screen.getByText('Estimated balance today')).toBeInTheDocument()
+    expect(screen.getByText('$22,000.00')).toBeInTheDocument()
+    expect(
+      screen.getByText(/\$10,000\.00 confirmed on .* \$12,000\.00 accrued/),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/actual balance today/i)).toHaveValue('$22,000.00')
+    expect(screen.getByRole('button', { name: /update actual balance/i })).toBeInTheDocument()
+  })
+
   it('shows an error when saving fails', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor } from '../test/render'
+import { render, screen, waitFor, within } from '../test/render'
 import { InflowList } from './InflowList'
 import type { Member } from '../hooks/useMembers'
 import type { Inflow } from '../hooks/useInflows'
@@ -104,7 +104,8 @@ describe('InflowList', () => {
   it('renders amounts and a taxable/non-taxable indicator per inflow', () => {
     renderList([salary, wage, reimbursement])
 
-    expect(screen.getByText('$5,000.00')).toBeInTheDocument()
+    // The entered amount shows per inflow, with a wage as its rate × hours.
+    expect(screen.getAllByText('$5,000.00').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('$45.00 × 38 hrs')).toBeInTheDocument()
     expect(screen.getByText('$80.00')).toBeInTheDocument()
     expect(screen.getAllByText('Taxable')).toHaveLength(2)
@@ -113,11 +114,51 @@ describe('InflowList', () => {
     expect(screen.getAllByText('Will')).toHaveLength(2)
   })
 
+  it('shows each inflow normalized to a fortnightly figure', () => {
+    renderList([reimbursement])
+
+    // Monthly $80 → annual $960 → $36.92/fn.
+    expect(screen.getByText('$36.92')).toBeInTheDocument()
+    expect(screen.getByText(/\/ fn/)).toBeInTheDocument()
+  })
+
   it('renders an every-N-weeks schedule as a friendly label, not the raw enum', () => {
     renderList([everyNWeeks])
 
     expect(screen.getByText('Every 4 weeks')).toBeInTheDocument()
     expect(screen.queryByText(/every_n_weeks/i)).not.toBeInTheDocument()
+  })
+
+  it('renders each inflow as a dense borderless row on desktop', () => {
+    // From `sm` up the inflow drops the bordered card for a single table-like row.
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('48em'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+    try {
+      renderList([wage])
+
+      const name = screen.getByText('Shifts')
+      expect(name.closest('.mantine-Card-root')).toBeNull()
+      const row = name.closest('div')?.parentElement as HTMLElement
+      expect(within(row).getByText('$45.00 × 38 hrs')).toBeInTheDocument()
+      expect(within(row).getByText('Weekly')).toBeInTheDocument()
+      expect(within(row).getByText('Will')).toBeInTheDocument()
+      // Weekly $45 × 38 hrs = $1,710/wk → annual $88,920 → $3,420.00/fn.
+      expect(within(row).getByText('$3,420.00')).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: /edit/i })).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: /delete/i })).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
   })
 
   it('renders the add button after the inflow cards', () => {

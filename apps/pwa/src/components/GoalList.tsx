@@ -116,9 +116,11 @@ function GoalCard({
         />
 
         <Text size="xs">{eta}</Text>
-        <Text size="xs" c="dimmed">
-          Linked contribution {formatCents(contributionCents)} / fn
-        </Text>
+        {contributionCents > 0 && (
+          <Text size="xs" c="dimmed">
+            Linked contribution {formatCents(contributionCents)} / fn
+          </Text>
+        )}
       </Stack>
     </Card>
   )

@@ -25,9 +25,14 @@ Clients talk to the database in the way that fits each job:
   categories, budgets, goals, accounts. No hand-written endpoints. Rules are
   enforced by DB constraints + Row-Level Security; correctness is aided by
   generated TypeScript types.
-- **Edge functions (Deno/TypeScript)** — only what needs trusted server compute:
-  - **Tax estimate** — authoritative computation.
-  - **Up sync** — scheduled polling + webhook receiver; holds Up tokens.
+- **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
+  Four live under `supabase/functions/`, auto-deployed to prod on merge (see
+  *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
+  member's Up token), `up-sync` (poll saver balances), and `up-webhook`
+  (near-real-time receiver). They hold Up tokens server-side (via Vault) and are
+  JWT-verified, except `up-webhook` (`verify_jwt=false`, signature-verified
+  instead). The pure tax engine runs client-side in the PWA; an authoritative
+  server-side tax estimate is a future edge function.
 - **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress) and
   household management (`create_household`, `join_household`, and the temporary
   invite-code RPCs `create_invite_code` / `revoke_invite_code`), callable through
@@ -45,13 +50,16 @@ is CRUD over RLS.
   need no verification review) to avoid the 7-day refresh-token expiry of testing
   mode. Note the iOS standalone-PWA OAuth redirect quirk — the round-trip may
   return to Safari rather than the installed app; handled via redirect-URL config.
-- **PWA** — consumes PostgREST directly (RLS-enforced) and calls edge functions
-  for tax + Up. Client-side path routing via `react-router-dom` makes each tab
-  deep-linkable and reload-safe (`apps/pwa/vercel.json` supplies the SPA
-  fallback).
-- **Tax engine** — pure, versioned TypeScript package. Imported by the edge
-  function (authoritative) and reused in the PWA for instant client-side preview
-  — the *same* code, so no duplication or divergence. See [`TAX.md`](TAX.md).
+- **PWA** — consumes PostgREST directly (RLS-enforced), runs the pure tax engine
+  client-side, and calls the Up edge functions. Client-side path routing via
+  `react-router-dom` makes each tab deep-linkable and reload-safe
+  (`apps/pwa/vercel.json` supplies the SPA fallback).
+- **Tax engine** — pure, versioned TypeScript package (`@budget/tax`). The PWA
+  imports it for the instant client-side estimate. Designed to be reused
+  unchanged by a future authoritative edge function, so there is no duplication
+  or divergence. See [`TAX.md`](TAX.md).
+- **Plan engine** — pure `@budget/plan` package: schedule normalization, summary
+  reconciliation, goal projection, temporary expiry, and the `Frequency` type.
 - **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.
 
 ## Integrations
@@ -67,17 +75,23 @@ is CRUD over RLS.
   `up_token_for_member` / `clear_up_token`); a member sees only a boolean status
   (`members.up_connected_at`). The initial Up scope funds savings goals from saver
   balances; spend/ledger reconciliation is deprioritised.
-- **Webhook receiver** edge function for near-real-time updates; verifies Up's
+- **Webhook receiver** — the `up-webhook` edge function (pinned
+  `verify_jwt=false` in `config.toml`) for near-real-time updates; verifies Up's
   HMAC signature.
-- **Scheduled poll** — the `up-sync` edge function reconciles saver balances. It
-  scopes its run by caller: a member's JWT-invoked Refresh syncs only that
-  caller's household, while the service-role/cron path syncs every connected
-  member. An hourly `pg_cron` job (`up-sync-hourly`) calls it through `pg_net` as
-  a backstop; the schedule reads its invocation URL/key from Vault at run time
-  and is guarded on both extensions, so it no-ops where they are absent.
-  Dedupes on `(source, external_id)`.
-- Each member links their own token; transactions are attributed to that member
-  and mapped into the shared household ledger.
+- **Scheduled poll** — the `up-sync` edge function syncs saver balances
+  (accounts only; transaction ingestion deferred). It runs `verify_jwt=true`, so
+  the gateway validates the bearer's signature, and the handler then tells the
+  caller apart by the JWT's `role` claim: a `service_role` JWT (the cron) syncs
+  every connected household, while any other JWT resolves to a member and scopes
+  the run to that member's household. The Goals-tab Refresh invokes it with the
+  member's JWT; an hourly `pg_cron` job (`up-sync-hourly`) calls it through
+  `pg_net` with the service-role key as a backstop. The schedule reads its
+  invocation URL/key from Vault at run time and is guarded on both extensions, so
+  it no-ops where they are absent. Upserts dedupe on `(source, external_id)`.
+- A goal links to a synced saver via `savings_goal.linked_account_id`; a linked
+  goal's current balance comes from that account's `balance_cents`.
+- Each member links their own token; accounts are attributed to that member
+  (joint accounts left owner-null) in the shared household ledger.
 - Reference: <https://developer.up.com.au/>
 
 ## Security
@@ -97,10 +111,10 @@ is CRUD over RLS.
 
 - **Supabase CLI** runs the full stack locally in Docker; SQL migrations are
   version-controlled; TypeScript types are generated from the schema.
-- Tax package and edge functions are unit-tested in CI.
-
-## Next up (Phase 1)
-
-- Supabase project (Sydney, Pro) + CLI local stack.
-- Initial schema migrations and RLS policies (see [`DATA_MODEL.md`](DATA_MODEL.md)).
-- React PWA shell with Google OAuth sign-in.
+- Migrations auto-deploy to prod via the GitHub → Supabase integration on merge;
+  edge functions auto-deploy via `.github/workflows/deploy-functions.yml` on any
+  push to `main` touching `supabase/functions/**` or `supabase/config.toml`.
+- CI runs four parallel jobs (`check`, `test`, `rls`, `functions`), all required.
+  The tax and plan packages are unit-tested under Vitest; the edge functions have
+  their own Deno harness. See [`HANDOFF.md`](HANDOFF.md) for the operational
+  detail.

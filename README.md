@@ -29,8 +29,12 @@ liability, plan spending, and track savings goals.
 
 ## Documentation
 
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — operational handoff: what is live, where
+  it runs, and how to work on it.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system shape and integrations.
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — entities and relationships.
+- [`docs/budget-and-savings.md`](docs/budget-and-savings.md) — plan-only budget,
+  savings, and Summary math.
 - [`docs/TAX.md`](docs/TAX.md) — AU tax modelling design.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased delivery plan.
 
@@ -68,6 +72,9 @@ pnpm build         # production build
 
 The plan-only app — income + tax estimate, fortnightly budget, and savings goals
 — is live in production and fully replaces the household's spreadsheet; it needs
-no transaction data. Up ingestion + reconciliation (ledger UI, actual spend vs
-budget, real balances vs goals, actual tax paid) is the next phase. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+no transaction data. The Up savers → savings-goals layer is also live: members
+connect an Up token and link a goal to a synced Up saver, so goal progress tracks
+the real balance (synced on demand and hourly). Up transaction ingestion +
+reconciliation (ledger UI, actual spend vs budget, actual tax paid) is the next
+phase. See [`docs/ROADMAP.md`](docs/ROADMAP.md) and
+[`docs/HANDOFF.md`](docs/HANDOFF.md).

@@ -2,8 +2,9 @@
 
 Phased so each phase is independently useful. The plan-only app (income, tax,
 budget, savings goals) is built and deployed — it fully replaces the household's
-spreadsheet and needs no transaction data. Up ingestion is the current phase, to
-reconcile the plan against reality.
+spreadsheet and needs no transaction data. The Up savers → savings-goals slice
+is built and deployed on top of it. Up transaction ingestion — reconciling spend
+and actual tax paid against the plan — is the remaining phase.
 
 ## Product decisions
 
@@ -44,7 +45,8 @@ reconcile the plan against reality.
 ### Foundations & platform
 
 - Stack, monorepo scaffold, Vercel hosting, `main` protection ruleset.
-- CI split into parallel `check` / `test` / `rls` jobs (under a minute).
+- CI split into parallel `check` / `test` / `rls` / `functions` jobs (all
+  required; the `test` job sharded across runners; under a minute).
 - Household, members, and RLS isolation (schema + automated CI tests).
 - Onboarding + first-run gating; Google OAuth; partner join via a temporary,
   opt-in, single-use invite code (`create_invite_code` / `join_household` /
@@ -84,7 +86,6 @@ reconcile the plan against reality.
   `/summary`), so tabs are deep-linkable and reload-safe. Summary is the landing
   tab; order Summary · Inflows · Budget · Goals · Tax · Household. Keyboard
   shortcuts: ⌘/Ctrl+1–6 jump to a tab, ⌘/Ctrl+Shift+←/→ cycle.
-- Up Bank sync scaffold (not yet functional).
 - Per-member Up token connection: each member pastes their Up personal access
   token, validated against Up and stored encrypted in Vault. The token is written
   and read only via SECURITY DEFINER RPCs granted to `service_role` alone
@@ -94,42 +95,46 @@ reconcile the plan against reality.
   member from the JWT and connect/clear the token. Household-tab UI for connect,
   disconnect, and per-member status.
 
-## Now — Up savers → savings goals
+### Up savers → savings goals (complete)
 
-The initial Up scope funds savings-goal progress from Up saver balances; the
-token connection above is the foundation. Spend/ledger reconciliation is
-deprioritised behind it.
+Savings-goal progress is funded from Up saver balances. The per-member token
+connection is the foundation; transaction ingestion stays deferred behind it.
 
-- [x] Read each member's Up saver balances server-side. The `up-sync` function
-      enumerates connected members (`up_connected_at` set), reads each token via
-      `up_token_for_member` as service role, and upserts their Up accounts into
-      `public.accounts` on conflict `(source, external_id)` — idempotent, joint
-      accounts shared (owner null), individual accounts attributed to the member.
-      Transaction sync stays deferred to the ledger phase below.
-- [x] Reflect real saver balances against savings goals (progress + ETA). A goal
-      carries a nullable `linked_account_id`; the goal form offers an "Up saver"
-      picker from the household's synced savers, and a linked goal draws its
-      current balance from the saver's `balance_cents` for progress, ETA, and
-      display, falling back to the manual `current_balance_cents` when unlinked.
-- [x] Keep synced balances fresh, on demand and on a schedule. A **Refresh**
-      button on the Goals tab invokes `up-sync` with the member's JWT; the
-      function scopes that run to the caller's household and refetches savers +
-      goals so balances update. An hourly `pg_cron` job (`up-sync-hourly`) POSTs
-      to `up-sync` via `pg_net` with the service-role key as a backstop, syncing
-      every connected household. The schedule migration is guarded on
-      pg_cron + pg_net and reads the invocation URL/key from Vault, so it is a
-      clean no-op where those extensions are absent (CI, plain Postgres) and
-      needs deploy-time config in prod (see HANDOFF).
+- Saver balances read server-side: `up-sync` enumerates connected members
+  (`up_connected_at` set), reads each token via `up_token_for_member` as service
+  role, and upserts their Up accounts into `public.accounts` on conflict
+  `(source, external_id)` — idempotent, joint accounts shared (owner null),
+  individual accounts attributed to the member. Transaction sync is deferred to
+  the ledger phase below.
+- Goals reflect real saver balances (progress + ETA): a goal carries a nullable
+  `linked_account_id`; the goal form offers an "Up saver" picker from the
+  household's synced savers (selecting one prefills an empty goal name with the
+  saver's name), and a linked goal draws its current balance from the saver's
+  `balance_cents` for progress, ETA, and display, falling back to the manual
+  `current_balance_cents` when unlinked.
+- Balances stay fresh on demand and on a schedule: a **Refresh** button on the
+  Goals tab invokes `up-sync` with the member's JWT, which scopes the run to the
+  caller's household and refetches savers + goals. An hourly `pg_cron` job
+  (`up-sync-hourly`) POSTs to `up-sync` via `pg_net` with the service-role key as
+  a backstop, syncing every connected household; `up-sync` tells the cron caller
+  from a member's by the bearer JWT's `role` claim. The schedule migration is
+  guarded on pg_cron + pg_net and reads the invocation URL/key from Vault, so it
+  is a clean no-op where those extensions are absent (CI, plain Postgres) and
+  takes deploy-time config in prod (see HANDOFF).
 
-## Later — Up ledger + reconciliation (deprioritised)
+## Now — Up ledger + reconciliation
 
 - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.
 - [ ] Reconcile actual spend against the budget.
 - [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
 
-## Later still
+## Later
 
+- **Superannuation** — scope in the next roadmap discussion; not yet modelled.
+- **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
+  itemised sub-budget (line-item breakdown, e.g. the gift budget),
+  payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
 - Reconcile projected income against actual deposits; joint-income ownership
   split; net worth (assets and liabilities); recurring bills and forecasting;
   non-resident and part-year tax; notifications; additional bank sources / CSV.

@@ -44,10 +44,16 @@ export interface TaxProfileInput {
   readonly helpDebtCents: Money
 }
 
-/** A single member's annual and fortnightly estimate, with the full breakdown. */
+/**
+ * A single member's annual and fortnightly estimate, with the full breakdown.
+ * `annualConcessionalContributionsCents` is the pre-tax super diverted from cash;
+ * after-tax figures are gross less those contributions less tax, so they reflect
+ * the cash actually available to budget.
+ */
 export interface MemberTaxEstimate {
   readonly memberId: string
   readonly annualGrossCents: Money
+  readonly annualConcessionalContributionsCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
@@ -132,11 +138,14 @@ interface MemberIncome {
  * PAYG withheld nil (estimate-only). A member with income but no profile is
  * treated as a cover-less resident with no HELP debt; a member with a profile but
  * no income yields a zero estimate. Household fields are the sum of members'.
+ * `concessionalByMember`, when supplied, gives each member's annual concessional
+ * super contributions — reducing taxable income and the after-tax cash available.
  */
 export function estimateHouseholdTax(
   incomes: readonly IncomeInput[],
   profiles: readonly TaxProfileInput[],
   config: TaxYearConfig,
+  concessionalByMember?: ReadonlyMap<string, Money>,
 ): HouseholdTaxEstimate {
   const incomeByMember = new Map<string, MemberIncome>()
   const memberOrder: string[] = []
@@ -170,6 +179,7 @@ export function estimateHouseholdTax(
   const members = memberOrder.map((memberId) => {
     const bucket = incomeByMember.get(memberId) ?? { salaryOrWagesCents: 0, otherCents: 0 }
     const profile = profileByMember.get(memberId) ?? { memberId, ...DEFAULT_PROFILE }
+    const concessionalCents = concessionalByMember?.get(memberId) ?? 0
     const input: TaxInput = {
       assessableIncome: {
         salaryOrWagesCents: bucket.salaryOrWagesCents,
@@ -182,14 +192,17 @@ export function estimateHouseholdTax(
       privateHospitalCover: profile.privateHospitalCover,
       helpDebtCents: profile.helpDebtCents,
       paygWithheldCents: 0,
+      concessionalContributionsCents: concessionalCents,
     }
     const breakdown = computeTax(input, config)
     const annualGross = bucket.salaryOrWagesCents + bucket.otherCents
     const annualTax = breakdown.totalLiabilityCents
-    const annualAfterTax = annualGross - annualTax
+    // After-tax cash excludes concessional super (diverted from cash to the fund).
+    const annualAfterTax = annualGross - concessionalCents - annualTax
     return {
       memberId,
       annualGrossCents: annualGross,
+      annualConcessionalContributionsCents: concessionalCents,
       annualTaxCents: annualTax,
       annualAfterTaxCents: annualAfterTax,
       fortnightlyGrossCents: fortnightlyOf(annualGross),

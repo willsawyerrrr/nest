@@ -174,4 +174,24 @@ describe('estimateHouseholdTax', () => {
       }),
     ])
   })
+
+  it('reduces taxable income and after-tax cash by concessional super contributions', () => {
+    const concessional = new Map([['alex', 20_000_00]])
+    const household = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG, concessional)
+    const baseline = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG)
+    const alex = household.members.find((m) => m.memberId === 'alex')!
+    const alexBase = baseline.members.find((m) => m.memberId === 'alex')!
+
+    expect(alex.annualConcessionalContributionsCents).toBe(20_000_00)
+    // Taxable income drops by the contribution, so tax is lower than the baseline.
+    expect(alex.breakdown.taxableIncomeCents).toBe(
+      alexBase.breakdown.taxableIncomeCents - 20_000_00,
+    )
+    expect(alex.annualTaxCents).toBeLessThan(alexBase.annualTaxCents)
+    // After-tax cash is gross less the contribution less tax.
+    expect(alex.annualAfterTaxCents).toBe(alex.annualGrossCents - 20_000_00 - alex.annualTaxCents)
+    // Sam, with no contribution supplied, is unaffected.
+    const sam = household.members.find((m) => m.memberId === 'sam')!
+    expect(sam.annualConcessionalContributionsCents).toBe(0)
+  })
 })

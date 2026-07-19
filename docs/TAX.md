@@ -19,27 +19,39 @@ versioned config per financial year, because AU rates and thresholds change year
 - Claims tax-free threshold (affects withholding expectations).
 - Private hospital cover held (Medicare levy surcharge).
 - HECS/HELP debt balance.
+- Concessional (pre-tax) super contributions — salary sacrifice and personal
+  deductible.
 - PAYG tax withheld to date (from payslips).
 
 ## Computation pipeline
 
-1. **Taxable income** = assessable income − deductions.
+1. **Taxable income** = assessable income − deductions − concessional super
+   contributions (salary sacrifice and personal deductible both reduce it).
 2. **Income tax** = apply marginal brackets from `TaxYearConfig`.
 3. **Offsets** — subtract e.g. Low Income Tax Offset (LITO). Offsets reduce tax
    payable but not below zero.
 4. **Medicare levy** — base rate (2%) with low-income reduction thresholds.
 5. **Medicare levy surcharge** — income-tested; applies only without private
-   hospital cover and above the surcharge threshold.
+   hospital cover and above the surcharge threshold. Surcharge income adds the
+   concessional super contributions back to taxable income.
 6. **HELP/HECS repayment** — income-tested compulsory repayment on repayment
-   income. From 1 July 2025 (FY2026 onward) it is **marginal**: a rate applies to
-   repayment income within each band above the first band's floor, and the total
-   is capped at a maximum fraction of the whole repayment income (the cap binds
-   only at high incomes, reproducing the ATO's whole-of-income top band). Capped
-   at the outstanding debt.
-7. **Total liability** = income tax − offsets + Medicare levy + surcharge +
-   HELP repayment.
-8. **Balance** = total liability − PAYG withheld. Positive = amount owing;
+   income (which likewise adds concessional super contributions back). From
+   1 July 2025 (FY2026 onward) it is **marginal**: a rate applies to repayment
+   income within each band above the first band's floor, and the total is capped
+   at a maximum fraction of the whole repayment income (the cap binds only at high
+   incomes, reproducing the ATO's whole-of-income top band). Capped at the
+   outstanding debt.
+7. **Division 293** — for high earners, an extra 15% on the lesser of the
+   concessional contributions and the amount by which Division 293 income
+   (taxable income + concessional contributions) exceeds the $250,000 threshold.
+8. **Total liability** = income tax − offsets + Medicare levy + surcharge +
+   HELP repayment + Division 293.
+9. **Balance** = total liability − PAYG withheld. Positive = amount owing;
    negative = estimated refund.
+
+> **Super-income simplification.** Surcharge, HELP repayment, and Division 293
+> income are taken as taxable income plus concessional contributions; reportable
+> fringe benefits and net investment losses are not yet modelled.
 
 ## `TaxYearConfig` shape (versioned)
 
@@ -64,7 +76,17 @@ lito:
 help_repayment:
   marginal_bands: [ { income_over_cents, rate } ]  # marginal, ordered by floor
   max_repayment_rate: 0.10                          # cap on whole repayment income
-super_guarantee_rate: 0.12
+super:
+  guarantee_rate: 0.12
+  concessional_cap_cents: ...
+  contributions_tax_rate: 0.15
+  non_concessional_cap_cents: ...
+  division_293_threshold_cents: ...   # income + concessional above this attracts Div 293
+  division_293_rate: 0.15
+  carry_forward_balance_cap_cents: ...
+  general_transfer_balance_cap_cents: ...
+  co_contribution: { max_cents, lower_income_threshold_cents, higher_income_threshold_cents }
+  preservation_age: 60
 ```
 
 > **Values above are illustrative.** Each FY's real figures must be sourced from
@@ -78,7 +100,11 @@ super_guarantee_rate: 0.12
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
   carries its `ato.gov.au` source in a comment; figures the ATO has not yet
   published for 2026-27 (the Medicare levy low-income thresholds) reuse the
-  2025-26 values and are flagged provisional. See `packages/tax/src/configs.ts`.
+  2025-26 values and are flagged provisional. It also carries the verified 2026-27
+  super figures (concessional cap $32,500, non-concessional cap $130,000, the
+  $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the
+  co-contribution income test, and preservation age 60). See
+  `packages/tax/src/configs.ts`.
 
 ## Testing
 

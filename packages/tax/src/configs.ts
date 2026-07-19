@@ -89,9 +89,44 @@ export const FY2027_CONFIG: TaxYearConfig = {
     maxRepaymentRate: 0.1,
   },
 
-  // Super guarantee 12.00% (from 1 July 2025). Carried for projections only.
-  //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/super-guarantee
-  superGuaranteeRate: 0.12,
+  // Superannuation parameters for 2026-27. Concessional contributions reduce
+  // taxable income; Division 293 adds 15% for high earners; the caps,
+  // co-contribution, and preservation age feed the caps and projection layers.
+  //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds
+  super: {
+    // Super guarantee 12.00% (from 1 July 2025):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/super-guarantee
+    guaranteeRate: 0.12,
+    // Concessional cap $32,500 (2026-27); contributions taxed 15% in the fund:
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/contributions-caps
+    concessionalCapCents: 32_500_00,
+    contributionsTaxRate: 0.15,
+    // Non-concessional cap $130,000 (2026-27); bring-forward up to $390,000:
+    //   https://www.ato.gov.au/individuals-and-families/super-for-individuals-and-families/super/growing-and-keeping-track-of-your-super/caps-limits-and-tax-on-super-contributions/non-concessional-contributions-cap
+    nonConcessionalCapCents: 130_000_00,
+    // Division 293: extra 15% on concessional contributions where income +
+    // concessional exceeds $250,000 (threshold not indexed):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/division-293-tax
+    division293ThresholdCents: 250_000_00,
+    division293Rate: 0.15,
+    // Carry forward unused concessional cap when total super balance < $500,000:
+    //   https://www.ato.gov.au/individuals-and-families/super-for-individuals-and-families/super/growing-and-keeping-track-of-your-super/caps-limits-and-tax-on-super-contributions/concessional-contributions-cap
+    carryForwardBalanceCapCents: 500_000_00,
+    // General transfer balance cap $2.1M (2026-27):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/transfer-balance-cap
+    generalTransferBalanceCapCents: 2_100_000_00,
+    // Government co-contribution: max $500, phasing out from $49,293 to $64,293
+    // of total income (2026-27):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/government-contributions
+    coContribution: {
+      maxCents: 500_00,
+      lowerIncomeThresholdCents: 49_293_00,
+      higherIncomeThresholdCents: 64_293_00,
+    },
+    // Preservation age 60 (everyone born after 1 July 1964):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/payments-from-super
+    preservationAge: 60,
+  },
 }
 
 /** Verified configs keyed by financial year (resident). */

@@ -38,6 +38,8 @@ import {
   superCapSummaryFromRows,
 } from './lib/tax'
 import { superAccountIds, superAccountName } from './lib/super'
+import { giftBudgetTotalCents } from './lib/gifts'
+import { applyGiftDerivedAmounts } from './lib/derivedBudget'
 import type { SuperFormValues } from './components/SuperProfileForm'
 import './App.css'
 
@@ -236,16 +238,19 @@ function BudgetSection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const temporaryItems = useTemporaryItems(householdId)
   const goals = useGoals(householdId)
+  const gifts = useGifts(householdId)
 
-  if (budgetLines.loading || temporaryItems.loading || goals.loading) {
+  if (budgetLines.loading || temporaryItems.loading || goals.loading || gifts.loading) {
     return <LoadingScreen />
   }
 
+  const giftBudgets = gifts.budgets ?? []
   return (
     <BudgetScreen
-      lines={budgetLines.lines ?? []}
+      lines={applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets)}
       goals={goals.goals ?? []}
       temporaryItems={temporaryItems.items ?? []}
+      giftTotalCents={giftBudgetTotalCents(giftBudgets)}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
       onDeleteLine={budgetLines.remove}
@@ -451,13 +456,15 @@ function SummarySection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const temporaryItems = useTemporaryItems(householdId)
   const contributions = useSuperContributions(householdId)
+  const gifts = useGifts(householdId)
 
   if (
     inflows.loading ||
     taxProfiles.loading ||
     budgetLines.loading ||
     temporaryItems.loading ||
-    contributions.loading
+    contributions.loading ||
+    gifts.loading
   ) {
     return <LoadingScreen />
   }
@@ -477,11 +484,13 @@ function SummarySection({ householdId }: { householdId: string }) {
           frequency: inflow.schedule,
           intervalWeeks: inflow.interval_weeks ?? undefined,
         })),
-      budgetLines: (budgetLines.lines ?? []).map((line) => ({
-        group: line.line_group,
-        amountCents: line.amount_cents,
-        frequency: line.frequency,
-      })),
+      budgetLines: applyGiftDerivedAmounts(budgetLines.lines ?? [], gifts.budgets ?? []).map(
+        (line) => ({
+          group: line.line_group,
+          amountCents: line.amount_cents,
+          frequency: line.frequency,
+        }),
+      ),
       temporaryItems: (temporaryItems.items ?? []).map((item) => ({
         contributionCents: item.contribution_cents,
         targetDate: item.target_date,

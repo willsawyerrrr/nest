@@ -143,10 +143,19 @@ no per-member scoping; each line stands alone under the household.
 A budget line's amount is normally typed by hand. It can instead be **derived**:
 rolled up from an itemised source so the line and its detail share one source of
 truth and never drift. `budget_line.derived_source` (the `budget_derived_source`
-enum) names that source; null is an ordinary manual line. The mechanism is
-generic and extensible — `gift` is the first source; health / medication is a
-planned second — and the summary math honours a derived line's source in place of
-its typed amount (a later slice).
+enum) names that source; null is an ordinary manual line. A line with
+`derived_source = 'gift'` takes its amount from the gift tracker — the sum of
+every `gift_budget.budgeted_amount_cents`, treated as an annual figure — in place
+of its typed `amount_cents`, and the PWA substitutes that amount before the
+Budget tab renders and before the Summary reconciles, so both reflect the gift
+total. The tracker's amount is not editable from the budget line; editing gift
+budgets moves the line. The PWA offers a single gift-derived line per household
+to avoid double-counting.
+
+`derived_source` is a deliberate enum-based simplification: each new source needs
+a migration to extend the enum plus code to roll it up (a registry/polymorphic
+design is deferred). Revisit if derived sources proliferate. Health / medication
+is a candidate second source.
 
 The gift tracker is the first consumer: plan a spend per **recipient × occasion**,
 then record the actual purchases against it. All four tables are household-scoped

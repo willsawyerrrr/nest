@@ -197,12 +197,14 @@ the versioned per-FY config, verified as the FY2027 tax config was.
   its detail share one source of truth and never drift. `budget_line.derived_source`
   (the `budget_derived_source` enum) names the source; null is an ordinary manual
   line, and the summary math honours a derived line's source in place of its typed
-  amount. Extensible — each consumer adds an enum value and its own tables.
+  amount. Extensible — each consumer adds an enum value and its own tables. The
+  enum is a deliberate simplification: each new source needs a migration plus
+  roll-up code; a registry/polymorphic design is deferred until sources proliferate.
   - [x] **Schema (generic + gifts).** The `budget_derived_source` enum, the
         nullable `budget_line.derived_source` column, and the gift tracker's four
         tables (`gift_recipient`, `gift_occasion`, `gift_budget`, `gift_purchase`),
         with RLS + isolation tests and regenerated types.
-  - **Gift budget tracking** (first consumer). A dedicated gift planner + tracker —
+  - [x] **Gift budget tracking** (first consumer). A dedicated gift planner + tracker —
     a richer, purchase-tracking take on the itemised sub-budget, specifically for
     gifts (beyond the spreadsheet's plan-only Gifts sheet):
     - **Plan** a spend per **recipient × occasion** — e.g. a person's birthday, or
@@ -218,14 +220,16 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       Mother's Day, …). A toggle flips the grouping direction; each group rolls up
       budgeted / spent / remaining. Reuses the Budget tab's collapsible
       `GroupSection` pattern.
-    - Rolls up to an overall gift total that feeds a Discretionary "Gifts" budget
-      line via `derived_source = 'gift'`.
+    - Rolls up to an overall gift total that a single `derived_source = 'gift'`
+      budget line takes as its annual amount; the Budget tab and the Summary both
+      substitute it, and the form offers one gift-derived line per household to
+      avoid double-counting.
     - Manual purchase entry to start; once Up ingestion lands, an Up transaction
       can be tagged to a gifting event instead of hand-entering it.
     - Data model: `gift_recipient` (household-scoped name), `gift_occasion` (label
       + optional date), `gift_budget` (recipient × occasion + budgeted amount), and
       `gift_purchase` (assigned to a `gift_budget`: amount, description, date,
-      optional later transaction link). Remaining size: M (UI + summary roll-up).
+      optional later transaction link).
   - **Health / medication tracking** (planned second consumer). Medications with
     dose / frequency / unit cost roll up to a recurring cost that feeds a Needs
     budget line via a new `derived_source` value — the same mechanism, a different

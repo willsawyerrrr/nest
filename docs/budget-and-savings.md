@@ -76,8 +76,10 @@ math).
 
 ### Savings goal (persists)
 
-- Fields: `name`, `target amount`, optional `target date`, `current balance`
-  (entered manually for now; sourced from real balances later via ingestion).
+- Fields: `name`, `target amount`, optional `target date`, `current balance`,
+  and an optional link to an Up saver (`linked_account_id`). When linked, the
+  current balance comes from the synced saver's `balance_cents`; otherwise it is
+  the manually entered `current_balance_cents`.
 - A Savings budget line links to a goal. Allow **many lines → one goal**; the
   goal's fortnightly contribution is the sum of its linked lines. Only the
   contribution is entered, never derived.
@@ -135,7 +137,8 @@ income tables.
     `goal_id` (nullable; set on Savings lines that fund a goal).
 - **SavingsGoal** — a persistent target.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),
-    `current_cents` (manual for now).
+    `current_cents` (manual fallback), `linked_account_id` (nullable → a synced
+    Up saver; supplies the current balance when set).
   - Many budget lines link to one goal.
 - **TemporaryItem** — a date-driven budget line.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
@@ -192,12 +195,13 @@ reload-safe; keyboard shortcuts jump between them.
 
 - **Netting non-taxable inflows against categories** — assign a non-taxable
   inflow to a specific budget category so it nets against that spend.
-- **Actual-spend reconciliation and real balances** — reconcile spend against the
-  budget and populate goal balances from Up ingestion.
-- **Linking targets to Up Saver accounts** — the Up API exposes account types
-  `SAVER`, `TRANSACTIONAL`, and `HOME_LOAN`, including balances and transactions.
-  In the ingestion phase, a Temporary or Savings item can link to an Up Saver to
-  reconcile real progress against its target. Maybuy is not exposed by the Up API
+- **Actual-spend reconciliation** — reconcile spend against the budget from Up
+  transaction ingestion (savings-goal balances already come from linked savers).
+- **Linking temporary items to Up Saver accounts** — the Up API exposes account
+  types `SAVER`, `TRANSACTIONAL`, and `HOME_LOAN`, including balances and
+  transactions. Savings goals already link to a synced saver for their balance; a
+  Temporary item linking to an Up Saver to reconcile real progress is still to
+  come. Maybuy is not exposed by the Up API
   (no documented resource or account type); Maybuy transactions can leak into the
   transactions feed (`up-banking/api#148`) but there is no clean Maybuy
   target/progress resource, so Maybuy-backed temporary items are tracked manually

@@ -96,17 +96,22 @@ no per-member scoping; each line stands alone under the household.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
     `target_date` (not null), `created_at`, `updated_at`.
 
-## Ledger (schema only)
+## Ledger
 
-These tables exist as the target for transaction ingestion (Up Bank API +
-manual entry). They are not yet populated; spending-plan reconciliation against
-them is a later phase.
+`accounts` is populated by the `up-sync` edge function for Up savers (see the Up
+integration in [`ARCHITECTURE.md`](ARCHITECTURE.md)); a savings goal links to one
+via `savings_goal.linked_account_id`. `transactions` and `categories` exist as
+the target for transaction ingestion (Up Bank API + manual entry) but are not yet
+populated; spending-plan reconciliation against them is a later phase.
 
 - **accounts** — a bank or savings account.
   - `id`, `household_id`, `owner_member_id` (nullable = joint), `name`,
     `type` (`transaction` | `savings` | `credit` | `offset` | `other`),
     `source` (`up` | `manual`), `external_id`, `balance_cents`,
     `currency` (default `AUD`), `created_at`, `updated_at`.
+  - `up-sync` upserts Up accounts on conflict `(source, external_id)`, so a
+    saver's `balance_cents` stays current; a linked savings goal reads its balance
+    from here. `service_role` holds `select`/`insert`/`update` for that upsert.
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
     `category_id` (nullable), `posted_at`, `amount_cents` (signed, negative =
@@ -131,6 +136,17 @@ not-yet-member can act past RLS in the narrow ways allowed:
 - `revoke_invite_code()` — clear the caller's household's invite code.
 - `household_ids_for_current_user()` — the households the caller belongs to;
   the basis for every RLS policy.
+
+The Up token RPCs are also `SECURITY DEFINER`, but granted to `service_role`
+alone (not `authenticated`) — they are the only path to the token, which lives in
+Vault:
+
+- `store_up_token(member_id, token)` — upsert the token into Vault under
+  `up_token:<member_id>` and stamp `members.up_connected_at`.
+- `up_token_for_member(member_id)` — return the decrypted token (server-side
+  sync only).
+- `clear_up_token(member_id)` — delete the Vault secret and null
+  `up_connected_at`.
 
 ## Derived / computed (not stored)
 

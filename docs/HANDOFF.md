@@ -1,28 +1,29 @@
 # Handoff
 
-Operational state for an agent picking up the project. Design and scope live in
-the docs linked below; this covers what is live, where it runs, and how to work
-on it.
+Operational state for an agent picking up the project cold: what is live, where
+it runs, how to work on it, and what is open. Design and scope live in the docs
+linked throughout; this covers the operational reality.
 
 ## Current status
 
-The plan-only app is live at <https://budget.willsawyerrrr.dev>. It fully
-replaces the household's spreadsheet. Tabs are path-routed via `react-router-dom`
-(`/summary` `/inflows` `/budget` `/goals` `/tax` `/household`; `/` and unknown
-routes redirect to `/summary`), so they are deep-linkable and reload-safe. Order:
-**Summary** (landing) · **Inflows** · **Budget** · **Goals** · **Tax** ·
-**Household**. Keyboard shortcuts jump between tabs: ⌘/Ctrl+1–6 select a tab,
-⌘/Ctrl+Shift+←/→ cycle. Tax profiles are edited on the Household tab. The
-household's real budget (34 budget lines) and income are loaded in production.
+Two layers are live in production at <https://budget.willsawyerrrr.dev>.
 
-Each household member can connect their Up personal access token on the
-Household tab: it is validated against Up and stored encrypted in Supabase Vault,
-never returned to the client. The tab shows a per-member connection status
-(`members.up_connected_at`, a boolean/timestamp — never the token) and a
-disconnect action. This is the foundation for Up integration; the initial Up
-scope is **savers → savings goals** (funding goal progress from Up saver
-balances), with spend/ledger reconciliation deprioritised. See
-[`ROADMAP.md`](ROADMAP.md).
+**Plan-only app** — fully replaces the household's spreadsheet and needs no
+transaction data. Income + AU tax estimate, a fortnightly plan-only budget,
+savings goals, and a Summary reconciliation. Tabs are path-routed via
+`react-router-dom` (`/summary` `/inflows` `/budget` `/goals` `/tax`
+`/household`; `/` and unknown routes redirect to `/summary`), so they are
+deep-linkable and reload-safe. Order: **Summary** (landing) · **Inflows** ·
+**Budget** · **Goals** · **Tax** · **Household**. Keyboard shortcuts:
+⌘/Ctrl+1–6 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Tax profiles are edited on the
+Household tab. The household's real budget and income are loaded in production.
+
+**Up savers → savings goals** — built, merged, and deployed. Each member
+connects their Up personal access token on the Household tab; a goal links to a
+synced Up saver so its progress and ETA track the real balance. Server-side sync
+runs on demand (a Goals-tab Refresh button) and hourly (a `pg_cron` backstop).
+Transaction ingestion (spend/ledger reconciliation, actual PAYG vs estimate)
+stays deferred — see [`ROADMAP.md`](ROADMAP.md).
 
 ## Stack
 
@@ -33,8 +34,11 @@ balances), with spend/ledger reconciliation deprioritised. See
 - **Backend** — Supabase (Postgres, Auth, PostgREST, Edge Functions, Vault),
   Sydney region, Pro tier.
 - **Pure TS packages** — `@budget/tax` (tax engine + verified FY2027 config,
-  `configsByYear`) and `@budget/plan` (budget / summary / goal math). Both
-  I/O-free, unit-tested, shared by the PWA.
+  `configsByYear`) and `@budget/plan` (budget / summary / goal math, including
+  the `Frequency` type). Both I/O-free, unit-tested, shared by the PWA.
+- **Edge functions** — Deno/TypeScript under `supabase/functions/`, outside the
+  pnpm workspace, with their own `deno.json` and test harness. Four functions:
+  `up-connect`, `up-disconnect`, `up-sync`, `up-webhook`.
 
 Details: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -50,124 +54,182 @@ the repo root is a container holding `.bare/` with worktrees beside it (`main/`,
   `wt.copy = apps/pwa/.env` (each new worktree installs deps and gets the env
   file).
 - Name worktrees after their branches. Work only inside your own worktree; never
-  touch `.bare`, `main`, or another worktree.
+  touch `.bare`, `main`, or another worktree. Never fast-forward the `main`
+  worktree.
 
 Claude drives PRs autonomously here — opens and merges on green CI, no per-turn
-confirmation. Commits are SSH-signed via the user's 1Password SSH agent. If
-signing fails ("communication with agent failed"), the user must unlock
-1Password; never fall back to `--no-gpg-sign`.
+confirmation. Branches squash-merge once the required checks pass.
+
+### SSH signing gotcha (read before any git commit/push)
+
+Commits are SSH-signed via the user's 1Password SSH agent. A non-interactive
+shell (the agent harness) defaults `SSH_AUTH_SOCK` to the launchd agent, **not**
+1Password, so signing and pushing fail unless you point it at the 1Password
+socket first:
+
+```sh
+export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+```
+
+Export that in the same shell before every commit/push. Guard the signing call
+so a locked agent can't hang the turn, e.g.
+`perl -e 'alarm 60; exec @ARGV' git commit -S -m …`. If signing fails
+("communication with agent failed" / "agent refused operation"), STOP and ask
+the user to unlock 1Password — never fall back to `--no-gpg-sign`.
 
 ## CI
 
 Four parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
 runner so wall-clock is the slowest single job:
 
-- **check** — lint / format / typecheck / build (~48–50s).
-- **test** — the Vitest workspace, sharded across parallel runners: a
-  `test-shard` matrix job runs `vitest run --shard=N/2` on each of two runners
-  (each covering half the test files, the union running every test), and a
-  lightweight `test` job `needs` both shards, so the required `test` check stays
-  green only when both shards pass. Sharding keeps the longest runner well under
-  a minute. Uses the `threads` pool and skips the PWA plugin under test.
-- **rls** — Postgres service + `supabase/tests/rls/` isolation assertions (~22s).
-- **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
-  `supabase/functions` (the edge functions live outside the pnpm workspace).
+- **check** — lint / format / typecheck / build. The long pole (~50–59s);
+  watch it, since it is what keeps overall CI near the one-minute budget.
+- **test** — the Vitest workspace, sharded across parallel runners. A
+  `test-shard` matrix job runs `vitest run --shard=N/2` on two runners (each
+  covering half the files, the union running every test); a lightweight `test`
+  job `needs` both shards so the required `test` check stays green only when both
+  shards pass and the required-check name is preserved.
+- **rls** — Postgres 17 service; applies the auth shim, every migration in
+  order, then `supabase/tests/rls/` isolation assertions (~22s).
+- **functions** — Deno `fmt --check` / `lint` / `task check` / `test` over
+  `supabase/functions` (the edge functions live outside the pnpm workspace,
+  pinned to Deno 2.9.3).
 
-Branch-protection ruleset "Protect main" requires these, squash-only, no bypass.
-Actions pinned to the Node 24 and Deno 2.9.3 runtimes. Keep CI under a minute;
-each shard runs about half the suite, so the next lever if it creeps up is
-adding a third shard or trimming the install step.
+Branch-protection ruleset "Protect main" requires **check**, **test**, **rls**,
+and **functions**; squash-only, no bypass. Keep CI under a minute; the next lever
+if `test` creeps up is a third shard, and `check` is the job to profile first.
 
 ## Supabase
 
 - Production project ref **`dgfeittjtxjtgbretdkj`** (Sydney, Pro).
-- Migrations auto-deploy to prod via the GitHub → Supabase integration on merge
-  to `main` (branching off).
-- Edge functions auto-deploy to prod on merge to `main`: the
-  `.github/workflows/deploy-functions.yml` workflow runs
-  `supabase functions deploy --project-ref dgfeittjtxjtgbretdkj` when a push to
-  `main` touches `supabase/functions/**` or `supabase/config.toml`, deploying
-  every function and honouring each one's `verify_jwt` from `config.toml`
-  (`up-webhook` is `false`; the rest default to `true`). The deploy uses the
-  `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if the Supabase access token is
-  rotated, update that secret or the deploy fails.
+- **Migrations** auto-deploy to prod via the GitHub → Supabase integration on
+  merge to `main`. SQL migrations are version-controlled under
+  `supabase/migrations/` and are authoritative for the schema.
+- **Edge functions** auto-deploy to prod on merge via
+  `.github/workflows/deploy-functions.yml`: a push to `main` touching
+  `supabase/functions/**` or `supabase/config.toml` runs
+  `supabase functions deploy --project-ref dgfeittjtxjtgbretdkj`, deploying every
+  function and honouring each one's `verify_jwt` from `config.toml` (`up-webhook`
+  is pinned `false`; the rest default to `true`). It authenticates with the
+  `SUPABASE_ACCESS_TOKEN` GitHub Actions secret.
+  - **Token caveat:** the deploy uses `SUPABASE_ACCESS_TOKEN` (the Management-API
+    PAT) as a GitHub secret, and the same PAT is stored at
+    `~/.config/claude/supabase_pat` for local config/data automation. If it is
+    rotated, update **both** the GitHub secret **and** the local file, or CD
+    breaks.
 - **RLS is the security boundary** — policies gate on household membership via
   the `public.household_ids_for_current_user()` SECURITY DEFINER helper.
+- **Vault** holds all secrets that must never reach a client: each member's Up
+  token (`up_token:<member_id>`) and the hourly-cron config (`up_sync_cron_url`,
+  `up_sync_cron_key`). Tokens are written/read/cleared only by the
+  service-role-only SECURITY DEFINER RPCs (see the Up section).
+- **`service_role` grants** — `service_role` has NO blanket table access. It
+  holds only the grants the Up functions need: `select` on `members` and
+  `select`/`insert`/`update` on `accounts` (migration
+  `20260719050000_service_role_ledger_grants.sql`). The token RPCs are SECURITY
+  DEFINER and need no table grants. Any future server-side code touching other
+  public tables must add its own grants deliberately — see the open items.
 - Local dev: `pnpm supabase start` (Docker) + `pnpm supabase db reset` +
   `pnpm db:types`.
-- A Supabase Management API personal access token is at
-  `~/.config/claude/supabase_pat` (config + data automation). The user intends
-  to rotate it — do not assume it persists.
+- A Supabase Management-API PAT is at `~/.config/claude/supabase_pat` (config +
+  data automation). The user intends to rotate it — do not assume it persists,
+  and keep it in sync with the GitHub secret (above).
 
 ## Auth
 
-Supabase Google OAuth. Site URL and redirect allow-list are configured for
-`budget.willsawyerrrr.dev`, `budget.vercel.app`,
+Supabase Google OAuth (consent screen published). Site URL and redirect
+allow-list cover `budget.willsawyerrrr.dev`, `budget.vercel.app`,
 `budget-*-willsawyerrrr.vercel.app` previews, and `localhost:5173`.
 
 A partner joins with a temporary, opt-in, single-use invite code. A household
 carries no code by default; a member mints one via `create_invite_code` (an
 8-char code, 7-day expiry) and can clear it via `revoke_invite_code`.
 `join_household(p_code, p_member_name)` accepts only an unexpired code and
-consumes it on join.
+consumes it on join. No email infrastructure.
 
 ## Hosting
 
-Vercel project **`budget`**, Root Directory `apps/pwa` (Vite preset). Auto-deploy
-on merge to `main`, preview deployment per PR. Custom domain
-`budget.willsawyerrrr.dev`. Env vars: `VITE_SUPABASE_URL`,
-`VITE_SUPABASE_ANON_KEY`.
+Vercel project **`budget`** on the **Pro** plan, Root Directory `apps/pwa` (Vite
+preset). Prod deploys via the GitHub integration on merge to `main`; each PR gets
+a preview deployment. Custom domain `budget.willsawyerrrr.dev`.
+`apps/pwa/vercel.json` supplies the SPA fallback rewrite. Env vars:
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Live prod may briefly trail `main`
+until the next merge triggers a deploy.
+
+## Up integration (operational)
+
+- **Connect** — a member pastes their Up personal access token on the Household
+  tab. The JWT-verified `up-connect` edge function resolves the member from the
+  JWT (never the body), validates the token against Up, then stores it via the
+  service-role-only `store_up_token` RPC (encrypted in Vault). `up-disconnect`
+  clears it via `clear_up_token`. The client only ever sees a boolean status
+  (`members.up_connected_at`); the token is never returned. `up_connected_at` is
+  locked to service-role writes — `authenticated` holds column-scoped UPDATE on
+  `(name, email)` only, so a client cannot forge its connection status.
+- **Sync** — `up-sync` is accounts-only: it enumerates members with
+  `up_connected_at` set, reads each token via `up_token_for_member` as service
+  role, calls the Up API, and upserts Up accounts into `public.accounts` on
+  conflict `(source, external_id)`. Transaction ingestion is deferred.
+- **Two callers, one function** — `up-sync` runs with `verify_jwt=true`, so the
+  gateway validates the bearer's signature before the handler runs. The handler
+  then distinguishes the caller by the JWT's `role` claim
+  (`up-sync/auth.ts` → `isServiceRoleToken`):
+  - a `service_role` JWT (the cron) syncs **every** connected household;
+  - any other JWT is resolved to a member and scoped to **that member's**
+    household (RLS-independent, since the sync itself uses the service role).
+  The Goals-tab **Refresh** button invokes `up-sync` with the member's JWT and
+  refetches savers + goals.
+- **Hourly cron** — migration `20260719040000_up_sync_schedule.sql` schedules
+  `up-sync-hourly` (`0 * * * *`) via `pg_cron` + `pg_net`. It is guarded on both
+  extensions, so it applies as a clean no-op in CI / local Postgres and only
+  schedules on Supabase. The scheduled command reads the invocation URL and key
+  from Vault at run time (`up_sync_cron_url`, `up_sync_cron_key`) and POSTs with
+  `Bearer <service-role key>` — a `service_role` JWT, which is exactly what the
+  handler's role check accepts as the cron path.
+- **Deploy-time config for the cron (prod only):**
+  1. The function auto-deploys via CD (above).
+  2. Set the two Vault secrets (the migration reads them at run time; rotating
+     the key is a Vault change, not a re-migration):
+     ```sql
+     select vault.create_secret('https://dgfeittjtxjtgbretdkj.supabase.co/functions/v1/up-sync', 'up_sync_cron_url');
+     select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
+     ```
+  3. Re-run the migration (or `supabase db push`) once the secrets exist so the
+     job schedules. It unschedules any prior `up-sync-hourly` first, so it is
+     safe to re-run; absent the secrets it leaves the job unscheduled. Verify
+     with `select * from cron.job where jobname = 'up-sync-hourly';`.
+- **State today** — functions are deployed; the hourly cron is scheduled and
+  active (Vault secrets set); manual Refresh and the hourly poll both work.
 
 ## Data model
 
 Inflows (taxable income + non-taxable; schedules from weekly through annual plus
 an "every N weeks" cadence carrying `interval_weeks`), tax_profile, budget_line
-(groups: needs / wants / discretionary / temporary / savings / investments),
-temporary_item, savings_goal, households / members (households carry a nullable
-`invite_code` + `invite_code_expires_at`; members carry a nullable
-`up_connected_at`). Details:
+(groups: needs / wants / discretionary / savings / investments), temporary_item,
+savings_goal (nullable `linked_account_id` → a synced Up saver), households /
+members (households carry nullable `invite_code` + `invite_code_expires_at`;
+members carry nullable `up_connected_at`), and the ledger tables (accounts,
+transactions, categories). `accounts` is populated by `up-sync` for Up savers;
+`transactions` remains unpopulated pending ingestion. Details:
 [`DATA_MODEL.md`](DATA_MODEL.md), [`budget-and-savings.md`](budget-and-savings.md),
 [`TAX.md`](TAX.md).
 
-## Immediate follow-ups / open items
+## Open items / next
 
-- Watch the `test` shard times; add a third shard if a shard nears a minute.
-- Rotate the Supabase Management API token when done with it.
-- Up saver-account sync is live: `up-sync` polls each connected member's Up
-  accounts and upserts balances into `public.accounts` (idempotent, deduped on
-  `(source, external_id)`). Savings goals link to those savers: `savings_goal`
-  carries a nullable `linked_account_id` (composite FK on `(id, household_id)`,
-  `on delete set null`), the goal form offers an "Up saver" picker, and a linked
-  goal's current balance comes from the saver's `balance_cents` instead of the
-  manual `current_balance_cents`. Spend/ledger reconciliation is deprioritised.
-- Balances stay fresh two ways. The Goals tab has a **Refresh** button that
-  invokes `up-sync` with the member's JWT; the function scopes that run to the
-  caller's household (RLS-independent, since the sync uses the service role) and
-  the UI refetches savers + goals. An hourly `pg_cron` job (`up-sync-hourly`)
-  POSTs to `up-sync` via `pg_net` with the service-role key as a backstop,
-  syncing every connected household.
-
-### Deploy-time config for the hourly sync (prod only)
-
-The schedule migration (`20260719040000_up_sync_schedule.sql`) is guarded on
-`pg_cron` + `pg_net`, so it applies as a clean no-op in CI / local Postgres and
-only schedules on Supabase. To activate it in prod:
-
-1. Deploy the function: `supabase functions deploy up-sync` (JWT-verified — the
-   cron path authenticates with the service-role key, the PWA with the member's
-   JWT).
-2. Set two Vault secrets (the migration reads them at run time — rotating the key
-   is a Vault change, not a re-migration):
-   - `up_sync_cron_url` — the deployed function URL,
-     `https://<project-ref>.supabase.co/functions/v1/up-sync`.
-   - `up_sync_cron_key` — the project **service-role key**.
-
-   ```sql
-   select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/up-sync', 'up_sync_cron_url');
-   select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
-   ```
-
-3. Re-run the migration (or `supabase db push`) once the secrets exist so the job
-   is scheduled. The migration unschedules any prior `up-sync-hourly` first, so
-   it is safe to re-run; when the secrets are absent it leaves the job
-   unscheduled. Verify with `select * from cron.job where jobname = 'up-sync-hourly';`.
+- **Superannuation** — to be scoped in the next roadmap discussion; not yet
+  modelled anywhere.
+- **`service_role` grant policy** — decide whether to keep grants surgical
+  (per-feature, as now) or broaden them. Current stance is surgical; any new
+  server-side code must add its own grants.
+- **Up ledger + reconciliation** (deferred): transaction sync (webhook +
+  scheduled poll, dedupe on `external_id`), a ledger UI, spend-vs-budget
+  reconciliation, and actual PAYG-vs-estimate tracking. See [`ROADMAP.md`](ROADMAP.md).
+- **Spreadsheet-parity gaps** (in [`spreadsheet-parity.md`](spreadsheet-parity.md)):
+  itemised sub-budget (line-item breakdown, e.g. the gift budget), a
+  payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
+- **CI watch** — `check` (~50–59s) is the long pole near the one-minute budget;
+  profile it first if CI creeps up, then consider a third `test` shard.
+- **Supabase Management-API token** — rotate when done; keep the GitHub secret
+  and `~/.config/claude/supabase_pat` in sync.
+</content>
+</invoke>

@@ -40,9 +40,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend
   reconciliation via Up ingestion is a later enhancement.
-- Ingestion: both partners bank with Up, but transaction ingestion is deferred;
-  spending plans and savings goals depend on it. Sources (Up Bank API + manual
-  entry) are source-agnostic.
+- Ingestion: both partners bank with Up. The savers → savings-goals slice is
+  built and deployed — members connect an Up personal-access token (held in
+  Vault), and `up-sync` polls saver balances into `accounts` so a linked goal
+  tracks the real balance. Up transaction ingestion (spend/ledger reconciliation,
+  actual tax paid) is deferred. Sources (Up Bank API + manual entry) are
+  source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
+  `up-webhook`) live under `supabase/functions/` and auto-deploy to prod on merge
+  via `.github/workflows/deploy-functions.yml`.
 
 ## Conventions
 
@@ -61,9 +66,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   merging them — without per-turn confirmation. Branches merge once CI is green.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
-  jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite), and
-  `rls` (RLS isolation on a Postgres service) — each on its own runner, so overall
-  wall-clock is the slowest single job, not the sum. Steps WITHIN a job stay
+  jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite,
+  sharded across runners), `rls` (RLS isolation on a Postgres service), and
+  `functions` (Deno fmt/lint/check/test over `supabase/functions`) — all required,
+  each on its own runner, so overall wall-clock is the slowest single job, not the
+  sum. Steps WITHIN a job stay
   sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
   causes contention and inflates each one without improving wall-clock time.
   Splitting into separate jobs avoids that by giving each its own runner.

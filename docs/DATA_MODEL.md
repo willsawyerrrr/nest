@@ -1,73 +1,131 @@
 # Data model
 
-Relational, stack-agnostic. Amounts are integer minor units (cents). All
-foreign keys implied by the relationships below.
+Relational, stack-agnostic. Amounts are integer minor units (cents), stored in
+`bigint` columns. Financial years are AU FYs (1 Jul – 30 Jun), labelled by their
+ending year. Row-Level Security is the isolation boundary: every table is scoped
+to a `household_id`, and a member sees or changes only rows in a household they
+belong to. Cross-household references are additionally blocked by composite
+foreign keys on `(id, household_id)`.
 
-> This is the conceptual model. The implemented planning schema (inflows, budget
-> lines, temporary items, savings goals) is described concretely in
-> [`budget-and-savings.md`](budget-and-savings.md) and the `supabase/migrations/`
-> files; where the two differ, the migrations are authoritative.
+> The planning tables (inflows, budget lines, temporary items, savings goals)
+> are described from the user's perspective in
+> [`budget-and-savings.md`](budget-and-savings.md); tax inputs in
+> [`TAX.md`](TAX.md). The `supabase/migrations/` files are authoritative.
 
 ## Household & members
 
-- **Household** — the shared container for two people.
-  - `id`, `name`, `timezone` (e.g. `Australia/Sydney`), `created_at`.
-  - `invite_code` (nullable; a single-use code a partner redeems to join) and
-    `invite_code_expires_at` (nullable) — temporary and opt-in, so both are null
-    when no code is active.
-- **Member** — a person in the household.
-  - `id`, `household_id`, `name`, `email`, `auth_subject`, `created_at`.
-  - A member owns income records, payslips, tax profiles, and linked bank tokens.
+- **households** — the shared container for a household's members and data.
+  - `id`, `name`, `timezone` (default `Australia/Sydney`), `created_at`,
+    `updated_at`.
+  - `invite_code` (nullable, unique) and `invite_code_expires_at` (nullable) —
+    a single-use, opt-in code a partner redeems to join. Both are null unless a
+    member has generated one; it expires after 7 days and is consumed on join.
+- **members** — a person in a household, linked to an auth user.
+  - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
+    (nullable), `created_at`, `updated_at`.
+  - Unique on `(household_id, user_id)`. All members can manage everything in
+    the household; member attribution elsewhere is a tax/reporting tag, not a
+    permission.
 
-## Accounts & transactions
+## Inflows
 
-- **Account** — a bank/savings account.
-  - `id`, `household_id`, `owner_member_id` (nullable for joint), `name`,
-    `type` (`transaction` | `savings` | `credit` | `offset` | `other`),
-    `source` (`up` | `manual` | …), `external_id`, `balance_cents`, `currency`.
-- **Transaction** — a single ledger entry.
-  - `id`, `account_id`, `household_id`, `posted_at`, `amount_cents`
-    (signed: negative = outflow), `description`, `kind`
-    (`income` | `expense` | `transfer`), `category_id`, `member_id`
-    (attribution), `source`, `external_id` (dedupe key), `status`
-    (`pending` | `settled`), `notes`.
-  - Transfers between own accounts are excluded from spend/income reporting.
-- **Category** — spending/income taxonomy.
-  - `id`, `household_id`, `name`, `parent_id` (hierarchical), `kind`
-    (`income` | `expense`), `is_archived`.
-  - Seeded from Up's categories, then user-editable.
-- **CategoryMapping** — maps a source category to a household category.
-  - `id`, `source`, `source_category`, `category_id`.
+- **inflows** — projected recurring money in, split by taxability.
+  - `id`, `household_id`, `member_id` (nullable), `name`,
+    `type` (`salary` | `wage` | `other` | `reimbursement`),
+    `taxable` (default true), `schedule`, `interval_weeks` (nullable),
+    `amount_cents` (nullable), `hourly_rate_cents` (nullable),
+    `hours_per_period` (nullable), `created_at`, `updated_at`.
+  - `taxable` inflows feed the per-member tax estimate and require `member_id`;
+    non-taxable inflows (e.g. reimbursements) add to available cash and may omit
+    it.
+  - `schedule` is the shared `frequency` enum: `weekly`, `fortnightly`,
+    `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`. For
+    `every_n_weeks`, `interval_weeks` holds N (≥ 1); it is null for every other
+    schedule.
+  - Amount shape by `type`: `wage` carries `hourly_rate_cents` ×
+    `hours_per_period` (and null `amount_cents`); every other type carries a
+    flat `amount_cents` per period.
 
-## Income & tax inputs
+## Tax inputs
 
-- **IncomeSource** — a recurring income (employer, etc.).
-  - `id`, `member_id`, `name`, `type` (`salary` | `business` | `investment` | …).
-- **Payslip / IncomeEvent** — a dated income record feeding tax.
-  - `id`, `member_id`, `income_source_id`, `financial_year`, `paid_at`,
-    `gross_cents`, `paye_withheld_cents`, `super_cents`, `pre_tax_deductions_cents`.
-- **TaxProfile** — per member per financial year, drives the tax engine.
-  - `id`, `member_id`, `financial_year`, `residency` (`resident` | `non_resident`),
-    `has_private_health` (for Medicare levy surcharge), `help_debt_cents`
-    (HECS/HELP balance), `claims_tax_free_threshold`, `other_income_cents`,
-    `deductions_cents`.
-- **TaxYearConfig** — versioned AU tax parameters (see [`TAX.md`](TAX.md)).
+- **tax_profile** — per member, per financial year; drives the tax engine.
+  - `id`, `household_id`, `member_id`, `financial_year` (int, ending year),
+    `residency` (`resident` | `foreign_resident`),
+    `has_private_hospital_cover` (Medicare levy surcharge),
+    `help_debt_cents` (HELP/HECS balance), `created_at`, `updated_at`.
+  - Unique on `(member_id, financial_year)`.
+- Versioned AU tax parameters (rates, thresholds) live in config, not a table —
+  see [`TAX.md`](TAX.md).
 
 ## Planning & goals
 
-- **Budget** — a spending plan for a period.
-  - `id`, `household_id`, `period` (`monthly` | `fortnightly` | `annual`),
-    `starts_on`, `member_scope` (household | member).
-- **BudgetLine** — a planned amount per category.
-  - `id`, `budget_id`, `category_id`, `planned_cents`.
-  - Actuals derived by summing settled transactions in the category/period.
-- **SavingsGoal** — a target to save toward.
-  - `id`, `household_id`, `name`, `target_cents`, `target_date`,
-    `linked_account_id` (nullable), `current_cents` (derived or manual),
-    `member_scope`.
+Budgeting is plan-only and fortnightly. There is no period-versioned budget and
+no per-member scoping; each line stands alone under the household.
+
+- **budget_line** — a planned recurring allocation within one fixed group.
+  - `id`, `household_id`, `line_group`
+    (`needs` | `wants` | `discretionary` | `savings` | `investments`), `name`,
+    `amount_cents`, `frequency` (the shared enum above), `goal_id` (nullable),
+    `created_at`, `updated_at`.
+  - `goal_id` links to a savings goal; only `savings`/`investments` lines may
+    set it. Many lines may fund one goal.
+- **savings_goal** — a persistent savings target.
+  - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
+    (nullable), `current_balance_cents` (default 0), `created_at`,
+    `updated_at`.
+  - Funded by the budget lines that reference it via `goal_id`.
+    `current_balance_cents` is entered manually until sourced from real balances
+    via ingestion.
+- **temporary_item** — a date-driven fortnightly outflow that runs until it
+  expires.
+  - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
+    `target_date` (not null), `created_at`, `updated_at`.
+
+## Ledger (schema only)
+
+These tables exist as the target for transaction ingestion (Up Bank API +
+manual entry). They are not yet populated; spending-plan reconciliation against
+them is a later phase.
+
+- **accounts** — a bank or savings account.
+  - `id`, `household_id`, `owner_member_id` (nullable = joint), `name`,
+    `type` (`transaction` | `savings` | `credit` | `offset` | `other`),
+    `source` (`up` | `manual`), `external_id`, `balance_cents`,
+    `currency` (default `AUD`), `created_at`, `updated_at`.
+- **transactions** — a single ledger entry.
+  - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
+    `category_id` (nullable), `posted_at`, `amount_cents` (signed, negative =
+    outflow), `description`, `kind` (`income` | `expense` | `transfer`),
+    `status` (`pending` | `settled`), `source` (`up` | `manual`),
+    `external_id` (dedupe key), `notes`, `created_at`, `updated_at`.
+- **categories** — hierarchical income/expense taxonomy.
+  - `id`, `household_id`, `parent_id` (nullable, self-referential), `name`,
+    `kind` (`income` | `expense`), `is_archived`, `created_at`, `updated_at`.
+
+## RPCs
+
+Membership and invites run through `SECURITY DEFINER` functions so a
+not-yet-member can act past RLS in the narrow ways allowed:
+
+- `create_household(name, member_name)` — create a household and enrol the
+  caller as its first member.
+- `join_household(code, member_name)` — enrol the caller via an active,
+  unexpired invite code, then consume the code.
+- `create_invite_code()` — generate a single-use code (7-day expiry) for the
+  caller's household.
+- `revoke_invite_code()` — clear the caller's household's invite code.
+- `household_ids_for_current_user()` — the households the caller belongs to;
+  the basis for every RLS policy.
 
 ## Derived / computed (not stored)
 
-- Spend vs budget per category/period.
-- Savings-goal progress and required contribution rate.
-- Tax estimate vs withheld (from tax engine over `TaxProfile` + income events).
+- Planned spend per group and the live remaining buffer: projected after-tax
+  income less budget-line allocations and temporary-item contributions,
+  normalised to a common period from each line's `frequency`.
+- Savings-goal progress and required contribution rate: `current_balance_cents`
+  against `target_amount_cents` and `target_date`, projected from the summed
+  contributions of the budget lines funding it.
+- Tax estimate: the tax engine over each member's `tax_profile` and taxable
+  inflows for a financial year.
+- Actual spend vs plan (reconciliation over the ledger tables) is a future
+  phase, pending transaction ingestion.

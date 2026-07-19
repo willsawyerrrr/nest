@@ -37,7 +37,8 @@ import {
   netAnnualSuperContributionFromRows,
   superCapSummaryFromRows,
 } from './lib/tax'
-import { superAccountIds, superAccountName } from './lib/super'
+import { accountsWithEffectiveSuperBalances, superAccountIds, superAccountName } from './lib/super'
+import { todayIso } from './lib/dates'
 import { giftBudgetTotalCents } from './lib/gifts'
 import { applyGiftDerivedAmounts } from './lib/derivedBudget'
 import type { SuperFormValues } from './components/SuperProfileForm'
@@ -361,6 +362,8 @@ function SuperSection({ householdId }: { householdId: string }) {
         member_id: member.id,
         fund_name: fundName,
         linked_account_id: accountId,
+        // Saving re-confirms the actual balance, so this is a true-up as of today.
+        balance_as_of: todayIso(),
       })
     },
     [profileRows, insertAccount, updateAccount, upsertProfile],
@@ -437,15 +440,28 @@ function GiftsSection({ householdId }: { householdId: string }) {
 function NetWorthSection({ householdId }: { householdId: string }) {
   const accounts = useAccounts(householdId)
   const superProfiles = useSuperProfiles(householdId)
+  const contributions = useSuperContributions(householdId)
+  const inflows = useInflows(householdId)
 
-  if (accounts.loading || superProfiles.loading) {
+  if (accounts.loading || superProfiles.loading || contributions.loading || inflows.loading) {
     return <LoadingScreen />
   }
 
+  const profileRows = superProfiles.profiles ?? []
+  const netContributionByMember = netAnnualSuperContributionFromRows(
+    inflows.inflows ?? [],
+    contributions.contributions ?? [],
+  )
+
   return (
     <NetWorthView
-      accounts={accounts.accounts ?? []}
-      superIds={superAccountIds(superProfiles.profiles ?? [])}
+      accounts={accountsWithEffectiveSuperBalances(
+        accounts.accounts ?? [],
+        profileRows,
+        netContributionByMember,
+        new Date(),
+      )}
+      superIds={superAccountIds(profileRows)}
     />
   )
 }

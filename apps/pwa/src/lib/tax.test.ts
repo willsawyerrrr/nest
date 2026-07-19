@@ -50,6 +50,7 @@ const baseProfile: SuperProfile = {
   sg_rate_override: null,
   linked_account_id: null,
   carry_forward_cap_cents: 0,
+  balance_as_of: null,
   created_at: '',
   updated_at: '',
 }

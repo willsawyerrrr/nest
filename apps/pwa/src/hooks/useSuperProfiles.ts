@@ -10,6 +10,8 @@ export interface SuperProfileInput {
   member_id: string
   fund_name: string | null
   linked_account_id: string | null
+  /** The date the linked account's balance was last confirmed (a true-up); null means never. */
+  balance_as_of: string | null
 }
 
 export interface UseSuperProfilesResult {

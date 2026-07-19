@@ -79,6 +79,14 @@ trimming the Vitest suite or its install step.
 - Production project ref **`dgfeittjtxjtgbretdkj`** (Sydney, Pro).
 - Migrations auto-deploy to prod via the GitHub → Supabase integration on merge
   to `main` (branching off).
+- Edge functions auto-deploy to prod on merge to `main`: the
+  `.github/workflows/deploy-functions.yml` workflow runs
+  `supabase functions deploy --project-ref dgfeittjtxjtgbretdkj` when a push to
+  `main` touches `supabase/functions/**` or `supabase/config.toml`, deploying
+  every function and honouring each one's `verify_jwt` from `config.toml`
+  (`up-webhook` is `false`; the rest default to `true`). The deploy uses the
+  `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if the Supabase access token is
+  rotated, update that secret or the deploy fails.
 - **RLS is the security boundary** — policies gate on household membership via
   the `public.household_ids_for_current_user()` SECURITY DEFINER helper.
 - Local dev: `pnpm supabase start` (Docker) + `pnpm supabase db reset` +

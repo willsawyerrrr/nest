@@ -69,8 +69,13 @@ is CRUD over RLS.
   balances; spend/ledger reconciliation is deprioritised.
 - **Webhook receiver** edge function for near-real-time updates; verifies Up's
   HMAC signature.
-- **Scheduled poll** (pg_cron → edge function) as a backstop; dedupes on
-  `external_id`.
+- **Scheduled poll** — the `up-sync` edge function reconciles saver balances. It
+  scopes its run by caller: a member's JWT-invoked Refresh syncs only that
+  caller's household, while the service-role/cron path syncs every connected
+  member. An hourly `pg_cron` job (`up-sync-hourly`) calls it through `pg_net` as
+  a backstop; the schedule reads its invocation URL/key from Vault at run time
+  and is guarded on both extensions, so it no-ops where they are absent.
+  Dedupes on `(source, external_id)`.
 - Each member links their own token; transactions are attributed to that member
   and mapped into the shared household ledger.
 - Reference: <https://developer.up.com.au/>

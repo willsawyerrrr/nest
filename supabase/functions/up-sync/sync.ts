@@ -39,6 +39,23 @@ export interface SyncResult {
 }
 
 /**
+ * Narrows the connected members a run should touch to the caller's context. A
+ * JWT-invoked call passes its resolved `householdId` and syncs only that
+ * household's connected members; the cron path passes null and syncs all. The
+ * household filter is defence in depth on top of RLS: the service-role sync
+ * bypasses RLS, so scoping the row set is what keeps a member's manual refresh
+ * from touching another household's balances.
+ */
+export function membersToSync(
+  members: ConnectedMember[],
+  householdId: string | null,
+): ConnectedMember[] {
+  return householdId === null
+    ? members
+    : members.filter((member) => member.householdId === householdId)
+}
+
+/**
  * Builds the account upsert rows for one member. An Up account owned jointly is
  * shared across the household (`owner_member_id` null); an individual account is
  * attributed to the member. A joint account seen through both partners' tokens
@@ -61,9 +78,15 @@ export function buildAccountRows(
  * ledger. Idempotent: a re-run updates existing rows in place (balance, name,
  * type, currency) and creates no duplicates. A member without a readable token
  * is skipped rather than failing the whole run.
+ *
+ * `householdId` scopes the run to one household's connected members (a caller's
+ * manual refresh); null syncs every connected member (the cron path).
  */
-export async function runSync(deps: SyncDeps): Promise<SyncResult> {
-  const members = await deps.listConnectedMembers()
+export async function runSync(
+  deps: SyncDeps,
+  householdId: string | null = null,
+): Promise<SyncResult> {
+  const members = membersToSync(await deps.listConnectedMembers(), householdId)
   let accounts = 0
 
   for (const member of members) {

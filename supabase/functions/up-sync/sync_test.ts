@@ -3,6 +3,7 @@ import {
   type AccountRow,
   buildAccountRows,
   type ConnectedMember,
+  membersToSync,
   runSync,
   type SyncDeps,
 } from './sync.ts'
@@ -45,6 +46,20 @@ Deno.test('buildAccountRows leaves a joint account unowned', () => {
   assertEquals(row.household_id, 'h-1')
 })
 
+const otherMember: ConnectedMember = { memberId: 'm-2', householdId: 'h-2' }
+
+Deno.test('membersToSync passes every member through for the cron path (null)', () => {
+  assertEquals(membersToSync([member, otherMember], null), [member, otherMember])
+})
+
+Deno.test('membersToSync keeps only the caller household for a scoped call', () => {
+  assertEquals(membersToSync([member, otherMember], 'h-1'), [member])
+})
+
+Deno.test('membersToSync is empty when the caller household has no connected members', () => {
+  assertEquals(membersToSync([member, otherMember], 'h-3'), [])
+})
+
 /** Default happy-path deps, overridable per test. */
 function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
   return {
@@ -75,6 +90,26 @@ Deno.test("runSync upserts every connected member's accounts and counts them", a
   assertEquals(result, { members: 2, accounts: 4 })
   assertEquals(upserted.length, 2)
   assertEquals(upserted[0].map((r) => r.external_id), ['tok-m-1-a', 'tok-m-1-b'])
+})
+
+Deno.test('runSync scoped to a household syncs only that household', async () => {
+  const upserted: AccountRow[][] = []
+  const result = await runSync(
+    deps({
+      listConnectedMembers: () => Promise.resolve([member, otherMember]),
+      tokenFor: (id) => Promise.resolve(`tok-${id}`),
+      listAccounts: (token) => Promise.resolve([account({}, `${token}-a`)]),
+      upsertAccounts: (rows) => {
+        upserted.push(rows)
+        return Promise.resolve()
+      },
+    }),
+    'h-1',
+  )
+
+  assertEquals(result, { members: 1, accounts: 1 })
+  assertEquals(upserted.length, 1)
+  assertEquals(upserted[0].map((r) => r.external_id), ['tok-m-1-a'])
 })
 
 Deno.test('runSync skips a member whose token is unreadable', async () => {

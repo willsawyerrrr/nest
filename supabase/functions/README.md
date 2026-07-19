@@ -42,7 +42,13 @@ webhooks, with a scheduled poll as a backstop.
   `X-Up-Authenticity-Signature` HMAC-SHA256 over the raw body, and upserts
   transaction events into the ledger.
 - **`up-sync`** — manual/scheduled poll that reads each member's token, fetches
-  from Up, and upserts (deduping on `external_id`).
+  from Up, and upserts (deduping on `external_id`). JWT-verified-capable and
+  scoped by caller: a member's Refresh from the PWA carries their JWT and the run
+  is scoped to that member's household (`resolveCaller` → household id); the
+  hourly cron presents the service-role key with no user and syncs every
+  connected member. The token is read server-side only, via the service-role
+  Vault RPC. The caller-scoping decision is the pure `membersToSync` in
+  `up-sync/sync.ts` (household-scoped vs all), unit-tested against fakes.
 
 ### Secrets
 
@@ -79,8 +85,34 @@ supabase functions deploy up-disconnect
 # up-webhook must skip JWT auth so Up can call it unauthenticated; its signature
 # check is the security boundary.
 supabase functions deploy up-webhook --no-verify-jwt
+
+# up-sync stays JWT-verified: the PWA's Refresh invokes it with the member's JWT
+# (scoped to their household), and the hourly cron invokes it with the
+# service-role key (syncs every connected member).
 supabase functions deploy up-sync
 ```
 
 Register the webhook with Up (pointing at the deployed `up-webhook` URL) via the
-Up API, and schedule `up-sync` with `pg_cron`.
+Up API.
+
+### Hourly sync schedule (prod)
+
+`up-sync` is scheduled hourly by `20260719040000_up_sync_schedule.sql` using
+`pg_cron` + `pg_net`. The migration is guarded on both extensions being
+available, so it is a clean no-op on plain Postgres (CI, local) and only
+schedules on Supabase. The scheduled command reads the invocation URL and key
+from Vault at run time, so nothing secret is baked into the migration. To
+activate it in prod, deploy `up-sync` and set two Vault secrets, then re-run the
+migration:
+
+- `up_sync_cron_url` — `https://<project-ref>.supabase.co/functions/v1/up-sync`
+- `up_sync_cron_key` — the project service-role key
+
+```sql
+select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/up-sync', 'up_sync_cron_url');
+select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
+```
+
+The job (`up-sync-hourly`) is idempotent across re-runs (it unschedules any prior
+job first) and is skipped when the secrets are absent. Verify with
+`select * from cron.job where jobname = 'up-sync-hourly';`.

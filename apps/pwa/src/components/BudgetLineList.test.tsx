@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '../test/render'
 import { BudgetLineList } from './BudgetLineList'
@@ -38,6 +38,9 @@ const lines: BudgetLine[] = [
 ]
 
 describe('BudgetLineList', () => {
+  beforeEach(() => window.localStorage.clear())
+  afterEach(() => window.localStorage.clear())
+
   it('renders every group with a fortnightly subtotal', () => {
     render(
       <BudgetLineList
@@ -169,6 +172,46 @@ describe('BudgetLineList', () => {
 
     const namesAfter = screen.getAllByText(/Rent|Power/).map((node) => node.textContent)
     expect(namesAfter).toEqual(['Power', 'Rent'])
+  })
+
+  it('persists the chosen sort across a remount', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: /sort by/i }))
+    await user.click(screen.getByRole('option', { name: 'Name' }))
+    await user.click(screen.getByRole('button', { name: /toggle sort direction/i }))
+
+    // Name descending lists Rent before Power within the Needs group.
+    expect(screen.getAllByText(/Rent|Power/).map((node) => node.textContent)).toEqual([
+      'Rent',
+      'Power',
+    ])
+
+    unmount()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: /sort by/i })).toHaveValue('Name')
+    expect(screen.getAllByText(/Rent|Power/).map((node) => node.textContent)).toEqual([
+      'Rent',
+      'Power',
+    ])
   })
 
   it('opens an unscoped add form via the universal Add item button', async () => {

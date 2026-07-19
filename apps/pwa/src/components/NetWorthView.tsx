@@ -1,6 +1,6 @@
 import { Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { Account } from '../hooks/useAccounts'
-import { formatCents } from '../lib/money'
+import { formatCents, moneyColor } from '../lib/money'
 import { netWorthBreakdown } from '../lib/super'
 
 interface NetWorthViewProps {
@@ -67,7 +67,7 @@ export function NetWorthView({ accounts, superIds }: NetWorthViewProps) {
           <Text size="xs" c="dimmed">
             Total net worth
           </Text>
-          <Text fw={700} fz="xl">
+          <Text fw={700} fz="xl" c={moneyColor(breakdown.totalCents)}>
             {formatCents(breakdown.totalCents)}
           </Text>
         </Stack>

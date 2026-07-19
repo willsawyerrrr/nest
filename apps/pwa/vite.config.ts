@@ -17,8 +17,8 @@ export default defineConfig({
               name: 'Personal Budget',
               short_name: 'Budget',
               description: 'Household income, tax, spending, and savings',
-              theme_color: '#0f172a',
-              background_color: '#0f172a',
+              theme_color: '#0b4f4f',
+              background_color: '#0b4f4f',
               display: 'standalone',
               start_url: '/',
               icons: [

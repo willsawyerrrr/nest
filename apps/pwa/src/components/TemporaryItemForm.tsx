@@ -49,15 +49,17 @@ export function TemporaryItemForm({ initial, onSubmit, onCancel }: TemporaryItem
 
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="sm">
+      <Stack gap="xs">
         <TextInput
           label="Name"
+          size="sm"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
         <NumberInput
           label="Contribution"
+          size="sm"
           description="The fortnightly amount put toward this item."
           prefix="$"
           thousandSeparator
@@ -71,6 +73,7 @@ export function TemporaryItemForm({ initial, onSubmit, onCancel }: TemporaryItem
 
         <DateInput
           label="Target date"
+          size="sm"
           description="The item is an active outflow until this date."
           valueFormat="D MMM YYYY"
           value={targetDate}

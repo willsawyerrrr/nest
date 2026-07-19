@@ -97,9 +97,10 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="sm">
+      <Stack gap="xs">
         <SegmentedControl
           fullWidth
+          size="sm"
           aria-label="Taxability"
           value={taxable ? 'taxable' : 'nontaxable'}
           onChange={(value) => setTaxable(value === 'taxable')}
@@ -111,6 +112,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
         <TextInput
           label="Name"
+          size="sm"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
@@ -119,6 +121,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           <>
             <Select
               label="Member"
+              size="sm"
               data={members.map((member) => ({ value: member.id, label: member.name }))}
               value={memberId}
               onChange={(value) => setMemberId(value ?? '')}
@@ -127,6 +130,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
             <Select
               label="Type"
+              size="sm"
               data={TYPES}
               value={type}
               onChange={(value) => value && setType(value as InflowType)}
@@ -137,6 +141,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
         <Select
           label="Frequency"
+          size="sm"
           description={
             <>
               How often you receive this amount. The app converts everything to{' '}
@@ -155,6 +160,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           <>
             <NumberInput
               label="Hourly rate"
+              size="sm"
               description="Your gross (before tax) hourly pay rate."
               prefix="$"
               thousandSeparator
@@ -167,6 +173,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
             />
             <NumberInput
               label="Hours per period"
+              size="sm"
               description="Hours worked each period. Gross = rate × hours × periods."
               min={0}
               decimalScale={2}
@@ -178,6 +185,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         ) : (
           <NumberInput
             label={`Amount per ${PERIOD_NOUN[schedule]}`}
+            size="sm"
             description={
               taxable
                 ? 'Gross pay (before tax) for one period.'

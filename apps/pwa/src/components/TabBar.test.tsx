@@ -44,6 +44,19 @@ describe('TabBar', () => {
     }
   })
 
+  it('renders the desktop sidebar as a labelled nav landmark', () => {
+    render(
+      <MemoryRouter initialEntries={['/summary']}>
+        <TabBar items={NAV_ITEMS} />
+      </MemoryRouter>,
+    )
+
+    const nav = screen.getByRole('navigation', { name: 'Primary' })
+    for (const item of NAV_ITEMS) {
+      expect(within(nav).getByRole('link', { name: item.label })).toBeInTheDocument()
+    }
+  })
+
   it('marks the link for the current route as active', () => {
     render(
       <MemoryRouter initialEntries={['/budget']}>
@@ -84,8 +97,8 @@ describe('TabBar', () => {
 })
 
 describe('TabBar mobile drawer', () => {
-  // Below `sm` the bottom bar hides and the top bar's hamburger drawer takes
-  // over, so these run against a narrow viewport.
+  // Below `sm` the sidebar hides and the top bar's hamburger drawer takes over,
+  // so these run against a narrow viewport.
   beforeEach(() => setViewportWidth(375))
   afterEach(() => setViewportWidth(1024))
 

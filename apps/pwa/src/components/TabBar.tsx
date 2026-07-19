@@ -30,10 +30,36 @@ export function tabIndexForPath(items: NavItem[], pathname: string) {
 const DRAWER_ID = 'primary-nav-drawer'
 
 /**
+ * Vertical list of every nav item as a labelled `nav` landmark. The mobile
+ * drawer and the desktop sidebar both render it, so the two variants share one
+ * item style and active-highlight treatment. `onNavigate` fires after a tab is
+ * chosen, letting the drawer close itself on selection.
+ */
+function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
+  return (
+    <Stack gap={4} component="nav" aria-label="Primary">
+      {items.map((item) => (
+        <NavLink key={item.path} to={item.path} onClick={onNavigate} className="drawer-nav__link">
+          {({ isActive }) => (
+            <Text
+              size="lg"
+              fw={isActive ? 700 : 500}
+              c={isActive ? 'var(--mantine-primary-color-filled)' : undefined}
+            >
+              {item.label}
+            </Text>
+          )}
+        </NavLink>
+      ))}
+    </Stack>
+  )
+}
+
+/**
  * Route-aware primary navigation. On mobile it is a fixed top bar with a
  * hamburger that opens a drawer of every nav item; on desktop (`sm` and up) it
- * is a fixed bottom bar. Both variants stay driven by `items`, so a new tab
- * appears everywhere at once.
+ * is a persistent left sidebar listing the same items. Both variants stay
+ * driven by `items`, so a new tab appears everywhere at once.
  */
 export function TabBar({ items }: { items: NavItem[] }) {
   const navigate = useNavigate()
@@ -93,44 +119,14 @@ export function TabBar({ items }: { items: NavItem[] }) {
         title="Navigation"
         hiddenFrom="sm"
       >
-        <Stack gap={4} component="nav" aria-label="Primary">
-          {items.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={drawer.close}
-              className="drawer-nav__link"
-            >
-              {({ isActive }) => (
-                <Text
-                  size="lg"
-                  fw={isActive ? 700 : 500}
-                  c={isActive ? 'var(--mantine-primary-color-filled)' : undefined}
-                >
-                  {item.label}
-                </Text>
-              )}
-            </NavLink>
-          ))}
-        </Stack>
+        <NavList items={items} onNavigate={drawer.close} />
       </Drawer>
 
-      <Box component="nav" className="tab-bar" aria-label="Primary" visibleFrom="sm">
-        <div className="tab-bar__list">
-          {items.map((item) => (
-            <NavLink key={item.path} to={item.path} className="tab-bar__tab">
-              {({ isActive }) => (
-                <Text
-                  size="sm"
-                  fw={isActive ? 700 : 500}
-                  c={isActive ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
-                >
-                  {item.label}
-                </Text>
-              )}
-            </NavLink>
-          ))}
-        </div>
+      <Box component="aside" className="sidebar" visibleFrom="sm">
+        <Text fw={700} size="lg" mb="md" px="xs">
+          Budget
+        </Text>
+        <NavList items={items} />
       </Box>
     </>
   )

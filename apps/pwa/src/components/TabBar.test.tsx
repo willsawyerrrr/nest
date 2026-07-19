@@ -1,8 +1,15 @@
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
-import { render, screen } from '../test/render'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { render, screen, within } from '../test/render'
 import { cycleIndex, NAV_ITEMS, TabBar } from './TabBar'
+
+/** Resizes happy-dom's viewport so responsive (`hiddenFrom`/`visibleFrom`) rules resolve. */
+function setViewportWidth(width: number) {
+  ;(
+    window as unknown as { happyDOM: { setViewport(v: { width: number }): void } }
+  ).happyDOM.setViewport({ width })
+}
 
 /** Reads the active route so tests can assert where a shortcut navigated. */
 function LocationDisplay() {
@@ -73,6 +80,34 @@ describe('TabBar', () => {
     await user.keyboard('{Control>}{Shift>}{ArrowLeft}{/Shift}{/Control}')
 
     expect(pathname()).toBe('/household')
+  })
+})
+
+describe('TabBar mobile drawer', () => {
+  // Below `sm` the bottom bar hides and the top bar's hamburger drawer takes
+  // over, so these run against a narrow viewport.
+  beforeEach(() => setViewportWidth(375))
+  afterEach(() => setViewportWidth(1024))
+
+  it('opens the hamburger drawer and navigates on selecting an item', async () => {
+    const user = userEvent.setup()
+    renderTabBar('/summary')
+
+    const toggle = screen.getByRole('button', { name: 'Toggle navigation menu' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    const drawer = screen.getByRole('dialog')
+    expect(within(drawer).getByRole('link', { name: 'Summary' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+
+    await user.click(within(drawer).getByRole('link', { name: 'Budget' }))
+
+    expect(pathname()).toBe('/budget')
   })
 })
 

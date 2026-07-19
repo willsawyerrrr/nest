@@ -1,7 +1,7 @@
 /* eslint-disable react/only-export-components -- co-locate the nav item table with the tab bar that renders it. */
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Text } from '@mantine/core'
-import { useHotkeys, type HotkeyItem } from '@mantine/hooks'
+import { Box, Burger, Drawer, Group, Stack, Text } from '@mantine/core'
+import { useDisclosure, useHotkeys, type HotkeyItem } from '@mantine/hooks'
 
 export type NavItem = { path: string; label: string }
 
@@ -27,11 +27,19 @@ export function tabIndexForPath(items: NavItem[], pathname: string) {
   return items.findIndex((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 }
 
-/** Fixed bottom tab bar whose active tab tracks the current route. */
+const DRAWER_ID = 'primary-nav-drawer'
+
+/**
+ * Route-aware primary navigation. On mobile it is a fixed top bar with a
+ * hamburger that opens a drawer of every nav item; on desktop (`sm` and up) it
+ * is a fixed bottom bar. Both variants stay driven by `items`, so a new tab
+ * appears everywhere at once.
+ */
 export function TabBar({ items }: { items: NavItem[] }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const currentIndex = tabIndexForPath(items, pathname)
+  const [drawerOpened, drawer] = useDisclosure(false)
 
   /** Navigates `offset` tabs away from the current one, wrapping at the ends. */
   const cycleTo = (offset: number) => {
@@ -43,7 +51,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
   // wrap-around. `Ctrl+Tab` is avoided: browsers reserve it for their own tab
   // switching and JS cannot reliably intercept it. `useHotkeys` ignores events
   // from `input`/`textarea`/`select`/contentEditable by default, so shortcuts
-  // stay dormant while typing.
+  // stay dormant while typing. Shortcuts are wired once and drive both variants.
   const hotkeys: HotkeyItem[] = [
     ...items.map((item, index): HotkeyItem => [`mod+${index + 1}`, () => navigate(item.path)]),
     ['mod+shift+ArrowRight', () => cycleTo(1)],
@@ -51,23 +59,79 @@ export function TabBar({ items }: { items: NavItem[] }) {
   ]
   useHotkeys(hotkeys)
 
+  const activeLabel = items[currentIndex]?.label
+
   return (
-    <nav className="tab-bar" aria-label="Primary">
-      <div className="tab-bar__list">
-        {items.map((item) => (
-          <NavLink key={item.path} to={item.path} className="tab-bar__tab">
-            {({ isActive }) => (
-              <Text
-                size="sm"
-                fw={isActive ? 700 : 500}
-                c={isActive ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
-              >
-                {item.label}
+    <>
+      <Box component="header" className="top-bar" hiddenFrom="sm">
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            <Text fw={700}>Budget</Text>
+            {activeLabel ? (
+              <Text size="sm" c="dimmed" truncate>
+                {activeLabel}
               </Text>
-            )}
-          </NavLink>
-        ))}
-      </div>
-    </nav>
+            ) : null}
+          </Group>
+          <Burger
+            opened={drawerOpened}
+            onClick={drawer.toggle}
+            size="sm"
+            aria-label="Toggle navigation menu"
+            aria-expanded={drawerOpened}
+            aria-controls={DRAWER_ID}
+          />
+        </Group>
+      </Box>
+
+      <Drawer
+        id={DRAWER_ID}
+        opened={drawerOpened}
+        onClose={drawer.close}
+        position="left"
+        size="xs"
+        title="Navigation"
+        hiddenFrom="sm"
+      >
+        <Stack gap={4} component="nav" aria-label="Primary">
+          {items.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={drawer.close}
+              className="drawer-nav__link"
+            >
+              {({ isActive }) => (
+                <Text
+                  size="lg"
+                  fw={isActive ? 700 : 500}
+                  c={isActive ? 'var(--mantine-primary-color-filled)' : undefined}
+                >
+                  {item.label}
+                </Text>
+              )}
+            </NavLink>
+          ))}
+        </Stack>
+      </Drawer>
+
+      <Box component="nav" className="tab-bar" aria-label="Primary" visibleFrom="sm">
+        <div className="tab-bar__list">
+          {items.map((item) => (
+            <NavLink key={item.path} to={item.path} className="tab-bar__tab">
+              {({ isActive }) => (
+                <Text
+                  size="sm"
+                  fw={isActive ? 700 : 500}
+                  c={isActive ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
+                >
+                  {item.label}
+                </Text>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </Box>
+    </>
   )
 }

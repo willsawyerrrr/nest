@@ -53,6 +53,27 @@ versioned config per financial year, because AU rates and thresholds change year
 > income are taken as taxable income plus concessional contributions; reportable
 > fringe benefits and net investment losses are not yet modelled.
 
+## Super contribution caps and co-contribution
+
+Alongside the liability pipeline, `@budget/tax` exposes super helpers driven by
+the same versioned config. Concessional (salary sacrifice + personal deductible)
+and personal non-concessional contributions are annualised per member and
+compared against their caps: the concessional cap is `concessional_cap_cents`
+plus the member's manual carry-forward, the non-concessional cap is
+`non_concessional_cap_cents` (bring-forward up to 3× is surfaced as a note, not
+modelled).
+
+`superCoContribution(personalNonConcessionalCents, totalIncomeCents, config)`
+estimates the government co-contribution: 50c per $1 of eligible personal
+non-concessional contributions up to `co_contribution.max_cents`, tapering
+linearly to nil from the lower to the higher income threshold; nil at or above
+the higher threshold or with no eligible contributions.
+
+> **Co-contribution simplification.** The remaining eligibility conditions (age
+> under 71, the 10%-employment-income test, and a total super balance under the
+> general transfer balance cap) are assumed met, and `totalIncomeCents` is
+> approximated as the member's annual assessable income.
+
 ## `TaxYearConfig` shape (versioned)
 
 ```

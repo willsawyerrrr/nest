@@ -29,7 +29,7 @@ import { SummaryView } from './components/SummaryView'
 import { SuperScreen } from './components/SuperScreen'
 import { NetWorthView } from './components/NetWorthView'
 import { NAV_ITEMS, TabBar } from './components/TabBar'
-import { estimateHouseholdTaxFromRows } from './lib/tax'
+import { estimateHouseholdTaxFromRows, superCapSummaryFromRows } from './lib/tax'
 import { superAccountIds, superAccountName } from './lib/super'
 import type { SuperFormValues } from './components/SuperProfileForm'
 import './App.css'
@@ -318,6 +318,7 @@ function SuperSection({ householdId }: { householdId: string }) {
   const superProfiles = useSuperProfiles(householdId)
   const accounts = useAccounts(householdId)
   const contributions = useSuperContributions(householdId)
+  const inflows = useInflows(householdId)
 
   const upsertProfile = superProfiles.upsert
   const insertAccount = accounts.insert
@@ -357,10 +358,17 @@ function SuperSection({ householdId }: { householdId: string }) {
     superProfiles.loading ||
     accounts.loading ||
     contributions.loading ||
+    inflows.loading ||
     !members
   ) {
     return <LoadingScreen />
   }
+
+  const capSummaries = superCapSummaryFromRows(
+    inflows.inflows ?? [],
+    profileRows ?? [],
+    contributions.contributions ?? [],
+  )
 
   return (
     <SuperScreen
@@ -368,6 +376,7 @@ function SuperSection({ householdId }: { householdId: string }) {
       profiles={profileRows ?? []}
       accounts={accounts.accounts ?? []}
       contributions={contributions.contributions ?? []}
+      capSummaries={capSummaries}
       financialYear={superProfiles.financialYear}
       onSave={onSave}
       onCreateContribution={contributions.create}

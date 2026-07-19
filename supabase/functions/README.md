@@ -70,26 +70,29 @@ secrets with `supabase secrets set`.
 
 ### Deploy & serve
 
+All functions auto-deploy to prod on merge to `main`: the
+`.github/workflows/deploy-functions.yml` workflow runs
+`supabase functions deploy --project-ref dgfeittjtxjtgbretdkj` whenever a push to
+`main` touches `supabase/functions/**` or `supabase/config.toml`. The deploy
+authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if that
+Supabase access token is rotated, update the secret or the deploy fails.
+
+The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
+`up-connect`, `up-disconnect`, and `up-sync` are JWT-verified (the default) — the
+caller is resolved from their JWT, so a member can only touch their own token,
+and `up-sync`'s PWA Refresh carries the member's JWT while its hourly cron
+presents the service-role key. `up-webhook` sets `verify_jwt = false` so Up can
+call it unauthenticated; its HMAC signature check is the security boundary.
+
+Serve locally against the running stack, or deploy a single function by hand:
+
 ```sh
-# Serve locally against the running stack.
 supabase functions serve up-connect
 supabase functions serve up-disconnect
 supabase functions serve up-webhook
 supabase functions serve up-sync
 
-# Deploy. up-connect and up-disconnect are JWT-verified (the default): the caller
-# is resolved from their JWT, so a member can only touch their own token.
-supabase functions deploy up-connect
-supabase functions deploy up-disconnect
-
-# up-webhook must skip JWT auth so Up can call it unauthenticated; its signature
-# check is the security boundary.
-supabase functions deploy up-webhook --no-verify-jwt
-
-# up-sync stays JWT-verified: the PWA's Refresh invokes it with the member's JWT
-# (scoped to their household), and the hourly cron invokes it with the
-# service-role key (syncs every connected member).
-supabase functions deploy up-sync
+supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
 
 Register the webhook with Up (pointing at the deployed `up-webhook` URL) via the

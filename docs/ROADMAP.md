@@ -1,9 +1,9 @@
 # Roadmap
 
-Phased so each phase is independently useful. The entire plan-only app (income,
-tax, budget, savings goals) is built first and needs no transaction data — it
-replaces the household's spreadsheet. Up ingestion comes later, to reconcile the
-plan against reality.
+Phased so each phase is independently useful. The plan-only app (income, tax,
+budget, savings goals) is built and deployed — it fully replaces the household's
+spreadsheet and needs no transaction data. Up ingestion is the current phase, to
+reconcile the plan against reality.
 
 ## Product decisions
 
@@ -25,7 +25,7 @@ plan against reality.
   enhancement: assign an inflow to a budget category to net against that spend.
 - **Tax is estimate-only.** Per-person estimated liability and take-home from
   projected income; models HELP repayment and private-hospital cover. Target
-  financial year: FY2027. Tracking actual tax paid is deferred.
+  financial year: FY2027. Tracking actual tax paid arrives with ingestion.
 - **Budgeting is plan-only and fortnightly.** The household allocates projected
   after-tax income across grouped categories — Needs, Wants, Discretionary,
   Temporary, Savings, Investments — each line an amount + frequency normalised to
@@ -33,19 +33,25 @@ plan against reality.
   Needs = regular essentials; Wants = regular quality-of-life; Discretionary =
   non-regular discretionary purchases; Temporary = short-term/one-off items that
   expire.
-- **Ingestion is a later enhancement.** Both partners bank with Up; pulling
-  actual transactions is only needed to reconcile spend and goal progress against
-  the plan, so it comes after the plan-only app.
+- **Ingestion is the reconciliation layer.** Both partners bank with Up; pulling
+  actual transactions reconciles spend and goal progress against the plan, and
+  reconciles actual tax paid against the estimate.
 
 ## Done
 
-- Foundations: stack, monorepo scaffold, CI (`check` + `rls`, under a minute),
-  `main` protection ruleset, Vercel hosting.
+### Foundations & platform
+
+- Stack, monorepo scaffold, Vercel hosting, `main` protection ruleset.
+- CI split into parallel `check` / `test` / `rls` jobs (under a minute).
 - Household, members, and RLS isolation (schema + automated CI tests).
-- Onboarding + Google OAuth; partner join via invite code (live in production).
+- Onboarding + first-run gating; Google OAuth; partner join via invite code.
 - Ledger schema: accounts, transactions, categories (schema only).
+
+### Plan-only app (complete — replaces the household's spreadsheet)
+
 - Income + tax-profile schema.
-- Verified FY2027 tax config + marginal HELP model; pure tax engine.
+- Verified FY2027 tax config + marginal HELP model; the pure `@budget/tax`
+  engine (`configsByYear`).
 - Inflows model: taxable / non-taxable split, member-tagged taxable income,
   quarterly and biannual schedules; only taxable inflows feed the tax estimate.
 - Income + tax-estimate UI: inflow management and the tax view (per-person
@@ -53,39 +59,26 @@ plan against reality.
 - Budget, savings-goal, and temporary-item schema (RLS, tests, types).
 - `@budget/plan` pure math package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry.
-- Mantine mobile-first restyle.
+- Budget UI: grouped-line CRUD (Needs / Wants / Discretionary / Temporary /
+  Savings / Investments), each line amount + frequency normalised to a fortnight.
+- Summary / reconciliation UI: after-tax income + non-taxable inflows − outgoings
+  − savings block = remaining buffer, with each group's fortnightly / annual /
+  portion.
+- Goals UI: target amounts and dates, manual current balance, projected progress
+  + ETA; Savings lines linked to a goal.
+- Mantine mobile-first restyle; two-decimal money formatting.
+- Navigation: Summary is the landing tab; order Summary · Inflows · Budget ·
+  Goals · Tax · Household.
 - Up Bank sync scaffold (not yet functional).
 
-## Now — Budget (plan-only)
-
-The income + tax-estimate slice is complete; the budget schema and `@budget/plan`
-math are done, and the Budget UI is in progress. This finishes the outgoings side
-of the plan.
-
-- [ ] Budget CRUD UI: grouped-line management (Needs / Wants / Discretionary /
-      Temporary / Savings / Investments), each line amount + frequency normalised
-      to a fortnight.
-
-## Next — Summary + reconciliation (plan-only)
-
-- [ ] Summary UI: after-tax income + non-taxable inflows − outgoings − savings
-      block = remaining buffer, with each group's fortnightly / annual / portion.
-
-## Then — Savings goals
-
-- [ ] Goals UI: target amounts and dates, manual current balance, projected
-      progress + ETA; link Savings lines to a goal.
-- [ ] Temporary items: date-driven fortnightly outflows that expire at a target
-      date.
-
-## Later — Up ingestion + reconciliation
+## Now — Up ingestion + reconciliation
 
 - [ ] Per-member Up token in Vault; webhook + scheduled poll; dedupe on
       `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.
-- [ ] Reconcile actual spend against the budget, and goal progress against
-      balances.
-- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs estimate.
+- [ ] Reconcile actual spend against the budget, and real balances against
+      savings goals.
+- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
 
 ## Later still
 

@@ -88,6 +88,8 @@ describe('GiftsScreen budget date', () => {
     const onUpdateBudget = vi.fn()
     renderScreen({ budgets: [{ ...budget, event_date: '2026-11-15' }], onUpdateBudget })
 
+    // Groups default collapsed, so expand the occasion group before its rows show.
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
     await user.click(screen.getByRole('button', { name: /Alice/ }))
     await user.click(screen.getByRole('button', { name: 'Edit budget' }))
 

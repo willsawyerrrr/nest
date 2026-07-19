@@ -11,12 +11,21 @@ Two layers are live in production at <https://budget.willsawyerrrr.dev>.
 **Plan-only app** — fully replaces the household's spreadsheet and needs no
 transaction data. Income + AU tax estimate, a fortnightly plan-only budget,
 savings goals, and a Summary reconciliation. Tabs are path-routed via
-`react-router-dom` (`/summary` `/inflows` `/budget` `/goals` `/tax`
-`/household`; `/` and unknown routes redirect to `/summary`), so they are
-deep-linkable and reload-safe. Order: **Summary** (landing) · **Inflows** ·
-**Budget** · **Goals** · **Tax** · **Household**. Keyboard shortcuts:
-⌘/Ctrl+1–6 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Tax profiles are edited on the
-Household tab. The household's real budget and income are loaded in production.
+`react-router-dom` (`/summary` `/net-worth` `/inflows` `/budget` `/goals` `/tax`
+`/super` `/household`; `/` and unknown routes redirect to `/summary`), so they are
+deep-linkable and reload-safe. Order: **Summary** (landing) · **Net worth** ·
+**Inflows** · **Budget** · **Goals** · **Tax** · **Super** · **Household**.
+Keyboard shortcuts: ⌘/Ctrl+1–8 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Tax
+profiles are edited on the Household tab. The household's real budget and income
+are loaded in production.
+
+**Superannuation & net worth** — the Super tab edits each member's fund name and
+current balance for the financial year; the balance is held as a manual account
+linked from `super_profile.linked_account_id` (the same balance-source pattern
+savings goals use). The Net worth tab sums every account's `balance_cents`
+(assets only; liabilities not modelled yet), split into Super vs Other accounts.
+Contributions and the super/tax integration stay deferred — see
+[`ROADMAP.md`](ROADMAP.md).
 
 **Up savers → savings goals** — built, merged, and deployed. Each member
 connects their Up personal access token on the Household tab; a goal links to a

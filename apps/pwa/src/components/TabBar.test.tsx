@@ -61,7 +61,7 @@ describe('TabBar', () => {
 
     await user.keyboard('{Control>}2{/Control}')
 
-    expect(pathname()).toBe('/inflows')
+    expect(pathname()).toBe('/net-worth')
   })
 
   it('cycles to the next tab on mod+shift+ArrowRight', async () => {
@@ -70,7 +70,7 @@ describe('TabBar', () => {
 
     await user.keyboard('{Control>}{Shift>}{ArrowRight}{/Shift}{/Control}')
 
-    expect(pathname()).toBe('/inflows')
+    expect(pathname()).toBe('/net-worth')
   })
 
   it('wraps to the last tab on mod+shift+ArrowLeft from the first tab', async () => {
@@ -113,8 +113,8 @@ describe('TabBar mobile drawer', () => {
 
 describe('cycleIndex', () => {
   it('wraps past either end of the range', () => {
-    expect(cycleIndex(0, 6)).toBe(0)
-    expect(cycleIndex(6, 6)).toBe(0)
-    expect(cycleIndex(-1, 6)).toBe(5)
+    expect(cycleIndex(0, 8)).toBe(0)
+    expect(cycleIndex(8, 8)).toBe(0)
+    expect(cycleIndex(-1, 8)).toBe(7)
   })
 })

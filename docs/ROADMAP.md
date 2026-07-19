@@ -91,11 +91,17 @@ phase.
   + ETA; Savings lines linked to a goal; goals with active contributions list
   first.
 - Mantine mobile-first restyle; two-decimal money formatting.
-- Navigation: path-routed tabs via `react-router-dom` (`/summary` `/inflows`
-  `/budget` `/goals` `/tax` `/household`; `/` and unknown routes redirect to
-  `/summary`), so tabs are deep-linkable and reload-safe. Summary is the landing
-  tab; order Summary · Inflows · Budget · Goals · Tax · Household. Keyboard
-  shortcuts: ⌘/Ctrl+1–6 jump to a tab, ⌘/Ctrl+Shift+←/→ cycle.
+- Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
+  `/inflows` `/budget` `/goals` `/tax` `/super` `/household`; `/` and unknown
+  routes redirect to `/summary`), so tabs are deep-linkable and reload-safe.
+  Summary is the landing tab; order Summary · Net worth · Inflows · Budget ·
+  Goals · Tax · Super · Household. Keyboard shortcuts: ⌘/Ctrl+1–8 jump to a tab,
+  ⌘/Ctrl+Shift+←/→ cycle.
+- Super tab: per-member fund name and current balance for the financial year,
+  the balance held as a manual account linked from `super_profile`. Net worth
+  tab: sum of every account's `balance_cents` (assets only; liabilities not yet
+  modelled), split into Super vs Other accounts. Super contributions and the
+  super/tax integration remain deferred (see below).
 - Per-member Up token connection: each member pastes their Up personal access
   token, validated against Up and stored encrypted in Vault. The token is written
   and read only via SECURITY DEFINER RPCs granted to `service_role` alone

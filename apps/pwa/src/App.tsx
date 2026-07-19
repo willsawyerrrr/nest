@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
@@ -15,6 +15,7 @@ import { useTemporaryItems } from './hooks/useTemporaryItems'
 import { useGoals } from './hooks/useGoals'
 import { useSavers } from './hooks/useSavers'
 import { useUpConnection } from './hooks/useUpConnection'
+import { useRefreshSavers } from './hooks/useRefreshSavers'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
@@ -242,6 +243,15 @@ function GoalsSection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const savers = useSavers()
 
+  // Refreshing pulls fresh Up balances, so both the savers and the goals that
+  // read from them are reloaded.
+  const reloadSavers = savers.reload
+  const reloadGoals = goals.reload
+  const reloadBalances = useCallback(async () => {
+    await Promise.all([reloadSavers(), reloadGoals()])
+  }, [reloadSavers, reloadGoals])
+  const refresh = useRefreshSavers(reloadBalances)
+
   if (goals.loading || budgetLines.loading || savers.loading) {
     return <LoadingScreen />
   }
@@ -254,6 +264,9 @@ function GoalsSection({ householdId }: { householdId: string }) {
       onCreateGoal={goals.create}
       onUpdateGoal={goals.update}
       onDeleteGoal={goals.remove}
+      onRefresh={() => void refresh.refresh()}
+      refreshing={refresh.refreshing}
+      refreshError={refresh.error}
     />
   )
 }

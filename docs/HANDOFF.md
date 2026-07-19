@@ -128,3 +128,34 @@ temporary_item, savings_goal, households / members (households carry a nullable
   `on delete set null`), the goal form offers an "Up saver" picker, and a linked
   goal's current balance comes from the saver's `balance_cents` instead of the
   manual `current_balance_cents`. Spend/ledger reconciliation is deprioritised.
+- Balances stay fresh two ways. The Goals tab has a **Refresh** button that
+  invokes `up-sync` with the member's JWT; the function scopes that run to the
+  caller's household (RLS-independent, since the sync uses the service role) and
+  the UI refetches savers + goals. An hourly `pg_cron` job (`up-sync-hourly`)
+  POSTs to `up-sync` via `pg_net` with the service-role key as a backstop,
+  syncing every connected household.
+
+### Deploy-time config for the hourly sync (prod only)
+
+The schedule migration (`20260719040000_up_sync_schedule.sql`) is guarded on
+`pg_cron` + `pg_net`, so it applies as a clean no-op in CI / local Postgres and
+only schedules on Supabase. To activate it in prod:
+
+1. Deploy the function: `supabase functions deploy up-sync` (JWT-verified — the
+   cron path authenticates with the service-role key, the PWA with the member's
+   JWT).
+2. Set two Vault secrets (the migration reads them at run time — rotating the key
+   is a Vault change, not a re-migration):
+   - `up_sync_cron_url` — the deployed function URL,
+     `https://<project-ref>.supabase.co/functions/v1/up-sync`.
+   - `up_sync_cron_key` — the project **service-role key**.
+
+   ```sql
+   select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/up-sync', 'up_sync_cron_url');
+   select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
+   ```
+
+3. Re-run the migration (or `supabase db push`) once the secrets exist so the job
+   is scheduled. The migration unschedules any prior `up-sync-hourly` first, so
+   it is safe to re-run; when the secrets are absent it leaves the job
+   unscheduled. Verify with `select * from cron.job where jobname = 'up-sync-hourly';`.

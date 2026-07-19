@@ -111,6 +111,15 @@ deprioritised behind it.
       picker from the household's synced savers, and a linked goal draws its
       current balance from the saver's `balance_cents` for progress, ETA, and
       display, falling back to the manual `current_balance_cents` when unlinked.
+- [x] Keep synced balances fresh, on demand and on a schedule. A **Refresh**
+      button on the Goals tab invokes `up-sync` with the member's JWT; the
+      function scopes that run to the caller's household and refetches savers +
+      goals so balances update. An hourly `pg_cron` job (`up-sync-hourly`) POSTs
+      to `up-sync` via `pg_net` with the service-role key as a backstop, syncing
+      every connected household. The schedule migration is guarded on
+      pg_cron + pg_net and reads the invocation URL/key from Vault, so it is a
+      clean no-op where those extensions are absent (CI, plain Postgres) and
+      needs deploy-time config in prod (see HANDOFF).
 
 ## Later — Up ledger + reconciliation (deprioritised)
 

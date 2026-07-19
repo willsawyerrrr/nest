@@ -63,6 +63,20 @@ const reimbursement: Inflow = {
   hours_per_period: null,
 }
 
+const everyNWeeks: Inflow = {
+  ...base,
+  id: 'i4',
+  member_id: 'm1',
+  name: 'Side gig',
+  taxable: true,
+  type: 'other',
+  schedule: 'every_n_weeks',
+  interval_weeks: 4,
+  amount_cents: 20000,
+  hourly_rate_cents: null,
+  hours_per_period: null,
+}
+
 function renderList(inflows: Inflow[]) {
   const onCreate = vi.fn().mockResolvedValue(undefined)
   const onUpdate = vi.fn().mockResolvedValue(undefined)
@@ -96,6 +110,13 @@ describe('InflowList', () => {
     expect(screen.getByText('Non-taxable')).toBeInTheDocument()
     // The non-taxable inflow has no member tag, so only the taxable ones show a member.
     expect(screen.getAllByText('Will')).toHaveLength(2)
+  })
+
+  it('renders an every-N-weeks schedule as a friendly label, not the raw enum', () => {
+    renderList([everyNWeeks])
+
+    expect(screen.getByText('Every 4 weeks')).toBeInTheDocument()
+    expect(screen.queryByText(/every_n_weeks/i)).not.toBeInTheDocument()
   })
 
   it('renders the add button after the inflow cards', () => {

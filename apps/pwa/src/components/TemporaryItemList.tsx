@@ -103,10 +103,10 @@ export function TemporaryItemList({
   )
 
   return (
-    <GroupSection title="Temporary items" subtotalCents={activeSubtotal}>
+    <GroupSection title="Temporary" subtotalCents={activeSubtotal}>
       {items.length === 0 && !adding && (
         <Text c="dimmed" size="sm">
-          No temporary items yet.
+          No temporary lines yet.
         </Text>
       )}
 
@@ -142,7 +142,7 @@ export function TemporaryItemList({
         />
       ) : (
         <Button variant="light" fullWidth onClick={startAdding}>
-          Add temporary item
+          Add Temporary line
         </Button>
       )}
     </GroupSection>

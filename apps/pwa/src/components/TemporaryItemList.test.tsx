@@ -70,7 +70,7 @@ describe('TemporaryItemList', () => {
       />,
     )
     // Only Holiday ($120.00) is active at the reference date; the expired laptop fund is excluded.
-    expect(screen.getByLabelText('Temporary items fortnightly subtotal')).toHaveTextContent(
+    expect(screen.getByLabelText('Temporary fortnightly subtotal')).toHaveTextContent(
       '$120.00 / fn',
     )
   })
@@ -79,7 +79,7 @@ describe('TemporaryItemList', () => {
     render(
       <TemporaryItemList items={[]} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
-    expect(screen.getByText(/no temporary items yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no temporary lines yet/i)).toBeInTheDocument()
   })
 
   it('edits an item in place', async () => {

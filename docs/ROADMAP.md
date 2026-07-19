@@ -22,9 +22,9 @@ phase.
   - **Taxable income** — a salary (annual gross), a wage (rate × standard hours),
     or other regular income, each tagged to a member and feeding the tax estimate
     (AU tax is assessed per person).
-  - **Non-taxable inflows** — money in excluded from tax (e.g. a work
-    reimbursement) that adds directly to available cash; no member tag required,
-    and more kinds are expected.
+  - **Non-taxable inflows** — money in excluded from tax (reimbursement, hobby
+    income, gift, or other) that adds directly to available cash; no member tag
+    required, and the type is a reporting label only.
 
   Inflows are projections, not reconciled against actual deposits. Future
   enhancement: assign an inflow to a budget category to net against that spend.

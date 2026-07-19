@@ -710,7 +710,7 @@ export type Database = {
       category_kind: 'income' | 'expense'
       frequency:
         'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual' | 'every_n_weeks'
-      inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement'
+      inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
       ledger_source: 'up' | 'manual'
       super_contribution_kind:
         'salary_sacrifice' | 'personal_deductible' | 'personal_non_concessional' | 'spouse'
@@ -854,7 +854,7 @@ export const Constants = {
         'biannual',
         'every_n_weeks',
       ],
-      inflow_type: ['salary', 'wage', 'other', 'reimbursement'],
+      inflow_type: ['salary', 'wage', 'other', 'reimbursement', 'hobby', 'gift'],
       ledger_source: ['up', 'manual'],
       super_contribution_kind: [
         'salary_sacrifice',

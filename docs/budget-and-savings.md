@@ -18,9 +18,10 @@ Money in is modelled as **inflows**, split by taxability:
   attributed to one member and feeds the tax estimate, because AU tax is assessed
   per person. A taxable inflow requires a member tag.
 - **Non-taxable inflows** — money in that is excluded from assessable income
-  (e.g. a work reimbursement) and adds directly to available cash. Non-taxable
-  inflows do not require a member tag. This is a general concept; further
-  non-taxable kinds are expected.
+  (a reimbursement, hobby income, a gift, or other) and adds directly to
+  available cash. Non-taxable inflows do not require a member tag. The chosen
+  `type` is a reporting label only; taxability, not type, decides whether an
+  inflow is taxed.
 
 The tax computation sums only taxable inflows into assessable income; non-taxable
 inflows never reach the tax engine.

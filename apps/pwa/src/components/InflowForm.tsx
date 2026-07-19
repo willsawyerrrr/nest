@@ -21,11 +21,21 @@ interface InflowFormProps {
   onCancel?: () => void
 }
 
-const TYPES: { value: InflowType; label: string }[] = [
+const TAXABLE_TYPES: { value: InflowType; label: string }[] = [
   { value: 'salary', label: 'Salary' },
   { value: 'wage', label: 'Wage' },
   { value: 'other', label: 'Other' },
 ]
+
+const NON_TAXABLE_TYPES: { value: InflowType; label: string }[] = [
+  { value: 'reimbursement', label: 'Reimbursement' },
+  { value: 'hobby', label: 'Hobby income' },
+  { value: 'gift', label: 'Gift' },
+  { value: 'other', label: 'Other' },
+]
+
+/** The type a form defaults to for each taxability mode. */
+const DEFAULT_TYPE = { taxable: 'salary', nonTaxable: 'reimbursement' } as const
 
 const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -53,9 +63,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [name, setName] = useState(initial?.name ?? '')
   const [taxable, setTaxable] = useState(initial?.taxable ?? true)
   const [memberId, setMemberId] = useState(initial?.member_id ?? members[0]?.id ?? '')
-  const [type, setType] = useState<InflowType>(
-    initial && initial.type !== 'reimbursement' ? initial.type : 'salary',
-  )
+  const [type, setType] = useState<InflowType>(initial?.type ?? DEFAULT_TYPE.taxable)
   const [schedule, setSchedule] = useState<Frequency>(initial?.schedule ?? 'fortnightly')
   const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
@@ -65,6 +73,17 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [hours, setHours] = useState<number | string>(initial?.hours_per_period ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const typeOptions = taxable ? TAXABLE_TYPES : NON_TAXABLE_TYPES
+
+  /** Switches taxability, resetting the type to the new mode's default if it no longer applies. */
+  const handleTaxableChange = (nextTaxable: boolean) => {
+    setTaxable(nextTaxable)
+    const options = nextTaxable ? TAXABLE_TYPES : NON_TAXABLE_TYPES
+    if (!options.some((option) => option.value === type)) {
+      setType(nextTaxable ? DEFAULT_TYPE.taxable : DEFAULT_TYPE.nonTaxable)
+    }
+  }
 
   const isWage = taxable && type === 'wage'
   const isEveryNWeeks = schedule === 'every_n_weeks'
@@ -87,7 +106,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       name: name.trim(),
       taxable,
       member_id: taxable ? memberId : null,
-      type: taxable ? type : 'reimbursement',
+      type,
       schedule,
       interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       amount_cents: isWage ? null : dollarsToCents(amount),
@@ -110,7 +129,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           size="sm"
           aria-label="Taxability"
           value={taxable ? 'taxable' : 'nontaxable'}
-          onChange={(value) => setTaxable(value === 'taxable')}
+          onChange={(value) => handleTaxableChange(value === 'taxable')}
           data={[
             { value: 'taxable', label: 'Taxable income' },
             { value: 'nontaxable', label: 'Non-taxable inflow' },
@@ -125,26 +144,24 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         />
 
         {taxable && (
-          <>
-            <Select
-              label="Member"
-              size="sm"
-              data={members.map((member) => ({ value: member.id, label: member.name }))}
-              value={memberId}
-              onChange={(value) => setMemberId(value ?? '')}
-              allowDeselect={false}
-            />
-
-            <Select
-              label="Type"
-              size="sm"
-              data={TYPES}
-              value={type}
-              onChange={(value) => value && setType(value as InflowType)}
-              allowDeselect={false}
-            />
-          </>
+          <Select
+            label="Member"
+            size="sm"
+            data={members.map((member) => ({ value: member.id, label: member.name }))}
+            value={memberId}
+            onChange={(value) => setMemberId(value ?? '')}
+            allowDeselect={false}
+          />
         )}
+
+        <Select
+          label="Type"
+          size="sm"
+          data={typeOptions}
+          value={type}
+          onChange={(value) => value && setType(value as InflowType)}
+          allowDeselect={false}
+        />
 
         <Select
           label="Frequency"

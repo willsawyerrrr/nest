@@ -41,13 +41,14 @@ foreign keys on `(id, household_id)`.
 
 - **inflows** — projected recurring money in, split by taxability.
   - `id`, `household_id`, `member_id` (nullable), `name`,
-    `type` (`salary` | `wage` | `other` | `reimbursement`),
+    `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
     `taxable` (default true), `schedule`, `interval_weeks` (nullable),
     `amount_cents` (nullable), `hourly_rate_cents` (nullable),
     `hours_per_period` (nullable), `created_at`, `updated_at`.
   - `taxable` inflows feed the per-member tax estimate and require `member_id`;
-    non-taxable inflows (e.g. reimbursements) add to available cash and may omit
-    it.
+    non-taxable inflows (reimbursement, hobby income, gift, or other) add to
+    available cash and may omit it. For non-taxable inflows `type` is a reporting
+    label only — taxability, not type, decides whether an inflow is taxed.
   - `schedule` is the shared `frequency` enum: `weekly`, `fortnightly`,
     `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`. For
     `every_n_weeks`, `interval_weeks` holds N (≥ 1); it is null for every other

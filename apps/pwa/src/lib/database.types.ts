@@ -369,6 +369,140 @@ export type Database = {
           },
         ]
       }
+      super_contribution: {
+        Row: {
+          amount_cents: number | null
+          contributor_member_id: string | null
+          created_at: string
+          fhss_eligible: boolean
+          financial_year: number
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id: string
+          interval_weeks: number | null
+          kind: Database['public']['Enums']['super_contribution_kind']
+          member_id: string
+          mode: Database['public']['Enums']['super_contribution_mode']
+          percent_bp: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number | null
+          contributor_member_id?: string | null
+          created_at?: string
+          fhss_eligible?: boolean
+          financial_year: number
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id?: string
+          interval_weeks?: number | null
+          kind: Database['public']['Enums']['super_contribution_kind']
+          member_id: string
+          mode: Database['public']['Enums']['super_contribution_mode']
+          percent_bp?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number | null
+          contributor_member_id?: string | null
+          created_at?: string
+          fhss_eligible?: boolean
+          financial_year?: number
+          frequency?: Database['public']['Enums']['frequency']
+          household_id?: string
+          id?: string
+          interval_weeks?: number | null
+          kind?: Database['public']['Enums']['super_contribution_kind']
+          member_id?: string
+          mode?: Database['public']['Enums']['super_contribution_mode']
+          percent_bp?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'super_contribution_contributor_member_id_household_id_fkey'
+            columns: ['contributor_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'super_contribution_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'super_contribution_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      super_profile: {
+        Row: {
+          carry_forward_cap_cents: number
+          created_at: string
+          financial_year: number
+          fund_name: string | null
+          household_id: string
+          id: string
+          linked_account_id: string | null
+          member_id: string
+          sg_rate_override: number | null
+          updated_at: string
+        }
+        Insert: {
+          carry_forward_cap_cents?: number
+          created_at?: string
+          financial_year: number
+          fund_name?: string | null
+          household_id: string
+          id?: string
+          linked_account_id?: string | null
+          member_id: string
+          sg_rate_override?: number | null
+          updated_at?: string
+        }
+        Update: {
+          carry_forward_cap_cents?: number
+          created_at?: string
+          financial_year?: number
+          fund_name?: string | null
+          household_id?: string
+          id?: string
+          linked_account_id?: string | null
+          member_id?: string
+          sg_rate_override?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'super_profile_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'super_profile_linked_account_id_household_id_fkey'
+            columns: ['linked_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'super_profile_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       tax_profile: {
         Row: {
           created_at: string
@@ -578,6 +712,9 @@ export type Database = {
         'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual' | 'every_n_weeks'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement'
       ledger_source: 'up' | 'manual'
+      super_contribution_kind:
+        'salary_sacrifice' | 'personal_deductible' | 'personal_non_concessional' | 'spouse'
+      super_contribution_mode: 'amount' | 'percent'
       tax_residency: 'resident' | 'foreign_resident'
       transaction_kind: 'income' | 'expense' | 'transfer'
       transaction_status: 'pending' | 'settled'
@@ -719,6 +856,13 @@ export const Constants = {
       ],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement'],
       ledger_source: ['up', 'manual'],
+      super_contribution_kind: [
+        'salary_sacrifice',
+        'personal_deductible',
+        'personal_non_concessional',
+        'spouse',
+      ],
+      super_contribution_mode: ['amount', 'percent'],
       tax_residency: ['resident', 'foreign_resident'],
       transaction_kind: ['income', 'expense', 'transfer'],
       transaction_status: ['pending', 'settled'],

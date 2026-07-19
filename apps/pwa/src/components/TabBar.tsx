@@ -8,10 +8,12 @@ export type NavItem = { path: string; label: string }
 /** Primary navigation targets, one per top-level route, in display order. */
 export const NAV_ITEMS: NavItem[] = [
   { path: '/summary', label: 'Summary' },
+  { path: '/net-worth', label: 'Net worth' },
   { path: '/inflows', label: 'Inflows' },
   { path: '/budget', label: 'Budget' },
   { path: '/goals', label: 'Goals' },
   { path: '/tax', label: 'Tax' },
+  { path: '/super', label: 'Super' },
   { path: '/household', label: 'Household' },
 ]
 

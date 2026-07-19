@@ -14,6 +14,9 @@ import { useBudgetLines } from './hooks/useBudgetLines'
 import { useTemporaryItems } from './hooks/useTemporaryItems'
 import { useGoals } from './hooks/useGoals'
 import { useSavers } from './hooks/useSavers'
+import { useAccounts } from './hooks/useAccounts'
+import { useSuperProfiles } from './hooks/useSuperProfiles'
+import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
 import { HomeScreen } from './components/HomeScreen'
@@ -22,8 +25,12 @@ import { BudgetScreen } from './components/BudgetScreen'
 import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
+import { SuperScreen } from './components/SuperScreen'
+import { NetWorthView } from './components/NetWorthView'
 import { NAV_ITEMS, TabBar } from './components/TabBar'
 import { estimateHouseholdTaxFromRows } from './lib/tax'
+import { superAccountIds, superAccountName } from './lib/super'
+import type { SuperFormValues } from './components/SuperProfileForm'
 import './App.css'
 
 function LoadingScreen() {
@@ -131,10 +138,12 @@ function HouseholdApp({
       <main className="page">
         <Routes>
           <Route path="/summary" element={<SummarySection householdId={household.id} />} />
+          <Route path="/net-worth" element={<NetWorthSection householdId={household.id} />} />
           <Route path="/inflows" element={<InflowsSection householdId={household.id} />} />
           <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
           <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
+          <Route path="/super" element={<SuperSection householdId={household.id} />} />
           <Route
             path="/household"
             element={
@@ -288,6 +297,75 @@ function TaxSection({ householdId }: { householdId: string }) {
       estimate={estimate}
       financialYear={taxProfiles.financialYear}
       memberName={memberName}
+    />
+  )
+}
+
+function SuperSection({ householdId }: { householdId: string }) {
+  const { members, loading: membersLoading } = useMembers()
+  const superProfiles = useSuperProfiles(householdId)
+  const accounts = useAccounts(householdId)
+
+  const upsertProfile = superProfiles.upsert
+  const insertAccount = accounts.insert
+  const updateAccount = accounts.update
+  const profileRows = superProfiles.profiles
+
+  // Persist a member's super: write the balance to their linked account (or
+  // create a manual one and link it), then upsert the profile's fund name.
+  const onSave = useCallback(
+    async (member: Member, values: SuperFormValues) => {
+      const profile = profileRows?.find((candidate) => candidate.member_id === member.id)
+      const fundName = values.fundName === '' ? null : values.fundName
+      const name = superAccountName(fundName, member.name)
+      let accountId = profile?.linked_account_id ?? null
+      if (accountId) {
+        await updateAccount(accountId, { balance_cents: values.balanceCents, name })
+      } else {
+        accountId = await insertAccount({
+          source: 'manual',
+          type: 'savings',
+          owner_member_id: member.id,
+          name,
+          balance_cents: values.balanceCents,
+        })
+      }
+      await upsertProfile({
+        member_id: member.id,
+        fund_name: fundName,
+        linked_account_id: accountId,
+      })
+    },
+    [profileRows, insertAccount, updateAccount, upsertProfile],
+  )
+
+  if (membersLoading || superProfiles.loading || accounts.loading || !members) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <SuperScreen
+      members={members}
+      profiles={profileRows ?? []}
+      accounts={accounts.accounts ?? []}
+      financialYear={superProfiles.financialYear}
+      onSave={onSave}
+    />
+  )
+}
+
+function NetWorthSection({ householdId }: { householdId: string }) {
+  const accounts = useAccounts(householdId)
+  const superProfiles = useSuperProfiles(householdId)
+
+  if (accounts.loading || superProfiles.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <NetWorthView
+      accounts={accounts.accounts ?? []}
+      superIds={superAccountIds(superProfiles.profiles ?? [])}
     />
   )
 }

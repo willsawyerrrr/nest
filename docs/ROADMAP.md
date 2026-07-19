@@ -148,9 +148,11 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       sacrifice + personal deductible) reduce taxable income; 15% contributions
       tax within the fund; Division 293 extra 15% where income + concessional
       contributions exceed $250k.
-- [ ] Contribution caps + co-contribution: concessional cap ($30k) with
-      carry-forward when total super balance < $500k; non-concessional cap
-      ($120k) with bring-forward; the government co-contribution income test.
+- [ ] Contribution caps + co-contribution: concessional cap ($32,500 for
+      FY2027) with carry-forward when total super balance < $500k;
+      non-concessional cap ($130,000 for FY2027) with bring-forward (up to
+      $390,000); the government co-contribution income test. Exact figures are
+      FY-specific and live in the versioned config.
 - [ ] Retirement projection (pure math): projected balance at preservation age
       under user-editable return, inflation, and contribution-growth assumptions.
 - [ ] Super UI: per-person management + display, with tax impact and projection

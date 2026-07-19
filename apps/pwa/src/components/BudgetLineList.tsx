@@ -100,7 +100,7 @@ function BudgetLineCard({
             </Badge>
             {derived && (
               <Anchor component={Link} to="/gifts" underline="never">
-                <Badge size="xs" variant="light" color="grape">
+                <Badge size="xs" variant="light" color="teal">
                   from Gifts
                 </Badge>
               </Anchor>

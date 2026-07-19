@@ -63,3 +63,22 @@
   text-decoration: none;
   white-space: nowrap;
 }
+
+/* The menu toggle sits in the bar as a tab, so it strips the button chrome. */
+.tab-bar__menu {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.drawer-nav__item {
+  display: block;
+  padding: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-sm);
+  text-decoration: none;
+}
+
+.drawer-nav__item[aria-current='page'] {
+  background: var(--mantine-color-default-hover);
+}

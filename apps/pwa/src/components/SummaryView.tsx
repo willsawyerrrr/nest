@@ -85,9 +85,22 @@ function allocationSegments(summary: BudgetSummary): Segment[] {
   return segments
 }
 
+/** A compact stat tile: a dimmed label above its bold fortnightly value. */
+function TotalTile({ label, cents }: { label: string; cents: number }) {
+  return (
+    <Stack gap={0} align="center">
+      <Text size="xs" c="dimmed">
+        {label}
+      </Text>
+      <Text fw={700}>{formatCents(cents)}</Text>
+    </Stack>
+  )
+}
+
 /**
  * A donut of how available fortnightly cash splits across the groups, with the
- * leftover buffer shown in the centre and a legend of each slice's share.
+ * leftover buffer shown in the centre, a row of income/outgoing/remaining
+ * totals, and a legend of each slice's share.
  */
 function AllocationDonut({ summary }: { summary: BudgetSummary }) {
   const segments = allocationSegments(summary)
@@ -110,6 +123,11 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
           valueFormatter={formatCents}
           chartLabel={`${formatCents(summary.afterSaving.fortnightlyCents)} buffer`}
         />
+        <SimpleGrid cols={3} spacing="xs" w="100%">
+          <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
+          <TotalTile label="Outgoing" cents={summary.outgoings.fortnightlyCents} />
+          <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} />
+        </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" verticalSpacing={4} w="100%">
           {segments.map((segment) => (
             <Group key={segment.name} gap={8} wrap="nowrap">

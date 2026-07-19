@@ -63,6 +63,18 @@ describe('SummaryView', () => {
     expect(within(donut).getByText('40.0%')).toBeInTheDocument()
   })
 
+  it('renders income, outgoing, and remaining totals within the allocation graph', () => {
+    render(<SummaryView summary={summary} />)
+
+    const donut = within(screen.getByRole('region', { name: 'Allocation' }))
+    expect(donut.getByText('Income')).toBeInTheDocument()
+    expect(donut.getByText('$5,000.00')).toBeInTheDocument()
+    expect(donut.getByText('Outgoing')).toBeInTheDocument()
+    expect(donut.getByText('$3,750.00')).toBeInTheDocument()
+    expect(donut.getByText('Remaining')).toBeInTheDocument()
+    expect(donut.getByText('$250.00')).toBeInTheDocument()
+  })
+
   it('renders the running after-outgoing and after-saving figures', () => {
     render(<SummaryView summary={summary} />)
 

@@ -1,7 +1,7 @@
 import { Button, Card, Center, Code, CopyButton, Group, Stack, Text, Title } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
-import { TaxProfileForm } from './TaxProfileForm'
+import { TaxProfileList } from './TaxProfileList'
 
 interface HomeScreenProps {
   householdName: string
@@ -56,14 +56,7 @@ export function HomeScreen({
 
         <Stack gap="sm">
           <Title order={2}>Tax profiles (FY{financialYear})</Title>
-          {members.map((member) => (
-            <TaxProfileForm
-              key={member.id}
-              member={member}
-              initial={taxProfiles.find((profile) => profile.member_id === member.id)}
-              onSubmit={onUpsertTaxProfile}
-            />
-          ))}
+          <TaxProfileList members={members} profiles={taxProfiles} onUpsert={onUpsertTaxProfile} />
         </Stack>
       </Stack>
     </Center>

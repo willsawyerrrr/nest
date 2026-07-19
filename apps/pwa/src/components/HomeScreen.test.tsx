@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '../test/render'
+import userEvent from '@testing-library/user-event'
+import { fireEvent, render, screen, within } from '../test/render'
 import { describe, expect, it, vi } from 'vitest'
 import { HomeScreen } from './HomeScreen'
 import type { Member } from '../hooks/useMembers'
@@ -58,12 +59,20 @@ describe('HomeScreen', () => {
     expect(onSignOut).toHaveBeenCalledOnce()
   })
 
-  it('renders a tax-profile form per member under a financial-year heading', () => {
+  it('collapses tax profiles into a per-member row, revealing the form on edit', async () => {
+    const user = userEvent.setup()
     renderHome()
 
     expect(screen.getByRole('heading', { name: /Tax profiles \(FY2027\)/ })).toBeInTheDocument()
     expect(screen.getByText('Will')).toBeInTheDocument()
     expect(screen.getByText('Sam')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /save/i })).toHaveLength(members.length)
+    expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(members.length)
+    expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument()
+
+    const will = screen.getByText('Will').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(will).getByRole('button', { name: /edit/i }))
+
+    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /residency/i })).toBeInTheDocument()
   })
 })

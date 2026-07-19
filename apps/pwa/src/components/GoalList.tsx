@@ -79,41 +79,45 @@ function GoalCard({
   }
 
   return (
-    <Card withBorder radius="md" p="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Text fw={600} style={{ minWidth: 0 }}>
+    <Card withBorder radius="md" p="sm">
+      <Stack gap="xs">
+        <Group justify="space-between" align="center" wrap="nowrap" gap="sm">
+          <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
             {goal.name}
           </Text>
-          <Badge variant="light" color={status.color}>
-            {status.label}
-          </Badge>
+          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+            <Badge size="xs" variant="light" color={status.color}>
+              {status.label}
+            </Badge>
+            <Button variant="subtle" size="compact-xs" onClick={onEdit}>
+              Edit
+            </Button>
+            <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
+              Delete
+            </Button>
+          </Group>
         </Group>
 
         <Group justify="space-between" align="baseline" wrap="nowrap">
-          <Text size="sm" c="dimmed">
+          <Text size="xs" c="dimmed">
             {formatCents(goal.current_balance_cents)} of {formatCents(goal.target_amount_cents)}
           </Text>
-          <Text size="sm" fw={600}>
+          <Text size="xs" fw={600}>
             {Math.round(percent)}%
           </Text>
         </Group>
 
-        <Progress value={percent} color={status.color} aria-label={`${goal.name} progress`} />
+        <Progress
+          value={percent}
+          color={status.color}
+          size="sm"
+          aria-label={`${goal.name} progress`}
+        />
 
-        <Text size="sm">{eta}</Text>
+        <Text size="xs">{eta}</Text>
         <Text size="xs" c="dimmed">
           Linked contribution {formatCents(contributionCents)} / fn
         </Text>
-
-        <Group grow>
-          <Button variant="light" size="sm" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button variant="subtle" color="red" size="sm" onClick={onDelete}>
-            Delete
-          </Button>
-        </Group>
       </Stack>
     </Card>
   )

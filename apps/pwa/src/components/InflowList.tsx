@@ -35,41 +35,41 @@ function InflowCard({
   onDelete: () => void
 }) {
   return (
-    <Card withBorder radius="md" p="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Text fw={600}>{inflow.name}</Text>
+    <Card withBorder radius="md" p="xs">
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {inflow.name}
+          </Text>
+          <Group gap={6} wrap="wrap">
             {inflow.member_id && (
-              <Text size="sm" c="dimmed">
+              <Text size="xs" c="dimmed">
                 {memberName(inflow.member_id)}
               </Text>
             )}
-            <Text size="lg" fw={700}>
-              {describeAmount(inflow)}
-            </Text>
-          </Stack>
-          <Group gap={4} wrap="wrap" justify="flex-end">
-            <Badge variant="light" color={inflow.taxable ? 'teal' : 'gray'}>
+            <Badge size="xs" variant="light" color={inflow.taxable ? 'teal' : 'gray'}>
               {inflow.taxable ? 'Taxable' : 'Non-taxable'}
             </Badge>
-            <Badge variant="light" tt="capitalize">
+            <Badge size="xs" variant="light" tt="capitalize">
               {inflow.type}
             </Badge>
-            <Badge variant="outline" tt="capitalize">
+            <Badge size="xs" variant="outline" tt="capitalize">
               {inflow.schedule}
             </Badge>
           </Group>
-        </Group>
-        <Group grow>
-          <Button variant="light" size="sm" onClick={onEdit}>
+        </Stack>
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Text fw={700} size="sm">
+            {describeAmount(inflow)}
+          </Text>
+          <Button variant="subtle" size="compact-xs" onClick={onEdit}>
             Edit
           </Button>
-          <Button variant="subtle" color="red" size="sm" onClick={onDelete}>
+          <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
             Delete
           </Button>
         </Group>
-      </Stack>
+      </Group>
     </Card>
   )
 }

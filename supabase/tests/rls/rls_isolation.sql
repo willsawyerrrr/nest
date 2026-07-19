@@ -107,6 +107,31 @@ do $$ begin
     'Alice should be able to link her goal to her own account';
 end $$;
 
+-- ── Server-side grants: service_role reads members and upserts accounts ──────
+
+-- The Up edge functions act as service_role directly against the ledger
+-- (resolveCaller selects a member; up-sync selects members and upserts
+-- accounts). service_role bypasses RLS, so these prove the table grants alone.
+-- Wrapped in a savepoint so the demo account does not disturb later counts;
+-- service_role holds no DELETE grant, so it cannot clean the row up itself.
+reset role;
+set local role service_role;
+savepoint svc_grants;
+do $$ begin
+  assert (select count(*) from public.members) >= 1,
+    'service_role should select from members';
+end $$;
+insert into public.accounts (household_id, name, source, external_id)
+  values (current_setting('test.hid')::uuid, 'Up Everyday', 'up', 'up-acct-demo');
+update public.accounts set balance_cents = 500_00 where external_id = 'up-acct-demo';
+do $$ begin
+  assert (select balance_cents from public.accounts where external_id = 'up-acct-demo') = 500_00,
+    'service_role should insert into and update accounts';
+end $$;
+rollback to savepoint svc_grants;
+reset role;
+set local role authenticated;
+
 -- ── Up token: Vault storage is service-role-only, never client-readable ──────
 
 -- The token RPCs must not be executable by an authenticated (client) role.

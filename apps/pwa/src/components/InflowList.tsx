@@ -96,21 +96,6 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
 
   return (
     <Stack gap="sm">
-      {adding ? (
-        <InflowForm
-          members={members}
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <Button fullWidth onClick={startAdding}>
-          Add inflow
-        </Button>
-      )}
-
       {inflows.length === 0 && !adding ? (
         <Text c="dimmed" ta="center">
           No inflows yet. Add one to get started.
@@ -138,6 +123,21 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
             />
           ),
         )
+      )}
+
+      {adding ? (
+        <InflowForm
+          members={members}
+          onSubmit={async (input) => {
+            await onCreate(input)
+            closeForms()
+          }}
+          onCancel={closeForms}
+        />
+      ) : (
+        <Button variant="light" fullWidth onClick={startAdding}>
+          Add inflow
+        </Button>
       )}
     </Stack>
   )

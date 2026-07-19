@@ -97,7 +97,16 @@ describe('InflowList', () => {
     expect(screen.getAllByText('Will')).toHaveLength(2)
   })
 
-  it('reveals an add form at the top and creates on submit', async () => {
+  it('renders the add button after the inflow cards', () => {
+    renderList([salary, wage])
+
+    const addButton = screen.getByRole('button', { name: /add inflow/i })
+    const lastCard = screen.getByText('Shifts')
+    // The add affordance sits below the list, so it follows the last card in the DOM.
+    expect(lastCard.compareDocumentPosition(addButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('reveals an add form and creates on submit', async () => {
     const user = userEvent.setup()
     const { onCreate } = renderList([salary])
 

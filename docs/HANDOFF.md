@@ -63,16 +63,20 @@ Four parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
 runner so wall-clock is the slowest single job:
 
 - **check** — lint / format / typecheck / build (~48–50s).
-- **test** — Vitest workspace (~50–55s), using the `threads` pool and skipping
-  the PWA plugin under test.
+- **test** — the Vitest workspace, sharded across parallel runners: a
+  `test-shard` matrix job runs `vitest run --shard=N/2` on each of two runners
+  (each covering half the test files, the union running every test), and a
+  lightweight `test` job `needs` both shards, so the required `test` check stays
+  green only when both shards pass. Sharding keeps the longest runner well under
+  a minute. Uses the `threads` pool and skips the PWA plugin under test.
 - **rls** — Postgres service + `supabase/tests/rls/` isolation assertions (~22s).
 - **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
   `supabase/functions` (the edge functions live outside the pnpm workspace).
 
 Branch-protection ruleset "Protect main" requires these, squash-only, no bypass.
 Actions pinned to the Node 24 and Deno 2.9.3 runtimes. Keep CI under a minute;
-`test` is the long pole (~50–55s) — if it crosses a minute, the next lever is
-trimming the Vitest suite or its install step.
+each shard runs about half the suite, so the next lever if it creeps up is
+adding a third shard or trimming the install step.
 
 ## Supabase
 
@@ -127,7 +131,7 @@ temporary_item, savings_goal, households / members (households carry a nullable
 
 ## Immediate follow-ups / open items
 
-- Watch the `test` CI time (the long pole, ~50–55s).
+- Watch the `test` shard times; add a third shard if a shard nears a minute.
 - Rotate the Supabase Management API token when done with it.
 - Up saver-account sync is live: `up-sync` polls each connected member's Up
   accounts and upserts balances into `public.accounts` (idempotent, deduped on

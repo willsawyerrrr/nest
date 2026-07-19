@@ -79,6 +79,13 @@
   display: block;
   padding-block: var(--mantine-spacing-xs);
   text-decoration: none;
+  /*
+   * Inherit the surrounding text colour for every link state. Without this the
+   * anchor falls back to the user-agent link colours — notably the default
+   * purple for :visited — so navigated tabs would turn purple. The inner Text
+   * still sets the primary colour for the active item.
+   */
+  color: inherit;
 }
 
 /*

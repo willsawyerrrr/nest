@@ -32,7 +32,7 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'fortnightly', label: 'Fortnightly' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Quarterly' },
-  { value: 'biannual', label: 'Biannual' },
+  { value: 'biannual', label: 'Biannually' },
   { value: 'annual', label: 'Annual' },
   { value: 'every_n_weeks', label: 'Every N weeks' },
 ]

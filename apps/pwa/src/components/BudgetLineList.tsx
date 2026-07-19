@@ -96,9 +96,14 @@ function BudgetLineCard({
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Text fw={700} size="sm">
-            {formatCents(fortnightly)}
-          </Text>
+          <Group gap={2} wrap="nowrap" align="baseline">
+            <Text fw={700} size="sm">
+              {formatCents(fortnightly)}
+            </Text>
+            <Text size="xs" c="dimmed">
+              / fn
+            </Text>
+          </Group>
           <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
             <IconPencil size={16} />
           </ActionIcon>

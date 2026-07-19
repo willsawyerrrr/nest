@@ -40,3 +40,23 @@
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
 }
+
+/*
+ * Tabs share the width evenly when they fit; if labels ever grow past the
+ * viewport the row scrolls horizontally rather than wrapping or overflowing.
+ */
+.tab-bar__list {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar__list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-bar__tab {
+  flex: 1 0 auto;
+  min-width: 3.75rem;
+  white-space: nowrap;
+}

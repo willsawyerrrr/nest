@@ -91,6 +91,74 @@ describe('BudgetLineForm', () => {
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
   })
 
+  it('hides the goal picker for non-savings groups', () => {
+    render(
+      <BudgetLineForm
+        defaultGroup="needs"
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('combobox', { name: /goal/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the goal picker for savings and investments groups', () => {
+    render(
+      <BudgetLineForm
+        defaultGroup="investments"
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('combobox', { name: /goal/i })).toBeInTheDocument()
+  })
+
+  it('links a savings line to a chosen goal', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <BudgetLineForm
+        defaultGroup="savings"
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/name/i), 'Deposit saver')
+    await user.type(screen.getByLabelText(/amount/i), '500')
+    await selectOption(user, /goal/i, 'House deposit')
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ goal_id: 'g1' })),
+    )
+  })
+
+  it('clears the goal link when the group changes away from savings', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <BudgetLineForm
+        defaultGroup="savings"
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/name/i), 'Rent')
+    await user.type(screen.getByLabelText(/amount/i), '500')
+    await selectOption(user, /goal/i, 'House deposit')
+    await selectOption(user, /group/i, 'Needs')
+    expect(screen.queryByRole('combobox', { name: /goal/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ line_group: 'needs', goal_id: null }),
+      ),
+    )
+  })
+
   it('preserves an existing line goal link on edit', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

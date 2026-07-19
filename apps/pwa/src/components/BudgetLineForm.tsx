@@ -7,8 +7,15 @@ import { centsToDollars, dollarsToCents } from '../lib/money'
 interface BudgetLineFormProps {
   initial?: BudgetLine
   defaultGroup?: BudgetGroup
+  /** The household's goals, offered as a link target on savings/investments lines. */
+  goals?: { id: string; name: string }[]
   onSubmit: (input: BudgetLineInput) => void | Promise<void>
   onCancel?: () => void
+}
+
+/** Whether lines in a group may link to a savings goal (the DB CHECK allows only these). */
+function groupLinksGoal(group: BudgetGroup): boolean {
+  return group === 'savings' || group === 'investments'
 }
 
 const SCHEDULES: { value: Frequency; label: string }[] = [
@@ -21,13 +28,29 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
 ]
 
 /** Presentational add/edit form for a single budget line. Persistence lives in the caller. */
-export function BudgetLineForm({ initial, defaultGroup, onSubmit, onCancel }: BudgetLineFormProps) {
+export function BudgetLineForm({
+  initial,
+  defaultGroup,
+  goals = [],
+  onSubmit,
+  onCancel,
+}: BudgetLineFormProps) {
   const [group, setGroup] = useState<BudgetGroup>(initial?.line_group ?? defaultGroup ?? 'needs')
   const [name, setName] = useState(initial?.name ?? '')
   const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
+  const [goalId, setGoalId] = useState<string | null>(initial?.goal_id ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const showGoalPicker = groupLinksGoal(group)
+
+  const changeGroup = (next: BudgetGroup) => {
+    setGroup(next)
+    if (!groupLinksGoal(next)) {
+      setGoalId(null)
+    }
+  }
 
   const canSubmit = name.trim() !== '' && amount !== '' && !submitting
 
@@ -43,7 +66,7 @@ export function BudgetLineForm({ initial, defaultGroup, onSubmit, onCancel }: Bu
       name: name.trim(),
       amount_cents: dollarsToCents(amount) ?? 0,
       frequency,
-      goal_id: initial?.goal_id ?? null,
+      goal_id: showGoalPicker ? goalId : null,
     }
     try {
       await onSubmit(input)
@@ -60,7 +83,7 @@ export function BudgetLineForm({ initial, defaultGroup, onSubmit, onCancel }: Bu
           label="Group"
           data={BUDGET_GROUPS}
           value={group}
-          onChange={(value) => value && setGroup(value as BudgetGroup)}
+          onChange={(value) => value && changeGroup(value as BudgetGroup)}
           allowDeselect={false}
         />
 
@@ -90,6 +113,19 @@ export function BudgetLineForm({ initial, defaultGroup, onSubmit, onCancel }: Bu
           value={amount}
           onChange={setAmount}
         />
+
+        {showGoalPicker && (
+          <Select
+            label="Goal"
+            description="Optional. Links this line's contribution to a savings goal."
+            placeholder="No goal"
+            data={goals.map((goal) => ({ value: goal.id, label: goal.name }))}
+            value={goalId}
+            onChange={setGoalId}
+            clearable
+            nothingFoundMessage="No goals yet"
+          />
+        )}
 
         {error && (
           <Text role="alert" c="red" size="sm">

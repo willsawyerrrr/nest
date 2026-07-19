@@ -6,6 +6,7 @@ import { TemporaryItemList } from './TemporaryItemList'
 
 interface BudgetScreenProps {
   lines: BudgetLine[]
+  goals: { id: string; name: string }[]
   temporaryItems: TemporaryItem[]
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
@@ -18,6 +19,7 @@ interface BudgetScreenProps {
 /** Presentational budget-line + temporary-item management. Persistence lives in the caller. */
 export function BudgetScreen({
   lines,
+  goals,
   temporaryItems,
   onCreateLine,
   onUpdateLine,
@@ -32,6 +34,7 @@ export function BudgetScreen({
         <Title order={2}>Budget</Title>
         <BudgetLineList
           lines={lines}
+          goals={goals}
           onCreate={onCreateLine}
           onUpdate={onUpdateLine}
           onDelete={(id) => void onDeleteLine(id)}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Center, Group, Loader, Text, UnstyledButton } from '@mantine/core'
+import { Center, Loader, Text, UnstyledButton } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
 import { summarise } from '@budget/plan'
 import { supabase } from './lib/supabase'
@@ -11,9 +11,11 @@ import { SignInScreen } from './components/SignInScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { useBudgetLines } from './hooks/useBudgetLines'
 import { useTemporaryItems } from './hooks/useTemporaryItems'
+import { useGoals } from './hooks/useGoals'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
+import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
 import { estimateHouseholdTaxFromRows } from './lib/tax'
@@ -101,12 +103,13 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'summary' | 'inflows' | 'budget' | 'tax' | 'home'
+type View = 'summary' | 'inflows' | 'budget' | 'goals' | 'tax' | 'home'
 
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'summary', label: 'Summary' },
   { view: 'inflows', label: 'Inflows' },
   { view: 'budget', label: 'Budget' },
+  { view: 'goals', label: 'Goals' },
   { view: 'tax', label: 'Tax' },
   { view: 'home', label: 'Household' },
 ]
@@ -128,6 +131,8 @@ function HouseholdApp({ household, session }: { household: Household; session: S
           <InflowsSection householdId={household.id} />
         ) : view === 'budget' ? (
           <BudgetSection householdId={household.id} />
+        ) : view === 'goals' ? (
+          <GoalsSection householdId={household.id} />
         ) : view === 'summary' ? (
           <SummarySection householdId={household.id} />
         ) : (
@@ -135,12 +140,13 @@ function HouseholdApp({ household, session }: { household: Household; session: S
         )}
       </main>
       <nav className="tab-bar" aria-label="Primary">
-        <Group gap={0} grow>
+        <div className="tab-bar__list">
           {NAV_ITEMS.map((item) => {
             const active = view === item.view
             return (
               <UnstyledButton
                 key={item.view}
+                className="tab-bar__tab"
                 aria-current={active}
                 onClick={() => setView(item.view)}
                 py="sm"
@@ -156,7 +162,7 @@ function HouseholdApp({ household, session }: { household: Household; session: S
               </UnstyledButton>
             )
           })}
-        </Group>
+        </div>
       </nav>
     </div>
   )
@@ -188,14 +194,16 @@ function InflowsSection({ householdId }: { householdId: string }) {
 function BudgetSection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const temporaryItems = useTemporaryItems(householdId)
+  const goals = useGoals(householdId)
 
-  if (budgetLines.loading || temporaryItems.loading) {
+  if (budgetLines.loading || temporaryItems.loading || goals.loading) {
     return <LoadingScreen />
   }
 
   return (
     <BudgetScreen
       lines={budgetLines.lines ?? []}
+      goals={goals.goals ?? []}
       temporaryItems={temporaryItems.items ?? []}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
@@ -203,6 +211,25 @@ function BudgetSection({ householdId }: { householdId: string }) {
       onCreateItem={temporaryItems.create}
       onUpdateItem={temporaryItems.update}
       onDeleteItem={temporaryItems.remove}
+    />
+  )
+}
+
+function GoalsSection({ householdId }: { householdId: string }) {
+  const goals = useGoals(householdId)
+  const budgetLines = useBudgetLines(householdId)
+
+  if (goals.loading || budgetLines.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <GoalScreen
+      goals={goals.goals ?? []}
+      lines={budgetLines.lines ?? []}
+      onCreateGoal={goals.create}
+      onUpdateGoal={goals.update}
+      onDeleteGoal={goals.remove}
     />
   )
 }

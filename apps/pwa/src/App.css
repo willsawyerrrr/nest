@@ -21,12 +21,22 @@
 
 .page {
   box-sizing: border-box;
-  max-width: 40rem;
+  max-width: 60rem;
   margin-inline: auto;
   padding-top: max(16px, env(safe-area-inset-top));
   padding-right: max(16px, env(safe-area-inset-right));
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   padding-left: max(16px, env(safe-area-inset-left));
+}
+
+/*
+ * On very wide monitors let the content breathe a little further without ever
+ * spanning the full viewport, keeping a comfortable reading measure.
+ */
+@media (min-width: 100em) {
+  .page {
+    max-width: 72rem;
+  }
 }
 
 /*

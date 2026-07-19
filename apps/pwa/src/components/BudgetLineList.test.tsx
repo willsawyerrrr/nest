@@ -267,6 +267,44 @@ describe('BudgetLineList', () => {
     expect(screen.queryByText(/from the gift tracker/i)).not.toBeInTheDocument()
   })
 
+  it('renders each line as a dense borderless row on desktop', () => {
+    // From `sm` up the line drops the bordered card for a single table-like row.
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('48em'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+    try {
+      render(
+        <BudgetLineList
+          lines={lines}
+          goals={[]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      const power = screen.getByText('Power')
+      expect(power.closest('.mantine-Card-root')).toBeNull()
+      const row = power.closest('div')?.parentElement as HTMLElement
+      expect(within(row).getByText('$50.00')).toBeInTheDocument()
+      expect(within(row).getByText('Weekly')).toBeInTheDocument()
+      expect(within(row).getByText('$100.00')).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: /edit/i })).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: /delete/i })).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('opens an unscoped add form via the universal Add item button', async () => {
     const user = userEvent.setup()
     render(

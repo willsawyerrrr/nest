@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Checkbox, NumberInput, Select, Stack, Text } from '@mantine/core'
+import { Button, Card, Checkbox, Group, NumberInput, Select, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput, TaxResidency } from '../hooks/useTaxProfiles'
 import { centsToDollars, dollarsToCents } from '../lib/money'
@@ -8,6 +8,7 @@ interface TaxProfileFormProps {
   member: Member
   initial?: TaxProfile
   onSubmit: (input: TaxProfileInput) => void | Promise<void>
+  onCancel?: () => void
 }
 
 const RESIDENCIES: { value: TaxResidency; label: string }[] = [
@@ -16,7 +17,7 @@ const RESIDENCIES: { value: TaxResidency; label: string }[] = [
 ]
 
 /** Presentational tax-profile editor for one member. Persistence lives in the caller. */
-export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProps) {
+export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfileFormProps) {
   const [residency, setResidency] = useState<TaxResidency>(initial?.residency ?? 'resident')
   const [hasCover, setHasCover] = useState(initial?.has_private_hospital_cover ?? false)
   const [helpDebt, setHelpDebt] = useState<number | string>(
@@ -48,11 +49,12 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
 
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="sm">
+      <Stack gap="xs">
         <Text fw={600}>{member.name}</Text>
 
         <Select
           label="Residency"
+          size="sm"
           data={RESIDENCIES}
           value={residency}
           onChange={(value) => value && setResidency(value as TaxResidency)}
@@ -67,6 +69,7 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
 
         <NumberInput
           label="HELP debt"
+          size="sm"
           prefix="$"
           thousandSeparator
           decimalScale={2}
@@ -88,9 +91,20 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
           </Text>
         )}
 
-        <Button type="submit" fullWidth disabled={submitting}>
-          {submitting ? 'Saving…' : 'Save'}
-        </Button>
+        {onCancel ? (
+          <Group grow>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save'}
+            </Button>
+            <Button type="button" variant="default" onClick={onCancel}>
+              Cancel
+            </Button>
+          </Group>
+        ) : (
+          <Button type="submit" fullWidth disabled={submitting}>
+            {submitting ? 'Saving…' : 'Save'}
+          </Button>
+        )}
       </Stack>
     </Card>
   )

@@ -77,10 +77,11 @@ export function BudgetLineForm({
   }
 
   return (
-    <Card withBorder radius="md" p="md" component="form" onSubmit={handleSubmit}>
-      <Stack gap="md">
+    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+      <Stack gap="xs">
         <Select
           label="Group"
+          size="sm"
           data={BUDGET_GROUPS}
           value={group}
           onChange={(value) => value && changeGroup(value as BudgetGroup)}
@@ -89,12 +90,14 @@ export function BudgetLineForm({
 
         <TextInput
           label="Name"
+          size="sm"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
         <Select
           label="Frequency"
+          size="sm"
           description="The app converts every amount to fortnightly and annual."
           data={SCHEDULES}
           value={frequency}
@@ -104,6 +107,7 @@ export function BudgetLineForm({
 
         <NumberInput
           label="Amount"
+          size="sm"
           prefix="$"
           thousandSeparator
           decimalScale={2}
@@ -117,6 +121,7 @@ export function BudgetLineForm({
         {showGoalPicker && (
           <Select
             label="Goal"
+            size="sm"
             description="Optional. Links this line's contribution to a savings goal."
             placeholder="No goal"
             data={goals.map((goal) => ({ value: goal.id, label: goal.name }))}

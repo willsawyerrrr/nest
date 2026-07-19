@@ -48,15 +48,17 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
 
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="sm">
+      <Stack gap="xs">
         <TextInput
           label="Name"
+          size="sm"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
         <NumberInput
           label="Target amount"
+          size="sm"
           prefix="$"
           thousandSeparator
           decimalScale={2}
@@ -69,6 +71,7 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
 
         <DateInput
           label="Target date"
+          size="sm"
           description="Optional. Sets the contribution needed to reach the target."
           valueFormat="D MMM YYYY"
           clearable
@@ -78,6 +81,7 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
 
         <NumberInput
           label="Current balance"
+          size="sm"
           description="Entered manually for now."
           prefix="$"
           thousandSeparator

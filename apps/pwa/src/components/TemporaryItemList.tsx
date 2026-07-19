@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { isTemporaryActive } from '@budget/plan'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatCents } from '../lib/money'
@@ -56,12 +57,12 @@ function TemporaryItemCard({
           <Text fw={700} size="sm">
             {formatCents(item.contribution_cents)}
           </Text>
-          <Button variant="subtle" size="compact-xs" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
-            Delete
-          </Button>
+          <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
+            <IconPencil size={16} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+            <IconTrash size={16} />
+          </ActionIcon>
         </Group>
       </Group>
     </Card>

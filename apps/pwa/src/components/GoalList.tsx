@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core'
+import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents, projectGoal } from '@budget/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
@@ -89,12 +90,12 @@ function GoalCard({
             <Badge size="xs" variant="light" color={status.color}>
               {status.label}
             </Badge>
-            <Button variant="subtle" size="compact-xs" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
-              Delete
-            </Button>
+            <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
+              <IconPencil size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+              <IconTrash size={16} />
+            </ActionIcon>
           </Group>
         </Group>
 

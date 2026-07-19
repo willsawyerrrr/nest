@@ -22,12 +22,14 @@ function budget(
   recipient_id: string,
   occasion_id: string,
   budgeted_amount_cents: number,
+  event_date: string | null = null,
 ): GiftBudget {
   return {
     id,
     recipient_id,
     occasion_id,
     budgeted_amount_cents,
+    event_date,
     household_id: 'h',
     created_at: '',
     updated_at: '',
@@ -156,5 +158,45 @@ describe('groupGifts by person', () => {
     const withCarol = groupGifts([alice, carol], [xmas], budgets, purchases, 'person')
     const carolGroup = withCarol.find((group) => group.label === 'Carol')!
     expect(carolGroup.rows).toEqual([])
+  })
+})
+
+describe('gift row effective date', () => {
+  it('falls back to the occasion date when the budget has no event_date', () => {
+    const groups = groupGifts(
+      [alice],
+      [xmas],
+      [budget('b1', alice.id, xmas.id, 100_00)],
+      [],
+      'person',
+    )
+    expect(groups[0]!.rows[0]!.date).toBe('2026-12-25')
+  })
+
+  it('prefers the budget event_date over the occasion date', () => {
+    const groups = groupGifts(
+      [alice],
+      [xmas],
+      [budget('b1', alice.id, xmas.id, 100_00, '2026-12-20')],
+      [],
+      'person',
+    )
+    expect(groups[0]!.rows[0]!.date).toBe('2026-12-20')
+  })
+
+  it('orders person rows by effective date, so an early event_date leads', () => {
+    // Alice's birthday is nominally 2026-06-01, but her Christmas budget is dated
+    // earlier via event_date, so it should sort ahead of the birthday.
+    const groups = groupGifts(
+      [alice],
+      [xmas, bday],
+      [
+        budget('b1', alice.id, xmas.id, 100_00, '2026-05-01'),
+        budget('b3', alice.id, bday.id, 40_00),
+      ],
+      [],
+      'person',
+    )
+    expect(groups[0]!.rows.map((row) => row.label)).toEqual(['Christmas', 'Birthday'])
   })
 })

@@ -211,6 +211,11 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       a person at Christmas. Recipients are a named list; occasions carry a label
       and optional date (birthdays, Christmas, Mother's / Father's Day,
       anniversaries; some recur annually).
+    - [x] **Per-budget date.** A gift budget carries an optional `event_date` that
+      overrides the occasion's shared date for that pairing, since each recipient's
+      birthday falls on a different date. The effective date is
+      `event_date ?? occasion.occasion_date`, shown on the row and used to order
+      rows within a person's group.
     - **Track** gift purchases through the year, each assigned to a gifting event
       (that recipient + occasion) with amount, description, and date.
     - **See** budgeted vs spent vs remaining per event, visually (a progress bar).
@@ -226,6 +231,12 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       avoid double-counting.
     - Manual purchase entry to start; once Up ingestion lands, an Up transaction
       can be tagged to a gifting event instead of hand-entering it.
+    - **Private / surprise gifts (deferred).** Hiding a gift one partner buys for
+      the other from that partner is a future enhancement, not a small one: it
+      needs per-member visibility on gift records, a departure from the current
+      household-only RLS model where every member sees everything. It would require
+      member-scoped policies (and UI) that no other part of the app has, so it is
+      out of scope for now.
     - Data model: `gift_recipient` (household-scoped name), `gift_occasion` (label
       + optional date), `gift_budget` (recipient × occasion + budgeted amount), and
       `gift_purchase` (assigned to a `gift_budget`: amount, description, date,

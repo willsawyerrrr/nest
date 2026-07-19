@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, NumberInput, Select, Stack, Text } from '@mantine/core'
+import { DateInput } from '@mantine/dates'
 import type { GiftBudget, GiftBudgetInput, GiftOccasion, GiftRecipient } from '../hooks/useGifts'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { pairKey } from '../lib/gifts'
@@ -39,6 +40,7 @@ export function GiftBudgetForm({
   const [amount, setAmount] = useState<number | string>(
     centsToDollars(initial?.budgeted_amount_cents),
   )
+  const [eventDate, setEventDate] = useState<string | null>(initial?.event_date ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -63,6 +65,7 @@ export function GiftBudgetForm({
         recipient_id: recipientId,
         occasion_id: occasionId,
         budgeted_amount_cents: dollarsToCents(amount) ?? 0,
+        event_date: eventDate,
       })
     } catch {
       setError('Could not save this gift budget. Please try again.')
@@ -107,6 +110,16 @@ export function GiftBudgetForm({
           hideControls
           value={amount}
           onChange={setAmount}
+        />
+
+        <DateInput
+          label="Date"
+          size="sm"
+          description="Optional. When this gift is due — e.g. this person's birthday. Falls back to the occasion's date."
+          valueFormat="D MMM YYYY"
+          clearable
+          value={eventDate}
+          onChange={setEventDate}
         />
 
         {duplicate && (

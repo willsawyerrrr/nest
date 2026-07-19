@@ -23,6 +23,7 @@ export interface GiftBudgetInput {
   recipient_id: string
   occasion_id: string
   budgeted_amount_cents: number
+  event_date: string | null
 }
 
 /** The purchase fields a form supplies; the household is set by the hook. */

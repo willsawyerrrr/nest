@@ -172,11 +172,16 @@ function GiftRowCard({
       <Stack gap="xs">
         <UnstyledButton onClick={toggle} aria-expanded={opened}>
           <Group justify="space-between" wrap="nowrap" gap="sm">
-            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
               {opened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
               <Text fw={600} size="sm" truncate>
                 {row.label}
               </Text>
+              {row.date && (
+                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                  {formatIsoDate(row.date)}
+                </Text>
+              )}
             </Group>
           </Group>
         </UnstyledButton>

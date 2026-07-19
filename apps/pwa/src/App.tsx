@@ -398,12 +398,23 @@ function SummarySection({ householdId }: { householdId: string }) {
   const taxProfiles = useTaxProfiles(householdId)
   const budgetLines = useBudgetLines(householdId)
   const temporaryItems = useTemporaryItems(householdId)
+  const contributions = useSuperContributions(householdId)
 
-  if (inflows.loading || taxProfiles.loading || budgetLines.loading || temporaryItems.loading) {
+  if (
+    inflows.loading ||
+    taxProfiles.loading ||
+    budgetLines.loading ||
+    temporaryItems.loading ||
+    contributions.loading
+  ) {
     return <LoadingScreen />
   }
 
-  const estimate = estimateHouseholdTaxFromRows(inflows.inflows ?? [], taxProfiles.profiles ?? [])
+  const estimate = estimateHouseholdTaxFromRows(
+    inflows.inflows ?? [],
+    taxProfiles.profiles ?? [],
+    contributions.contributions ?? [],
+  )
   const summary = summarise(
     {
       afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents,

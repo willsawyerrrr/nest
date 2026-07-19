@@ -24,9 +24,11 @@ current balance for the financial year; the balance is held as a manual account
 linked from `super_profile.linked_account_id` (the same balance-source pattern
 savings goals use). Each member's `super_contribution` rows are also managed there
 (add/edit/delete: kind, amount or percent-of-salary, frequency, FHSS flag, spouse
-contributor). Concessional kinds (salary sacrifice + personal deductible) feed the
-Tax tab, reducing taxable income and surfacing a Division 293 line for high
-earners. The Net worth tab sums every account's `balance_cents` (assets only;
+contributor). Concessional kinds (salary sacrifice + personal deductible) reduce
+the tax estimate — lowering taxable income and after-tax income (so the Tax tab
+shows a Division 293 line for high earners and the Summary's available income
+reflects the super diverted from cash). The Net worth tab sums every account's
+`balance_cents` (assets only;
 liabilities not modelled yet), split into Super vs Other accounts. Contribution
 caps, the co-contribution, and the retirement projection stay deferred — see
 [`ROADMAP.md`](ROADMAP.md).

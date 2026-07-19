@@ -101,8 +101,9 @@ phase.
   the balance held as a manual account linked from `super_profile`, plus
   add/edit/delete of each member's `super_contribution` rows (kind, amount or
   percent-of-salary, frequency, FHSS flag, and a spouse contributor). Concessional
-  contributions (salary sacrifice + personal deductible) feed the Tax tab estimate
-  — reducing taxable income, and surfacing a Division 293 line for high earners.
+  contributions (salary sacrifice + personal deductible) reduce the tax estimate —
+  lowering taxable income (a Division 293 line shows for high earners) and the
+  after-tax income the Summary budgets, since that cash is diverted to super.
   Net worth tab: sum of every account's `balance_cents` (assets only; liabilities
   not yet modelled), split into Super vs Other accounts.
 - Per-member Up token connection: each member pastes their Up personal access

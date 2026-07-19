@@ -10,6 +10,21 @@ export function formatCents(cents: number): string {
   return currency.format(cents / 100)
 }
 
+/**
+ * The semantic colour for a signed money amount: green for a positive figure,
+ * red for a negative one, and none for zero. The single source of truth for the
+ * app's positive/negative money convention, kept distinct from the teal primary.
+ */
+export function moneyColor(cents: number): 'green' | 'red' | undefined {
+  if (cents > 0) {
+    return 'green'
+  }
+  if (cents < 0) {
+    return 'red'
+  }
+  return undefined
+}
+
 /** Integer cents as a dollars number for a `NumberInput` value, or `''` when unset. */
 export function centsToDollars(cents: number | null | undefined): number | '' {
   if (cents == null) {

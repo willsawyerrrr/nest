@@ -1,0 +1,487 @@
+import { useState } from 'react'
+import { useDisclosure, useLocalStorage } from '@mantine/hooks'
+import {
+  ActionIcon,
+  Box,
+  Button,
+  Card,
+  Collapse,
+  Group,
+  Progress,
+  SegmentedControl,
+  Stack,
+  Text,
+  Title,
+  UnstyledButton,
+} from '@mantine/core'
+import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
+import type {
+  GiftBudget,
+  GiftBudgetInput,
+  GiftOccasion,
+  GiftOccasionInput,
+  GiftPurchase,
+  GiftPurchaseInput,
+  GiftRecipient,
+  GiftRecipientInput,
+} from '../hooks/useGifts'
+import {
+  groupGifts,
+  pairKey,
+  type GiftGroup,
+  type GiftGroupBy,
+  type GiftRow,
+  type GiftTotals,
+} from '../lib/gifts'
+import { formatCents, moneyColor } from '../lib/money'
+import { formatIsoDate } from '../lib/dates'
+import { GiftBudgetForm } from './GiftBudgetForm'
+import { GiftPurchaseForm } from './GiftPurchaseForm'
+import { GiftManagement } from './GiftManagement'
+
+interface GiftsScreenProps {
+  recipients: GiftRecipient[]
+  occasions: GiftOccasion[]
+  budgets: GiftBudget[]
+  purchases: GiftPurchase[]
+  onCreateRecipient: (input: GiftRecipientInput) => Promise<void>
+  onUpdateRecipient: (id: string, input: GiftRecipientInput) => Promise<void>
+  onDeleteRecipient: (id: string) => Promise<void>
+  onCreateOccasion: (input: GiftOccasionInput) => Promise<void>
+  onUpdateOccasion: (id: string, input: GiftOccasionInput) => Promise<void>
+  onDeleteOccasion: (id: string) => Promise<void>
+  onCreateBudget: (input: GiftBudgetInput) => Promise<void>
+  onUpdateBudget: (id: string, input: GiftBudgetInput) => Promise<void>
+  onDeleteBudget: (id: string) => Promise<void>
+  onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
+  onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
+  onDeletePurchase: (id: string) => Promise<void>
+}
+
+const GROUP_BY_STORAGE_KEY = 'gift-group-by'
+
+/** The spend progress percentage and its bar colour (red once over budget). */
+function progress(totals: GiftTotals): { percent: number; color: string } {
+  const color = totals.remainingCents < 0 ? 'red' : 'teal'
+  if (totals.budgetedCents <= 0) {
+    return { percent: totals.spentCents > 0 ? 100 : 0, color }
+  }
+  return { percent: Math.min(100, (totals.spentCents / totals.budgetedCents) * 100), color }
+}
+
+/** A budgeted / spent / remaining readout with a spend progress bar. */
+function GiftMoneyBar({ totals, label }: { totals: GiftTotals; label: string }) {
+  const { percent, color } = progress(totals)
+  return (
+    <Stack gap={4}>
+      <Group gap="md" wrap="wrap">
+        <Text size="xs" c="dimmed">
+          Budget {formatCents(totals.budgetedCents)}
+        </Text>
+        <Text size="xs" c="dimmed">
+          Spent {formatCents(totals.spentCents)}
+        </Text>
+        <Text size="xs" fw={600} c={moneyColor(totals.remainingCents)}>
+          Left {formatCents(totals.remainingCents)}
+        </Text>
+      </Group>
+      <Progress value={percent} color={color} size="sm" aria-label={`${label} spend`} />
+    </Stack>
+  )
+}
+
+/** One purchase line with edit/delete controls. */
+function PurchaseRow({
+  purchase,
+  onEdit,
+  onDelete,
+}: {
+  purchase: GiftPurchase
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="sm">
+      <Stack gap={0} style={{ minWidth: 0 }}>
+        <Text size="sm" truncate>
+          {purchase.description || 'Purchase'}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {formatIsoDate(purchase.purchased_on)}
+        </Text>
+      </Stack>
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Text size="sm" fw={600}>
+          {formatCents(purchase.amount_cents)}
+        </Text>
+        <ActionIcon
+          variant="subtle"
+          aria-label={`Edit ${purchase.description || 'purchase'}`}
+          onClick={onEdit}
+        >
+          <IconPencil size={16} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          aria-label={`Delete ${purchase.description || 'purchase'}`}
+          onClick={onDelete}
+        >
+          <IconTrash size={16} />
+        </ActionIcon>
+      </Group>
+    </Group>
+  )
+}
+
+/** One pairing row: its money, expandable to its purchases with add/edit/delete and budget edit. */
+function GiftRowCard({
+  row,
+  budget,
+  purchases,
+  recipients,
+  occasions,
+  takenPairs,
+  onUpdateBudget,
+  onDeleteBudget,
+  onCreatePurchase,
+  onUpdatePurchase,
+  onDeletePurchase,
+}: {
+  row: GiftRow
+  budget: GiftBudget
+  purchases: GiftPurchase[]
+  recipients: GiftRecipient[]
+  occasions: GiftOccasion[]
+  takenPairs: Set<string>
+  onUpdateBudget: (id: string, input: GiftBudgetInput) => Promise<void>
+  onDeleteBudget: (id: string) => Promise<void>
+  onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
+  onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
+  onDeletePurchase: (id: string) => Promise<void>
+}) {
+  const [opened, { toggle }] = useDisclosure(false)
+  const [editingBudget, setEditingBudget] = useState(false)
+  const [addingPurchase, setAddingPurchase] = useState(false)
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null)
+
+  const rowPurchases = purchases.filter((purchase) => purchase.gift_budget_id === row.budgetId)
+
+  return (
+    <Card withBorder radius="md" p="xs">
+      <Stack gap="xs">
+        <UnstyledButton onClick={toggle} aria-expanded={opened}>
+          <Group justify="space-between" wrap="nowrap" gap="sm">
+            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+              {opened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+              <Text fw={600} size="sm" truncate>
+                {row.label}
+              </Text>
+            </Group>
+          </Group>
+        </UnstyledButton>
+
+        <GiftMoneyBar totals={row} label={row.label} />
+
+        <Collapse expanded={opened}>
+          <Stack gap="xs" pt="xs">
+            {rowPurchases.length === 0 && !addingPurchase && (
+              <Text c="dimmed" size="xs">
+                No purchases yet.
+              </Text>
+            )}
+            {rowPurchases.map((purchase) =>
+              editingPurchaseId === purchase.id ? (
+                <GiftPurchaseForm
+                  key={purchase.id}
+                  budgetId={row.budgetId}
+                  initial={purchase}
+                  onSubmit={async (input) => {
+                    await onUpdatePurchase(purchase.id, input)
+                    setEditingPurchaseId(null)
+                  }}
+                  onCancel={() => setEditingPurchaseId(null)}
+                />
+              ) : (
+                <PurchaseRow
+                  key={purchase.id}
+                  purchase={purchase}
+                  onEdit={() => {
+                    setAddingPurchase(false)
+                    setEditingPurchaseId(purchase.id)
+                  }}
+                  onDelete={() => void onDeletePurchase(purchase.id)}
+                />
+              ),
+            )}
+
+            {addingPurchase ? (
+              <GiftPurchaseForm
+                budgetId={row.budgetId}
+                onSubmit={async (input) => {
+                  await onCreatePurchase(input)
+                  setAddingPurchase(false)
+                }}
+                onCancel={() => setAddingPurchase(false)}
+              />
+            ) : editingBudget ? (
+              <GiftBudgetForm
+                recipients={recipients}
+                occasions={occasions}
+                initial={budget}
+                takenPairs={takenPairs}
+                onSubmit={async (input) => {
+                  await onUpdateBudget(row.budgetId, input)
+                  setEditingBudget(false)
+                }}
+                onCancel={() => setEditingBudget(false)}
+              />
+            ) : (
+              <Group gap="xs">
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => {
+                    setEditingBudget(false)
+                    setAddingPurchase(true)
+                  }}
+                >
+                  Add purchase
+                </Button>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => {
+                    setAddingPurchase(false)
+                    setEditingBudget(true)
+                  }}
+                >
+                  Edit budget
+                </Button>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  onClick={() => void onDeleteBudget(row.budgetId)}
+                >
+                  Delete budget
+                </Button>
+              </Group>
+            )}
+          </Stack>
+        </Collapse>
+      </Stack>
+    </Card>
+  )
+}
+
+/** One collapsible group: header rollup plus its pairing rows and an add-budget affordance. */
+function GiftGroupCard({
+  group,
+  groupBy,
+  budgetsById,
+  purchases,
+  recipients,
+  occasions,
+  takenPairs,
+  onCreateBudget,
+  onUpdateBudget,
+  onDeleteBudget,
+  onCreatePurchase,
+  onUpdatePurchase,
+  onDeletePurchase,
+}: {
+  group: GiftGroup
+  groupBy: GiftGroupBy
+  budgetsById: Map<string, GiftBudget>
+  purchases: GiftPurchase[]
+  recipients: GiftRecipient[]
+  occasions: GiftOccasion[]
+  takenPairs: Set<string>
+  onCreateBudget: (input: GiftBudgetInput) => Promise<void>
+  onUpdateBudget: (id: string, input: GiftBudgetInput) => Promise<void>
+  onDeleteBudget: (id: string) => Promise<void>
+  onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
+  onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
+  onDeletePurchase: (id: string) => Promise<void>
+}) {
+  const [opened, { toggle }] = useDisclosure(group.rows.length > 0)
+  const [addingBudget, setAddingBudget] = useState(false)
+
+  return (
+    <Card withBorder radius="md" p="sm">
+      <Stack gap="sm">
+        <UnstyledButton onClick={toggle} aria-expanded={opened}>
+          <Stack gap={4}>
+            <Group justify="space-between" wrap="nowrap" gap="sm" align="center">
+              <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                {opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />}
+                <Title order={4} style={{ minWidth: 0 }}>
+                  {group.label}
+                </Title>
+                {group.date && (
+                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                    {formatIsoDate(group.date)}
+                  </Text>
+                )}
+              </Group>
+            </Group>
+            <GiftMoneyBar totals={group} label={group.label} />
+          </Stack>
+        </UnstyledButton>
+
+        <Collapse expanded={opened}>
+          <Stack gap="xs">
+            {group.rows.length === 0 && !addingBudget && (
+              <Text c="dimmed" size="sm">
+                No gift budgets yet.
+              </Text>
+            )}
+            {group.rows.map((row) => {
+              const budget = budgetsById.get(row.budgetId)
+              if (!budget) {
+                return null
+              }
+              return (
+                <GiftRowCard
+                  key={row.budgetId}
+                  row={row}
+                  budget={budget}
+                  purchases={purchases}
+                  recipients={recipients}
+                  occasions={occasions}
+                  takenPairs={takenPairs}
+                  onUpdateBudget={onUpdateBudget}
+                  onDeleteBudget={onDeleteBudget}
+                  onCreatePurchase={onCreatePurchase}
+                  onUpdatePurchase={onUpdatePurchase}
+                  onDeletePurchase={onDeletePurchase}
+                />
+              )
+            })}
+
+            {addingBudget ? (
+              <GiftBudgetForm
+                recipients={recipients}
+                occasions={occasions}
+                lockedOccasionId={groupBy === 'occasion' ? group.key : undefined}
+                lockedRecipientId={groupBy === 'person' ? group.key : undefined}
+                takenPairs={takenPairs}
+                onSubmit={async (input) => {
+                  await onCreateBudget(input)
+                  setAddingBudget(false)
+                }}
+                onCancel={() => setAddingBudget(false)}
+              />
+            ) : (
+              <Button variant="light" fullWidth onClick={() => setAddingBudget(true)}>
+                Add gift budget
+              </Button>
+            )}
+          </Stack>
+        </Collapse>
+      </Stack>
+    </Card>
+  )
+}
+
+/** Presentational gift tracker: grouped budgets with spend rollups, plus recipient/occasion management. */
+export function GiftsScreen({
+  recipients,
+  occasions,
+  budgets,
+  purchases,
+  onCreateRecipient,
+  onUpdateRecipient,
+  onDeleteRecipient,
+  onCreateOccasion,
+  onUpdateOccasion,
+  onDeleteOccasion,
+  onCreateBudget,
+  onUpdateBudget,
+  onDeleteBudget,
+  onCreatePurchase,
+  onUpdatePurchase,
+  onDeletePurchase,
+}: GiftsScreenProps) {
+  const [groupBy, setGroupBy] = useLocalStorage<GiftGroupBy>({
+    key: GROUP_BY_STORAGE_KEY,
+    defaultValue: 'occasion',
+    getInitialValueInEffect: false,
+  })
+  const [managing, { toggle: toggleManaging }] = useDisclosure(false)
+
+  const groups = groupGifts(recipients, occasions, budgets, purchases, groupBy)
+  const budgetsById = new Map(budgets.map((budget) => [budget.id, budget]))
+  const takenPairs = new Set(
+    budgets.map((budget) => pairKey(budget.recipient_id, budget.occasion_id)),
+  )
+  const noEntities = recipients.length === 0 && occasions.length === 0
+
+  return (
+    <Stack gap="md">
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Title order={2}>Gifts</Title>
+        <Button variant={managing ? 'filled' : 'default'} onClick={toggleManaging}>
+          {managing ? 'Done managing' : 'Manage'}
+        </Button>
+      </Group>
+
+      <Collapse expanded={managing}>
+        <GiftManagement
+          recipients={recipients}
+          occasions={occasions}
+          onCreateRecipient={onCreateRecipient}
+          onUpdateRecipient={onUpdateRecipient}
+          onDeleteRecipient={onDeleteRecipient}
+          onCreateOccasion={onCreateOccasion}
+          onUpdateOccasion={onUpdateOccasion}
+          onDeleteOccasion={onDeleteOccasion}
+        />
+      </Collapse>
+
+      <SegmentedControl
+        fullWidth
+        aria-label="Group gifts by"
+        value={groupBy}
+        onChange={(value) => setGroupBy(value as GiftGroupBy)}
+        data={[
+          { value: 'occasion', label: 'By occasion' },
+          { value: 'person', label: 'By person' },
+        ]}
+      />
+
+      {noEntities ? (
+        <Box>
+          <Text c="dimmed" size="sm">
+            Add a recipient and an occasion to start tracking gifts. Tap <b>Manage</b> above.
+          </Text>
+        </Box>
+      ) : groups.length === 0 ? (
+        <Text c="dimmed" size="sm">
+          No {groupBy === 'occasion' ? 'occasions' : 'recipients'} yet. Tap <b>Manage</b> to add
+          one.
+        </Text>
+      ) : (
+        groups.map((group) => (
+          <GiftGroupCard
+            key={group.key}
+            group={group}
+            groupBy={groupBy}
+            budgetsById={budgetsById}
+            purchases={purchases}
+            recipients={recipients}
+            occasions={occasions}
+            takenPairs={takenPairs}
+            onCreateBudget={onCreateBudget}
+            onUpdateBudget={onUpdateBudget}
+            onDeleteBudget={onDeleteBudget}
+            onCreatePurchase={onCreatePurchase}
+            onUpdatePurchase={onUpdatePurchase}
+            onDeletePurchase={onDeletePurchase}
+          />
+        ))
+      )}
+    </Stack>
+  )
+}

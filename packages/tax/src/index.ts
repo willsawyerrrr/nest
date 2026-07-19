@@ -112,8 +112,43 @@ export interface TaxYearConfig {
   readonly medicareLevySurcharge: MedicareLevySurchargeConfig
   readonly lito: LitoConfig
   readonly helpRepayment: HelpRepaymentConfig
-  /** Employer super contribution rate; carried for projections, not liability. */
-  readonly superGuaranteeRate: number
+  readonly super: SuperConfig
+}
+
+/**
+ * Versioned AU superannuation parameters. Concessional contributions reduce
+ * taxable income and, above `division293ThresholdCents`, attract Division 293
+ * tax; the caps, contributions-tax rate, co-contribution, and preservation age
+ * are consumed by the caps, co-contribution, and retirement-projection layers.
+ */
+export interface SuperConfig {
+  /** Employer super guarantee rate, on ordinary time earnings. */
+  readonly guaranteeRate: number
+  /** Annual concessional (pre-tax) contributions cap. */
+  readonly concessionalCapCents: Money
+  /** Tax levied on concessional contributions inside the fund. */
+  readonly contributionsTaxRate: number
+  /** Annual non-concessional (after-tax) contributions cap. */
+  readonly nonConcessionalCapCents: Money
+  /** Income (taxable income + concessional contributions) above which Division 293 applies. */
+  readonly division293ThresholdCents: Money
+  /** Extra tax rate Division 293 levies on concessional contributions above the threshold. */
+  readonly division293Rate: number
+  /** Total super balance below which unused concessional cap can be carried forward. */
+  readonly carryForwardBalanceCapCents: Money
+  /** General transfer balance cap. */
+  readonly generalTransferBalanceCapCents: Money
+  /** Government co-contribution parameters. */
+  readonly coContribution: SuperCoContributionConfig
+  /** Preservation age at which super can be accessed. */
+  readonly preservationAge: number
+}
+
+/** Government super co-contribution: full below the lower threshold, tapering to nil at the higher. */
+export interface SuperCoContributionConfig {
+  readonly maxCents: Money
+  readonly lowerIncomeThresholdCents: Money
+  readonly higherIncomeThresholdCents: Money
 }
 
 /** Assessable income components for a member for one financial year. */
@@ -133,14 +168,21 @@ export interface TaxInput {
   readonly privateHospitalCover: boolean
   readonly helpDebtCents: Money
   readonly paygWithheldCents: Money
+  /**
+   * Annual concessional (pre-tax) super contributions — salary sacrifice plus
+   * personal deductible. Reduces taxable income and drives Division 293; absent
+   * is treated as nil.
+   */
+  readonly concessionalContributionsCents?: Money
 }
 
 /**
  * A full liability breakdown, every field an integer cent amount. `incomeTaxCents`
  * is gross tax on the brackets and `litoOffsetCents` the offset applied against
  * it; `totalLiabilityCents` nets the offset (floored at zero) before adding the
- * levies and repayment. `balanceCents` is positive when owing, negative for an
- * estimated refund.
+ * levies, repayment, and Division 293. `balanceCents` is positive when owing,
+ * negative for an estimated refund. `division293Cents` is the extra tax on
+ * concessional contributions for high earners (nil for most).
  */
 export interface TaxBreakdown {
   readonly taxableIncomeCents: Money
@@ -149,6 +191,7 @@ export interface TaxBreakdown {
   readonly medicareLevyCents: Money
   readonly medicareLevySurchargeCents: Money
   readonly helpRepaymentCents: Money
+  readonly division293Cents: Money
   readonly totalLiabilityCents: Money
   readonly paygWithheldCents: Money
   readonly balanceCents: Money
@@ -170,11 +213,16 @@ function roundCents(value: number): Money {
   return Math.round(value)
 }
 
-/** Taxable income = total assessable income − deductions, floored at zero. */
+/**
+ * Taxable income = total assessable income − deductions − concessional super
+ * contributions, floored at zero. Salary sacrifice and personal deductible
+ * contributions both reduce assessable income, so they are subtracted here.
+ */
 export function taxableIncome(input: TaxInput): Money {
   const { salaryOrWagesCents, businessCents, investmentCents, otherCents } = input.assessableIncome
   const assessable = salaryOrWagesCents + businessCents + investmentCents + otherCents
-  return Math.max(0, assessable - input.deductionsCents)
+  const concessional = input.concessionalContributionsCents ?? 0
+  return Math.max(0, assessable - input.deductionsCents - concessional)
 }
 
 /** Applies the ordered marginal brackets to `taxableIncomeCents`. */
@@ -218,9 +266,9 @@ export function medicareLevy(taxableIncomeCents: Money, config: TaxYearConfig): 
 
 /**
  * Computes the Medicare levy surcharge. Exempt when private hospital cover is
- * held. Simplification: income for surcharge purposes is taken as taxable income
- * (per docs/TAX.md it technically also includes reportable fringe benefits and
- * super, modelled as a follow-up).
+ * held. The caller passes income for surcharge purposes — taxable income plus
+ * reportable (concessional) super contributions; reportable fringe benefits and
+ * net investment losses are still not modelled (see docs/TAX.md).
  */
 export function medicareLevySurcharge(
   incomeForSurchargeCents: Money,
@@ -239,10 +287,9 @@ export function medicareLevySurcharge(
 /**
  * Computes the compulsory HELP/HECS repayment, capped at the outstanding debt.
  * Marginal across `marginalBands`, then limited to `maxRepaymentRate` of the
- * whole repayment income; nil at or below the first band's floor.
- * Simplification: repayment income is taken as taxable income (per docs/TAX.md it
- * technically also includes reportable super and net investment losses, modelled
- * as a follow-up).
+ * whole repayment income; nil at or below the first band's floor. The caller
+ * passes repayment income — taxable income plus reportable (concessional) super
+ * contributions; net investment losses are still not modelled (see docs/TAX.md).
  */
 export function helpRepayment(
   repaymentIncomeCents: Money,
@@ -265,24 +312,57 @@ export function helpRepayment(
 }
 
 /**
+ * Computes Division 293 tax: an extra `division293Rate` on the lesser of the
+ * concessional contributions and the amount by which Division 293 income
+ * (taxable income + concessional contributions) exceeds the threshold. Nil below
+ * the threshold or with no concessional contributions. Simplification: Division
+ * 293 income is approximated as taxable income + concessional contributions,
+ * omitting reportable fringe benefits and net investment losses (see docs/TAX.md).
+ */
+export function division293(
+  taxableIncomeCents: Money,
+  concessionalContributionsCents: Money,
+  config: TaxYearConfig,
+): Money {
+  const { division293ThresholdCents, division293Rate } = config.super
+  if (concessionalContributionsCents <= 0) return 0
+  const excessCents =
+    taxableIncomeCents + concessionalContributionsCents - division293ThresholdCents
+  if (excessCents <= 0) return 0
+  return roundCents(Math.min(concessionalContributionsCents, excessCents) * division293Rate)
+}
+
+/**
  * Computes the full income-tax breakdown for a member's financial year. The
  * caller selects the `config` matching the member's residency and financial year.
  * Offsets reduce tax payable but not below zero, and never reduce the levies.
+ * Concessional super contributions reduce taxable income (so they lower income
+ * tax, LITO, and the Medicare levy) but are added back for the surcharge and HELP
+ * repayment income, and may attract Division 293.
  */
 export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown {
+  const concessionalCents = input.concessionalContributionsCents ?? 0
   const taxableIncomeCents = taxableIncome(input)
   const incomeTaxCents = incomeTax(taxableIncomeCents, config)
   const litoOffsetCents = lowIncomeTaxOffset(taxableIncomeCents, config)
   const netIncomeTaxCents = Math.max(0, incomeTaxCents - litoOffsetCents)
   const medicareLevyCents = medicareLevy(taxableIncomeCents, config)
+  // Reportable concessional contributions are added back for the surcharge and
+  // HELP repayment income (they add back reportable super contributions).
+  const incomeWithSuperCents = taxableIncomeCents + concessionalCents
   const medicareLevySurchargeCents = medicareLevySurcharge(
-    taxableIncomeCents,
+    incomeWithSuperCents,
     input.privateHospitalCover,
     config,
   )
-  const helpRepaymentCents = helpRepayment(taxableIncomeCents, input.helpDebtCents, config)
+  const helpRepaymentCents = helpRepayment(incomeWithSuperCents, input.helpDebtCents, config)
+  const division293Cents = division293(taxableIncomeCents, concessionalCents, config)
   const totalLiabilityCents =
-    netIncomeTaxCents + medicareLevyCents + medicareLevySurchargeCents + helpRepaymentCents
+    netIncomeTaxCents +
+    medicareLevyCents +
+    medicareLevySurchargeCents +
+    helpRepaymentCents +
+    division293Cents
   const balanceCents = totalLiabilityCents - input.paygWithheldCents
   return {
     taxableIncomeCents,
@@ -291,6 +371,7 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
     medicareLevyCents,
     medicareLevySurchargeCents,
     helpRepaymentCents,
+    division293Cents,
     totalLiabilityCents,
     paygWithheldCents: input.paygWithheldCents,
     balanceCents,

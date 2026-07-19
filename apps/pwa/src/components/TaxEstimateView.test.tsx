@@ -10,6 +10,7 @@ const breakdown: TaxBreakdown = {
   medicareLevyCents: 0,
   medicareLevySurchargeCents: 0,
   helpRepaymentCents: 0,
+  division293Cents: 0,
   totalLiabilityCents: 0,
   paygWithheldCents: 0,
   balanceCents: 0,
@@ -18,6 +19,7 @@ const breakdown: TaxBreakdown = {
 const will: MemberTaxEstimate = {
   memberId: 'm1',
   annualGrossCents: 10_000_000,
+  annualConcessionalContributionsCents: 0,
   annualTaxCents: 2_500_000,
   annualAfterTaxCents: 7_500_000,
   fortnightlyGrossCents: 384_615,
@@ -29,6 +31,7 @@ const will: MemberTaxEstimate = {
 const sam: MemberTaxEstimate = {
   memberId: 'm2',
   annualGrossCents: 6_000_000,
+  annualConcessionalContributionsCents: 0,
   annualTaxCents: 1_000_000,
   annualAfterTaxCents: 5_000_000,
   fortnightlyGrossCents: 230_769,

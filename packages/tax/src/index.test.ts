@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   computeTax,
   configsByYear,
+  division293,
   financialYearForDate,
   FY2027_CONFIG,
   helpRepayment,
@@ -56,7 +57,24 @@ const FIXTURE_CONFIG: TaxYearConfig = {
     ],
     maxRepaymentRate: 0.15,
   },
-  superGuaranteeRate: 0.12,
+  // Round, made-up super figures (a low $150,000 Division 293 threshold so the
+  // fixture can exercise it without needing a huge income).
+  super: {
+    guaranteeRate: 0.12,
+    concessionalCapCents: 30_000_00,
+    contributionsTaxRate: 0.15,
+    nonConcessionalCapCents: 120_000_00,
+    division293ThresholdCents: 150_000_00,
+    division293Rate: 0.15,
+    carryForwardBalanceCapCents: 500_000_00,
+    generalTransferBalanceCapCents: 1_900_000_00,
+    coContribution: {
+      maxCents: 500_00,
+      lowerIncomeThresholdCents: 45_000_00,
+      higherIncomeThresholdCents: 60_000_00,
+    },
+    preservationAge: 60,
+  },
 }
 
 const NO_INCOME: AssessableIncome = {
@@ -245,6 +263,7 @@ describe('computeTax', () => {
       medicareLevyCents: 0,
       medicareLevySurchargeCents: 0,
       helpRepaymentCents: 0,
+      division293Cents: 0,
       totalLiabilityCents: 0,
       paygWithheldCents: 1_000_00,
       balanceCents: -1_000_00,
@@ -272,6 +291,7 @@ describe('computeTax', () => {
       medicareLevySurchargeCents: 1_000_00,
       // marginal: 0.10 × (8,000,000 − 5,000,000) + 0.30 × (10,000,000 − 8,000,000)
       helpRepaymentCents: 9_000_00,
+      division293Cents: 0,
       totalLiabilityCents: 32_550_00,
       paygWithheldCents: 20_000_00,
       balanceCents: 12_550_00,
@@ -290,10 +310,66 @@ describe('computeTax', () => {
       medicareLevyCents: 800_00,
       medicareLevySurchargeCents: 0,
       helpRepaymentCents: 0,
+      division293Cents: 0,
       totalLiabilityCents: 3_500_00,
       paygWithheldCents: 7_000_00,
       balanceCents: -3_500_00,
     })
+  })
+})
+
+describe('division293', () => {
+  it('is nil below the threshold', () => {
+    expect(division293(100_000_00, 10_000_00, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it('is nil with no concessional contributions', () => {
+    expect(division293(200_000_00, 0, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it('taxes only the excess over the threshold when it is the lesser', () => {
+    // income + concessional = 155,000; excess 5,000 < 10,000 concessional.
+    expect(division293(145_000_00, 10_000_00, FIXTURE_CONFIG)).toBe(750_00)
+  })
+
+  it('taxes all concessional contributions when they are the lesser', () => {
+    // income + concessional = 210,000; excess 60,000 > 10,000 concessional.
+    expect(division293(200_000_00, 10_000_00, FIXTURE_CONFIG)).toBe(1_500_00)
+  })
+})
+
+describe('computeTax with concessional super contributions', () => {
+  it('subtracts them from taxable income', () => {
+    const result = computeTax(
+      inputForSalary(100_000_00, { concessionalContributionsCents: 10_000_00 }),
+      FIXTURE_CONFIG,
+    )
+    expect(result.taxableIncomeCents).toBe(90_000_00)
+  })
+
+  it('adds them back for the surcharge and levies Division 293', () => {
+    const result = computeTax(
+      inputForSalary(200_000_00, { concessionalContributionsCents: 20_000_00 }),
+      FIXTURE_CONFIG,
+    )
+    expect(result.taxableIncomeCents).toBe(180_000_00)
+    // Surcharge income adds the contributions back: 1.5% × 200,000, not × 180,000.
+    expect(result.medicareLevySurchargeCents).toBe(3_000_00)
+    // Division 293: 15% × min(20,000, 200,000 − 150,000).
+    expect(result.division293Cents).toBe(3_000_00)
+    expect(result.totalLiabilityCents).toBe(60_150_00)
+  })
+
+  it('adds them back for HELP repayment income', () => {
+    const result = computeTax(
+      inputForSalary(80_000_00, {
+        concessionalContributionsCents: 20_000_00,
+        helpDebtCents: 30_000_00,
+      }),
+      FIXTURE_CONFIG,
+    )
+    // Repayment income is 60,000 + 20,000 = 80,000: 10% × (80,000 − 50,000).
+    expect(result.helpRepaymentCents).toBe(3_000_00)
   })
 })
 
@@ -355,5 +431,15 @@ describe('FY2027_CONFIG', () => {
   it('gives the maximum LITO below the first taper threshold', () => {
     expect(lowIncomeTaxOffset(30_000_00, FY2027_CONFIG)).toBe(700_00)
     expect(lowIncomeTaxOffset(66_667_00, FY2027_CONFIG)).toBe(0) // cuts out at $66,667
+  })
+
+  it('levies Division 293 on a high earner with concessional contributions', () => {
+    const result = computeTax(
+      inputForSalary(300_000_00, { concessionalContributionsCents: 30_000_00 }),
+      FY2027_CONFIG,
+    )
+    expect(result.taxableIncomeCents).toBe(270_000_00)
+    // income + concessional = 300,000; 15% × min(30,000, 300,000 − 250,000).
+    expect(result.division293Cents).toBe(4_500_00)
   })
 })

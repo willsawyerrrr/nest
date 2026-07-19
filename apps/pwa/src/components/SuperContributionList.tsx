@@ -54,7 +54,7 @@ function ContributionCard({
               {formatFrequency(contribution.frequency, contribution.interval_weeks)}
             </Badge>
             {contribution.fhss_eligible && (
-              <Badge size="xs" variant="light" color="grape">
+              <Badge size="xs" variant="light" color="teal">
                 FHSS
               </Badge>
             )}

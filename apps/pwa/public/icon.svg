@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Personal Budget">
-  <rect width="512" height="512" rx="96" fill="#0f172a" />
-  <rect x="112" y="288" width="64" height="112" rx="16" fill="#38bdf8" />
-  <rect x="224" y="208" width="64" height="192" rx="16" fill="#34d399" />
-  <rect x="336" y="128" width="64" height="272" rx="16" fill="#a78bfa" />
+  <rect width="512" height="512" rx="96" fill="#0b4f4f" />
+  <rect x="112" y="288" width="64" height="112" rx="16" fill="#3bc9db" />
+  <rect x="224" y="208" width="64" height="192" rx="16" fill="#20c997" />
+  <rect x="336" y="128" width="64" height="272" rx="16" fill="#40c057" />
 </svg>

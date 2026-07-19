@@ -2,6 +2,7 @@ import { Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { Account } from '../hooks/useAccounts'
 import { formatCents } from '../lib/money'
 import { netWorthBreakdown } from '../lib/super'
+import { moneyColor } from '../theme'
 
 interface NetWorthViewProps {
   accounts: Account[]
@@ -25,7 +26,9 @@ function AccountGroup({
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
           <Title order={4}>{title}</Title>
-          <Text fw={700}>{formatCents(subtotalCents)}</Text>
+          <Text fw={700} c={moneyColor(subtotalCents)}>
+            {formatCents(subtotalCents)}
+          </Text>
         </Group>
         {accounts.length === 0 ? (
           <Text c="dimmed" size="sm">
@@ -38,7 +41,12 @@ function AccountGroup({
                 <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
                   {account.name}
                 </Text>
-                <Text size="sm" ta="right" style={{ flexShrink: 0 }}>
+                <Text
+                  size="sm"
+                  ta="right"
+                  c={moneyColor(account.balance_cents)}
+                  style={{ flexShrink: 0 }}
+                >
                   {formatCents(account.balance_cents)}
                 </Text>
               </Group>
@@ -67,7 +75,7 @@ export function NetWorthView({ accounts, superIds }: NetWorthViewProps) {
           <Text size="xs" c="dimmed">
             Total net worth
           </Text>
-          <Text fw={700} fz="xl">
+          <Text fw={700} fz="xl" c={moneyColor(breakdown.totalCents)}>
             {formatCents(breakdown.totalCents)}
           </Text>
         </Stack>

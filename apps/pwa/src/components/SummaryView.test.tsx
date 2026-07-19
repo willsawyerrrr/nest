@@ -75,6 +75,20 @@ describe('SummaryView', () => {
     expect(within(afterSaving).getByText('$6,500.00')).toBeInTheDocument()
   })
 
+  it('orders the savings-block groups after the after-outgoing line', () => {
+    render(<SummaryView summary={summary} />)
+
+    const order = screen.getAllByRole('region').map((region) => region.getAttribute('aria-label'))
+    const afterOutgoing = order.indexOf('After Outgoing')
+    for (const label of ['Needs', 'Wants', 'Discretionary', 'Temporary']) {
+      expect(order.indexOf(label)).toBeLessThan(afterOutgoing)
+    }
+    for (const label of ['Savings', 'Investments']) {
+      expect(order.indexOf(label)).toBeGreaterThan(afterOutgoing)
+    }
+    expect(order.indexOf('After Saving')).toBeGreaterThan(order.indexOf('Investments'))
+  })
+
   it('shows an empty state when there is nothing to reconcile', () => {
     const zero = { fortnightlyCents: 0, annualCents: 0 }
     const empty: BudgetSummary = {

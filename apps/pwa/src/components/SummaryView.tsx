@@ -40,6 +40,14 @@ const GROUP_ORDER: { key: keyof BudgetSummary['groups']; label: string; color: s
   { key: 'investments', label: 'Investments', color: 'var(--mantine-color-green-5)' },
 ]
 
+/** The keys of the groups that make up outgoings, in reconciliation order. */
+const OUTGOING_KEYS: (keyof BudgetSummary['groups'])[] = [
+  'needs',
+  'wants',
+  'discretionary',
+  'temporary',
+]
+
 /** The colour of the leftover-buffer segment (After Saving) in the donut. */
 const BUFFER_COLOR = 'var(--mantine-color-gray-5)'
 
@@ -200,12 +208,19 @@ function RunningRow({ label, amounts }: { label: string; amounts: Amounts }) {
 export function SummaryView({ summary }: SummaryViewProps) {
   const wide = useMediaQuery('(min-width: 48em)')
 
-  const groupRows: GroupRow[] = GROUP_ORDER.map(({ key, label }) => ({
+  const groupRow = (key: keyof BudgetSummary['groups'], label: string): GroupRow => ({
     label,
     fortnightlyCents: summary.groups[key].fortnightlyCents,
     annualCents: summary.groups[key].annualCents,
     portion: summary.groups[key].portion,
-  }))
+  })
+
+  const outgoingRows: GroupRow[] = GROUP_ORDER.filter(({ key }) => OUTGOING_KEYS.includes(key)).map(
+    ({ key, label }) => groupRow(key, label),
+  )
+  const savingRows: GroupRow[] = GROUP_ORDER.filter(({ key }) => !OUTGOING_KEYS.includes(key)).map(
+    ({ key, label }) => groupRow(key, label),
+  )
 
   const hasData =
     summary.available.annualCents !== 0 ||
@@ -236,7 +251,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
                 </Table.Thead>
                 <Table.Tbody>
                   <RunningRow label="Available" amounts={summary.available} />
-                  {groupRows.map((row) => (
+                  {outgoingRows.map((row) => (
                     <Table.Tr key={row.label}>
                       <Table.Th scope="row">{row.label}</Table.Th>
                       <Table.Td>{formatCents(row.fortnightlyCents)}</Table.Td>
@@ -245,6 +260,14 @@ export function SummaryView({ summary }: SummaryViewProps) {
                     </Table.Tr>
                   ))}
                   <RunningRow label="After Outgoing" amounts={summary.afterOutgoing} />
+                  {savingRows.map((row) => (
+                    <Table.Tr key={row.label}>
+                      <Table.Th scope="row">{row.label}</Table.Th>
+                      <Table.Td>{formatCents(row.fortnightlyCents)}</Table.Td>
+                      <Table.Td>{formatCents(row.annualCents)}</Table.Td>
+                      <Table.Td>{formatPortion(row.portion)}</Table.Td>
+                    </Table.Tr>
+                  ))}
                   <RunningRow label="After Saving" amounts={summary.afterSaving} />
                 </Table.Tbody>
               </Table>
@@ -252,10 +275,13 @@ export function SummaryView({ summary }: SummaryViewProps) {
           ) : (
             <Stack gap="md">
               <RunningCard label="Available" amounts={summary.available} />
-              {groupRows.map((row) => (
+              {outgoingRows.map((row) => (
                 <GroupCard key={row.label} row={row} />
               ))}
               <RunningCard label="After Outgoing" amounts={summary.afterOutgoing} />
+              {savingRows.map((row) => (
+                <GroupCard key={row.label} row={row} />
+              ))}
               <RunningCard label="After Saving" amounts={summary.afterSaving} />
             </Stack>
           )}

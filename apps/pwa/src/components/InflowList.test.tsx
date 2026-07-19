@@ -12,6 +12,7 @@ const members: Member[] = [
     name: 'Will',
     email: null,
     user_id: 'u1',
+    up_connected_at: null,
     created_at: '',
     updated_at: '',
   },

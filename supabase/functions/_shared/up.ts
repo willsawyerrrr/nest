@@ -77,6 +77,21 @@ export class UpClient {
     }
   }
 
+  /**
+   * Checks the token against Up's authenticated ping endpoint. Returns true on
+   * a 200 (the token is valid), false on any non-200 or network failure.
+   */
+  async ping(): Promise<boolean> {
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/util/ping`, {
+        headers: { Authorization: `Bearer ${this.token}` },
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
   /** Lists all accounts for the token's owner. */
   async listAccounts(): Promise<UpAccount[]> {
     const accounts: UpAccount[] = []

@@ -86,3 +86,30 @@ Deno.test('a non-OK response throws', async () => {
     'Up API 401',
   )
 })
+
+Deno.test('ping hits /util/ping with the bearer token and is true on 200', async () => {
+  let requestedUrl = ''
+  let authHeader: string | null = null
+  const fetchImpl: typeof fetch = (input, init) => {
+    requestedUrl = typeof input === 'string' ? input : (input as Request).url
+    authHeader = new Headers(init?.headers).get('Authorization')
+    return Promise.resolve(new Response('{}', { status: 200 }))
+  }
+
+  const ok = await new UpClient('secret-token', 'https://up.test', fetchImpl).ping()
+
+  assertEquals(ok, true)
+  assertEquals(requestedUrl, 'https://up.test/util/ping')
+  assertEquals(authHeader, 'Bearer secret-token')
+})
+
+Deno.test('ping is false on a non-OK response', async () => {
+  const fetchImpl: typeof fetch = () =>
+    Promise.resolve(new Response('unauthorized', { status: 401 }))
+  assertEquals(await new UpClient('token', 'https://up.test', fetchImpl).ping(), false)
+})
+
+Deno.test('ping is false when the request throws', async () => {
+  const fetchImpl: typeof fetch = () => Promise.reject(new Error('network down'))
+  assertEquals(await new UpClient('token', 'https://up.test', fetchImpl).ping(), false)
+})

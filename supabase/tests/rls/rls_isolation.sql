@@ -95,6 +95,73 @@ do $$ begin
   assert (select count(*) from public.temporary_item) = 1, 'Alice should see her temporary item';
 end $$;
 
+-- ── Up token: Vault storage is service-role-only, never client-readable ──────
+
+-- The token RPCs must not be executable by an authenticated (client) role.
+do $$ begin
+  assert not has_function_privilege('authenticated', 'public.store_up_token(uuid, text)', 'execute'),
+    'authenticated must not execute store_up_token';
+  assert not has_function_privilege('authenticated', 'public.up_token_for_member(uuid)', 'execute'),
+    'authenticated must not execute up_token_for_member';
+  assert not has_function_privilege('authenticated', 'public.clear_up_token(uuid)', 'execute'),
+    'authenticated must not execute clear_up_token';
+  -- service_role (the edge functions' identity) is the only grantee.
+  assert has_function_privilege('service_role', 'public.up_token_for_member(uuid)', 'execute'),
+    'service_role should execute up_token_for_member';
+end $$;
+
+-- Calling the read RPC as an authenticated user is denied outright.
+do $$ begin
+  perform public.up_token_for_member(current_setting('test.mid')::uuid);
+  raise exception 'FAIL: authenticated read the Up token via up_token_for_member';
+exception when insufficient_privilege then
+  raise notice 'PASS: authenticated blocked from up_token_for_member';
+end $$;
+
+-- No client-facing table or view exposes the token. Checked as the superuser
+-- because merely naming a vault relation needs schema USAGE, which authenticated
+-- also lacks; has_table_privilege still reports authenticated's own privilege.
+reset role;
+do $$ begin
+  assert not has_table_privilege('authenticated', 'vault.decrypted_secrets', 'select'),
+    'authenticated must not select vault.decrypted_secrets';
+  assert not has_table_privilege('authenticated', 'vault.secrets', 'select'),
+    'authenticated must not select vault.secrets';
+end $$;
+
+-- service_role (the edge functions' identity) can store a token; verification
+-- reads run as the superuser (the shim grants service_role no table access).
+reset role;
+set local role service_role;
+select public.store_up_token(current_setting('test.mid')::uuid, 'up:demo-token');
+reset role;
+do $$ begin
+  assert public.up_token_for_member(current_setting('test.mid')::uuid) = 'up:demo-token',
+    'the stored token should round-trip through the service-role read path';
+  assert (select up_connected_at from public.members where id = current_setting('test.mid')::uuid) is not null,
+    'storing a token should stamp up_connected_at';
+end $$;
+
+-- Alice sees her own connection status (the flag), but never the token.
+set local role authenticated;
+do $$ begin
+  assert (select up_connected_at from public.members where id = current_setting('test.mid')::uuid) is not null,
+    'Alice should see her own up_connected_at status';
+end $$;
+
+-- service_role can clear it; the token and status are gone afterwards.
+reset role;
+set local role service_role;
+select public.clear_up_token(current_setting('test.mid')::uuid);
+reset role;
+do $$ begin
+  assert public.up_token_for_member(current_setting('test.mid')::uuid) is null,
+    'clearing should remove the stored token';
+  assert (select up_connected_at from public.members where id = current_setting('test.mid')::uuid) is null,
+    'clearing should null up_connected_at';
+end $$;
+set local role authenticated;
+
 -- ── Act as Bob (same role, different JWT) ────────────────────────────────────
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@example.com"}', true);
 

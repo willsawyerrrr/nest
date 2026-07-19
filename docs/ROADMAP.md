@@ -85,14 +85,30 @@ reconcile the plan against reality.
   tab; order Summary · Inflows · Budget · Goals · Tax · Household. Keyboard
   shortcuts: ⌘/Ctrl+1–6 jump to a tab, ⌘/Ctrl+Shift+←/→ cycle.
 - Up Bank sync scaffold (not yet functional).
+- Per-member Up token connection: each member pastes their Up personal access
+  token, validated against Up and stored encrypted in Vault. The token is written
+  and read only via SECURITY DEFINER RPCs granted to `service_role` alone
+  (`store_up_token` / `up_token_for_member` / `clear_up_token`), never returned to
+  the client; members see a boolean status (`members.up_connected_at`). Two
+  JWT-verified edge functions (`up-connect` / `up-disconnect`) resolve the caller's
+  member from the JWT and connect/clear the token. Household-tab UI for connect,
+  disconnect, and per-member status.
 
-## Now — Up ingestion + reconciliation
+## Now — Up savers → savings goals
 
-- [ ] Per-member Up token in Vault; webhook + scheduled poll; dedupe on
-      `external_id`.
+The initial Up scope funds savings-goal progress from Up saver balances; the
+token connection above is the foundation. Spend/ledger reconciliation is
+deprioritised behind it.
+
+- [ ] Read each member's Up saver balances server-side (the sync reads the token
+      via `up_token_for_member` as service role).
+- [ ] Reflect real saver balances against savings goals (progress + ETA).
+
+## Later — Up ledger + reconciliation (deprioritised)
+
+- [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.
-- [ ] Reconcile actual spend against the budget, and real balances against
-      savings goals.
+- [ ] Reconcile actual spend against the budget.
 - [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
 
 ## Later still

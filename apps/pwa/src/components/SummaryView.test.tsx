@@ -32,6 +32,7 @@ describe('SummaryView', () => {
     const card = screen.getByRole('region', { name: 'Available' })
     expect(within(card).getByText('$5,000.00')).toBeInTheDocument()
     expect(within(card).getByText('$130,000.00')).toBeInTheDocument()
+    expect(within(card).getByText('100.0%')).toBeInTheDocument()
   })
 
   it('renders each group with fortnightly, annual, and portion', () => {
@@ -81,10 +82,12 @@ describe('SummaryView', () => {
     const afterOutgoing = screen.getByRole('region', { name: 'After Outgoing' })
     expect(within(afterOutgoing).getByText('$1,250.00')).toBeInTheDocument()
     expect(within(afterOutgoing).getByText('$32,500.00')).toBeInTheDocument()
+    expect(within(afterOutgoing).getByText('25.0%')).toBeInTheDocument()
 
     const afterSaving = screen.getByRole('region', { name: 'After Saving' })
     expect(within(afterSaving).getByText('$250.00')).toBeInTheDocument()
     expect(within(afterSaving).getByText('$6,500.00')).toBeInTheDocument()
+    expect(within(afterSaving).getByText('5.0%')).toBeInTheDocument()
   })
 
   it('orders the savings-block groups after the after-outgoing line', () => {

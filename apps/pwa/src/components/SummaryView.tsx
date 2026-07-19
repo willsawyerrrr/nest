@@ -19,6 +19,13 @@ function formatPortion(portion: number): string {
   return percent.format(portion)
 }
 
+/** A running line's portion: its fortnightly share of available cash (0 when available is 0). */
+function runningPortion(amounts: Amounts, available: Amounts): number {
+  return available.fortnightlyCents === 0
+    ? 0
+    : amounts.fortnightlyCents / available.fortnightlyCents
+}
+
 /** A group's totals plus its portion of available cash. */
 interface GroupRow {
   label: string
@@ -147,7 +154,15 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
 }
 
 /** A running reconciliation figure (Available / After Outgoing / After Saving). */
-function RunningCard({ label, amounts }: { label: string; amounts: Amounts }) {
+function RunningCard({
+  label,
+  amounts,
+  portion,
+}: {
+  label: string
+  amounts: Amounts
+  portion: number
+}) {
   return (
     <Card
       component="section"
@@ -170,6 +185,12 @@ function RunningCard({ label, amounts }: { label: string; amounts: Amounts }) {
             Annual
           </Text>
           <Text fw={700}>{formatCents(amounts.annualCents)}</Text>
+        </Group>
+        <Group justify="space-between" wrap="nowrap">
+          <Text size="sm" c="dimmed">
+            Portion
+          </Text>
+          <Text fw={700}>{formatPortion(portion)}</Text>
         </Group>
       </Stack>
     </Card>
@@ -205,14 +226,22 @@ function GroupCard({ row }: { row: GroupRow }) {
   )
 }
 
-/** One running figure's row in the wide-screen table (no portion). */
-function RunningRow({ label, amounts }: { label: string; amounts: Amounts }) {
+/** One running figure's row in the wide-screen table, with its portion. */
+function RunningRow({
+  label,
+  amounts,
+  portion,
+}: {
+  label: string
+  amounts: Amounts
+  portion: number
+}) {
   return (
     <Table.Tr bg="var(--mantine-primary-color-light)">
       <Table.Th scope="row">{label}</Table.Th>
       <Table.Td fw={700}>{formatCents(amounts.fortnightlyCents)}</Table.Td>
       <Table.Td fw={700}>{formatCents(amounts.annualCents)}</Table.Td>
-      <Table.Td c="dimmed">—</Table.Td>
+      <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
     </Table.Tr>
   )
 }
@@ -268,7 +297,11 @@ export function SummaryView({ summary }: SummaryViewProps) {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  <RunningRow label="Available" amounts={summary.available} />
+                  <RunningRow
+                    label="Available"
+                    amounts={summary.available}
+                    portion={runningPortion(summary.available, summary.available)}
+                  />
                   {outgoingRows.map((row) => (
                     <Table.Tr key={row.label}>
                       <Table.Th scope="row">{row.label}</Table.Th>
@@ -277,7 +310,11 @@ export function SummaryView({ summary }: SummaryViewProps) {
                       <Table.Td>{formatPortion(row.portion)}</Table.Td>
                     </Table.Tr>
                   ))}
-                  <RunningRow label="After Outgoing" amounts={summary.afterOutgoing} />
+                  <RunningRow
+                    label="After Outgoing"
+                    amounts={summary.afterOutgoing}
+                    portion={runningPortion(summary.afterOutgoing, summary.available)}
+                  />
                   {savingRows.map((row) => (
                     <Table.Tr key={row.label}>
                       <Table.Th scope="row">{row.label}</Table.Th>
@@ -286,21 +323,37 @@ export function SummaryView({ summary }: SummaryViewProps) {
                       <Table.Td>{formatPortion(row.portion)}</Table.Td>
                     </Table.Tr>
                   ))}
-                  <RunningRow label="After Saving" amounts={summary.afterSaving} />
+                  <RunningRow
+                    label="After Saving"
+                    amounts={summary.afterSaving}
+                    portion={runningPortion(summary.afterSaving, summary.available)}
+                  />
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
           ) : (
             <Stack gap="md">
-              <RunningCard label="Available" amounts={summary.available} />
+              <RunningCard
+                label="Available"
+                amounts={summary.available}
+                portion={runningPortion(summary.available, summary.available)}
+              />
               {outgoingRows.map((row) => (
                 <GroupCard key={row.label} row={row} />
               ))}
-              <RunningCard label="After Outgoing" amounts={summary.afterOutgoing} />
+              <RunningCard
+                label="After Outgoing"
+                amounts={summary.afterOutgoing}
+                portion={runningPortion(summary.afterOutgoing, summary.available)}
+              />
               {savingRows.map((row) => (
                 <GroupCard key={row.label} row={row} />
               ))}
-              <RunningCard label="After Saving" amounts={summary.afterSaving} />
+              <RunningCard
+                label="After Saving"
+                amounts={summary.afterSaving}
+                portion={runningPortion(summary.afterSaving, summary.available)}
+              />
             </Stack>
           )}
         </>

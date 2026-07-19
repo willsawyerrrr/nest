@@ -80,6 +80,7 @@ describe('BudgetLineForm', () => {
       amount_cents: 200000,
       frequency: 'monthly',
       goal_id: null,
+      derived_source: null,
       created_at: '',
       updated_at: '',
     }
@@ -170,6 +171,7 @@ describe('BudgetLineForm', () => {
       amount_cents: 50000,
       frequency: 'fortnightly',
       goal_id: 'g1',
+      derived_source: null,
       created_at: '',
       updated_at: '',
     }

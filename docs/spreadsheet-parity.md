@@ -91,8 +91,10 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
    `budget_line_item` child table with `(line_id, household_id)` FK + RLS; nested
    CRUD UI and roll-up in the summary math). _Note:_ the gift use-case has grown
    past a simple breakdown into full purchase tracking per recipient × occasion —
-   see the dedicated **Gift budget tracking** item in [`ROADMAP.md`](ROADMAP.md);
-   this generic breakdown covers the non-gift lists.
+   the first consumer of the generic **Derived budget lines** direction in
+   [`ROADMAP.md`](ROADMAP.md), where a line's amount rolls up from an itemised
+   tracker (`budget_line.derived_source`) instead of being typed. This generic
+   breakdown covers the non-gift lists, and could itself become a derived source.
 
 2. **Payment-method tag per budget line** (enum: Debit / Transfer / Card / Saver)
    — records how each bill is paid. _Why:_ the household tracks this now, and it

@@ -126,6 +126,47 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 2, 'Alice should see both her super contributions';
 end $$;
 
+-- Alice's gift tracker: a recipient and an occasion, a gift budget linking the
+-- two, and a purchase against it. The composite FKs on (id, household_id) accept
+-- same-household links. She also marks her Gifts budget line as derived from the
+-- gift tracker rather than typed.
+insert into public.gift_recipient (household_id, name)
+  values (current_setting('test.hid')::uuid, 'Mum');
+select id as rid from public.gift_recipient limit 1 \gset
+select set_config('test.rid', :'rid', false);
+
+insert into public.gift_occasion (household_id, name, occasion_date)
+  values (current_setting('test.hid')::uuid, 'Christmas', '2027-12-25');
+select id as oid from public.gift_occasion limit 1 \gset
+select set_config('test.oid', :'oid', false);
+
+insert into public.gift_budget (household_id, recipient_id, occasion_id, budgeted_amount_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.rid')::uuid, current_setting('test.oid')::uuid, 150_00);
+select id as gbid from public.gift_budget limit 1 \gset
+select set_config('test.gbid', :'gbid', false);
+
+insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, description, purchased_on)
+  values (current_setting('test.hid')::uuid, current_setting('test.gbid')::uuid, 80_00, 'Book', '2027-12-01');
+
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, derived_source)
+  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', 'gift');
+
+do $$ begin
+  assert (select count(*) from public.gift_recipient) = 1, 'Alice should see her gift recipient';
+  assert (select count(*) from public.gift_occasion) = 1, 'Alice should see her gift occasion';
+  assert (select count(*) from public.gift_budget) = 1, 'Alice should see her gift budget';
+  assert (select count(*) from public.gift_budget
+    where recipient_id = current_setting('test.rid')::uuid
+      and occasion_id = current_setting('test.oid')::uuid) = 1,
+    'Alice''s gift budget should link her recipient and occasion';
+  assert (select count(*) from public.gift_purchase) = 1, 'Alice should see her gift purchase';
+  assert (select count(*) from public.gift_purchase
+    where gift_budget_id = current_setting('test.gbid')::uuid) = 1,
+    'Alice''s gift purchase should link to her gift budget';
+  assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
+    'Alice should see her gift-derived budget line';
+end $$;
+
 -- ── Server-side grants: service_role reads members and upserts accounts ──────
 
 -- The Up edge functions act as service_role directly against the ledger
@@ -249,6 +290,10 @@ do $$ begin
   assert (select count(*) from public.temporary_item) = 0, 'Bob must not see Alice''s temporary items';
   assert (select count(*) from public.super_profile) = 0, 'Bob must not see Alice''s super profiles';
   assert (select count(*) from public.super_contribution) = 0, 'Bob must not see Alice''s super contributions';
+  assert (select count(*) from public.gift_recipient) = 0, 'Bob must not see Alice''s gift recipients';
+  assert (select count(*) from public.gift_occasion) = 0, 'Bob must not see Alice''s gift occasions';
+  assert (select count(*) from public.gift_budget) = 0, 'Bob must not see Alice''s gift budgets';
+  assert (select count(*) from public.gift_purchase) = 0, 'Bob must not see Alice''s gift purchases';
 end $$;
 
 -- Bob must be blocked from writing into Alice's household (RLS WITH CHECK).
@@ -321,10 +366,16 @@ do $$ begin
   assert (select count(*) from public.inflows) = 2, 'Carol should see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
-  assert (select count(*) from public.budget_line) = 1, 'Carol should see Alice''s budget line';
+  assert (select count(*) from public.budget_line) = 2, 'Carol should see both Alice''s budget lines';
+  assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
+    'Carol should see Alice''s gift-derived budget line';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
   assert (select count(*) from public.super_profile) = 1, 'Carol should see Alice''s super profile';
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
+  assert (select count(*) from public.gift_recipient) = 1, 'Carol should see Alice''s gift recipient';
+  assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';
+  assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
+  assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
   assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
     'Joining should consume the invite code';
 end $$;

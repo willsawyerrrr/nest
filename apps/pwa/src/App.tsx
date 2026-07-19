@@ -286,7 +286,11 @@ function SummarySection({ householdId }: { householdId: string }) {
       afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents,
       nonTaxableInflows: (inflows.inflows ?? [])
         .filter((inflow) => !inflow.taxable)
-        .map((inflow) => ({ amountCents: inflow.amount_cents ?? 0, frequency: inflow.schedule })),
+        .map((inflow) => ({
+          amountCents: inflow.amount_cents ?? 0,
+          frequency: inflow.schedule,
+          intervalWeeks: inflow.interval_weeks ?? undefined,
+        })),
       budgetLines: (budgetLines.lines ?? []).map((line) => ({
         group: line.line_group,
         amountCents: line.amount_cents,

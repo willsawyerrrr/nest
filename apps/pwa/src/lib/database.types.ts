@@ -222,6 +222,7 @@ export type Database = {
           hours_per_period: number | null
           household_id: string
           id: string
+          interval_weeks: number | null
           member_id: string | null
           name: string
           schedule: Database['public']['Enums']['frequency']
@@ -236,6 +237,7 @@ export type Database = {
           hours_per_period?: number | null
           household_id: string
           id?: string
+          interval_weeks?: number | null
           member_id?: string | null
           name: string
           schedule: Database['public']['Enums']['frequency']
@@ -250,6 +252,7 @@ export type Database = {
           hours_per_period?: number | null
           household_id?: string
           id?: string
+          interval_weeks?: number | null
           member_id?: string | null
           name?: string
           schedule?: Database['public']['Enums']['frequency']
@@ -552,7 +555,8 @@ export type Database = {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
-      frequency: 'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual'
+      frequency:
+        'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual' | 'every_n_weeks'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement'
       ledger_source: 'up' | 'manual'
       tax_residency: 'resident' | 'foreign_resident'
@@ -685,7 +689,15 @@ export const Constants = {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
-      frequency: ['weekly', 'fortnightly', 'monthly', 'annual', 'quarterly', 'biannual'],
+      frequency: [
+        'weekly',
+        'fortnightly',
+        'monthly',
+        'annual',
+        'quarterly',
+        'biannual',
+        'every_n_weeks',
+      ],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement'],
       ledger_source: ['up', 'manual'],
       tax_residency: ['resident', 'foreign_resident'],

@@ -23,6 +23,7 @@ export function toIncomeInput(inflow: Inflow): IncomeInput {
     amountCents: inflow.amount_cents ?? undefined,
     hourlyRateCents: inflow.hourly_rate_cents ?? undefined,
     hoursPerPeriod: inflow.hours_per_period ?? undefined,
+    intervalWeeks: inflow.interval_weeks ?? undefined,
   }
 }
 

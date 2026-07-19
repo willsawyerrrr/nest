@@ -29,3 +29,41 @@ describe('fortnightlyCents', () => {
     expect(fortnightlyCents(500_00, 'weekly')).toBe(1_000_00)
   })
 })
+
+describe('every_n_weeks cadence', () => {
+  it('annualises every-1-week as the weekly case', () => {
+    expect(annualCents(1_000_00, 'every_n_weeks', 1)).toBe(annualCents(1_000_00, 'weekly'))
+    expect(fortnightlyCents(1_000_00, 'every_n_weeks', 1)).toBe(
+      fortnightlyCents(1_000_00, 'weekly'),
+    )
+  })
+
+  it('annualises every-2-weeks as the fortnightly case', () => {
+    expect(annualCents(1_000_00, 'every_n_weeks', 2)).toBe(annualCents(1_000_00, 'fortnightly'))
+    expect(fortnightlyCents(1_000_00, 'every_n_weeks', 2)).toBe(
+      fortnightlyCents(1_000_00, 'fortnightly'),
+    )
+  })
+
+  it('annualises $300 every 4 weeks to $3,900/yr and $150/fortnight', () => {
+    // round(300_00 × 52 / 4) = round(15_600_00 / 4) = 3_900_00.
+    expect(annualCents(300_00, 'every_n_weeks', 4)).toBe(3_900_00)
+    // round(3_900_00 / 26) = 150_00.
+    expect(fortnightlyCents(300_00, 'every_n_weeks', 4)).toBe(150_00)
+  })
+
+  it('rounds an uneven cadence to whole cents', () => {
+    // round(100_00 × 52 / 3) = round(520_000 / 3) = round(173_333.33) = 173_333.
+    expect(annualCents(100_00, 'every_n_weeks', 3)).toBe(173_333)
+    // round(173_333 / 26) = round(6_666.65) = 6_667.
+    expect(fortnightlyCents(100_00, 'every_n_weeks', 3)).toBe(6_667)
+  })
+
+  it('defensively annualises to zero when the interval is missing or invalid', () => {
+    expect(annualCents(1_000_00, 'every_n_weeks')).toBe(0)
+    expect(annualCents(1_000_00, 'every_n_weeks', 0)).toBe(0)
+    expect(annualCents(1_000_00, 'every_n_weeks', -2)).toBe(0)
+    expect(annualCents(1_000_00, 'every_n_weeks', 1.5)).toBe(0)
+    expect(fortnightlyCents(1_000_00, 'every_n_weeks')).toBe(0)
+  })
+})

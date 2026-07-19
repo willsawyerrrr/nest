@@ -107,6 +107,25 @@ do $$ begin
     'Alice should be able to link her goal to her own account';
 end $$;
 
+-- Alice's superannuation: a per-year profile linked to a same-household account
+-- for its balance, and two contributions attributed to her — a percent-of-salary
+-- salary sacrifice and a fixed FHSS-eligible non-concessional amount.
+insert into public.super_profile (household_id, member_id, financial_year, fund_name, linked_account_id)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 2027, 'AustralianSuper', current_setting('test.aid')::uuid);
+
+insert into public.super_contribution (household_id, member_id, financial_year, kind, mode, percent_bp, frequency)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 2027, 'salary_sacrifice', 'percent', 500, 'fortnightly');
+
+insert into public.super_contribution (household_id, member_id, financial_year, kind, mode, amount_cents, frequency, fhss_eligible)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 2027, 'personal_non_concessional', 'amount', 1000_00, 'annual', true);
+
+do $$ begin
+  assert (select count(*) from public.super_profile) = 1, 'Alice should see her super profile';
+  assert (select linked_account_id from public.super_profile where member_id = current_setting('test.mid')::uuid)
+    = current_setting('test.aid')::uuid, 'Alice''s super profile should link to her own account';
+  assert (select count(*) from public.super_contribution) = 2, 'Alice should see both her super contributions';
+end $$;
+
 -- ── Server-side grants: service_role reads members and upserts accounts ──────
 
 -- The Up edge functions act as service_role directly against the ledger
@@ -228,6 +247,8 @@ do $$ begin
   assert (select count(*) from public.savings_goal) = 0, 'Bob must not see Alice''s savings goals';
   assert (select count(*) from public.budget_line) = 0, 'Bob must not see Alice''s budget lines';
   assert (select count(*) from public.temporary_item) = 0, 'Bob must not see Alice''s temporary items';
+  assert (select count(*) from public.super_profile) = 0, 'Bob must not see Alice''s super profiles';
+  assert (select count(*) from public.super_contribution) = 0, 'Bob must not see Alice''s super contributions';
 end $$;
 
 -- Bob must be blocked from writing into Alice's household (RLS WITH CHECK).
@@ -302,6 +323,8 @@ do $$ begin
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
   assert (select count(*) from public.budget_line) = 1, 'Carol should see Alice''s budget line';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
+  assert (select count(*) from public.super_profile) = 1, 'Carol should see Alice''s super profile';
+  assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
   assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
     'Joining should consume the invite code';
 end $$;

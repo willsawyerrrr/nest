@@ -7,6 +7,7 @@ import type { SuperCapSummary } from '../lib/tax'
 import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
 import { SuperContributionList } from './SuperContributionList'
 import { SuperCapsSummary } from './SuperCapsSummary'
+import { RetirementProjection } from './RetirementProjection'
 
 interface SuperScreenProps {
   members: Member[]
@@ -14,6 +15,10 @@ interface SuperScreenProps {
   accounts: Account[]
   contributions: SuperContribution[]
   capSummaries: ReadonlyMap<string, SuperCapSummary>
+  /** Per-member net annual contribution landing in super, for the projection. */
+  netContributionByMember: ReadonlyMap<string, number>
+  /** Default retirement age when the household has not set one. */
+  preservationAge: number
   financialYear: number
   onSave: (member: Member, values: SuperFormValues) => Promise<void>
   onCreateContribution: (input: SuperContributionInput) => Promise<void>
@@ -33,6 +38,8 @@ export function SuperScreen({
   accounts,
   contributions,
   capSummaries,
+  netContributionByMember,
+  preservationAge,
   financialYear,
   onSave,
   onCreateContribution,
@@ -77,6 +84,19 @@ export function SuperScreen({
           </Stack>
         )
       })}
+
+      <RetirementProjection
+        preservationAge={preservationAge}
+        entries={members.map((member) => {
+          const profile = profiles.find((candidate) => candidate.member_id === member.id)
+          const account = accounts.find((candidate) => candidate.id === profile?.linked_account_id)
+          return {
+            member,
+            currentBalanceCents: account?.balance_cents ?? 0,
+            netAnnualContributionCents: netContributionByMember.get(member.id) ?? 0,
+          }
+        })}
+      />
     </Stack>
   )
 }

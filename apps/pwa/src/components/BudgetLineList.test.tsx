@@ -76,7 +76,7 @@ describe('BudgetLineList', () => {
 
     const power = screen.getByText('Power').closest('.mantine-Card-root') as HTMLElement
     expect(within(power).getByText('$50.00')).toBeInTheDocument()
-    expect(within(power).getByText('weekly')).toBeInTheDocument()
+    expect(within(power).getByText('Weekly')).toBeInTheDocument()
     expect(within(power).getByText('$100.00')).toBeInTheDocument()
   })
 

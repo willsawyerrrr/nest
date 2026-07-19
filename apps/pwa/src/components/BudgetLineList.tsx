@@ -18,6 +18,7 @@ import { fortnightlyCents } from '@budget/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { formatCents } from '../lib/money'
+import { formatFrequency } from '../lib/frequency'
 import { BudgetLineForm } from './BudgetLineForm'
 import { GroupSection } from './GroupSection'
 
@@ -89,8 +90,8 @@ function BudgetLineCard({
             <Text size="xs" c="dimmed">
               {formatCents(line.amount_cents)}
             </Text>
-            <Badge size="xs" variant="light" tt="capitalize">
-              {line.frequency}
+            <Badge size="xs" variant="light">
+              {formatFrequency(line.frequency)}
             </Badge>
           </Group>
         </Stack>

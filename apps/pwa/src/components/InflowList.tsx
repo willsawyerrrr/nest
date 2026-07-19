@@ -4,6 +4,7 @@ import { IconPencil, IconTrash } from '@tabler/icons-react'
 import type { Member } from '../hooks/useMembers'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
 import { formatCents } from '../lib/money'
+import { formatFrequency } from '../lib/frequency'
 import { InflowForm } from './InflowForm'
 
 interface InflowListProps {
@@ -54,8 +55,8 @@ function InflowCard({
             <Badge size="xs" variant="light" tt="capitalize">
               {inflow.type}
             </Badge>
-            <Badge size="xs" variant="outline" tt="capitalize">
-              {inflow.schedule}
+            <Badge size="xs" variant="outline">
+              {formatFrequency(inflow.schedule, inflow.interval_weeks)}
             </Badge>
           </Group>
         </Stack>

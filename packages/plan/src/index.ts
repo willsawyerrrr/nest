@@ -20,6 +20,9 @@ export type { Amounts, BudgetSummary, GroupSummary, SummaryInput } from './summa
 export { projectGoal } from './goal'
 export type { GoalProjection } from './goal'
 
+export { projectSuperBalance } from './retirement'
+export type { SuperProjection, SuperProjectionInput } from './retirement'
+
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number
 

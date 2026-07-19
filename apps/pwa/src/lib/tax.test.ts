@@ -7,6 +7,7 @@ import type { SuperContribution } from '../hooks/useSuperContributions'
 import {
   concessionalByMember,
   estimateHouseholdTaxFromRows,
+  netAnnualSuperContributionByMember,
   nonConcessionalByMember,
   superCapSummaryByMember,
   superCapSummaryFromRows,
@@ -254,5 +255,40 @@ describe('superCapSummaryFromRows', () => {
     expect(summary.nonConcessionalCents).toBe(1_000_00)
     // At the lower threshold the max still applies; 50% × $1,000 = $500 is not the binder.
     expect(summary.coContributionCents).toBe(500_00)
+  })
+})
+
+describe('netAnnualSuperContributionByMember', () => {
+  it('taxes concessional and employer SG at 15% and adds after-tax amounts untaxed', () => {
+    // Gross $100k → employer SG 12% = $12,000; salary sacrifice $500/fn = $13,000.
+    // After-tax concessional = ($12,000 + $13,000) × 0.85 = $21,250. No non-conc.
+    const grossByMember = new Map([['m1', 100_000_00]])
+    const result = netAnnualSuperContributionByMember(
+      [baseContribution],
+      grossByMember,
+      FY2027_CONFIG,
+    )
+    expect(result.get('m1')).toBe(21_250_00)
+  })
+
+  it('adds non-concessional contributions and the co-contribution without taxing them', () => {
+    // At the lower income threshold: employer SG only, plus $1,000 non-concessional
+    // and its $500 co-contribution, neither taxed in the fund.
+    const grossByMember = new Map([['m1', 49_293_00]])
+    const contribution: SuperContribution = {
+      ...baseContribution,
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 1_000_00,
+    }
+    const sgAfterTax = Math.round(0.12 * 49_293_00 * 0.85)
+    const result = netAnnualSuperContributionByMember([contribution], grossByMember, FY2027_CONFIG)
+    expect(result.get('m1')).toBe(sgAfterTax + 1_000_00 + 500_00)
+  })
+
+  it('produces an entry from gross salary alone (employer SG, after tax)', () => {
+    const grossByMember = new Map([['m1', 80_000_00]])
+    const result = netAnnualSuperContributionByMember([], grossByMember, FY2027_CONFIG)
+    expect(result.get('m1')).toBe(Math.round(0.12 * 80_000_00 * 0.85))
   })
 })

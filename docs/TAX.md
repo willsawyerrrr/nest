@@ -74,6 +74,26 @@ the higher threshold or with no eligible contributions.
 > general transfer balance cap) are assumed met, and `totalIncomeCents` is
 > approximated as the member's annual assessable income.
 
+## Retirement projection
+
+`netAnnualSuperContributionByMember` (in the PWA's `lib/tax`) resolves each
+member's annual contribution landing in super, net of the 15% contributions tax:
+concessional contributions and the employer super guarantee (`guarantee_rate ×`
+gross salary) are taxed in the fund; personal non-concessional contributions and
+the government co-contribution are made from after-tax money and added untaxed.
+
+`projectSuperBalance` (in `@budget/plan`) is pure retirement math: it compounds
+the current balance at the nominal return over the years to retirement and adds
+the contributions as a growing annuity (each year's contribution grows at the
+contribution-growth rate, invested at the nominal return), then deflates the
+nominal total by inflation for a today's-dollars figure. All amounts are integer
+cents; `years` is passed in for determinism.
+
+> **Client-side assumptions.** The return, inflation, contribution-growth, and
+> retirement-age assumptions, and each member's current age, are UI inputs held
+> in localStorage — they are not persisted to the database. The retirement age
+> defaults to the config's `preservation_age`.
+
 ## `TaxYearConfig` shape (versioned)
 
 ```

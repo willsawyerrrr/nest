@@ -102,6 +102,14 @@ export function nonConcessionalByMember(
   return annualByMember(contributions, grossByMember, NON_CONCESSIONAL_KINDS)
 }
 
+/**
+ * The verified tax + super config for the current financial year, falling back
+ * to FY2027 for years without a published config.
+ */
+export function currentTaxConfig(): TaxYearConfig {
+  return configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
+}
+
 /** Per-member annual gross salary from the household's taxable inflows. */
 export function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
   const grossByMember = new Map<string, number>()
@@ -193,8 +201,64 @@ export function superCapSummaryFromRows(
   profiles: readonly SuperProfile[],
   contributions: readonly SuperContribution[],
 ): Map<string, SuperCapSummary> {
-  const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
+  const config = currentTaxConfig()
   return superCapSummaryByMember(contributions, profiles, grossByMemberFromInflows(inflows), config)
+}
+
+/**
+ * Per member, the annual amount landing in super net of the 15% contributions
+ * tax: after-tax concessional (member's concessional contributions plus employer
+ * super guarantee on their gross salary, both taxed at `contributionsTaxRate`)
+ * plus non-concessional contributions and the government co-contribution, which
+ * are made from after-tax money and so are not taxed again in the fund. An entry
+ * is produced for every member with a contribution or gross salary. This feeds
+ * the retirement projection as the annual amount added to their balance.
+ */
+export function netAnnualSuperContributionByMember(
+  contributions: readonly SuperContribution[],
+  grossByMember: ReadonlyMap<string, number>,
+  config: TaxYearConfig,
+): Map<string, number> {
+  const concessional = concessionalByMember(contributions, grossByMember)
+  const nonConcessional = nonConcessionalByMember(contributions, grossByMember)
+  const memberIds = new Set<string>([
+    ...concessional.keys(),
+    ...nonConcessional.keys(),
+    ...grossByMember.keys(),
+  ])
+  const netByMember = new Map<string, number>()
+  for (const memberId of memberIds) {
+    const concessionalCents = concessional.get(memberId) ?? 0
+    const nonConcessionalCents = nonConcessional.get(memberId) ?? 0
+    const grossCents = grossByMember.get(memberId) ?? 0
+    const employerSgCents = config.super.guaranteeRate * grossCents
+    const afterTaxConcessional =
+      (concessionalCents + employerSgCents) * (1 - config.super.contributionsTaxRate)
+    const coContributionCents = superCoContribution(nonConcessionalCents, grossCents, config)
+    netByMember.set(
+      memberId,
+      Math.round(afterTaxConcessional) + nonConcessionalCents + coContributionCents,
+    )
+  }
+  return netByMember
+}
+
+/**
+ * Resolves each member's net annual super contribution from raw inflow and
+ * contribution rows, using the config for the current financial year (falling
+ * back to FY2027). Annual gross salary drives employer SG, percent-mode
+ * contributions, and the co-contribution income test.
+ */
+export function netAnnualSuperContributionFromRows(
+  inflows: readonly Inflow[],
+  contributions: readonly SuperContribution[],
+): Map<string, number> {
+  const config = currentTaxConfig()
+  return netAnnualSuperContributionByMember(
+    contributions,
+    grossByMemberFromInflows(inflows),
+    config,
+  )
 }
 
 /**
@@ -208,7 +272,7 @@ export function estimateHouseholdTaxFromRows(
   profiles: readonly TaxProfile[],
   contributions: readonly SuperContribution[] = [],
 ): HouseholdTaxEstimate {
-  const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
+  const config = currentTaxConfig()
   const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
   // Per-member annual gross salary, the base for percent-of-salary contributions.
   const grossByMember = grossByMemberFromInflows(inflows)

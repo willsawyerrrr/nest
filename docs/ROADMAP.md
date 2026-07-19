@@ -103,9 +103,13 @@ phase.
   percent-of-salary, frequency, FHSS flag, and a spouse contributor). Concessional
   contributions (salary sacrifice + personal deductible) reduce the tax estimate —
   lowering taxable income (a Division 293 line shows for high earners) and the
-  after-tax income the Summary budgets, since that cash is diverted to super.
-  Net worth tab: sum of every account's `balance_cents` (assets only; liabilities
-  not yet modelled), split into Super vs Other accounts.
+  after-tax income the Summary budgets, since that cash is diverted to super. The
+  tab also projects each member's balance to retirement (nominal and today's
+  dollars) from their net-of-tax annual contributions, under shared
+  return/inflation/growth assumptions and per-member ages held in localStorage
+  (client-side, not persisted to the database). Net worth tab: sum of every
+  account's `balance_cents` (assets only; liabilities not yet modelled), split
+  into Super vs Other accounts.
 - Per-member Up token connection: each member pastes their Up personal access
   token, validated against Up and stored encrypted in Vault. The token is written
   and read only via SECURITY DEFINER RPCs granted to `service_role` alone
@@ -169,11 +173,17 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       FY-specific and live in the versioned config. The Super tab shows each
       member's cap usage, warns when either cap is exceeded, and estimates the
       government co-contribution.
-- [ ] Retirement projection (pure math): projected balance at preservation age
-      under user-editable return, inflation, and contribution-growth assumptions.
+- [x] Retirement projection (pure math): `projectSuperBalance` in `@budget/plan`
+      compounds the current balance and a growing-annuity contribution stream to
+      retirement, in nominal and today's (real) dollars, under user-editable
+      return, inflation, and contribution-growth assumptions.
 - [x] Super UI: per-person contribution management + display on the Super tab,
       with the concessional tax impact surfaced on the Tax tab.
-- [ ] Projection UI: the retirement projection surfaced in the Super tab.
+- [x] Projection UI: the retirement projection surfaced in the Super tab, per
+      member, from their balance plus net-of-contributions-tax annual
+      contributions. Age (per member) and the shared return/inflation/growth and
+      retirement-age assumptions are client-side inputs persisted in localStorage
+      — not stored in the database.
 
 ## Later
 

@@ -30,10 +30,16 @@ shows a Division 293 line for high earners and the Summary's available income
 reflects the super diverted from cash). Each member's card also shows their
 concessional and non-concessional cap usage (the concessional cap includes their
 manual carry-forward), warns when either cap is exceeded, and estimates the
-government co-contribution when it applies. The Net worth tab sums every
-account's `balance_cents` (assets only;
-liabilities not modelled yet), split into Super vs Other accounts. The retirement
-projection stays deferred — see [`ROADMAP.md`](ROADMAP.md).
+government co-contribution when it applies. Below the members, a retirement
+projection compounds each member's current balance plus their net-of-15%-tax
+annual contribution (concessional and employer SG taxed in the fund;
+non-concessional and co-contribution untaxed) to retirement, showing the result
+in nominal and today's (real) dollars. The projection math is pure
+(`projectSuperBalance` in `@budget/plan`); the shared return/inflation/growth and
+retirement-age assumptions and each member's age are client-side inputs persisted
+in localStorage, not stored in the database. The Net worth tab sums every
+account's `balance_cents` (assets only; liabilities not modelled yet), split into
+Super vs Other accounts.
 
 **Up savers → savings goals** — built, merged, and deployed. Each member
 connects their Up personal access token on the Household tab; a goal links to a

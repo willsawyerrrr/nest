@@ -30,6 +30,16 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
 
   const canSubmit = name.trim() !== '' && targetAmount !== '' && !submitting
 
+  const handleSaverChange = (accountId: string | null) => {
+    setLinkedAccountId(accountId)
+    if (accountId !== null && name.trim() === '') {
+      const saver = savers.find((candidate) => candidate.id === accountId)
+      if (saver) {
+        setName(saver.name)
+      }
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) {
@@ -94,7 +104,7 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
             clearable
             data={savers.map((saver) => ({ value: saver.id, label: saver.name }))}
             value={linkedAccountId}
-            onChange={setLinkedAccountId}
+            onChange={handleSaverChange}
           />
         ) : (
           <Text size="xs" c="dimmed">

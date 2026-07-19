@@ -114,6 +114,27 @@ describe('GoalForm', () => {
     )
   })
 
+  it('prefills the name from the saver when the name is empty', async () => {
+    const user = userEvent.setup()
+    render(<GoalForm savers={[saver()]} onSubmit={vi.fn()} />)
+
+    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    await user.click(await screen.findByRole('option', { name: 'Up House Saver' }))
+
+    expect(screen.getByLabelText(/name/i)).toHaveValue('Up House Saver')
+  })
+
+  it('keeps a name the user already typed when linking a saver', async () => {
+    const user = userEvent.setup()
+    render(<GoalForm savers={[saver()]} onSubmit={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'House deposit')
+    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    await user.click(await screen.findByRole('option', { name: 'Up House Saver' }))
+
+    expect(screen.getByLabelText(/name/i)).toHaveValue('House deposit')
+  })
+
   it('keeps the manual balance when no saver is linked', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

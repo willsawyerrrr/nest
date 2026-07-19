@@ -3,6 +3,7 @@ import { DonutChart } from '@mantine/charts'
 import { useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@budget/plan'
 import { formatCents } from '../lib/money'
+import { moneyColor } from '../theme'
 
 interface SummaryViewProps {
   summary: BudgetSummary
@@ -36,15 +37,17 @@ interface GroupRow {
 
 /**
  * The six budget groups in reconciliation order, each with its human label and
- * the CSS colour its allocation segment takes in the donut.
+ * the CSS colour its allocation segment takes in the donut. The palette is a
+ * harmonious green-anchored ramp (deep teal through lime to gold) that reads as
+ * one system with the emerald primary while keeping every slice distinguishable.
  */
 const GROUP_ORDER: { key: keyof BudgetSummary['groups']; label: string; color: string }[] = [
-  { key: 'needs', label: 'Needs', color: 'var(--mantine-color-indigo-6)' },
-  { key: 'wants', label: 'Wants', color: 'var(--mantine-color-blue-5)' },
-  { key: 'discretionary', label: 'Discretionary', color: 'var(--mantine-color-cyan-5)' },
-  { key: 'temporary', label: 'Temporary', color: 'var(--mantine-color-grape-5)' },
-  { key: 'savings', label: 'Savings', color: 'var(--mantine-color-teal-5)' },
-  { key: 'investments', label: 'Investments', color: 'var(--mantine-color-green-5)' },
+  { key: 'needs', label: 'Needs', color: 'var(--mantine-color-teal-7)' },
+  { key: 'wants', label: 'Wants', color: 'var(--mantine-color-teal-4)' },
+  { key: 'discretionary', label: 'Discretionary', color: 'var(--mantine-color-green-6)' },
+  { key: 'temporary', label: 'Temporary', color: 'var(--mantine-color-lime-6)' },
+  { key: 'savings', label: 'Savings', color: 'var(--mantine-color-emerald-6)' },
+  { key: 'investments', label: 'Investments', color: 'var(--mantine-color-yellow-6)' },
 ]
 
 /** The keys of the groups that make up outgoings, in reconciliation order. */
@@ -92,14 +95,27 @@ function allocationSegments(summary: BudgetSummary): Segment[] {
   return segments
 }
 
-/** A compact stat tile: a dimmed label above its bold fortnightly value. */
-function TotalTile({ label, cents }: { label: string; cents: number }) {
+/**
+ * A compact stat tile: a dimmed label above its bold fortnightly value. When
+ * `signed`, the value takes the semantic money colour for its sign.
+ */
+function TotalTile({
+  label,
+  cents,
+  signed = false,
+}: {
+  label: string
+  cents: number
+  signed?: boolean
+}) {
   return (
     <Stack gap={0} align="center">
       <Text size="xs" c="dimmed">
         {label}
       </Text>
-      <Text fw={700}>{formatCents(cents)}</Text>
+      <Text fw={700} c={signed ? moneyColor(cents) : undefined}>
+        {formatCents(cents)}
+      </Text>
     </Stack>
   )
 }
@@ -133,7 +149,7 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
         <SimpleGrid cols={3} spacing="xs" w="100%">
           <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
           <TotalTile label="Outgoing" cents={summary.outgoings.fortnightlyCents} />
-          <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} />
+          <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} signed />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" verticalSpacing={4} w="100%">
           {segments.map((segment) => (

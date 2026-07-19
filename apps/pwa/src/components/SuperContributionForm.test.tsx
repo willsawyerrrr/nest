@@ -1,0 +1,82 @@
+import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { render, screen, waitFor } from '../test/render'
+import { SuperContributionForm } from './SuperContributionForm'
+import type { Member } from '../hooks/useMembers'
+
+const will: Member = {
+  id: 'm1',
+  household_id: 'h1',
+  name: 'Will',
+  email: null,
+  user_id: 'u1',
+  up_connected_at: null,
+  created_at: '',
+  updated_at: '',
+}
+
+const sam: Member = { ...will, id: 'm2', name: 'Sam', user_id: 'u2' }
+
+describe('SuperContributionForm', () => {
+  it('submits an amount-mode contribution converted to cents', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/contribution amount/i), '500')
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          member_id: 'm1',
+          kind: 'salary_sacrifice',
+          mode: 'amount',
+          amount_cents: 50000,
+          percent_bp: null,
+          frequency: 'fortnightly',
+          contributor_member_id: null,
+        }),
+      ),
+    )
+  })
+
+  it('stores a percent value as basis points', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByText('Percent of salary'))
+    await user.type(screen.getByLabelText(/percent of gross salary/i), '5.5')
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'percent', percent_bp: 550, amount_cents: null }),
+      ),
+    )
+  })
+
+  it('requires a contributor for a spouse contribution', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByRole('combobox', { name: /kind/i }))
+    await user.click(await screen.findByRole('option', { name: 'Spouse' }))
+    await user.type(screen.getByLabelText(/contribution amount/i), '1000')
+
+    // No contributor chosen yet: submit is blocked.
+    expect(screen.getByRole('button', { name: /add contribution/i })).toBeDisabled()
+
+    await user.click(screen.getByRole('combobox', { name: /contributor/i }))
+    await user.click(await screen.findByRole('option', { name: 'Sam' }))
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'spouse', contributor_member_id: 'm2' }),
+      ),
+    )
+  })
+})

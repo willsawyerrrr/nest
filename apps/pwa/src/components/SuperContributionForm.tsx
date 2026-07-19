@@ -1,0 +1,215 @@
+import { useState, type FormEvent } from 'react'
+import {
+  Button,
+  Card,
+  Group,
+  NumberInput,
+  SegmentedControl,
+  Select,
+  Stack,
+  Switch,
+  Text,
+} from '@mantine/core'
+import type { Member } from '../hooks/useMembers'
+import type {
+  Frequency,
+  SuperContribution,
+  SuperContributionInput,
+  SuperContributionKind,
+  SuperContributionMode,
+} from '../hooks/useSuperContributions'
+import { centsToDollars, dollarsToCents } from '../lib/money'
+import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
+
+interface SuperContributionFormProps {
+  member: Member
+  members: Member[]
+  initial?: SuperContribution
+  onSubmit: (input: SuperContributionInput) => void | Promise<void>
+  onCancel?: () => void
+}
+
+const FREQUENCIES: { value: Frequency; label: string }[] = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'fortnightly', label: 'Fortnightly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'biannual', label: 'Biannually' },
+  { value: 'annual', label: 'Annually' },
+  { value: 'every_n_weeks', label: 'Every N weeks' },
+]
+
+/** Basis points as a percent number for a `NumberInput`, or `''` when unset. */
+function bpToPercent(bp: number | null | undefined): number | '' {
+  return bp == null ? '' : bp / 100
+}
+
+/** Presentational add/edit form for a single super contribution. Persistence lives in the caller. */
+export function SuperContributionForm({
+  member,
+  members,
+  initial,
+  onSubmit,
+  onCancel,
+}: SuperContributionFormProps) {
+  const [kind, setKind] = useState<SuperContributionKind>(initial?.kind ?? 'salary_sacrifice')
+  const [mode, setMode] = useState<SuperContributionMode>(initial?.mode ?? 'amount')
+  const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
+  const [percent, setPercent] = useState<number | string>(bpToPercent(initial?.percent_bp))
+  const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
+  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
+  const [fhssEligible, setFhssEligible] = useState(initial?.fhss_eligible ?? false)
+  const [contributorId, setContributorId] = useState(initial?.contributor_member_id ?? '')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const otherMembers = members.filter((candidate) => candidate.id !== member.id)
+  const isPercent = mode === 'percent'
+  const isEveryNWeeks = frequency === 'every_n_weeks'
+  const isSpouse = kind === 'spouse'
+  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
+  const canSubmit =
+    (isPercent ? percent !== '' : amount !== '') &&
+    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
+    (isSpouse ? contributorId !== '' : true) &&
+    !submitting
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!canSubmit) {
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    const input: SuperContributionInput = {
+      member_id: member.id,
+      kind,
+      mode,
+      amount_cents: isPercent ? null : dollarsToCents(amount),
+      percent_bp: isPercent ? Math.round(Number(percent) * 100) : null,
+      frequency,
+      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
+      fhss_eligible: fhssEligible,
+      contributor_member_id: isSpouse ? contributorId : null,
+    }
+    try {
+      await onSubmit(input)
+    } catch {
+      setError('Could not save this contribution. Please try again.')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+      <Stack gap="xs">
+        <Select
+          label="Kind"
+          size="sm"
+          data={SUPER_CONTRIBUTION_KINDS}
+          value={kind}
+          onChange={(value) => value && setKind(value as SuperContributionKind)}
+          allowDeselect={false}
+        />
+
+        {isSpouse && (
+          <Select
+            label="Contributor"
+            size="sm"
+            description="The member making this spouse contribution."
+            data={otherMembers.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+            value={contributorId}
+            onChange={(value) => setContributorId(value ?? '')}
+            allowDeselect={false}
+            placeholder="Select a member"
+          />
+        )}
+
+        <SegmentedControl
+          fullWidth
+          size="sm"
+          aria-label="Contribution mode"
+          value={mode}
+          onChange={(value) => setMode(value as SuperContributionMode)}
+          data={[
+            { value: 'amount', label: 'Amount' },
+            { value: 'percent', label: 'Percent of salary' },
+          ]}
+        />
+
+        {isPercent ? (
+          <NumberInput
+            label="Percent of gross salary"
+            size="sm"
+            suffix="%"
+            decimalScale={2}
+            min={0}
+            max={100}
+            hideControls
+            value={percent}
+            onChange={setPercent}
+          />
+        ) : (
+          <NumberInput
+            label="Contribution amount"
+            size="sm"
+            prefix="$"
+            thousandSeparator
+            decimalScale={2}
+            fixedDecimalScale
+            min={0}
+            hideControls
+            value={amount}
+            onChange={setAmount}
+          />
+        )}
+
+        <Select
+          label="Frequency"
+          size="sm"
+          data={FREQUENCIES}
+          value={frequency}
+          onChange={(value) => value && setFrequency(value as Frequency)}
+          allowDeselect={false}
+        />
+
+        {isEveryNWeeks && (
+          <NumberInput
+            label="Weeks between contributions"
+            size="sm"
+            min={1}
+            step={1}
+            allowDecimal={false}
+            hideControls
+            value={intervalWeeks}
+            onChange={setIntervalWeeks}
+          />
+        )}
+
+        <Switch
+          label="FHSS eligible"
+          size="sm"
+          checked={fhssEligible}
+          onChange={(event) => setFhssEligible(event.currentTarget.checked)}
+        />
+
+        {error && (
+          <Text role="alert" c="red" size="sm">
+            {error}
+          </Text>
+        )}
+
+        <Group grow>
+          <Button type="submit" disabled={!canSubmit}>
+            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add contribution'}
+          </Button>
+          {onCancel && (
+            <Button type="button" variant="default" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </Group>
+      </Stack>
+    </Card>
+  )
+}

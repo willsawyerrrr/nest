@@ -22,9 +22,13 @@ are loaded in production.
 **Superannuation & net worth** — the Super tab edits each member's fund name and
 current balance for the financial year; the balance is held as a manual account
 linked from `super_profile.linked_account_id` (the same balance-source pattern
-savings goals use). The Net worth tab sums every account's `balance_cents`
-(assets only; liabilities not modelled yet), split into Super vs Other accounts.
-Contributions and the super/tax integration stay deferred — see
+savings goals use). Each member's `super_contribution` rows are also managed there
+(add/edit/delete: kind, amount or percent-of-salary, frequency, FHSS flag, spouse
+contributor). Concessional kinds (salary sacrifice + personal deductible) feed the
+Tax tab, reducing taxable income and surfacing a Division 293 line for high
+earners. The Net worth tab sums every account's `balance_cents` (assets only;
+liabilities not modelled yet), split into Super vs Other accounts. Contribution
+caps, the co-contribution, and the retirement projection stay deferred — see
 [`ROADMAP.md`](ROADMAP.md).
 
 **Up savers → savings goals** — built, merged, and deployed. Each member

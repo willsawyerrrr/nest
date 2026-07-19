@@ -16,6 +16,7 @@ import { useGoals } from './hooks/useGoals'
 import { useSavers } from './hooks/useSavers'
 import { useAccounts } from './hooks/useAccounts'
 import { useSuperProfiles } from './hooks/useSuperProfiles'
+import { useSuperContributions } from './hooks/useSuperContributions'
 import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
@@ -284,12 +285,23 @@ function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
   const taxProfiles = useTaxProfiles(householdId)
+  const contributions = useSuperContributions(householdId)
 
-  if (membersLoading || inflows.loading || taxProfiles.loading || !members) {
+  if (
+    membersLoading ||
+    inflows.loading ||
+    taxProfiles.loading ||
+    contributions.loading ||
+    !members
+  ) {
     return <LoadingScreen />
   }
 
-  const estimate = estimateHouseholdTaxFromRows(inflows.inflows ?? [], taxProfiles.profiles ?? [])
+  const estimate = estimateHouseholdTaxFromRows(
+    inflows.inflows ?? [],
+    taxProfiles.profiles ?? [],
+    contributions.contributions ?? [],
+  )
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   return (
@@ -305,6 +317,7 @@ function SuperSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const superProfiles = useSuperProfiles(householdId)
   const accounts = useAccounts(householdId)
+  const contributions = useSuperContributions(householdId)
 
   const upsertProfile = superProfiles.upsert
   const insertAccount = accounts.insert
@@ -339,7 +352,13 @@ function SuperSection({ householdId }: { householdId: string }) {
     [profileRows, insertAccount, updateAccount, upsertProfile],
   )
 
-  if (membersLoading || superProfiles.loading || accounts.loading || !members) {
+  if (
+    membersLoading ||
+    superProfiles.loading ||
+    accounts.loading ||
+    contributions.loading ||
+    !members
+  ) {
     return <LoadingScreen />
   }
 
@@ -348,8 +367,12 @@ function SuperSection({ householdId }: { householdId: string }) {
       members={members}
       profiles={profileRows ?? []}
       accounts={accounts.accounts ?? []}
+      contributions={contributions.contributions ?? []}
       financialYear={superProfiles.financialYear}
       onSave={onSave}
+      onCreateContribution={contributions.create}
+      onUpdateContribution={contributions.update}
+      onDeleteContribution={contributions.remove}
     />
   )
 }

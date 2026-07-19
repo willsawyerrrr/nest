@@ -63,3 +63,21 @@
   text-decoration: none;
   white-space: nowrap;
 }
+
+/* The "More" overflow toggle sits in the tab row, so strip the button chrome
+ * and let it size like the sibling tab links. */
+.tab-bar__more {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Overflow sheet entries read as stacked tap targets rather than a tab row.
+ * The sheet portals to `document.body`, so scope by the Drawer body class. */
+.mantine-Drawer-body .tab-bar__tab {
+  display: block;
+  text-align: start;
+  padding-block: var(--mantine-spacing-md);
+}

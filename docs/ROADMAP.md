@@ -3,8 +3,10 @@
 Phased so each phase is independently useful. The plan-only app (income, tax,
 budget, savings goals) is built and deployed — it fully replaces the household's
 spreadsheet and needs no transaction data. The Up savers → savings-goals slice
-is built and deployed on top of it. Up transaction ingestion — reconciling spend
-and actual tax paid against the plan — is the remaining phase.
+is built and deployed on top of it. Next is full superannuation modelling, which
+extends the tax engine and seeds a net-worth view; Up transaction ingestion —
+reconciling spend and actual tax paid against the plan — follows as a later
+phase.
 
 ## Product decisions
 
@@ -29,6 +31,14 @@ and actual tax paid against the plan — is the remaining phase.
 - **Tax is estimate-only.** Per-person estimated liability and take-home from
   projected income; models HELP repayment and private-hospital cover. Target
   financial year: FY2027. Tracking actual tax paid arrives with ingestion.
+- **Superannuation is modelled in full.** Per-person super: current balance,
+  employer SG (12% from FY2026), and salary-sacrifice / personal contributions.
+  Concessional contributions reduce taxable income and are taxed at 15% within
+  the fund, with Division 293 for high earners; concessional and non-concessional
+  caps (with carry-forward / bring-forward) and the government co-contribution are
+  modelled. Balances are tracked as assets, seeding a net-worth view, and project
+  to retirement under user-editable return assumptions. All caps and thresholds
+  live in the versioned per-FY config alongside the tax config.
 - **Budgeting is plan-only and fortnightly.** The household allocates projected
   after-tax income across grouped categories — Needs, Wants, Discretionary,
   Temporary, Savings, Investments — each line an amount + frequency normalised to
@@ -122,19 +132,44 @@ connection is the foundation; transaction ingestion stays deferred behind it.
   is a clean no-op where those extensions are absent (CI, plain Postgres) and
   takes deploy-time config in prod (see HANDOFF).
 
-## Now — Up ledger + reconciliation
+## Now — Superannuation (full picture)
 
-- [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
-- [ ] Ledger UI (accounts + transactions) over synced data.
-- [ ] Reconcile actual spend against the budget.
-- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
+Full AU super modelling, extending the tax engine and seeding a net-worth view.
+Sub-phased so each slice is independently useful, and sliced further
+(schema / logic / UI) to keep PRs small. All rates, caps, and thresholds live in
+the versioned per-FY config, verified as the FY2027 tax config was.
+
+- [ ] Super profile schema: per-person current balance, fund, employer SG rate,
+      and contribution inputs (salary sacrifice, personal deductible, personal
+      non-concessional). RLS, tests, types.
+- [ ] Balances as assets: surface each person's super balance as an asset,
+      seeding the net-worth view.
+- [ ] Tax integration (`@budget/tax`): concessional contributions (salary
+      sacrifice + personal deductible) reduce taxable income; 15% contributions
+      tax within the fund; Division 293 extra 15% where income + concessional
+      contributions exceed $250k.
+- [ ] Contribution caps + co-contribution: concessional cap ($30k) with
+      carry-forward when total super balance < $500k; non-concessional cap
+      ($120k) with bring-forward; the government co-contribution income test.
+- [ ] Retirement projection (pure math): projected balance at preservation age
+      under user-editable return, inflation, and contribution-growth assumptions.
+- [ ] Super UI: per-person management + display, with tax impact and projection
+      surfaced.
 
 ## Later
 
-- **Superannuation** — scope in the next roadmap discussion; not yet modelled.
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
   itemised sub-budget (line-item breakdown, e.g. the gift budget),
   payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
+  Small and low-risk; good HDD filler to interleave with the super phase.
+- **Up ledger + reconciliation.** Pulling actual Up transactions to reconcile
+  spend and tax against the plan — the heaviest phase, deferred behind super:
+  - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on
+        `external_id`.
+  - [ ] Ledger UI (accounts + transactions) over synced data.
+  - [ ] Reconcile actual spend against the budget.
+  - [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
 - Reconcile projected income against actual deposits; joint-income ownership
-  split; net worth (assets and liabilities); recurring bills and forecasting;
-  non-resident and part-year tax; notifications; additional bank sources / CSV.
+  split; net worth (assets and liabilities) beyond super; recurring bills and
+  forecasting; non-resident and part-year tax; notifications; additional bank
+  sources / CSV.

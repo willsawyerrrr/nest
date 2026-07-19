@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { centsToDollars, dollarsToCents, formatCents } from './money'
+import { centsToDollars, dollarsToCents, formatCents, moneyColor } from './money'
 
 describe('formatCents', () => {
   it('always shows two decimals when the cents are a multiple of ten', () => {
@@ -42,5 +42,23 @@ describe('dollarsToCents', () => {
   it('rounds dollars to integer cents', () => {
     expect(dollarsToCents(2067.5)).toBe(2_067_50)
     expect(dollarsToCents('1234.56')).toBe(1_234_56)
+  })
+})
+
+describe('moneyColor', () => {
+  it('returns a green pair for a positive amount', () => {
+    expect(moneyColor(1_00)).toBe(
+      'light-dark(var(--mantine-color-green-8), var(--mantine-color-green-4))',
+    )
+  })
+
+  it('returns a red pair for a negative amount', () => {
+    expect(moneyColor(-1_00)).toBe(
+      'light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4))',
+    )
+  })
+
+  it('returns undefined at zero so the figure keeps the default text colour', () => {
+    expect(moneyColor(0)).toBeUndefined()
   })
 })

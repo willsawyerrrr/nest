@@ -10,6 +10,23 @@ export function formatCents(cents: number): string {
   return currency.format(cents / 100)
 }
 
+/**
+ * The text colour for a signed money figure: green for a positive amount, red
+ * for a negative one, and `undefined` (default text) at zero. These are the
+ * app's deliberate pops of colour against the muted slate palette. Each returns
+ * a `light-dark()` pair so the figure keeps WCAG AA contrast in both schemes —
+ * a deep shade on light backgrounds, a bright one on dark.
+ */
+export function moneyColor(cents: number): string | undefined {
+  if (cents > 0) {
+    return 'light-dark(var(--mantine-color-green-8), var(--mantine-color-green-4))'
+  }
+  if (cents < 0) {
+    return 'light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4))'
+  }
+  return undefined
+}
+
 /** Integer cents as a dollars number for a `NumberInput` value, or `''` when unset. */
 export function centsToDollars(cents: number | null | undefined): number | '' {
   if (cents == null) {

@@ -182,17 +182,17 @@ function ReconRow({
       bg={running ? 'var(--mantine-primary-color-light)' : undefined}
       style={{ borderRadius: 'var(--mantine-radius-sm)' }}
     >
-      <Text size="sm" fw={running ? 700 : 400} style={{ flexShrink: 0 }}>
+      <Text size="sm" fw={running ? 700 : 400} truncate style={{ flex: 1, minWidth: 0 }}>
         {label}
       </Text>
-      <Group gap="sm" wrap="nowrap" justify="flex-end">
-        <Text fw={700} size="sm">
+      <Group gap="sm" wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
+        <Text fw={700} size="sm" w={92} ta="right">
           {formatCents(amounts.fortnightlyCents)}
         </Text>
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="dimmed" w={88} ta="right">
           {formatCents(amounts.annualCents)}
         </Text>
-        <Text size="xs" c="dimmed" style={{ minWidth: '3.5em', textAlign: 'right' }}>
+        <Text fw={700} size="xs" c="dimmed" w={48} ta="right">
           {formatPortion(portion)}
         </Text>
       </Group>
@@ -281,7 +281,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
                       <Table.Th scope="row">{row.label}</Table.Th>
                       <Table.Td>{formatCents(row.fortnightlyCents)}</Table.Td>
                       <Table.Td>{formatCents(row.annualCents)}</Table.Td>
-                      <Table.Td>{formatPortion(row.portion)}</Table.Td>
+                      <Table.Td fw={700}>{formatPortion(row.portion)}</Table.Td>
                     </Table.Tr>
                   ))}
                   <RunningRow
@@ -294,7 +294,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
                       <Table.Th scope="row">{row.label}</Table.Th>
                       <Table.Td>{formatCents(row.fortnightlyCents)}</Table.Td>
                       <Table.Td>{formatCents(row.annualCents)}</Table.Td>
-                      <Table.Td>{formatPortion(row.portion)}</Table.Td>
+                      <Table.Td fw={700}>{formatPortion(row.portion)}</Table.Td>
                     </Table.Tr>
                   ))}
                   <RunningRow

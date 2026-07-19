@@ -66,6 +66,17 @@ describe('TaxEstimateView', () => {
     expect(within(samCard).getByText('$50,000.00')).toBeInTheDocument()
   })
 
+  it('lays out each card as an annual/fortnightly table with gross/tax/after-tax columns', () => {
+    render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(within(willCard).getByRole('columnheader', { name: 'Gross' })).toBeInTheDocument()
+    expect(within(willCard).getByRole('columnheader', { name: 'Tax' })).toBeInTheDocument()
+    expect(within(willCard).getByRole('columnheader', { name: 'After tax' })).toBeInTheDocument()
+    expect(within(willCard).getByRole('rowheader', { name: 'Annual' })).toBeInTheDocument()
+    expect(within(willCard).getByRole('rowheader', { name: 'Fortnightly' })).toBeInTheDocument()
+  })
+
   it('renders the household totals', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
 

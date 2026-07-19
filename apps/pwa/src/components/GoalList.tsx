@@ -142,6 +142,11 @@ export function GoalList({ goals, lines, onCreate, onUpdate, onDelete }: GoalLis
     setAdding(false)
   }
 
+  // Goals with an active linked contribution lead, each partition keeping its original order.
+  const funded = goals.filter((goal) => contributionForGoal(goal.id, lines) > 0)
+  const unfunded = goals.filter((goal) => contributionForGoal(goal.id, lines) === 0)
+  const orderedGoals = [...funded, ...unfunded]
+
   return (
     <Stack gap="sm">
       {goals.length === 0 && !adding && (
@@ -150,7 +155,7 @@ export function GoalList({ goals, lines, onCreate, onUpdate, onDelete }: GoalLis
         </Text>
       )}
 
-      {goals.map((goal) =>
+      {orderedGoals.map((goal) =>
         editingId === goal.id ? (
           <GoalForm
             key={goal.id}

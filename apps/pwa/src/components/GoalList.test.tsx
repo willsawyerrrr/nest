@@ -150,6 +150,23 @@ describe('GoalList', () => {
     expect(within(deposit).getByText('Linked contribution $800.00 / fn')).toBeInTheDocument()
   })
 
+  it('lists goals with an active contribution before those without', () => {
+    const goals = [goal({ id: 'g1', name: 'Someday' }), goal({ id: 'g2', name: 'Funded' })]
+    const lines = [line({ goal_id: 'g2', amount_cents: 50_000, frequency: 'fortnightly' })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={lines}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const cards = screen.getAllByText(/Someday|Funded/)
+    expect(cards.map((node) => node.textContent)).toEqual(['Funded', 'Someday'])
+  })
+
   it('edits a goal in place', async () => {
     const user = userEvent.setup()
     render(

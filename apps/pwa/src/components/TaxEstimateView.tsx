@@ -1,4 +1,4 @@
-import { Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Card, Stack, Table, Text, Title } from '@mantine/core'
 import type { HouseholdTaxEstimate } from '@budget/tax'
 import { formatCents } from '../lib/money'
 
@@ -17,31 +17,68 @@ interface Row {
   fortnightlyAfterTaxCents: number
 }
 
-const FIELDS: { label: string; key: keyof Row }[] = [
-  { label: 'Annual gross', key: 'annualGrossCents' },
-  { label: 'Annual tax', key: 'annualTaxCents' },
-  { label: 'Annual after tax', key: 'annualAfterTaxCents' },
-  { label: 'Fortnightly gross', key: 'fortnightlyGrossCents' },
-  { label: 'Fortnightly tax', key: 'fortnightlyTaxCents' },
-  { label: 'Fortnightly after tax', key: 'fortnightlyAfterTaxCents' },
-]
+/** One period's gross/tax/after-tax figures as a table body row headed by the period name. */
+function PeriodRow({
+  period,
+  grossCents,
+  taxCents,
+  afterTaxCents,
+}: {
+  period: string
+  grossCents: number
+  taxCents: number
+  afterTaxCents: number
+}) {
+  return (
+    <Table.Tr>
+      <Table.Th scope="row" c="dimmed">
+        {period}
+      </Table.Th>
+      <Table.Td ta="right">{formatCents(grossCents)}</Table.Td>
+      <Table.Td ta="right">{formatCents(taxCents)}</Table.Td>
+      <Table.Td ta="right">{formatCents(afterTaxCents)}</Table.Td>
+    </Table.Tr>
+  )
+}
 
-/** One row's annual and fortnightly gross/tax/after-tax figures as label + value pairs. */
+/** One row's annual and fortnightly gross/tax/after-tax figures as a compact table. */
 function FiguresCard({ name, row }: { name: string; row: Row }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
-      <Stack gap={4}>
+      <Stack gap="xs">
         <Text fw={600}>{name}</Text>
-        {FIELDS.map((field) => (
-          <Group key={field.key} justify="space-between" wrap="nowrap">
-            <Text size="sm" c="dimmed">
-              {field.label}
-            </Text>
-            <Text fw={600} size="sm">
-              {formatCents(row[field.key])}
-            </Text>
-          </Group>
-        ))}
+        <Table.ScrollContainer minWidth={0}>
+          <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th />
+                <Table.Th scope="col" ta="right">
+                  Gross
+                </Table.Th>
+                <Table.Th scope="col" ta="right">
+                  Tax
+                </Table.Th>
+                <Table.Th scope="col" ta="right">
+                  After tax
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              <PeriodRow
+                period="Annual"
+                grossCents={row.annualGrossCents}
+                taxCents={row.annualTaxCents}
+                afterTaxCents={row.annualAfterTaxCents}
+              />
+              <PeriodRow
+                period="Fortnightly"
+                grossCents={row.fortnightlyGrossCents}
+                taxCents={row.fortnightlyTaxCents}
+                afterTaxCents={row.fortnightlyAfterTaxCents}
+              />
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Stack>
     </Card>
   )

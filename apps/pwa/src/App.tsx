@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Center, Loader, Text, UnstyledButton } from '@mantine/core'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { Center, Loader } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
 import { summarise } from '@budget/plan'
 import { supabase } from './lib/supabase'
@@ -18,6 +19,7 @@ import { BudgetScreen } from './components/BudgetScreen'
 import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
+import { NAV_ITEMS, TabBar } from './components/TabBar'
 import { estimateHouseholdTaxFromRows } from './lib/tax'
 import './App.css'
 
@@ -103,62 +105,25 @@ function AuthedApp({ session }: { session: Session }) {
   return <HouseholdApp household={household} session={session} />
 }
 
-type View = 'summary' | 'inflows' | 'budget' | 'goals' | 'tax' | 'home'
-
-const NAV_ITEMS: { view: View; label: string }[] = [
-  { view: 'summary', label: 'Summary' },
-  { view: 'inflows', label: 'Inflows' },
-  { view: 'budget', label: 'Budget' },
-  { view: 'goals', label: 'Goals' },
-  { view: 'tax', label: 'Tax' },
-  { view: 'home', label: 'Household' },
-]
-
 function HouseholdApp({ household, session }: { household: Household; session: Session }) {
-  const [view, setView] = useState<View>('summary')
-
   return (
     <div className="app-shell">
       <main className="page">
-        {view === 'home' ? (
-          <HomeSection household={household} session={session} />
-        ) : view === 'inflows' ? (
-          <InflowsSection householdId={household.id} />
-        ) : view === 'budget' ? (
-          <BudgetSection householdId={household.id} />
-        ) : view === 'goals' ? (
-          <GoalsSection householdId={household.id} />
-        ) : view === 'summary' ? (
-          <SummarySection householdId={household.id} />
-        ) : (
-          <TaxSection householdId={household.id} />
-        )}
+        <Routes>
+          <Route path="/summary" element={<SummarySection householdId={household.id} />} />
+          <Route path="/inflows" element={<InflowsSection householdId={household.id} />} />
+          <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
+          <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
+          <Route path="/tax" element={<TaxSection householdId={household.id} />} />
+          <Route
+            path="/household"
+            element={<HomeSection household={household} session={session} />}
+          />
+          <Route path="/" element={<Navigate to="/summary" replace />} />
+          <Route path="*" element={<Navigate to="/summary" replace />} />
+        </Routes>
       </main>
-      <nav className="tab-bar" aria-label="Primary">
-        <div className="tab-bar__list">
-          {NAV_ITEMS.map((item) => {
-            const active = view === item.view
-            return (
-              <UnstyledButton
-                key={item.view}
-                className="tab-bar__tab"
-                aria-current={active}
-                onClick={() => setView(item.view)}
-                py="sm"
-                ta="center"
-              >
-                <Text
-                  size="sm"
-                  fw={active ? 700 : 500}
-                  c={active ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
-                >
-                  {item.label}
-                </Text>
-              </UnstyledButton>
-            )
-          })}
-        </div>
-      </nav>
+      <TabBar items={NAV_ITEMS} />
     </div>
   )
 }

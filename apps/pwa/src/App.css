@@ -58,5 +58,8 @@
 .tab-bar__tab {
   flex: 1 0 auto;
   min-width: 3.75rem;
+  padding-block: var(--mantine-spacing-sm);
+  text-align: center;
+  text-decoration: none;
   white-space: nowrap;
 }

@@ -63,3 +63,43 @@
   text-decoration: none;
   white-space: nowrap;
 }
+
+/*
+ * Mobile variant: a single horizontally scrollable row holding every tab. The
+ * row sizes to its content so it can overflow the viewport, and edge gradients
+ * fade the leading/trailing tabs to hint that the row scrolls past either side.
+ */
+.tab-bar--scroll {
+  position: fixed;
+}
+
+.tab-bar--scroll::before,
+.tab-bar--scroll::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 2rem;
+  pointer-events: none;
+}
+
+.tab-bar--scroll::before {
+  left: 0;
+  background: linear-gradient(to right, var(--mantine-color-body), transparent);
+}
+
+.tab-bar--scroll::after {
+  right: 0;
+  background: linear-gradient(to left, var(--mantine-color-body), transparent);
+}
+
+.tab-bar__list--scroll {
+  width: max-content;
+  overflow-x: visible;
+}
+
+.tab-bar__list--scroll .tab-bar__tab {
+  flex: 0 0 auto;
+  padding-inline: var(--mantine-spacing-md);
+}

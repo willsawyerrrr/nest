@@ -37,6 +37,27 @@ describe('TabBar', () => {
     }
   })
 
+  // The mobile bar is CSS-hidden from the `sm` breakpoint up, and jsdom lays out
+  // at a desktop width, so these queries opt into hidden elements to assert the
+  // scrollable row's structure regardless of the simulated viewport.
+  it('renders every tab in the scrollable mobile row as a tablist', () => {
+    render(
+      <MemoryRouter initialEntries={['/summary']}>
+        <TabBar items={NAV_ITEMS} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('tablist', { name: 'Primary', hidden: true })).toBeInTheDocument()
+    const tabs = screen.getAllByRole('tab', { hidden: true })
+    expect(tabs.map((tab) => tab.textContent)).toEqual(NAV_ITEMS.map((item) => item.label))
+    for (const item of NAV_ITEMS) {
+      expect(screen.getByRole('tab', { name: item.label, hidden: true })).toHaveAttribute(
+        'href',
+        item.path,
+      )
+    }
+  })
+
   it('marks the link for the current route as active', () => {
     render(
       <MemoryRouter initialEntries={['/budget']}>
@@ -46,6 +67,22 @@ describe('TabBar', () => {
 
     expect(screen.getByRole('link', { name: 'Budget' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Summary' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('carries aria-current on the active tab in the scrollable row', () => {
+    render(
+      <MemoryRouter initialEntries={['/budget']}>
+        <TabBar items={NAV_ITEMS} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Budget', hidden: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(screen.getByRole('tab', { name: 'Summary', hidden: true })).not.toHaveAttribute(
+      'aria-current',
+    )
   })
 
   it('jumps to the nth tab on mod+number', async () => {

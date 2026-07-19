@@ -1,6 +1,7 @@
 /* eslint-disable react/only-export-components -- co-locate the nav item table with the tab bar that renders it. */
+import { useEffect, useRef } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Text } from '@mantine/core'
+import { Box, ScrollArea, Text } from '@mantine/core'
 import { useHotkeys, type HotkeyItem } from '@mantine/hooks'
 
 export type NavItem = { path: string; label: string }
@@ -25,7 +26,72 @@ export function tabIndexForPath(items: NavItem[], pathname: string) {
   return items.findIndex((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 }
 
-/** Fixed bottom tab bar whose active tab tracks the current route. */
+/** Label whose weight and colour reflect whether its tab is active. */
+function TabLabel({ label, isActive }: { label: string; isActive: boolean }) {
+  return (
+    <Text
+      size="sm"
+      fw={isActive ? 700 : 500}
+      c={isActive ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
+    >
+      {label}
+    </Text>
+  )
+}
+
+/** Full-width bottom bar splitting the viewport evenly across tabs, from `sm` up. */
+function WideTabBar({ items }: { items: NavItem[] }) {
+  return (
+    <Box component="nav" className="tab-bar" aria-label="Primary" visibleFrom="sm">
+      <div className="tab-bar__list">
+        {items.map((item) => (
+          <NavLink key={item.path} to={item.path} className="tab-bar__tab">
+            {({ isActive }) => <TabLabel label={item.label} isActive={isActive} />}
+          </NavLink>
+        ))}
+      </div>
+    </Box>
+  )
+}
+
+/**
+ * Bottom bar for mobile: a single horizontally scrollable row holding every
+ * tab, with edge fades hinting at off-screen items. The active tab is scrolled
+ * into view whenever the route changes so it never hides past an edge.
+ */
+function ScrollableTabBar({ items, currentIndex }: { items: NavItem[]; currentIndex: number }) {
+  const activeTabRef = useRef<HTMLAnchorElement>(null)
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView?.({ inline: 'center', block: 'nearest' })
+  }, [currentIndex])
+
+  return (
+    <Box component="nav" className="tab-bar tab-bar--scroll" aria-label="Primary" hiddenFrom="sm">
+      <ScrollArea type="never" scrollbars="x" className="tab-bar__scroll">
+        <div className="tab-bar__list tab-bar__list--scroll" role="tablist" aria-label="Primary">
+          {items.map((item, index) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              role="tab"
+              ref={index === currentIndex ? activeTabRef : undefined}
+              className="tab-bar__tab"
+            >
+              {({ isActive }) => <TabLabel label={item.label} isActive={isActive} />}
+            </NavLink>
+          ))}
+        </div>
+      </ScrollArea>
+    </Box>
+  )
+}
+
+/**
+ * Fixed bottom tab bar whose active tab tracks the current route. Mobile shows a
+ * horizontally scrollable row of every tab; from the `sm` breakpoint up the row
+ * spreads to fill the width.
+ */
 export function TabBar({ items }: { items: NavItem[] }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -50,22 +116,9 @@ export function TabBar({ items }: { items: NavItem[] }) {
   useHotkeys(hotkeys)
 
   return (
-    <nav className="tab-bar" aria-label="Primary">
-      <div className="tab-bar__list">
-        {items.map((item) => (
-          <NavLink key={item.path} to={item.path} className="tab-bar__tab">
-            {({ isActive }) => (
-              <Text
-                size="sm"
-                fw={isActive ? 700 : 500}
-                c={isActive ? 'var(--mantine-primary-color-filled)' : 'dimmed'}
-              >
-                {item.label}
-              </Text>
-            )}
-          </NavLink>
-        ))}
-      </div>
-    </nav>
+    <>
+      <ScrollableTabBar items={items} currentIndex={currentIndex} />
+      <WideTabBar items={items} />
+    </>
   )
 }

@@ -67,6 +67,43 @@ foreign keys on `(id, household_id)`.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`TAX.md`](TAX.md).
 
+## Superannuation
+
+Per-member super feeds two things: the tax estimate (concessional contributions
+reduce taxable income; Division 293 for high earners) and, via the balance, a
+net-worth view. Versioned AU super parameters (SG rate, caps, thresholds) live in
+config alongside the tax parameters, not a table.
+
+- **super_profile** — per member, per financial year.
+  - `id`, `household_id`, `member_id`, `financial_year` (int, ending year),
+    `fund_name` (nullable), `sg_rate_override` (nullable — overrides the config
+    SG rate), `linked_account_id` (nullable), `carry_forward_cap_cents`
+    (default 0), `created_at`, `updated_at`.
+  - Unique on `(member_id, financial_year)`.
+  - `linked_account_id` optionally points at one of the household's accounts whose
+    `balance_cents` is the member's super balance — the same balance-source
+    pattern `savings_goal` uses; a composite foreign key on `(id, household_id)`
+    keeps it in the household and `on delete set null` clears it if the account is
+    removed.
+  - `carry_forward_cap_cents` is a manually entered unused concessional cap
+    carried from up to 5 prior years (eligible when total super balance <
+    $500,000); it raises the effective cap for the year.
+- **super_contribution** — a recurring contribution for a member and year.
+  - `id`, `household_id`, `member_id`, `financial_year`,
+    `kind` (`salary_sacrifice` | `personal_deductible` |
+    `personal_non_concessional` | `spouse`),
+    `mode` (`amount` | `percent`), `amount_cents` (nullable),
+    `percent_bp` (nullable — basis points of gross salary),
+    `frequency` (the shared enum), `interval_weeks` (nullable),
+    `fhss_eligible` (default false), `contributor_member_id` (nullable),
+    `created_at`, `updated_at`.
+  - A check enforces exactly one of `amount_cents` / `percent_bp` per `mode`, and
+    `interval_weeks` is set only for `every_n_weeks` (as on inflows). The
+    concessional kinds (`salary_sacrifice`, `personal_deductible`) reduce taxable
+    income; `spouse` may carry `contributor_member_id` (the paying member, for the
+    spouse-contribution tax offset). `fhss_eligible` tags contributions counting
+    toward the First Home Super Saver scheme.
+
 ## Planning & goals
 
 Budgeting is plan-only and fortnightly. There is no period-versioned budget and

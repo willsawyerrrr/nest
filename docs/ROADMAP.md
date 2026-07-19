@@ -139,9 +139,11 @@ Sub-phased so each slice is independently useful, and sliced further
 (schema / logic / UI) to keep PRs small. All rates, caps, and thresholds live in
 the versioned per-FY config, verified as the FY2027 tax config was.
 
-- [ ] Super profile schema: per-person current balance, fund, employer SG rate,
-      and contribution inputs (salary sacrifice, personal deductible, personal
-      non-concessional). RLS, tests, types.
+- [x] Super profile schema: per-member `super_profile` (fund, SG-rate override,
+      linked balance account, manual carry-forward cap) plus a
+      `super_contribution` child table (kind, amount-or-percent, schedule, FHSS
+      flag, spouse contributor). Balance is held as a linked account, not a
+      column. RLS + isolation tests; types regenerate with the first consumer.
 - [ ] Balances as assets: surface each person's super balance as an asset,
       seeding the net-worth view.
 - [ ] Tax integration (`@budget/tax`): concessional contributions (salary

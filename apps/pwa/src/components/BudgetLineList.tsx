@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocalStorage } from '@mantine/hooks'
 import {
   ActionIcon,
   Badge,
@@ -30,6 +31,18 @@ interface BudgetLineListProps {
 /** How the lines within each group are ordered. */
 type SortKey = 'default' | 'name' | 'amount'
 
+/** Which way a sorted order runs. */
+type SortDirection = 'asc' | 'desc'
+
+/** The persisted sort preference for the budget lines. */
+interface SortPreference {
+  key: SortKey
+  direction: SortDirection
+}
+
+const SORT_STORAGE_KEY = 'budget-line-sort'
+const DEFAULT_SORT: SortPreference = { key: 'default', direction: 'asc' }
+
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'name', label: 'Name' },
@@ -40,7 +53,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
  * Orders lines by the chosen key and direction. `default` preserves the given
  * order untouched; `name` and `amount` sort ascending then reverse for descending.
  */
-function sortLines(lines: BudgetLine[], key: SortKey, direction: 'asc' | 'desc'): BudgetLine[] {
+function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection): BudgetLine[] {
   if (key === 'default') {
     return lines
   }
@@ -111,8 +124,12 @@ export function BudgetLineList({
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
   const [addingItem, setAddingItem] = useState(false)
   const [query, setQuery] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('default')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [sort, setSort] = useLocalStorage<SortPreference>({
+    key: SORT_STORAGE_KEY,
+    defaultValue: DEFAULT_SORT,
+    getInitialValueInEffect: false,
+  })
+  const { key: sortKey, direction: sortDirection } = sort
 
   const startAdding = (group: BudgetGroup) => {
     setEditingId(null)
@@ -164,14 +181,21 @@ export function BudgetLineList({
             aria-label="Sort by"
             data={SORT_OPTIONS}
             value={sortKey}
-            onChange={(value) => value && setSortKey(value as SortKey)}
+            onChange={(value) =>
+              value && setSort((current) => ({ ...current, key: value as SortKey }))
+            }
             allowDeselect={false}
           />
           <ActionIcon
             variant="default"
             size="lg"
             aria-label="Toggle sort direction"
-            onClick={() => setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))}
+            onClick={() =>
+              setSort((current) => ({
+                ...current,
+                direction: current.direction === 'asc' ? 'desc' : 'asc',
+              }))
+            }
           >
             {sortDirection === 'asc' ? '↑' : '↓'}
           </ActionIcon>

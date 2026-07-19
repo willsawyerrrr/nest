@@ -1,5 +1,4 @@
-import { Card, Group, Stack, Table, Text, Title } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
+import { Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { HouseholdTaxEstimate } from '@budget/tax'
 import { formatCents } from '../lib/money'
 
@@ -48,15 +47,8 @@ function FiguresCard({ name, row }: { name: string; row: Row }) {
   )
 }
 
-/** The six figure cells for one row of the wide-screen table. */
-function figureCells(row: Row) {
-  return FIELDS.map((field) => <Table.Td key={field.key}>{formatCents(row[field.key])}</Table.Td>)
-}
-
-/** Presentational household tax estimate: per-member and household annual/fortnightly figures. */
+/** Presentational household tax estimate: household and per-member annual/fortnightly figures. */
 export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEstimateViewProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
-
   return (
     <Stack gap="md">
       <Title order={2}>Tax estimate (FY{financialYear})</Title>
@@ -65,46 +57,12 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
         <Text c="dimmed">
           No income to estimate yet. Add a taxable inflow on the Inflows tab to see a tax estimate.
         </Text>
-      ) : wide ? (
-        <Table.ScrollContainer minWidth={0}>
-          <Table striped withTableBorder>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th rowSpan={2}>Member</Table.Th>
-                <Table.Th colSpan={3}>Annual</Table.Th>
-                <Table.Th colSpan={3}>Fortnightly</Table.Th>
-              </Table.Tr>
-              <Table.Tr>
-                <Table.Th>Gross</Table.Th>
-                <Table.Th>Tax</Table.Th>
-                <Table.Th>After tax</Table.Th>
-                <Table.Th>Gross</Table.Th>
-                <Table.Th>Tax</Table.Th>
-                <Table.Th>After tax</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {estimate.members.map((member) => (
-                <Table.Tr key={member.memberId}>
-                  <Table.Th scope="row">{memberName(member.memberId)}</Table.Th>
-                  {figureCells(member)}
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-            <Table.Tfoot>
-              <Table.Tr>
-                <Table.Th scope="row">Household</Table.Th>
-                {figureCells(estimate)}
-              </Table.Tr>
-            </Table.Tfoot>
-          </Table>
-        </Table.ScrollContainer>
       ) : (
         <Stack gap="sm">
+          <FiguresCard name="Household" row={estimate} />
           {estimate.members.map((member) => (
             <FiguresCard key={member.memberId} name={memberName(member.memberId)} row={member} />
           ))}
-          <FiguresCard name="Household" row={estimate} />
         </Stack>
       )}
     </Stack>

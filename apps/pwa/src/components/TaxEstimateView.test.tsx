@@ -77,6 +77,14 @@ describe('TaxEstimateView', () => {
     expect(within(householdCard).getByText('$4,807.68')).toBeInTheDocument()
   })
 
+  it('orders the household card before the member cards', () => {
+    render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
+
+    const [first, ...rest] = screen.getAllByRole('region')
+    expect(first).toHaveAccessibleName('Household')
+    expect(rest.map((region) => region.getAttribute('aria-label'))).toEqual(['Will', 'Sam'])
+  })
+
   it('shows the financial year in the heading', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
     expect(screen.getByRole('heading', { name: /FY2027/ })).toBeInTheDocument()
@@ -95,7 +103,6 @@ describe('TaxEstimateView', () => {
     render(<TaxEstimateView estimate={empty} financialYear={2027} memberName={memberName} />)
 
     expect(screen.getByText(/add a taxable inflow on the inflows tab/i)).toBeInTheDocument()
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
   })
 })

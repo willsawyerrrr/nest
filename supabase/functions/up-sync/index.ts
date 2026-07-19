@@ -18,6 +18,7 @@ import { createClient } from '@supabase/supabase-js'
 import { UpClient } from '../_shared/up.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { resolveCaller } from '../_shared/caller.ts'
+import { isServiceRoleToken } from './auth.ts'
 import { type AccountRow, runSync } from './sync.ts'
 
 function json(body: unknown, status = 200): Response {
@@ -38,13 +39,14 @@ Deno.serve(async (request) => {
     return json({ error: 'Service-role credentials not configured' }, 500)
   }
 
-  // Determine the run's scope from the caller. The cron path presents the
-  // service-role key and syncs every household (householdId null); any other
+  // Determine the run's scope from the caller. The cron path presents a
+  // service-role JWT and syncs every household (householdId null); any other
   // caller must resolve to a member via their JWT and is scoped to that
-  // member's household.
+  // member's household. The gateway (verify_jwt=true) has already validated the
+  // bearer's signature, so the caller is distinguished by its `role` claim.
   const bearer = (request.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
   let householdId: string | null = null
-  if (bearer !== serviceRoleKey) {
+  if (!isServiceRoleToken(bearer)) {
     const resolved = await resolveCaller(request)
     if ('error' in resolved) {
       return json({ error: resolved.error.message }, resolved.error.status)

@@ -1,0 +1,137 @@
+# Spreadsheet feature-parity analysis
+
+Audit of the household's real budgeting spreadsheet against the shipped plan-only
+app, to find what the app must add for full parity. Structure and mechanics only
+— no real amounts, balances, or personal names.
+
+## 1. Spreadsheet feature inventory
+
+The workbook has nine sheets. It is driven by Excel named tables and `VLOOKUP`
+against small config tables; every amount normalises to a fortnight and to an
+annual total, exactly like the app.
+
+- **Summary** — the reconciliation dashboard. Three blocks:
+  - _Income_: annual + fortnightly income, tax, and after-tax, each summed across
+    the two members.
+  - _Outgoing_ and _Saving_: one row per category (Needs, Wants, Spending,
+    Temporary / Savings, Investments) showing Fortnightly, Annually, and
+    **Portion** = category fortnightly ÷ fortnightly after-tax income.
+  - _Remaining_: a running ledger — Income → `After Outgoing` (income − outgoings)
+    → `After Saving` (− savings block). This is precisely the app's Summary.
+- **Income** — per-member tax model, two side-by-side blocks:
+  - One member's income is **wage-based**: `hourly_rate × 38 × 52` (rate × standard
+    hours × weeks). The other is a **fixed annual salary**.
+  - Annual tax = marginal income tax + STSL (HELP) repayment + flat Medicare levy:
+    `IncomeTax(income) + STSL(income) + MEDICARE_LEVY × income`, where
+    `MEDICARE_LEVY = 0.02` (a named constant) and `IncomeTax`/`STSL` are marginal
+    `VLOOKUP`s of the form `Absolute + PerDollar × (income − LowerBound)` against
+    the Data sheet's bracket tables.
+  - After-tax = income − tax; fortnightly = annual ÷ 26.
+  - This is a **simpler** tax model than the app: flat 2% Medicare with no
+    low-income reduction, no LITO offset, no Medicare levy surcharge / private-
+    hospital handling, and HELP as a plain marginal lookup.
+- **Outgoing** — six category tables laid out side by side: **Needs, Wants,
+  Spending** (= the app's Discretionary), **Temporary, Savings, Investments**.
+  Each row = Bill/Item, Amount, Frequency, then computed Fortnightly
+  (`Amount × PeriodsPerYear(Frequency) / 26`) and Annually
+  (`Amount × PeriodsPerYear(Frequency)`), with per-table `SUBTOTAL` totals. A
+  free-text **"Spendings" scratch column** sits beside the Discretionary table —
+  an un-costed running list of discretionary intentions (annotations only).
+- **Goals** — a flat list of savings targets: Goal name + target Amount, with a
+  total. No current balance, contribution, date, or ETA — **the app's Goals are
+  strictly richer.**
+- **Data** — the lookup/config tables that everything references:
+  - _Income Tax Rates_ — marginal brackets (Lower Bound, Absolute, Per Dollar).
+  - _STSL Rates_ — HELP/STSL repayment brackets (same marginal shape; one row
+    derives a 10% cap).
+  - _Payment Frequencies_ — Frequency → periods/year (Weekly 52, Fortnightly 26,
+    Monthly 12, Quarterly 4, Biannually 2, Annually 1).
+  - _Payment Methods_ — an enum: **Debit, Transfer, Card, Saver** (how a bill is
+    paid).
+- **Computed Data** — builds the allocation ranking behind the donut: `VSTACK`
+  the outgoing + saving categories and their portions, `SORTBY` portion
+  descending, and compute **`Unallocated` = 1 − Σ portions**.
+- **Wishlist** — a **per-member** list of aspirational purchases (item + amount +
+  total per person). Not part of the budget; a wish-to-buy backlog.
+- **Todo** — a free-text **finance-admin checklist** (e.g. chase a reimbursement,
+  change a payment method on a bill). Plain task list.
+- **Gifts** — a detailed **itemised gift budget**: one table of individual gifts
+  by occasion and recipient (amount each), plus a second "each other" table
+  (occasion × per-person amount × 2). Rolls up to a total that feeds a
+  Discretionary gift line.
+
+## 2. Parity matrix
+
+| Spreadsheet capability | App | Note |
+| --- | --- | --- |
+| Per-member income; wage (rate × hours × weeks) and salary | ✅ Have | Taxable inflows: wage `rate × hours/period`, salary annual gross |
+| Income tax + HELP + Medicare estimate | ✅ Have | App is richer: LITO, Medicare low-income phase-in + surcharge, private hospital, marginal HELP with cap, versioned FY config |
+| Six budget groups (Needs/Wants/Discretionary/Temporary/Savings/Investments) | ✅ Have | Exact same groups |
+| Amount + frequency → fortnightly + annual normalisation | ✅ Have | Same frequencies, plus an "every N weeks" cadence the sheet lacks |
+| Summary reconciliation: after-tax − outgoings − savings = buffer | ✅ Have | Same running After Outgoing / After Saving ledger |
+| Per-category portion of after-tax income | ✅ Have | Rendered per line |
+| Allocation ranking + `Unallocated` | ✅ Have | Summary allocation donut with remaining/unallocated |
+| Savings goals | ✅ Have | App richer: target date, current balance, contribution link, progress + ETA |
+| **Payment-method tag per bill** (Debit/Transfer/Card/Saver) | ❌ Missing | No per-line payment-method attribute |
+| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ❌ Missing | No child line-items rolling up into a parent budget line |
+| **Wishlist** (per-member aspirational purchases) | ❌ Missing | No wishlist surface |
+| **Finance-admin to-do list** | ❌ Missing | No task/checklist surface |
+| **Free-text notes on a budget line** ("Spendings" scratch list) | ❌ Missing | Budget lines have no notes field |
+| Per-member breakdown of discretionary spend / wishlist / gifts | 🟨 Partial | App pools money by explicit design; per-line member tagging is deliberately out of scope, but itemisation/notes are not covered at all |
+
+## 3. Prioritised gap list
+
+Ordered by value. Size is rough (S ≤ ~½ day, M ~1–2 days, L larger). "Backend"
+means a schema/migration/RLS/types change; "frontend" means PWA-only.
+
+1. **Itemised sub-budget (line-item breakdown)** — let a budget line hold child
+   items (name + amount) that roll up into the line's amount; the Gifts sheet
+   (gifts by occasion/recipient) and the "Spendings" scratch list are both
+   instances. _Why:_ the household actively maintains a detailed gift budget today;
+   without it, "Gifts" is a single opaque number and they lose the planning they
+   rely on. _Size:_ M. _Backend + frontend_ (new `budget_line_item` child table
+   with `(line_id, household_id)` FK + RLS; nested CRUD UI and roll-up in the
+   summary math).
+
+2. **Payment-method tag per budget line** (enum: Debit / Transfer / Card / Saver)
+   — records how each bill is paid. _Why:_ the household tracks this now, and it
+   is directly useful for the upcoming Up-ingestion phase to match a planned bill
+   to the account/transaction it settles against. _Size:_ S. _Backend + frontend_
+   (nullable enum column on `budget_line` + a select in the line form).
+
+3. **Wishlist** — a per-member list of aspirational purchases (name + amount),
+   separate from the budget, that can later graduate into a Discretionary line or
+   a savings goal. _Why:_ it is a standalone sheet the household keeps; it also
+   feeds future budgeting decisions. _Size:_ S–M. _Backend + frontend_ (new
+   `wishlist_item` table with optional `member_id` tag + a simple screen/section).
+
+4. **Finance-admin to-do list** — a lightweight checklist of finance actions
+   (chase a reimbursement, change a payment on a bill). _Why:_ captures recurring
+   admin the household tracks in the sheet; low effort, high day-to-day utility.
+   _Size:_ S. _Backend + frontend_ (small `finance_todo` table: text + done flag,
+   or fold into an existing table; checklist UI).
+
+5. **Free-text note on a budget line** — the "Spendings" scratch annotations.
+   _Why:_ small quality-of-life; lets a line carry context without a full
+   breakdown. Largely subsumed by gap 1, so build only if line-items are not.
+   _Size:_ S. _Backend + frontend_ (nullable `notes` text column + textarea).
+
+**Deliberate non-gaps** (documented, not to build): the app's tax engine already
+exceeds the sheet's flat-Medicare / no-offset model; app Goals already exceed the
+sheet's flat target list; and per-person *budget* splitting is intentionally out
+of scope (money is fully pooled — member tags are a tax/reporting concept only).
+Wishlist and Gifts still warrant an optional per-member tag for display, without
+implying per-person budgets.
+
+## 4. Recommended next builds
+
+1. **Itemised sub-budget (gap 1)** — the single biggest fidelity loss vs the
+   sheet; unlocks the gift budget and any "list of small things under one line".
+2. **Payment-method tag (gap 2)** — cheap, and it pre-wires budget lines for the
+   Up-ingestion/reconciliation phase that is next on the roadmap.
+3. **Wishlist (gap 3)** — self-contained, low-risk, restores a whole sheet the
+   household uses.
+4. **Finance-admin to-do (gap 4)** — small, and rounds out the "everything the
+   sheet did" story so the app can fully retire it.
+
+Gap 5 (line notes) is optional and only if gap 1 is deferred.

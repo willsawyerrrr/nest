@@ -13,6 +13,7 @@ import { OnboardingScreen } from './components/OnboardingScreen'
 import { useBudgetLines } from './hooks/useBudgetLines'
 import { useTemporaryItems } from './hooks/useTemporaryItems'
 import { useGoals } from './hooks/useGoals'
+import { useUpConnection } from './hooks/useUpConnection'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
@@ -163,8 +164,9 @@ function HomeSection({
   onCreateInviteCode: () => Promise<void>
   onRevokeInviteCode: () => Promise<void>
 }) {
-  const { members, loading: membersLoading } = useMembers()
+  const { members, loading: membersLoading, reload: reloadMembers } = useMembers()
   const taxProfiles = useTaxProfiles(household.id)
+  const up = useUpConnection(reloadMembers)
 
   if (membersLoading || taxProfiles.loading || !members) {
     return <LoadingScreen />
@@ -176,12 +178,16 @@ function HomeSection({
       inviteCode={household.invite_code}
       inviteCodeExpiresAt={household.invite_code_expires_at}
       email={session.user.email ?? ''}
+      currentUserId={session.user.id}
       members={members}
       taxProfiles={taxProfiles.profiles ?? []}
       financialYear={taxProfiles.financialYear}
       onUpsertTaxProfile={taxProfiles.upsert}
       onCreateInviteCode={onCreateInviteCode}
       onRevokeInviteCode={onRevokeInviteCode}
+      onConnectUp={up.connect}
+      onDisconnectUp={up.disconnect}
+      upBusy={up.busy}
       onSignOut={() => void supabase.auth.signOut()}
     />
   )

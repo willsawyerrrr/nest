@@ -15,7 +15,13 @@ routes redirect to `/summary`), so they are deep-linkable and reload-safe. Order
 ⌘/Ctrl+Shift+←/→ cycle. Tax profiles are edited on the Household tab. The
 household's real budget (34 budget lines) and income are loaded in production.
 
-The next build phase is **Up ingestion + reconciliation** — see
+Each household member can connect their Up personal access token on the
+Household tab: it is validated against Up and stored encrypted in Supabase Vault,
+never returned to the client. The tab shows a per-member connection status
+(`members.up_connected_at`, a boolean/timestamp — never the token) and a
+disconnect action. This is the foundation for Up integration; the initial Up
+scope is **savers → savings goals** (funding goal progress from Up saver
+balances), with spend/ledger reconciliation deprioritised. See
 [`ROADMAP.md`](ROADMAP.md).
 
 ## Stack
@@ -106,7 +112,8 @@ Inflows (taxable income + non-taxable; schedules from weekly through annual plus
 an "every N weeks" cadence carrying `interval_weeks`), tax_profile, budget_line
 (groups: needs / wants / discretionary / temporary / savings / investments),
 temporary_item, savings_goal, households / members (households carry a nullable
-`invite_code` + `invite_code_expires_at`). Details:
+`invite_code` + `invite_code_expires_at`; members carry a nullable
+`up_connected_at`). Details:
 [`DATA_MODEL.md`](DATA_MODEL.md), [`budget-and-savings.md`](budget-and-savings.md),
 [`TAX.md`](TAX.md).
 
@@ -114,4 +121,5 @@ temporary_item, savings_goal, households / members (households carry a nullable
 
 - Watch the `test` CI time (the long pole, ~50–55s).
 - Rotate the Supabase Management API token when done with it.
-- Next build phase: Up ingestion + reconciliation ([`ROADMAP.md`](ROADMAP.md)).
+- Up token connection is live; next is reading Up saver balances to fund savings
+  goals ([`ROADMAP.md`](ROADMAP.md)). Spend/ledger reconciliation is deprioritised.

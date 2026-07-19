@@ -59,7 +59,14 @@ is CRUD over RLS.
 ### Up Bank API
 
 - Personal access token per member (no CDR accreditation required).
-- Tokens stored encrypted in **Supabase Vault**; never exposed to clients.
+- Tokens stored encrypted in **Supabase Vault**; never exposed to clients. A
+  member connects their token through the JWT-verified `up-connect` edge function
+  (validated against Up, then written via the service-role-only `store_up_token`
+  RPC) and clears it through `up-disconnect`. The token is written and read only
+  by SECURITY DEFINER RPCs granted to `service_role` alone (`store_up_token` /
+  `up_token_for_member` / `clear_up_token`); a member sees only a boolean status
+  (`members.up_connected_at`). The initial Up scope funds savings goals from saver
+  balances; spend/ledger reconciliation is deprioritised.
 - **Webhook receiver** edge function for near-real-time updates; verifies Up's
   HMAC signature.
 - **Scheduled poll** (pg_cron → edge function) as a backstop; dedupes on

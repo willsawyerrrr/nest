@@ -284,6 +284,7 @@ export type Database = {
           household_id: string
           id: string
           name: string
+          up_connected_at: string | null
           updated_at: string
           user_id: string
         }
@@ -293,6 +294,7 @@ export type Database = {
           household_id: string
           id?: string
           name: string
+          up_connected_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -302,6 +304,7 @@ export type Database = {
           household_id?: string
           id?: string
           name?: string
+          up_connected_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -533,6 +536,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
       create_household: {
         Args: { p_member_name: string; p_name: string }
         Returns: string
@@ -550,6 +554,11 @@ export type Database = {
         Returns: string
       }
       revoke_invite_code: { Args: never; Returns: undefined }
+      store_up_token: {
+        Args: { p_member_id: string; p_token: string }
+        Returns: undefined
+      }
+      up_token_for_member: { Args: { p_member_id: string }; Returns: string }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'

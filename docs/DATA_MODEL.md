@@ -22,10 +22,17 @@ foreign keys on `(id, household_id)`.
     member has generated one; it expires after 7 days and is consumed on join.
 - **members** — a person in a household, linked to an auth user.
   - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
-    (nullable), `created_at`, `updated_at`.
+    (nullable), `up_connected_at` (nullable), `created_at`, `updated_at`.
   - Unique on `(household_id, user_id)`. All members can manage everything in
     the household; member attribution elsewhere is a tax/reporting tag, not a
     permission.
+  - `up_connected_at` records when the member's Up token was last stored (null =
+    not connected). It is a non-sensitive status flag readable under the members
+    RLS; the token itself lives only in Vault and is never exposed here. The
+    token is stored/read/cleared solely by SECURITY DEFINER RPCs granted to
+    `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
+    It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
+    `name`/`email` only, so a client cannot forge its Up connection status.
 
 ## Inflows
 

@@ -11,6 +11,7 @@ const members: Member[] = [
     name: 'Will',
     email: null,
     user_id: 'u1',
+    up_connected_at: null,
     created_at: '',
     updated_at: '',
   },
@@ -20,6 +21,7 @@ const members: Member[] = [
     name: 'Sam',
     email: null,
     user_id: 'u2',
+    up_connected_at: null,
     created_at: '',
     updated_at: '',
   },
@@ -32,12 +34,16 @@ function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
       inviteCode={null}
       inviteCodeExpiresAt={null}
       email="will@example.com"
+      currentUserId="u1"
       members={members}
       taxProfiles={[]}
       financialYear={2027}
       onUpsertTaxProfile={vi.fn()}
       onCreateInviteCode={vi.fn()}
       onRevokeInviteCode={vi.fn()}
+      onConnectUp={vi.fn()}
+      onDisconnectUp={vi.fn()}
+      upBusy={false}
       onSignOut={vi.fn()}
       {...overrides}
     />,
@@ -128,16 +134,62 @@ describe('HomeScreen', () => {
     const user = userEvent.setup()
     renderHome()
 
-    expect(screen.getByRole('heading', { name: /Tax profiles \(FY2027\)/ })).toBeInTheDocument()
-    expect(screen.getByText('Will')).toBeInTheDocument()
-    expect(screen.getByText('Sam')).toBeInTheDocument()
+    const taxSection = screen.getByRole('heading', { name: /Tax profiles \(FY2027\)/ })
+      .parentElement as HTMLElement
+    expect(within(taxSection).getByText('Will')).toBeInTheDocument()
+    expect(within(taxSection).getByText('Sam')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(members.length)
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument()
 
-    const will = screen.getByText('Will').closest('.mantine-Card-root') as HTMLElement
+    const will = within(taxSection).getByText('Will').closest('.mantine-Card-root') as HTMLElement
     await user.click(within(will).getByRole('button', { name: /edit/i }))
 
     expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: /residency/i })).toBeInTheDocument()
+  })
+
+  it('offers a token field and connects the signed-in member', async () => {
+    const user = userEvent.setup()
+    const onConnectUp = vi.fn()
+    renderHome({ onConnectUp })
+
+    expect(screen.getByRole('heading', { name: /Connect Up/ })).toBeInTheDocument()
+    const field = screen.getByLabelText(/Up personal access token/i)
+    await user.type(field, 'up:yeah:secret')
+    await user.click(screen.getByRole('button', { name: /^connect$/i }))
+
+    expect(onConnectUp).toHaveBeenCalledWith('up:yeah:secret')
+  })
+
+  it('shows Connected and a disconnect action when the signed-in member is connected', () => {
+    const onDisconnectUp = vi.fn()
+    const connectedMembers = members.map((member) =>
+      member.user_id === 'u1' ? { ...member, up_connected_at: new Date().toISOString() } : member,
+    )
+    renderHome({ members: connectedMembers, onDisconnectUp })
+
+    const card = screen
+      .getByRole('heading', { name: /Connect Up/ })
+      .closest('.mantine-Card-root') as HTMLElement
+    // The status badge, plus Will's own row in the per-member list.
+    expect(within(card).getAllByText('Connected')).toHaveLength(2)
+    expect(screen.queryByLabelText(/Up personal access token/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /disconnect/i }))
+    expect(onDisconnectUp).toHaveBeenCalledOnce()
+  })
+
+  it('lists each member connection status', () => {
+    const connectedMembers = members.map((member) =>
+      member.user_id === 'u2' ? { ...member, up_connected_at: new Date().toISOString() } : member,
+    )
+    renderHome({ members: connectedMembers })
+
+    const card = screen
+      .getByRole('heading', { name: /Connect Up/ })
+      .closest('.mantine-Card-root') as HTMLElement
+    // Will (u1) not connected, Sam (u2) connected.
+    expect(within(card).getByText('Not connected')).toBeInTheDocument()
+    expect(within(card).getAllByText('Connected')).toHaveLength(1)
   })
 })

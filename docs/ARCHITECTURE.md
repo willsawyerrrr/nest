@@ -28,8 +28,10 @@ Clients talk to the database in the way that fits each job:
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute:
   - **Tax estimate** — authoritative computation.
   - **Up sync** — scheduled polling + webhook receiver; holds Up tokens.
-- **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress),
-  callable through the auto-generated API.
+- **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress) and
+  household management (`create_household`, `join_household`, and the temporary
+  invite-code RPCs `create_invite_code` / `revoke_invite_code`), callable through
+  the auto-generated API.
 
 Custom code is limited to the two things that genuinely need it; everything else
 is CRUD over RLS.
@@ -44,7 +46,9 @@ is CRUD over RLS.
   mode. Note the iOS standalone-PWA OAuth redirect quirk — the round-trip may
   return to Safari rather than the installed app; handled via redirect-URL config.
 - **PWA** — consumes PostgREST directly (RLS-enforced) and calls edge functions
-  for tax + Up.
+  for tax + Up. Client-side path routing via `react-router-dom` makes each tab
+  deep-linkable and reload-safe (`apps/pwa/vercel.json` supplies the SPA
+  fallback).
 - **Tax engine** — pure, versioned TypeScript package. Imported by the edge
   function (authoritative) and reused in the PWA for instant client-side preview
   — the *same* code, so no duplication or divergence. See [`TAX.md`](TAX.md).

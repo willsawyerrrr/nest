@@ -8,6 +8,8 @@ interface BudgetScreenProps {
   lines: BudgetLine[]
   goals: { id: string; name: string }[]
   temporaryItems: TemporaryItem[]
+  /** The household's total planned gift spend, driving any gift-derived line. */
+  giftTotalCents: number
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
   onDeleteLine: (id: string) => Promise<void>
@@ -21,6 +23,7 @@ export function BudgetScreen({
   lines,
   goals,
   temporaryItems,
+  giftTotalCents,
   onCreateLine,
   onUpdateLine,
   onDeleteLine,
@@ -35,6 +38,7 @@ export function BudgetScreen({
         <BudgetLineList
           lines={lines}
           goals={goals}
+          giftTotalCents={giftTotalCents}
           onCreate={onCreateLine}
           onUpdate={onUpdateLine}
           onDelete={(id) => void onDeleteLine(id)}

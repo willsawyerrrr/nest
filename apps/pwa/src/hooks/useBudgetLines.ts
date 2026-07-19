@@ -5,6 +5,7 @@ import type { Enums, Tables } from '../lib/database.types'
 export type BudgetLine = Tables<'budget_line'>
 export type BudgetGroup = Enums<'budget_group'>
 export type Frequency = Enums<'frequency'>
+export type BudgetDerivedSource = Enums<'budget_derived_source'>
 
 /** The budget-line fields a form supplies; identifiers and household are set by the hook. */
 export interface BudgetLineInput {
@@ -13,6 +14,8 @@ export interface BudgetLineInput {
   amount_cents: number
   frequency: Frequency
   goal_id: string | null
+  /** The tracker a line's amount is derived from, or `null` for a manually entered amount. */
+  derived_source: BudgetDerivedSource | null
 }
 
 export interface UseBudgetLinesResult {

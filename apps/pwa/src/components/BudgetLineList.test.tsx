@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { render, screen, within } from '../test/render'
 import { BudgetLineList } from './BudgetLineList'
 import type { BudgetLine } from '../hooks/useBudgetLines'
@@ -213,6 +214,57 @@ describe('BudgetLineList', () => {
       'Rent',
       'Power',
     ])
+  })
+
+  it('badges a gift-derived line as coming from Gifts', () => {
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[line({ id: 'g', line_group: 'wants', name: 'Gifts', derived_source: 'gift' })]}
+          goals={[]}
+          giftTotalCents={120_00}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+    const card = screen.getByText('Gifts').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText('from Gifts')).toBeInTheDocument()
+  })
+
+  it('offers the gift amount source only when no gift-derived line exists', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[]}
+          goals={[]}
+          giftTotalCents={120_00}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText(/from the gift tracker/i)).toBeInTheDocument()
+    unmount()
+
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[line({ id: 'g', line_group: 'wants', name: 'Gifts', derived_source: 'gift' })]}
+          goals={[]}
+          giftTotalCents={120_00}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.queryByText(/from the gift tracker/i)).not.toBeInTheDocument()
   })
 
   it('opens an unscoped add form via the universal Add item button', async () => {

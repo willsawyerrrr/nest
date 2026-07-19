@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useLocalStorage } from '@mantine/hooks'
 import {
   ActionIcon,
+  Anchor,
   Badge,
   Button,
   Card,
@@ -25,6 +27,8 @@ import { GroupSection } from './GroupSection'
 interface BudgetLineListProps {
   lines: BudgetLine[]
   goals: { id: string; name: string }[]
+  /** The household's total planned gift spend, driving any gift-derived line. */
+  giftTotalCents?: number
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
   onDelete: (id: string) => void
@@ -79,6 +83,7 @@ function BudgetLineCard({
   onDelete: () => void
 }) {
   const fortnightly = fortnightlyCents(line.amount_cents, line.frequency)
+  const derived = line.derived_source === 'gift'
   return (
     <Card withBorder radius="md" p="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -93,6 +98,13 @@ function BudgetLineCard({
             <Badge size="xs" variant="light">
               {formatFrequency(line.frequency)}
             </Badge>
+            {derived && (
+              <Anchor component={Link} to="/gifts" underline="never">
+                <Badge size="xs" variant="light" color="teal">
+                  from Gifts
+                </Badge>
+              </Anchor>
+            )}
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
@@ -123,10 +135,15 @@ function BudgetLineCard({
 export function BudgetLineList({
   lines,
   goals,
+  giftTotalCents = 0,
   onCreate,
   onUpdate,
   onDelete,
 }: BudgetLineListProps) {
+  // A household has a single gift-derived line, so the option is offered only
+  // when no other line already derives from the gift tracker.
+  const giftSourceAvailableFor = (id?: string) =>
+    !lines.some((line) => line.derived_source === 'gift' && line.id !== id)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
   const [addingItem, setAddingItem] = useState(false)
@@ -212,6 +229,8 @@ export function BudgetLineList({
       {addingItem && (
         <BudgetLineForm
           goals={goals}
+          giftTotalCents={giftTotalCents}
+          giftSourceAvailable={giftSourceAvailableFor()}
           onSubmit={async (input) => {
             await onCreate(input)
             closeForms()
@@ -250,6 +269,8 @@ export function BudgetLineList({
                   key={line.id}
                   initial={line}
                   goals={goals}
+                  giftTotalCents={giftTotalCents}
+                  giftSourceAvailable={giftSourceAvailableFor(line.id)}
                   onSubmit={async (input) => {
                     await onUpdate(line.id, input)
                     closeForms()
@@ -271,6 +292,8 @@ export function BudgetLineList({
                 <BudgetLineForm
                   defaultGroup={group}
                   goals={goals}
+                  giftTotalCents={giftTotalCents}
+                  giftSourceAvailable={giftSourceAvailableFor()}
                   onSubmit={async (input) => {
                     await onCreate(input)
                     closeForms()

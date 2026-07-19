@@ -96,8 +96,8 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   }
 
   return (
-    <Card withBorder radius="md" p="md" component="form" onSubmit={handleSubmit}>
-      <Stack gap="md">
+    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+      <Stack gap="sm">
         <SegmentedControl
           fullWidth
           aria-label="Taxability"

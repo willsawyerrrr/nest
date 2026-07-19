@@ -48,8 +48,8 @@ export function TemporaryItemForm({ initial, onSubmit, onCancel }: TemporaryItem
   }
 
   return (
-    <Card withBorder radius="md" p="md" component="form" onSubmit={handleSubmit}>
-      <Stack gap="md">
+    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+      <Stack gap="sm">
         <TextInput
           label="Name"
           value={name}

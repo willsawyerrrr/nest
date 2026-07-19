@@ -8,6 +8,7 @@ import { BudgetLineForm } from './BudgetLineForm'
 
 interface BudgetLineListProps {
   lines: BudgetLine[]
+  goals: { id: string; name: string }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
   onDelete: (id: string) => void
@@ -63,7 +64,13 @@ function BudgetLineCard({
  * The household's budget lines grouped by the five groups, each group showing a
  * fortnightly subtotal, a per-group add affordance, and inline add/edit forms.
  */
-export function BudgetLineList({ lines, onCreate, onUpdate, onDelete }: BudgetLineListProps) {
+export function BudgetLineList({
+  lines,
+  goals,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: BudgetLineListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
 
@@ -108,6 +115,7 @@ export function BudgetLineList({ lines, onCreate, onUpdate, onDelete }: BudgetLi
                 <BudgetLineForm
                   key={line.id}
                   initial={line}
+                  goals={goals}
                   onSubmit={async (input) => {
                     await onUpdate(line.id, input)
                     closeForms()
@@ -127,6 +135,7 @@ export function BudgetLineList({ lines, onCreate, onUpdate, onDelete }: BudgetLi
             {addingGroup === group ? (
               <BudgetLineForm
                 defaultGroup={group}
+                goals={goals}
                 onSubmit={async (input) => {
                   await onCreate(input)
                   closeForms()

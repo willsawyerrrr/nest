@@ -40,7 +40,13 @@ const lines: BudgetLine[] = [
 describe('BudgetLineList', () => {
   it('renders every group with a fortnightly subtotal', () => {
     render(
-      <BudgetLineList lines={lines} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     )
 
     for (const label of ['Needs', 'Wants', 'Discretionary', 'Savings', 'Investments']) {
@@ -56,7 +62,13 @@ describe('BudgetLineList', () => {
 
   it('groups each line under its group and shows its normalized fortnightly amount', () => {
     render(
-      <BudgetLineList lines={lines} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     )
 
     const power = screen.getByText('Power').closest('.mantine-Card-root') as HTMLElement
@@ -67,7 +79,13 @@ describe('BudgetLineList', () => {
 
   it('shows an empty hint for a group with no lines', () => {
     render(
-      <BudgetLineList lines={lines} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     )
     expect(screen.getByText(/no investments lines yet/i)).toBeInTheDocument()
   })
@@ -75,7 +93,13 @@ describe('BudgetLineList', () => {
   it('edits a line in place', async () => {
     const user = userEvent.setup()
     render(
-      <BudgetLineList lines={lines} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     )
 
     const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
@@ -87,7 +111,15 @@ describe('BudgetLineList', () => {
 
   it('opens a per-group add form scoped to that group', async () => {
     const user = userEvent.setup()
-    render(<BudgetLineList lines={[]} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />)
+    render(
+      <BudgetLineList
+        lines={[]}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
 
     await user.click(screen.getByRole('button', { name: /add wants line/i }))
 

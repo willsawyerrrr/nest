@@ -53,18 +53,20 @@ signing fails ("communication with agent failed"), the user must unlock
 
 ## CI
 
-Three parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
+Four parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
 runner so wall-clock is the slowest single job:
 
 - **check** — lint / format / typecheck / build (~48–50s).
 - **test** — Vitest workspace (~50–55s), using the `threads` pool and skipping
   the PWA plugin under test.
 - **rls** — Postgres service + `supabase/tests/rls/` isolation assertions (~22s).
+- **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
+  `supabase/functions` (the edge functions live outside the pnpm workspace).
 
-Branch-protection ruleset "Protect main" requires all three, squash-only, no
-bypass. Actions pinned to the Node 24 runtime. Keep CI under a minute; `test` is
-the long pole (~50–55s) — if it crosses a minute, the next lever is trimming the
-Vitest suite or its install step.
+Branch-protection ruleset "Protect main" requires these, squash-only, no bypass.
+Actions pinned to the Node 24 and Deno 2.9.3 runtimes. Keep CI under a minute;
+`test` is the long pole (~50–55s) — if it crosses a minute, the next lever is
+trimming the Vitest suite or its install step.
 
 ## Supabase
 

@@ -53,11 +53,12 @@ export class UpClient {
   constructor(
     private readonly token: string,
     private readonly baseUrl: string = UP_API_BASE_URL,
+    private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
   private async get<T>(path: string): Promise<T> {
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`
-    const response = await fetch(url, {
+    const response = await this.fetchImpl(url, {
       headers: { Authorization: `Bearer ${this.token}` },
     })
     if (!response.ok) {

@@ -1,8 +1,9 @@
 /*
  * Layout that preserves iOS PWA safe-area handling under `viewport-fit=cover`.
- * Pre-auth screens fill the viewport and clear every inset. The signed-in shell
- * pads content for the notch/Dynamic Island at the top and reserves room for the
- * fixed bottom tab bar, which itself clears the iOS home-bar inset.
+ * Pre-auth screens fill the viewport and clear every inset. On desktop the
+ * signed-in shell pads content for the notch at the top and reserves room for
+ * the fixed bottom tab bar; on mobile it reserves room for the fixed top app
+ * bar instead, and each fixed bar clears its adjacent safe-area inset.
  */
 
 .full-screen {
@@ -62,4 +63,39 @@
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
+}
+
+/*
+ * Mobile top app bar: a fixed brand/hamburger row that clears the notch inset.
+ * `TabBar` hides it from `sm` up, where the bottom bar takes over instead.
+ */
+.top-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 200;
+  height: calc(56px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+  background: var(--mantine-color-body);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.drawer-nav__link {
+  display: block;
+  padding-block: var(--mantine-spacing-xs);
+  text-decoration: none;
+}
+
+/*
+ * Below `sm` the drawer variant replaces the bottom bar: reserve room for the
+ * fixed top bar and drop the bottom-bar allowance the desktop layout leaves.
+ */
+@media (max-width: 48em) {
+  .page {
+    padding-top: calc(56px + env(safe-area-inset-top) + var(--mantine-spacing-md));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
 }

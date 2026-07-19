@@ -41,15 +41,12 @@ export function BudgetScreen({
         />
       </Stack>
 
-      <Stack gap="md">
-        <Title order={2}>Temporary items</Title>
-        <TemporaryItemList
-          items={temporaryItems}
-          onCreate={onCreateItem}
-          onUpdate={onUpdateItem}
-          onDelete={(id) => void onDeleteItem(id)}
-        />
-      </Stack>
+      <TemporaryItemList
+        items={temporaryItems}
+        onCreate={onCreateItem}
+        onUpdate={onUpdateItem}
+        onDelete={(id) => void onDeleteItem(id)}
+      />
     </Stack>
   )
 }

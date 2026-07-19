@@ -59,6 +59,22 @@ describe('TemporaryItemList', () => {
     expect(within(laptop).getByText('Expired')).toBeInTheDocument()
   })
 
+  it('shows the fortnightly subtotal of only the active contributions', () => {
+    render(
+      <TemporaryItemList
+        items={items}
+        now={now}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    // Only Holiday ($120.00) is active at the reference date; the expired laptop fund is excluded.
+    expect(screen.getByLabelText('Temporary items fortnightly subtotal')).toHaveTextContent(
+      '$120.00 / fn',
+    )
+  })
+
   it('shows an empty hint when there are no items', () => {
     render(
       <TemporaryItemList items={[]} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,

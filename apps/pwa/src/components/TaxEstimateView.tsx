@@ -30,15 +30,17 @@ const FIELDS: { label: string; key: keyof Row }[] = [
 /** One row's annual and fortnightly gross/tax/after-tax figures as label + value pairs. */
 function FiguresCard({ name, row }: { name: string; row: Row }) {
   return (
-    <Card component="section" aria-label={name} withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Title order={4}>{name}</Title>
+    <Card component="section" aria-label={name} withBorder radius="md" p="sm">
+      <Stack gap={4}>
+        <Text fw={600}>{name}</Text>
         {FIELDS.map((field) => (
           <Group key={field.key} justify="space-between" wrap="nowrap">
             <Text size="sm" c="dimmed">
               {field.label}
             </Text>
-            <Text fw={600}>{formatCents(row[field.key])}</Text>
+            <Text fw={600} size="sm">
+              {formatCents(row[field.key])}
+            </Text>
           </Group>
         ))}
       </Stack>
@@ -98,7 +100,7 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
           </Table>
         </Table.ScrollContainer>
       ) : (
-        <Stack gap="md">
+        <Stack gap="sm">
           {estimate.members.map((member) => (
             <FiguresCard key={member.memberId} name={memberName(member.memberId)} row={member} />
           ))}

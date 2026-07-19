@@ -37,34 +37,33 @@ function TemporaryItemCard({
 }) {
   const active = isTemporaryActive({ contributionCents: 0, targetDate: item.target_date }, now)
   return (
-    <Card withBorder radius="md" p="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Text fw={600}>{item.name}</Text>
-            <Text size="sm" c="dimmed">
+    <Card withBorder radius="md" p="xs">
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {item.name}
+          </Text>
+          <Group gap={6} wrap="nowrap">
+            <Text size="xs" c="dimmed">
               until {formatDate(item.target_date)}
             </Text>
-            <Text size="lg" fw={700}>
-              {formatCents(item.contribution_cents)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              per fortnight
-            </Text>
-          </Stack>
-          <Badge variant="light" color={active ? 'teal' : 'gray'}>
-            {active ? 'Active' : 'Expired'}
-          </Badge>
-        </Group>
-        <Group grow>
-          <Button variant="light" size="sm" onClick={onEdit}>
+            <Badge size="xs" variant="light" color={active ? 'teal' : 'gray'}>
+              {active ? 'Active' : 'Expired'}
+            </Badge>
+          </Group>
+        </Stack>
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Text fw={700} size="sm">
+            {formatCents(item.contribution_cents)}
+          </Text>
+          <Button variant="subtle" size="compact-xs" onClick={onEdit}>
             Edit
           </Button>
-          <Button variant="subtle" color="red" size="sm" onClick={onDelete}>
+          <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
             Delete
           </Button>
         </Group>
-      </Stack>
+      </Group>
     </Card>
   )
 }

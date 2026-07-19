@@ -14,6 +14,10 @@ describe('formatFrequency', () => {
     expect(formatFrequency('fortnightly')).toBe('Fortnightly')
   })
 
+  it('labels biannual as "Biannually"', () => {
+    expect(formatFrequency('biannual')).toBe('Biannually')
+  })
+
   it('falls back to "Every N weeks" when the interval is missing', () => {
     expect(formatFrequency('every_n_weeks')).toBe('Every N weeks')
     expect(formatFrequency('every_n_weeks', null)).toBe('Every N weeks')

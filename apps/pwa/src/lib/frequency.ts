@@ -1,10 +1,20 @@
 import type { Frequency } from '@budget/plan'
 
+/** Human-readable labels for the fixed (non-interpolated) frequencies. */
+const FIXED_LABELS: Record<Exclude<Frequency, 'every_n_weeks'>, string> = {
+  weekly: 'Weekly',
+  fortnightly: 'Fortnightly',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  biannual: 'Biannually',
+  annual: 'Annual',
+}
+
 /**
  * Renders a frequency as a human-readable label. `every_n_weeks` interpolates
  * its interval (e.g. `Every 4 weeks`, or `Every week` when the interval is 1),
  * falling back to `Every N weeks` when no valid interval is supplied. Every
- * other value is the capitalised enum word (e.g. `weekly` → `Weekly`).
+ * other value maps to its fixed label (e.g. `fortnightly` → `Fortnightly`).
  */
 export function formatFrequency(frequency: Frequency, intervalWeeks?: number | null): string {
   if (frequency === 'every_n_weeks') {
@@ -13,5 +23,5 @@ export function formatFrequency(frequency: Frequency, intervalWeeks?: number | n
     }
     return intervalWeeks === 1 ? 'Every week' : `Every ${intervalWeeks} weeks`
   }
-  return frequency.charAt(0).toUpperCase() + frequency.slice(1)
+  return FIXED_LABELS[frequency]
 }

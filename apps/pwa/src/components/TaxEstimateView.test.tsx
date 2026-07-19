@@ -119,12 +119,70 @@ describe('TaxEstimateView', () => {
     expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent(
       '$1,000.00/fortnight',
     )
-    expect(within(willCard).getByText(/Division 293 tax/)).toHaveTextContent('$1,500.00')
+    expect(within(willCard).getByRole('row', { name: /Division 293 tax/ })).toHaveTextContent(
+      '$1,500.00',
+    )
 
-    // Sam has no contributions, so neither line appears.
+    // Sam has no contributions, so the concessional line and Division 293 row are absent.
     const samCard = screen.getByRole('region', { name: 'Sam' })
     expect(within(samCard).queryByText(/Concessional super/)).not.toBeInTheDocument()
-    expect(within(samCard).queryByText(/Division 293 tax/)).not.toBeInTheDocument()
+    expect(within(samCard).queryByRole('row', { name: /Division 293 tax/ })).not.toBeInTheDocument()
+  })
+
+  it('builds up total tax from its components for a member', () => {
+    const willFull: MemberTaxEstimate = {
+      ...will,
+      breakdown: {
+        taxableIncomeCents: 100_000_00,
+        incomeTaxCents: 24_000_00,
+        litoOffsetCents: 700_00,
+        medicareLevyCents: 2_000_00,
+        medicareLevySurchargeCents: 1_000_00,
+        helpRepaymentCents: 3_000_00,
+        division293Cents: 1_500_00,
+        totalLiabilityCents: 30_800_00,
+        paygWithheldCents: 0,
+        balanceCents: 30_800_00,
+      },
+    }
+    const withFull: HouseholdTaxEstimate = { ...estimate, members: [willFull, sam] }
+    render(<TaxEstimateView estimate={withFull} financialYear={2027} memberName={memberName} />)
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(within(willCard).getByRole('row', { name: /Income tax/ })).toHaveTextContent(
+      '$24,000.00',
+    )
+    // The offset reads as a subtraction.
+    expect(within(willCard).getByRole('row', { name: /Low Income Tax Offset/ })).toHaveTextContent(
+      '-$700.00',
+    )
+    expect(
+      within(willCard).getByRole('row', { name: /Medicare levy surcharge/ }),
+    ).toBeInTheDocument()
+    expect(within(willCard).getByRole('row', { name: /HELP\/HECS repayment/ })).toBeInTheDocument()
+    expect(within(willCard).getByRole('row', { name: /Total tax/ })).toHaveTextContent('$30,800.00')
+  })
+
+  it('always shows income tax, Medicare levy, and total tax even at zero', () => {
+    render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
+
+    // Sam's breakdown is all zero, yet the core rows are still present.
+    const samCard = screen.getByRole('region', { name: 'Sam' })
+    expect(within(samCard).getByRole('row', { name: /Income tax/ })).toBeInTheDocument()
+    expect(within(samCard).getByRole('row', { name: /Medicare levy/ })).toBeInTheDocument()
+    expect(within(samCard).getByRole('row', { name: /Total tax/ })).toBeInTheDocument()
+    // Non-applicable components are named rather than shown as noisy $0 rows.
+    expect(
+      within(samCard).queryByRole('row', { name: /Medicare levy surcharge/ }),
+    ).not.toBeInTheDocument()
+    expect(within(samCard).getByText(/Not applicable this year/)).toHaveTextContent(
+      'Medicare levy surcharge',
+    )
+  })
+
+  it('notes that capital gains tax is excluded', () => {
+    render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
+    expect(screen.getByText(/excludes capital gains tax/i)).toBeInTheDocument()
   })
 
   it('shows an empty state prompting to add income when gross is zero', () => {

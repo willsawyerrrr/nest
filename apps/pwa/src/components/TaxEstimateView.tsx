@@ -1,5 +1,5 @@
 import { Card, Stack, Table, Text, Title } from '@mantine/core'
-import type { HouseholdTaxEstimate } from '@budget/tax'
+import type { HouseholdTaxEstimate, TaxBreakdown } from '@budget/tax'
 import { formatCents } from '../lib/money'
 
 interface TaxEstimateViewProps {
@@ -16,6 +16,9 @@ interface Row {
   fortnightlyTaxCents: number
   fortnightlyAfterTaxCents: number
 }
+
+/** Fortnights per financial year, for splitting an annual figure. */
+const FORTNIGHTS_PER_YEAR = 26
 
 /** One period's gross/tax/after-tax figures as a table body row headed by the period name. */
 function PeriodRow({
@@ -41,30 +44,116 @@ function PeriodRow({
   )
 }
 
-/** Fortnights per financial year, for splitting an annual concessional figure. */
-const FORTNIGHTS_PER_YEAR = 26
+/** A single tax-component line: its annual amount and the matching fortnightly share. */
+interface ComponentLine {
+  /** Plain-language label, abbreviations spelled out. */
+  label: string
+  annualCents: number
+  /** Reduces tax (an offset): rendered as a negative figure. */
+  subtract?: boolean
+  /** A core component shown even at zero; others appear only when non-zero. */
+  alwaysShow?: boolean
+  /** The built-up total, emphasised. */
+  total?: boolean
+}
+
+/** One component's annual and fortnightly figures as a table body row headed by its label. */
+function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
+  const annual = subtract ? -annualCents : annualCents
+  const fw = total ? 700 : undefined
+  return (
+    <Table.Tr>
+      <Table.Th scope="row" fw={fw} c={total ? undefined : 'dimmed'}>
+        {label}
+      </Table.Th>
+      <Table.Td ta="right" fw={fw}>
+        {formatCents(annual)}
+      </Table.Td>
+      <Table.Td ta="right" fw={fw}>
+        {formatCents(Math.round(annual / FORTNIGHTS_PER_YEAR))}
+      </Table.Td>
+    </Table.Tr>
+  )
+}
+
+/**
+ * How a member's total tax is built up, component by component, annual and
+ * fortnightly. Income tax, Medicare levy, and the total always show; the Low
+ * Income Tax Offset, Medicare levy surcharge, HELP/HECS repayment, and Division
+ * 293 tax appear only when they apply, with any omitted components named below so
+ * a reader knows they were considered and are nil.
+ */
+function BreakdownTable({ breakdown }: { breakdown: TaxBreakdown }) {
+  const lines: ComponentLine[] = [
+    { label: 'Income tax', annualCents: breakdown.incomeTaxCents, alwaysShow: true },
+    { label: 'Low Income Tax Offset', annualCents: breakdown.litoOffsetCents, subtract: true },
+    { label: 'Medicare levy', annualCents: breakdown.medicareLevyCents, alwaysShow: true },
+    { label: 'Medicare levy surcharge', annualCents: breakdown.medicareLevySurchargeCents },
+    { label: 'HELP/HECS repayment', annualCents: breakdown.helpRepaymentCents },
+    { label: 'Division 293 tax', annualCents: breakdown.division293Cents },
+  ]
+  const shown = lines.filter((line) => line.alwaysShow || line.annualCents > 0)
+  const omitted = lines.filter((line) => !line.alwaysShow && line.annualCents === 0)
+
+  return (
+    <Stack gap={4}>
+      <Text size="xs" c="dimmed">
+        Taxable income (after super): {formatCents(breakdown.taxableIncomeCents)}/yr ·{' '}
+        {formatCents(Math.round(breakdown.taxableIncomeCents / FORTNIGHTS_PER_YEAR))}/fortnight
+      </Text>
+      <Table.ScrollContainer minWidth={0}>
+        <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs" aria-label="Tax breakdown">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th />
+              <Table.Th scope="col" ta="right">
+                Annual
+              </Table.Th>
+              <Table.Th scope="col" ta="right">
+                Fortnightly
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {shown.map((line) => (
+              <ComponentRow key={line.label} {...line} />
+            ))}
+            <ComponentRow label="Total tax" annualCents={breakdown.totalLiabilityCents} total />
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
+      {omitted.length > 0 && (
+        <Text size="xs" c="dimmed">
+          Not applicable this year: {omitted.map((line) => line.label).join(', ')}.
+        </Text>
+      )}
+    </Stack>
+  )
+}
 
 /**
  * One row's annual and fortnightly gross/tax/after-tax figures as a compact
- * table. When `concessionalCents` is positive, its annual and fortnightly split
- * is noted below with a reminder that gross is reduced before tax; a positive
- * `division293Cents` adds the extra high-income super tax on the same note.
+ * table. When `breakdown` is given, the component-by-component build-up of the tax
+ * is shown above it. When `concessionalCents` is positive, its annual and
+ * fortnightly split is noted below with a reminder that gross is reduced before
+ * tax.
  */
 function FiguresCard({
   name,
   row,
+  breakdown,
   concessionalCents = 0,
-  division293Cents = 0,
 }: {
   name: string
   row: Row
+  breakdown?: TaxBreakdown
   concessionalCents?: number
-  division293Cents?: number
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Text fw={600}>{name}</Text>
+        {breakdown && <BreakdownTable breakdown={breakdown} />}
         <Table.ScrollContainer minWidth={0}>
           <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs">
             <Table.Thead>
@@ -104,11 +193,6 @@ function FiguresCard({
             from gross, so taxable income and after-tax cash are shown after super.
           </Text>
         )}
-        {division293Cents > 0 && (
-          <Text size="xs" c="dimmed">
-            Division 293 tax: {formatCents(division293Cents)} (included in tax above)
-          </Text>
-        )}
       </Stack>
     </Card>
   )
@@ -132,10 +216,13 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
               key={member.memberId}
               name={memberName(member.memberId)}
               row={member}
+              breakdown={member.breakdown}
               concessionalCents={member.annualConcessionalContributionsCents}
-              division293Cents={member.breakdown.division293Cents}
             />
           ))}
+          <Text size="xs" c="dimmed">
+            This estimate excludes capital gains tax, which is not modelled.
+          </Text>
         </Stack>
       )}
     </Stack>

@@ -126,4 +126,67 @@ describe('BudgetLineList', () => {
     expect(screen.getByRole('button', { name: /add line/i })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Wants')
   })
+
+  it('filters visible lines by name as the user searches', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.type(screen.getByLabelText('Search budget lines'), 'rent')
+
+    expect(screen.getByText('Rent')).toBeInTheDocument()
+    expect(screen.queryByText('Power')).not.toBeInTheDocument()
+    expect(screen.queryByText('Streaming')).not.toBeInTheDocument()
+    // The group's subtotal stays computed over every line, not the filtered set.
+    expect(screen.getByLabelText('Needs fortnightly subtotal')).toHaveTextContent('$200.00 / fn')
+  })
+
+  it('sorts the lines within a group by name', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    // Default order lists Power before Rent (Rent inserted first, then Power).
+    const namesBefore = screen.getAllByText(/Rent|Power/).map((node) => node.textContent)
+    expect(namesBefore).toEqual(['Rent', 'Power'])
+
+    await user.click(screen.getByRole('combobox', { name: /sort by/i }))
+    await user.click(screen.getByRole('option', { name: 'Name' }))
+
+    const namesAfter = screen.getAllByText(/Rent|Power/).map((node) => node.textContent)
+    expect(namesAfter).toEqual(['Power', 'Rent'])
+  })
+
+  it('opens an unscoped add form via the universal Add item button', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add item' }))
+
+    expect(screen.getByRole('button', { name: /add line/i })).toBeInTheDocument()
+    // Unlike the per-group button, it defaults to the first group, not a scoped one.
+    expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Needs')
+  })
 })

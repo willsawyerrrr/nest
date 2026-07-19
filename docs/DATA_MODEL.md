@@ -114,9 +114,13 @@ no per-member scoping; each line stands alone under the household.
   - `id`, `household_id`, `line_group`
     (`needs` | `wants` | `discretionary` | `savings` | `investments`), `name`,
     `amount_cents`, `frequency` (the shared enum above), `goal_id` (nullable),
-    `created_at`, `updated_at`.
+    `derived_source` (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
+  - `derived_source` (`budget_derived_source` enum) marks a line whose amount is
+    rolled up from an itemised source rather than typed by hand — see
+    [Gifts / derived budget lines](#gifts--derived-budget-lines). Null is an
+    ordinary manual line.
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
     (nullable), `current_balance_cents` (default 0), `linked_account_id`
@@ -133,6 +137,40 @@ no per-member scoping; each line stands alone under the household.
   expires.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
     `target_date` (not null), `created_at`, `updated_at`.
+
+## Gifts / derived budget lines
+
+A budget line's amount is normally typed by hand. It can instead be **derived**:
+rolled up from an itemised source so the line and its detail share one source of
+truth and never drift. `budget_line.derived_source` (the `budget_derived_source`
+enum) names that source; null is an ordinary manual line. The mechanism is
+generic and extensible — `gift` is the first source; health / medication is a
+planned second — and the summary math honours a derived line's source in place of
+its typed amount (a later slice).
+
+The gift tracker is the first consumer: plan a spend per **recipient × occasion**,
+then record the actual purchases against it. All four tables are household-scoped
+under the ledger's RLS, with composite foreign keys on `(id, household_id)` that
+keep every reference inside the household.
+
+- **gift_recipient** — a named person the household budgets gifts for.
+  - `id`, `household_id`, `name`, `created_at`, `updated_at`. Unique on
+    `(id, household_id)`.
+- **gift_occasion** — a named gifting occasion with an optional date.
+  - `id`, `household_id`, `name`, `occasion_date` (nullable), `created_at`,
+    `updated_at`. Unique on `(id, household_id)`. Recurrence/year-scoping is out
+    of scope for v1 — a named occasion plus an optional date.
+- **gift_budget** — one planned amount per recipient × occasion.
+  - `id`, `household_id`, `recipient_id`, `occasion_id`,
+    `budgeted_amount_cents` (default 0, ≥ 0), `created_at`, `updated_at`.
+  - Composite foreign keys `(recipient_id, household_id)` → `gift_recipient` and
+    `(occasion_id, household_id)` → `gift_occasion`, both `on delete cascade`.
+    Unique on `(recipient_id, occasion_id)` and on `(id, household_id)`.
+- **gift_purchase** — an actual purchase assigned to a `gift_budget`.
+  - `id`, `household_id`, `gift_budget_id`, `amount_cents` (≥ 0),
+    `description` (default `''`), `purchased_on`, `created_at`, `updated_at`.
+  - Composite foreign key `(gift_budget_id, household_id)` → `gift_budget`
+    `on delete cascade`.
 
 ## Ledger
 

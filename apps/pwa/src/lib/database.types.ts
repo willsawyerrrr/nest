@@ -89,6 +89,7 @@ export type Database = {
         Row: {
           amount_cents: number
           created_at: string
+          derived_source: Database['public']['Enums']['budget_derived_source'] | null
           frequency: Database['public']['Enums']['frequency']
           goal_id: string | null
           household_id: string
@@ -100,6 +101,7 @@ export type Database = {
         Insert: {
           amount_cents: number
           created_at?: string
+          derived_source?: Database['public']['Enums']['budget_derived_source'] | null
           frequency: Database['public']['Enums']['frequency']
           goal_id?: string | null
           household_id: string
@@ -111,6 +113,7 @@ export type Database = {
         Update: {
           amount_cents?: number
           created_at?: string
+          derived_source?: Database['public']['Enums']['budget_derived_source'] | null
           frequency?: Database['public']['Enums']['frequency']
           goal_id?: string | null
           household_id?: string
@@ -181,6 +184,173 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'categories'
             referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      gift_budget: {
+        Row: {
+          budgeted_amount_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          occasion_id: string
+          recipient_id: string
+          updated_at: string
+        }
+        Insert: {
+          budgeted_amount_cents?: number
+          created_at?: string
+          household_id: string
+          id?: string
+          occasion_id: string
+          recipient_id: string
+          updated_at?: string
+        }
+        Update: {
+          budgeted_amount_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          occasion_id?: string
+          recipient_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_budget_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gift_budget_occasion_id_household_id_fkey'
+            columns: ['occasion_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'gift_occasion'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'gift_budget_recipient_id_household_id_fkey'
+            columns: ['recipient_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'gift_recipient'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      gift_occasion: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          name: string
+          occasion_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          name: string
+          occasion_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          name?: string
+          occasion_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_occasion_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gift_purchase: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          description: string
+          gift_budget_id: string
+          household_id: string
+          id: string
+          purchased_on: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          description?: string
+          gift_budget_id: string
+          household_id: string
+          id?: string
+          purchased_on: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          description?: string
+          gift_budget_id?: string
+          household_id?: string
+          id?: string
+          purchased_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_purchase_gift_budget_id_household_id_fkey'
+            columns: ['gift_budget_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'gift_budget'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'gift_purchase_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gift_recipient: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_recipient_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -706,6 +876,7 @@ export type Database = {
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
+      budget_derived_source: 'gift'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
       frequency:
@@ -843,6 +1014,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
+      budget_derived_source: ['gift'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
       frequency: [

@@ -149,6 +149,23 @@ do $$ begin
     'Alice should see her own up_connected_at status';
 end $$;
 
+-- Alice can still edit her own profile fields (column-scoped UPDATE grant).
+update public.members set name = 'Alice Renamed' where id = current_setting('test.mid')::uuid;
+do $$ begin
+  assert (select name from public.members where id = current_setting('test.mid')::uuid) = 'Alice Renamed',
+    'Alice should be able to update her own name';
+end $$;
+
+-- But Alice cannot forge her Up connection: up_connected_at is not in her
+-- column-level UPDATE grant, so a direct write is rejected and the flag holds.
+do $$ begin
+  update public.members set up_connected_at = now() - interval '1 year'
+    where id = current_setting('test.mid')::uuid;
+  raise exception 'FAIL: Alice changed up_connected_at directly';
+exception when insufficient_privilege then
+  raise notice 'PASS: Alice blocked from writing up_connected_at';
+end $$;
+
 -- service_role can clear it; the token and status are gone afterwards.
 reset role;
 set local role service_role;

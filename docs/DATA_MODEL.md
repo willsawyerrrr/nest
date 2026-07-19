@@ -31,6 +31,8 @@ foreign keys on `(id, household_id)`.
     RLS; the token itself lives only in Vault and is never exposed here. The
     token is stored/read/cleared solely by SECURITY DEFINER RPCs granted to
     `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
+    It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
+    `name`/`email` only, so a client cannot forge its Up connection status.
 
 ## Inflows
 

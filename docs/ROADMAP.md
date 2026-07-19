@@ -188,9 +188,34 @@ the versioned per-FY config, verified as the FY2027 tax config was.
 ## Later
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
-  itemised sub-budget (line-item breakdown, e.g. the gift budget),
-  payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
-  Small and low-risk; good HDD filler to interleave with the super phase.
+  itemised sub-budget (line-item breakdown), payment-method tag per budget line, a
+  wishlist, and a finance-admin to-do list. Small and low-risk; good HDD filler to
+  interleave with the super phase. (The gift budget has grown into its own item
+  below.)
+- **Gift budget tracking.** A dedicated gift planner + tracker — a richer,
+  purchase-tracking take on the itemised sub-budget, specifically for gifts
+  (beyond the spreadsheet's plan-only Gifts sheet):
+  - **Plan** a spend per **recipient × occasion** — e.g. a person's birthday, or a
+    person at Christmas. Recipients are a named list; occasions carry a label and
+    optional date (birthdays, Christmas, Mother's / Father's Day, anniversaries;
+    some recur annually).
+  - **Track** gift purchases through the year, each assigned to a gifting event
+    (that recipient + occasion) with amount, description, and date.
+  - **See** budgeted vs spent vs remaining per event, visually (a progress bar).
+  - **Group either way, collapsibly:** by **occasion** (open "Christmas" to see
+    every recipient budgeted for it and the spend on each; "Birthdays" as the next
+    group) or by **person** (open "Mum" to see her birthday, Christmas, Mother's
+    Day, …). A toggle flips the grouping direction; each group rolls up
+    budgeted / spent / remaining. Reuses the Budget tab's collapsible
+    `GroupSection` pattern.
+  - Rolls up to an overall gift total that feeds a Discretionary "Gifts" budget
+    line.
+  - Manual purchase entry to start; once Up ingestion lands, an Up transaction can
+    be tagged to a gifting event instead of hand-entering it.
+  - Likely data model: `gift_recipient` (household-scoped name), `gift_budget`
+    (recipient + occasion + optional date + budgeted amount), and `gift_purchase`
+    (assigned to a `gift_budget`: amount, description, date, optional later
+    transaction link). Size: M–L (backend + frontend).
 - **Up ledger + reconciliation.** Pulling actual Up transactions to reconcile
   spend and tax against the plan — the heaviest phase, deferred behind super:
   - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on

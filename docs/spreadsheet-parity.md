@@ -85,13 +85,14 @@ Ordered by value. Size is rough (S ≤ ~½ day, M ~1–2 days, L larger). "Backe
 means a schema/migration/RLS/types change; "frontend" means PWA-only.
 
 1. **Itemised sub-budget (line-item breakdown)** — let a budget line hold child
-   items (name + amount) that roll up into the line's amount; the Gifts sheet
-   (gifts by occasion/recipient) and the "Spendings" scratch list are both
-   instances. _Why:_ the household actively maintains a detailed gift budget today;
-   without it, "Gifts" is a single opaque number and they lose the planning they
-   rely on. _Size:_ M. _Backend + frontend_ (new `budget_line_item` child table
-   with `(line_id, household_id)` FK + RLS; nested CRUD UI and roll-up in the
-   summary math).
+   items (name + amount) that roll up into the line's amount; the "Spendings"
+   scratch list is the general instance. _Why:_ lets a line carry a costed
+   breakdown instead of one opaque number. _Size:_ M. _Backend + frontend_ (new
+   `budget_line_item` child table with `(line_id, household_id)` FK + RLS; nested
+   CRUD UI and roll-up in the summary math). _Note:_ the gift use-case has grown
+   past a simple breakdown into full purchase tracking per recipient × occasion —
+   see the dedicated **Gift budget tracking** item in [`ROADMAP.md`](ROADMAP.md);
+   this generic breakdown covers the non-gift lists.
 
 2. **Payment-method tag per budget line** (enum: Debit / Transfer / Card / Saver)
    — records how each bill is paid. _Why:_ the household tracks this now, and it

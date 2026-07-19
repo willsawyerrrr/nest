@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useLocalStorage } from '@mantine/hooks'
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import {
   ActionIcon,
   Anchor,
   Badge,
+  Box,
   Button,
   Card,
   CloseButton,
@@ -72,7 +73,91 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   return direction === 'desc' ? sorted.reverse() : sorted
 }
 
-/** One budget line as a compact single row: name, amount, frequency, fortnightly amount, controls. */
+/** A tappable badge linking a gift-derived line back to the gift tracker. */
+function GiftBadge() {
+  return (
+    <Anchor component={Link} to="/gifts" underline="never">
+      <Badge size="xs" variant="light" color="teal">
+        from Gifts
+      </Badge>
+    </Anchor>
+  )
+}
+
+/** The edit and delete controls shared by both the row and the card treatments. */
+function LineActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  return (
+    <>
+      <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
+        <IconPencil size={16} />
+      </ActionIcon>
+      <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+        <IconTrash size={16} />
+      </ActionIcon>
+    </>
+  )
+}
+
+/**
+ * One budget line as a single dense table-like row for desktop: the name grows
+ * to fill, with the amount, frequency, and fortnightly figure right-aligned in
+ * fixed columns and the controls at the end, separated by a light rule rather
+ * than a bordered card so many lines fit and scan as a table.
+ */
+function BudgetLineRow({
+  line,
+  onEdit,
+  onDelete,
+}: {
+  line: BudgetLine
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const fortnightly = fortnightlyCents(line.amount_cents, line.frequency)
+  const derived = line.derived_source === 'gift'
+  return (
+    <Group
+      wrap="nowrap"
+      gap="md"
+      py={6}
+      style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
+    >
+      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate>
+          {line.name}
+        </Text>
+        {derived && <GiftBadge />}
+      </Group>
+      <Text size="sm" c="dimmed" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
+        {formatCents(line.amount_cents)}
+      </Text>
+      <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
+        <Badge size="sm" variant="light">
+          {formatFrequency(line.frequency)}
+        </Badge>
+      </Box>
+      <Group
+        gap={2}
+        wrap="nowrap"
+        justify="flex-end"
+        align="baseline"
+        style={{ width: '7rem', flexShrink: 0 }}
+      >
+        <Text fw={700} size="sm">
+          {formatCents(fortnightly)}
+        </Text>
+        <Text size="xs" c="dimmed">
+          / fn
+        </Text>
+      </Group>
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <LineActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </Group>
+  )
+}
+
+/** One budget line as a compact bordered card for mobile: name stacked over amount, frequency, and controls. */
 function BudgetLineCard({
   line,
   onEdit,
@@ -98,13 +183,7 @@ function BudgetLineCard({
             <Badge size="xs" variant="light">
               {formatFrequency(line.frequency)}
             </Badge>
-            {derived && (
-              <Anchor component={Link} to="/gifts" underline="never">
-                <Badge size="xs" variant="light" color="teal">
-                  from Gifts
-                </Badge>
-              </Anchor>
-            )}
+            {derived && <GiftBadge />}
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
@@ -116,16 +195,20 @@ function BudgetLineCard({
               / fn
             </Text>
           </Group>
-          <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
-            <IconPencil size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
-            <IconTrash size={16} />
-          </ActionIcon>
+          <LineActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
     </Card>
   )
+}
+
+/**
+ * A single budget line, rendered as a dense table-like row from the `sm`
+ * breakpoint up and as a compact bordered card below it.
+ */
+function BudgetLineItem(props: { line: BudgetLine; onEdit: () => void; onDelete: () => void }) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <BudgetLineRow {...props} /> : <BudgetLineCard {...props} />
 }
 
 /**
@@ -278,7 +361,7 @@ export function BudgetLineList({
                   onCancel={closeForms}
                 />
               ) : (
-                <BudgetLineCard
+                <BudgetLineItem
                   key={line.id}
                   line={line}
                   onEdit={() => startEditing(line.id)}

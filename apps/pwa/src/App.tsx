@@ -121,12 +121,7 @@ function HouseholdApp({ household, session }: { household: Household; session: S
     <div className="app-shell">
       <main className="page">
         {view === 'home' ? (
-          <HomeScreen
-            householdName={household.name}
-            inviteCode={household.invite_code}
-            email={session.user.email ?? ''}
-            onSignOut={() => void supabase.auth.signOut()}
-          />
+          <HomeSection household={household} session={session} />
         ) : view === 'inflows' ? (
           <InflowsSection householdId={household.id} />
         ) : view === 'budget' ? (
@@ -168,12 +163,33 @@ function HouseholdApp({ household, session }: { household: Household; session: S
   )
 }
 
+function HomeSection({ household, session }: { household: Household; session: Session }) {
+  const { members, loading: membersLoading } = useMembers()
+  const taxProfiles = useTaxProfiles(household.id)
+
+  if (membersLoading || taxProfiles.loading || !members) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <HomeScreen
+      householdName={household.name}
+      inviteCode={household.invite_code}
+      email={session.user.email ?? ''}
+      members={members}
+      taxProfiles={taxProfiles.profiles ?? []}
+      financialYear={taxProfiles.financialYear}
+      onUpsertTaxProfile={taxProfiles.upsert}
+      onSignOut={() => void supabase.auth.signOut()}
+    />
+  )
+}
+
 function InflowsSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
-  const taxProfiles = useTaxProfiles(householdId)
 
-  if (membersLoading || inflows.loading || taxProfiles.loading || !members) {
+  if (membersLoading || inflows.loading || !members) {
     return <LoadingScreen />
   }
 
@@ -181,12 +197,9 @@ function InflowsSection({ householdId }: { householdId: string }) {
     <InflowScreen
       members={members}
       inflows={inflows.inflows ?? []}
-      taxProfiles={taxProfiles.profiles ?? []}
-      financialYear={taxProfiles.financialYear}
       onCreateInflow={inflows.create}
       onUpdateInflow={inflows.update}
       onDeleteInflow={inflows.remove}
-      onUpsertTaxProfile={taxProfiles.upsert}
     />
   )
 }

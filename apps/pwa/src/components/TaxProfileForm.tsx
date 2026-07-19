@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Checkbox, NumberInput, Select, Stack, Text, Title } from '@mantine/core'
+import { Button, Card, Checkbox, NumberInput, Select, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput, TaxResidency } from '../hooks/useTaxProfiles'
 import { centsToDollars, dollarsToCents } from '../lib/money'
@@ -47,9 +47,9 @@ export function TaxProfileForm({ member, initial, onSubmit }: TaxProfileFormProp
   }
 
   return (
-    <Card withBorder radius="md" p="md" component="form" onSubmit={handleSubmit}>
-      <Stack gap="md">
-        <Title order={3}>{member.name}</Title>
+    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <Text fw={600}>{member.name}</Text>
 
         <Select
           label="Residency"

@@ -24,12 +24,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   or splitting. All household members can manage everything: RLS is gated on
   household membership only, and record attribution to a member is a
   tax/reporting tag, not a permission. `household_id` + RLS isolate the
-  household's data from all other Supabase users. A partner joins via an invite
-  code (`join_household` RPC); no email infrastructure.
+  household's data from all other Supabase users. A partner joins via a
+  temporary, opt-in, single-use invite code (`create_invite_code` mints one,
+  `join_household` redeems and consumes it, `revoke_invite_code` clears it); no
+  email infrastructure.
 - Inflows: the household owns many projection-based inflows, split by taxability
-  — taxable income (salary, wage, or other regular income on a schedule, each
-  tagged to a member for tax) and non-taxable inflows (e.g. reimbursements,
-  excluded from tax and added to available cash).
+  — taxable income (salary, wage, or other regular income on a schedule — weekly
+  through annual, or an arbitrary every-N-weeks cadence — each tagged to a member
+  for tax) and non-taxable inflows (e.g. reimbursements, excluded from tax and
+  added to available cash).
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027.
@@ -51,6 +54,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Commit messages: Conventional Commits, first word capitalised, scoped where it
   helps (e.g. `feat(tax): Add LITO taper`).
 - Feature work on branches → PRs; keep `main` releasable.
+- Keep documentation in sync with the code. When a change alters behaviour,
+  schema, scope, or a workflow, update the affected docs (`docs/` and this file)
+  as part of the same change, so `main` is never merged with stale docs.
 - Claude drives pull requests autonomously in this repo — opening, updating, and
   merging them — without per-turn confirmation. Branches merge once CI is green.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and

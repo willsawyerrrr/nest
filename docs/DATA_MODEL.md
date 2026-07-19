@@ -3,10 +3,18 @@
 Relational, stack-agnostic. Amounts are integer minor units (cents). All
 foreign keys implied by the relationships below.
 
+> This is the conceptual model. The implemented planning schema (inflows, budget
+> lines, temporary items, savings goals) is described concretely in
+> [`budget-and-savings.md`](budget-and-savings.md) and the `supabase/migrations/`
+> files; where the two differ, the migrations are authoritative.
+
 ## Household & members
 
 - **Household** — the shared container for two people.
   - `id`, `name`, `timezone` (e.g. `Australia/Sydney`), `created_at`.
+  - `invite_code` (nullable; a single-use code a partner redeems to join) and
+    `invite_code_expires_at` (nullable) — temporary and opt-in, so both are null
+    when no code is active.
 - **Member** — a person in the household.
   - `id`, `household_id`, `name`, `email`, `auth_subject`, `created_at`.
   - A member owns income records, payslips, tax profiles, and linked bank tokens.

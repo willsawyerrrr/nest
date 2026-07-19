@@ -7,9 +7,13 @@ on it.
 ## Current status
 
 The plan-only app is live at <https://budget.willsawyerrrr.dev>. It fully
-replaces the household's spreadsheet. Tabs, in order: **Summary** (landing) ·
-**Inflows** · **Budget** · **Goals** · **Tax** · **Household**. The household's
-real budget (34 budget lines) and income are loaded in production.
+replaces the household's spreadsheet. Tabs are path-routed via `react-router-dom`
+(`/summary` `/inflows` `/budget` `/goals` `/tax` `/household`; `/` and unknown
+routes redirect to `/summary`), so they are deep-linkable and reload-safe. Order:
+**Summary** (landing) · **Inflows** · **Budget** · **Goals** · **Tax** ·
+**Household**. Keyboard shortcuts jump between tabs: ⌘/Ctrl+1–6 select a tab,
+⌘/Ctrl+Shift+←/→ cycle. Tax profiles are edited on the Household tab. The
+household's real budget (34 budget lines) and income are loaded in production.
 
 The next build phase is **Up ingestion + reconciliation** — see
 [`ROADMAP.md`](ROADMAP.md).
@@ -17,7 +21,9 @@ The next build phase is **Up ingestion + reconciliation** — see
 ## Stack
 
 - **PWA** — React + Vite (`apps/pwa`), Mantine, mobile-first (primary device is
-  an installed iPhone PWA). Direct PostgREST + RLS for CRUD.
+  an installed iPhone PWA). Direct PostgREST + RLS for CRUD. `react-router-dom`
+  for client-side path routing; `@mantine/charts` + `recharts` for the Summary
+  allocation donut; `@tabler/icons-react` for icon actions (Edit / Delete).
 - **Backend** — Supabase (Postgres, Auth, PostgREST, Edge Functions, Vault),
   Sydney region, Pro tier.
 - **Pure TS packages** — `@budget/tax` (tax engine + verified FY2027 config,
@@ -50,14 +56,15 @@ signing fails ("communication with agent failed"), the user must unlock
 Three parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
 runner so wall-clock is the slowest single job:
 
-- **check** — lint / format / typecheck / build.
-- **test** — Vitest workspace.
-- **rls** — Postgres service + `supabase/tests/rls/` isolation assertions.
+- **check** — lint / format / typecheck / build (~48–50s).
+- **test** — Vitest workspace (~50–55s), using the `threads` pool and skipping
+  the PWA plugin under test.
+- **rls** — Postgres service + `supabase/tests/rls/` isolation assertions (~22s).
 
 Branch-protection ruleset "Protect main" requires all three, squash-only, no
-bypass. Actions pinned to the Node 24 runtime. Keep CI under a minute; `check`
-is the long pole at ~59s (build / typecheck growth) — if it crosses a minute,
-the next lever is trimming the build / install step.
+bypass. Actions pinned to the Node 24 runtime. Keep CI under a minute; `test` is
+the long pole (~50–55s) — if it crosses a minute, the next lever is trimming the
+Vitest suite or its install step.
 
 ## Supabase
 
@@ -78,6 +85,12 @@ Supabase Google OAuth. Site URL and redirect allow-list are configured for
 `budget.willsawyerrrr.dev`, `budget.vercel.app`,
 `budget-*-willsawyerrrr.vercel.app` previews, and `localhost:5173`.
 
+A partner joins with a temporary, opt-in, single-use invite code. A household
+carries no code by default; a member mints one via `create_invite_code` (an
+8-char code, 7-day expiry) and can clear it via `revoke_invite_code`.
+`join_household(p_code, p_member_name)` accepts only an unexpired code and
+consumes it on join.
+
 ## Hosting
 
 Vercel project **`budget`**, Root Directory `apps/pwa` (Vite preset). Auto-deploy
@@ -87,16 +100,16 @@ on merge to `main`, preview deployment per PR. Custom domain
 
 ## Data model
 
-Inflows (taxable income + non-taxable), tax_profile, budget_line (groups:
-needs / wants / discretionary / temporary / savings / investments),
-temporary_item, savings_goal, households / members. Details:
+Inflows (taxable income + non-taxable; schedules from weekly through annual plus
+an "every N weeks" cadence carrying `interval_weeks`), tax_profile, budget_line
+(groups: needs / wants / discretionary / temporary / savings / investments),
+temporary_item, savings_goal, households / members (households carry a nullable
+`invite_code` + `invite_code_expires_at`). Details:
 [`DATA_MODEL.md`](DATA_MODEL.md), [`budget-and-savings.md`](budget-and-savings.md),
 [`TAX.md`](TAX.md).
 
 ## Immediate follow-ups / open items
 
-- The user is adding savings-goal **targets** via the Goals tab: Emergency Fund
-  $40k, Home Deposit $50k, Home Buffer $30k.
-- Watch the `check` CI time (currently ~59s).
+- Watch the `test` CI time (the long pole, ~50–55s).
 - Rotate the Supabase Management API token when done with it.
 - Next build phase: Up ingestion + reconciliation ([`ROADMAP.md`](ROADMAP.md)).

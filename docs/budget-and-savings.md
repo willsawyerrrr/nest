@@ -33,17 +33,20 @@ non-taxable inflow at the cap amount.
 Every inflow and budget line carries an amount and a frequency. All figures
 normalize to a **fortnight** (primary) and to an **annual** total.
 
-| Frequency   | Periods / year |
-| ----------- | -------------- |
-| weekly      | 52             |
-| fortnightly | 26             |
-| monthly     | 12             |
-| quarterly   | 4              |
-| biannual    | 2              |
-| annual      | 1              |
+| Frequency       | Periods / year |
+| --------------- | -------------- |
+| weekly          | 52             |
+| fortnightly     | 26             |
+| monthly         | 12             |
+| quarterly       | 4              |
+| biannual        | 2              |
+| annual          | 1              |
+| every N weeks    | 52 ÷ N         |
 
-Annual amount = `amount × periods_per_year`. Fortnightly amount = `annual ÷ 26`.
-The schedule enum gains `quarterly` and `biannual`.
+Fixed frequencies: annual amount = `amount × periods_per_year`. The `every N
+weeks` cadence — an amount received once every N weeks, where N is a
+user-supplied positive integer — annualises to `round(amount × 52 ÷ N)`.
+Fortnightly amount = `round(annual ÷ 26)` in every case.
 
 ## Budget (plan-only, fortnightly)
 
@@ -122,7 +125,8 @@ income tables.
 
 - **Inflow** — money in.
   - `id`, `household_id`, `name`, `taxable` (bool), `type`, `schedule`,
-    `amount_cents` (or wage `hourly_rate_cents` + `hours_per_period`),
+    `interval_weeks` (int ≥ 1, non-null iff `schedule` is `every_n_weeks`, else
+    null), `amount_cents` (or wage `hourly_rate_cents` + `hours_per_period`),
     `member_id` (required when `taxable`, else null).
   - Taxable inflows feed the tax estimate; non-taxable add to available cash.
 - **BudgetLine** — a planned allocation.
@@ -160,10 +164,13 @@ database access. It handles:
 
 ## UI (Mantine, mobile-first)
 
-Navigation stays state-based (no router) for now.
+Tabs are path-routed via `react-router-dom`, so each is deep-linkable and
+reload-safe; keyboard shortcuts jump between them.
 
-- **Budget screen** — grouped-line CRUD.
-- **Summary screen** — the reconciliation dashboard.
+- **Budget screen** — grouped-line CRUD with a universal "Add item" button,
+  search, and sort (Default / Name / Amount + direction, persisted to
+  localStorage).
+- **Summary screen** — the reconciliation dashboard, led by an allocation donut.
 - **Goals screen** — targets, dates, current balance, progress + ETA; link
   Savings lines to a goal.
 
@@ -195,4 +202,3 @@ Navigation stays state-based (no router) for now.
   transactions feed (`up-banking/api#148`) but there is no clean Maybuy
   target/progress resource, so Maybuy-backed temporary items are tracked manually
   (or via the underlying Saver, where one applies).
-- **Routing** — navigation stays state-based for now.

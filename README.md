@@ -39,6 +39,7 @@ liability, plan spending, and track savings goals.
 ```
 apps/pwa        React PWA (Vite, TypeScript) — iOS + web
 packages/tax    Shared, pure tax engine (used by the PWA and edge functions)
+packages/plan   Shared, pure budget / summary / goal math
 supabase        Postgres migrations, edge functions, and local config
 ```
 
@@ -65,7 +66,8 @@ pnpm build         # production build
 
 ## Status
 
-Foundations, Google OAuth auth, and household setup with partner-join-by-invite
-are live in production. Current focus is the income + tax-estimate slice, which
-needs no transaction ingestion. Up ingestion, ledger UI, spending plans, and
-savings goals follow. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+The plan-only app — income + tax estimate, fortnightly budget, and savings goals
+— is live in production and fully replaces the household's spreadsheet; it needs
+no transaction data. Up ingestion + reconciliation (ledger UI, actual spend vs
+budget, real balances vs goals, actual tax paid) is the next phase. See
+[`docs/ROADMAP.md`](docs/ROADMAP.md).

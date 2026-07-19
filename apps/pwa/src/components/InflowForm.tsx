@@ -33,7 +33,7 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'biannual', label: 'Biannually' },
-  { value: 'annual', label: 'Annual' },
+  { value: 'annual', label: 'Annually' },
   { value: 'every_n_weeks', label: 'Every N weeks' },
 ]
 
@@ -153,7 +153,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
             <>
               How often you receive this amount. The app converts everything to{' '}
               <b>fortnightly and annual</b> regardless of your actual cycle. On an annual salary?
-              Choose <b>Annual</b> and enter your yearly gross — even if you&apos;re paid
+              Choose <b>Annually</b> and enter your yearly gross — even if you&apos;re paid
               fortnightly.
             </>
           }

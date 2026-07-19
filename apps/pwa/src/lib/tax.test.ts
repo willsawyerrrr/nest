@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { FY2027_CONFIG } from '@budget/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
+import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution } from '../hooks/useSuperContributions'
-import { concessionalByMember, estimateHouseholdTaxFromRows } from './tax'
+import {
+  concessionalByMember,
+  estimateHouseholdTaxFromRows,
+  nonConcessionalByMember,
+  superCapSummaryByMember,
+  superCapSummaryFromRows,
+} from './tax'
 
 const baseInflow: Inflow = {
   id: 'i1',
@@ -28,6 +36,19 @@ const profile: TaxProfile = {
   residency: 'resident',
   has_private_hospital_cover: false,
   help_debt_cents: 0,
+  created_at: '',
+  updated_at: '',
+}
+
+const baseProfile: SuperProfile = {
+  id: 'sp1',
+  household_id: 'h1',
+  member_id: 'm1',
+  financial_year: 2027,
+  fund_name: null,
+  sg_rate_override: null,
+  linked_account_id: null,
+  carry_forward_cap_cents: 0,
   created_at: '',
   updated_at: '',
 }
@@ -120,5 +141,118 @@ describe('estimateHouseholdTaxFromRows', () => {
     )
     expect(everyTwoWeeks.annualGrossCents).toBe(fortnightly.annualGrossCents)
     expect(everyTwoWeeks.annualTaxCents).toBe(fortnightly.annualTaxCents)
+  })
+})
+
+describe('nonConcessionalByMember', () => {
+  const nonConcessional: SuperContribution = {
+    ...baseContribution,
+    kind: 'personal_non_concessional',
+  }
+
+  it('annualises an amount-mode non-concessional contribution by frequency', () => {
+    // $500/fortnight after-tax → 500_00 × 26 = 13_000_00/yr.
+    const result = nonConcessionalByMember([nonConcessional], new Map())
+    expect(result.get('m1')).toBe(13_000_00)
+  })
+
+  it('resolves a percent-mode contribution against the member gross salary', () => {
+    const percentRow: SuperContribution = {
+      ...nonConcessional,
+      mode: 'percent',
+      amount_cents: null,
+      percent_bp: 500,
+      frequency: 'annual',
+    }
+    // 5% of $100,000 → 5_000_00/yr.
+    const result = nonConcessionalByMember([percentRow], new Map([['m1', 100_000_00]]))
+    expect(result.get('m1')).toBe(5_000_00)
+  })
+
+  it('excludes concessional and spouse contributions', () => {
+    const rows: SuperContribution[] = [
+      nonConcessional,
+      { ...baseContribution, id: 'c2', kind: 'salary_sacrifice' },
+      { ...baseContribution, id: 'c3', kind: 'spouse', contributor_member_id: 'm2' },
+    ]
+    const result = nonConcessionalByMember(rows, new Map())
+    expect(result.get('m1')).toBe(13_000_00)
+  })
+})
+
+describe('superCapSummaryByMember', () => {
+  it('flags concessional over the effective cap, including carry-forward', () => {
+    const concessional: SuperContribution = {
+      ...baseContribution,
+      kind: 'salary_sacrifice',
+      frequency: 'annual',
+      amount_cents: 40_000_00,
+    }
+    const withCarry = superCapSummaryByMember(
+      [concessional],
+      [{ ...baseProfile, carry_forward_cap_cents: 10_000_00 }],
+      new Map(),
+      FY2027_CONFIG,
+    ).get('m1')!
+    // Config cap $32,500 + $10,000 carry-forward = $42,500; $40,000 is under it.
+    expect(withCarry.concessionalCapCents).toBe(42_500_00)
+    expect(withCarry.concessionalOverCap).toBe(false)
+
+    const noCarry = superCapSummaryByMember(
+      [concessional],
+      [baseProfile],
+      new Map(),
+      FY2027_CONFIG,
+    ).get('m1')!
+    // Without carry-forward the $32,500 cap is exceeded.
+    expect(noCarry.concessionalCapCents).toBe(32_500_00)
+    expect(noCarry.concessionalOverCap).toBe(true)
+  })
+
+  it('flags non-concessional over the cap and reports the co-contribution', () => {
+    const over: SuperContribution = {
+      ...baseContribution,
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 140_000_00,
+    }
+    const summary = superCapSummaryByMember(
+      [over],
+      [baseProfile],
+      new Map([['m1', 40_000_00]]),
+      FY2027_CONFIG,
+    ).get('m1')!
+    expect(summary.nonConcessionalCapCents).toBe(130_000_00)
+    expect(summary.nonConcessionalOverCap).toBe(true)
+    // Income below the $49,293 lower threshold: full $500 co-contribution.
+    expect(summary.coContributionCents).toBe(500_00)
+  })
+
+  it('produces a zero-usage entry for a member with only a profile', () => {
+    const summary = superCapSummaryByMember([], [baseProfile], new Map(), FY2027_CONFIG).get('m1')!
+    expect(summary.concessionalCents).toBe(0)
+    expect(summary.nonConcessionalCents).toBe(0)
+    expect(summary.coContributionCents).toBe(0)
+  })
+})
+
+describe('superCapSummaryFromRows', () => {
+  it('derives the co-contribution income test from taxable inflows', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_weeks: null,
+      amount_cents: 49_293_00,
+    }
+    const contribution: SuperContribution = {
+      ...baseContribution,
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 1_000_00,
+    }
+    const summary = superCapSummaryFromRows([salary], [baseProfile], [contribution]).get('m1')!
+    expect(summary.nonConcessionalCents).toBe(1_000_00)
+    // At the lower threshold the max still applies; 50% × $1,000 = $500 is not the binder.
+    expect(summary.coContributionCents).toBe(500_00)
   })
 })

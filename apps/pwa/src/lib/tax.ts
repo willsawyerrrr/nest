@@ -4,14 +4,17 @@ import {
   estimateHouseholdTax,
   financialYearForDate,
   FY2027_CONFIG,
+  superCoContribution,
   type HouseholdTaxEstimate,
   type IncomeInput,
   type Residency,
   type TaxProfileInput,
+  type TaxYearConfig,
 } from '@budget/tax'
 import { annualCents } from '@budget/plan'
 import type { Inflow } from '../hooks/useInflows'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
+import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 
 /**
@@ -48,20 +51,22 @@ const CONCESSIONAL_KINDS = new Set<SuperContribution['kind']>([
   'personal_deductible',
 ])
 
+/** The contribution kind that counts toward the non-concessional cap. */
+const NON_CONCESSIONAL_KINDS = new Set<SuperContribution['kind']>(['personal_non_concessional'])
+
 /**
- * Resolves each member's annual concessional super from their contribution rows,
- * summing only the concessional kinds (salary sacrifice and personal deductible).
- * An amount-mode row is annualised by its frequency; a percent-mode row is
- * `percent_bp / 10000 ×` the member's annual gross salary (from `grossByMember`,
- * defaulting to zero). Non-concessional and spouse contributions are excluded.
+ * Sums each member's annual super for the matching `kinds`. An amount-mode row is
+ * annualised by its frequency; a percent-mode row is `percent_bp / 10000 ×` the
+ * member's annual gross salary (from `grossByMember`, defaulting to zero).
  */
-export function concessionalByMember(
+function annualByMember(
   contributions: readonly SuperContribution[],
   grossByMember: ReadonlyMap<string, number>,
+  kinds: ReadonlySet<SuperContribution['kind']>,
 ): Map<string, number> {
   const byMember = new Map<string, number>()
   for (const row of contributions) {
-    if (!CONCESSIONAL_KINDS.has(row.kind)) {
+    if (!kinds.has(row.kind)) {
       continue
     }
     const annual =
@@ -71,6 +76,125 @@ export function concessionalByMember(
     byMember.set(row.member_id, (byMember.get(row.member_id) ?? 0) + annual)
   }
   return byMember
+}
+
+/**
+ * Resolves each member's annual concessional super from their contribution rows,
+ * summing only the concessional kinds (salary sacrifice and personal deductible).
+ * Non-concessional and spouse contributions are excluded.
+ */
+export function concessionalByMember(
+  contributions: readonly SuperContribution[],
+  grossByMember: ReadonlyMap<string, number>,
+): Map<string, number> {
+  return annualByMember(contributions, grossByMember, CONCESSIONAL_KINDS)
+}
+
+/**
+ * Resolves each member's annual personal non-concessional (after-tax) super from
+ * their contribution rows. Only the `personal_non_concessional` kind counts;
+ * concessional and spouse contributions are excluded.
+ */
+export function nonConcessionalByMember(
+  contributions: readonly SuperContribution[],
+  grossByMember: ReadonlyMap<string, number>,
+): Map<string, number> {
+  return annualByMember(contributions, grossByMember, NON_CONCESSIONAL_KINDS)
+}
+
+/** Per-member annual gross salary from the household's taxable inflows. */
+export function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
+  const grossByMember = new Map<string, number>()
+  for (const inflow of inflows) {
+    if (!inflow.taxable) {
+      continue
+    }
+    const income = toIncomeInput(inflow)
+    grossByMember.set(
+      income.memberId,
+      (grossByMember.get(income.memberId) ?? 0) + annualGrossCents(income),
+    )
+  }
+  return grossByMember
+}
+
+/**
+ * A member's contribution-cap status for the financial year: how much of each cap
+ * their annual contributions use, whether either is exceeded, and their estimated
+ * government co-contribution. The concessional cap includes the member's manual
+ * carry-forward from prior years; the non-concessional cap is the config cap only
+ * (bring-forward, up to 3×, is surfaced as an informational note, not modelled).
+ */
+export interface SuperCapSummary {
+  concessionalCents: number
+  concessionalCapCents: number
+  concessionalOverCap: boolean
+  nonConcessionalCents: number
+  nonConcessionalCapCents: number
+  nonConcessionalOverCap: boolean
+  coContributionCents: number
+}
+
+/**
+ * Builds each member's `SuperCapSummary` from their annual contributions, super
+ * profile, and annual assessable income. An entry is produced for every member
+ * with a contribution or a super profile. The concessional cap adds the profile's
+ * `carry_forward_cap_cents`; the co-contribution uses the member's annual gross
+ * (from taxable inflows) as their approximate total income.
+ */
+export function superCapSummaryByMember(
+  contributions: readonly SuperContribution[],
+  profiles: readonly SuperProfile[],
+  grossByMember: ReadonlyMap<string, number>,
+  config: TaxYearConfig,
+): Map<string, SuperCapSummary> {
+  const concessional = concessionalByMember(contributions, grossByMember)
+  const nonConcessional = nonConcessionalByMember(contributions, grossByMember)
+  const carryForwardByMember = new Map(
+    profiles.map((profile) => [profile.member_id, profile.carry_forward_cap_cents ?? 0]),
+  )
+  const memberIds = new Set<string>([
+    ...concessional.keys(),
+    ...nonConcessional.keys(),
+    ...profiles.map((profile) => profile.member_id),
+  ])
+  const summaries = new Map<string, SuperCapSummary>()
+  for (const memberId of memberIds) {
+    const concessionalCents = concessional.get(memberId) ?? 0
+    const nonConcessionalCents = nonConcessional.get(memberId) ?? 0
+    const concessionalCapCents =
+      config.super.concessionalCapCents + (carryForwardByMember.get(memberId) ?? 0)
+    const nonConcessionalCapCents = config.super.nonConcessionalCapCents
+    summaries.set(memberId, {
+      concessionalCents,
+      concessionalCapCents,
+      concessionalOverCap: concessionalCents > concessionalCapCents,
+      nonConcessionalCents,
+      nonConcessionalCapCents,
+      nonConcessionalOverCap: nonConcessionalCents > nonConcessionalCapCents,
+      coContributionCents: superCoContribution(
+        nonConcessionalCents,
+        grossByMember.get(memberId) ?? 0,
+        config,
+      ),
+    })
+  }
+  return summaries
+}
+
+/**
+ * Resolves each member's `SuperCapSummary` from raw inflow, profile, and
+ * contribution rows, using the config for the current financial year (falling
+ * back to FY2027). Annual gross salary drives both percent-mode contributions and
+ * the co-contribution income test.
+ */
+export function superCapSummaryFromRows(
+  inflows: readonly Inflow[],
+  profiles: readonly SuperProfile[],
+  contributions: readonly SuperContribution[],
+): Map<string, SuperCapSummary> {
+  const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
+  return superCapSummaryByMember(contributions, profiles, grossByMemberFromInflows(inflows), config)
 }
 
 /**
@@ -87,13 +211,7 @@ export function estimateHouseholdTaxFromRows(
   const config = configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
   const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
   // Per-member annual gross salary, the base for percent-of-salary contributions.
-  const grossByMember = new Map<string, number>()
-  for (const income of incomes) {
-    grossByMember.set(
-      income.memberId,
-      (grossByMember.get(income.memberId) ?? 0) + annualGrossCents(income),
-    )
-  }
+  const grossByMember = grossByMemberFromInflows(inflows)
   return estimateHouseholdTax(
     incomes,
     profiles.map(toTaxProfileInput),

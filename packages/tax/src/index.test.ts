@@ -10,6 +10,7 @@ import {
   lowIncomeTaxOffset,
   medicareLevy,
   medicareLevySurcharge,
+  superCoContribution,
   taxableIncome,
 } from './index'
 import type { AssessableIncome, TaxInput, TaxYearConfig } from './index'
@@ -335,6 +336,41 @@ describe('division293', () => {
   it('taxes all concessional contributions when they are the lesser', () => {
     // income + concessional = 210,000; excess 60,000 > 10,000 concessional.
     expect(division293(200_000_00, 10_000_00, FIXTURE_CONFIG)).toBe(1_500_00)
+  })
+})
+
+describe('superCoContribution', () => {
+  // FIXTURE co-contribution: max $500, taper $45,000 → $60,000.
+  it('is nil with no eligible contributions', () => {
+    expect(superCoContribution(0, 40_000_00, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it('pays the full max below the lower threshold when the match is not the limit', () => {
+    // Below $45,000: tapered max is the full $500; 50% × $1,000 = $500 is not the binder.
+    expect(superCoContribution(1_000_00, 40_000_00, FIXTURE_CONFIG)).toBe(500_00)
+  })
+
+  it('is limited to half the eligible contributions when that is the lesser', () => {
+    // Below the lower threshold, but 50% × $600 = $300 < the $500 tapered max.
+    expect(superCoContribution(600_00, 40_000_00, FIXTURE_CONFIG)).toBe(300_00)
+  })
+
+  it('tapers the max linearly through the income band', () => {
+    // Midpoint $52,500: tapered max $250; 50% × $1,000 = $500, so $250 binds.
+    expect(superCoContribution(1_000_00, 52_500_00, FIXTURE_CONFIG)).toBe(250_00)
+  })
+
+  it('takes half the eligible contributions when that is below the tapered max', () => {
+    // Midpoint tapered max $250; 50% × $400 = $200 is the lesser.
+    expect(superCoContribution(400_00, 52_500_00, FIXTURE_CONFIG)).toBe(200_00)
+  })
+
+  it('is nil at the higher threshold', () => {
+    expect(superCoContribution(1_000_00, 60_000_00, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it('is nil above the higher threshold', () => {
+    expect(superCoContribution(1_000_00, 70_000_00, FIXTURE_CONFIG)).toBe(0)
   })
 })
 

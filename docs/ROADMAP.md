@@ -162,11 +162,13 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       contributions exceed $250k. The Tax tab resolves each member's concessional
       total from their contribution rows (amount annualised by frequency, percent
       applied to gross salary) and shows the concessional and Division 293 lines.
-- [ ] Contribution caps + co-contribution: concessional cap ($32,500 for
+- [x] Contribution caps + co-contribution: concessional cap ($32,500 for
       FY2027) with carry-forward when total super balance < $500k;
       non-concessional cap ($130,000 for FY2027) with bring-forward (up to
       $390,000); the government co-contribution income test. Exact figures are
-      FY-specific and live in the versioned config.
+      FY-specific and live in the versioned config. The Super tab shows each
+      member's cap usage, warns when either cap is exceeded, and estimates the
+      government co-contribution.
 - [ ] Retirement projection (pure math): projected balance at preservation age
       under user-editable return, inflation, and contribution-growth assumptions.
 - [x] Super UI: per-person contribution management + display on the Super tab,

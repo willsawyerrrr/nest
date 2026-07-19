@@ -3,14 +3,17 @@ import type { Account } from '../hooks/useAccounts'
 import type { Member } from '../hooks/useMembers'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
+import type { SuperCapSummary } from '../lib/tax'
 import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
 import { SuperContributionList } from './SuperContributionList'
+import { SuperCapsSummary } from './SuperCapsSummary'
 
 interface SuperScreenProps {
   members: Member[]
   profiles: SuperProfile[]
   accounts: Account[]
   contributions: SuperContribution[]
+  capSummaries: ReadonlyMap<string, SuperCapSummary>
   financialYear: number
   onSave: (member: Member, values: SuperFormValues) => Promise<void>
   onCreateContribution: (input: SuperContributionInput) => Promise<void>
@@ -29,6 +32,7 @@ export function SuperScreen({
   profiles,
   accounts,
   contributions,
+  capSummaries,
   financialYear,
   onSave,
   onCreateContribution,
@@ -49,6 +53,7 @@ export function SuperScreen({
         const memberContributions = contributions.filter(
           (contribution) => contribution.member_id === member.id,
         )
+        const capSummary = capSummaries.get(member.id)
         return (
           <Stack key={member.id} gap="xs">
             <SuperProfileForm
@@ -57,6 +62,7 @@ export function SuperScreen({
               initialBalanceCents={account?.balance_cents}
               onSubmit={(values) => onSave(member, values)}
             />
+            {capSummary && <SuperCapsSummary summary={capSummary} />}
             <Text fw={600} size="sm">
               Contributions
             </Text>

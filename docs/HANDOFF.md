@@ -27,11 +27,13 @@ savings goals use). Each member's `super_contribution` rows are also managed the
 contributor). Concessional kinds (salary sacrifice + personal deductible) reduce
 the tax estimate — lowering taxable income and after-tax income (so the Tax tab
 shows a Division 293 line for high earners and the Summary's available income
-reflects the super diverted from cash). The Net worth tab sums every account's
-`balance_cents` (assets only;
-liabilities not modelled yet), split into Super vs Other accounts. Contribution
-caps, the co-contribution, and the retirement projection stay deferred — see
-[`ROADMAP.md`](ROADMAP.md).
+reflects the super diverted from cash). Each member's card also shows their
+concessional and non-concessional cap usage (the concessional cap includes their
+manual carry-forward), warns when either cap is exceeded, and estimates the
+government co-contribution when it applies. The Net worth tab sums every
+account's `balance_cents` (assets only;
+liabilities not modelled yet), split into Super vs Other accounts. The retirement
+projection stays deferred — see [`ROADMAP.md`](ROADMAP.md).
 
 **Up savers → savings goals** — built, merged, and deployed. Each member
 connects their Up personal access token on the Household tab; a goal links to a

@@ -333,6 +333,38 @@ export function division293(
 }
 
 /**
+ * Estimates the government super co-contribution — the co-payment the government
+ * adds to super, matching 50c per $1 of eligible personal non-concessional
+ * contributions up to `maxCents`, tapered out across the income test.
+ *
+ * `taperedMax` reduces the maximum linearly from `maxCents` at the lower income
+ * threshold to nil at the higher; the entitlement is the lesser of that and half
+ * the eligible contributions, rounded to whole cents. Nil with no eligible
+ * contributions or at/above the higher threshold.
+ *
+ * `personalNonConcessionalCents` is the eligible base — personal non-concessional
+ * contributions only. Simplification: the remaining eligibility conditions (age
+ * under 71, the 10%-employment-income test, and a total super balance under the
+ * general transfer balance cap) are assumed met, and `totalIncomeCents` is
+ * approximated as the member's annual assessable income.
+ */
+export function superCoContribution(
+  personalNonConcessionalCents: Money,
+  totalIncomeCents: Money,
+  config: TaxYearConfig,
+): Money {
+  const { maxCents, lowerIncomeThresholdCents, higherIncomeThresholdCents } =
+    config.super.coContribution
+  if (personalNonConcessionalCents <= 0) return 0
+  if (totalIncomeCents >= higherIncomeThresholdCents) return 0
+  const taper =
+    (maxCents * (totalIncomeCents - lowerIncomeThresholdCents)) /
+    (higherIncomeThresholdCents - lowerIncomeThresholdCents)
+  const taperedMax = Math.min(maxCents, Math.max(0, maxCents - taper))
+  return roundCents(Math.min(0.5 * personalNonConcessionalCents, taperedMax))
+}
+
+/**
  * Computes the full income-tax breakdown for a member's financial year. The
  * caller selects the `config` matching the member's residency and financial year.
  * Offsets reduce tax payable but not below zero, and never reduce the levies.

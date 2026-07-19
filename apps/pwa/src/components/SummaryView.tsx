@@ -153,76 +153,50 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
   )
 }
 
-/** A running reconciliation figure (Available / After Outgoing / After Saving). */
-function RunningCard({
+/**
+ * One reconciliation line as a compact ledger row: the label on the left and,
+ * inline on the right, the fortnightly amount (emphasised) with the annual and
+ * portion trailing as smaller dimmed figures — each its own text node. Running
+ * figures (Available / After Outgoing / After Saving) get a tinted background
+ * and a bolder label to stand out from the group lines.
+ */
+function ReconRow({
   label,
   amounts,
   portion,
+  running = false,
 }: {
   label: string
   amounts: Amounts
   portion: number
+  running?: boolean
 }) {
   return (
-    <Card
+    <Group
       component="section"
       aria-label={label}
-      withBorder
-      radius="md"
-      p="md"
-      bg="var(--mantine-primary-color-light)"
+      justify="space-between"
+      wrap="nowrap"
+      gap="sm"
+      p="xs"
+      bg={running ? 'var(--mantine-primary-color-light)' : undefined}
+      style={{ borderRadius: 'var(--mantine-radius-sm)' }}
     >
-      <Stack gap="xs">
-        <Title order={4}>{label}</Title>
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" c="dimmed">
-            Fortnightly
-          </Text>
-          <Text fw={700}>{formatCents(amounts.fortnightlyCents)}</Text>
-        </Group>
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" c="dimmed">
-            Annual
-          </Text>
-          <Text fw={700}>{formatCents(amounts.annualCents)}</Text>
-        </Group>
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" c="dimmed">
-            Portion
-          </Text>
-          <Text fw={700}>{formatPortion(portion)}</Text>
-        </Group>
-      </Stack>
-    </Card>
-  )
-}
-
-/** A single budget group's fortnightly, annual, and portion figures. */
-function GroupCard({ row }: { row: GroupRow }) {
-  return (
-    <Card component="section" aria-label={row.label} withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Title order={5}>{row.label}</Title>
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" c="dimmed">
-            Fortnightly
-          </Text>
-          <Text fw={600}>{formatCents(row.fortnightlyCents)}</Text>
-        </Group>
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" c="dimmed">
-            Annual
-          </Text>
-          <Text fw={600}>{formatCents(row.annualCents)}</Text>
-        </Group>
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" c="dimmed">
-            Portion
-          </Text>
-          <Text fw={600}>{formatPortion(row.portion)}</Text>
-        </Group>
-      </Stack>
-    </Card>
+      <Text size="sm" fw={running ? 700 : 400} style={{ flexShrink: 0 }}>
+        {label}
+      </Text>
+      <Group gap="sm" wrap="nowrap" justify="flex-end">
+        <Text fw={700} size="sm">
+          {formatCents(amounts.fortnightlyCents)}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {formatCents(amounts.annualCents)}
+        </Text>
+        <Text size="xs" c="dimmed" style={{ minWidth: '3.5em', textAlign: 'right' }}>
+          {formatPortion(portion)}
+        </Text>
+      </Group>
+    </Group>
   )
 }
 
@@ -249,8 +223,8 @@ function RunningRow({
 /**
  * Presentational Summary reconciliation, mirroring the household's spreadsheet:
  * Available, each group's fortnightly/annual/portion, and the running After
- * Outgoing and After Saving (remaining buffer) figures. Cards stack on narrow
- * screens; a table appears at wider breakpoints.
+ * Outgoing and After Saving (remaining buffer) figures. A compact ledger of
+ * rows shows on narrow screens; a table appears at wider breakpoints.
  */
 export function SummaryView({ summary }: SummaryViewProps) {
   const wide = useMediaQuery('(min-width: 48em)')
@@ -275,7 +249,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
     summary.savingsBlock.annualCents !== 0
 
   return (
-    <Stack gap="md">
+    <Stack gap="sm">
       <Title order={2}>Summary</Title>
 
       {!hasData ? (
@@ -332,29 +306,34 @@ export function SummaryView({ summary }: SummaryViewProps) {
               </Table>
             </Table.ScrollContainer>
           ) : (
-            <Stack gap="md">
-              <RunningCard
-                label="Available"
-                amounts={summary.available}
-                portion={runningPortion(summary.available, summary.available)}
-              />
-              {outgoingRows.map((row) => (
-                <GroupCard key={row.label} row={row} />
-              ))}
-              <RunningCard
-                label="After Outgoing"
-                amounts={summary.afterOutgoing}
-                portion={runningPortion(summary.afterOutgoing, summary.available)}
-              />
-              {savingRows.map((row) => (
-                <GroupCard key={row.label} row={row} />
-              ))}
-              <RunningCard
-                label="After Saving"
-                amounts={summary.afterSaving}
-                portion={runningPortion(summary.afterSaving, summary.available)}
-              />
-            </Stack>
+            <Card withBorder radius="md" p="xs">
+              <Stack gap={2}>
+                <ReconRow
+                  label="Available"
+                  amounts={summary.available}
+                  portion={runningPortion(summary.available, summary.available)}
+                  running
+                />
+                {outgoingRows.map((row) => (
+                  <ReconRow key={row.label} label={row.label} amounts={row} portion={row.portion} />
+                ))}
+                <ReconRow
+                  label="After Outgoing"
+                  amounts={summary.afterOutgoing}
+                  portion={runningPortion(summary.afterOutgoing, summary.available)}
+                  running
+                />
+                {savingRows.map((row) => (
+                  <ReconRow key={row.label} label={row.label} amounts={row} portion={row.portion} />
+                ))}
+                <ReconRow
+                  label="After Saving"
+                  amounts={summary.afterSaving}
+                  portion={runningPortion(summary.afterSaving, summary.available)}
+                  running
+                />
+              </Stack>
+            </Card>
           )}
         </>
       )}

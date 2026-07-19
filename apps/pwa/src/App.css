@@ -63,3 +63,43 @@
   text-decoration: none;
   white-space: nowrap;
 }
+
+/*
+ * Mobile grouped top bar: a fixed app bar of labelled groups that clears the
+ * notch/Dynamic Island inset. Single-item groups link straight through; multi-
+ * item groups open a menu.
+ */
+.nav-top {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 200;
+  background: var(--mantine-color-body);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+
+.nav-top__list {
+  display: flex;
+}
+
+.nav-top__group {
+  flex: 1 0 auto;
+  min-width: 3.75rem;
+  padding-block: var(--mantine-spacing-sm);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* With the top bar in play on mobile, content clears it and drops the room the
+ * bottom bar reserves. */
+@media (max-width: 47.99em) {
+  .page {
+    padding-top: calc(56px + env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}

@@ -33,6 +33,9 @@ foreign keys on `(id, household_id)`.
     `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
     It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
     `name`/`email` only, so a client cannot forge its Up connection status.
+  - `service_role` holds the server-side table grants the Up edge functions
+    need: `select` on `members` and `select`/`insert`/`update` on `accounts`,
+    for member lookup and account-balance upserts.
 
 ## Inflows
 

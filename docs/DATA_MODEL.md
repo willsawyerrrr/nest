@@ -171,7 +171,12 @@ keep every reference inside the household.
     of scope for v1 — a named occasion plus an optional date.
 - **gift_budget** — one planned amount per recipient × occasion.
   - `id`, `household_id`, `recipient_id`, `occasion_id`,
-    `budgeted_amount_cents` (default 0, ≥ 0), `created_at`, `updated_at`.
+    `budgeted_amount_cents` (default 0, ≥ 0), `event_date` (nullable),
+    `created_at`, `updated_at`.
+  - `event_date` overrides the occasion's shared `occasion_date` for this
+    pairing: a birthday falls on a different date for each recipient, so the
+    specific date belongs on the pairing. The effective date is
+    `event_date ?? occasion.occasion_date`.
   - Composite foreign keys `(recipient_id, household_id)` → `gift_recipient` and
     `(occasion_id, household_id)` → `gift_occasion`, both `on delete cascade`.
     Unique on `(recipient_id, occasion_id)` and on `(id, household_id)`.

@@ -26,6 +26,7 @@ function giftBudget(id: string, budgeted_amount_cents: number): GiftBudget {
     recipient_id: 'r',
     occasion_id: 'o',
     budgeted_amount_cents,
+    event_date: null,
     household_id: 'h',
     created_at: '',
     updated_at: '',

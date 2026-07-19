@@ -24,6 +24,7 @@ const budget: GiftBudget = {
   recipient_id: 'r1',
   occasion_id: 'o1',
   budgeted_amount_cents: 100_00,
+  event_date: null,
   household_id: 'h',
   created_at: '',
   updated_at: '',
@@ -70,6 +71,34 @@ describe('GiftsScreen grouping toggle', () => {
 
     expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Christmas' })).not.toBeInTheDocument()
+  })
+})
+
+describe('GiftsScreen budget date', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('shows the effective date, preferring the budget event_date over the occasion date', () => {
+    renderScreen({ budgets: [{ ...budget, event_date: '2026-11-15' }] })
+    // The row shows its own event_date, not the occasion's 25 Dec date.
+    expect(screen.getByText('15 Nov 2026')).toBeInTheDocument()
+  })
+
+  it('preselects a saved date when editing and persists it on save', async () => {
+    const user = userEvent.setup()
+    const onUpdateBudget = vi.fn()
+    renderScreen({ budgets: [{ ...budget, event_date: '2026-11-15' }], onUpdateBudget })
+
+    await user.click(screen.getByRole('button', { name: /Alice/ }))
+    await user.click(screen.getByRole('button', { name: 'Edit budget' }))
+
+    expect(screen.getByLabelText('Date')).toHaveValue('15 Nov 2026')
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(onUpdateBudget).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({ event_date: '2026-11-15' }),
+    )
   })
 })
 

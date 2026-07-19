@@ -25,6 +25,8 @@ export interface GiftRow extends GiftTotals {
   occasionId: string
   /** The other dimension's display name. */
   label: string
+  /** The pairing's effective date: its own `event_date`, else the occasion's `occasion_date`. */
+  date: string | null
 }
 
 /** A group header (an occasion or a recipient) with its rolled-up money and rows. */
@@ -91,6 +93,16 @@ function compareRecipients(a: GiftRecipient, b: GiftRecipient): number {
   return a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
 }
 
+/** Orders rows by effective date (undated last), then label, then budget id. */
+function compareRowsByDate(a: GiftRow, b: GiftRow): number {
+  if (a.date !== b.date) {
+    if (a.date === null) return 1
+    if (b.date === null) return -1
+    return a.date < b.date ? -1 : 1
+  }
+  return a.label.localeCompare(b.label) || a.budgetId.localeCompare(b.budgetId)
+}
+
 /**
  * Groups the gift budgets into an ordered list of groups. Grouping by
  * `occasion` yields one group per occasion whose rows are its budgeted
@@ -133,6 +145,7 @@ export function groupGifts(
           recipientId: budget.recipient_id,
           occasionId: budget.occasion_id,
           label: groupBy === 'occasion' ? recipient.name : occasion.name,
+          date: budget.event_date ?? occasion.occasion_date,
           ...budgetTotals(budget, purchases),
         }
       })
@@ -141,7 +154,7 @@ export function groupGifts(
     rows.sort((a, b) =>
       groupBy === 'occasion'
         ? compareRecipients(recipientById.get(a.recipientId)!, recipientById.get(b.recipientId)!)
-        : compareOccasions(occasionById.get(a.occasionId)!, occasionById.get(b.occasionId)!),
+        : compareRowsByDate(a, b),
     )
 
     return {

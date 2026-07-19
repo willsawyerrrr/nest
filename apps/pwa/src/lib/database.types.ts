@@ -191,6 +191,7 @@ export type Database = {
         Row: {
           budgeted_amount_cents: number
           created_at: string
+          event_date: string | null
           household_id: string
           id: string
           occasion_id: string
@@ -200,6 +201,7 @@ export type Database = {
         Insert: {
           budgeted_amount_cents?: number
           created_at?: string
+          event_date?: string | null
           household_id: string
           id?: string
           occasion_id: string
@@ -209,6 +211,7 @@ export type Database = {
         Update: {
           budgeted_amount_cents?: number
           created_at?: string
+          event_date?: string | null
           household_id?: string
           id?: string
           occasion_id?: string

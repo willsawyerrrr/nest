@@ -1,9 +1,27 @@
 # Edge functions
 
 Deno/TypeScript functions run by Supabase Edge Runtime. They live outside the
-pnpm workspace and are linted and type-checked separately with the Deno CLI
-(`deno lint`, `deno check`), so `supabase/functions` is excluded from the root
-oxlint and node tsconfigs.
+pnpm workspace and are formatted, linted, type-checked, and tested with the Deno
+CLI, so `supabase/functions` is excluded from the root oxlint, prettier, and node
+tsconfigs. `deno.json` here holds the import map, `deno fmt` options (matching the
+repo's prettier style), and the task shortcuts.
+
+## Development
+
+Run every check from `supabase/functions` (CI runs the same as its `functions`
+job):
+
+```sh
+deno fmt --check   # or `deno task fmt` to write
+deno lint
+deno task check    # type-checks the function entrypoints
+deno task test     # runs the *_test.ts unit suites
+```
+
+Pure logic sits in server-free sibling modules so tests never import an
+`index.ts` (which would start `Deno.serve`): `_shared/up.ts`'s `UpClient` takes an
+injectable `fetch` for stubbing HTTP, `up-sync/map.ts` holds the ledger mappers,
+and `up-webhook/signature.ts` holds the HMAC verification.
 
 ## Up Bank sync
 

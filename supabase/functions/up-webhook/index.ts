@@ -7,6 +7,8 @@
  * stored in Supabase Vault). See https://developer.up.com.au/#callback_post_webhookURL.
  */
 
+import { isSignatureValid } from './signature.ts'
+
 const SIGNATURE_HEADER = 'X-Up-Authenticity-Signature'
 
 /** The webhook event types Up delivers. */
@@ -20,40 +22,6 @@ interface UpWebhookEvent {
       readonly transaction?: { readonly data: { readonly id: string } | null }
     }
   }
-}
-
-/** Hex-encodes bytes for comparison against Up's signature header. */
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-/** Length-safe, constant-time comparison of two hex signature strings. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let mismatch = 0
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return mismatch === 0
-}
-
-/** Verifies the request signature against the raw body using the webhook secret. */
-async function isSignatureValid(
-  rawBody: string,
-  signature: string,
-  secret: string,
-): Promise<boolean> {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody))
-  return timingSafeEqual(toHex(mac), signature)
 }
 
 Deno.serve(async (request) => {

@@ -22,10 +22,19 @@
   box-sizing: border-box;
   max-width: 40rem;
   margin-inline: auto;
-  padding-top: max(16px, env(safe-area-inset-top));
   padding-right: max(16px, env(safe-area-inset-right));
   padding-left: max(16px, env(safe-area-inset-left));
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  /* Mobile: clear the fixed top tab bar; the bottom edge only needs safe-area. */
+  padding-top: calc(env(safe-area-inset-top) + 3.5rem);
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+/* From `sm` up the bottom bar returns, so reserve room for it instead. */
+@media (min-width: 48em) {
+  .page {
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
 }
 
 .tab-bar {
@@ -62,4 +71,63 @@
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
+}
+
+/*
+ * Mobile top navigation: a Material-style row of tabs that scrolls sideways
+ * rather than wrapping. Edge fades hint at the tabs beyond the viewport.
+ */
+.top-tabs {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 200;
+  background: var(--mantine-color-body);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+
+.top-tabs__list {
+  display: flex;
+  gap: var(--mantine-spacing-xs);
+  width: max-content;
+  padding-inline: var(--mantine-spacing-sm);
+}
+
+.top-tabs__tab {
+  flex: 0 0 auto;
+  padding-block: var(--mantine-spacing-sm);
+  padding-inline: var(--mantine-spacing-sm);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.top-tabs__tab[aria-current='page'] {
+  border-bottom-color: var(--mantine-primary-color-filled);
+}
+
+.top-tabs::before,
+.top-tabs::after {
+  content: '';
+  position: absolute;
+  top: env(safe-area-inset-top);
+  bottom: 0;
+  z-index: 1;
+  width: 1.5rem;
+  pointer-events: none;
+}
+
+.top-tabs::before {
+  left: 0;
+  background: linear-gradient(to right, var(--mantine-color-body), transparent);
+}
+
+.top-tabs::after {
+  right: 0;
+  background: linear-gradient(to left, var(--mantine-color-body), transparent);
 }

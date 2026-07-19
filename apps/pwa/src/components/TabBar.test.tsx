@@ -1,8 +1,11 @@
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { render, screen } from '../test/render'
+import { render, screen, within } from '../test/render'
 import { cycleIndex, NAV_ITEMS, TabBar } from './TabBar'
+
+// The suite pins `matchMedia` to the narrow layout (see `test/setup.ts`), so
+// `TabBar` renders the mobile scrollable top bar: a `tablist` of `tab` links.
 
 /** Reads the active route so tests can assert where a shortcut navigated. */
 function LocationDisplay() {
@@ -24,7 +27,7 @@ function pathname() {
 }
 
 describe('TabBar', () => {
-  it('renders a link per nav item with its route as href', () => {
+  it('renders a tab per nav item with its route as href', () => {
     render(
       <MemoryRouter initialEntries={['/summary']}>
         <TabBar items={NAV_ITEMS} />
@@ -32,20 +35,36 @@ describe('TabBar', () => {
     )
 
     for (const item of NAV_ITEMS) {
-      const link = screen.getByRole('link', { name: item.label })
-      expect(link).toHaveAttribute('href', item.path)
+      const tab = screen.getByRole('tab', { name: item.label })
+      expect(tab).toHaveAttribute('href', item.path)
     }
   })
 
-  it('marks the link for the current route as active', () => {
+  it('renders every nav item in a single scrollable tablist', () => {
+    render(
+      <MemoryRouter initialEntries={['/summary']}>
+        <TabBar items={NAV_ITEMS} />
+      </MemoryRouter>,
+    )
+
+    const tablist = screen.getByRole('tablist', { name: 'Primary' })
+    const tabs = within(tablist).getAllByRole('tab')
+    expect(tabs.map((tab) => tab.textContent)).toEqual(NAV_ITEMS.map((item) => item.label))
+  })
+
+  it('marks the tab for the current route as active', () => {
     render(
       <MemoryRouter initialEntries={['/budget']}>
         <TabBar items={NAV_ITEMS} />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('link', { name: 'Budget' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Summary' })).not.toHaveAttribute('aria-current')
+    const budget = screen.getByRole('tab', { name: 'Budget' })
+    expect(budget).toHaveAttribute('aria-current', 'page')
+    expect(budget).toHaveAttribute('aria-selected', 'true')
+    const summary = screen.getByRole('tab', { name: 'Summary' })
+    expect(summary).not.toHaveAttribute('aria-current')
+    expect(summary).toHaveAttribute('aria-selected', 'false')
   })
 
   it('jumps to the nth tab on mod+number', async () => {

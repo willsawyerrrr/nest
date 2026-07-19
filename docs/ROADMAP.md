@@ -100,8 +100,12 @@ The initial Up scope funds savings-goal progress from Up saver balances; the
 token connection above is the foundation. Spend/ledger reconciliation is
 deprioritised behind it.
 
-- [ ] Read each member's Up saver balances server-side (the sync reads the token
-      via `up_token_for_member` as service role).
+- [x] Read each member's Up saver balances server-side. The `up-sync` function
+      enumerates connected members (`up_connected_at` set), reads each token via
+      `up_token_for_member` as service role, and upserts their Up accounts into
+      `public.accounts` on conflict `(source, external_id)` — idempotent, joint
+      accounts shared (owner null), individual accounts attributed to the member.
+      Transaction sync stays deferred to the ledger phase below.
 - [ ] Reflect real saver balances against savings goals (progress + ETA).
 
 ## Later — Up ledger + reconciliation (deprioritised)

@@ -121,5 +121,7 @@ temporary_item, savings_goal, households / members (households carry a nullable
 
 - Watch the `test` CI time (the long pole, ~50–55s).
 - Rotate the Supabase Management API token when done with it.
-- Up token connection is live; next is reading Up saver balances to fund savings
-  goals ([`ROADMAP.md`](ROADMAP.md)). Spend/ledger reconciliation is deprioritised.
+- Up saver-account sync is live: `up-sync` polls each connected member's Up
+  accounts and upserts balances into `public.accounts` (idempotent, deduped on
+  `(source, external_id)`). Next is reflecting those balances against savings-goal
+  progress ([`ROADMAP.md`](ROADMAP.md)). Spend/ledger reconciliation is deprioritised.

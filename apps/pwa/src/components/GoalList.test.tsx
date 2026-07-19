@@ -126,7 +126,7 @@ describe('GoalList', () => {
     const someday = card('Someday')
     expect(within(someday).getByText('No ETA')).toBeInTheDocument()
     expect(within(someday).getByText(/link a savings line/i)).toBeInTheDocument()
-    expect(within(someday).getByText('Linked contribution $0.00 / fn')).toBeInTheDocument()
+    expect(within(someday).queryByText(/linked contribution/i)).toBeNull()
   })
 
   it('sums many linked lines into one goal contribution', () => {

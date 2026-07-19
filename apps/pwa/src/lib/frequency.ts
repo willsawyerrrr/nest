@@ -7,7 +7,7 @@ const FIXED_LABELS: Record<Exclude<Frequency, 'every_n_weeks'>, string> = {
   monthly: 'Monthly',
   quarterly: 'Quarterly',
   biannual: 'Biannually',
-  annual: 'Annual',
+  annual: 'Annually',
 }
 
 /**

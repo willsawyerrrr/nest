@@ -24,7 +24,7 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'biannual', label: 'Biannually' },
-  { value: 'annual', label: 'Annual' },
+  { value: 'annual', label: 'Annually' },
 ]
 
 /** Presentational add/edit form for a single budget line. Persistence lives in the caller. */

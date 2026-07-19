@@ -2,3 +2,14 @@ body {
   margin: 0;
   overscroll-behavior-y: none;
 }
+
+/*
+ * Semantic money colours consumed via `moneyColor()` (see `theme.ts`). Each is a
+ * `light-dark()` pair — a darker shade for the light scheme, a lighter one for
+ * the dark scheme — so signed figures clear WCAG AA contrast in both. Kept as
+ * pure green/red, distinct from the emerald primary.
+ */
+:root {
+  --money-positive: light-dark(#166534, #51cf66);
+  --money-negative: light-dark(#b91c1c, #ff8787);
+}

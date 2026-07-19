@@ -14,6 +14,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core'
+import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents } from '@budget/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
@@ -97,12 +98,12 @@ function BudgetLineCard({
           <Text fw={700} size="sm">
             {formatCents(fortnightly)}
           </Text>
-          <Button variant="subtle" size="compact-xs" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button variant="subtle" color="red" size="compact-xs" onClick={onDelete}>
-            Delete
-          </Button>
+          <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
+            <IconPencil size={16} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+            <IconTrash size={16} />
+          </ActionIcon>
         </Group>
       </Group>
     </Card>

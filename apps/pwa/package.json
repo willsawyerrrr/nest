@@ -18,6 +18,7 @@
     "@mantine/dates": "^9.4.1",
     "@mantine/hooks": "^9.4.1",
     "@supabase/supabase-js": "^2.47.10",
+    "@tabler/icons-react": "^3.45.0",
     "dayjs": "^1.11.13",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

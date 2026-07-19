@@ -188,7 +188,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          invite_code: string
+          invite_code: string | null
+          invite_code_expires_at: string | null
           name: string
           timezone: string
           updated_at: string
@@ -196,7 +197,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          invite_code?: string
+          invite_code?: string | null
+          invite_code_expires_at?: string | null
           name: string
           timezone?: string
           updated_at?: string
@@ -204,7 +206,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          invite_code?: string
+          invite_code?: string | null
+          invite_code_expires_at?: string | null
           name?: string
           timezone?: string
           updated_at?: string
@@ -531,11 +534,19 @@ export type Database = {
         Args: { p_member_name: string; p_name: string }
         Returns: string
       }
+      create_invite_code: {
+        Args: never
+        Returns: {
+          invite_code: string
+          invite_code_expires_at: string
+        }[]
+      }
       household_ids_for_current_user: { Args: never; Returns: string[] }
       join_household: {
         Args: { p_code: string; p_member_name: string }
         Returns: string
       }
+      revoke_invite_code: { Args: never; Returns: undefined }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'

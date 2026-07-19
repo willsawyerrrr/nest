@@ -19,8 +19,21 @@ select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-1111111
 select public.create_household('Alice House', 'Alice') as hid \gset
 select set_config('test.hid', :'hid', false);
 
-select invite_code as code from public.households where id = current_setting('test.hid')::uuid \gset
+-- A freshly created household has no invite code; a member opts in explicitly.
+do $$ begin
+  assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
+    'A new household should have no invite code';
+end $$;
+
+select invite_code as code from public.create_invite_code() \gset
 select set_config('test.code', :'code', false);
+
+do $$ begin
+  assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) = current_setting('test.code'),
+    'create_invite_code should set the household''s code';
+  assert (select invite_code_expires_at from public.households where id = current_setting('test.hid')::uuid) > now(),
+    'create_invite_code should set a future expiry';
+end $$;
 
 do $$ begin
   assert (select count(*) from public.households) = 1, 'Alice should see exactly her household';
@@ -107,13 +120,54 @@ exception
     raise notice 'PASS: Bob blocked from inserting into Alice''s household';
 end $$;
 
--- ── Act as Carol: join Alice's household by invite code ──────────────────────
+-- ── Act as Carol: invite-code lifecycle and joining ──────────────────────────
 select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","email":"carol@example.com"}', true);
 
 do $$ begin
   assert (select count(*) from public.households) = 0, 'Carol must not see Alice''s household before joining';
 end $$;
 
+-- Without a household, Carol can neither mint nor revoke a code — the RPCs
+-- self-gate on membership, so they cannot touch Alice's household.
+do $$ begin
+  perform public.create_invite_code();
+  raise exception 'FAIL: Carol minted a code without a household';
+exception when others then
+  if sqlerrm = 'caller has no household' then
+    raise notice 'PASS: create_invite_code requires a household';
+  else raise; end if;
+end $$;
+
+do $$ begin
+  perform public.revoke_invite_code();
+  raise exception 'FAIL: Carol revoked a code without a household';
+exception when others then
+  if sqlerrm = 'caller has no household' then
+    raise notice 'PASS: revoke_invite_code requires a household';
+  else raise; end if;
+end $$;
+
+-- Expire Alice's code (as Alice, a member) and confirm join_household rejects it.
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com"}', true);
+update public.households set invite_code_expires_at = now() - interval '1 day'
+  where id = current_setting('test.hid')::uuid;
+
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","email":"carol@example.com"}', true);
+do $$ begin
+  perform public.join_household(current_setting('test.code'), 'Carol');
+  raise exception 'FAIL: Carol joined with an expired code';
+exception when others then
+  if sqlerrm = 'invalid or expired invite code' then
+    raise notice 'PASS: expired code rejected';
+  else raise; end if;
+end $$;
+
+-- Alice regenerates a fresh code (Carol still cannot see her household).
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com"}', true);
+select invite_code as code from public.create_invite_code() \gset
+select set_config('test.code', :'code', false);
+
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","email":"carol@example.com"}', true);
 select public.join_household(current_setting('test.code'), 'Carol');
 
 do $$ begin
@@ -127,6 +181,18 @@ do $$ begin
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
   assert (select count(*) from public.budget_line) = 1, 'Carol should see Alice''s budget line';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
+  assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
+    'Joining should consume the invite code';
+end $$;
+
+-- The code is single-use: a second join with the same code fails.
+do $$ begin
+  perform public.join_household(current_setting('test.code'), 'Carol');
+  raise exception 'FAIL: invite code was reusable';
+exception when others then
+  if sqlerrm = 'invalid or expired invite code' then
+    raise notice 'PASS: invite code is single-use';
+  else raise; end if;
 end $$;
 
 rollback;

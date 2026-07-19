@@ -67,7 +67,7 @@ export default function App() {
 }
 
 function AuthedApp({ session }: { session: Session }) {
-  const { households, loading, reload } = useHousehold()
+  const { households, loading, reload, createInviteCode, revokeInviteCode } = useHousehold()
 
   if (loading) {
     return <LoadingScreen />
@@ -102,10 +102,27 @@ function AuthedApp({ session }: { session: Session }) {
     )
   }
 
-  return <HouseholdApp household={household} session={session} />
+  return (
+    <HouseholdApp
+      household={household}
+      session={session}
+      onCreateInviteCode={createInviteCode}
+      onRevokeInviteCode={revokeInviteCode}
+    />
+  )
 }
 
-function HouseholdApp({ household, session }: { household: Household; session: Session }) {
+function HouseholdApp({
+  household,
+  session,
+  onCreateInviteCode,
+  onRevokeInviteCode,
+}: {
+  household: Household
+  session: Session
+  onCreateInviteCode: () => Promise<void>
+  onRevokeInviteCode: () => Promise<void>
+}) {
   return (
     <div className="app-shell">
       <main className="page">
@@ -117,7 +134,14 @@ function HouseholdApp({ household, session }: { household: Household; session: S
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route
             path="/household"
-            element={<HomeSection household={household} session={session} />}
+            element={
+              <HomeSection
+                household={household}
+                session={session}
+                onCreateInviteCode={onCreateInviteCode}
+                onRevokeInviteCode={onRevokeInviteCode}
+              />
+            }
           />
           <Route path="/" element={<Navigate to="/summary" replace />} />
           <Route path="*" element={<Navigate to="/summary" replace />} />
@@ -128,7 +152,17 @@ function HouseholdApp({ household, session }: { household: Household; session: S
   )
 }
 
-function HomeSection({ household, session }: { household: Household; session: Session }) {
+function HomeSection({
+  household,
+  session,
+  onCreateInviteCode,
+  onRevokeInviteCode,
+}: {
+  household: Household
+  session: Session
+  onCreateInviteCode: () => Promise<void>
+  onRevokeInviteCode: () => Promise<void>
+}) {
   const { members, loading: membersLoading } = useMembers()
   const taxProfiles = useTaxProfiles(household.id)
 
@@ -140,11 +174,14 @@ function HomeSection({ household, session }: { household: Household; session: Se
     <HomeScreen
       householdName={household.name}
       inviteCode={household.invite_code}
+      inviteCodeExpiresAt={household.invite_code_expires_at}
       email={session.user.email ?? ''}
       members={members}
       taxProfiles={taxProfiles.profiles ?? []}
       financialYear={taxProfiles.financialYear}
       onUpsertTaxProfile={taxProfiles.upsert}
+      onCreateInviteCode={onCreateInviteCode}
+      onRevokeInviteCode={onRevokeInviteCode}
       onSignOut={() => void supabase.auth.signOut()}
     />
   )

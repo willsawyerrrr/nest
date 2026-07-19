@@ -56,13 +56,13 @@ function ConnectUpCard({
 
         {connected ? (
           <Group justify="space-between">
-            <Badge color="green" variant="light">
+            <Badge color="positive" variant="light">
               Connected
             </Badge>
             <Button
               size="xs"
               variant="subtle"
-              color="red"
+              color="negative"
               loading={upBusy}
               onClick={() => void onDisconnectUp()}
             >
@@ -102,7 +102,7 @@ function ConnectUpCard({
               <Badge
                 size="sm"
                 variant="light"
-                color={member.up_connected_at != null ? 'green' : 'gray'}
+                color={member.up_connected_at != null ? 'positive' : 'gray'}
               >
                 {member.up_connected_at != null ? 'Connected' : 'Not connected'}
               </Badge>
@@ -202,7 +202,7 @@ export function HomeScreen({
                   <Button
                     size="xs"
                     variant="subtle"
-                    color="red"
+                    color="negative"
                     onClick={() => void onRevokeInviteCode()}
                   >
                     Revoke

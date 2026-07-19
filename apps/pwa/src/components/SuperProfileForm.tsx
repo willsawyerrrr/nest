@@ -74,12 +74,12 @@ export function SuperProfileForm({
         />
 
         {error && (
-          <Text role="alert" c="red" size="sm">
+          <Text role="alert" c="negative" size="sm">
             {error}
           </Text>
         )}
         {saved && !error && (
-          <Text role="status" c="green" size="sm">
+          <Text role="status" c="positive" size="sm">
             Saved
           </Text>
         )}

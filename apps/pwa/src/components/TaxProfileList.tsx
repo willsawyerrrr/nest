@@ -35,7 +35,7 @@ function TaxProfileCard({
               {foreign ? 'Foreign resident' : 'Resident'}
             </Badge>
             {profile?.has_private_hospital_cover && (
-              <Badge size="xs" color="teal">
+              <Badge size="xs" color="amber">
                 Hospital cover
               </Badge>
             )}

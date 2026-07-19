@@ -3,6 +3,7 @@ import { DonutChart } from '@mantine/charts'
 import { useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@budget/plan'
 import { formatCents } from '../lib/money'
+import { BUFFER_COLOR, CATEGORY_COLORS, moneyColor } from '../theme'
 
 interface SummaryViewProps {
   summary: BudgetSummary
@@ -39,12 +40,12 @@ interface GroupRow {
  * the CSS colour its allocation segment takes in the donut.
  */
 const GROUP_ORDER: { key: keyof BudgetSummary['groups']; label: string; color: string }[] = [
-  { key: 'needs', label: 'Needs', color: 'var(--mantine-color-indigo-6)' },
-  { key: 'wants', label: 'Wants', color: 'var(--mantine-color-blue-5)' },
-  { key: 'discretionary', label: 'Discretionary', color: 'var(--mantine-color-cyan-5)' },
-  { key: 'temporary', label: 'Temporary', color: 'var(--mantine-color-grape-5)' },
-  { key: 'savings', label: 'Savings', color: 'var(--mantine-color-teal-5)' },
-  { key: 'investments', label: 'Investments', color: 'var(--mantine-color-green-5)' },
+  { key: 'needs', label: 'Needs', color: CATEGORY_COLORS.needs },
+  { key: 'wants', label: 'Wants', color: CATEGORY_COLORS.wants },
+  { key: 'discretionary', label: 'Discretionary', color: CATEGORY_COLORS.discretionary },
+  { key: 'temporary', label: 'Temporary', color: CATEGORY_COLORS.temporary },
+  { key: 'savings', label: 'Savings', color: CATEGORY_COLORS.savings },
+  { key: 'investments', label: 'Investments', color: CATEGORY_COLORS.investments },
 ]
 
 /** The keys of the groups that make up outgoings, in reconciliation order. */
@@ -54,9 +55,6 @@ const OUTGOING_KEYS: (keyof BudgetSummary['groups'])[] = [
   'discretionary',
   'temporary',
 ]
-
-/** The colour of the leftover-buffer segment (After Saving) in the donut. */
-const BUFFER_COLOR = 'var(--mantine-color-gray-5)'
 
 /** A donut segment: an allocation slice with its label, amount, colour, and share. */
 interface Segment {
@@ -92,14 +90,28 @@ function allocationSegments(summary: BudgetSummary): Segment[] {
   return segments
 }
 
-/** A compact stat tile: a dimmed label above its bold fortnightly value. */
-function TotalTile({ label, cents }: { label: string; cents: number }) {
+/**
+ * A compact stat tile: a dimmed label above its bold fortnightly value. When
+ * `signColored`, the value takes the semantic money colour (green surplus, red
+ * deficit) so a shortfall reads at a glance.
+ */
+function TotalTile({
+  label,
+  cents,
+  signColored = false,
+}: {
+  label: string
+  cents: number
+  signColored?: boolean
+}) {
   return (
     <Stack gap={0} align="center">
       <Text size="xs" c="dimmed">
         {label}
       </Text>
-      <Text fw={700}>{formatCents(cents)}</Text>
+      <Text fw={700} c={signColored ? moneyColor(cents) : undefined}>
+        {formatCents(cents)}
+      </Text>
     </Stack>
   )
 }
@@ -133,7 +145,7 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
         <SimpleGrid cols={3} spacing="xs" w="100%">
           <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
           <TotalTile label="Outgoing" cents={summary.outgoings.fortnightlyCents} />
-          <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} />
+          <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} signColored />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" verticalSpacing={4} w="100%">
           {segments.map((segment) => (
@@ -165,11 +177,13 @@ function ReconRow({
   amounts,
   portion,
   running = false,
+  signColored = false,
 }: {
   label: string
   amounts: Amounts
   portion: number
   running?: boolean
+  signColored?: boolean
 }) {
   return (
     <Group
@@ -186,7 +200,13 @@ function ReconRow({
         {label}
       </Text>
       <Group gap="sm" wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
-        <Text fw={700} size="sm" w={92} ta="right">
+        <Text
+          fw={700}
+          size="sm"
+          w={92}
+          ta="right"
+          c={signColored ? moneyColor(amounts.fortnightlyCents) : undefined}
+        >
           {formatCents(amounts.fortnightlyCents)}
         </Text>
         <Text size="xs" c="dimmed" w={88} ta="right">
@@ -205,15 +225,19 @@ function RunningRow({
   label,
   amounts,
   portion,
+  signColored = false,
 }: {
   label: string
   amounts: Amounts
   portion: number
+  signColored?: boolean
 }) {
   return (
     <Table.Tr bg="var(--mantine-primary-color-light)">
       <Table.Th scope="row">{label}</Table.Th>
-      <Table.Td fw={700}>{formatCents(amounts.fortnightlyCents)}</Table.Td>
+      <Table.Td fw={700} c={signColored ? moneyColor(amounts.fortnightlyCents) : undefined}>
+        {formatCents(amounts.fortnightlyCents)}
+      </Table.Td>
       <Table.Td fw={700}>{formatCents(amounts.annualCents)}</Table.Td>
       <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
     </Table.Tr>
@@ -301,6 +325,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
                     label="After Saving"
                     amounts={summary.afterSaving}
                     portion={runningPortion(summary.afterSaving, summary.available)}
+                    signColored
                   />
                 </Table.Tbody>
               </Table>
@@ -331,6 +356,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
                   amounts={summary.afterSaving}
                   portion={runningPortion(summary.afterSaving, summary.available)}
                   running
+                  signColored
                 />
               </Stack>
             </Card>

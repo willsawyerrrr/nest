@@ -49,7 +49,7 @@ function InflowCard({
                 {memberName(inflow.member_id)}
               </Text>
             )}
-            <Badge size="xs" variant="light" color={inflow.taxable ? 'teal' : 'gray'}>
+            <Badge size="xs" variant="light" color={inflow.taxable ? 'amber' : 'gray'}>
               {inflow.taxable ? 'Taxable' : 'Non-taxable'}
             </Badge>
             <Badge size="xs" variant="light" tt="capitalize">
@@ -67,7 +67,7 @@ function InflowCard({
           <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
             <IconPencil size={16} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+          <ActionIcon variant="subtle" color="negative" aria-label="Delete" onClick={onDelete}>
             <IconTrash size={16} />
           </ActionIcon>
         </Group>

@@ -81,7 +81,7 @@ export function TemporaryItemForm({ initial, onSubmit, onCancel }: TemporaryItem
         />
 
         {error && (
-          <Text role="alert" c="red" size="sm">
+          <Text role="alert" c="negative" size="sm">
             {error}
           </Text>
         )}

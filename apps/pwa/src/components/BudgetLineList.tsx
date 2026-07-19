@@ -107,7 +107,7 @@ function BudgetLineCard({
           <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
             <IconPencil size={16} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+          <ActionIcon variant="subtle" color="negative" aria-label="Delete" onClick={onDelete}>
             <IconTrash size={16} />
           </ActionIcon>
         </Group>

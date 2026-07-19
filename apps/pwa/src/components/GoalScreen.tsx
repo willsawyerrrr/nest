@@ -44,7 +44,7 @@ export function GoalScreen({
         </Button>
       </Group>
       {refreshError && (
-        <Alert color="red" variant="light">
+        <Alert color="negative" variant="light">
           {refreshError}
         </Alert>
       )}

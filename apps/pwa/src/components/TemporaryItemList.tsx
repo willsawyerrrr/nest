@@ -49,7 +49,7 @@ function TemporaryItemCard({
             <Text size="xs" c="dimmed">
               until {formatDate(item.target_date)}
             </Text>
-            <Badge size="xs" variant="light" color={active ? 'teal' : 'gray'}>
+            <Badge size="xs" variant="light" color={active ? 'positive' : 'gray'}>
               {active ? 'Active' : 'Expired'}
             </Badge>
           </Group>
@@ -61,7 +61,7 @@ function TemporaryItemCard({
           <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
             <IconPencil size={16} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+          <ActionIcon variant="subtle" color="negative" aria-label="Delete" onClick={onDelete}>
             <IconTrash size={16} />
           </ActionIcon>
         </Group>

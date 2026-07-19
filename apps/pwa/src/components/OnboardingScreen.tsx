@@ -101,7 +101,7 @@ export function OnboardingScreen({ onCreate, onJoin }: OnboardingScreenProps) {
                 onChange={(event) => setMemberName(event.currentTarget.value)}
               />
               {error && (
-                <Text role="alert" c="red" size="sm">
+                <Text role="alert" c="negative" size="sm">
                   {error}
                 </Text>
               )}

@@ -71,12 +71,14 @@ function GoalCard({
   let status: { label: string; color: string }
   let eta: string
   if (projection.alreadyMet) {
-    status = { label: 'Reached', color: 'teal' }
+    status = { label: 'Reached', color: 'positive' }
     eta = 'Goal reached.'
   } else if (goal.target_date !== null) {
     const required = projection.requiredFortnightlyContributionCents ?? 0
     const onTrack = contributionCents >= required
-    status = onTrack ? { label: 'On track', color: 'teal' } : { label: 'Behind', color: 'orange' }
+    status = onTrack
+      ? { label: 'On track', color: 'positive' }
+      : { label: 'Behind', color: 'amber' }
     eta = `By ${formatIsoDate(goal.target_date)} needs ${formatCents(required)}/fn${
       onTrack ? '' : ` (contributing ${formatCents(contributionCents)}/fn)`
     }`
@@ -84,7 +86,7 @@ function GoalCard({
     projection.fortnightsToTarget !== null &&
     projection.projectedCompletionDate !== null
   ) {
-    status = { label: 'On track', color: 'teal' }
+    status = { label: 'On track', color: 'positive' }
     eta = `${pluraliseFortnights(projection.fortnightsToTarget)} — ${formatIsoDate(
       projection.projectedCompletionDate,
     )}`
@@ -107,7 +109,7 @@ function GoalCard({
             <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
               <IconPencil size={16} />
             </ActionIcon>
-            <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
+            <ActionIcon variant="subtle" color="negative" aria-label="Delete" onClick={onDelete}>
               <IconTrash size={16} />
             </ActionIcon>
           </Group>

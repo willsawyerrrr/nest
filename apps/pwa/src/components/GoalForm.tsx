@@ -129,7 +129,7 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
         )}
 
         {error && (
-          <Text role="alert" c="red" size="sm">
+          <Text role="alert" c="negative" size="sm">
             {error}
           </Text>
         )}

@@ -224,7 +224,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         )}
 
         {error && (
-          <Text role="alert" c="red" size="sm">
+          <Text role="alert" c="negative" size="sm">
             {error}
           </Text>
         )}

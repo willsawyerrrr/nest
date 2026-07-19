@@ -78,11 +78,16 @@ no per-member scoping; each line stands alone under the household.
     set it. Many lines may fund one goal.
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
-    (nullable), `current_balance_cents` (default 0), `created_at`,
-    `updated_at`.
+    (nullable), `current_balance_cents` (default 0), `linked_account_id`
+    (nullable), `created_at`, `updated_at`.
   - Funded by the budget lines that reference it via `goal_id`.
-    `current_balance_cents` is entered manually until sourced from real balances
-    via ingestion.
+  - `linked_account_id` optionally points at one of the household's accounts (in
+    practice a synced Up saver); when set, the goal's current balance is read
+    from that account's `balance_cents` rather than `current_balance_cents`. A
+    composite foreign key on `(id, household_id)` keeps the link within the
+    household, and `on delete set null` clears it if the account is removed.
+    `current_balance_cents` is the manually entered fallback used when no account
+    is linked.
 - **temporary_item** — a date-driven fortnightly outflow that runs until it
   expires.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),

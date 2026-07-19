@@ -1,11 +1,13 @@
 import { Stack, Title } from '@mantine/core'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
+import type { Saver } from '../hooks/useSavers'
 import { GoalList } from './GoalList'
 
 interface GoalScreenProps {
   goals: Goal[]
   lines: BudgetLine[]
+  savers: Saver[]
   onCreateGoal: (input: GoalInput) => Promise<void>
   onUpdateGoal: (id: string, input: GoalInput) => Promise<void>
   onDeleteGoal: (id: string) => Promise<void>
@@ -15,6 +17,7 @@ interface GoalScreenProps {
 export function GoalScreen({
   goals,
   lines,
+  savers,
   onCreateGoal,
   onUpdateGoal,
   onDeleteGoal,
@@ -25,6 +28,7 @@ export function GoalScreen({
       <GoalList
         goals={goals}
         lines={lines}
+        savers={savers}
         onCreate={onCreateGoal}
         onUpdate={onUpdateGoal}
         onDelete={(id) => void onDeleteGoal(id)}

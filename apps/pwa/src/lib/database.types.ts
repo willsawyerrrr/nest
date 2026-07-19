@@ -324,6 +324,7 @@ export type Database = {
           current_balance_cents: number
           household_id: string
           id: string
+          linked_account_id: string | null
           name: string
           target_amount_cents: number
           target_date: string | null
@@ -334,6 +335,7 @@ export type Database = {
           current_balance_cents?: number
           household_id: string
           id?: string
+          linked_account_id?: string | null
           name: string
           target_amount_cents: number
           target_date?: string | null
@@ -344,6 +346,7 @@ export type Database = {
           current_balance_cents?: number
           household_id?: string
           id?: string
+          linked_account_id?: string | null
           name?: string
           target_amount_cents?: number
           target_date?: string | null
@@ -356,6 +359,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'savings_goal_linked_account_id_household_id_fkey'
+            columns: ['linked_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
           },
         ]
       }

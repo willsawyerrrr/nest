@@ -4,6 +4,7 @@ import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents, projectGoal } from '@budget/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
+import type { Saver } from '../hooks/useSavers'
 import { formatCents } from '../lib/money'
 import { formatIsoDate } from '../lib/dates'
 import { GoalForm } from './GoalForm'
@@ -11,9 +12,17 @@ import { GoalForm } from './GoalForm'
 interface GoalListProps {
   goals: Goal[]
   lines: BudgetLine[]
+  savers: Saver[]
   onCreate: (input: GoalInput) => Promise<void>
   onUpdate: (id: string, input: GoalInput) => Promise<void>
   onDelete: (id: string) => void
+}
+
+/** The account a goal links to, when set and still visible to the household. */
+function linkedSaver(goal: Goal, savers: Saver[]): Saver | undefined {
+  return goal.linked_account_id === null
+    ? undefined
+    : savers.find((saver) => saver.id === goal.linked_account_id)
 }
 
 /** The fortnightly contribution funding a goal: the sum of its linked budget lines. */
@@ -30,19 +39,24 @@ function pluraliseFortnights(count: number): string {
 /** One goal's display card: progress toward its target and the ETA to reach it. */
 function GoalCard({
   goal,
+  saver,
   contributionCents,
   onEdit,
   onDelete,
 }: {
   goal: Goal
+  saver: Saver | undefined
   contributionCents: number
   onEdit: () => void
   onDelete: () => void
 }) {
+  // A linked saver's synced balance overrides the manually entered one.
+  const currentBalanceCents = saver ? saver.balance_cents : goal.current_balance_cents
+
   const projection = projectGoal(
     {
       targetAmountCents: goal.target_amount_cents,
-      currentBalanceCents: goal.current_balance_cents,
+      currentBalanceCents,
       targetDate: goal.target_date ?? undefined,
     },
     contributionCents,
@@ -51,7 +65,7 @@ function GoalCard({
 
   const percent =
     goal.target_amount_cents > 0
-      ? Math.min(100, (goal.current_balance_cents / goal.target_amount_cents) * 100)
+      ? Math.min(100, (currentBalanceCents / goal.target_amount_cents) * 100)
       : 100
 
   let status: { label: string; color: string }
@@ -101,7 +115,7 @@ function GoalCard({
 
         <Group justify="space-between" align="baseline" wrap="nowrap">
           <Text size="xs" c="dimmed">
-            {formatCents(goal.current_balance_cents)} of {formatCents(goal.target_amount_cents)}
+            {formatCents(currentBalanceCents)} of {formatCents(goal.target_amount_cents)}
           </Text>
           <Text size="xs" fw={600}>
             {Math.round(percent)}%
@@ -116,6 +130,11 @@ function GoalCard({
         />
 
         <Text size="xs">{eta}</Text>
+        {saver && (
+          <Text size="xs" c="dimmed">
+            From Up saver {saver.name}
+          </Text>
+        )}
         {contributionCents > 0 && (
           <Text size="xs" c="dimmed">
             Linked contribution {formatCents(contributionCents)} / fn
@@ -127,7 +146,7 @@ function GoalCard({
 }
 
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
-export function GoalList({ goals, lines, onCreate, onUpdate, onDelete }: GoalListProps) {
+export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }: GoalListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -162,6 +181,7 @@ export function GoalList({ goals, lines, onCreate, onUpdate, onDelete }: GoalLis
           <GoalForm
             key={goal.id}
             initial={goal}
+            savers={savers}
             onSubmit={async (input) => {
               await onUpdate(goal.id, input)
               closeForms()
@@ -172,6 +192,7 @@ export function GoalList({ goals, lines, onCreate, onUpdate, onDelete }: GoalLis
           <GoalCard
             key={goal.id}
             goal={goal}
+            saver={linkedSaver(goal, savers)}
             contributionCents={contributionForGoal(goal.id, lines)}
             onEdit={() => startEditing(goal.id)}
             onDelete={() => onDelete(goal.id)}
@@ -181,6 +202,7 @@ export function GoalList({ goals, lines, onCreate, onUpdate, onDelete }: GoalLis
 
       {adding ? (
         <GoalForm
+          savers={savers}
           onSubmit={async (input) => {
             await onCreate(input)
             closeForms()

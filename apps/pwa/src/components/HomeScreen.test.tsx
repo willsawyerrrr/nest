@@ -29,25 +29,90 @@ function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
   return render(
     <HomeScreen
       householdName="The Sawyers"
-      inviteCode="abcd1234"
+      inviteCode={null}
+      inviteCodeExpiresAt={null}
       email="will@example.com"
       members={members}
       taxProfiles={[]}
       financialYear={2027}
       onUpsertTaxProfile={vi.fn()}
+      onCreateInviteCode={vi.fn()}
+      onRevokeInviteCode={vi.fn()}
       onSignOut={vi.fn()}
       {...overrides}
     />,
   )
 }
 
+const activeCode = {
+  inviteCode: 'abcd1234',
+  inviteCodeExpiresAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+}
+
 describe('HomeScreen', () => {
-  it('renders the household name, member email, and invite code', () => {
+  it('renders the household name and member email', () => {
     renderHome()
 
     expect(screen.getByRole('heading', { name: 'The Sawyers' })).toBeInTheDocument()
     expect(screen.getByText(/will@example\.com/)).toBeInTheDocument()
+  })
+
+  it('renders tax profiles above the invite section', () => {
+    renderHome()
+
+    const taxHeading = screen.getByRole('heading', { name: /Tax profiles \(FY2027\)/ })
+    const inviteHeading = screen.getByRole('heading', { name: /Invite someone/ })
+    expect(
+      taxHeading.compareDocumentPosition(inviteHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('offers to create a code and shows none when there is no active code', () => {
+    renderHome()
+
+    expect(screen.getByRole('button', { name: /create invite code/i })).toBeInTheDocument()
+    expect(screen.queryByText('abcd1234')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Invite code:/)).not.toBeInTheDocument()
+  })
+
+  it('treats an expired code as no active code', () => {
+    renderHome({
+      inviteCode: 'abcd1234',
+      inviteCodeExpiresAt: new Date(Date.now() - 86_400_000).toISOString(),
+    })
+
+    expect(screen.getByRole('button', { name: /create invite code/i })).toBeInTheDocument()
+    expect(screen.queryByText('abcd1234')).not.toBeInTheDocument()
+  })
+
+  it('invokes onCreateInviteCode from the create button', () => {
+    const onCreateInviteCode = vi.fn()
+    renderHome({ onCreateInviteCode })
+
+    fireEvent.click(screen.getByRole('button', { name: /create invite code/i }))
+
+    expect(onCreateInviteCode).toHaveBeenCalledOnce()
+  })
+
+  it('shows an active code with copy, expiry, regenerate, and revoke', () => {
+    renderHome(activeCode)
+
     expect(screen.getByText('abcd1234')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /regenerate/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /revoke/i })).toBeInTheDocument()
+    expect(screen.getByText(/Expires in \d+ days/)).toBeInTheDocument()
+    expect(screen.getByText(/Share this code with others/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /create invite code/i })).not.toBeInTheDocument()
+  })
+
+  it('invokes onRevokeInviteCode from the revoke button', () => {
+    const onRevokeInviteCode = vi.fn()
+    renderHome({ ...activeCode, onRevokeInviteCode })
+
+    fireEvent.click(screen.getByRole('button', { name: /revoke/i }))
+
+    expect(onRevokeInviteCode).toHaveBeenCalledOnce()
   })
 
   it('invokes onSignOut when the button is clicked', () => {

@@ -4,6 +4,7 @@ import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { isTemporaryActive } from '@budget/plan'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatCents } from '../lib/money'
+import { GroupSection } from './GroupSection'
 import { TemporaryItemForm } from './TemporaryItemForm'
 
 interface TemporaryItemListProps {
@@ -93,8 +94,44 @@ export function TemporaryItemList({
     setAdding(false)
   }
 
+  const activeSubtotal = items.reduce(
+    (total, item) =>
+      isTemporaryActive({ contributionCents: 0, targetDate: item.target_date }, now)
+        ? total + item.contribution_cents
+        : total,
+    0,
+  )
+
   return (
-    <Stack gap="sm">
+    <GroupSection title="Temporary items" subtotalCents={activeSubtotal}>
+      {items.length === 0 && !adding && (
+        <Text c="dimmed" size="sm">
+          No temporary items yet.
+        </Text>
+      )}
+
+      {items.map((item) =>
+        editingId === item.id ? (
+          <TemporaryItemForm
+            key={item.id}
+            initial={item}
+            onSubmit={async (input) => {
+              await onUpdate(item.id, input)
+              closeForms()
+            }}
+            onCancel={closeForms}
+          />
+        ) : (
+          <TemporaryItemCard
+            key={item.id}
+            item={item}
+            now={now}
+            onEdit={() => startEditing(item.id)}
+            onDelete={() => onDelete(item.id)}
+          />
+        ),
+      )}
+
       {adding ? (
         <TemporaryItemForm
           onSubmit={async (input) => {
@@ -104,38 +141,10 @@ export function TemporaryItemList({
           onCancel={closeForms}
         />
       ) : (
-        <Button fullWidth onClick={startAdding}>
+        <Button variant="light" fullWidth onClick={startAdding}>
           Add temporary item
         </Button>
       )}
-
-      {items.length === 0 && !adding ? (
-        <Text c="dimmed" ta="center">
-          No temporary items yet.
-        </Text>
-      ) : (
-        items.map((item) =>
-          editingId === item.id ? (
-            <TemporaryItemForm
-              key={item.id}
-              initial={item}
-              onSubmit={async (input) => {
-                await onUpdate(item.id, input)
-                closeForms()
-              }}
-              onCancel={closeForms}
-            />
-          ) : (
-            <TemporaryItemCard
-              key={item.id}
-              item={item}
-              now={now}
-              onEdit={() => startEditing(item.id)}
-              onDelete={() => onDelete(item.id)}
-            />
-          ),
-        )
-      )}
-    </Stack>
+    </GroupSection>
   )
 }

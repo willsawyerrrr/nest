@@ -12,7 +12,6 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents } from '@budget/plan'
@@ -20,6 +19,7 @@ import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudge
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { formatCents } from '../lib/money'
 import { BudgetLineForm } from './BudgetLineForm'
+import { GroupSection } from './GroupSection'
 
 interface BudgetLineListProps {
   lines: BudgetLine[]
@@ -231,14 +231,7 @@ export function BudgetLineList({
           return null
         }
         return (
-          <Stack key={group} gap="xs">
-            <Group justify="space-between" align="baseline" wrap="nowrap">
-              <Title order={3}>{label}</Title>
-              <Text fw={700} aria-label={`${label} fortnightly subtotal`}>
-                {formatCents(subtotal)} / fn
-              </Text>
-            </Group>
-
+          <GroupSection key={group} title={label} subtotalCents={subtotal}>
             {!searching && groupLines.length === 0 && addingGroup !== group && (
               <Text c="dimmed" size="sm">
                 No {label.toLowerCase()} lines yet.
@@ -283,7 +276,7 @@ export function BudgetLineList({
                   Add {label} line
                 </Button>
               ))}
-          </Stack>
+          </GroupSection>
         )
       })}
     </Stack>

@@ -31,8 +31,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Inflows: the household owns many projection-based inflows, split by taxability
   — taxable income (salary, wage, or other regular income on a schedule — weekly
   through annual, or an arbitrary every-N-weeks cadence — each tagged to a member
-  for tax) and non-taxable inflows (e.g. reimbursements, excluded from tax and
-  added to available cash).
+  for tax) and non-taxable inflows (reimbursement, hobby income, gift, or other —
+  the type is a reporting label, excluded from tax and added to available cash).
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027.

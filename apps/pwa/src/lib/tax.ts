@@ -17,14 +17,20 @@ import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 
+/** The tax engine's income types; any other inflow type is treated as `other`. */
+const TAXABLE_INCOME_TYPES = new Set<IncomeInput['type']>(['salary', 'wage', 'other'])
+
 /**
  * Maps a taxable `inflow` row to the tax engine's `IncomeInput`. Only taxable
- * inflows reach the tax estimate, so the type is never `reimbursement` here.
+ * inflows reach the tax estimate, so the type is only ever salary, wage, or
+ * other; any non-taxable label is coerced to `other` for safety.
  */
 export function toIncomeInput(inflow: Inflow): IncomeInput {
   return {
     memberId: inflow.member_id ?? '',
-    type: inflow.type as 'salary' | 'wage' | 'other',
+    type: TAXABLE_INCOME_TYPES.has(inflow.type as IncomeInput['type'])
+      ? (inflow.type as IncomeInput['type'])
+      : 'other',
     schedule: inflow.schedule,
     amountCents: inflow.amount_cents ?? undefined,
     hourlyRateCents: inflow.hourly_rate_cents ?? undefined,

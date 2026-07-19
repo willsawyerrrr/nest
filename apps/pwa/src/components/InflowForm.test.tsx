@@ -96,7 +96,6 @@ describe('InflowForm', () => {
 
     await user.click(screen.getByText('Non-taxable inflow'))
     expect(screen.queryByRole('combobox', { name: /member/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /type/i })).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText(/name/i), 'Travel reimbursement')
     await user.type(screen.getByLabelText(/amount/i), '80')
@@ -115,6 +114,67 @@ describe('InflowForm', () => {
         hours_per_period: null,
       }),
     )
+  })
+
+  it('persists a chosen non-taxable type', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByText('Non-taxable inflow'))
+    await user.type(screen.getByLabelText(/name/i), 'Side gig')
+    await selectOption(user, /type/i, 'Hobby income')
+    await user.type(screen.getByLabelText(/amount/i), '120')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Side gig', taxable: false, type: 'hobby' }),
+      ),
+    )
+  })
+
+  it('resets the type to the mode default when toggling taxability drops it', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    // Non-taxable → choose gift, then flip back to taxable: gift is invalid there.
+    await user.click(screen.getByText('Non-taxable inflow'))
+    await selectOption(user, /type/i, 'Gift')
+    await user.click(screen.getByText('Taxable income'))
+    expect(screen.getByRole('combobox', { name: /type/i })).toHaveValue('Salary')
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await user.type(screen.getByLabelText(/amount/i), '100')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxable: true, type: 'salary' }),
+      ),
+    )
+  })
+
+  it('preselects a saved non-taxable type when editing', () => {
+    const inflow: Inflow = {
+      id: 'i2',
+      household_id: 'h1',
+      member_id: null,
+      name: 'Etsy shop',
+      taxable: false,
+      type: 'hobby',
+      schedule: 'monthly',
+      interval_weeks: null,
+      amount_cents: 15000,
+      hourly_rate_cents: null,
+      hours_per_period: null,
+      created_at: '',
+      updated_at: '',
+    }
+    render(<InflowForm members={members} initial={inflow} onSubmit={vi.fn()} />)
+
+    expect(screen.getByRole('combobox', { name: /type/i })).toHaveValue('Hobby income')
   })
 
   it('reveals the weeks input for the every-N-weeks cadence and submits the interval', async () => {

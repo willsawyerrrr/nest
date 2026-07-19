@@ -67,11 +67,13 @@ function addAmounts(a: Amounts, b: Amounts): Amounts {
  */
 export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   const inflowFortnightly = input.nonTaxableInflows.reduce(
-    (total, inflow) => total + fortnightlyCents(inflow.amountCents, inflow.frequency),
+    (total, inflow) =>
+      total + fortnightlyCents(inflow.amountCents, inflow.frequency, inflow.intervalWeeks),
     0,
   )
   const inflowAnnual = input.nonTaxableInflows.reduce(
-    (total, inflow) => total + annualCents(inflow.amountCents, inflow.frequency),
+    (total, inflow) =>
+      total + annualCents(inflow.amountCents, inflow.frequency, inflow.intervalWeeks),
     0,
   )
   const available: Amounts = {

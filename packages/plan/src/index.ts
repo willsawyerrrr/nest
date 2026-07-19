@@ -6,7 +6,13 @@
  * this package the after-tax income the tax engine produces).
  */
 
-export { annualCents, fortnightlyCents, FORTNIGHTS_PER_YEAR, PERIODS_PER_YEAR } from './normalize'
+export {
+  annualCents,
+  fortnightlyCents,
+  FORTNIGHTS_PER_YEAR,
+  PERIODS_PER_YEAR,
+  WEEKS_PER_YEAR,
+} from './normalize'
 
 export { isTemporaryActive, summarise } from './summary'
 export type { Amounts, BudgetSummary, GroupSummary, SummaryInput } from './summary'
@@ -19,9 +25,12 @@ export type Money = number
 
 /**
  * How often an amount recurs. Drives periods-per-year for normalization; the
- * fortnight (26 periods/year) is the plan's primary period.
+ * fortnight (26 periods/year) is the plan's primary period. `every_n_weeks` is
+ * an arbitrary cadence — an amount received once every N weeks — carrying its
+ * own interval N rather than a fixed periods-per-year.
  */
-export type Frequency = 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'biannual' | 'annual'
+export type Frequency =
+  'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'biannual' | 'annual' | 'every_n_weeks'
 
 /**
  * The six fixed groups a budget line can belong to. `temporary` is absent: a
@@ -44,6 +53,8 @@ export interface BudgetLine {
 export interface NonTaxableInflow {
   readonly amountCents: Money
   readonly frequency: Frequency
+  /** Weeks between payments, required only when `frequency` is `every_n_weeks`. */
+  readonly intervalWeeks?: number
 }
 
 /**

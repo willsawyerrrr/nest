@@ -12,9 +12,13 @@
 import { computeTax } from './index'
 import type { Money, Residency, TaxBreakdown, TaxInput, TaxYearConfig } from './index'
 
-/** How often an income is received. Drives periods-per-year for annualisation. */
+/**
+ * How often an income is received. Drives periods-per-year for annualisation.
+ * `every_n_weeks` is an arbitrary cadence — received once every N weeks —
+ * carrying its interval N in `intervalWeeks` rather than a fixed periods/year.
+ */
 export type IncomeSchedule =
-  'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'biannual' | 'annual'
+  'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'biannual' | 'annual' | 'every_n_weeks'
 
 /**
  * One projection-based income, tagged to a member. `salary` and `other` carry a
@@ -28,6 +32,8 @@ export interface IncomeInput {
   readonly amountCents?: Money
   readonly hourlyRateCents?: Money
   readonly hoursPerPeriod?: number
+  /** Weeks between payments, required only when `schedule` is `every_n_weeks`. */
+  readonly intervalWeeks?: number
 }
 
 /** A member's tax attributes: residency, private hospital cover, and HELP debt. */
@@ -64,8 +70,11 @@ export interface HouseholdTaxEstimate {
 /** Fortnights per financial year; annual figures divide by this. */
 const FORTNIGHTS_PER_YEAR = 26
 
-/** Periods per year for each schedule. */
-const PERIODS_PER_YEAR: Readonly<Record<IncomeSchedule, number>> = {
+/** Weeks per year; the `every_n_weeks` cadence divides this by its interval. */
+const WEEKS_PER_YEAR = 52
+
+/** Periods per year for each fixed-cadence schedule. */
+const PERIODS_PER_YEAR: Readonly<Record<Exclude<IncomeSchedule, 'every_n_weeks'>, number>> = {
   weekly: 52,
   fortnightly: 26,
   monthly: 12,
@@ -87,18 +96,27 @@ function fortnightlyOf(annualCents: Money): Money {
 }
 
 /**
- * Annualises one income to whole cents. `salary` and `other` multiply their
- * per-period `amountCents` by the schedule's periods; `wage` first rounds
- * `hourlyRateCents × hoursPerPeriod` to whole cents of per-period pay, then
- * multiplies by the periods. Missing amounts are treated as zero.
+ * Annualises one income to whole cents. The per-period gross is `amountCents`
+ * for `salary` and `other`, or `hourlyRateCents × hoursPerPeriod` rounded to
+ * whole cents for `wage`. Fixed schedules multiply that by the schedule's
+ * periods per year; `every_n_weeks` — a per-period gross received once every
+ * `intervalWeeks` weeks — is `round(perPeriod × 52 / intervalWeeks)`, with an
+ * absent or non-positive-integer interval defensively annualising to zero.
+ * Missing amounts are treated as zero.
  */
 export function annualGrossCents(income: IncomeInput): Money {
-  const periods = PERIODS_PER_YEAR[income.schedule]
-  if (income.type === 'wage') {
-    const perPeriod = Math.round((income.hourlyRateCents ?? 0) * (income.hoursPerPeriod ?? 0))
-    return perPeriod * periods
+  const perPeriod =
+    income.type === 'wage'
+      ? Math.round((income.hourlyRateCents ?? 0) * (income.hoursPerPeriod ?? 0))
+      : (income.amountCents ?? 0)
+  if (income.schedule === 'every_n_weeks') {
+    const interval = income.intervalWeeks
+    if (interval === undefined || !Number.isInteger(interval) || interval < 1) {
+      return 0
+    }
+    return Math.round((perPeriod * WEEKS_PER_YEAR) / interval)
   }
-  return (income.amountCents ?? 0) * periods
+  return perPeriod * PERIODS_PER_YEAR[income.schedule]
 }
 
 /** Members' income streams split into the engine's salary/wages and other buckets. */

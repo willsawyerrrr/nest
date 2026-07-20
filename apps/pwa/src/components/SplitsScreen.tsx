@@ -119,8 +119,9 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
  * A saver's recommended fortnightly split with drift against what is currently
  * configured. When the rounded recommendation differs from the configured
  * amount (or it has never been confirmed), the row is flagged, shows the change,
- * and offers a Confirm to record the new amount; otherwise it reads as up to
- * date. The configured amount is source-agnostic — see `SplitsScreenProps`.
+ * and offers a Confirm to record the new amount; otherwise it renders plainly,
+ * with no status indicator. The configured amount is source-agnostic — see
+ * `SplitsScreenProps`.
  */
 function SaverSplitRow({
   account,
@@ -170,24 +171,18 @@ function SaverSplitRow({
           </Group>
         </Group>
       </Group>
-      <Group justify="space-between" wrap="nowrap" gap="sm" mt={6}>
-        {needsUpdate ? (
+      {needsUpdate && (
+        <Group justify="space-between" wrap="nowrap" gap="sm" mt={6}>
           <Text size="xs" c="dimmed">
             {configuredCents === null
               ? 'Not set in Up yet'
               : `was ${formatCents(configuredCents)} → ${formatCents(rounded)} / fn`}
           </Text>
-        ) : (
-          <Text size="xs" c="dimmed">
-            ✓ up to date
-          </Text>
-        )}
-        {needsUpdate && (
           <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, rounded)}>
             {configuredCents === null ? 'Mark as set' : 'Confirm'}
           </Button>
-        )}
-      </Group>
+        </Group>
+      )}
     </Card>
   )
 }
@@ -302,13 +297,9 @@ export function SplitsScreen({
             <Title order={3} size="h5">
               Recommended pay splits
             </Title>
-            {saversToUpdate > 0 ? (
+            {saversToUpdate > 0 && (
               <Badge size="sm" variant="light" color="yellow">
                 {saversToUpdate} to update
-              </Badge>
-            ) : (
-              <Badge size="sm" variant="light" color="teal">
-                set in Up
               </Badge>
             )}
           </Group>

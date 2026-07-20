@@ -32,20 +32,20 @@ function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> 
 }
 
 describe('ChangelogScreen', () => {
-  it('prefixes entries with a type emoji and leads with the scope', () => {
+  it('prefixes entries with a type emoji and shows no scope', () => {
     renderScreen({ inProgress, implemented })
 
-    // Feature entry: emoji labelled "Feature", dimmed scope, then description.
+    // Feature entry: emoji labelled "Feature", then description with no scope.
     expect(screen.getByText('Confirm pay splits')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Feature' })).toBeInTheDocument()
-    expect(screen.getByText(/^splits —/)).toBeInTheDocument()
+    expect(screen.queryByText(/splits —/)).not.toBeInTheDocument()
 
-    // Improvement (perf) entry: emoji labelled "Improvement", scope, description.
+    // Improvement (perf) entry: emoji labelled "Improvement", description, no scope.
     expect(screen.getByText('Batch account upserts')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Improvement' })).toBeInTheDocument()
-    expect(screen.getByText(/^up-sync —/)).toBeInTheDocument()
+    expect(screen.queryByText(/up-sync —/)).not.toBeInTheDocument()
 
-    // Fix entry with no scope: emoji labelled "Fix", then description alone.
+    // Fix entry: emoji labelled "Fix", then description.
     expect(screen.getByText('Correct a rounding error')).toBeInTheDocument()
     expect(screen.getByTitle('Fix')).toBeInTheDocument()
   })

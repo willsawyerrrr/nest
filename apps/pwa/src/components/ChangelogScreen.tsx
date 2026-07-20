@@ -28,27 +28,12 @@ function TypeEmoji({ type }: { type: string }) {
   )
 }
 
-function Entry({
-  type,
-  scope,
-  description,
-}: {
-  type: string
-  scope: string | null
-  description: string
-}) {
+function Entry({ type, description }: { type: string; description: string }) {
   return (
     <Card withBorder padding="sm" radius="md">
       <Group align="flex-start" wrap="nowrap" gap="xs">
         <TypeEmoji type={type} />
-        <Text style={{ minWidth: 0 }}>
-          {scope && (
-            <Text span c="dimmed">
-              {scope} —{' '}
-            </Text>
-          )}
-          {description}
-        </Text>
+        <Text style={{ minWidth: 0 }}>{description}</Text>
       </Group>
     </Card>
   )
@@ -110,12 +95,7 @@ export function ChangelogScreen({
           <Section title="In progress" count={inProgress.length}>
             <Stack gap="xs">
               {inProgress.map((entry) => (
-                <Entry
-                  key={entry.number}
-                  type={entry.type}
-                  scope={entry.scope}
-                  description={entry.description}
-                />
+                <Entry key={entry.number} type={entry.type} description={entry.description} />
               ))}
             </Stack>
           </Section>
@@ -123,12 +103,7 @@ export function ChangelogScreen({
           <Section title="Implemented" count={implemented.length}>
             <Stack gap="xs">
               {implemented.map((entry) => (
-                <Entry
-                  key={entry.sha}
-                  type={entry.type}
-                  scope={entry.scope}
-                  description={entry.description}
-                />
+                <Entry key={entry.sha} type={entry.type} description={entry.description} />
               ))}
             </Stack>
           </Section>

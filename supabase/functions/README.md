@@ -129,7 +129,8 @@ the function proxies the API.
 - **`changelog`** — JWT-verified, so only signed-in users can call it. Fetches
   merged-commit subjects on `main` (implemented) and open PR titles (in
   progress) from the GitHub REST API, keeps only user-facing Conventional Commit
-  types (feat / fix / perf), and returns the shaped lists. The parsing and
+  types (feat / fix / perf) while excluding `ci`-scoped entries (CI/plumbing,
+  not user-facing), and returns the shaped lists. The parsing and
   filtering are the pure `parseChangelogSubject` / `runChangelog` in
   `changelog/changelog.ts` (HTTP injected), unit-tested against a stubbed
   `fetch`. A GitHub failure surfaces as a `502`.

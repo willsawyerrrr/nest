@@ -60,6 +60,9 @@ interface GitHubPull {
  * (feat/fix/perf) and returning `null` for everything else. The type is
  * lowercased, the scope is optional, and a trailing squash-merge PR-number
  * suffix (` (#123)`) is stripped from the description for display.
+ *
+ * A `ci`-scoped entry (case-insensitive) is dropped: those are CI/plumbing
+ * changes, not user-facing.
  */
 export function parseChangelogSubject(subject: string): ParsedSubject | null {
   const match = /^(\w+)(?:\(([^)]*)\))?:\s*(.+)$/.exec(subject.trim())
@@ -71,6 +74,9 @@ export function parseChangelogSubject(subject: string): ParsedSubject | null {
     return null
   }
   const scope = match[2]?.trim() ? match[2].trim() : null
+  if (scope?.toLowerCase() === 'ci') {
+    return null
+  }
   const description = match[3]
     .trim()
     .replace(/\s*\(#\d+\)$/, '')

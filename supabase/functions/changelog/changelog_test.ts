@@ -26,6 +26,27 @@ Deno.test('parseChangelogSubject excludes non-user-facing types', () => {
   assertEquals(parseChangelogSubject('refactor: Extract a helper'), null)
 })
 
+Deno.test('parseChangelogSubject excludes ci-scoped entries but keeps other scopes', () => {
+  assertEquals(parseChangelogSubject('perf(ci): Cache the Deno toolchain'), null)
+  assertEquals(parseChangelogSubject('fix(ci): Pin the runner image'), null)
+  assertEquals(parseChangelogSubject('feat(CI): Add a nightly job'), null)
+  assertEquals(parseChangelogSubject('perf: Cache the config lookup'), {
+    type: 'perf',
+    scope: null,
+    description: 'Cache the config lookup',
+  })
+  assertEquals(parseChangelogSubject('perf(pwa): Defer the chunk'), {
+    type: 'perf',
+    scope: 'pwa',
+    description: 'Defer the chunk',
+  })
+  assertEquals(parseChangelogSubject('feat(splits): Confirm pay splits'), {
+    type: 'feat',
+    scope: 'splits',
+    description: 'Confirm pay splits',
+  })
+})
+
 Deno.test('parseChangelogSubject strips a trailing PR-number suffix', () => {
   assertEquals(parseChangelogSubject('feat(gifts): Add a purchase log (#117)'), {
     type: 'feat',
@@ -67,11 +88,19 @@ const sampleCommits = [
       committer: { date: '2026-07-08T00:00:00Z' },
     },
   },
+  {
+    sha: 'ddd444',
+    commit: {
+      message: 'perf(ci): Cache the Deno toolchain (#115)',
+      committer: { date: '2026-07-07T00:00:00Z' },
+    },
+  },
 ]
 
 const samplePulls = [
   { number: 120, title: 'feat(splits): Confirm pay splits', html_url: 'https://example/120' },
   { number: 121, title: 'docs: Update the roadmap', html_url: 'https://example/121' },
+  { number: 122, title: 'fix(ci): Pin the runner image', html_url: 'https://example/122' },
 ]
 
 Deno.test('runChangelog shapes commits and pulls, keeping only user-facing entries', async () => {
@@ -92,7 +121,8 @@ Deno.test('runChangelog shapes commits and pulls, keeping only user-facing entri
     const body = result.body as ChangelogResult
     assertEquals(body.configured, true)
 
-    // chore is dropped; feat and fix are kept, newest-first, PR suffix stripped.
+    // chore and the ci-scoped perf are dropped; feat and fix are kept,
+    // newest-first, PR suffix stripped.
     assertEquals(body.implemented, [
       {
         type: 'feat',
@@ -110,7 +140,8 @@ Deno.test('runChangelog shapes commits and pulls, keeping only user-facing entri
       },
     ])
 
-    // docs is dropped; the feat PR is kept with its number and url.
+    // docs and the ci-scoped fix are dropped; the feat PR is kept with its
+    // number and url.
     assertEquals(body.inProgress, [
       {
         type: 'feat',

@@ -5,6 +5,7 @@ import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 
 const inProgress: InProgressEntry[] = [
   { type: 'feat', scope: 'splits', description: 'Confirm pay splits', number: 120, url: 'u' },
+  { type: 'perf', scope: 'up-sync', description: 'Batch account upserts', number: 121, url: 'u' },
 ]
 
 const implemented: ImplementedEntry[] = [
@@ -31,15 +32,22 @@ function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> 
 }
 
 describe('ChangelogScreen', () => {
-  it('renders in-progress and implemented entries with their type badges', () => {
+  it('prefixes entries with a type emoji and leads with the scope', () => {
     renderScreen({ inProgress, implemented })
 
+    // Feature entry: emoji labelled "Feature", dimmed scope, then description.
     expect(screen.getByText('Confirm pay splits')).toBeInTheDocument()
-    expect(screen.getByText('Feature')).toBeInTheDocument()
-    expect(screen.getByText('splits')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Feature' })).toBeInTheDocument()
+    expect(screen.getByText(/^splits —/)).toBeInTheDocument()
 
+    // Improvement (perf) entry: emoji labelled "Improvement", scope, description.
+    expect(screen.getByText('Batch account upserts')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Improvement' })).toBeInTheDocument()
+    expect(screen.getByText(/^up-sync —/)).toBeInTheDocument()
+
+    // Fix entry with no scope: emoji labelled "Fix", then description alone.
     expect(screen.getByText('Correct a rounding error')).toBeInTheDocument()
-    expect(screen.getByText('Fix')).toBeInTheDocument()
+    expect(screen.getByTitle('Fix')).toBeInTheDocument()
   })
 
   it('shows a hint for an empty section', () => {

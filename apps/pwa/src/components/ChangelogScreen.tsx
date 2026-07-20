@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Alert, Badge, Card, Group, Loader, Stack, Text, Title } from '@mantine/core'
+import { Alert, Card, Group, Loader, Stack, Text, Title } from '@mantine/core'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 
 interface ChangelogScreenProps {
@@ -10,21 +10,21 @@ interface ChangelogScreenProps {
   error: string | null
 }
 
-const TYPE_BADGES: Record<string, { label: string; color: string }> = {
-  feat: { label: 'Feature', color: 'teal' },
-  fix: { label: 'Fix', color: 'red' },
-  perf: { label: 'Improvement', color: 'blue' },
+const TYPE_EMOJI: Record<string, { emoji: string; label: string }> = {
+  feat: { emoji: '✨', label: 'Feature' },
+  fix: { emoji: '🐛', label: 'Fix' },
+  perf: { emoji: '⚡', label: 'Improvement' },
 }
 
-function TypeBadge({ type }: { type: string }) {
-  const badge = TYPE_BADGES[type]
-  if (!badge) {
+function TypeEmoji({ type }: { type: string }) {
+  const meta = TYPE_EMOJI[type]
+  if (!meta) {
     return null
   }
   return (
-    <Badge size="sm" variant="light" color={badge.color}>
-      {badge.label}
-    </Badge>
+    <span role="img" aria-label={meta.label} title={meta.label}>
+      {meta.emoji}
+    </span>
   )
 }
 
@@ -39,16 +39,16 @@ function Entry({
 }) {
   return (
     <Card withBorder padding="sm" radius="md">
-      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
-        <Text style={{ minWidth: 0 }}>{description}</Text>
-        <Group gap="xs" wrap="nowrap">
+      <Group align="flex-start" wrap="nowrap" gap="xs">
+        <TypeEmoji type={type} />
+        <Text style={{ minWidth: 0 }}>
           {scope && (
-            <Text size="xs" c="dimmed">
-              {scope}
+            <Text span c="dimmed">
+              {scope} —{' '}
             </Text>
           )}
-          <TypeBadge type={type} />
-        </Group>
+          {description}
+        </Text>
       </Group>
     </Card>
   )

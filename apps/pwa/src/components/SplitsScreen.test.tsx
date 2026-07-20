@@ -31,6 +31,7 @@ function line(overrides: Partial<BudgetLine> & Pick<BudgetLine, 'id' | 'line_gro
     goal_id: null,
     derived_source: null,
     destination_account_id: null,
+    breakdown_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

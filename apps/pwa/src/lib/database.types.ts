@@ -85,9 +85,99 @@ export type Database = {
           },
         ]
       }
+      breakdown: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          kind: Database['public']['Enums']['breakdown_kind']
+          line_group: Database['public']['Enums']['budget_group']
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          kind?: Database['public']['Enums']['breakdown_kind']
+          line_group: Database['public']['Enums']['budget_group']
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          kind?: Database['public']['Enums']['breakdown_kind']
+          line_group?: Database['public']['Enums']['budget_group']
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'breakdown_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      breakdown_item: {
+        Row: {
+          amount_cents: number
+          breakdown_id: string
+          created_at: string
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id: string
+          interval_weeks: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          breakdown_id: string
+          created_at?: string
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id?: string
+          interval_weeks?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          breakdown_id?: string
+          created_at?: string
+          frequency?: Database['public']['Enums']['frequency']
+          household_id?: string
+          id?: string
+          interval_weeks?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'breakdown_item_breakdown_id_household_id_fkey'
+            columns: ['breakdown_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'breakdown'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'breakdown_item_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       budget_line: {
         Row: {
           amount_cents: number
+          breakdown_id: string | null
           created_at: string
           derived_source: Database['public']['Enums']['budget_derived_source'] | null
           destination_account_id: string | null
@@ -102,6 +192,7 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          breakdown_id?: string | null
           created_at?: string
           derived_source?: Database['public']['Enums']['budget_derived_source'] | null
           destination_account_id?: string | null
@@ -116,6 +207,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          breakdown_id?: string | null
           created_at?: string
           derived_source?: Database['public']['Enums']['budget_derived_source'] | null
           destination_account_id?: string | null
@@ -129,6 +221,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'budget_line_breakdown_id_household_id_fkey'
+            columns: ['breakdown_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'breakdown'
+            referencedColumns: ['id', 'household_id']
+          },
           {
             foreignKeyName: 'budget_line_destination_account_id_household_id_fkey'
             columns: ['destination_account_id', 'household_id']
@@ -940,6 +1039,7 @@ export type Database = {
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
+      breakdown_kind: 'generic' | 'gift'
       budget_derived_source: 'gift'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
@@ -1078,6 +1178,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
+      breakdown_kind: ['generic', 'gift'],
       budget_derived_source: ['gift'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],

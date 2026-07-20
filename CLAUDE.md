@@ -74,8 +74,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Keep documentation in sync with the code. When a change alters behaviour,
   schema, scope, or a workflow, update the affected docs (`docs/` and this file)
   as part of the same change, so `main` is never merged with stale docs.
-- Claude drives pull requests autonomously in this repo — opening, updating, and
-  merging them — without per-turn confirmation. Branches merge once CI is green.
+- Claude fully drives this repo: it makes changes of every kind — code, schema,
+  migrations, docs, CI, config — and drives pull requests autonomously, opening,
+  updating, and merging them without per-turn confirmation. Branches merge once
+  CI is green.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
   jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite,

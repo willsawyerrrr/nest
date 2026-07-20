@@ -247,7 +247,8 @@ export function BudgetLineForm({
             value={destinationAccountId}
             onChange={setDestinationAccountId}
             clearable
-            nothingFoundMessage="No accounts yet"
+            searchable
+            nothingFoundMessage="No matching accounts"
           />
         )}
 

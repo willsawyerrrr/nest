@@ -42,10 +42,12 @@ function Entry({ type, description }: { type: string; description: string }) {
 function Section({
   title,
   count,
+  emptyLabel,
   children,
 }: {
   title: string
   count: number
+  emptyLabel: string
   children: ReactNode
 }) {
   return (
@@ -55,7 +57,7 @@ function Section({
       </Title>
       {count === 0 ? (
         <Text size="sm" c="dimmed">
-          Nothing here yet.
+          {emptyLabel}
         </Text>
       ) : (
         children
@@ -92,7 +94,11 @@ export function ChangelogScreen({
 
       {!loading && !error && configured && (
         <>
-          <Section title="In progress" count={inProgress.length}>
+          <Section
+            title="In progress"
+            count={inProgress.length}
+            emptyLabel="Nothing in the works right now."
+          >
             <Stack gap="xs">
               {inProgress.map((entry) => (
                 <Entry key={entry.number} type={entry.type} description={entry.description} />
@@ -100,7 +106,7 @@ export function ChangelogScreen({
             </Stack>
           </Section>
 
-          <Section title="Implemented" count={implemented.length}>
+          <Section title="Implemented" count={implemented.length} emptyLabel="Nothing here yet.">
             <Stack gap="xs">
               {implemented.map((entry) => (
                 <Entry key={entry.sha} type={entry.type} description={entry.description} />

@@ -85,6 +85,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   it inline, staying free to plan and take direction from the user. Launch
   independent subagents concurrently; reserve the main thread for orchestration
   and conversation.
+- Every piece of work happens in its own dedicated git worktree named after its
+  branch. This repo is a bare + per-branch-worktree layout (`.bare` plus a
+  worktree per branch), so isolating each task in its own worktree keeps
+  parallel subagents from sharing a working tree or colliding on git state.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
   jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite,

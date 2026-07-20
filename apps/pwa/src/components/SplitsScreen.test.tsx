@@ -91,6 +91,44 @@ describe('SplitsScreen', () => {
     expect(screen.queryByText('🏖️ Holiday')).not.toBeInTheDocument()
   })
 
+  it('sorts the saver rows by title then by amount', async () => {
+    const user = userEvent.setup()
+    const alpha = account({ id: 's1', name: 'Alpha', source: 'up', type: 'savings' })
+    const bravo = account({ id: 's2', name: 'Bravo', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [alpha, bravo],
+      goals: [
+        goal({ id: 'g1', linked_account_id: 's1' }),
+        goal({ id: 'g2', linked_account_id: 's2' }),
+      ],
+      lines: [
+        line({ id: 'l1', line_group: 'savings', amount_cents: 100_00, goal_id: 'g1' }),
+        line({ id: 'l2', line_group: 'savings', amount_cents: 300_00, goal_id: 'g2' }),
+      ],
+    })
+
+    // Default: title ascending lists Alpha before Bravo.
+    expect(screen.getAllByText(/Alpha|Bravo/).map((node) => node.textContent)).toEqual([
+      'Alpha',
+      'Bravo',
+    ])
+
+    // Amount ascending keeps Alpha ($100) before Bravo ($300).
+    await user.click(screen.getByRole('combobox', { name: /sort by/i }))
+    await user.click(screen.getByRole('option', { name: 'Amount' }))
+    expect(screen.getAllByText(/Alpha|Bravo/).map((node) => node.textContent)).toEqual([
+      'Alpha',
+      'Bravo',
+    ])
+
+    // Amount descending puts Bravo ($300) first.
+    await user.click(screen.getByRole('button', { name: /toggle sort direction/i }))
+    expect(screen.getAllByText(/Alpha|Bravo/).map((node) => node.textContent)).toEqual([
+      'Bravo',
+      'Alpha',
+    ])
+  })
+
   it('rounds a split up to the next $5 and shows the exact figure', () => {
     const everyday = account({ id: 't1', name: 'Everyday', type: 'transaction' })
     renderScreen({

@@ -40,8 +40,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: [test-shard]
+    # Always run so this required check reflects the shards' real result: a
+    # failed shard makes `needs` "failure", which would otherwise skip this job —
+    # and a skipped required check counts as passing, letting a broken shard
+    # merge. Fail explicitly instead.
+    if: ${{ always() }}
     steps:
-      - run: echo "all shards passed"
+      - run: |
+          if [ "${{ needs.test-shard.result }}" != "success" ]; then
+            echo "A test shard did not succeed: ${{ needs.test-shard.result }}"
+            exit 1
+          fi
+          echo "all shards passed"
 
   functions:
     runs-on: ubuntu-latest

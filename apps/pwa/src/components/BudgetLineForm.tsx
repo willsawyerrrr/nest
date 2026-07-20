@@ -21,6 +21,8 @@ interface BudgetLineFormProps {
   defaultGroup?: BudgetGroup
   /** The household's goals, offered as a link target on savings/investments lines. */
   goals?: { id: string; name: string }[]
+  /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
+  accounts?: { id: string; name: string }[]
   /** The household's total planned gift spend, shown when the amount is derived from the gift tracker. */
   giftTotalCents?: number
   /** Whether the gift-tracker amount source may be chosen (one gift-derived line per household). */
@@ -52,6 +54,7 @@ export function BudgetLineForm({
   initial,
   defaultGroup,
   goals = [],
+  accounts = [],
   giftTotalCents = 0,
   giftSourceAvailable = false,
   onSubmit,
@@ -63,6 +66,9 @@ export function BudgetLineForm({
   const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [goalId, setGoalId] = useState<string | null>(initial?.goal_id ?? null)
+  const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
+    initial?.destination_account_id ?? null,
+  )
   const [amountSource, setAmountSource] = useState<AmountSource>(
     initial?.derived_source === 'gift' ? 'gift' : 'manual',
   )
@@ -71,6 +77,9 @@ export function BudgetLineForm({
 
   const derived = amountSource === 'gift'
   const showGoalPicker = groupLinksGoal(group) && !derived
+  // Savings/Investments lines route to their goal's account, so they carry no
+  // direct destination; every other group offers a "Funded from" picker.
+  const showAccountPicker = !groupLinksGoal(group)
   // Offer the gift source when it is available, and always when editing the existing gift line.
   const showAmountSource = giftSourceAvailable || amountSource === 'gift'
   const isEveryNWeeks = !derived && frequency === 'every_n_weeks'
@@ -78,7 +87,10 @@ export function BudgetLineForm({
 
   const changeGroup = (next: BudgetGroup) => {
     setGroup(next)
-    if (!groupLinksGoal(next)) {
+    if (groupLinksGoal(next)) {
+      // Savings/Investments carry no direct destination (the DB CHECK bars it).
+      setDestinationAccountId(null)
+    } else {
       setGoalId(null)
     }
   }
@@ -104,6 +116,7 @@ export function BudgetLineForm({
       interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       goal_id: showGoalPicker ? goalId : null,
       derived_source: derived ? 'gift' : null,
+      destination_account_id: showAccountPicker ? destinationAccountId : null,
     }
     try {
       await onSubmit(input)
@@ -206,16 +219,35 @@ export function BudgetLineForm({
         )}
 
         {showGoalPicker && (
+          <>
+            <Select
+              label="Goal"
+              size="sm"
+              description="Optional. Links this line's contribution to a savings goal."
+              placeholder="No goal"
+              data={goals.map((goal) => ({ value: goal.id, label: goal.name }))}
+              value={goalId}
+              onChange={setGoalId}
+              clearable
+              nothingFoundMessage="No goals yet"
+            />
+            <Text size="xs" c="dimmed">
+              This line's pay split is routed to its goal's linked Up saver.
+            </Text>
+          </>
+        )}
+
+        {showAccountPicker && (
           <Select
-            label="Goal"
+            label="Funded from"
             size="sm"
-            description="Optional. Links this line's contribution to a savings goal."
-            placeholder="No goal"
-            data={goals.map((goal) => ({ value: goal.id, label: goal.name }))}
-            value={goalId}
-            onChange={setGoalId}
+            description="Optional. The account or Up saver whose pay split funds this line."
+            placeholder="Not routed"
+            data={accounts.map((account) => ({ value: account.id, label: account.name }))}
+            value={destinationAccountId}
+            onChange={setDestinationAccountId}
             clearable
-            nothingFoundMessage="No goals yet"
+            nothingFoundMessage="No accounts yet"
           />
         )}
 

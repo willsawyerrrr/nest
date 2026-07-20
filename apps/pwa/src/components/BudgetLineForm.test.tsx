@@ -34,6 +34,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: null,
         goal_id: null,
         derived_source: null,
+        destination_account_id: null,
       }),
     )
   })
@@ -58,6 +59,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: null,
         goal_id: null,
         derived_source: null,
+        destination_account_id: null,
       }),
     )
   })
@@ -82,6 +84,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: 4,
         goal_id: null,
         derived_source: null,
+        destination_account_id: null,
       }),
     )
   })
@@ -126,6 +129,7 @@ describe('BudgetLineForm', () => {
       interval_weeks: null,
       goal_id: null,
       derived_source: null,
+      destination_account_id: null,
       created_at: '',
       updated_at: '',
     }
@@ -205,6 +209,77 @@ describe('BudgetLineForm', () => {
     )
   })
 
+  it('shows the funded-from picker for non-savings groups', () => {
+    render(
+      <BudgetLineForm
+        defaultGroup="needs"
+        accounts={[{ id: 'a1', name: 'Everyday' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('combobox', { name: /funded from/i })).toBeInTheDocument()
+  })
+
+  it('hides the funded-from picker for savings and investments groups', () => {
+    render(
+      <BudgetLineForm
+        defaultGroup="savings"
+        accounts={[{ id: 'a1', name: 'Everyday' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('combobox', { name: /funded from/i })).not.toBeInTheDocument()
+  })
+
+  it('routes a non-savings line to a chosen account', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <BudgetLineForm
+        defaultGroup="needs"
+        accounts={[{ id: 'a1', name: 'Everyday' }]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/name/i), 'Rent')
+    await user.type(screen.getByLabelText(/amount/i), '1000')
+    await selectOption(user, /funded from/i, 'Everyday')
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ destination_account_id: 'a1' }),
+      ),
+    )
+  })
+
+  it('clears the funded-from account when the group changes to savings', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <BudgetLineForm
+        defaultGroup="needs"
+        accounts={[{ id: 'a1', name: 'Everyday' }]}
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/name/i), 'Rent')
+    await user.type(screen.getByLabelText(/amount/i), '1000')
+    await selectOption(user, /funded from/i, 'Everyday')
+    await selectOption(user, /group/i, 'Savings')
+    expect(screen.queryByRole('combobox', { name: /funded from/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ line_group: 'savings', destination_account_id: null }),
+      ),
+    )
+  })
+
   it('omits the amount source control when the gift source is unavailable', () => {
     render(<BudgetLineForm defaultGroup="wants" onSubmit={vi.fn()} />)
     expect(screen.queryByText(/from the gift tracker/i)).not.toBeInTheDocument()
@@ -240,6 +315,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: null,
         goal_id: null,
         derived_source: 'gift',
+        destination_account_id: null,
       }),
     )
   })
@@ -257,6 +333,7 @@ describe('BudgetLineForm', () => {
       interval_weeks: null,
       goal_id: 'g1',
       derived_source: null,
+      destination_account_id: null,
       created_at: '',
       updated_at: '',
     }

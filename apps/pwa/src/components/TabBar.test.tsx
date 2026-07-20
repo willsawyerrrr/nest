@@ -77,13 +77,13 @@ describe('TabBar', () => {
     expect(pathname()).toBe('/net-worth')
   })
 
-  it('exposes the Gifts tab and jumps to it on mod+8', async () => {
+  it('exposes the Gifts tab and jumps to it on mod+9', async () => {
     const user = userEvent.setup()
     renderTabBar('/summary')
 
     expect(screen.getByRole('link', { name: 'Gifts' })).toHaveAttribute('href', '/gifts')
 
-    await user.keyboard('{Control>}8{/Control}')
+    await user.keyboard('{Control>}9{/Control}')
 
     expect(pathname()).toBe('/gifts')
   })

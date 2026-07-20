@@ -28,6 +28,8 @@ import { GroupSection } from './GroupSection'
 interface BudgetLineListProps {
   lines: BudgetLine[]
   goals: { id: string; name: string }[]
+  /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
+  accounts?: { id: string; name: string }[]
   /** The household's total planned gift spend, driving any gift-derived line. */
   giftTotalCents?: number
   onCreate: (input: BudgetLineInput) => Promise<void>
@@ -226,6 +228,7 @@ function BudgetLineItem(props: { line: BudgetLine; onEdit: () => void; onDelete:
 export function BudgetLineList({
   lines,
   goals,
+  accounts = [],
   giftTotalCents = 0,
   onCreate,
   onUpdate,
@@ -320,6 +323,7 @@ export function BudgetLineList({
       {addingItem && (
         <BudgetLineForm
           goals={goals}
+          accounts={accounts}
           giftTotalCents={giftTotalCents}
           giftSourceAvailable={giftSourceAvailableFor()}
           onSubmit={async (input) => {

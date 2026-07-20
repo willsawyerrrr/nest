@@ -99,13 +99,13 @@ reconciling spend and actual tax paid against the plan.
 - Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
   'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/goals` `/tax` `/super` `/gifts` `/household`; `/` and
-  unknown routes redirect to `/summary`), so tabs are deep-linkable and
+  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/gifts` `/household`;
+  `/` and unknown routes redirect to `/summary`), so tabs are deep-linkable and
   reload-safe. Summary is the landing tab; order Summary · Net worth · Inflows ·
-  Budget · Goals · Tax · Super · Gifts · Household. One `NAV_ITEMS` table drives a
-  responsive top app-bar + hamburger `Drawer` on mobile and a persistent left
-  sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to a tab,
-  ⌘/Ctrl+Shift+←/→ cycle.
+  Budget · Splits · Goals · Tax · Super · Gifts · Household. One `NAV_ITEMS` table
+  drives a responsive top app-bar + hamburger `Drawer` on mobile and a persistent
+  left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to the first nine
+  tabs, ⌘/Ctrl+Shift+←/→ cycle.
 - Desktop layout: content capped at a 50rem max-width; budget lines and inflows
   render as dense single rows on desktop while mobile keeps cards.
 - Non-taxable inflow types: `inflow_type` carries `reimbursement`, `hobby`,
@@ -213,6 +213,28 @@ sheet, with the household's real gift budgets loaded in production.
       takes its annual amount from the sum of every `gift_budget.budgeted_amount_cents`;
       the Budget tab and the Summary both substitute it, so the line and the tracker
       never drift.
+
+### Pay splits (complete)
+
+Keeping the household's Up pay splits aligned with the budget. See
+[`pay-splits.md`](pay-splits.md) for the full design (including why Up's
+read-only API forces a recommend-only shape).
+
+- [x] Schema: `budget_line.destination_account_id` (nullable composite FK to
+      `accounts` on `(id, household_id)`, mirroring `goal_id`) with the
+      `budget_line_destination_group` check barring a destination on
+      Savings/Investments lines, which route via their goal instead. RLS +
+      isolation test, regenerated types.
+- [x] Pure logic (`@nest/plan`): `resolveDestinationAccountId` (Savings/Investments
+      route through their goal's linked account, every other line through its own
+      destination), `assignmentsByAccount` (per-account fortnightly totals plus an
+      unassigned bucket), and `roundCentsToNearest` (round-half-up to $5).
+- [x] Budget-line form: a "Funded from" account picker on
+      non-Savings/Investments lines; Savings/Investments show the goal-derived
+      route instead.
+- [x] Splits tab (between Budget and Goals): per-account recommended fortnightly
+      split rounded to $5, an Unassigned nudge for unrouted lines, and a Refresh
+      that re-syncs Up accounts via `up-sync`.
 
 ## Now — Up ledger + reconciliation
 

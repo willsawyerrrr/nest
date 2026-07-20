@@ -247,6 +247,21 @@ read-only API keeps the confirmed split app-side).
       and per-saver drift against the confirmed split — a flagged row shows the
       change and a Confirm that records the new amount.
 
+### Changelog — "What's new" (complete)
+
+An in-app changelog so the household can see what has shipped and what is on the
+way, sourced at runtime from GitHub for the private repo.
+
+- [x] JWT-verified `changelog` edge function proxying the GitHub REST API with a
+      token held as the `GITHUB_CHANGELOG_TOKEN` function secret (never sent to
+      the client); degrades to `configured: false` when the secret is unset.
+- [x] Pure `parseChangelogSubject` keeps only user-facing Conventional Commit
+      types (feat / fix / perf), parses the optional scope, and strips the
+      trailing ` (#123)` PR-number suffix.
+- [x] **What's new** tab: **In progress** (open PRs) and **Implemented**
+      (merged-commit subjects on `main`), each entry a type badge — Feature / Fix
+      / Improvement — with the scope as a dimmed tag.
+
 ## Now — Up ledger + reconciliation
 
 Pulling actual Up transactions to reconcile spend and tax against the plan — the

@@ -22,6 +22,7 @@ import { useGifts } from './hooks/useGifts'
 import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
+import { useChangelog } from './hooks/useChangelog'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
@@ -32,6 +33,7 @@ import { SummaryView } from './components/SummaryView'
 import { SuperScreen } from './components/SuperScreen'
 import { GiftsScreen } from './components/GiftsScreen'
 import { NetWorthView } from './components/NetWorthView'
+import { ChangelogScreen } from './components/ChangelogScreen'
 import { NAV_ITEMS, TabBar } from './components/TabBar'
 import {
   currentTaxConfig,
@@ -159,6 +161,7 @@ function HouseholdApp({
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route path="/super" element={<SuperSection householdId={household.id} />} />
           <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
+          <Route path="/whats-new" element={<ChangelogSection />} />
           <Route
             path="/household"
             element={
@@ -484,6 +487,20 @@ function GiftsSection({ householdId }: { householdId: string }) {
       onCreatePurchase={gifts.createPurchase}
       onUpdatePurchase={gifts.updatePurchase}
       onDeletePurchase={gifts.removePurchase}
+    />
+  )
+}
+
+function ChangelogSection() {
+  const { implemented, inProgress, configured, loading, error } = useChangelog()
+
+  return (
+    <ChangelogScreen
+      implemented={implemented}
+      inProgress={inProgress}
+      configured={configured}
+      loading={loading}
+      error={error}
     />
   )
 }

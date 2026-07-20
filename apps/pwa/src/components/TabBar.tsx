@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/super', label: 'Super' },
   { path: '/gifts', label: 'Gifts' },
   { path: '/household', label: 'Household' },
+  { path: '/whats-new', label: "What's new" },
 ]
 
 /** Wraps `index` into `[0, length)`, cycling past either end. */

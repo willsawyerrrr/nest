@@ -41,6 +41,12 @@ function memberOrTaxability(inflow: Inflow, memberName: (id: string) => string):
   return inflow.member_id ? memberName(inflow.member_id) : 'Taxable'
 }
 
+/** The dimmed row subtitle: member/taxability and the capitalised type, e.g. "Will · Salary". */
+function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): string {
+  const type = inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
+  return `${memberOrTaxability(inflow, memberName)} · ${type}`
+}
+
 /** The edit and delete controls shared by both the row and the card treatments. */
 function InflowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
@@ -57,10 +63,11 @@ function InflowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () 
 
 /**
  * One inflow as a single dense table-like row for desktop: the name grows to
- * fill with its type badge, then the member/taxability, entered amount,
- * frequency, and fortnightly figure right-aligned in fixed columns, with the
- * controls at the end and a light rule rather than a bordered card so many
- * inflows fit and scan as a table.
+ * fill, with the member/taxability as a dimmed suffix beside it, then the entered
+ * amount, frequency, and fortnightly figure right-aligned in fixed columns, with
+ * the controls at the end and a light rule rather than a bordered card so many
+ * inflows fit and scan as a table. The type is dropped here for space (it stays
+ * on the mobile card and in the edit form).
  */
 function InflowRow({
   inflow,
@@ -76,22 +83,19 @@ function InflowRow({
   return (
     <Group
       wrap="nowrap"
-      gap="md"
+      gap="sm"
       py={6}
       style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
     >
-      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <Text fw={600} size="sm" truncate>
+      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
           {inflow.name}
         </Text>
-        <Badge size="xs" variant="light" color={inflow.taxable ? 'teal' : 'gray'} tt="capitalize">
-          {inflow.type}
-        </Badge>
+        <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
+          {inflowSubtitle(inflow, memberName)}
+        </Text>
       </Group>
-      <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '6rem', flexShrink: 0 }}>
-        {memberOrTaxability(inflow, memberName)}
-      </Text>
-      <Text size="sm" c="dimmed" ta="right" style={{ width: '8rem', flexShrink: 0 }}>
+      <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
         {describeAmount(inflow)}
       </Text>
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>

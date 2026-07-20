@@ -201,8 +201,10 @@ the FY2027 tax config was.
 
 ### Gift budget tracking (complete)
 
-The first consumer of derived budget lines (the generic concept is kept in Later).
-A dedicated gift planner + tracker, richer than the spreadsheet's plan-only Gifts
+The first consumer of derived budget lines; the generic model that supersedes it —
+user-created **Breakdowns** — is designed in Later, with gifts becoming its special
+`kind = 'gift'` breakdown and its data preserved and migrated across the pivot. A
+dedicated gift planner + tracker, richer than the spreadsheet's plan-only Gifts
 sheet, with the household's real gift budgets loaded in production.
 
 - [x] Schema (generic + gifts): the `budget_derived_source` enum, the nullable
@@ -276,22 +278,27 @@ and gifts are shipped.
 ## Later
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
-  a generic itemised sub-budget (line-item breakdown) for non-gift lists, a
-  payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
-  Small and low-risk; good HDD filler. (The gift budget is built — see Done.)
-- **Derived budget lines** (generic concept). A budget line whose amount is
-  **rolled up from an itemised tracker** instead of typed by hand, so the line and
-  its detail share one source of truth and never drift. `budget_line.derived_source`
-  (the `budget_derived_source` enum) names the source; null is an ordinary manual
-  line, and the summary math honours a derived line's source in place of its typed
-  amount. Extensible — each consumer adds an enum value and its own tables. The
-  enum is a deliberate simplification: each new source needs a migration plus
-  roll-up code; a registry/polymorphic design is deferred until sources proliferate.
-  The **gift tracker** is the shipped first consumer (Done). Remaining directions:
-  - **Health / medication tracking** (planned second consumer). Medications with
-    dose / frequency / unit cost roll up to a recurring cost that feeds a Needs
-    budget line via a new `derived_source` value — the same mechanism, a different
-    tracker.
+  a payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
+  Small and low-risk; good HDD filler. (The gift budget is built — see Done; generic
+  itemised sub-budgets are covered by Breakdowns below.)
+- **Breakdowns** (user-created itemised budget lines). See
+  [`breakdowns.md`](breakdowns.md) for the full design. A **breakdown** is a
+  household-created, named itemised list whose items roll up into a single real,
+  routable budget line, so the line and its detail share one source of truth and
+  never drift. Breakdowns replace the fixed derived-line sources with data: rather
+  than a `budget_derived_source` enum naming a hardcoded catalogue, a budget line
+  points at its owning breakdown via `budget_line.breakdown_id`, and the household
+  creates arbitrary breakdowns. A small `breakdown_kind` enum selects the editor,
+  not a per-instance type:
+  - **Gifts** is the first breakdown — the special `kind = 'gift'`, keeping its
+    existing recipient × occasion + purchases planner and its `gift_*` tables (its
+    data is preserved and migrated onto a `gift` breakdown; see Done).
+  - **Medications** and any future itemised budget are `kind = 'generic'`
+    breakdowns the household creates — a name + group and a list of items (amount +
+    frequency), needing no bespoke schema or tab.
+  - Staged, additive rollout: add the tables + `budget_line.breakdown_id` alongside
+    the existing enum and backfill gifts, switch the app over, then drop the
+    `budget_derived_source` enum and `derived_source` column.
   - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
     other needs per-member visibility on gift records, a departure from the
     household-only RLS model where every member sees everything. It would require

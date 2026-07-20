@@ -179,7 +179,6 @@ export type Database = {
           amount_cents: number
           breakdown_id: string | null
           created_at: string
-          derived_source: Database['public']['Enums']['budget_derived_source'] | null
           destination_account_id: string | null
           frequency: Database['public']['Enums']['frequency']
           goal_id: string | null
@@ -194,7 +193,6 @@ export type Database = {
           amount_cents: number
           breakdown_id?: string | null
           created_at?: string
-          derived_source?: Database['public']['Enums']['budget_derived_source'] | null
           destination_account_id?: string | null
           frequency: Database['public']['Enums']['frequency']
           goal_id?: string | null
@@ -209,7 +207,6 @@ export type Database = {
           amount_cents?: number
           breakdown_id?: string | null
           created_at?: string
-          derived_source?: Database['public']['Enums']['budget_derived_source'] | null
           destination_account_id?: string | null
           frequency?: Database['public']['Enums']['frequency']
           goal_id?: string | null
@@ -1040,7 +1037,6 @@ export type Database = {
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
       breakdown_kind: 'generic' | 'gift'
-      budget_derived_source: 'gift'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
       frequency:
@@ -1179,7 +1175,6 @@ export const Constants = {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
       breakdown_kind: ['generic', 'gift'],
-      budget_derived_source: ['gift'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
       frequency: [

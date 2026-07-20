@@ -173,12 +173,13 @@ column are dropped only once nothing reads them.
   unread by the app, until Stage 3.
 - Green.
 
-### Stage 3 — cleanup
+### Stage 3 — cleanup (done)
 
-- Once nothing reads them, drop the `budget_derived_source` enum and
-  `budget_line.derived_source` column.
-- Remove the dead gift-specific derived-line code (the `derived_source = 'gift'`
-  special-casing, `applyGiftDerivedAmounts`).
+- Dropped the `budget_derived_source` enum and `budget_line.derived_source`
+  column; breakdowns fully replace the derived-source mechanism.
+- Removed the dead `derived_source` references from the app (`BudgetLineInput`,
+  the budget form, `derivedInput`, and test fixtures) and regenerated
+  `database.types`.
 - Green.
 
 ## Notes
@@ -192,14 +193,14 @@ column are dropped only once nothing reads them.
 
 ## Status
 
-Stages 1 and 2 shipped. The schema (`breakdown`, `breakdown_item`,
-`budget_line.breakdown_id`) is live with gifts backfilled onto a `kind = 'gift'`
-breakdown, and the app reads breakdowns keyed by `budget_line.breakdown_id`: the
-Breakdowns tab, the generic item editor, the gift planner reached by `kind`, and the
-app-enforced derived-line lifecycle. Gifts is the first (`kind = 'gift'`) breakdown
-and generic breakdowns (e.g. medications) are user-created. Stage 3 (dropping the
-`budget_derived_source` enum and `budget_line.derived_source` column and the dead
-gift-specific code) remains.
+Shipped. The schema (`breakdown`, `breakdown_item`, `budget_line.breakdown_id`) is
+live with gifts backfilled onto a `kind = 'gift'` breakdown, and the app reads
+breakdowns keyed by `budget_line.breakdown_id`: the Breakdowns tab, the generic item
+editor, the gift planner reached by `kind`, and the app-enforced derived-line
+lifecycle. Gifts is the first (`kind = 'gift'`) breakdown and generic breakdowns
+(e.g. medications) are user-created. The `budget_derived_source` enum and
+`budget_line.derived_source` column are dropped — breakdowns are the sole
+derived-line mechanism.
 
 ## Open questions
 

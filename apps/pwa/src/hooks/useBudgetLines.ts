@@ -5,7 +5,6 @@ import type { Enums, Tables } from '../lib/database.types'
 export type BudgetLine = Tables<'budget_line'>
 export type BudgetGroup = Enums<'budget_group'>
 export type Frequency = Enums<'frequency'>
-export type BudgetDerivedSource = Enums<'budget_derived_source'>
 
 /** The budget-line fields a form supplies; identifiers and household are set by the hook. */
 export interface BudgetLineInput {
@@ -16,8 +15,6 @@ export interface BudgetLineInput {
   /** Weeks between allocations for the `every_n_weeks` frequency; null for every other frequency. */
   interval_weeks: number | null
   goal_id: string | null
-  /** The tracker a line's amount is derived from, or `null` for a manually entered amount. */
-  derived_source: BudgetDerivedSource | null
   /** The breakdown that owns this line (its amount, name, and group), or `null` for a manual line. */
   breakdown_id: string | null
   /** Account funding this line's pay split; only non-Savings/Investments lines may set it. */

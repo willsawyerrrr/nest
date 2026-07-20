@@ -36,7 +36,9 @@ export function BudgetScreen({
   return (
     <Stack gap="xl">
       <Stack gap="md">
-        <Title order={2}>Budget</Title>
+        <Title order={2} visibleFrom="sm">
+          Budget
+        </Title>
         <BudgetLineList
           lines={lines}
           goals={goals}

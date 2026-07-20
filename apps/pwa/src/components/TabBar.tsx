@@ -95,9 +95,9 @@ export function TabBar({ items }: { items: NavItem[] }) {
       <Box component="header" className="top-bar" hiddenFrom="sm">
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <Text fw={700}>Nest</Text>
+            <img src="/icon.svg" alt="Nest" width={28} height={28} />
             {activeLabel ? (
-              <Text size="sm" c="dimmed" truncate>
+              <Text fw={700} size="lg" truncate>
                 {activeLabel}
               </Text>
             ) : null}

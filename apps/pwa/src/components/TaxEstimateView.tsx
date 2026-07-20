@@ -202,7 +202,9 @@ function FiguresCard({
 export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEstimateViewProps) {
   return (
     <Stack gap="md">
-      <Title order={2}>Tax estimate (FY{financialYear})</Title>
+      <Title order={2} visibleFrom="sm">
+        Tax estimate (FY{financialYear})
+      </Title>
 
       {estimate.annualGrossCents === 0 ? (
         <Text c="dimmed">

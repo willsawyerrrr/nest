@@ -17,8 +17,11 @@ routes redirect to `/summary`), so they are deep-linkable and reload-safe. Order
 **Summary** (landing) · **Net worth** · **Inflows** · **Budget** · **Splits** ·
 **Goals** · **Tax** · **Super** · **Gifts** · **Household** · **What's new**.
 Navigation renders from one `NAV_ITEMS` table (`TabBar.tsx`): on
-mobile a fixed top app-bar with a hamburger that opens a left `Drawer` of every
-item, on desktop (`sm` and up) a persistent left sidebar of the same items.
+mobile a fixed top app-bar showing the app icon and the current page title, with
+a hamburger that opens a left `Drawer` of every item, on desktop (`sm` and up) a
+persistent left sidebar of the same items. Because the mobile header carries the
+page title, each primary screen's own `<Title>` heading is `visibleFrom="sm"` so
+it appears only on desktop.
 Keyboard shortcuts: ⌘/Ctrl+1–9 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Content is
 capped at a 50rem max-width; on desktop budget lines and inflows render as dense
 single rows, while mobile keeps cards. The Mantine theme uses `primaryColor:

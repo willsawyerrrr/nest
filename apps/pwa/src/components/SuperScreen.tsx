@@ -49,7 +49,9 @@ export function SuperScreen({
 }: SuperScreenProps) {
   return (
     <Stack gap="sm">
-      <Title order={2}>Super (FY{financialYear})</Title>
+      <Title order={2} visibleFrom="sm">
+        Super (FY{financialYear})
+      </Title>
       <Text c="dimmed" size="sm">
         Each member&rsquo;s balance is held as an account and counts toward net worth. Concessional
         contributions reduce their taxable income on the Tax tab.

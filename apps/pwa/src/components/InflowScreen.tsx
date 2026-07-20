@@ -21,7 +21,9 @@ export function InflowScreen({
 }: InflowScreenProps) {
   return (
     <Stack gap="sm">
-      <Title order={2}>Inflows</Title>
+      <Title order={2} visibleFrom="sm">
+        Inflows
+      </Title>
       <InflowList
         inflows={inflows}
         members={members}

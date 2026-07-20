@@ -1,5 +1,6 @@
 import { assertEquals } from '@std/assert'
 import {
+  accountName,
   type AccountRow,
   buildAccountRows,
   type ConnectedMember,
@@ -23,13 +24,13 @@ function account(overrides: Partial<UpAccount['attributes']> = {}, id = 'acc-1')
   }
 }
 
-const member: ConnectedMember = { memberId: 'm-1', householdId: 'h-1' }
+const member: ConnectedMember = { memberId: 'm-1', householdId: 'h-1', name: 'Alex' }
 
 Deno.test('buildAccountRows attributes an individual account to the member', () => {
   assertEquals(buildAccountRows([account()], member), [
     {
       external_id: 'acc-1',
-      name: 'Spending',
+      name: 'Alex Spending',
       type: 'transaction',
       balance_cents: 1234,
       currency: 'AUD',
@@ -46,7 +47,28 @@ Deno.test('buildAccountRows leaves a joint account unowned', () => {
   assertEquals(row.household_id, 'h-1')
 })
 
-const otherMember: ConnectedMember = { memberId: 'm-2', householdId: 'h-2' }
+Deno.test('accountName prefixes an individual spending account with the owner name', () => {
+  assertEquals(accountName(account(), member, false), 'Alex Spending')
+})
+
+Deno.test('accountName is idempotent: recomputed from Up it never double-prefixes', () => {
+  // Up always returns the raw "Spending"; recomputing each sync keeps the name
+  // stable rather than compounding to "Alex Alex Spending".
+  assertEquals(accountName(account(), member, false), 'Alex Spending')
+  assertEquals(accountName(account(), member, false), 'Alex Spending')
+})
+
+Deno.test('accountName leaves a joint (shared) spending account unprefixed', () => {
+  const joint = account({ ownershipType: 'JOINT', displayName: '2Up' })
+  assertEquals(accountName(joint, member, true), '2Up')
+})
+
+Deno.test('accountName leaves a saver unprefixed', () => {
+  const saver = account({ accountType: 'SAVER', displayName: '🏖 Holiday' })
+  assertEquals(accountName(saver, member, false), '🏖 Holiday')
+})
+
+const otherMember: ConnectedMember = { memberId: 'm-2', householdId: 'h-2', name: 'Sam' }
 
 Deno.test('membersToSync passes every member through for the cron path (null)', () => {
   assertEquals(membersToSync([member, otherMember], null), [member, otherMember])
@@ -75,8 +97,7 @@ Deno.test("runSync upserts every connected member's accounts and counts them", a
   const upserted: AccountRow[][] = []
   const result = await runSync(
     deps({
-      listConnectedMembers: () =>
-        Promise.resolve([member, { memberId: 'm-2', householdId: 'h-2' }]),
+      listConnectedMembers: () => Promise.resolve([member, otherMember]),
       tokenFor: (id) => Promise.resolve(`tok-${id}`),
       listAccounts: (token) =>
         Promise.resolve([account({}, `${token}-a`), account({}, `${token}-b`)]),
@@ -90,6 +111,30 @@ Deno.test("runSync upserts every connected member's accounts and counts them", a
   assertEquals(result, { members: 2, accounts: 4 })
   assertEquals(upserted.length, 2)
   assertEquals(upserted[0].map((r) => r.external_id), ['tok-m-1-a', 'tok-m-1-b'])
+})
+
+Deno.test('runSync dedups a joint account seen through both partners', async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const joint = account({ ownershipType: 'JOINT', displayName: '2Up' }, 'joint-1')
+  const upserted: AccountRow[][] = []
+  const result = await runSync(
+    deps({
+      listConnectedMembers: () => Promise.resolve([member, sam]),
+      tokenFor: (id) => Promise.resolve(`tok-${id}`),
+      // Both partners' tokens surface the same joint account plus their own.
+      listAccounts: (token) => Promise.resolve([joint, account({}, `${token}-own`)]),
+      upsertAccounts: (rows) => {
+        upserted.push(rows)
+        return Promise.resolve()
+      },
+    }),
+  )
+
+  const jointRows = upserted.flat().filter((r) => r.external_id === 'joint-1')
+  assertEquals(jointRows.length, 1)
+  assertEquals(jointRows[0].owner_member_id, null)
+  // joint (once) + each partner's individual account.
+  assertEquals(result, { members: 2, accounts: 3 })
 })
 
 Deno.test('runSync scoped to a household syncs only that household', async () => {

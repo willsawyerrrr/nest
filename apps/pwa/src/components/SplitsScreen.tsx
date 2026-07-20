@@ -1,6 +1,17 @@
 import { useLocalStorage } from '@mantine/hooks'
-import { ActionIcon, Alert, Badge, Card, Group, Select, Stack, Text, Title } from '@mantine/core'
-import { assignmentsByAccount, roundCentsUpToStep } from '@nest/plan'
+import {
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Group,
+  Select,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core'
+import { assignmentsByAccount, paySplitNeedsUpdate, roundCentsUpToStep } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
@@ -56,6 +67,15 @@ interface SplitsScreenProps {
   accounts: Account[]
   lines: BudgetLine[]
   goals: Goal[]
+  /**
+   * The split currently configured for each saver, keyed by account id — a
+   * source-agnostic concept. Today it arrives from the household's app-side
+   * confirmation; if the bank's API ever exposes the real configured split, this
+   * map is fed from there instead, with no change to the comparison here.
+   */
+  configuredByAccount: Map<string, number>
+  /** Records the amount the household has confirmed as set in Up for an account. */
+  onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
 }
 
 /** Whether an account is a synced Up saver (as opposed to the everyday transaction account). */
@@ -96,14 +116,99 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
 }
 
 /**
- * Recommended fortnightly pay splits, one per account funded by budget lines.
- * Up's API can neither read nor set pay-split config, so this is recommend-only:
- * the plan computes what each saver's split should be, and the household mirrors
- * it into Up by hand. Savings/Investments lines route via their goal's linked
- * saver; every other line routes via its own funding account. Presentational —
- * persistence and Up sync live in the caller.
+ * A saver's recommended fortnightly split with drift against what is currently
+ * configured. When the rounded recommendation differs from the configured
+ * amount (or it has never been confirmed), the row is flagged, shows the change,
+ * and offers a Confirm to record the new amount; otherwise it reads as up to
+ * date. The configured amount is source-agnostic — see `SplitsScreenProps`.
  */
-export function SplitsScreen({ accounts, lines, goals }: SplitsScreenProps) {
+function SaverSplitRow({
+  account,
+  fortnightlyCents,
+  configuredCents,
+  onConfirm,
+}: {
+  account: Account
+  fortnightlyCents: number
+  configuredCents: number | null
+  onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
+}) {
+  const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
+  const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
+  return (
+    <Card
+      withBorder
+      radius="md"
+      p="sm"
+      style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-yellow-6)' } : undefined}
+    >
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+          <AccountIcon name={account.name} size={16} />
+          <Text fw={600} size="sm" truncate>
+            {accountLabel(account.name)}
+          </Text>
+          {needsUpdate && (
+            <Badge size="xs" variant="light" color="yellow">
+              Update
+            </Badge>
+          )}
+        </Group>
+        <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
+          {rounded !== fortnightlyCents && (
+            <Text size="xs" c="dimmed">
+              {formatCents(fortnightlyCents)} exact
+            </Text>
+          )}
+          <Group gap={2} wrap="nowrap" align="baseline">
+            <Text fw={700} size="sm">
+              {formatCents(rounded)}
+            </Text>
+            <Text size="xs" c="dimmed">
+              / fn
+            </Text>
+          </Group>
+        </Group>
+      </Group>
+      <Group justify="space-between" wrap="nowrap" gap="sm" mt={6}>
+        {needsUpdate ? (
+          <Text size="xs" c="dimmed">
+            {configuredCents === null
+              ? 'Not set in Up yet'
+              : `was ${formatCents(configuredCents)} → ${formatCents(rounded)} / fn`}
+          </Text>
+        ) : (
+          <Text size="xs" c="dimmed">
+            ✓ up to date
+          </Text>
+        )}
+        {needsUpdate && (
+          <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, rounded)}>
+            {configuredCents === null ? 'Mark as set' : 'Confirm'}
+          </Button>
+        )}
+      </Group>
+    </Card>
+  )
+}
+
+/**
+ * Recommended fortnightly pay splits, one per account funded by budget lines.
+ * The plan computes what each saver's split should be, and the household mirrors
+ * it into Up by hand. Each saver row compares its recommendation against the
+ * split currently configured for that account (`configuredByAccount`) and, when
+ * they differ, flags the drift and offers a Confirm to record the new amount.
+ * Savings/Investments lines route via their goal's linked saver; every other
+ * line routes via its own funding account. Presentational — persistence lives in
+ * the caller.
+ */
+export function SplitsScreen({
+  accounts,
+  lines,
+  goals,
+  configuredByAccount,
+  onConfirm,
+}: SplitsScreenProps) {
   const { byAccount, unassignedFortnightlyCents } = assignmentsByAccount(
     lines.map((line) => ({
       group: line.line_group,
@@ -139,6 +244,13 @@ export function SplitsScreen({ accounts, lines, goals }: SplitsScreenProps) {
     sortDirection,
   )
   const nothingRouted = rows.length === 0 && unassignedFortnightlyCents === 0
+
+  const saversToUpdate = saverRows.filter((row) =>
+    paySplitNeedsUpdate(
+      roundCentsUpToStep(row.fortnightlyCents, ROUND_STEP_CENTS),
+      configuredByAccount.get(row.account.id) ?? null,
+    ),
+  ).length
 
   return (
     <Stack gap="md">
@@ -190,15 +302,23 @@ export function SplitsScreen({ accounts, lines, goals }: SplitsScreenProps) {
             <Title order={3} size="h5">
               Recommended pay splits
             </Title>
-            <Badge size="sm" variant="light" color="teal">
-              set in Up
-            </Badge>
+            {saversToUpdate > 0 ? (
+              <Badge size="sm" variant="light" color="yellow">
+                {saversToUpdate} to update
+              </Badge>
+            ) : (
+              <Badge size="sm" variant="light" color="teal">
+                set in Up
+              </Badge>
+            )}
           </Group>
           {saverRows.map((row) => (
-            <SplitRow
+            <SaverSplitRow
               key={row.account.id}
               account={row.account}
               fortnightlyCents={row.fortnightlyCents}
+              configuredCents={configuredByAccount.get(row.account.id) ?? null}
+              onConfirm={onConfirm}
             />
           ))}
         </Stack>

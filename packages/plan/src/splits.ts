@@ -78,6 +78,20 @@ export function assignmentsByAccount(
 }
 
 /**
+ * Whether a recommended split differs from what is currently configured for the
+ * account, so the Splits tab should prompt a re-confirm. A null configured
+ * amount means the split has never been confirmed and always needs updating.
+ * Source-agnostic: the configured amount may come from an app-side confirmation
+ * or, in future, from the bank's API.
+ */
+export function paySplitNeedsUpdate(
+  recommendedCents: Money,
+  configuredCents: Money | null,
+): boolean {
+  return configuredCents === null || configuredCents !== recommendedCents
+}
+
+/**
  * Rounds an amount up to the next multiple of `stepCents`, never below it — the
  * figure a person types into Up, where cents-exact splits add no value and a
  * recommended split should never fund a line short. An exact multiple is left

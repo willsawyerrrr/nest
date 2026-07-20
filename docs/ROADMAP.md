@@ -224,23 +224,28 @@ sheet, with the household's real gift budgets loaded in production.
 
 Keeping the household's Up pay splits aligned with the budget. See
 [`pay-splits.md`](pay-splits.md) for the full design (including why Up's
-read-only API forces a recommend-only shape).
+read-only API keeps the confirmed split app-side).
 
 - [x] Schema: `budget_line.destination_account_id` (nullable composite FK to
       `accounts` on `(id, household_id)`, mirroring `goal_id`) with the
       `budget_line_destination_group` check barring a destination on
-      Savings/Investments lines, which route via their goal instead. RLS +
-      isolation test, regenerated types.
+      Savings/Investments lines, which route via their goal instead; and
+      `pay_split` (one row per account, `unique (household_id, account_id)`)
+      holding the household's confirmed fortnightly split. RLS + isolation test,
+      regenerated types.
 - [x] Pure logic (`@nest/plan`): `resolveDestinationAccountId` (Savings/Investments
       route through their goal's linked account, every other line through its own
       destination), `assignmentsByAccount` (per-account fortnightly totals plus an
-      unassigned bucket), and `roundCentsUpToStep` (round up to the nearest $5).
+      unassigned bucket), `roundCentsUpToStep` (round up to the nearest $5), and
+      `paySplitNeedsUpdate` (whether the recommendation has drifted from the
+      source-agnostic configured split).
 - [x] Budget-line form: a "Funded from" account picker on
       non-Savings/Investments lines; Savings/Investments show the goal-derived
       route instead.
 - [x] Splits tab (between Budget and Goals): per-account recommended fortnightly
       split rounded up to the nearest $5, an Unassigned nudge for unrouted lines,
-      and a Refresh that re-syncs Up accounts via `up-sync`.
+      and per-saver drift against the confirmed split — a flagged row shows the
+      change and a Confirm that records the new amount.
 
 ## Now — Up ledger + reconciliation
 

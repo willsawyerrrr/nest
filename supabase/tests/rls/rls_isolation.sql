@@ -170,6 +170,17 @@ do $$ begin
     'Alice''s gift budget line should route to her own account';
 end $$;
 
+-- Alice confirms the fortnightly pay split she has set in Up for her account;
+-- the composite FK on (id, household_id) accepts a same-household link.
+insert into public.pay_split (household_id, account_id, confirmed_fortnightly_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.aid')::uuid, 350_00);
+
+do $$ begin
+  assert (select count(*) from public.pay_split) = 1, 'Alice should see her pay split';
+  assert (select account_id from public.pay_split) = current_setting('test.aid')::uuid,
+    'Alice''s pay split should link to her own account';
+end $$;
+
 -- ── Server-side grants: service_role reads members and upserts accounts ──────
 
 -- The Up edge functions act as service_role directly against the ledger
@@ -297,6 +308,7 @@ do $$ begin
   assert (select count(*) from public.gift_occasion) = 0, 'Bob must not see Alice''s gift occasions';
   assert (select count(*) from public.gift_budget) = 0, 'Bob must not see Alice''s gift budgets';
   assert (select count(*) from public.gift_purchase) = 0, 'Bob must not see Alice''s gift purchases';
+  assert (select count(*) from public.pay_split) = 0, 'Bob must not see Alice''s pay splits';
 end $$;
 
 -- Bob must be blocked from writing into Alice's household (RLS WITH CHECK).
@@ -379,6 +391,7 @@ do $$ begin
   assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
+  assert (select count(*) from public.pay_split) = 1, 'Carol should see Alice''s pay split';
   assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
     'Joining should consume the invite code';
 end $$;

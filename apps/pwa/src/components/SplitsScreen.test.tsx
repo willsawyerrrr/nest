@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen } from '../test/render'
 import { SplitsScreen } from './SplitsScreen'
@@ -52,7 +52,16 @@ function goal(overrides: Partial<Goal> & Pick<Goal, 'id'>): Goal {
 }
 
 function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {}) {
-  return render(<SplitsScreen accounts={[]} lines={[]} goals={[]} {...overrides} />)
+  return render(
+    <SplitsScreen
+      accounts={[]}
+      lines={[]}
+      goals={[]}
+      configuredByAccount={new Map()}
+      onConfirm={vi.fn()}
+      {...overrides}
+    />,
+  )
 }
 
 describe('SplitsScreen', () => {
@@ -145,5 +154,53 @@ describe('SplitsScreen', () => {
   it('shows an empty state when nothing is routed', () => {
     renderScreen()
     expect(screen.getByText(/route budget lines to an account/i)).toBeInTheDocument()
+  })
+
+  it('flags a saver whose configured split differs and confirms the rounded amount', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      // $501 rounds up to $505; the household confirmed $350 — a drift.
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 501_00, goal_id: 'g1' })],
+      configuredByAccount: new Map([['s1', 350_00]]),
+      onConfirm,
+    })
+
+    expect(screen.getByText('was $350.00 → $505.00 / fn')).toBeInTheDocument()
+    expect(screen.getByText('1 to update')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /confirm/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm).toHaveBeenCalledWith('s1', 505_00)
+  })
+
+  it('flags a saver with no configured split as needing to be set', () => {
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+      configuredByAccount: new Map(),
+    })
+
+    expect(screen.getByText('Not set in Up yet')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /mark as set/i })).toBeInTheDocument()
+  })
+
+  it('shows no update prompt when the configured split matches the recommendation', () => {
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+      configuredByAccount: new Map([['s1', 500_00]]),
+    })
+
+    expect(screen.getByText('✓ up to date')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /confirm|mark as set/i })).not.toBeInTheDocument()
+    expect(screen.getByText('set in Up')).toBeInTheDocument()
   })
 })

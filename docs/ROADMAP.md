@@ -134,9 +134,9 @@ connection is the foundation; transaction ingestion stays deferred behind it.
   run processes it once (first sighting) so its shared ownership is not rewritten
   by whichever member syncs last. An individual spending account (typically just
   "Spending", colliding across members) is stored with its name prefixed by the
-  owner's name (e.g. "Alex Spending"), recomputed from Up's `displayName` each
-  sync so repeated runs never double-prefix; joint accounts and savers keep Up's
-  name. Transaction sync is deferred to the ledger phase below.
+  owner's name in possessive form (e.g. "Alex's Spending"), recomputed from Up's
+  `displayName` each sync so repeated runs never double-prefix; joint accounts and
+  savers keep Up's name. Transaction sync is deferred to the ledger phase below.
 - Goals reflect real saver balances (progress + ETA): a goal carries a nullable
   `linked_account_id`; the goal form offers an "Up saver" picker from the
   household's synced savers (selecting one prefills an empty goal name with the

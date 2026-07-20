@@ -65,8 +65,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   external_id): a joint account shared across both partners collapses to one
   shared row (`owner_member_id` null), while individual accounts are attributed
   to their owner; an individual spending account's name is stored prefixed with
-  the owner's name (e.g. "Alex Spending") to disambiguate the household's two
-  spending accounts. Up transaction ingestion (spend/ledger reconciliation,
+  the owner's name in possessive form (e.g. "Alex's Spending") to disambiguate
+  the household's two spending accounts. Up transaction ingestion (spend/ledger reconciliation,
   actual tax paid) is deferred. Sources (Up Bank API + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-webhook`) live under `supabase/functions/` and auto-deploy to prod on merge

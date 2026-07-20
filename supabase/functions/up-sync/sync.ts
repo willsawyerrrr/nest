@@ -60,14 +60,16 @@ export function membersToSync(
 /**
  * The stored name for an account. An individual spending account is typically
  * just named "Spending", which collides between the household's two members, so
- * it is prefixed with the owner's name (e.g. "Alex Spending"). Joint accounts
- * (shared) and savers (already distinctly named) keep Up's `displayName`. The
- * name is recomputed from `displayName` on every sync, so repeated syncs never
- * double-prefix ("Alex Alex Spending").
+ * it is prefixed with the owner's name in possessive form (e.g. "Alex's
+ * Spending"). Joint accounts (shared) and savers (already distinctly named) keep
+ * Up's `displayName`. The name is recomputed from `displayName` on every sync,
+ * so repeated syncs never double-prefix ("Alex's Alex's Spending").
  */
 export function accountName(account: UpAccount, member: ConnectedMember, shared: boolean): string {
   const { displayName, accountType } = account.attributes
-  return !shared && accountType === 'TRANSACTIONAL' ? `${member.name} ${displayName}` : displayName
+  return !shared && accountType === 'TRANSACTIONAL'
+    ? `${member.name}'s ${displayName}`
+    : displayName
 }
 
 /**

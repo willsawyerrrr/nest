@@ -79,6 +79,18 @@ describe('SplitsScreen', () => {
     expect(screen.getByText('$500.00')).toBeInTheDocument()
   })
 
+  it('strips a saver’s leading emoji from its displayed name', () => {
+    const saver = account({ id: 's1', name: '🏖️ Holiday', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+    })
+
+    expect(screen.getByText('Holiday')).toBeInTheDocument()
+    expect(screen.queryByText('🏖️ Holiday')).not.toBeInTheDocument()
+  })
+
   it('rounds a split up to the next $5 and shows the exact figure', () => {
     const everyday = account({ id: 't1', name: 'Everyday', type: 'transaction' })
     renderScreen({

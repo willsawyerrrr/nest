@@ -119,6 +119,30 @@ describe('BudgetLineList', () => {
     expect(within(deposit).getByText('House deposit')).toBeInTheDocument()
   })
 
+  it('uses an account/goal emoji as the route icon and strips it from the label', () => {
+    render(
+      <BudgetLineList
+        lines={[
+          line({ id: 'n', line_group: 'needs', name: 'Rent', destination_account_id: 'acc1' }),
+          line({ id: 's', line_group: 'savings', name: 'Deposit saver', goal_id: 'g1' }),
+        ]}
+        goals={[{ id: 'g1', name: '🏦 House deposit' }]}
+        accounts={[{ id: 'acc1', name: '🏖️ Holiday' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    expect(within(rent).getByText('Holiday')).toBeInTheDocument()
+    expect(within(rent).queryByText('🏖️ Holiday')).not.toBeInTheDocument()
+
+    const deposit = screen.getByText('Deposit saver').closest('.mantine-Card-root') as HTMLElement
+    expect(within(deposit).getByText('House deposit')).toBeInTheDocument()
+    expect(within(deposit).queryByText('🏦 House deposit')).not.toBeInTheDocument()
+  })
+
   it('shows no route badge for an unrouted line', () => {
     render(
       <BudgetLineList

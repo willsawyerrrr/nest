@@ -80,12 +80,15 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   balance accounts, which are not spendable). Savings / Investments lines show the
   goal-derived route instead of a picker.
 - **Budget list** — each line shows a small badge naming its route: the linked
-  goal for a Savings/Investments line, the funding account otherwise. Unrouted
-  lines show none.
+  goal for a Savings/Investments line, the funding account otherwise. The badge's
+  icon is the account/saver's own icon — its Up emoji when its name carries one,
+  otherwise a shared default — and its name shows with that emoji stripped.
+  Unrouted lines show none.
 - **Splits tab** — for each Up saver with lines routed to it, the recommended
   fortnightly pay split (rounded up to the nearest $5); the remainder that stays in the
   transaction account; and an "Unassigned" nudge totalling lines not yet routed.
-  A Refresh re-syncs Up accounts via `up-sync`.
+  Each row shows the same account/saver icon and emoji-stripped name as the budget
+  list. A Refresh re-syncs Up accounts via `up-sync`.
 
 ## Out of scope / future
 

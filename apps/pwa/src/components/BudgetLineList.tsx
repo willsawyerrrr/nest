@@ -16,18 +16,20 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { IconPencil, IconTarget, IconTrash, IconWallet } from '@tabler/icons-react'
+import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
+import { accountLabel } from '../lib/accountName'
 import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
+import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'
 import { GroupSection } from './GroupSection'
 
 interface BudgetLineListProps {
   lines: BudgetLine[]
-  goals: { id: string; name: string }[]
+  goals: { id: string; name: string; linkedAccountId?: string | null }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
   /** The household's total planned gift spend, driving any gift-derived line. */
@@ -91,46 +93,57 @@ function groupLinksGoal(group: BudgetGroup): boolean {
   return group === 'savings' || group === 'investments'
 }
 
-/** Where a budget line sends its money: a linked savings goal, or a funding account. */
+/** Where a budget line sends its money, ready to render as a route badge. */
 interface LineRoute {
-  kind: 'goal' | 'account'
-  name: string
+  /** The account/saver name the icon is derived from. */
+  iconName: string
+  /** The route's emoji-stripped display text. */
+  label: string
+  /** The badge's hover text. */
+  title: string
 }
 
 /**
- * The route a line displays: a Savings/Investments line names its linked goal;
- * every other line names its funding account. Undefined when the line is
- * unrouted or the target is not in the supplied names.
+ * The route a line displays: a Savings/Investments line names its linked goal,
+ * iconed by the goal's linked saver; every other line names its funding account.
+ * Undefined when the line is unrouted or the target is not in the supplied data.
  */
 function resolveRoute(
   line: BudgetLine,
-  goalNames: Map<string, string>,
+  goals: { id: string; name: string; linkedAccountId?: string | null }[],
   accountNames: Map<string, string>,
 ): LineRoute | undefined {
   if (groupLinksGoal(line.line_group)) {
-    const name = line.goal_id ? goalNames.get(line.goal_id) : undefined
-    return name ? { kind: 'goal', name } : undefined
+    const goal = line.goal_id ? goals.find((g) => g.id === line.goal_id) : undefined
+    if (!goal) {
+      return undefined
+    }
+    const label = accountLabel(goal.name)
+    const linkedName = goal.linkedAccountId ? accountNames.get(goal.linkedAccountId) : undefined
+    return { iconName: linkedName ?? goal.name, label, title: `Goal: ${label}` }
   }
   const name = line.destination_account_id
     ? accountNames.get(line.destination_account_id)
     : undefined
-  return name ? { kind: 'account', name } : undefined
+  if (!name) {
+    return undefined
+  }
+  const label = accountLabel(name)
+  return { iconName: name, label, title: `Funded from ${label}` }
 }
 
 /** A subtle badge naming where a line routes: its linked goal or its funding account. */
 function RouteBadge({ route }: { route: LineRoute }) {
-  const Icon = route.kind === 'goal' ? IconTarget : IconWallet
-  const title = route.kind === 'goal' ? `Goal: ${route.name}` : `Funded from ${route.name}`
   return (
     <Badge
       size="xs"
       variant="light"
       color="gray"
-      leftSection={<Icon size={10} />}
-      title={title}
+      leftSection={<AccountIcon name={route.iconName} size={10} />}
+      title={route.title}
       style={{ maxWidth: '12rem' }}
     >
-      {route.name}
+      {route.label}
     </Badge>
   )
 }
@@ -298,8 +311,7 @@ export function BudgetLineList({
   // when no other line already derives from the gift tracker.
   const giftSourceAvailableFor = (id?: string) =>
     !lines.some((line) => line.derived_source === 'gift' && line.id !== id)
-  // Name lookups for each line's route badge: its linked goal or funding account.
-  const goalNames = new Map(goals.map((goal) => [goal.id, goal.name]))
+  // Account name lookup for each line's route badge and its icon.
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
@@ -442,7 +454,7 @@ export function BudgetLineList({
                 <BudgetLineItem
                   key={line.id}
                   line={line}
-                  route={resolveRoute(line, goalNames, accountNames)}
+                  route={resolveRoute(line, goals, accountNames)}
                   onEdit={() => startEditing(line.id)}
                   onDelete={() => onDelete(line.id)}
                 />

@@ -6,7 +6,7 @@ import { TemporaryItemList } from './TemporaryItemList'
 
 interface BudgetScreenProps {
   lines: BudgetLine[]
-  goals: { id: string; name: string }[]
+  goals: { id: string; name: string; linkedAccountId?: string | null }[]
   accounts: { id: string; name: string }[]
   temporaryItems: TemporaryItem[]
   /** The household's total planned gift spend, driving any gift-derived line. */

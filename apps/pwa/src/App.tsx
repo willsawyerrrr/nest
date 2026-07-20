@@ -262,7 +262,11 @@ function BudgetSection({ householdId }: { householdId: string }) {
   return (
     <BudgetScreen
       lines={applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets)}
-      goals={goals.goals ?? []}
+      goals={(goals.goals ?? []).map((g) => ({
+        id: g.id,
+        name: g.name,
+        linkedAccountId: g.linked_account_id,
+      }))}
       accounts={(accounts.accounts ?? [])
         .filter((account) => !superIds.has(account.id))
         .map((account) => ({ id: account.id, name: account.name }))}

@@ -32,13 +32,13 @@ function AccountGroup({
             {emptyLabel}
           </Text>
         ) : (
-          <Stack gap={4}>
+          <Stack gap="xs">
             {accounts.map((account) => (
               <Group key={account.id} justify="space-between" wrap="nowrap" gap="sm">
-                <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
                   {account.name}
                 </Text>
-                <Text size="sm" ta="right" style={{ flexShrink: 0 }}>
+                <Text size="md" ta="right" style={{ flexShrink: 0 }}>
                   {formatCents(account.balance_cents)}
                 </Text>
               </Group>

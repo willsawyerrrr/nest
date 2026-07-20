@@ -102,6 +102,8 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
             description="Optional. Pulls the current balance from a synced Up saver."
             placeholder="Not linked"
             clearable
+            searchable
+            nothingFoundMessage="No matching savers"
             data={savers.map((saver) => ({ value: saver.id, label: saver.name }))}
             value={linkedAccountId}
             onChange={handleSaverChange}

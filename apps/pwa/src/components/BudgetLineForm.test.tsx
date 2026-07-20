@@ -254,6 +254,29 @@ describe('BudgetLineForm', () => {
     )
   })
 
+  it('filters the funded-from accounts as the user searches', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineForm
+        defaultGroup="needs"
+        accounts={[
+          { id: 'a1', name: 'Everyday' },
+          { id: 'a2', name: 'Holiday saver' },
+        ]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    const combobox = screen.getByRole('combobox', { name: /funded from/i })
+    await user.click(combobox)
+    expect(screen.getByRole('option', { name: 'Everyday' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Holiday saver' })).toBeInTheDocument()
+
+    await user.type(combobox, 'Holi')
+    expect(screen.queryByRole('option', { name: 'Everyday' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Holiday saver' })).toBeInTheDocument()
+  })
+
   it('clears the funded-from account when the group changes to savings', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

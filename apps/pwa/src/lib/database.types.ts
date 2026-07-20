@@ -463,6 +463,50 @@ export type Database = {
           },
         ]
       }
+      medication: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          dose: string | null
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id: string
+          interval_weeks: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          dose?: string | null
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id?: string
+          interval_weeks?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          dose?: string | null
+          frequency?: Database['public']['Enums']['frequency']
+          household_id?: string
+          id?: string
+          interval_weeks?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'medication_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
@@ -940,7 +984,7 @@ export type Database = {
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
-      budget_derived_source: 'gift'
+      budget_derived_source: 'gift' | 'medication'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
       frequency:
@@ -1078,7 +1122,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
-      budget_derived_source: ['gift'],
+      budget_derived_source: ['gift', 'medication'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
       frequency: [

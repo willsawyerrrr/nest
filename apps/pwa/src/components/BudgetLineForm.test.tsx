@@ -343,6 +343,66 @@ describe('BudgetLineForm', () => {
     )
   })
 
+  it('submits a medication-derived line fixed to the Needs group with the annual total', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <MemoryRouter>
+        <BudgetLineForm
+          defaultGroup="wants"
+          medicationTotalCents={290_00}
+          medicationSourceAvailable
+          onSubmit={onSubmit}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/name/i), 'Medications')
+    await user.click(screen.getByRole('radio', { name: /from the medication tracker/i }))
+    // The group is fixed to Needs and its select is disabled.
+    expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Needs')
+    expect(screen.getByRole('combobox', { name: /group/i })).toBeDisabled()
+    // The typed amount input gives way to the read-only derived total.
+    expect(screen.queryByRole('textbox', { name: /amount/i })).not.toBeInTheDocument()
+    expect(screen.getByText('$290.00 / year')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        line_group: 'needs',
+        name: 'Medications',
+        amount_cents: 290_00,
+        frequency: 'annual',
+        interval_weeks: null,
+        goal_id: null,
+        derived_source: 'medication',
+        destination_account_id: null,
+      }),
+    )
+  })
+
+  it('offers both derived sources when each is available', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <BudgetLineForm
+          defaultGroup="wants"
+          giftTotalCents={100_00}
+          giftSourceAvailable
+          medicationTotalCents={50_00}
+          medicationSourceAvailable
+          onSubmit={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('radio', { name: /from the gift tracker/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /from the medication tracker/i })).toBeInTheDocument()
+    // Switching to gift leaves the group untouched (gift lines keep their group).
+    await user.click(screen.getByRole('radio', { name: /from the gift tracker/i }))
+    expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Wants')
+  })
+
   it('preserves an existing line goal link on edit', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

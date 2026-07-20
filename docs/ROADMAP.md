@@ -99,10 +99,11 @@ reconciling spend and actual tax paid against the plan.
 - Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
   'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/gifts` `/household`;
-  `/` and unknown routes redirect to `/summary`), so tabs are deep-linkable and
-  reload-safe. Summary is the landing tab; order Summary · Net worth · Inflows ·
-  Budget · Splits · Goals · Tax · Super · Gifts · Household. One `NAV_ITEMS` table
+  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/gifts` `/health`
+  `/household`; `/` and unknown routes redirect to `/summary`), so tabs are
+  deep-linkable and reload-safe. Summary is the landing tab; order Summary · Net
+  worth · Inflows · Budget · Splits · Goals · Tax · Super · Gifts · Health ·
+  Household. One `NAV_ITEMS` table
   drives a responsive top app-bar + hamburger `Drawer` on mobile and a persistent
   left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to the first nine
   tabs, ⌘/Ctrl+Shift+←/→ cycle.
@@ -220,6 +221,25 @@ sheet, with the household's real gift budgets loaded in production.
       the Budget tab and the Summary both substitute it, so the line and the tracker
       never drift.
 
+### Health / medication tracking (complete)
+
+The second consumer of derived budget lines, mirroring the gift tracker with a
+simpler flat list.
+
+- [x] Schema (medication): the `medication` value added to the
+      `budget_derived_source` enum in its own migration (Postgres forbids using a
+      new enum value in the transaction that adds it), then the `medication` table
+      (`name`, optional informational `dose`, `amount_cents`, `frequency`, and the
+      budget-line `interval_weeks` check) in a later migration, with RLS +
+      isolation test and regenerated types.
+- [x] Health tab (after Gifts): a flat CRUD list of medications, each row showing
+      its cost, frequency, and normalised fortnightly figure, plus a total.
+- [x] Derived budget line: a single `derived_source = 'medication'` line per
+      household takes its annual amount from the sum of every medication's
+      annualised cost and is fixed to the Needs group; the Budget tab and the
+      Summary both substitute it, so the line and the tracker never drift. The
+      budget-line form's amount source offers medication alongside gift.
+
 ### Pay splits (complete)
 
 Keeping the household's Up pay splits aligned with the budget. See
@@ -266,7 +286,7 @@ way, sourced at runtime from GitHub for the private repo.
 
 Pulling actual Up transactions to reconcile spend and tax against the plan — the
 heaviest phase, and the current focus now that the plan-only app, Up savers, super,
-and gifts are shipped.
+gifts, and medication tracking are shipped.
 
 - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.
@@ -287,11 +307,8 @@ and gifts are shipped.
   amount. Extensible — each consumer adds an enum value and its own tables. The
   enum is a deliberate simplification: each new source needs a migration plus
   roll-up code; a registry/polymorphic design is deferred until sources proliferate.
-  The **gift tracker** is the shipped first consumer (Done). Remaining directions:
-  - **Health / medication tracking** (planned second consumer). Medications with
-    dose / frequency / unit cost roll up to a recurring cost that feeds a Needs
-    budget line via a new `derived_source` value — the same mechanism, a different
-    tracker.
+  The **gift tracker** and the **medication tracker** are the shipped first and
+  second consumers (both Done). Remaining directions:
   - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
     other needs per-member visibility on gift records, a departure from the
     household-only RLS model where every member sees everything. It would require

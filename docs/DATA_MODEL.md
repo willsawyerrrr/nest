@@ -130,10 +130,10 @@ no per-member scoping; each line stands alone under the household.
     `goal_id` (nullable), `derived_source` (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
-  - `derived_source` (`budget_derived_source` enum) marks a line whose amount is
-    rolled up from an itemised source rather than typed by hand — see
-    [Gifts / derived budget lines](#gifts--derived-budget-lines). Null is an
-    ordinary manual line.
+  - `derived_source` (`budget_derived_source` enum, `gift` | `medication`) marks
+    a line whose amount is rolled up from an itemised source rather than typed by
+    hand — see [Gifts / derived budget lines](#gifts--derived-budget-lines). Null
+    is an ordinary manual line.
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
     (nullable), `current_balance_cents` (default 0), `linked_account_id`
@@ -167,8 +167,10 @@ to avoid double-counting.
 
 `derived_source` is a deliberate enum-based simplification: each new source needs
 a migration to extend the enum plus code to roll it up (a registry/polymorphic
-design is deferred). Revisit if derived sources proliferate. Health / medication
-is a candidate second source.
+design is deferred). Revisit if derived sources proliferate. The enum value is
+added in its own migration, ahead of the migration that first references it,
+because Postgres forbids using a new enum value in the transaction that adds it.
+Gifts is the first source; medication is the second.
 
 The gift tracker is the first consumer: plan a spend per **recipient × occasion**,
 then record the actual purchases against it. All four tables are household-scoped
@@ -198,6 +200,18 @@ keep every reference inside the household.
     `description` (default `''`), `purchased_on`, `created_at`, `updated_at`.
   - Composite foreign key `(gift_budget_id, household_id)` → `gift_budget`
     `on delete cascade`.
+
+The medication tracker is the second consumer. A line with
+`derived_source = 'medication'` takes its amount from the sum of every
+medication's cost, each annualised by its frequency, and lands in the **Needs**
+group. It is a flat list — no per-item breakdown like gifts — and the PWA offers
+a single medication-derived line per household.
+
+- **medication** — a medication with a recurring cost.
+  - `id`, `household_id`, `name`, `dose` (nullable, informational),
+    `amount_cents`, `frequency` (the shared enum above), `interval_weeks`
+    (nullable — non-null iff `frequency` is `every_n_weeks`, as on budget lines),
+    `created_at`, `updated_at`. Household-scoped under the ledger's RLS.
 
 ## Ledger
 

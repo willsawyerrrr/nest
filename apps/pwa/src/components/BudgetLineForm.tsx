@@ -27,12 +27,26 @@ interface BudgetLineFormProps {
   giftTotalCents?: number
   /** Whether the gift-tracker amount source may be chosen (one gift-derived line per household). */
   giftSourceAvailable?: boolean
+  /** The household's total annual medication cost, shown when the amount is derived from the medication tracker. */
+  medicationTotalCents?: number
+  /** Whether the medication-tracker amount source may be chosen (one medication-derived line per household). */
+  medicationSourceAvailable?: boolean
   onSubmit: (input: BudgetLineInput) => void | Promise<void>
   onCancel?: () => void
 }
 
-/** Where a line's amount comes from: a typed figure, or the gift tracker total. */
-type AmountSource = 'manual' | 'gift'
+/** Where a line's amount comes from: a typed figure, or a derived tracker total. */
+type AmountSource = 'manual' | 'gift' | 'medication'
+
+/** The tracker each derived amount source rolls up from, keyed by its source value. */
+const DERIVED_SOURCES = {
+  gift: { label: 'the gift tracker', path: '/gifts', segment: 'From the gift tracker' },
+  medication: {
+    label: 'the medication tracker',
+    path: '/health',
+    segment: 'From the medication tracker',
+  },
+} as const
 
 /** Whether lines in a group may link to a savings goal (the DB CHECK allows only these). */
 function groupLinksGoal(group: BudgetGroup): boolean {
@@ -57,6 +71,8 @@ export function BudgetLineForm({
   accounts = [],
   giftTotalCents = 0,
   giftSourceAvailable = false,
+  medicationTotalCents = 0,
+  medicationSourceAvailable = false,
   onSubmit,
   onCancel,
 }: BudgetLineFormProps) {
@@ -70,18 +86,37 @@ export function BudgetLineForm({
     initial?.destination_account_id ?? null,
   )
   const [amountSource, setAmountSource] = useState<AmountSource>(
-    initial?.derived_source === 'gift' ? 'gift' : 'manual',
+    initial?.derived_source ?? 'manual',
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const derived = amountSource === 'gift'
-  const showGoalPicker = groupLinksGoal(group) && !derived
+  const derived = amountSource !== 'manual'
+  const derivedTotalCents =
+    amountSource === 'gift'
+      ? giftTotalCents
+      : amountSource === 'medication'
+        ? medicationTotalCents
+        : 0
+  // A medication line rolls up into the Needs group; every other line keeps its
+  // chosen group. When medication is the source the group is fixed accordingly.
+  const effectiveGroup: BudgetGroup = amountSource === 'medication' ? 'needs' : group
+  const showGoalPicker = groupLinksGoal(effectiveGroup) && !derived
   // Savings/Investments lines route to their goal's account, so they carry no
   // direct destination; every other group offers a "Funded from" picker.
-  const showAccountPicker = !groupLinksGoal(group)
-  // Offer the gift source when it is available, and always when editing the existing gift line.
-  const showAmountSource = giftSourceAvailable || amountSource === 'gift'
+  const showAccountPicker = !groupLinksGoal(effectiveGroup)
+  // Offer each derived source when it is available, and always when editing the
+  // existing line that already derives from it.
+  const sourceOptions: { value: AmountSource; label: string }[] = [
+    { value: 'manual', label: 'Enter an amount' },
+    ...(giftSourceAvailable || amountSource === 'gift'
+      ? [{ value: 'gift' as const, label: DERIVED_SOURCES.gift.segment }]
+      : []),
+    ...(medicationSourceAvailable || amountSource === 'medication'
+      ? [{ value: 'medication' as const, label: DERIVED_SOURCES.medication.segment }]
+      : []),
+  ]
+  const showAmountSource = sourceOptions.length > 1
   const isEveryNWeeks = !derived && frequency === 'every_n_weeks'
   const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
 
@@ -91,6 +126,14 @@ export function BudgetLineForm({
       // Savings/Investments carry no direct destination (the DB CHECK bars it).
       setDestinationAccountId(null)
     } else {
+      setGoalId(null)
+    }
+  }
+
+  const changeAmountSource = (next: AmountSource) => {
+    setAmountSource(next)
+    // A medication line always lands in Needs, which links no goal.
+    if (next === 'medication') {
       setGoalId(null)
     }
   }
@@ -109,13 +152,13 @@ export function BudgetLineForm({
     setSubmitting(true)
     setError(null)
     const input: BudgetLineInput = {
-      line_group: group,
+      line_group: effectiveGroup,
       name: name.trim(),
-      amount_cents: derived ? giftTotalCents : (dollarsToCents(amount) ?? 0),
+      amount_cents: derived ? derivedTotalCents : (dollarsToCents(amount) ?? 0),
       frequency: derived ? 'annual' : frequency,
       interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       goal_id: showGoalPicker ? goalId : null,
-      derived_source: derived ? 'gift' : null,
+      derived_source: derived ? amountSource : null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
     }
     try {
@@ -133,9 +176,14 @@ export function BudgetLineForm({
           label="Group"
           size="sm"
           data={BUDGET_GROUPS}
-          value={group}
+          value={effectiveGroup}
           onChange={(value) => value && changeGroup(value as BudgetGroup)}
           allowDeselect={false}
+          // A medication line is fixed to Needs, so its group is not editable.
+          disabled={amountSource === 'medication'}
+          description={
+            amountSource === 'medication' ? 'Medication lines roll up into Needs.' : undefined
+          }
         />
 
         <TextInput
@@ -153,26 +201,23 @@ export function BudgetLineForm({
             <SegmentedControl
               size="sm"
               fullWidth
-              data={[
-                { value: 'manual', label: 'Enter an amount' },
-                { value: 'gift', label: 'From the gift tracker' },
-              ]}
+              data={sourceOptions}
               value={amountSource}
-              onChange={(value) => setAmountSource(value as AmountSource)}
+              onChange={(value) => changeAmountSource(value as AmountSource)}
             />
           </Stack>
         )}
 
-        {derived ? (
+        {amountSource !== 'manual' ? (
           <div>
             <Text size="sm" fw={500}>
               Amount
             </Text>
-            <Text size="sm">{formatCents(giftTotalCents)} / year</Text>
+            <Text size="sm">{formatCents(derivedTotalCents)} / year</Text>
             <Text size="xs" c="dimmed">
-              Derived from your total planned gift spend. Edit it in the{' '}
-              <Anchor component={Link} to="/gifts">
-                gift tracker
+              Derived from your total. Edit it in the{' '}
+              <Anchor component={Link} to={DERIVED_SOURCES[amountSource].path}>
+                {DERIVED_SOURCES[amountSource].label}
               </Anchor>
               .
             </Text>

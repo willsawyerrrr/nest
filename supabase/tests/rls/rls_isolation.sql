@@ -170,6 +170,20 @@ do $$ begin
     'Alice''s gift budget line should route to her own account';
 end $$;
 
+-- Alice's medication tracker: a medication with a recurring cost, and a Needs
+-- budget line marked as derived from the medication tracker rather than typed.
+insert into public.medication (household_id, name, dose, amount_cents, frequency)
+  values (current_setting('test.hid')::uuid, 'Vitamin D', '1000 IU daily', 20_00, 'monthly');
+
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, derived_source)
+  values (current_setting('test.hid')::uuid, 'needs', 'Medications', 0, 'annual', 'medication');
+
+do $$ begin
+  assert (select count(*) from public.medication) = 1, 'Alice should see her medication';
+  assert (select count(*) from public.budget_line where derived_source = 'medication') = 1,
+    'Alice should see her medication-derived budget line';
+end $$;
+
 -- Alice confirms the fortnightly pay split she has set in Up for her account;
 -- the composite FK on (id, household_id) accepts a same-household link.
 insert into public.pay_split (household_id, account_id, confirmed_fortnightly_cents)
@@ -308,6 +322,7 @@ do $$ begin
   assert (select count(*) from public.gift_occasion) = 0, 'Bob must not see Alice''s gift occasions';
   assert (select count(*) from public.gift_budget) = 0, 'Bob must not see Alice''s gift budgets';
   assert (select count(*) from public.gift_purchase) = 0, 'Bob must not see Alice''s gift purchases';
+  assert (select count(*) from public.medication) = 0, 'Bob must not see Alice''s medications';
   assert (select count(*) from public.pay_split) = 0, 'Bob must not see Alice''s pay splits';
 end $$;
 
@@ -381,9 +396,11 @@ do $$ begin
   assert (select count(*) from public.inflows) = 2, 'Carol should see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
-  assert (select count(*) from public.budget_line) = 2, 'Carol should see both Alice''s budget lines';
+  assert (select count(*) from public.budget_line) = 3, 'Carol should see all three of Alice''s budget lines';
   assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
     'Carol should see Alice''s gift-derived budget line';
+  assert (select count(*) from public.budget_line where derived_source = 'medication') = 1,
+    'Carol should see Alice''s medication-derived budget line';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
   assert (select count(*) from public.super_profile) = 1, 'Carol should see Alice''s super profile';
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
@@ -391,6 +408,7 @@ do $$ begin
   assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
+  assert (select count(*) from public.medication) = 1, 'Carol should see Alice''s medication';
   assert (select count(*) from public.pay_split) = 1, 'Carol should see Alice''s pay split';
   assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
     'Joining should consume the invite code';

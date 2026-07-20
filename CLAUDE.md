@@ -51,7 +51,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   cadence, exactly as inflows do), normalised to fortnightly and annual. A budget
   line's amount can be **derived** — rolled up from an itemised tracker via
   `budget_line.derived_source` rather than typed. Gift budget tracking (a
-  per-recipient × occasion planner + purchase log) is the first such consumer. A
+  per-recipient × occasion planner + purchase log) is the first such consumer;
+  medication tracking (a Health tab listing medications with a recurring cost,
+  summed and annualised into one Needs line) is the second. A
   line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
   goal's linked saver instead); the Splits tab sums each account's routed lines

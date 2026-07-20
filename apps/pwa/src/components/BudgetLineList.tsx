@@ -34,6 +34,8 @@ interface BudgetLineListProps {
   accounts?: { id: string; name: string }[]
   /** The household's total planned gift spend, driving any gift-derived line. */
   giftTotalCents?: number
+  /** The household's total annual medication cost, driving any medication-derived line. */
+  medicationTotalCents?: number
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
   onDelete: (id: string) => void
@@ -77,12 +79,19 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   return direction === 'desc' ? sorted.reverse() : sorted
 }
 
-/** A tappable badge linking a gift-derived line back to the gift tracker. */
-function GiftBadge() {
+/** Where each derived source's badge links, and the label it shows. */
+const DERIVED_BADGES = {
+  gift: { path: '/gifts', label: 'from Gifts' },
+  medication: { path: '/health', label: 'from Health' },
+} as const
+
+/** A tappable badge linking a derived line back to the tracker its amount comes from. */
+function DerivedBadge({ source }: { source: keyof typeof DERIVED_BADGES }) {
+  const { path, label } = DERIVED_BADGES[source]
   return (
-    <Anchor component={Link} to="/gifts" underline="never">
+    <Anchor component={Link} to={path} underline="never">
       <Badge size="xs" variant="light" color="teal">
-        from Gifts
+        {label}
       </Badge>
     </Anchor>
   )
@@ -184,7 +193,6 @@ function BudgetLineRow({
     line.frequency,
     line.interval_weeks ?? undefined,
   )
-  const derived = line.derived_source === 'gift'
   return (
     <Group
       wrap="nowrap"
@@ -196,7 +204,7 @@ function BudgetLineRow({
         <Text fw={600} size="sm" truncate>
           {line.name}
         </Text>
-        {derived && <GiftBadge />}
+        {line.derived_source && <DerivedBadge source={line.derived_source} />}
         {route && <RouteBadge route={route} />}
       </Group>
       <Text size="sm" c="dimmed" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
@@ -245,7 +253,6 @@ function BudgetLineCard({
     line.frequency,
     line.interval_weeks ?? undefined,
   )
-  const derived = line.derived_source === 'gift'
   return (
     <Card withBorder radius="md" p="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -260,7 +267,7 @@ function BudgetLineCard({
             <Badge size="xs" variant="light">
               {formatFrequency(line.frequency, line.interval_weeks)}
             </Badge>
-            {derived && <GiftBadge />}
+            {line.derived_source && <DerivedBadge source={line.derived_source} />}
             {route && <RouteBadge route={route} />}
           </Group>
         </Stack>
@@ -303,14 +310,17 @@ export function BudgetLineList({
   goals,
   accounts = [],
   giftTotalCents = 0,
+  medicationTotalCents = 0,
   onCreate,
   onUpdate,
   onDelete,
 }: BudgetLineListProps) {
-  // A household has a single gift-derived line, so the option is offered only
-  // when no other line already derives from the gift tracker.
+  // A household has a single line per derived source, so each option is offered
+  // only when no other line already derives from that tracker.
   const giftSourceAvailableFor = (id?: string) =>
     !lines.some((line) => line.derived_source === 'gift' && line.id !== id)
+  const medicationSourceAvailableFor = (id?: string) =>
+    !lines.some((line) => line.derived_source === 'medication' && line.id !== id)
   // Account name lookup for each line's route badge and its icon.
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -401,6 +411,8 @@ export function BudgetLineList({
           accounts={accounts}
           giftTotalCents={giftTotalCents}
           giftSourceAvailable={giftSourceAvailableFor()}
+          medicationTotalCents={medicationTotalCents}
+          medicationSourceAvailable={medicationSourceAvailableFor()}
           onSubmit={async (input) => {
             await onCreate(input)
             closeForms()
@@ -444,6 +456,8 @@ export function BudgetLineList({
                   accounts={accounts}
                   giftTotalCents={giftTotalCents}
                   giftSourceAvailable={giftSourceAvailableFor(line.id)}
+                  medicationTotalCents={medicationTotalCents}
+                  medicationSourceAvailable={medicationSourceAvailableFor(line.id)}
                   onSubmit={async (input) => {
                     await onUpdate(line.id, input)
                     closeForms()
@@ -469,6 +483,8 @@ export function BudgetLineList({
                   accounts={accounts}
                   giftTotalCents={giftTotalCents}
                   giftSourceAvailable={giftSourceAvailableFor()}
+                  medicationTotalCents={medicationTotalCents}
+                  medicationSourceAvailable={medicationSourceAvailableFor()}
                   onSubmit={async (input) => {
                     await onCreate(input)
                     closeForms()

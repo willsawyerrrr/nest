@@ -19,6 +19,7 @@ import { useSuperProfiles } from './hooks/useSuperProfiles'
 import { usePaySplits } from './hooks/usePaySplits'
 import { useSuperContributions } from './hooks/useSuperContributions'
 import { useGifts } from './hooks/useGifts'
+import { useMedications } from './hooks/useMedications'
 import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
@@ -32,6 +33,7 @@ import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
 import { SuperScreen } from './components/SuperScreen'
 import { GiftsScreen } from './components/GiftsScreen'
+import { MedicationsScreen } from './components/MedicationsScreen'
 import { NetWorthView } from './components/NetWorthView'
 import { ChangelogScreen } from './components/ChangelogScreen'
 import { NAV_ITEMS, TabBar } from './components/TabBar'
@@ -44,7 +46,8 @@ import {
 import { accountsWithEffectiveSuperBalances, superAccountIds, superAccountName } from './lib/super'
 import { todayIso } from './lib/dates'
 import { giftBudgetTotalCents } from './lib/gifts'
-import { applyGiftDerivedAmounts } from './lib/derivedBudget'
+import { medicationsAnnualTotalCents } from './lib/medications'
+import { applyGiftDerivedAmounts, applyMedicationDerivedAmounts } from './lib/derivedBudget'
 import type { SuperFormValues } from './components/SuperProfileForm'
 import './App.css'
 
@@ -161,6 +164,7 @@ function HouseholdApp({
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route path="/super" element={<SuperSection householdId={household.id} />} />
           <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
+          <Route path="/health" element={<MedicationsSection householdId={household.id} />} />
           <Route path="/whats-new" element={<ChangelogSection />} />
           <Route
             path="/household"
@@ -246,6 +250,7 @@ function BudgetSection({ householdId }: { householdId: string }) {
   const temporaryItems = useTemporaryItems(householdId)
   const goals = useGoals(householdId)
   const gifts = useGifts(householdId)
+  const medications = useMedications(householdId)
   const accounts = useAccounts(householdId)
   const superProfiles = useSuperProfiles(householdId)
 
@@ -254,6 +259,7 @@ function BudgetSection({ householdId }: { householdId: string }) {
     temporaryItems.loading ||
     goals.loading ||
     gifts.loading ||
+    medications.loading ||
     accounts.loading ||
     superProfiles.loading
   ) {
@@ -261,11 +267,15 @@ function BudgetSection({ householdId }: { householdId: string }) {
   }
 
   const giftBudgets = gifts.budgets ?? []
+  const medicationRows = medications.medications ?? []
   // Super-fund balance accounts are not spendable, so they cannot fund a line.
   const superIds = superAccountIds(superProfiles.profiles ?? [])
   return (
     <BudgetScreen
-      lines={applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets)}
+      lines={applyMedicationDerivedAmounts(
+        applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets),
+        medicationRows,
+      )}
       goals={(goals.goals ?? []).map((g) => ({
         id: g.id,
         name: g.name,
@@ -276,6 +286,7 @@ function BudgetSection({ householdId }: { householdId: string }) {
         .map((account) => ({ id: account.id, name: account.name }))}
       temporaryItems={temporaryItems.items ?? []}
       giftTotalCents={giftBudgetTotalCents(giftBudgets)}
+      medicationTotalCents={medicationsAnnualTotalCents(medicationRows)}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
       onDeleteLine={budgetLines.remove}
@@ -491,6 +502,23 @@ function GiftsSection({ householdId }: { householdId: string }) {
   )
 }
 
+function MedicationsSection({ householdId }: { householdId: string }) {
+  const medications = useMedications(householdId)
+
+  if (medications.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <MedicationsScreen
+      medications={medications.medications ?? []}
+      onCreate={medications.create}
+      onUpdate={medications.update}
+      onDelete={medications.remove}
+    />
+  )
+}
+
 function ChangelogSection() {
   const { implemented, inProgress, configured, loading, error } = useChangelog()
 
@@ -541,6 +569,7 @@ function SummarySection({ householdId }: { householdId: string }) {
   const temporaryItems = useTemporaryItems(householdId)
   const contributions = useSuperContributions(householdId)
   const gifts = useGifts(householdId)
+  const medications = useMedications(householdId)
 
   if (
     inflows.loading ||
@@ -548,7 +577,8 @@ function SummarySection({ householdId }: { householdId: string }) {
     budgetLines.loading ||
     temporaryItems.loading ||
     contributions.loading ||
-    gifts.loading
+    gifts.loading ||
+    medications.loading
   ) {
     return <LoadingScreen />
   }
@@ -568,14 +598,15 @@ function SummarySection({ householdId }: { householdId: string }) {
           frequency: inflow.schedule,
           intervalWeeks: inflow.interval_weeks ?? undefined,
         })),
-      budgetLines: applyGiftDerivedAmounts(budgetLines.lines ?? [], gifts.budgets ?? []).map(
-        (line) => ({
-          group: line.line_group,
-          amountCents: line.amount_cents,
-          frequency: line.frequency,
-          intervalWeeks: line.interval_weeks ?? undefined,
-        }),
-      ),
+      budgetLines: applyMedicationDerivedAmounts(
+        applyGiftDerivedAmounts(budgetLines.lines ?? [], gifts.budgets ?? []),
+        medications.medications ?? [],
+      ).map((line) => ({
+        group: line.line_group,
+        amountCents: line.amount_cents,
+        frequency: line.frequency,
+        intervalWeeks: line.interval_weeks ?? undefined,
+      })),
       temporaryItems: (temporaryItems.items ?? []).map((item) => ({
         contributionCents: item.contribution_cents,
         targetDate: item.target_date,

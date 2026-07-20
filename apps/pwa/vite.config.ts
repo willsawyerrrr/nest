@@ -12,7 +12,7 @@ export default defineConfig({
       : [
           VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['icon.svg'],
+            includeAssets: ['icon.svg', 'apple-touch-icon.png'],
             manifest: {
               name: 'Nest',
               short_name: 'Nest',
@@ -22,12 +22,15 @@ export default defineConfig({
               display: 'standalone',
               start_url: '/',
               icons: [
+                { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+                { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
                 {
-                  src: 'icon.svg',
-                  sizes: 'any',
-                  type: 'image/svg+xml',
-                  purpose: 'any maskable',
+                  src: 'pwa-maskable-512.png',
+                  sizes: '512x512',
+                  type: 'image/png',
+                  purpose: 'maskable',
                 },
+                { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
               ],
             },
           }),

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentsByAccount, resolveDestinationAccountId, roundCentsUpToStep } from './index'
+import {
+  assignmentsByAccount,
+  paySplitNeedsUpdate,
+  resolveDestinationAccountId,
+  roundCentsUpToStep,
+} from './index'
 import type { AssignableLine, RoutableGoal } from './index'
 
 const GOALS: RoutableGoal[] = [
@@ -139,5 +144,19 @@ describe('roundCentsUpToStep', () => {
   it('returns the amount unchanged for a non-positive step', () => {
     expect(roundCentsUpToStep(123_45, 0)).toBe(123_45)
     expect(roundCentsUpToStep(123_45, -5_00)).toBe(123_45)
+  })
+})
+
+describe('paySplitNeedsUpdate', () => {
+  it('needs update when the split has never been confirmed', () => {
+    expect(paySplitNeedsUpdate(400_00, null)).toBe(true)
+  })
+
+  it('needs update when the recommendation differs from the confirmed amount', () => {
+    expect(paySplitNeedsUpdate(400_00, 350_00)).toBe(true)
+  })
+
+  it('is up to date when the recommendation equals the confirmed amount', () => {
+    expect(paySplitNeedsUpdate(400_00, 400_00)).toBe(false)
   })
 })

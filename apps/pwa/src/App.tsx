@@ -16,6 +16,7 @@ import { useGoals } from './hooks/useGoals'
 import { useSavers } from './hooks/useSavers'
 import { useAccounts } from './hooks/useAccounts'
 import { useSuperProfiles } from './hooks/useSuperProfiles'
+import { usePaySplits } from './hooks/usePaySplits'
 import { useSuperContributions } from './hooks/useSuperContributions'
 import { useGifts } from './hooks/useGifts'
 import type { Member } from './hooks/useMembers'
@@ -287,8 +288,15 @@ function SplitsSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)
   const accounts = useAccounts(householdId)
   const superProfiles = useSuperProfiles(householdId)
+  const paySplits = usePaySplits(householdId)
 
-  if (budgetLines.loading || goals.loading || accounts.loading || superProfiles.loading) {
+  if (
+    budgetLines.loading ||
+    goals.loading ||
+    accounts.loading ||
+    superProfiles.loading ||
+    paySplits.loading
+  ) {
     return <LoadingScreen />
   }
 
@@ -299,6 +307,8 @@ function SplitsSection({ householdId }: { householdId: string }) {
       accounts={(accounts.accounts ?? []).filter((account) => !superIds.has(account.id))}
       lines={budgetLines.lines ?? []}
       goals={goals.goals ?? []}
+      configuredByAccount={paySplits.configuredByAccount}
+      onConfirm={(id, cents) => void paySplits.confirm(id, cents)}
     />
   )
 }

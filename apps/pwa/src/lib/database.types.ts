@@ -504,6 +504,51 @@ export type Database = {
           },
         ]
       }
+      pay_split: {
+        Row: {
+          account_id: string
+          confirmed_at: string
+          confirmed_fortnightly_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          confirmed_at?: string
+          confirmed_fortnightly_cents: number
+          created_at?: string
+          household_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          confirmed_at?: string
+          confirmed_fortnightly_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pay_split_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'pay_split_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       savings_goal: {
         Row: {
           created_at: string

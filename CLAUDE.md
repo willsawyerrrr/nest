@@ -76,6 +76,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Commit messages: Conventional Commits, first word capitalised, scoped where it
   helps (e.g. `feat(tax): Add LITO taper`).
 - Feature work on branches → PRs; keep `main` releasable.
+- Before opening a pull request — and before pushing updates to an open one —
+  `git fetch` and rebase the branch onto the latest `origin/main`, so a PR is
+  never built on a stale main (which risks silent conflicts with changes merged
+  in the meantime).
 - One feature per pull request. Each distinct change ships in its own branch and
   PR, even when several are requested in quick succession. Never bundle two
   unrelated changes together just because one was asked for while the other was

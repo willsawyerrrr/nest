@@ -44,14 +44,17 @@ describe('TabBar', () => {
     }
   })
 
-  it('renders the desktop sidebar as a labelled nav landmark', () => {
+  it('renders the desktop sidebar as a labelled nav landmark headed by the app icon', () => {
     render(
       <MemoryRouter initialEntries={['/summary']}>
         <TabBar items={NAV_ITEMS} />
       </MemoryRouter>,
     )
 
-    const nav = screen.getByRole('navigation', { name: 'Primary' })
+    const sidebar = screen.getByRole('complementary')
+    expect(within(sidebar).getByAltText('Nest')).toBeInTheDocument()
+
+    const nav = within(sidebar).getByRole('navigation', { name: 'Primary' })
     for (const item of NAV_ITEMS) {
       expect(within(nav).getByRole('link', { name: item.label })).toBeInTheDocument()
     }
@@ -132,6 +135,7 @@ describe('TabBar mobile drawer', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
 
     const drawer = screen.getByRole('dialog')
+    expect(within(drawer).getByAltText('Nest')).toBeInTheDocument()
     expect(within(drawer).getByRole('link', { name: 'Summary' })).toHaveAttribute(
       'aria-current',
       'page',

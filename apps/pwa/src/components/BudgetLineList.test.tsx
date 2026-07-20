@@ -314,11 +314,13 @@ describe('BudgetLineList', () => {
       </MemoryRouter>,
     )
     const card = screen.getByText('Presents').closest('.mantine-Card-root') as HTMLElement
-    // The breakdown badge links through to the breakdown's editor.
-    expect(within(card).getByRole('link', { name: 'Gifts' })).toHaveAttribute(
+    // A chevron links through to the breakdown's editor.
+    expect(within(card).getByRole('link', { name: /open breakdown/i })).toHaveAttribute(
       'href',
       '/breakdowns/b1',
     )
+    // The old breakdown chip is gone; the chevron is the only affordance.
+    expect(within(card).queryByText('Gifts')).not.toBeInTheDocument()
     // A derived line is system-managed: no edit or delete controls.
     expect(within(card).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()

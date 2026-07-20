@@ -243,26 +243,29 @@ function BudgetSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)
   const gifts = useGifts(householdId)
   const accounts = useAccounts(householdId)
+  const superProfiles = useSuperProfiles(householdId)
 
   if (
     budgetLines.loading ||
     temporaryItems.loading ||
     goals.loading ||
     gifts.loading ||
-    accounts.loading
+    accounts.loading ||
+    superProfiles.loading
   ) {
     return <LoadingScreen />
   }
 
   const giftBudgets = gifts.budgets ?? []
+  // Super-fund balance accounts are not spendable, so they cannot fund a line.
+  const superIds = superAccountIds(superProfiles.profiles ?? [])
   return (
     <BudgetScreen
       lines={applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets)}
       goals={goals.goals ?? []}
-      accounts={(accounts.accounts ?? []).map((account) => ({
-        id: account.id,
-        name: account.name,
-      }))}
+      accounts={(accounts.accounts ?? [])
+        .filter((account) => !superIds.has(account.id))
+        .map((account) => ({ id: account.id, name: account.name }))}
       temporaryItems={temporaryItems.items ?? []}
       giftTotalCents={giftBudgetTotalCents(giftBudgets)}
       onCreateLine={budgetLines.create}
@@ -279,6 +282,7 @@ function SplitsSection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const goals = useGoals(householdId)
   const accounts = useAccounts(householdId)
+  const superProfiles = useSuperProfiles(householdId)
 
   // Refreshing pulls fresh Up balances, so the accounts the splits route to (and
   // the goals that resolve their linked saver) are reloaded.
@@ -289,13 +293,15 @@ function SplitsSection({ householdId }: { householdId: string }) {
   }, [reloadAccounts, reloadGoals])
   const refresh = useRefreshSavers(reloadBalances)
 
-  if (budgetLines.loading || goals.loading || accounts.loading) {
+  if (budgetLines.loading || goals.loading || accounts.loading || superProfiles.loading) {
     return <LoadingScreen />
   }
 
+  // Super-fund balance accounts are not spendable, so they are never split targets.
+  const superIds = superAccountIds(superProfiles.profiles ?? [])
   return (
     <SplitsScreen
-      accounts={accounts.accounts ?? []}
+      accounts={(accounts.accounts ?? []).filter((account) => !superIds.has(account.id))}
       lines={budgetLines.lines ?? []}
       goals={goals.goals ?? []}
       onRefresh={() => void refresh.refresh()}

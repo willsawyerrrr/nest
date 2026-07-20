@@ -120,6 +120,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
         size="xs"
         title="Navigation"
         hiddenFrom="sm"
+        classNames={{ header: 'drawer-nav__header', body: 'drawer-nav__body' }}
       >
         <NavList items={items} onNavigate={drawer.close} />
       </Drawer>

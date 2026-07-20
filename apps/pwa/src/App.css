@@ -90,12 +90,13 @@
 
 /*
  * The nav drawer is anchored to the left edge and spans the full height, so it
- * abuts the top, left, and bottom safe-area insets. Grow its default padding to
- * clear each adjacent inset (the header keeps the title and close button below
- * the notch); Mantine's default is `--mantine-spacing-md`.
+ * abuts the top, left, and bottom safe-area insets. The header stacks its
+ * default padding on top of the notch inset so the title and close button sit
+ * clear of the notch; the left and bottom edges grow their default padding to
+ * cover their adjacent inset. Mantine's default is `--mantine-spacing-md`.
  */
 .drawer-nav__header {
-  padding-top: max(var(--mantine-spacing-md), env(safe-area-inset-top));
+  padding-top: calc(env(safe-area-inset-top) + var(--mantine-spacing-md));
   padding-left: max(var(--mantine-spacing-md), env(safe-area-inset-left));
 }
 

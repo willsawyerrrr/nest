@@ -119,7 +119,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
         onClose={drawer.close}
         position="left"
         size="xs"
-        title="Navigation"
+        title="Nest"
         hiddenFrom="sm"
         classNames={{ header: 'drawer-nav__header', body: 'drawer-nav__body' }}
       >

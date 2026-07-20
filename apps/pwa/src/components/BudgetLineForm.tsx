@@ -88,7 +88,6 @@ export function BudgetLineForm({
       frequency,
       interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       goal_id: showGoalPicker ? goalId : null,
-      derived_source: null,
       breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
     }

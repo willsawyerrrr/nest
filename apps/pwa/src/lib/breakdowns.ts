@@ -76,7 +76,6 @@ function derivedInput(
     frequency: 'annual',
     interval_weeks: null,
     goal_id: line?.goal_id ?? null,
-    derived_source: line?.derived_source ?? null,
     breakdown_id: breakdown.id,
     destination_account_id: line?.destination_account_id ?? null,
   }

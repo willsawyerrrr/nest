@@ -128,8 +128,8 @@ end $$;
 
 -- Alice's gift tracker: a recipient and an occasion, a gift budget linking the
 -- two, and a purchase against it. The composite FKs on (id, household_id) accept
--- same-household links. She also marks her Gifts budget line as derived from the
--- gift tracker rather than typed.
+-- same-household links. She also owns a gift breakdown whose derived Gifts budget
+-- line rolls up the gift tracker.
 insert into public.gift_recipient (household_id, name)
   values (current_setting('test.hid')::uuid, 'Mum');
 select id as rid from public.gift_recipient limit 1 \gset
@@ -148,8 +148,13 @@ select set_config('test.gbid', :'gbid', false);
 insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, description, purchased_on)
   values (current_setting('test.hid')::uuid, current_setting('test.gbid')::uuid, 80_00, 'Book', '2027-12-01');
 
-insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, derived_source, destination_account_id)
-  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', 'gift', current_setting('test.aid')::uuid);
+insert into public.breakdown (household_id, name, line_group, kind)
+  values (current_setting('test.hid')::uuid, 'Gifts', 'discretionary', 'gift');
+select id as gbdid from public.breakdown where kind = 'gift' limit 1 \gset
+select set_config('test.gbdid', :'gbdid', false);
+
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, breakdown_id, destination_account_id)
+  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', current_setting('test.gbdid')::uuid, current_setting('test.aid')::uuid);
 
 do $$ begin
   assert (select count(*) from public.gift_recipient) = 1, 'Alice should see her gift recipient';
@@ -163,9 +168,9 @@ do $$ begin
   assert (select count(*) from public.gift_purchase
     where gift_budget_id = current_setting('test.gbid')::uuid) = 1,
     'Alice''s gift purchase should link to her gift budget';
-  assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
+  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid) = 1,
     'Alice should see her gift-derived budget line';
-  assert (select destination_account_id from public.budget_line where derived_source = 'gift')
+  assert (select destination_account_id from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid)
     = current_setting('test.aid')::uuid,
     'Alice''s gift budget line should route to her own account';
 end $$;
@@ -187,7 +192,7 @@ end $$;
 -- breakdown it is derived from.
 insert into public.breakdown (household_id, name, line_group, kind)
   values (current_setting('test.hid')::uuid, 'Medications', 'needs', 'generic');
-select id as bdid from public.breakdown limit 1 \gset
+select id as bdid from public.breakdown where kind = 'generic' limit 1 \gset
 select set_config('test.bdid', :'bdid', false);
 
 insert into public.breakdown_item (household_id, breakdown_id, name, amount_cents, frequency)
@@ -197,7 +202,7 @@ insert into public.budget_line (household_id, line_group, name, amount_cents, fr
   values (current_setting('test.hid')::uuid, 'needs', 'Medications', 0, 'annual', current_setting('test.bdid')::uuid);
 
 do $$ begin
-  assert (select count(*) from public.breakdown) = 1, 'Alice should see her breakdown';
+  assert (select count(*) from public.breakdown) = 2, 'Alice should see both her breakdowns';
   assert (select count(*) from public.breakdown_item) = 1, 'Alice should see her breakdown item';
   assert (select count(*) from public.breakdown_item
     where breakdown_id = current_setting('test.bdid')::uuid) = 1,
@@ -409,7 +414,7 @@ do $$ begin
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
   assert (select count(*) from public.budget_line) = 3, 'Carol should see all three of Alice''s budget lines';
-  assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
+  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid) = 1,
     'Carol should see Alice''s gift-derived budget line';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
   assert (select count(*) from public.super_profile) = 1, 'Carol should see Alice''s super profile';
@@ -419,7 +424,7 @@ do $$ begin
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
   assert (select count(*) from public.pay_split) = 1, 'Carol should see Alice''s pay split';
-  assert (select count(*) from public.breakdown) = 1, 'Carol should see Alice''s breakdown';
+  assert (select count(*) from public.breakdown) = 2, 'Carol should see both Alice''s breakdowns';
   assert (select count(*) from public.breakdown_item) = 1, 'Carol should see Alice''s breakdown item';
   assert (select count(*) from public.breakdown where id = current_setting('test.bdid')::uuid) = 1,
     'Carol should see Alice''s breakdown by id';

@@ -14,6 +14,8 @@ import { type AccountUpsert, mapAccount } from './map.ts'
 export interface ConnectedMember {
   memberId: string
   householdId: string
+  /** The member's display name, used to disambiguate individual account names. */
+  name: string
 }
 
 /** An account upsert row stamped with its household and owning member. */
@@ -56,6 +58,19 @@ export function membersToSync(
 }
 
 /**
+ * The stored name for an account. An individual spending account is typically
+ * just named "Spending", which collides between the household's two members, so
+ * it is prefixed with the owner's name (e.g. "Alex Spending"). Joint accounts
+ * (shared) and savers (already distinctly named) keep Up's `displayName`. The
+ * name is recomputed from `displayName` on every sync, so repeated syncs never
+ * double-prefix ("Alex Alex Spending").
+ */
+export function accountName(account: UpAccount, member: ConnectedMember, shared: boolean): string {
+  const { displayName, accountType } = account.attributes
+  return !shared && accountType === 'TRANSACTIONAL' ? `${member.name} ${displayName}` : displayName
+}
+
+/**
  * Builds the account upsert rows for one member. An Up account owned jointly is
  * shared across the household (`owner_member_id` null); an individual account is
  * attributed to the member. A joint account seen through both partners' tokens
@@ -66,11 +81,15 @@ export function buildAccountRows(
   accounts: UpAccount[],
   member: ConnectedMember,
 ): AccountRow[] {
-  return accounts.map((account) => ({
-    ...mapAccount(account),
-    household_id: member.householdId,
-    owner_member_id: account.attributes.ownershipType === 'JOINT' ? null : member.memberId,
-  }))
+  return accounts.map((account) => {
+    const shared = account.attributes.ownershipType === 'JOINT'
+    return {
+      ...mapAccount(account),
+      name: accountName(account, member, shared),
+      household_id: member.householdId,
+      owner_member_id: shared ? null : member.memberId,
+    }
+  })
 }
 
 /**
@@ -78,6 +97,10 @@ export function buildAccountRows(
  * ledger. Idempotent: a re-run updates existing rows in place (balance, name,
  * type, currency) and creates no duplicates. A member without a readable token
  * is skipped rather than failing the whole run.
+ *
+ * A joint account surfaces through both partners' tokens under the same Up id;
+ * it is processed once, on its first sighting, so its shared ownership stays
+ * stable rather than being rewritten by whichever member syncs last.
  *
  * `householdId` scopes the run to one household's connected members (a caller's
  * manual refresh); null syncs every connected member (the cron path).
@@ -87,6 +110,7 @@ export async function runSync(
   householdId: string | null = null,
 ): Promise<SyncResult> {
   const members = membersToSync(await deps.listConnectedMembers(), householdId)
+  const seen = new Set<string>()
   let accounts = 0
 
   for (const member of members) {
@@ -94,8 +118,10 @@ export async function runSync(
     if (!token) continue
 
     const rows = buildAccountRows(await deps.listAccounts(token), member)
+      .filter((row) => !seen.has(row.external_id))
     if (rows.length === 0) continue
 
+    for (const row of rows) seen.add(row.external_id)
     await deps.upsertAccounts(rows)
     accounts += rows.length
   }

@@ -125,12 +125,18 @@ reconciling spend and actual tax paid against the plan.
 Savings-goal progress is funded from Up saver balances. The per-member token
 connection is the foundation; transaction ingestion stays deferred behind it.
 
-- Saver balances read server-side: `up-sync` enumerates connected members
+- Account balances read server-side: `up-sync` enumerates connected members
   (`up_connected_at` set), reads each token via `up_token_for_member` as service
-  role, and upserts their Up accounts into `public.accounts` on conflict
-  `(source, external_id)` — idempotent, joint accounts shared (owner null),
-  individual accounts attributed to the member. Transaction sync is deferred to
-  the ledger phase below.
+  role, and upserts every Up account — savers and spending accounts alike — into
+  `public.accounts` on conflict `(source, external_id)` — idempotent, joint
+  accounts shared (owner null), individual accounts attributed to the member. A
+  joint account surfaces through both partners' tokens under the same Up id; the
+  run processes it once (first sighting) so its shared ownership is not rewritten
+  by whichever member syncs last. An individual spending account (typically just
+  "Spending", colliding across members) is stored with its name prefixed by the
+  owner's name (e.g. "Alex Spending"), recomputed from Up's `displayName` each
+  sync so repeated runs never double-prefix; joint accounts and savers keep Up's
+  name. Transaction sync is deferred to the ledger phase below.
 - Goals reflect real saver balances (progress + ETA): a goal carries a nullable
   `linked_account_id`; the goal form offers an "Up saver" picker from the
   household's synced savers (selecting one prefills an empty goal name with the

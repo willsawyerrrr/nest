@@ -7,9 +7,12 @@
  * - The hourly `pg_cron` schedule invokes it with the service-role key and no
  *   user, syncing every connected member.
  *
- * Either way it pulls each member's Up accounts and upserts their balances into
- * the household ledger, deduping on (source, external_id). The token is read
- * server-side only, via the service-role-only Vault RPC.
+ * Either way it pulls all of each member's Up accounts — savers and spending
+ * alike — and upserts their balances into the household ledger, deduping on
+ * (source, external_id) so a joint account shared across both partners collapses
+ * to one row. Individual spending accounts are stored prefixed with the owner's
+ * name to disambiguate them. The token is read server-side only, via the
+ * service-role-only Vault RPC.
  *
  * Accounts only: transaction ingestion is deferred to a later ledger phase.
  */
@@ -69,10 +72,14 @@ Deno.serve(async (request) => {
     listConnectedMembers: async () => {
       const { data, error } = await supabase
         .from('members')
-        .select('id, household_id')
+        .select('id, household_id, name')
         .not('up_connected_at', 'is', null)
       if (error) throw new Error(`Failed to list connected members: ${error.message}`)
-      return (data ?? []).map((row) => ({ memberId: row.id, householdId: row.household_id }))
+      return (data ?? []).map((row) => ({
+        memberId: row.id,
+        householdId: row.household_id,
+        name: row.name,
+      }))
     },
     // The token never leaves the server: read via the service-role-only Vault RPC.
     tokenFor: async (memberId) => {

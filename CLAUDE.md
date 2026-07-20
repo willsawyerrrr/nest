@@ -57,10 +57,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   goal's linked saver instead); the Splits tab sums each account's routed lines
   into a recommended fortnightly Up pay split. Up exposes no pay-split API, so
   splits are recommend-only — computed here, typed into Up by hand.
-- Ingestion: both partners bank with Up. The savers → savings-goals slice is
-  built and deployed — members connect an Up personal-access token (held in
-  Vault), and `up-sync` polls saver balances into `accounts` so a linked goal
-  tracks the real balance. Up transaction ingestion (spend/ledger reconciliation,
+- Ingestion: both partners bank with Up. The account-balance slice is built and
+  deployed — members connect an Up personal-access token (held in Vault), and
+  `up-sync` polls every Up account (savers and spending alike) into `accounts`,
+  so a goal linked to a saver tracks its real balance and every account is
+  available as a budget-line funding destination. Deduped on (source,
+  external_id): a joint account shared across both partners collapses to one
+  shared row (`owner_member_id` null), while individual accounts are attributed
+  to their owner; an individual spending account's name is stored prefixed with
+  the owner's name (e.g. "Alex Spending") to disambiguate the household's two
+  spending accounts. Up transaction ingestion (spend/ledger reconciliation,
   actual tax paid) is deferred. Sources (Up Bank API + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-webhook`) live under `supabase/functions/` and auto-deploy to prod on merge

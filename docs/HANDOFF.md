@@ -6,7 +6,7 @@ linked throughout; this covers the operational reality.
 
 ## Current status
 
-Two layers are live in production at <https://budget.willsawyerrrr.dev>.
+Two layers are live in production at <https://nest.willsawyerrrr.dev>.
 
 **Plan-only app** — fully replaces the household's spreadsheet and needs no
 transaction data. Income + AU tax estimate, a fortnightly plan-only budget,
@@ -40,7 +40,7 @@ projection compounds each member's current balance plus their net-of-15%-tax
 annual contribution (concessional and employer SG taxed in the fund;
 non-concessional and co-contribution untaxed) to retirement, showing the result
 in nominal and today's (real) dollars. The projection math is pure
-(`projectSuperBalance` in `@budget/plan`); the shared return/inflation/growth and
+(`projectSuperBalance` in `@nest/plan`); the shared return/inflation/growth and
 retirement-age assumptions and each member's age are client-side inputs persisted
 in localStorage, not stored in the database. The Net worth tab sums every
 account's `balance_cents` (assets only; liabilities not modelled yet), split into
@@ -72,11 +72,11 @@ medication) adds a `budget_derived_source` enum value and its own tables.
   allocation donut; `@tabler/icons-react` for icon actions (Edit / Delete).
 - **Backend** — Supabase (Postgres, Auth, PostgREST, Edge Functions, Vault),
   Sydney region, Pro tier.
-- **Pure TS packages** — `@budget/tax` (tax engine + verified FY2027 config,
+- **Pure TS packages** — `@nest/tax` (tax engine + verified FY2027 config,
   `configsByYear`; models superannuation — concessional contributions reduce
   taxable income, 15% contributions tax, Division 293, the contribution-cap and
   government co-contribution helpers, with a versioned `super` block per FY) and
-  `@budget/plan` (budget / summary / goal math, the `Frequency` type, and
+  `@nest/plan` (budget / summary / goal math, the `Frequency` type, and
   `projectSuperBalance` for the retirement projection). Both I/O-free,
   unit-tested, shared by the PWA.
 - **Edge functions** — Deno/TypeScript under `supabase/functions/`, outside the
@@ -181,8 +181,8 @@ if `test` creeps up is a third shard, and `check` is the job to profile first.
 ## Auth
 
 Supabase Google OAuth (consent screen published). Site URL and redirect
-allow-list cover `budget.willsawyerrrr.dev`, `budget.vercel.app`,
-`budget-*-willsawyerrrr.vercel.app` previews, and `localhost:5173`.
+allow-list cover `nest.willsawyerrrr.dev`, `nest.vercel.app`,
+`nest-*-willsawyerrrr.vercel.app` previews, and `localhost:5173`.
 
 A partner joins with a temporary, opt-in, single-use invite code. A household
 carries no code by default; a member mints one via `create_invite_code` (an
@@ -192,9 +192,9 @@ consumes it on join. No email infrastructure.
 
 ## Hosting
 
-Vercel project **`budget`** on the **Pro** plan, Root Directory `apps/pwa` (Vite
+Vercel project **`nest`** on the **Pro** plan, Root Directory `apps/pwa` (Vite
 preset). Prod deploys via the GitHub integration on merge to `main`; each PR gets
-a preview deployment. Custom domain `budget.willsawyerrrr.dev`.
+a preview deployment. Custom domain `nest.willsawyerrrr.dev`.
 `apps/pwa/vercel.json` supplies the SPA fallback rewrite. Env vars:
 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Live prod may briefly trail `main`
 until the next merge triggers a deploy.

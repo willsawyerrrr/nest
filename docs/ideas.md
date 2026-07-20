@@ -257,7 +257,7 @@ Recurring shorthand:
   optionally show "debt paid off in FY20XX". Very relevant given the marginal
   HELP model is already a first-class part of the tax config.
 - **Effort.** S — extend `TaxYearConfig` with an indexation rate and add a
-  multi-year projection in the pure `@budget/tax` package.
+  multi-year projection in the pure `@nest/tax` package.
 - **Touches.** Config + pure package math only — no external API, no schema
   change beyond a config field. Frontend: surface the multi-year payoff on the
   Tax tab.
@@ -314,7 +314,7 @@ Recurring shorthand:
   the plan read truthfully.
 - **Effort.** S — a nullable `category`/`budget_line` link on inflow + summary
   math that nets it.
-- **Touches.** Schema (one nullable FK on inflow) + `@budget/plan` summary math
+- **Touches.** Schema (one nullable FK on inflow) + `@nest/plan` summary math
   + a small UI control. No external API.
 - **Dependencies.** None — pure extension of the shipped plan-only app.
 - **Feasibility / risks.** Low risk; mostly a summary-presentation decision
@@ -346,7 +346,7 @@ Recurring shorthand:
   linear `current + contribution × fortnights`. Also: interest is assessable
   income — a projected-interest figure could feed the tax estimate's investment
   income. Small but makes long-horizon goals materially more accurate.
-- **Effort.** S — extend the goal projection in `@budget/plan` with a rate.
+- **Effort.** S — extend the goal projection in `@nest/plan` with a rate.
 - **Touches.** Pure package math + a rate field on the goal; a UI input. No
   external API for the projection (the rate is user-entered; Up doesn't publish
   a clean per-account rate resource).
@@ -381,7 +381,7 @@ Recurring shorthand:
 - **Effort.** L — needs a scenario/overlay concept distinct from the single
   living plan.
 - **Touches.** Schema (scenario overlays or a duplicated draft plan) +
-  `@budget/plan` and `@budget/tax` re-run over scenario inputs. Frontend: a
+  `@nest/plan` and `@nest/tax` re-run over scenario inputs. Frontend: a
   scenario switcher. No external API — the compute engines are already pure and
   I/O-free, which makes re-running them on hypothetical inputs cheap.
 - **Dependencies.** None technically, but higher value once there's actual data

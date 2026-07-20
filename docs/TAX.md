@@ -55,7 +55,7 @@ versioned config per financial year, because AU rates and thresholds change year
 
 ## Super contribution caps and co-contribution
 
-Alongside the liability pipeline, `@budget/tax` exposes super helpers driven by
+Alongside the liability pipeline, `@nest/tax` exposes super helpers driven by
 the same versioned config. Concessional (salary sacrifice + personal deductible)
 and personal non-concessional contributions are annualised per member and
 compared against their caps: the concessional cap is `concessional_cap_cents`
@@ -82,7 +82,7 @@ concessional contributions and the employer super guarantee (`guarantee_rate ×`
 gross salary) are taxed in the fund; personal non-concessional contributions and
 the government co-contribution are made from after-tax money and added untaxed.
 
-`projectSuperBalance` (in `@budget/plan`) is pure retirement math: it compounds
+`projectSuperBalance` (in `@nest/plan`) is pure retirement math: it compounds
 the current balance at the nominal return over the years to retirement and adds
 the contributions as a growing annuity (each year's contribution grows at the
 contribution-growth rate, invested at the nominal return), then deflates the

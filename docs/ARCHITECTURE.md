@@ -54,11 +54,11 @@ is CRUD over RLS.
   client-side, and calls the Up edge functions. Client-side path routing via
   `react-router-dom` makes each tab deep-linkable and reload-safe
   (`apps/pwa/vercel.json` supplies the SPA fallback).
-- **Tax engine** — pure, versioned TypeScript package (`@budget/tax`). The PWA
+- **Tax engine** — pure, versioned TypeScript package (`@nest/tax`). The PWA
   imports it for the instant client-side estimate. Designed to be reused
   unchanged by a future authoritative edge function, so there is no duplication
   or divergence. See [`TAX.md`](TAX.md).
-- **Plan engine** — pure `@budget/plan` package: schedule normalization, summary
+- **Plan engine** — pure `@nest/plan` package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry, and the `Frequency` type.
 - **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.
 

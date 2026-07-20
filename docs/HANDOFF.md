@@ -255,9 +255,11 @@ GitHub for the private `willsawyerrrr/nest` repo:
   subject is the PR title).
 
 Only Conventional Commit **feat / fix / perf** entries are kept; chore, docs, ci,
-test, refactor, style, build, and revert are excluded. Parsing lives in the pure
-`parseChangelogSubject` (`supabase/functions/changelog/changelog.ts`), which also
-strips a trailing ` (#123)` PR-number suffix for display.
+test, refactor, style, build, and revert are excluded. `ci`-scoped entries
+(e.g. `perf(ci): …`) are also excluded, being CI/plumbing rather than
+user-facing. Parsing lives in the pure `parseChangelogSubject`
+(`supabase/functions/changelog/changelog.ts`), which also strips a trailing
+` (#123)` PR-number suffix for display.
 
 The repo is private, so the GitHub token stays server-side: the JWT-verified
 `changelog` edge function proxies the GitHub REST API, reading the token from the

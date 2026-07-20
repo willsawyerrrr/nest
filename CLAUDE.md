@@ -76,6 +76,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Commit messages: Conventional Commits, first word capitalised, scoped where it
   helps (e.g. `feat(tax): Add LITO taper`).
 - Feature work on branches → PRs; keep `main` releasable.
+- One feature per pull request. Each distinct change ships in its own branch and
+  PR, even when several are requested in quick succession. Never bundle two
+  unrelated changes together just because one was asked for while the other was
+  already in motion — when a new request arrives mid-flight, open a separate
+  branch and PR for it rather than folding it into the work in progress.
 - Keep documentation in sync with the code. When a change alters behaviour,
   schema, scope, or a workflow, update the affected docs (`docs/` and this file)
   as part of the same change, so `main` is never merged with stale docs.

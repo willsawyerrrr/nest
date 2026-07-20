@@ -1,4 +1,4 @@
-# Personal Budget Application
+# Nest
 
 A household budgeting app for two people to track incomes, model Australian tax
 liability, plan spending, and track savings goals.
@@ -59,7 +59,7 @@ Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
 ```sh
 pnpm install                 # install all workspaces
 cp apps/pwa/.env.example apps/pwa/.env   # fill in Supabase URL + anon key
-pnpm --filter @budget/pwa dev            # run the PWA
+pnpm --filter @nest/pwa dev              # run the PWA
 pnpm supabase start          # start the local Postgres/API stack (Docker)
 ```
 

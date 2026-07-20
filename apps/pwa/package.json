@@ -1,5 +1,5 @@
 {
-  "name": "@budget/pwa",
+  "name": "@nest/pwa",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,8 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@budget/plan": "workspace:*",
-    "@budget/tax": "workspace:*",
+    "@nest/plan": "workspace:*",
+    "@nest/tax": "workspace:*",
     "@mantine/charts": "9.4.1",
     "@mantine/core": "^9.4.1",
     "@mantine/dates": "^9.4.1",

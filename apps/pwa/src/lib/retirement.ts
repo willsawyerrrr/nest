@@ -1,4 +1,4 @@
-import type { SuperProjectionInput } from '@budget/plan'
+import type { SuperProjectionInput } from '@nest/plan'
 
 /**
  * Household-level retirement-projection assumptions, shared across members and

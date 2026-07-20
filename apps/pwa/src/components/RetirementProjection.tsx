@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card, Group, NumberInput, Stack, Text } from '@mantine/core'
-import { projectSuperBalance } from '@budget/plan'
+import { projectSuperBalance } from '@nest/plan'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
 import {

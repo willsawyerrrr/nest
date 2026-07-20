@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ActionIcon, Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
-import { fortnightlyCents, projectGoal } from '@budget/plan'
+import { fortnightlyCents, projectGoal } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'

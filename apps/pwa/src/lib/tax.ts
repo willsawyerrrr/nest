@@ -10,8 +10,8 @@ import {
   type Residency,
   type TaxProfileInput,
   type TaxYearConfig,
-} from '@budget/tax'
-import { annualCents } from '@budget/plan'
+} from '@nest/tax'
+import { annualCents } from '@nest/plan'
 import type { Inflow } from '../hooks/useInflows'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { SuperProfile } from '../hooks/useSuperProfiles'

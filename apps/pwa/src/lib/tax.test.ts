@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FY2027_CONFIG } from '@budget/tax'
+import { FY2027_CONFIG } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { SuperProfile } from '../hooks/useSuperProfiles'

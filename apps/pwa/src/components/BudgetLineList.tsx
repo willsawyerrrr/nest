@@ -17,7 +17,7 @@ import {
   TextInput,
 } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
-import { fortnightlyCents } from '@budget/plan'
+import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { formatCents } from '../lib/money'

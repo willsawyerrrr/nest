@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ActionIcon, Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
-import { isTemporaryActive } from '@budget/plan'
+import { isTemporaryActive } from '@nest/plan'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatCents } from '../lib/money'
 import { GroupSection } from './GroupSection'

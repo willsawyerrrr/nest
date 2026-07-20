@@ -14,8 +14,8 @@ export default defineConfig({
             registerType: 'autoUpdate',
             includeAssets: ['icon.svg'],
             manifest: {
-              name: 'Personal Budget',
-              short_name: 'Budget',
+              name: 'Nest',
+              short_name: 'Nest',
               description: 'Household income, tax, spending, and savings',
               theme_color: '#0b4f4f',
               background_color: '#0b4f4f',

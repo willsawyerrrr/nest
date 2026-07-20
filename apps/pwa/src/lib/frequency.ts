@@ -1,4 +1,4 @@
-import type { Frequency } from '@budget/plan'
+import type { Frequency } from '@nest/plan'
 
 /** Human-readable labels for the fixed (non-interpolated) frequencies. */
 const FIXED_LABELS: Record<Exclude<Frequency, 'every_n_weeks'>, string> = {

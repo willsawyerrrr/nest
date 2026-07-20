@@ -27,6 +27,7 @@ import type {
 } from '../hooks/useGifts'
 import {
   groupGifts,
+  overallGiftTotals,
   pairKey,
   type GiftGroup,
   type GiftGroupBy,
@@ -417,6 +418,7 @@ export function GiftsScreen({
   const [managing, { toggle: toggleManaging }] = useDisclosure(false)
 
   const groups = groupGifts(recipients, occasions, budgets, purchases, groupBy)
+  const overall = overallGiftTotals(budgets, purchases)
   const budgetsById = new Map(budgets.map((budget) => [budget.id, budget]))
   const takenPairs = new Set(
     budgets.map((budget) => pairKey(budget.recipient_id, budget.occasion_id)),
@@ -431,6 +433,15 @@ export function GiftsScreen({
           {managing ? 'Done managing' : 'Manage'}
         </Button>
       </Group>
+
+      {budgets.length > 0 && (
+        <Card withBorder radius="md" p="sm">
+          <Stack gap={4}>
+            <Title order={4}>Total</Title>
+            <GiftMoneyBar totals={overall} label="Total gift" />
+          </Stack>
+        </Card>
+      )}
 
       <Collapse expanded={managing}>
         <GiftManagement

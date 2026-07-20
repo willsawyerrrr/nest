@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { render, screen } from '../test/render'
+import { render, screen, within } from '../test/render'
 import { GiftsScreen } from './GiftsScreen'
 import type { GiftBudget, GiftOccasion, GiftPurchase, GiftRecipient } from '../hooks/useGifts'
 
@@ -101,6 +101,36 @@ describe('GiftsScreen budget date', () => {
       'b1',
       expect.objectContaining({ event_date: '2026-11-15' }),
     )
+  })
+})
+
+describe('GiftsScreen total', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('shows an overall total rollup card', () => {
+    const purchase: GiftPurchase = {
+      id: 'p1',
+      gift_budget_id: 'b1',
+      amount_cents: 30_00,
+      description: 'Book',
+      purchased_on: '2026-11-01',
+      household_id: 'h',
+      created_at: '',
+      updated_at: '',
+    }
+    renderScreen({ purchases: [purchase] })
+
+    const total = screen
+      .getByRole('heading', { name: 'Total' })
+      .closest('.mantine-Card-root') as HTMLElement
+    expect(within(total).getByText('Budget $100.00')).toBeInTheDocument()
+    expect(within(total).getByText('Spent $30.00')).toBeInTheDocument()
+    expect(within(total).getByText('Left $70.00')).toBeInTheDocument()
+  })
+
+  it('omits the total when there are no budgets', () => {
+    renderScreen({ budgets: [] })
+    expect(screen.queryByRole('heading', { name: 'Total' })).not.toBeInTheDocument()
   })
 })
 

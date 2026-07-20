@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   budgetTotals,
   groupGifts,
+  overallGiftTotals,
   spentCents,
   type GiftBudget,
   type GiftOccasion,
@@ -90,6 +91,25 @@ describe('budgetTotals', () => {
 
   it('makes remaining negative when over budget', () => {
     expect(budgetTotals(budgets[2]!, purchases).remainingCents).toBe(-20_00)
+  })
+})
+
+describe('overallGiftTotals', () => {
+  it('rolls up budgeted, spent, and remaining across every budget', () => {
+    // Budgeted 100 + 50 + 40 = 190; spent 55 (b1) + 60 (b3) = 115; remaining 75.
+    expect(overallGiftTotals(budgets, purchases)).toEqual({
+      budgetedCents: 190_00,
+      spentCents: 115_00,
+      remainingCents: 75_00,
+    })
+  })
+
+  it('is all zeroes with no budgets', () => {
+    expect(overallGiftTotals([], purchases)).toEqual({
+      budgetedCents: 0,
+      spentCents: 0,
+      remainingCents: 0,
+    })
   })
 })
 

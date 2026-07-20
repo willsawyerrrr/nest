@@ -54,7 +54,8 @@ describe('ChangelogScreen', () => {
     renderScreen({ inProgress: [], implemented })
 
     // In progress is empty, so its hint shows; Implemented still renders its entry.
-    expect(screen.getAllByText('Nothing here yet.')).toHaveLength(1)
+    expect(screen.getByText('Nothing in the works right now.')).toBeInTheDocument()
+    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument()
     expect(screen.getByText('Correct a rounding error')).toBeInTheDocument()
   })
 

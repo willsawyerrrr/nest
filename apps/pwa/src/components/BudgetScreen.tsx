@@ -7,6 +7,7 @@ import { TemporaryItemList } from './TemporaryItemList'
 interface BudgetScreenProps {
   lines: BudgetLine[]
   goals: { id: string; name: string }[]
+  accounts: { id: string; name: string }[]
   temporaryItems: TemporaryItem[]
   /** The household's total planned gift spend, driving any gift-derived line. */
   giftTotalCents: number
@@ -22,6 +23,7 @@ interface BudgetScreenProps {
 export function BudgetScreen({
   lines,
   goals,
+  accounts,
   temporaryItems,
   giftTotalCents,
   onCreateLine,
@@ -38,6 +40,7 @@ export function BudgetScreen({
         <BudgetLineList
           lines={lines}
           goals={goals}
+          accounts={accounts}
           giftTotalCents={giftTotalCents}
           onCreate={onCreateLine}
           onUpdate={onUpdateLine}

@@ -148,8 +148,8 @@ select set_config('test.gbid', :'gbid', false);
 insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, description, purchased_on)
   values (current_setting('test.hid')::uuid, current_setting('test.gbid')::uuid, 80_00, 'Book', '2027-12-01');
 
-insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, derived_source)
-  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', 'gift');
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, derived_source, destination_account_id)
+  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', 'gift', current_setting('test.aid')::uuid);
 
 do $$ begin
   assert (select count(*) from public.gift_recipient) = 1, 'Alice should see her gift recipient';
@@ -165,6 +165,9 @@ do $$ begin
     'Alice''s gift purchase should link to her gift budget';
   assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
     'Alice should see her gift-derived budget line';
+  assert (select destination_account_id from public.budget_line where derived_source = 'gift')
+    = current_setting('test.aid')::uuid,
+    'Alice''s gift budget line should route to her own account';
 end $$;
 
 -- ── Server-side grants: service_role reads members and upserts accounts ──────

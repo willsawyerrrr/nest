@@ -90,6 +90,7 @@ export type Database = {
           amount_cents: number
           created_at: string
           derived_source: Database['public']['Enums']['budget_derived_source'] | null
+          destination_account_id: string | null
           frequency: Database['public']['Enums']['frequency']
           goal_id: string | null
           household_id: string
@@ -103,6 +104,7 @@ export type Database = {
           amount_cents: number
           created_at?: string
           derived_source?: Database['public']['Enums']['budget_derived_source'] | null
+          destination_account_id?: string | null
           frequency: Database['public']['Enums']['frequency']
           goal_id?: string | null
           household_id: string
@@ -116,6 +118,7 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           derived_source?: Database['public']['Enums']['budget_derived_source'] | null
+          destination_account_id?: string | null
           frequency?: Database['public']['Enums']['frequency']
           goal_id?: string | null
           household_id?: string
@@ -126,6 +129,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'budget_line_destination_account_id_household_id_fkey'
+            columns: ['destination_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
           {
             foreignKeyName: 'budget_line_goal_id_household_id_fkey'
             columns: ['goal_id', 'household_id']

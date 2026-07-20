@@ -24,6 +24,7 @@ import { useRefreshSavers } from './hooks/useRefreshSavers'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
+import { SplitsScreen } from './components/SplitsScreen'
 import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
@@ -152,6 +153,7 @@ function HouseholdApp({
           <Route path="/net-worth" element={<NetWorthSection householdId={household.id} />} />
           <Route path="/inflows" element={<InflowsSection householdId={household.id} />} />
           <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
+          <Route path="/splits" element={<SplitsSection householdId={household.id} />} />
           <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route path="/super" element={<SuperSection householdId={household.id} />} />
@@ -240,8 +242,15 @@ function BudgetSection({ householdId }: { householdId: string }) {
   const temporaryItems = useTemporaryItems(householdId)
   const goals = useGoals(householdId)
   const gifts = useGifts(householdId)
+  const accounts = useAccounts(householdId)
 
-  if (budgetLines.loading || temporaryItems.loading || goals.loading || gifts.loading) {
+  if (
+    budgetLines.loading ||
+    temporaryItems.loading ||
+    goals.loading ||
+    gifts.loading ||
+    accounts.loading
+  ) {
     return <LoadingScreen />
   }
 
@@ -250,6 +259,10 @@ function BudgetSection({ householdId }: { householdId: string }) {
     <BudgetScreen
       lines={applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets)}
       goals={goals.goals ?? []}
+      accounts={(accounts.accounts ?? []).map((account) => ({
+        id: account.id,
+        name: account.name,
+      }))}
       temporaryItems={temporaryItems.items ?? []}
       giftTotalCents={giftBudgetTotalCents(giftBudgets)}
       onCreateLine={budgetLines.create}
@@ -258,6 +271,36 @@ function BudgetSection({ householdId }: { householdId: string }) {
       onCreateItem={temporaryItems.create}
       onUpdateItem={temporaryItems.update}
       onDeleteItem={temporaryItems.remove}
+    />
+  )
+}
+
+function SplitsSection({ householdId }: { householdId: string }) {
+  const budgetLines = useBudgetLines(householdId)
+  const goals = useGoals(householdId)
+  const accounts = useAccounts(householdId)
+
+  // Refreshing pulls fresh Up balances, so the accounts the splits route to (and
+  // the goals that resolve their linked saver) are reloaded.
+  const reloadAccounts = accounts.reload
+  const reloadGoals = goals.reload
+  const reloadBalances = useCallback(async () => {
+    await Promise.all([reloadAccounts(), reloadGoals()])
+  }, [reloadAccounts, reloadGoals])
+  const refresh = useRefreshSavers(reloadBalances)
+
+  if (budgetLines.loading || goals.loading || accounts.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <SplitsScreen
+      accounts={accounts.accounts ?? []}
+      lines={budgetLines.lines ?? []}
+      goals={goals.goals ?? []}
+      onRefresh={() => void refresh.refresh()}
+      refreshing={refresh.refreshing}
+      refreshError={refresh.error}
     />
   )
 }

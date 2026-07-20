@@ -16,6 +16,7 @@ function line(overrides: Partial<BudgetLine>): BudgetLine {
     interval_weeks: null,
     goal_id: null,
     derived_source: null,
+    destination_account_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

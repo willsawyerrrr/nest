@@ -91,6 +91,11 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 
 ## Status
 
-Not started. No migration, code, tests, or UI exist yet — nothing in this design
-has been built. This document is the spec; a follow-up agent implements it from
-here.
+Built and deployed. `budget_line.destination_account_id` (the nullable composite
+FK plus the `budget_line_destination_group` check) carries a line's destination;
+`@nest/plan` exposes the pure `resolveDestinationAccountId`, `assignmentsByAccount`,
+and `roundCentsToNearest`; the budget-line form offers a "Funded from" picker on
+non-Savings/Investments lines (Savings/Investments show the goal-derived route);
+and the Splits tab (between Budget and Goals) lists each account's recommended
+fortnightly split rounded to $5, with an Unassigned nudge and a Refresh that
+re-syncs Up accounts via `up-sync`.

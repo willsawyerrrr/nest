@@ -78,11 +78,11 @@ authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if that
 Supabase access token is rotated, update the secret or the deploy fails.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
-`up-connect`, `up-disconnect`, and `up-sync` are JWT-verified (the default) — the
-caller is resolved from their JWT, so a member can only touch their own token,
-and `up-sync`'s PWA Refresh carries the member's JWT while its hourly cron
-presents the service-role key. `up-webhook` sets `verify_jwt = false` so Up can
-call it unauthenticated; its HMAC signature check is the security boundary.
+`up-connect`, `up-disconnect`, `up-sync`, and `changelog` are JWT-verified (the
+default) — the caller is resolved from their JWT, so a member can only touch their
+own token, and `up-sync`'s PWA Refresh carries the member's JWT while its hourly
+cron presents the service-role key. `up-webhook` sets `verify_jwt = false` so Up
+can call it unauthenticated; its HMAC signature check is the security boundary.
 
 Serve locally against the running stack, or deploy a single function by hand:
 
@@ -119,3 +119,26 @@ select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
 The job (`up-sync-hourly`) is idempotent across re-runs (it unschedules any prior
 job first) and is skipped when the secrets are absent. Verify with
 `select * from cron.job where jobname = 'up-sync-hourly';`.
+
+## Changelog ("What's new")
+
+The in-app changelog reads recent user-facing changes from GitHub at runtime.
+Because `willsawyerrrr/nest` is private, the GitHub token stays server-side and
+the function proxies the API.
+
+- **`changelog`** — JWT-verified, so only signed-in users can call it. Fetches
+  merged-commit subjects on `main` (implemented) and open PR titles (in
+  progress) from the GitHub REST API, keeps only user-facing Conventional Commit
+  types (feat / fix / perf), and returns the shaped lists. The parsing and
+  filtering are the pure `parseChangelogSubject` / `runChangelog` in
+  `changelog/changelog.ts` (HTTP injected), unit-tested against a stubbed
+  `fetch`. A GitHub failure surfaces as a `502`.
+
+### Secret
+
+- **`GITHUB_CHANGELOG_TOKEN`** — a fine-grained GitHub PAT scoped to the `nest`
+  repo with **Contents: Read** and **Pull requests: Read**. When it is unset the
+  function returns `{ configured: false, implemented: [], inProgress: [] }` so
+  the UI shows a "not configured yet" note instead of an error. Set it locally in
+  `supabase/functions/.env` and in prod with
+  `supabase secrets set GITHUB_CHANGELOG_TOKEN=<pat>`.

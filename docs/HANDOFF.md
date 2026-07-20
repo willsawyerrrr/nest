@@ -11,11 +11,12 @@ Two layers are live in production at <https://nest.willsawyerrrr.dev>.
 **Plan-only app** — fully replaces the household's spreadsheet and needs no
 transaction data. Income + AU tax estimate, a fortnightly plan-only budget,
 savings goals, and a Summary reconciliation. Tabs are path-routed via
-`react-router-dom` (`/summary` `/net-worth` `/inflows` `/budget` `/goals` `/tax`
-`/super` `/gifts` `/household`; `/` and unknown routes redirect to `/summary`), so
-they are deep-linkable and reload-safe. Order: **Summary** (landing) · **Net
-worth** · **Inflows** · **Budget** · **Goals** · **Tax** · **Super** · **Gifts** ·
-**Household**. Navigation renders from one `NAV_ITEMS` table (`TabBar.tsx`): on
+`react-router-dom` (`/summary` `/net-worth` `/inflows` `/budget` `/splits`
+`/goals` `/tax` `/super` `/gifts` `/household` `/whats-new`; `/` and unknown
+routes redirect to `/summary`), so they are deep-linkable and reload-safe. Order:
+**Summary** (landing) · **Net worth** · **Inflows** · **Budget** · **Splits** ·
+**Goals** · **Tax** · **Super** · **Gifts** · **Household** · **What's new**.
+Navigation renders from one `NAV_ITEMS` table (`TabBar.tsx`): on
 mobile a fixed top app-bar with a hamburger that opens a left `Drawer` of every
 item, on desktop (`sm` and up) a persistent left sidebar of the same items.
 Keyboard shortcuts: ⌘/Ctrl+1–9 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Content is
@@ -80,8 +81,8 @@ medication) adds a `budget_derived_source` enum value and its own tables.
   `projectSuperBalance` for the retirement projection). Both I/O-free,
   unit-tested, shared by the PWA.
 - **Edge functions** — Deno/TypeScript under `supabase/functions/`, outside the
-  pnpm workspace, with their own `deno.json` and test harness. Four functions:
-  `up-connect`, `up-disconnect`, `up-sync`, `up-webhook`.
+  pnpm workspace, with their own `deno.json` and test harness. Five functions:
+  `up-connect`, `up-disconnect`, `up-sync`, `up-webhook`, `changelog`.
 
 Details: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -243,6 +244,37 @@ until the next merge triggers a deploy.
      with `select * from cron.job where jobname = 'up-sync-hourly';`.
 - **State today** — functions are deployed; the hourly cron is scheduled and
   active (Vault secrets set); manual Refresh and the hourly poll both work.
+
+## Changelog ("What's new")
+
+The **What's new** tab shows recent user-facing changes, read at runtime from
+GitHub for the private `willsawyerrrr/nest` repo:
+
+- **In progress** — open PR titles.
+- **Implemented** — merged-commit subjects on `main` (squash-merged, so the
+  subject is the PR title).
+
+Only Conventional Commit **feat / fix / perf** entries are kept; chore, docs, ci,
+test, refactor, style, build, and revert are excluded. Parsing lives in the pure
+`parseChangelogSubject` (`supabase/functions/changelog/changelog.ts`), which also
+strips a trailing ` (#123)` PR-number suffix for display.
+
+The repo is private, so the GitHub token stays server-side: the JWT-verified
+`changelog` edge function proxies the GitHub REST API, reading the token from the
+`GITHUB_CHANGELOG_TOKEN` function secret. The token is never sent to the client
+(`useChangelog` → `supabase.functions.invoke('changelog')`).
+
+**Required secret — `GITHUB_CHANGELOG_TOKEN`.** Create a fine-grained GitHub PAT
+scoped to the `nest` repo with **Contents: Read** and **Pull requests: Read**,
+then:
+
+- **Prod:** `supabase secrets set GITHUB_CHANGELOG_TOKEN=<pat> --project-ref dgfeittjtxjtgbretdkj`.
+- **Local dev:** add `GITHUB_CHANGELOG_TOKEN=<pat>` to `supabase/functions/.env`.
+
+Until the secret is set the function returns `{ configured: false, implemented:
+[], inProgress: [] }` (a `200`), and the tab shows a "not configured yet" note
+rather than an error, so it degrades gracefully. The function itself auto-deploys
+to prod via `deploy-functions.yml` like the others.
 
 ## Data model
 

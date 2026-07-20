@@ -103,7 +103,7 @@ describe('TabBar', () => {
 
     await user.keyboard('{Control>}{Shift>}{ArrowLeft}{/Shift}{/Control}')
 
-    expect(pathname()).toBe('/household')
+    expect(pathname()).toBe('/whats-new')
   })
 })
 

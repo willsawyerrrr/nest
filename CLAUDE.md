@@ -98,6 +98,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the changelog surfaces `feat`, `fix`, and `perf` entries and hides `chore`,
   `docs`, `ci`, `test`, and `refactor` — but phrase the description for someone
   using the app, not for an implementer.
+- Because the changelog shows only the description (the type becomes an emoji and
+  the scope is hidden), write each PR title's description so it reads as a clear,
+  self-contained sentence that makes sense without the scope — e.g. prefer
+  `feat(splits): Sort pay-split rows by title or amount` over
+  `feat(splits): Add sorting`, whose description ("Add sorting") is meaningless
+  once the `splits` scope is dropped.
 - Keep documentation in sync with the code. When a change alters behaviour,
   schema, scope, or a workflow, update the affected docs (`docs/` and this file)
   as part of the same change, so `main` is never merged with stale docs.

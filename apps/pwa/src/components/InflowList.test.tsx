@@ -151,7 +151,7 @@ describe('InflowList', () => {
       const row = name.closest('div')?.parentElement as HTMLElement
       expect(within(row).getByText('$45.00 × 38 hrs')).toBeInTheDocument()
       expect(within(row).getByText('Weekly')).toBeInTheDocument()
-      expect(within(row).getByText('Will')).toBeInTheDocument()
+      expect(within(row).getByText('Will · Wage')).toBeInTheDocument()
       // Weekly $45 × 38 hrs = $1,710/wk → annual $88,920 → $3,420.00/fn.
       expect(within(row).getByText('$3,420.00')).toBeInTheDocument()
       expect(within(row).getByRole('button', { name: /edit/i })).toBeInTheDocument()

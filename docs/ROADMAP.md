@@ -268,7 +268,8 @@ way, sourced at runtime from GitHub for the private repo.
 
 Pulling actual Up transactions to reconcile spend and tax against the plan — the
 heaviest phase, and the current focus now that the plan-only app, Up savers, super,
-and gifts are shipped.
+and gifts are shipped. See [`up-ledger-sync.md`](up-ledger-sync.md) for the full
+design (staged sync foundation, ledger UI, and the two reconciliation layers).
 
 - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown } from '@budget/tax'
+import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown } from '@nest/tax'
 import { render, screen, within } from '../test/render'
 import { TaxEstimateView } from './TaxEstimateView'
 

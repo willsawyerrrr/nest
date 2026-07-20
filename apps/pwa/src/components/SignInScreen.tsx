@@ -10,7 +10,7 @@ export function SignInScreen({ onSignIn }: SignInScreenProps) {
     <Center component="main" className="full-screen">
       <Stack align="center" gap="lg" maw={360} w="100%">
         <Title order={1} ta="center">
-          Personal Budget
+          Nest
         </Title>
         <Text c="dimmed" ta="center">
           Track income, tax, spending, and savings for your household.

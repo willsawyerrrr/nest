@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarise } from '@budget/plan'
+import { summarise } from '@nest/plan'
 import { applyGiftDerivedAmounts } from './derivedBudget'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { GiftBudget } from './gifts'

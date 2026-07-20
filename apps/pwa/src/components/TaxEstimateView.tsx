@@ -1,5 +1,5 @@
 import { Card, Stack, Table, Text, Title } from '@mantine/core'
-import type { HouseholdTaxEstimate, TaxBreakdown } from '@budget/tax'
+import type { HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
 import { formatCents } from '../lib/money'
 
 interface TaxEstimateViewProps {

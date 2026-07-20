@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BudgetSummary, GroupSummary } from '@budget/plan'
+import type { BudgetSummary, GroupSummary } from '@nest/plan'
 import { render, screen, within } from '../test/render'
 import { SummaryView } from './SummaryView'
 

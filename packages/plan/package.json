@@ -1,5 +1,5 @@
 {
-  "name": "@budget/plan",
+  "name": "@nest/plan",
   "version": "0.0.0",
   "private": true,
   "type": "module",

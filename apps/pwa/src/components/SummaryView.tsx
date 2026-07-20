@@ -1,7 +1,7 @@
 import { Card, ColorSwatch, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
 import { DonutChart } from '@mantine/charts'
 import { useMediaQuery } from '@mantine/hooks'
-import type { Amounts, BudgetSummary } from '@budget/plan'
+import type { Amounts, BudgetSummary } from '@nest/plan'
 import { formatCents, moneyColor } from '../lib/money'
 
 interface SummaryViewProps {

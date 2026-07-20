@@ -93,7 +93,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
       <Box component="header" className="top-bar" hiddenFrom="sm">
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <Text fw={700}>Budget</Text>
+            <Text fw={700}>Nest</Text>
             {activeLabel ? (
               <Text size="sm" c="dimmed" truncate>
                 {activeLabel}
@@ -125,7 +125,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
 
       <Box component="aside" className="sidebar" visibleFrom="sm">
         <Text fw={700} size="lg" mb="md" px="xs">
-          Budget
+          Nest
         </Text>
         <NavList items={items} />
       </Box>

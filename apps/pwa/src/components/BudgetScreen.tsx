@@ -8,9 +8,9 @@ interface BudgetScreenProps {
   lines: BudgetLine[]
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   accounts: { id: string; name: string }[]
+  /** The household's breakdowns, naming the tap-through link on each derived line. */
+  breakdowns: { id: string; name: string }[]
   temporaryItems: TemporaryItem[]
-  /** The household's total planned gift spend, driving any gift-derived line. */
-  giftTotalCents: number
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
   onDeleteLine: (id: string) => Promise<void>
@@ -24,8 +24,8 @@ export function BudgetScreen({
   lines,
   goals,
   accounts,
+  breakdowns,
   temporaryItems,
-  giftTotalCents,
   onCreateLine,
   onUpdateLine,
   onDeleteLine,
@@ -41,7 +41,7 @@ export function BudgetScreen({
           lines={lines}
           goals={goals}
           accounts={accounts}
-          giftTotalCents={giftTotalCents}
+          breakdowns={breakdowns}
           onCreate={onCreateLine}
           onUpdate={onUpdateLine}
           onDelete={(id) => void onDeleteLine(id)}

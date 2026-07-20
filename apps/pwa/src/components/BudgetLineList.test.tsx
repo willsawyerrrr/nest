@@ -301,55 +301,28 @@ describe('BudgetLineList', () => {
     ])
   })
 
-  it('badges a gift-derived line as coming from Gifts', () => {
+  it('renders a derived line as a read-only tap-through to its breakdown', () => {
     render(
       <MemoryRouter>
         <BudgetLineList
-          lines={[line({ id: 'g', line_group: 'wants', name: 'Gifts', derived_source: 'gift' })]}
+          lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
           goals={[]}
-          giftTotalCents={120_00}
+          breakdowns={[{ id: 'b1', name: 'Gifts' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onDelete={vi.fn()}
         />
       </MemoryRouter>,
     )
-    const card = screen.getByText('Gifts').closest('.mantine-Card-root') as HTMLElement
-    expect(within(card).getByText('from Gifts')).toBeInTheDocument()
-  })
-
-  it('offers the gift amount source only when no gift-derived line exists', async () => {
-    const user = userEvent.setup()
-    const { unmount } = render(
-      <MemoryRouter>
-        <BudgetLineList
-          lines={[]}
-          goals={[]}
-          giftTotalCents={120_00}
-          onCreate={vi.fn()}
-          onUpdate={vi.fn()}
-          onDelete={vi.fn()}
-        />
-      </MemoryRouter>,
+    const card = screen.getByText('Presents').closest('.mantine-Card-root') as HTMLElement
+    // The breakdown badge links through to the breakdown's editor.
+    expect(within(card).getByRole('link', { name: 'Gifts' })).toHaveAttribute(
+      'href',
+      '/breakdowns/b1',
     )
-    await user.click(screen.getByRole('button', { name: 'Add item' }))
-    expect(screen.getByText(/from the gift tracker/i)).toBeInTheDocument()
-    unmount()
-
-    render(
-      <MemoryRouter>
-        <BudgetLineList
-          lines={[line({ id: 'g', line_group: 'wants', name: 'Gifts', derived_source: 'gift' })]}
-          goals={[]}
-          giftTotalCents={120_00}
-          onCreate={vi.fn()}
-          onUpdate={vi.fn()}
-          onDelete={vi.fn()}
-        />
-      </MemoryRouter>,
-    )
-    await user.click(screen.getByRole('button', { name: 'Add item' }))
-    expect(screen.queryByText(/from the gift tracker/i)).not.toBeInTheDocument()
+    // A derived line is system-managed: no edit or delete controls.
+    expect(within(card).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
   })
 
   it('renders each line as a dense borderless row on desktop', () => {

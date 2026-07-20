@@ -97,7 +97,12 @@ items live in `gift_budget`).
   `gift` breakdown: ≥ 1 gift budget). Adding the first item creates the line; adding
   or editing items updates its amount; removing the last item removes the line. The
   line's `line_group` follows the breakdown's group and its `name` follows the
-  breakdown's name.
+  breakdown's name. The one exception to removal: an emptied breakdown whose line
+  carries a `destination_account_id` keeps its line so its Splits routing is not
+  silently lost — the line stays in place (rolling up to $0) until the breakdown has
+  items again or the line is re-routed. The reconcile runs where the budget lines
+  load, computing the creates, updates, and removes needed to bring each
+  breakdown's line into step, and is a no-op once they already match.
 - **System-managed.** A derived line is not created via the budget form, is not
   manually deletable, and its amount is not hand-editable. Deleting the breakdown
   cascade-deletes its line (via the FK).
@@ -107,9 +112,10 @@ items live in `gift_budget`).
 
 ## UI
 
-- **Breakdowns tab** (route `/breakdowns`, between Splits and Goals in `NAV_ITEMS`) —
-  lists every breakdown with its name, group, and rolled-up fortnightly total, plus a
-  **New breakdown** action. Each row taps through to `/breakdowns/:id`.
+- **Breakdowns tab** (route `/breakdowns`, taking the standalone Gifts tab's slot in
+  `NAV_ITEMS`) — lists every breakdown with its name, group, and rolled-up
+  fortnightly + annual total, plus a **New breakdown** action (a name and a group).
+  Each row taps through to `/breakdowns/:id`.
 - **`/breakdowns/:id`** — the editor, chosen by `kind`:
   - `kind = 'generic'` — a simple item editor: the item list with add / edit /
     remove (name + amount + frequency, `every_n_weeks` taking an interval as
@@ -149,17 +155,22 @@ column are dropped only once nothing reads them.
 - App code is unchanged and still compiles — it continues to read `derived_source`.
   Green.
 
-### Stage 2 — app switch
+### Stage 2 — app switch (done)
 
-- Generic roll-up keyed by `breakdown_id`; `useBreakdowns` / `useBreakdownItems`
-  hooks.
+- Generic roll-up keyed by `breakdown_id` (`applyBreakdownAmounts`); `useBreakdowns`
+  / `useBreakdownItems` hooks.
 - The **Breakdowns** tab and `/breakdowns/:id` (the generic editor plus the gift
   editor, dispatched by `kind`).
-- Derived-line lifecycle: create-on-first-item, hide/remove-when-empty; the amount,
-  group, and name tracked from the breakdown.
-- Tap-through links from the budget list to the breakdown.
-- Remove the **Gifts** tab and the budget-form **Amount source** picker.
+- Derived-line lifecycle: create-on-first-item, update-on-change,
+  remove-when-empty (`reconcileBreakdownLines`), keeping a routed line so its Splits
+  routing survives an empty breakdown; the amount, group, and name tracked from the
+  breakdown.
+- Tap-through links from the budget list to the breakdown, with the derived line
+  read-only (no edit or delete control).
+- Removed the **Gifts** tab and the budget-form **Amount source** picker.
 - The gift breakdown drives its budget line from its existing `gift_*` tables.
+- `budget_derived_source` and `budget_line.derived_source` remain in the DB,
+  unread by the app, until Stage 3.
 - Green.
 
 ### Stage 3 — cleanup
@@ -181,10 +192,14 @@ column are dropped only once nothing reads them.
 
 ## Status
 
-Designed, not yet built. The gift tracker ships today on the `budget_derived_source`
-enum + `budget_line.derived_source` column; this design genericises that mechanism to
-user-created breakdowns keyed by `budget_line.breakdown_id`, with gifts becoming the
-first (`kind = 'gift'`) breakdown and medications the first generic one.
+Stages 1 and 2 shipped. The schema (`breakdown`, `breakdown_item`,
+`budget_line.breakdown_id`) is live with gifts backfilled onto a `kind = 'gift'`
+breakdown, and the app reads breakdowns keyed by `budget_line.breakdown_id`: the
+Breakdowns tab, the generic item editor, the gift planner reached by `kind`, and the
+app-enforced derived-line lifecycle. Gifts is the first (`kind = 'gift'`) breakdown
+and generic breakdowns (e.g. medications) are user-created. Stage 3 (dropping the
+`budget_derived_source` enum and `budget_line.derived_source` column and the dead
+gift-specific code) remains.
 
 ## Open questions
 

@@ -1,20 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Anchor,
-  Button,
-  Card,
-  Group,
-  NumberInput,
-  SegmentedControl,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core'
+import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
 import type { BudgetGroup, BudgetLine, BudgetLineInput, Frequency } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
-import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
+import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface BudgetLineFormProps {
   initial?: BudgetLine
@@ -23,16 +11,9 @@ interface BudgetLineFormProps {
   goals?: { id: string; name: string }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
-  /** The household's total planned gift spend, shown when the amount is derived from the gift tracker. */
-  giftTotalCents?: number
-  /** Whether the gift-tracker amount source may be chosen (one gift-derived line per household). */
-  giftSourceAvailable?: boolean
   onSubmit: (input: BudgetLineInput) => void | Promise<void>
   onCancel?: () => void
 }
-
-/** Where a line's amount comes from: a typed figure, or the gift tracker total. */
-type AmountSource = 'manual' | 'gift'
 
 /** Whether lines in a group may link to a savings goal (the DB CHECK allows only these). */
 function groupLinksGoal(group: BudgetGroup): boolean {
@@ -49,14 +30,12 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'every_n_weeks', label: 'Every N weeks' },
 ]
 
-/** Presentational add/edit form for a single budget line. Persistence lives in the caller. */
+/** Presentational add/edit form for a single manual budget line. Persistence lives in the caller. */
 export function BudgetLineForm({
   initial,
   defaultGroup,
   goals = [],
   accounts = [],
-  giftTotalCents = 0,
-  giftSourceAvailable = false,
   onSubmit,
   onCancel,
 }: BudgetLineFormProps) {
@@ -69,20 +48,14 @@ export function BudgetLineForm({
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
     initial?.destination_account_id ?? null,
   )
-  const [amountSource, setAmountSource] = useState<AmountSource>(
-    initial?.derived_source === 'gift' ? 'gift' : 'manual',
-  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const derived = amountSource === 'gift'
-  const showGoalPicker = groupLinksGoal(group) && !derived
+  const showGoalPicker = groupLinksGoal(group)
   // Savings/Investments lines route to their goal's account, so they carry no
   // direct destination; every other group offers a "Funded from" picker.
   const showAccountPicker = !groupLinksGoal(group)
-  // Offer the gift source when it is available, and always when editing the existing gift line.
-  const showAmountSource = giftSourceAvailable || amountSource === 'gift'
-  const isEveryNWeeks = !derived && frequency === 'every_n_weeks'
+  const isEveryNWeeks = frequency === 'every_n_weeks'
   const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
 
   const changeGroup = (next: BudgetGroup) => {
@@ -97,7 +70,7 @@ export function BudgetLineForm({
 
   const canSubmit =
     name.trim() !== '' &&
-    (derived || amount !== '') &&
+    amount !== '' &&
     (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
     !submitting
 
@@ -111,11 +84,12 @@ export function BudgetLineForm({
     const input: BudgetLineInput = {
       line_group: group,
       name: name.trim(),
-      amount_cents: derived ? giftTotalCents : (dollarsToCents(amount) ?? 0),
-      frequency: derived ? 'annual' : frequency,
+      amount_cents: dollarsToCents(amount) ?? 0,
+      frequency,
       interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       goal_id: showGoalPicker ? goalId : null,
-      derived_source: derived ? 'gift' : null,
+      derived_source: null,
+      breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
     }
     try {
@@ -145,78 +119,42 @@ export function BudgetLineForm({
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
-        {showAmountSource && (
-          <Stack gap={4}>
-            <Text size="sm" fw={500}>
-              Amount source
-            </Text>
-            <SegmentedControl
-              size="sm"
-              fullWidth
-              data={[
-                { value: 'manual', label: 'Enter an amount' },
-                { value: 'gift', label: 'From the gift tracker' },
-              ]}
-              value={amountSource}
-              onChange={(value) => setAmountSource(value as AmountSource)}
-            />
-          </Stack>
+        <Select
+          label="Frequency"
+          size="sm"
+          description="The app converts every amount to fortnightly and annual."
+          data={SCHEDULES}
+          value={frequency}
+          onChange={(value) => value && setFrequency(value as Frequency)}
+          allowDeselect={false}
+        />
+
+        {isEveryNWeeks && (
+          <NumberInput
+            label="Weeks between allocations"
+            size="sm"
+            description="How many weeks apart each allocation lands (e.g. 4 for once every four weeks)."
+            min={1}
+            step={1}
+            allowDecimal={false}
+            hideControls
+            value={intervalWeeks}
+            onChange={setIntervalWeeks}
+          />
         )}
 
-        {derived ? (
-          <div>
-            <Text size="sm" fw={500}>
-              Amount
-            </Text>
-            <Text size="sm">{formatCents(giftTotalCents)} / year</Text>
-            <Text size="xs" c="dimmed">
-              Derived from your total planned gift spend. Edit it in the{' '}
-              <Anchor component={Link} to="/gifts">
-                gift tracker
-              </Anchor>
-              .
-            </Text>
-          </div>
-        ) : (
-          <>
-            <Select
-              label="Frequency"
-              size="sm"
-              description="The app converts every amount to fortnightly and annual."
-              data={SCHEDULES}
-              value={frequency}
-              onChange={(value) => value && setFrequency(value as Frequency)}
-              allowDeselect={false}
-            />
-
-            {isEveryNWeeks && (
-              <NumberInput
-                label="Weeks between allocations"
-                size="sm"
-                description="How many weeks apart each allocation lands (e.g. 4 for once every four weeks)."
-                min={1}
-                step={1}
-                allowDecimal={false}
-                hideControls
-                value={intervalWeeks}
-                onChange={setIntervalWeeks}
-              />
-            )}
-
-            <NumberInput
-              label="Amount"
-              size="sm"
-              prefix="$"
-              thousandSeparator
-              decimalScale={2}
-              fixedDecimalScale
-              min={0}
-              hideControls
-              value={amount}
-              onChange={setAmount}
-            />
-          </>
-        )}
+        <NumberInput
+          label="Amount"
+          size="sm"
+          prefix="$"
+          thousandSeparator
+          decimalScale={2}
+          fixedDecimalScale
+          min={0}
+          hideControls
+          value={amount}
+          onChange={setAmount}
+        />
 
         {showGoalPicker && (
           <>

@@ -1,23 +1,27 @@
 import type { BudgetLine } from '../hooks/useBudgetLines'
-import { giftBudgetTotalCents, type GiftBudget } from './gifts'
 
 /**
- * Replaces the effective amount of any gift-derived budget line with the
- * household's total planned gift spend, treated as an annual figure. A line with
- * `derived_source = 'gift'` takes its amount from the gift tracker rather than
- * its typed `amount_cents`, so the budget and the gift tracker stay one source
- * of truth. Manual lines (`derived_source = null`) pass through untouched, and
- * with no gift-derived line present the input is returned as-is.
+ * Overrides the effective amount of every breakdown-derived budget line with its
+ * breakdown's rolled-up annual total, keyed by `breakdown_id`, treated as an
+ * annual figure — so the budget and each breakdown stay one source of truth and
+ * never drift. A line with no `breakdown_id` is an ordinary manual line and
+ * passes through untouched; with no derived line present the input is returned
+ * as-is. A derived line missing from the map falls back to zero.
  */
-export function applyGiftDerivedAmounts(
+export function applyBreakdownAmounts(
   lines: BudgetLine[],
-  giftBudgets: GiftBudget[],
+  totalsByBreakdownId: Map<string, number>,
 ): BudgetLine[] {
-  if (!lines.some((line) => line.derived_source === 'gift')) {
+  if (!lines.some((line) => line.breakdown_id !== null)) {
     return lines
   }
-  const total = giftBudgetTotalCents(giftBudgets)
   return lines.map((line) =>
-    line.derived_source === 'gift' ? { ...line, amount_cents: total, frequency: 'annual' } : line,
+    line.breakdown_id !== null
+      ? {
+          ...line,
+          amount_cents: totalsByBreakdownId.get(line.breakdown_id) ?? 0,
+          frequency: 'annual',
+        }
+      : line,
   )
 }

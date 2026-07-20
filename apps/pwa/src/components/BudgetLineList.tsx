@@ -32,8 +32,8 @@ interface BudgetLineListProps {
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
-  /** The household's total planned gift spend, driving any gift-derived line. */
-  giftTotalCents?: number
+  /** The household's breakdowns, naming the tap-through link on each derived line. */
+  breakdowns?: { id: string; name: string }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
   onDelete: (id: string) => void
@@ -77,12 +77,12 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   return direction === 'desc' ? sorted.reverse() : sorted
 }
 
-/** A tappable badge linking a gift-derived line back to the gift tracker. */
-function GiftBadge() {
+/** A tappable badge linking a derived line back to its breakdown's editor. */
+function BreakdownBadge({ id, name }: { id: string; name: string }) {
   return (
-    <Anchor component={Link} to="/gifts" underline="never">
+    <Anchor component={Link} to={`/breakdowns/${id}`} underline="never">
       <Badge size="xs" variant="light" color="teal">
-        from Gifts
+        {name}
       </Badge>
     </Anchor>
   )
@@ -166,25 +166,27 @@ function LineActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
  * One budget line as a single dense table-like row for desktop: the name grows
  * to fill, with the amount, frequency, and fortnightly figure right-aligned in
  * fixed columns and the controls at the end, separated by a light rule rather
- * than a bordered card so many lines fit and scan as a table.
+ * than a bordered card so many lines fit and scan as a table. A derived line
+ * shows its breakdown link in place of the edit/delete controls.
  */
 function BudgetLineRow({
   line,
   route,
+  breakdown,
   onEdit,
   onDelete,
 }: {
   line: BudgetLine
   route?: LineRoute
-  onEdit: () => void
-  onDelete: () => void
+  breakdown?: { id: string; name: string }
+  onEdit?: () => void
+  onDelete?: () => void
 }) {
   const fortnightly = fortnightlyCents(
     line.amount_cents,
     line.frequency,
     line.interval_weeks ?? undefined,
   )
-  const derived = line.derived_source === 'gift'
   return (
     <Group
       wrap="nowrap"
@@ -196,7 +198,7 @@ function BudgetLineRow({
         <Text fw={600} size="sm" truncate>
           {line.name}
         </Text>
-        {derived && <GiftBadge />}
+        {breakdown && <BreakdownBadge id={breakdown.id} name={breakdown.name} />}
         {route && <RouteBadge route={route} />}
       </Group>
       <Text size="sm" c="dimmed" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
@@ -221,31 +223,38 @@ function BudgetLineRow({
           / fn
         </Text>
       </Group>
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-        <LineActions onEdit={onEdit} onDelete={onDelete} />
-      </Group>
+      {onEdit && onDelete && (
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <LineActions onEdit={onEdit} onDelete={onDelete} />
+        </Group>
+      )}
     </Group>
   )
 }
 
-/** One budget line as a compact bordered card for mobile: name stacked over amount, frequency, and controls. */
+/**
+ * One budget line as a compact bordered card for mobile: name stacked over
+ * amount, frequency, and controls. A derived line shows its breakdown link in
+ * place of the edit/delete controls.
+ */
 function BudgetLineCard({
   line,
   route,
+  breakdown,
   onEdit,
   onDelete,
 }: {
   line: BudgetLine
   route?: LineRoute
-  onEdit: () => void
-  onDelete: () => void
+  breakdown?: { id: string; name: string }
+  onEdit?: () => void
+  onDelete?: () => void
 }) {
   const fortnightly = fortnightlyCents(
     line.amount_cents,
     line.frequency,
     line.interval_weeks ?? undefined,
   )
-  const derived = line.derived_source === 'gift'
   return (
     <Card withBorder radius="md" p="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -260,7 +269,7 @@ function BudgetLineCard({
             <Badge size="xs" variant="light">
               {formatFrequency(line.frequency, line.interval_weeks)}
             </Badge>
-            {derived && <GiftBadge />}
+            {breakdown && <BreakdownBadge id={breakdown.id} name={breakdown.name} />}
             {route && <RouteBadge route={route} />}
           </Group>
         </Stack>
@@ -273,7 +282,7 @@ function BudgetLineCard({
               / fn
             </Text>
           </Group>
-          <LineActions onEdit={onEdit} onDelete={onDelete} />
+          {onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />}
         </Group>
       </Group>
     </Card>
@@ -287,8 +296,9 @@ function BudgetLineCard({
 function BudgetLineItem(props: {
   line: BudgetLine
   route?: LineRoute
-  onEdit: () => void
-  onDelete: () => void
+  breakdown?: { id: string; name: string }
+  onEdit?: () => void
+  onDelete?: () => void
 }) {
   const wide = useMediaQuery('(min-width: 48em)')
   return wide ? <BudgetLineRow {...props} /> : <BudgetLineCard {...props} />
@@ -297,22 +307,21 @@ function BudgetLineItem(props: {
 /**
  * The household's budget lines grouped by the five groups, each group showing a
  * fortnightly subtotal, a per-group add affordance, and inline add/edit forms.
+ * A derived line (one owned by a breakdown) is read-only: it links to its
+ * breakdown and carries no edit or delete control.
  */
 export function BudgetLineList({
   lines,
   goals,
   accounts = [],
-  giftTotalCents = 0,
+  breakdowns = [],
   onCreate,
   onUpdate,
   onDelete,
 }: BudgetLineListProps) {
-  // A household has a single gift-derived line, so the option is offered only
-  // when no other line already derives from the gift tracker.
-  const giftSourceAvailableFor = (id?: string) =>
-    !lines.some((line) => line.derived_source === 'gift' && line.id !== id)
   // Account name lookup for each line's route badge and its icon.
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
+  const breakdownsById = new Map(breakdowns.map((breakdown) => [breakdown.id, breakdown]))
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
   const [addingItem, setAddingItem] = useState(false)
@@ -399,8 +408,6 @@ export function BudgetLineList({
         <BudgetLineForm
           goals={goals}
           accounts={accounts}
-          giftTotalCents={giftTotalCents}
-          giftSourceAvailable={giftSourceAvailableFor()}
           onSubmit={async (input) => {
             await onCreate(input)
             closeForms()
@@ -435,15 +442,28 @@ export function BudgetLineList({
               </Text>
             )}
 
-            {visibleLines.map((line) =>
-              editingId === line.id ? (
+            {visibleLines.map((line) => {
+              const breakdown = line.breakdown_id
+                ? breakdownsById.get(line.breakdown_id)
+                : undefined
+              // A derived line is read-only: it links to its breakdown and is
+              // never edited or deleted from the budget.
+              if (breakdown) {
+                return (
+                  <BudgetLineItem
+                    key={line.id}
+                    line={line}
+                    route={resolveRoute(line, goals, accountNames)}
+                    breakdown={breakdown}
+                  />
+                )
+              }
+              return editingId === line.id ? (
                 <BudgetLineForm
                   key={line.id}
                   initial={line}
                   goals={goals}
                   accounts={accounts}
-                  giftTotalCents={giftTotalCents}
-                  giftSourceAvailable={giftSourceAvailableFor(line.id)}
                   onSubmit={async (input) => {
                     await onUpdate(line.id, input)
                     closeForms()
@@ -458,8 +478,8 @@ export function BudgetLineList({
                   onEdit={() => startEditing(line.id)}
                   onDelete={() => onDelete(line.id)}
                 />
-              ),
-            )}
+              )
+            })}
 
             {!searching &&
               (addingGroup === group ? (
@@ -467,8 +487,6 @@ export function BudgetLineList({
                   defaultGroup={group}
                   goals={goals}
                   accounts={accounts}
-                  giftTotalCents={giftTotalCents}
-                  giftSourceAvailable={giftSourceAvailableFor()}
                   onSubmit={async (input) => {
                     await onCreate(input)
                     closeForms()

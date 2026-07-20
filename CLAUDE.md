@@ -91,6 +91,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   unrelated changes together just because one was asked for while the other was
   already in motion — when a new request arrives mid-flight, open a separate
   branch and PR for it rather than folding it into the work in progress.
+- PR titles are user-facing changelog copy. The in-app "What's new" changelog is
+  sourced from merged-commit subjects on `main` (squash-merge uses the PR title)
+  and from open PR titles, so write every PR title as a clear, user-readable
+  description of the change. Keep the Conventional Commit `type(scope):` prefix —
+  the changelog surfaces `feat`, `fix`, and `perf` entries and hides `chore`,
+  `docs`, `ci`, `test`, and `refactor` — but phrase the description for someone
+  using the app, not for an implementer.
 - Keep documentation in sync with the code. When a change alters behaviour,
   schema, scope, or a workflow, update the affected docs (`docs/` and this file)
   as part of the same change, so `main` is never merged with stale docs.

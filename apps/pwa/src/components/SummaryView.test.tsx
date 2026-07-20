@@ -26,27 +26,28 @@ const summary: BudgetSummary = {
 }
 
 describe('SummaryView', () => {
-  it('renders available fortnightly and annual figures', () => {
+  it('renders available fortnightly and portion, omitting annual on the narrow ledger', () => {
     render(<SummaryView summary={summary} />)
 
     const card = screen.getByRole('region', { name: 'Available' })
     expect(within(card).getByText('$5,000.00')).toBeInTheDocument()
-    expect(within(card).getByText('$130,000.00')).toBeInTheDocument()
     expect(within(card).getByText('100.0%')).toBeInTheDocument()
+    // The annual figure is dropped on the narrow ledger to keep the label untruncated.
+    expect(within(card).queryByText('$130,000.00')).not.toBeInTheDocument()
   })
 
-  it('renders each group with fortnightly, annual, and portion', () => {
+  it('renders each group with fortnightly and portion on the narrow ledger', () => {
     render(<SummaryView summary={summary} />)
 
     const needs = screen.getByRole('region', { name: 'Needs' })
     expect(within(needs).getByText('$2,000.00')).toBeInTheDocument()
-    expect(within(needs).getByText('$52,000.00')).toBeInTheDocument()
     expect(within(needs).getByText('40.0%')).toBeInTheDocument()
+    expect(within(needs).queryByText('$52,000.00')).not.toBeInTheDocument()
 
     const savings = screen.getByRole('region', { name: 'Savings' })
     expect(within(savings).getByText('$750.00')).toBeInTheDocument()
-    expect(within(savings).getByText('$19,500.00')).toBeInTheDocument()
     expect(within(savings).getByText('15.0%')).toBeInTheDocument()
+    expect(within(savings).queryByText('$19,500.00')).not.toBeInTheDocument()
 
     for (const label of ['Wants', 'Discretionary', 'Temporary', 'Investments']) {
       expect(screen.getByRole('region', { name: label })).toBeInTheDocument()
@@ -81,13 +82,13 @@ describe('SummaryView', () => {
 
     const afterOutgoing = screen.getByRole('region', { name: 'After Outgoing' })
     expect(within(afterOutgoing).getByText('$1,250.00')).toBeInTheDocument()
-    expect(within(afterOutgoing).getByText('$32,500.00')).toBeInTheDocument()
     expect(within(afterOutgoing).getByText('25.0%')).toBeInTheDocument()
+    expect(within(afterOutgoing).queryByText('$32,500.00')).not.toBeInTheDocument()
 
     const afterSaving = screen.getByRole('region', { name: 'After Saving' })
     expect(within(afterSaving).getByText('$250.00')).toBeInTheDocument()
-    expect(within(afterSaving).getByText('$6,500.00')).toBeInTheDocument()
     expect(within(afterSaving).getByText('5.0%')).toBeInTheDocument()
+    expect(within(afterSaving).queryByText('$6,500.00')).not.toBeInTheDocument()
   })
 
   it('orders the savings-block groups after the after-outgoing line', () => {

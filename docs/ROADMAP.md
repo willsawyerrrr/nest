@@ -69,7 +69,7 @@ reconciling spend and actual tax paid against the plan.
 ### Plan-only app (complete — replaces the household's spreadsheet)
 
 - Income + tax-profile schema.
-- Verified FY2027 tax config + marginal HELP model; the pure `@budget/tax`
+- Verified FY2027 tax config + marginal HELP model; the pure `@nest/tax`
   engine (`configsByYear`).
 - Inflows model: taxable / non-taxable split, member-tagged taxable income,
   schedules from weekly through annual plus an arbitrary "every N weeks" cadence
@@ -81,7 +81,7 @@ reconciling spend and actual tax paid against the plan.
   building up to the total, with a footnote that capital gains tax is out of scope
   and not modelled. Tax profiles are edited on the Household tab.
 - Budget, savings-goal, and temporary-item schema (RLS, tests, types).
-- `@budget/plan` pure math package: schedule normalization, summary
+- `@nest/plan` pure math package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry.
 - Budget UI: grouped-line CRUD (Needs / Wants / Discretionary / Temporary /
   Savings / Investments), each line amount + frequency normalised to a fortnight,
@@ -168,7 +168,7 @@ the FY2027 tax config was.
       re-confirms the actual balance and resets the as-of date to today. The Super
       tab shows the effective balance with a baseline + accrued breakdown; the Net
       worth tab totals super accounts at their effective balance.
-- [x] Tax integration (`@budget/tax`): concessional contributions (salary
+- [x] Tax integration (`@nest/tax`): concessional contributions (salary
       sacrifice + personal deductible) reduce taxable income; 15% contributions
       tax within the fund; Division 293 extra 15% where income + concessional
       contributions exceed $250k. The Tax tab resolves each member's concessional
@@ -181,7 +181,7 @@ the FY2027 tax config was.
       FY-specific and live in the versioned config. The Super tab shows each
       member's cap usage, warns when either cap is exceeded, and estimates the
       government co-contribution.
-- [x] Retirement projection (pure math): `projectSuperBalance` in `@budget/plan`
+- [x] Retirement projection (pure math): `projectSuperBalance` in `@nest/plan`
       compounds the current balance and a growing-annuity contribution stream to
       retirement, in nominal and today's (real) dollars, under user-editable
       return, inflation, and contribution-growth assumptions.

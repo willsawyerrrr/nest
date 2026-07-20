@@ -170,8 +170,8 @@ income tables.
 
 ## Computation
 
-Budget, summary, and goal math lives in a **new pure package, `@budget/plan`** —
-unit-tested and consumed by the PWA, mirroring `@budget/tax`. It has no I/O and no
+Budget, summary, and goal math lives in a **new pure package, `@nest/plan`** —
+unit-tested and consumed by the PWA, mirroring `@nest/tax`. It has no I/O and no
 database access. It handles:
 
 - **Schedule normalization** — any frequency → fortnightly and annual.
@@ -202,7 +202,7 @@ reload-safe; keyboard shortcuts jump between them.
    types.
 2. **Budget + goals + temporary schema** — budget lines with groups; savings
    goals; temporary items. RLS, tests, types.
-3. **`@budget/plan`** — pure computation package (normalization, summary, goal
+3. **`@nest/plan`** — pure computation package (normalization, summary, goal
    projection, temporary expiry) + tests.
 4. **Budget CRUD UI.**
 5. **Summary / reconciliation UI.**

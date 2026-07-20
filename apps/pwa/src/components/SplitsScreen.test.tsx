@@ -190,7 +190,7 @@ describe('SplitsScreen', () => {
     expect(screen.getByRole('button', { name: /mark as set/i })).toBeInTheDocument()
   })
 
-  it('shows no update prompt when the configured split matches the recommendation', () => {
+  it('shows no status indicator when the configured split matches the recommendation', () => {
     const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
     renderScreen({
       accounts: [saver],
@@ -199,8 +199,11 @@ describe('SplitsScreen', () => {
       configuredByAccount: new Map([['s1', 500_00]]),
     })
 
-    expect(screen.getByText('✓ up to date')).toBeInTheDocument()
+    expect(screen.getByText('Groceries')).toBeInTheDocument()
+    expect(screen.queryByText(/up to date/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('set in Up')).not.toBeInTheDocument()
+    expect(screen.queryByText(/to update/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Update')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /confirm|mark as set/i })).not.toBeInTheDocument()
-    expect(screen.getByText('set in Up')).toBeInTheDocument()
   })
 })

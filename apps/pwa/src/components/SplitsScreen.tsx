@@ -1,17 +1,5 @@
 import { useLocalStorage } from '@mantine/hooks'
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Group,
-  Select,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core'
-import { IconRefresh } from '@tabler/icons-react'
+import { ActionIcon, Alert, Badge, Card, Group, Select, Stack, Text, Title } from '@mantine/core'
 import { assignmentsByAccount, roundCentsUpToStep } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
@@ -68,9 +56,6 @@ interface SplitsScreenProps {
   accounts: Account[]
   lines: BudgetLine[]
   goals: Goal[]
-  onRefresh: () => void
-  refreshing: boolean
-  refreshError: string | null
 }
 
 /** Whether an account is a synced Up saver (as opposed to the everyday transaction account). */
@@ -118,14 +103,7 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
  * saver; every other line routes via its own funding account. Presentational —
  * persistence and Up sync live in the caller.
  */
-export function SplitsScreen({
-  accounts,
-  lines,
-  goals,
-  onRefresh,
-  refreshing,
-  refreshError,
-}: SplitsScreenProps) {
+export function SplitsScreen({ accounts, lines, goals }: SplitsScreenProps) {
   const { byAccount, unassignedFortnightlyCents } = assignmentsByAccount(
     lines.map((line) => ({
       group: line.line_group,
@@ -164,24 +142,7 @@ export function SplitsScreen({
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <Title order={2}>Splits</Title>
-        <Button
-          variant="light"
-          size="xs"
-          leftSection={<IconRefresh size={16} />}
-          onClick={onRefresh}
-          loading={refreshing}
-        >
-          Refresh
-        </Button>
-      </Group>
-
-      {refreshError && (
-        <Alert color="red" variant="light">
-          {refreshError}
-        </Alert>
-      )}
+      <Title order={2}>Splits</Title>
 
       <Text size="sm" c="dimmed">
         Up can’t read or set pay splits, so these are recommendations: set each saver’s pay split in

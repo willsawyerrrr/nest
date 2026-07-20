@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen } from '../test/render'
 import { SplitsScreen } from './SplitsScreen'
@@ -52,17 +52,7 @@ function goal(overrides: Partial<Goal> & Pick<Goal, 'id'>): Goal {
 }
 
 function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {}) {
-  return render(
-    <SplitsScreen
-      accounts={[]}
-      lines={[]}
-      goals={[]}
-      onRefresh={vi.fn()}
-      refreshing={false}
-      refreshError={null}
-      {...overrides}
-    />,
-  )
+  return render(<SplitsScreen accounts={[]} lines={[]} goals={[]} {...overrides} />)
 }
 
 describe('SplitsScreen', () => {
@@ -155,14 +145,5 @@ describe('SplitsScreen', () => {
   it('shows an empty state when nothing is routed', () => {
     renderScreen()
     expect(screen.getByText(/route budget lines to an account/i)).toBeInTheDocument()
-  })
-
-  it('calls onRefresh when the button is clicked', async () => {
-    const user = userEvent.setup()
-    const onRefresh = vi.fn()
-    renderScreen({ onRefresh })
-
-    await user.click(screen.getByRole('button', { name: /refresh/i }))
-    expect(onRefresh).toHaveBeenCalledOnce()
   })
 })

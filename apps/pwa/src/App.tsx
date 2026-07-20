@@ -288,15 +288,6 @@ function SplitsSection({ householdId }: { householdId: string }) {
   const accounts = useAccounts(householdId)
   const superProfiles = useSuperProfiles(householdId)
 
-  // Refreshing pulls fresh Up balances, so the accounts the splits route to (and
-  // the goals that resolve their linked saver) are reloaded.
-  const reloadAccounts = accounts.reload
-  const reloadGoals = goals.reload
-  const reloadBalances = useCallback(async () => {
-    await Promise.all([reloadAccounts(), reloadGoals()])
-  }, [reloadAccounts, reloadGoals])
-  const refresh = useRefreshSavers(reloadBalances)
-
   if (budgetLines.loading || goals.loading || accounts.loading || superProfiles.loading) {
     return <LoadingScreen />
   }
@@ -308,9 +299,6 @@ function SplitsSection({ householdId }: { householdId: string }) {
       accounts={(accounts.accounts ?? []).filter((account) => !superIds.has(account.id))}
       lines={budgetLines.lines ?? []}
       goals={goals.goals ?? []}
-      onRefresh={() => void refresh.refresh()}
-      refreshing={refresh.refreshing}
-      refreshError={refresh.error}
     />
   )
 }

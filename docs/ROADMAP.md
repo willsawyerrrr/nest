@@ -2,11 +2,11 @@
 
 Phased so each phase is independently useful. The plan-only app (income, tax,
 budget, savings goals) is built and deployed — it fully replaces the household's
-spreadsheet and needs no transaction data. The Up savers → savings-goals slice
-is built and deployed on top of it. Next is full superannuation modelling, which
-extends the tax engine and seeds a net-worth view; Up transaction ingestion —
-reconciling spend and actual tax paid against the plan — follows as a later
-phase.
+spreadsheet and needs no transaction data. The Up savers → savings-goals slice is
+built and deployed on top of it. Full superannuation modelling — which extends the
+tax engine and seeds a net-worth view — is complete, as is gift budget tracking
+(the first derived-budget-line consumer). Next is Up transaction ingestion:
+reconciling spend and actual tax paid against the plan.
 
 ## Product decisions
 
@@ -96,26 +96,21 @@ phase.
 - Goals UI: target amounts and dates, manual current balance, projected progress
   + ETA; Savings lines linked to a goal; goals with active contributions list
   first.
-- Mantine mobile-first restyle; two-decimal money formatting.
+- Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
+  'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/goals` `/tax` `/super` `/household`; `/` and unknown
-  routes redirect to `/summary`), so tabs are deep-linkable and reload-safe.
-  Summary is the landing tab; order Summary · Net worth · Inflows · Budget ·
-  Goals · Tax · Super · Household. Keyboard shortcuts: ⌘/Ctrl+1–8 jump to a tab,
+  `/inflows` `/budget` `/goals` `/tax` `/super` `/gifts` `/household`; `/` and
+  unknown routes redirect to `/summary`), so tabs are deep-linkable and
+  reload-safe. Summary is the landing tab; order Summary · Net worth · Inflows ·
+  Budget · Goals · Tax · Super · Gifts · Household. One `NAV_ITEMS` table drives a
+  responsive top app-bar + hamburger `Drawer` on mobile and a persistent left
+  sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to a tab,
   ⌘/Ctrl+Shift+←/→ cycle.
-- Super tab: per-member fund name and current balance for the financial year,
-  the balance held as a manual account linked from `super_profile`, plus
-  add/edit/delete of each member's `super_contribution` rows (kind, amount or
-  percent-of-salary, frequency, FHSS flag, and a spouse contributor). Concessional
-  contributions (salary sacrifice + personal deductible) reduce the tax estimate —
-  lowering taxable income (a Division 293 line shows for high earners) and the
-  after-tax income the Summary budgets, since that cash is diverted to super. The
-  tab also projects each member's balance to retirement (nominal and today's
-  dollars) from their net-of-tax annual contributions, under shared
-  return/inflation/growth assumptions and per-member ages held in localStorage
-  (client-side, not persisted to the database). Net worth tab: sum of every
-  account's `balance_cents` (assets only; liabilities not yet modelled), split
-  into Super vs Other accounts.
+- Desktop layout: content capped at a 50rem max-width; budget lines and inflows
+  render as dense single rows on desktop while mobile keeps cards.
+- Non-taxable inflow types: `inflow_type` carries `reimbursement`, `hobby`,
+  `gift`, and `other`; the inflow form offers the type on the non-taxable branch.
+  The type is a reporting label and does not affect tax.
 - Per-member Up token connection: each member pastes their Up personal access
   token, validated against Up and stored encrypted in Vault. The token is written
   and read only via SECURITY DEFINER RPCs granted to `service_role` alone
@@ -152,12 +147,11 @@ connection is the foundation; transaction ingestion stays deferred behind it.
   is a clean no-op where those extensions are absent (CI, plain Postgres) and
   takes deploy-time config in prod (see HANDOFF).
 
-## Now — Superannuation (full picture)
+### Superannuation & net worth (complete)
 
 Full AU super modelling, extending the tax engine and seeding a net-worth view.
-Sub-phased so each slice is independently useful, and sliced further
-(schema / logic / UI) to keep PRs small. All rates, caps, and thresholds live in
-the versioned per-FY config, verified as the FY2027 tax config was.
+All rates, caps, and thresholds live in the versioned per-FY config, verified as
+the FY2027 tax config was.
 
 - [x] Super profile schema: per-member `super_profile` (fund, SG-rate override,
       linked balance account, manual carry-forward cap) plus a
@@ -199,14 +193,45 @@ the versioned per-FY config, verified as the FY2027 tax config was.
       retirement-age assumptions are client-side inputs persisted in localStorage
       — not stored in the database.
 
+### Gift budget tracking (complete)
+
+The first consumer of derived budget lines (the generic concept is kept in Later).
+A dedicated gift planner + tracker, richer than the spreadsheet's plan-only Gifts
+sheet, with the household's real gift budgets loaded in production.
+
+- [x] Schema (generic + gifts): the `budget_derived_source` enum, the nullable
+      `budget_line.derived_source` column, and the four gift tables
+      (`gift_recipient`, `gift_occasion`, `gift_budget` with an optional per-pairing
+      `event_date`, `gift_purchase`), with RLS + isolation tests and regenerated
+      types.
+- [x] Gifts tab: plan a spend per **recipient × occasion**, then record purchases
+      against it. Two-way collapsible grouping (by occasion or by person, default
+      collapsed), each group rolling up budgeted / spent / remaining, reusing the
+      Budget tab's `GroupSection`. The effective date is
+      `event_date ?? occasion.occasion_date`.
+- [x] Derived budget line: a single `derived_source = 'gift'` line per household
+      takes its annual amount from the sum of every `gift_budget.budgeted_amount_cents`;
+      the Budget tab and the Summary both substitute it, so the line and the tracker
+      never drift.
+
+## Now — Up ledger + reconciliation
+
+Pulling actual Up transactions to reconcile spend and tax against the plan — the
+heaviest phase, and the current focus now that the plan-only app, Up savers, super,
+and gifts are shipped.
+
+- [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
+- [ ] Ledger UI (accounts + transactions) over synced data.
+- [ ] Reconcile actual spend against the budget.
+- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
+
 ## Later
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
-  itemised sub-budget (line-item breakdown), payment-method tag per budget line, a
-  wishlist, and a finance-admin to-do list. Small and low-risk; good HDD filler to
-  interleave with the super phase. (The gift budget has grown into its own item
-  below.)
-- **Derived budget lines.** A generic concept: a budget line whose amount is
+  a generic itemised sub-budget (line-item breakdown) for non-gift lists, a
+  payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
+  Small and low-risk; good HDD filler. (The gift budget is built — see Done.)
+- **Derived budget lines** (generic concept). A budget line whose amount is
   **rolled up from an itemised tracker** instead of typed by hand, so the line and
   its detail share one source of truth and never drift. `budget_line.derived_source`
   (the `budget_derived_source` enum) names the source; null is an ordinary manual
@@ -214,51 +239,18 @@ the versioned per-FY config, verified as the FY2027 tax config was.
   amount. Extensible — each consumer adds an enum value and its own tables. The
   enum is a deliberate simplification: each new source needs a migration plus
   roll-up code; a registry/polymorphic design is deferred until sources proliferate.
-  - [x] **Schema (generic + gifts).** The `budget_derived_source` enum, the
-        nullable `budget_line.derived_source` column, and the gift tracker's four
-        tables (`gift_recipient`, `gift_occasion`, `gift_budget`, `gift_purchase`),
-        with RLS + isolation tests and regenerated types.
-  - [x] **Gift budget tracking** (first consumer). A dedicated gift planner + tracker —
-    a richer, purchase-tracking take on the itemised sub-budget, specifically for
-    gifts (beyond the spreadsheet's plan-only Gifts sheet):
-    - **Plan** a spend per **recipient × occasion** — e.g. a person's birthday, or
-      a person at Christmas. Recipients are a named list; occasions carry a label
-      and optional date (birthdays, Christmas, Mother's / Father's Day,
-      anniversaries; some recur annually).
-    - [x] **Per-budget date.** A gift budget carries an optional `event_date` that
-      overrides the occasion's shared date for that pairing, since each recipient's
-      birthday falls on a different date. The effective date is
-      `event_date ?? occasion.occasion_date`, shown on the row and used to order
-      rows within a person's group.
-    - **Track** gift purchases through the year, each assigned to a gifting event
-      (that recipient + occasion) with amount, description, and date.
-    - **See** budgeted vs spent vs remaining per event, visually (a progress bar).
-    - **Group either way, collapsibly:** by **occasion** (open "Christmas" to see
-      every recipient budgeted for it and the spend on each; "Birthdays" as the
-      next group) or by **person** (open "Mum" to see her birthday, Christmas,
-      Mother's Day, …). A toggle flips the grouping direction; each group rolls up
-      budgeted / spent / remaining. Reuses the Budget tab's collapsible
-      `GroupSection` pattern.
-    - Rolls up to an overall gift total that a single `derived_source = 'gift'`
-      budget line takes as its annual amount; the Budget tab and the Summary both
-      substitute it, and the form offers one gift-derived line per household to
-      avoid double-counting.
-    - Manual purchase entry to start; once Up ingestion lands, an Up transaction
-      can be tagged to a gifting event instead of hand-entering it.
-    - **Private / surprise gifts (deferred).** Hiding a gift one partner buys for
-      the other from that partner is a future enhancement, not a small one: it
-      needs per-member visibility on gift records, a departure from the current
-      household-only RLS model where every member sees everything. It would require
-      member-scoped policies (and UI) that no other part of the app has, so it is
-      out of scope for now.
-    - Data model: `gift_recipient` (household-scoped name), `gift_occasion` (label
-      + optional date), `gift_budget` (recipient × occasion + budgeted amount), and
-      `gift_purchase` (assigned to a `gift_budget`: amount, description, date,
-      optional later transaction link).
+  The **gift tracker** is the shipped first consumer (Done). Remaining directions:
   - **Health / medication tracking** (planned second consumer). Medications with
     dose / frequency / unit cost roll up to a recurring cost that feeds a Needs
     budget line via a new `derived_source` value — the same mechanism, a different
     tracker.
+  - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
+    other needs per-member visibility on gift records, a departure from the
+    household-only RLS model where every member sees everything. It would require
+    member-scoped policies (and UI) that no other part of the app has, so it is out
+    of scope for now.
+  - **Up-tagged gift purchases.** Once Up ingestion lands, an Up transaction can be
+    tagged to a gifting event instead of hand-entering the purchase.
 - **Auto-fetch real super balances via CDR.** Replace the periodic manual
   true-up by pulling each fund's actual balance directly, once superannuation
   enters the Consumer Data Right. Super is not in CDR scope today (CDR covers
@@ -266,14 +258,7 @@ the versioned per-FY config, verified as the FY2027 tax config was.
   designated); screen-scraping aggregators exist but are B2B and being phased out
   as CDR expands. So contribution-based accrual is the pragmatic path until CDR
   covers super, at which point a true-up could be automated from the real balance.
-- **Up ledger + reconciliation.** Pulling actual Up transactions to reconcile
-  spend and tax against the plan — the heaviest phase, deferred behind super:
-  - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on
-        `external_id`.
-  - [ ] Ledger UI (accounts + transactions) over synced data.
-  - [ ] Reconcile actual spend against the budget.
-  - [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
 - Reconcile projected income against actual deposits; joint-income ownership
-  split; net worth (assets and liabilities) beyond super; recurring bills and
-  forecasting; non-resident and part-year tax; notifications; additional bank
-  sources / CSV.
+  split; net worth (assets and liabilities) beyond super — the Net worth tab totals
+  assets only today; recurring bills and forecasting; non-resident and part-year
+  tax; notifications; additional bank sources / CSV.

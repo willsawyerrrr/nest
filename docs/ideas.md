@@ -148,11 +148,13 @@ Recurring shorthand:
 
 ### 6. Superannuation & brokerage balances → net worth inputs
 
-- **What / value.** Feeds the deferred **net worth** goal (`ROADMAP.md`
-  "Later still") with real asset balances: super fund balances, brokerage/share
-  holdings. Combined with Up `HOME_LOAN` account balances (a liability) and Up
+- **What / value.** Automates the asset balances behind the shipped **net worth**
+  view (super fund balances, brokerage/share holdings) — replacing the manual
+  balance entry / contribution-accrual the super feature uses today. Combined with
+  Up `HOME_LOAN` account balances (a liability, not yet modelled) and Up
   savers/transaction balances (assets), the household gets a genuine net-worth
-  figure, not just a cash-flow plan.
+  figure, not just a cash-flow plan. Super auto-fetch specifically is tracked as
+  the CDR item in `ROADMAP.md`.
 - **Effort.** L for live integrations; S if balances are entered manually.
 - **Touches.** External APIs + auth *if* automated — but AU super funds and most
   brokerages have **no consumer API**; realistic automated coverage means a CDR
@@ -228,13 +230,14 @@ Recurring shorthand:
 
 ### 10. Net worth (assets + liabilities)
 
-- **What / value.** A dedicated net-worth view: assets (Up savers + transaction
-  balances, super, brokerage, cash) minus liabilities (Up `HOME_LOAN` balance,
-  credit cards, other loans), tracked over time. The one number that ties the
-  whole household picture together and the headline of `ROADMAP.md`'s
-  "Later still".
-- **Effort.** M for the feature itself (given balances arrive from ingestion +
-  manual entry per idea 6).
+- **What / value.** A first-cut net-worth view is shipped — it totals every
+  account's balance (assets only), split into Super vs Other, with super balances
+  auto-accruing from modelled contributions. The remaining scope is **liabilities**
+  (Up `HOME_LOAN` balance, credit cards, other loans) and **trend over time**, so
+  the one number that ties the whole household picture together also captures debt
+  and history, not just current assets.
+- **Effort.** M for the remaining liabilities + trend work (given balances arrive
+  from ingestion + manual entry per idea 6).
 - **Touches.** Schema: an `asset`/`liability` model (or generalise the existing
   `Account` model, which already has `type` including `credit`/`offset` and a
   nullable `owner_member_id` for joint) + periodic balance snapshots for a

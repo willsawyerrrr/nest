@@ -73,7 +73,7 @@ annual total, exactly like the app.
 | Allocation ranking + `Unallocated` | ✅ Have | Summary allocation donut with remaining/unallocated |
 | Savings goals | ✅ Have | App richer: target date, current balance, contribution link, progress + ETA |
 | **Payment-method tag per bill** (Debit/Transfer/Card/Saver) | ❌ Missing | No per-line payment-method attribute |
-| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ❌ Missing | No child line-items rolling up into a parent budget line |
+| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | 🟨 Partial | Gifts shipped as a dedicated tracker rolling up into a `derived_source = 'gift'` line; a generic child-line-item breakdown for non-gift lists is still missing |
 | **Wishlist** (per-member aspirational purchases) | ❌ Missing | No wishlist surface |
 | **Finance-admin to-do list** | ❌ Missing | No task/checklist surface |
 | **Free-text notes on a budget line** ("Spendings" scratch list) | ❌ Missing | Budget lines have no notes field |
@@ -84,17 +84,18 @@ annual total, exactly like the app.
 Ordered by value. Size is rough (S ≤ ~½ day, M ~1–2 days, L larger). "Backend"
 means a schema/migration/RLS/types change; "frontend" means PWA-only.
 
-1. **Itemised sub-budget (line-item breakdown)** — let a budget line hold child
-   items (name + amount) that roll up into the line's amount; the "Spendings"
+1. **Generic itemised sub-budget (line-item breakdown)** — let a budget line hold
+   child items (name + amount) that roll up into the line's amount; the "Spendings"
    scratch list is the general instance. _Why:_ lets a line carry a costed
    breakdown instead of one opaque number. _Size:_ M. _Backend + frontend_ (new
    `budget_line_item` child table with `(line_id, household_id)` FK + RLS; nested
-   CRUD UI and roll-up in the summary math). _Note:_ the gift use-case has grown
-   past a simple breakdown into full purchase tracking per recipient × occasion —
-   the first consumer of the generic **Derived budget lines** direction in
-   [`ROADMAP.md`](ROADMAP.md), where a line's amount rolls up from an itemised
-   tracker (`budget_line.derived_source`) instead of being typed. This generic
-   breakdown covers the non-gift lists, and could itself become a derived source.
+   CRUD UI and roll-up in the summary math). _Note:_ the gift use-case is already
+   shipped — a full purchase tracker per recipient × occasion, the first consumer
+   of the generic **Derived budget lines** mechanism
+   (`budget_line.derived_source`) in [`ROADMAP.md`](ROADMAP.md), where a line's
+   amount rolls up from an itemised tracker instead of being typed. This generic
+   breakdown covers the remaining non-gift lists, and could itself become a derived
+   source.
 
 2. **Payment-method tag per budget line** (enum: Debit / Transfer / Card / Saver)
    — records how each bill is paid. _Why:_ the household tracks this now, and it
@@ -128,8 +129,9 @@ implying per-person budgets.
 
 ## 4. Recommended next builds
 
-1. **Itemised sub-budget (gap 1)** — the single biggest fidelity loss vs the
-   sheet; unlocks the gift budget and any "list of small things under one line".
+1. **Generic itemised sub-budget (gap 1)** — the largest remaining fidelity loss
+   vs the sheet for non-gift lists; the gift budget is already built, so this
+   covers any other "list of small things under one line".
 2. **Payment-method tag (gap 2)** — cheap, and it pre-wires budget lines for the
    Up-ingestion/reconciliation phase that is next on the roadmap.
 3. **Wishlist (gap 3)** — self-contained, low-risk, restores a whole sheet the

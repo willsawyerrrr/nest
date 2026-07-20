@@ -18,6 +18,8 @@ export interface BudgetLineInput {
   goal_id: string | null
   /** The tracker a line's amount is derived from, or `null` for a manually entered amount. */
   derived_source: BudgetDerivedSource | null
+  /** The breakdown that owns this line (its amount, name, and group), or `null` for a manual line. */
+  breakdown_id: string | null
   /** Account funding this line's pay split; only non-Savings/Investments lines may set it. */
   destination_account_id: string | null
 }

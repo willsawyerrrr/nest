@@ -99,10 +99,12 @@ reconciling spend and actual tax paid against the plan.
 - Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
   'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/gifts` `/household`;
-  `/` and unknown routes redirect to `/summary`), so tabs are deep-linkable and
-  reload-safe. Summary is the landing tab; order Summary · Net worth · Inflows ·
-  Budget · Splits · Goals · Tax · Super · Gifts · Household. One `NAV_ITEMS` table
+  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/breakdowns`
+  `/household`; `/` and unknown routes redirect to `/summary`), so tabs are
+  deep-linkable and reload-safe. Summary is the landing tab; order Summary · Net
+  worth · Inflows · Budget · Splits · Goals · Tax · Super · Breakdowns · Household.
+  The gift planner is reached from the Breakdowns list (`/breakdowns/:id` for the
+  gift breakdown), not a standalone tab. One `NAV_ITEMS` table
   drives a responsive top app-bar + hamburger `Drawer` on mobile and a persistent
   left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to the first nine
   tabs, ⌘/Ctrl+Shift+←/→ cycle.
@@ -299,7 +301,13 @@ design (staged sync foundation, ledger UI, and the two reconciliation layers).
     frequency), needing no bespoke schema or tab.
   - Staged, additive rollout: add the tables + `budget_line.breakdown_id` alongside
     the existing enum and backfill gifts, switch the app over, then drop the
-    `budget_derived_source` enum and `derived_source` column.
+    `budget_derived_source` enum and `derived_source` column. Stages 1 and 2 are
+    shipped: the schema is live, the **Breakdowns** tab replaces the standalone
+    Gifts tab, generic breakdowns are live (a name + group and an item editor), the
+    gift planner is reached as the `kind = 'gift'` breakdown, and the derived-line
+    lifecycle (create / update / remove keyed on `breakdown_id`) is app-enforced.
+    Stage 3 — dropping the `budget_derived_source` enum and `derived_source`
+    column and the dead gift-specific code — remains.
   - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
     other needs per-member visibility on gift records, a departure from the
     household-only RLS model where every member sees everything. It would require

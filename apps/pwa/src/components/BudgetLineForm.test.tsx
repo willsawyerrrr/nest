@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { render, screen, waitFor } from '../test/render'
 import { BudgetLineForm } from './BudgetLineForm'
 import type { BudgetLine } from '../hooks/useBudgetLines'
@@ -34,6 +33,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: null,
         goal_id: null,
         derived_source: null,
+        breakdown_id: null,
         destination_account_id: null,
       }),
     )
@@ -59,6 +59,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: null,
         goal_id: null,
         derived_source: null,
+        breakdown_id: null,
         destination_account_id: null,
       }),
     )
@@ -84,6 +85,7 @@ describe('BudgetLineForm', () => {
         interval_weeks: 4,
         goal_id: null,
         derived_source: null,
+        breakdown_id: null,
         destination_account_id: null,
       }),
     )
@@ -301,46 +303,6 @@ describe('BudgetLineForm', () => {
       expect(onSubmit).toHaveBeenCalledWith(
         expect.objectContaining({ line_group: 'savings', destination_account_id: null }),
       ),
-    )
-  })
-
-  it('omits the amount source control when the gift source is unavailable', () => {
-    render(<BudgetLineForm defaultGroup="wants" onSubmit={vi.fn()} />)
-    expect(screen.queryByText(/from the gift tracker/i)).not.toBeInTheDocument()
-  })
-
-  it('submits a gift-derived line with the annual gift total', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(
-      <MemoryRouter>
-        <BudgetLineForm
-          defaultGroup="wants"
-          giftTotalCents={150_00}
-          giftSourceAvailable
-          onSubmit={onSubmit}
-        />
-      </MemoryRouter>,
-    )
-
-    await user.type(screen.getByLabelText(/name/i), 'Gifts')
-    await user.click(screen.getByRole('radio', { name: /from the gift tracker/i }))
-    // The typed amount input gives way to the read-only derived total.
-    expect(screen.queryByRole('textbox', { name: /amount/i })).not.toBeInTheDocument()
-    expect(screen.getByText('$150.00 / year')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /add line/i }))
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({
-        line_group: 'wants',
-        name: 'Gifts',
-        amount_cents: 150_00,
-        frequency: 'annual',
-        interval_weeks: null,
-        goal_id: null,
-        derived_source: 'gift',
-        destination_account_id: null,
-      }),
     )
   })
 

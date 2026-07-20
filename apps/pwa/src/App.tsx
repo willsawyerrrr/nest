@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
 import { summarise } from '@nest/plan'
@@ -19,6 +19,9 @@ import { useSuperProfiles } from './hooks/useSuperProfiles'
 import { usePaySplits } from './hooks/usePaySplits'
 import { useSuperContributions } from './hooks/useSuperContributions'
 import { useGifts } from './hooks/useGifts'
+import { useBreakdowns } from './hooks/useBreakdowns'
+import { useBreakdownItems } from './hooks/useBreakdownItems'
+import type { Breakdown } from './hooks/useBreakdowns'
 import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
@@ -32,6 +35,8 @@ import { TaxEstimateView } from './components/TaxEstimateView'
 import { SummaryView } from './components/SummaryView'
 import { SuperScreen } from './components/SuperScreen'
 import { GiftsScreen } from './components/GiftsScreen'
+import { BreakdownsScreen } from './components/BreakdownsScreen'
+import { BreakdownDetail } from './components/BreakdownDetail'
 import { NetWorthView } from './components/NetWorthView'
 import { ChangelogScreen } from './components/ChangelogScreen'
 import { NAV_ITEMS, TabBar } from './components/TabBar'
@@ -44,7 +49,12 @@ import {
 import { accountsWithEffectiveSuperBalances, superAccountIds, superAccountName } from './lib/super'
 import { todayIso } from './lib/dates'
 import { giftBudgetTotalCents } from './lib/gifts'
-import { applyGiftDerivedAmounts } from './lib/derivedBudget'
+import { applyBreakdownAmounts } from './lib/derivedBudget'
+import {
+  breakdownAnnualTotals,
+  breakdownItemCounts,
+  reconcileBreakdownLines,
+} from './lib/breakdowns'
 import type { SuperFormValues } from './components/SuperProfileForm'
 import './App.css'
 
@@ -160,7 +170,11 @@ function HouseholdApp({
           <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route path="/super" element={<SuperSection householdId={household.id} />} />
-          <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
+          <Route path="/breakdowns" element={<BreakdownsSection householdId={household.id} />} />
+          <Route
+            path="/breakdowns/:id"
+            element={<BreakdownDetailSection householdId={household.id} />}
+          />
           <Route path="/whats-new" element={<ChangelogSection />} />
           <Route
             path="/household"
@@ -246,26 +260,73 @@ function BudgetSection({ householdId }: { householdId: string }) {
   const temporaryItems = useTemporaryItems(householdId)
   const goals = useGoals(householdId)
   const gifts = useGifts(householdId)
+  const breakdowns = useBreakdowns(householdId)
   const accounts = useAccounts(householdId)
   const superProfiles = useSuperProfiles(householdId)
+
+  const giftBudgets = useMemo(() => gifts.budgets ?? [], [gifts.budgets])
+  const breakdownRows = useMemo(() => breakdowns.breakdowns ?? [], [breakdowns.breakdowns])
+  const breakdownItems = useMemo(() => breakdowns.items ?? [], [breakdowns.items])
+  const totals = useMemo(
+    () => breakdownAnnualTotals(breakdownRows, breakdownItems, giftBudgetTotalCents(giftBudgets)),
+    [breakdownRows, breakdownItems, giftBudgets],
+  )
+  const counts = useMemo(
+    () => breakdownItemCounts(breakdownRows, breakdownItems, giftBudgets.length),
+    [breakdownRows, breakdownItems, giftBudgets.length],
+  )
+
+  // The derived-line lifecycle is app-enforced: as breakdown items come and go,
+  // bring each breakdown's owned budget line into being, up to date, or away.
+  const lines = budgetLines.lines
+  const dataLoaded = !budgetLines.loading && !breakdowns.loading && !gifts.loading
+  const createLine = budgetLines.create
+  const updateLine = budgetLines.update
+  const removeLine = budgetLines.remove
+  const reconcilingRef = useRef(false)
+  useEffect(() => {
+    if (!lines || !dataLoaded || reconcilingRef.current) {
+      return
+    }
+    const ops = reconcileBreakdownLines(breakdownRows, totals, counts, lines)
+    if (ops.create.length === 0 && ops.update.length === 0 && ops.remove.length === 0) {
+      return
+    }
+    reconcilingRef.current = true
+    void (async () => {
+      try {
+        for (const input of ops.create) {
+          await createLine(input)
+        }
+        for (const { id, input } of ops.update) {
+          await updateLine(id, input)
+        }
+        for (const id of ops.remove) {
+          await removeLine(id)
+        }
+      } finally {
+        reconcilingRef.current = false
+      }
+    })()
+  }, [lines, dataLoaded, breakdownRows, totals, counts, createLine, updateLine, removeLine])
 
   if (
     budgetLines.loading ||
     temporaryItems.loading ||
     goals.loading ||
     gifts.loading ||
+    breakdowns.loading ||
     accounts.loading ||
     superProfiles.loading
   ) {
     return <LoadingScreen />
   }
 
-  const giftBudgets = gifts.budgets ?? []
   // Super-fund balance accounts are not spendable, so they cannot fund a line.
   const superIds = superAccountIds(superProfiles.profiles ?? [])
   return (
     <BudgetScreen
-      lines={applyGiftDerivedAmounts(budgetLines.lines ?? [], giftBudgets)}
+      lines={applyBreakdownAmounts(budgetLines.lines ?? [], totals)}
       goals={(goals.goals ?? []).map((g) => ({
         id: g.id,
         name: g.name,
@@ -274,8 +335,8 @@ function BudgetSection({ householdId }: { householdId: string }) {
       accounts={(accounts.accounts ?? [])
         .filter((account) => !superIds.has(account.id))
         .map((account) => ({ id: account.id, name: account.name }))}
+      breakdowns={breakdownRows.map((breakdown) => ({ id: breakdown.id, name: breakdown.name }))}
       temporaryItems={temporaryItems.items ?? []}
-      giftTotalCents={giftBudgetTotalCents(giftBudgets)}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
       onDeleteLine={budgetLines.remove}
@@ -491,6 +552,95 @@ function GiftsSection({ householdId }: { householdId: string }) {
   )
 }
 
+function BreakdownsSection({ householdId }: { householdId: string }) {
+  const breakdowns = useBreakdowns(householdId)
+  const gifts = useGifts(householdId)
+
+  if (breakdowns.loading || gifts.loading) {
+    return <LoadingScreen />
+  }
+
+  const totals = breakdownAnnualTotals(
+    breakdowns.breakdowns ?? [],
+    breakdowns.items ?? [],
+    giftBudgetTotalCents(gifts.budgets ?? []),
+  )
+
+  return (
+    <BreakdownsScreen
+      breakdowns={breakdowns.breakdowns ?? []}
+      totalsByBreakdownId={totals}
+      onCreate={breakdowns.create}
+    />
+  )
+}
+
+function BreakdownDetailSection({ householdId }: { householdId: string }) {
+  const { id } = useParams<{ id: string }>()
+  const breakdowns = useBreakdowns(householdId)
+
+  if (breakdowns.loading) {
+    return <LoadingScreen />
+  }
+
+  const breakdown = (breakdowns.breakdowns ?? []).find((candidate) => candidate.id === id)
+  if (!breakdown) {
+    return <Navigate to="/breakdowns" replace />
+  }
+
+  // A gift breakdown is edited through the existing gift planner; a generic one
+  // through its item editor.
+  if (breakdown.kind === 'gift') {
+    return <GiftsSection householdId={householdId} />
+  }
+
+  return (
+    <GenericBreakdownSection
+      householdId={householdId}
+      breakdown={breakdown}
+      onUpdate={breakdowns.update}
+      onDelete={breakdowns.remove}
+    />
+  )
+}
+
+function GenericBreakdownSection({
+  householdId,
+  breakdown,
+  onUpdate,
+  onDelete,
+}: {
+  householdId: string
+  breakdown: Breakdown
+  onUpdate: (
+    id: string,
+    input: { name: string; line_group: Breakdown['line_group'] },
+  ) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}) {
+  const navigate = useNavigate()
+  const items = useBreakdownItems(householdId, breakdown.id)
+
+  if (items.loading) {
+    return <LoadingScreen />
+  }
+
+  return (
+    <BreakdownDetail
+      breakdown={breakdown}
+      items={items.items ?? []}
+      onUpdateBreakdown={(input) => onUpdate(breakdown.id, input)}
+      onDeleteBreakdown={async () => {
+        await onDelete(breakdown.id)
+        navigate('/breakdowns')
+      }}
+      onCreateItem={items.create}
+      onUpdateItem={items.update}
+      onDeleteItem={items.remove}
+    />
+  )
+}
+
 function ChangelogSection() {
   const { implemented, inProgress, configured, loading, error } = useChangelog()
 
@@ -541,6 +691,7 @@ function SummarySection({ householdId }: { householdId: string }) {
   const temporaryItems = useTemporaryItems(householdId)
   const contributions = useSuperContributions(householdId)
   const gifts = useGifts(householdId)
+  const breakdowns = useBreakdowns(householdId)
 
   if (
     inflows.loading ||
@@ -548,10 +699,17 @@ function SummarySection({ householdId }: { householdId: string }) {
     budgetLines.loading ||
     temporaryItems.loading ||
     contributions.loading ||
-    gifts.loading
+    gifts.loading ||
+    breakdowns.loading
   ) {
     return <LoadingScreen />
   }
+
+  const totals = breakdownAnnualTotals(
+    breakdowns.breakdowns ?? [],
+    breakdowns.items ?? [],
+    giftBudgetTotalCents(gifts.budgets ?? []),
+  )
 
   const estimate = estimateHouseholdTaxFromRows(
     inflows.inflows ?? [],
@@ -568,14 +726,12 @@ function SummarySection({ householdId }: { householdId: string }) {
           frequency: inflow.schedule,
           intervalWeeks: inflow.interval_weeks ?? undefined,
         })),
-      budgetLines: applyGiftDerivedAmounts(budgetLines.lines ?? [], gifts.budgets ?? []).map(
-        (line) => ({
-          group: line.line_group,
-          amountCents: line.amount_cents,
-          frequency: line.frequency,
-          intervalWeeks: line.interval_weeks ?? undefined,
-        }),
-      ),
+      budgetLines: applyBreakdownAmounts(budgetLines.lines ?? [], totals).map((line) => ({
+        group: line.line_group,
+        amountCents: line.amount_cents,
+        frequency: line.frequency,
+        intervalWeeks: line.interval_weeks ?? undefined,
+      })),
       temporaryItems: (temporaryItems.items ?? []).map((item) => ({
         contributionCents: item.contribution_cents,
         targetDate: item.target_date,

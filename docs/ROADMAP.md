@@ -306,6 +306,15 @@ and gifts are shipped.
     of scope for now.
   - **Up-tagged gift purchases.** Once Up ingestion lands, an Up transaction can be
     tagged to a gifting event instead of hand-entering the purchase.
+- **Payslips — expected vs actual income and tax** ([`payslips.md`](payslips.md)):
+  capture each member's per-pay-period actuals (gross, PAYG withheld, super, net,
+  plus YTD) and correlate them with the projected inflow and estimated tax, surfacing
+  variance — actual gross vs projected, and actual withholding vs the estimate's
+  implied withholding, which feeds the tax engine's `paygWithheldCents` for a concrete
+  refund/bill from real numbers. This is the income-side complement to the Up ledger's
+  spend-side actual-tax-paid tracking. Staged smallest-useful-first: manual entry +
+  variance, then optional file attachment to a private Storage bucket, then OCR
+  pre-fill.
 - **Auto-fetch real super balances via CDR.** Replace the periodic manual
   true-up by pulling each fund's actual balance directly, once superannuation
   enters the Consumer Data Right. Super is not in CDR scope today (CDR covers

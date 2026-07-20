@@ -11,7 +11,7 @@ interface ChangelogScreenProps {
 }
 
 const TYPE_EMOJI: Record<string, { emoji: string; label: string }> = {
-  feat: { emoji: '✨', label: 'Feature' },
+  feat: { emoji: '🚀', label: 'Feature' },
   fix: { emoji: '🐛', label: 'Fix' },
   perf: { emoji: '⚡', label: 'Improvement' },
 }

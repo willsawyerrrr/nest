@@ -116,6 +116,26 @@ describe('BudgetLineList', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue('Rent')
   })
 
+  it('offers the funding accounts when editing a line', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        accounts={[{ id: 'acc1', name: 'Everyday' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(rent).getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('combobox', { name: /funded from/i }))
+
+    expect(await screen.findByRole('option', { name: 'Everyday' })).toBeInTheDocument()
+  })
+
   it('opens a per-group add form scoped to that group', async () => {
     const user = userEvent.setup()
     render(

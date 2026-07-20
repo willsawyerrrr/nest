@@ -75,8 +75,9 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 ## UI
 
 - **Budget-line form** — a "Funded from" account picker for
-  non-Savings/Investments lines (the household's synced Up accounts). Savings /
-  Investments lines show the goal-derived route instead of a picker.
+  non-Savings/Investments lines (the household's accounts, excluding super-fund
+  balance accounts, which are not spendable). Savings / Investments lines show the
+  goal-derived route instead of a picker.
 - **Splits tab** — for each Up saver with lines routed to it, the recommended
   fortnightly pay split (rounded to $5); the remainder that stays in the
   transaction account; and an "Unassigned" nudge totalling lines not yet routed.

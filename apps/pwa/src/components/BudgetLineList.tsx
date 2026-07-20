@@ -366,6 +366,7 @@ export function BudgetLineList({
                   key={line.id}
                   initial={line}
                   goals={goals}
+                  accounts={accounts}
                   giftTotalCents={giftTotalCents}
                   giftSourceAvailable={giftSourceAvailableFor(line.id)}
                   onSubmit={async (input) => {
@@ -389,6 +390,7 @@ export function BudgetLineList({
                 <BudgetLineForm
                   defaultGroup={group}
                   goals={goals}
+                  accounts={accounts}
                   giftTotalCents={giftTotalCents}
                   giftSourceAvailable={giftSourceAvailableFor()}
                   onSubmit={async (input) => {

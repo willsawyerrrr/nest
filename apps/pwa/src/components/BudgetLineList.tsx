@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import {
   ActionIcon,
-  Anchor,
   Badge,
   Box,
   Button,
@@ -16,7 +15,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
@@ -32,7 +31,7 @@ interface BudgetLineListProps {
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
-  /** The household's breakdowns, naming the tap-through link on each derived line. */
+  /** The household's breakdowns; a line sourced from one links through to it. */
   breakdowns?: { id: string; name: string }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
@@ -77,14 +76,17 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   return direction === 'desc' ? sorted.reverse() : sorted
 }
 
-/** A tappable badge linking a derived line back to its breakdown's editor. */
-function BreakdownBadge({ id, name }: { id: string; name: string }) {
+/** A chevron control linking a derived line through to its breakdown's editor. */
+function BreakdownLink({ id }: { id: string }) {
   return (
-    <Anchor component={Link} to={`/breakdowns/${id}`} underline="never">
-      <Badge size="xs" variant="light" color="teal">
-        {name}
-      </Badge>
-    </Anchor>
+    <ActionIcon
+      component={Link}
+      to={`/breakdowns/${id}`}
+      variant="subtle"
+      aria-label="Open breakdown"
+    >
+      <IconChevronRight size={16} />
+    </ActionIcon>
   )
 }
 
@@ -178,7 +180,7 @@ function BudgetLineRow({
 }: {
   line: BudgetLine
   route?: LineRoute
-  breakdown?: { id: string; name: string }
+  breakdown?: { id: string }
   onEdit?: () => void
   onDelete?: () => void
 }) {
@@ -198,7 +200,6 @@ function BudgetLineRow({
         <Text fw={600} size="sm" truncate>
           {line.name}
         </Text>
-        {breakdown && <BreakdownBadge id={breakdown.id} name={breakdown.name} />}
         {route && <RouteBadge route={route} />}
       </Group>
       <Text size="sm" c="dimmed" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
@@ -223,10 +224,17 @@ function BudgetLineRow({
           / fn
         </Text>
       </Group>
-      {onEdit && onDelete && (
+      {breakdown ? (
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <LineActions onEdit={onEdit} onDelete={onDelete} />
+          <BreakdownLink id={breakdown.id} />
         </Group>
+      ) : (
+        onEdit &&
+        onDelete && (
+          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+            <LineActions onEdit={onEdit} onDelete={onDelete} />
+          </Group>
+        )
       )}
     </Group>
   )
@@ -246,7 +254,7 @@ function BudgetLineCard({
 }: {
   line: BudgetLine
   route?: LineRoute
-  breakdown?: { id: string; name: string }
+  breakdown?: { id: string }
   onEdit?: () => void
   onDelete?: () => void
 }) {
@@ -269,7 +277,6 @@ function BudgetLineCard({
             <Badge size="xs" variant="light">
               {formatFrequency(line.frequency, line.interval_weeks)}
             </Badge>
-            {breakdown && <BreakdownBadge id={breakdown.id} name={breakdown.name} />}
             {route && <RouteBadge route={route} />}
           </Group>
         </Stack>
@@ -282,7 +289,11 @@ function BudgetLineCard({
               / fn
             </Text>
           </Group>
-          {onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />}
+          {breakdown ? (
+            <BreakdownLink id={breakdown.id} />
+          ) : (
+            onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />
+          )}
         </Group>
       </Group>
     </Card>
@@ -296,7 +307,7 @@ function BudgetLineCard({
 function BudgetLineItem(props: {
   line: BudgetLine
   route?: LineRoute
-  breakdown?: { id: string; name: string }
+  breakdown?: { id: string }
   onEdit?: () => void
   onDelete?: () => void
 }) {

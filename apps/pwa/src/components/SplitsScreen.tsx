@@ -90,7 +90,12 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
             {accountLabel(account.name)}
           </Text>
         </Group>
-        <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
+        <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
+          {rounded !== fortnightlyCents && (
+            <Text size="xs" c="dimmed">
+              {formatCents(fortnightlyCents)} exact
+            </Text>
+          )}
           <Group gap={2} wrap="nowrap" align="baseline">
             <Text fw={700} size="sm">
               {formatCents(rounded)}
@@ -99,12 +104,7 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
               / fn
             </Text>
           </Group>
-          {rounded !== fortnightlyCents && (
-            <Text size="xs" c="dimmed">
-              {formatCents(fortnightlyCents)} exact
-            </Text>
-          )}
-        </Stack>
+        </Group>
       </Group>
     </Card>
   )

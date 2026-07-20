@@ -31,6 +31,7 @@ describe('BudgetLineForm', () => {
         name: 'Dining out',
         amount_cents: 25050,
         frequency: 'fortnightly',
+        interval_weeks: null,
         goal_id: null,
         derived_source: null,
       }),
@@ -54,10 +55,50 @@ describe('BudgetLineForm', () => {
         name: 'Emergency fund',
         amount_cents: 40000,
         frequency: 'monthly',
+        interval_weeks: null,
         goal_id: null,
         derived_source: null,
       }),
     )
+  })
+
+  it('submits an every-N-weeks line with its interval', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<BudgetLineForm defaultGroup="needs" onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Bin night')
+    await selectOption(user, /frequency/i, 'Every N weeks')
+    await user.type(screen.getByLabelText(/weeks between allocations/i), '4')
+    await user.type(screen.getByLabelText(/amount/i), '20')
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        line_group: 'needs',
+        name: 'Bin night',
+        amount_cents: 2000,
+        frequency: 'every_n_weeks',
+        interval_weeks: 4,
+        goal_id: null,
+        derived_source: null,
+      }),
+    )
+  })
+
+  it('keeps submit disabled on an every-N-weeks line until the interval is valid', async () => {
+    const user = userEvent.setup()
+    render(<BudgetLineForm defaultGroup="needs" onSubmit={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Bin night')
+    await selectOption(user, /frequency/i, 'Every N weeks')
+    await user.type(screen.getByLabelText(/amount/i), '20')
+
+    const button = screen.getByRole('button', { name: /add line/i })
+    expect(button).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/weeks between allocations/i), '4')
+    expect(button).toBeEnabled()
   })
 
   it('disables submit until required fields are filled', async () => {
@@ -82,6 +123,7 @@ describe('BudgetLineForm', () => {
       name: 'Rent',
       amount_cents: 200000,
       frequency: 'monthly',
+      interval_weeks: null,
       goal_id: null,
       derived_source: null,
       created_at: '',
@@ -195,6 +237,7 @@ describe('BudgetLineForm', () => {
         name: 'Gifts',
         amount_cents: 150_00,
         frequency: 'annual',
+        interval_weeks: null,
         goal_id: null,
         derived_source: 'gift',
       }),
@@ -211,6 +254,7 @@ describe('BudgetLineForm', () => {
       name: 'House deposit',
       amount_cents: 50000,
       frequency: 'fortnightly',
+      interval_weeks: null,
       goal_id: 'g1',
       derived_source: null,
       created_at: '',

@@ -47,6 +47,8 @@ export interface BudgetLine {
   readonly group: BudgetGroup
   readonly amountCents: Money
   readonly frequency: Frequency
+  /** Weeks between allocations, required only when `frequency` is `every_n_weeks`. */
+  readonly intervalWeeks?: number
 }
 
 /**

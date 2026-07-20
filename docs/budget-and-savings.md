@@ -65,7 +65,8 @@ versioning. No actual-spend reconciliation yet.
 | **Investments**   | Money set aside to invest                           |
 
 A budget line = `household_id`, `line_group`, `name`, `amount` + `frequency`
-(normalized to fortnightly and annual).
+(normalized to fortnightly and annual). Like inflows, a line on the `every N
+weeks` cadence carries its interval `N` in `interval_weeks`.
 
 ### Derived budget lines
 
@@ -145,7 +146,8 @@ income tables.
 - **BudgetLine** — a planned allocation.
   - `id`, `household_id`, `line_group` (`budget_group` enum: needs / wants /
     discretionary / savings / investments), `name`, `amount_cents`, `frequency`,
-    `goal_id` (nullable; set on Savings/Investments lines that fund a goal),
+    `interval_weeks` (int ≥ 1, non-null iff `frequency` is `every_n_weeks`, else
+    null), `goal_id` (nullable; set on Savings/Investments lines that fund a goal),
     `derived_source` (nullable `budget_derived_source`; a rolled-up line — see
     below).
   - Temporary is a Summary group derived from the `temporary_item` table, not a

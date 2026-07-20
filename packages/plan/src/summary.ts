@@ -92,8 +92,8 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   }
   for (const line of input.budgetLines) {
     lineTotals[line.group] = addAmounts(lineTotals[line.group], {
-      fortnightlyCents: fortnightlyCents(line.amountCents, line.frequency),
-      annualCents: annualCents(line.amountCents, line.frequency),
+      fortnightlyCents: fortnightlyCents(line.amountCents, line.frequency, line.intervalWeeks),
+      annualCents: annualCents(line.amountCents, line.frequency, line.intervalWeeks),
     })
   }
 

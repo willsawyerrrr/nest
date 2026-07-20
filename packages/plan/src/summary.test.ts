@@ -37,6 +37,21 @@ describe('isTemporaryActive', () => {
 describe('summarise', () => {
   const summary = summarise(HOUSEHOLD, NOW)
 
+  it('normalizes an every-N-weeks budget line by its interval', () => {
+    // $40 every 4 weeks → annual round(40_00 × 52 / 4) = 520_00, fortnightly round(520_00 / 26) = 20_00.
+    const withInterval = summarise(
+      {
+        ...HOUSEHOLD,
+        budgetLines: [
+          { group: 'wants', amountCents: 40_00, frequency: 'every_n_weeks', intervalWeeks: 4 },
+        ],
+      },
+      NOW,
+    )
+    expect(withInterval.groups.wants.annualCents).toBe(520_00)
+    expect(withInterval.groups.wants.fortnightlyCents).toBe(20_00)
+  })
+
   it('reconciles available from after-tax income and non-taxable inflows', () => {
     // $120,000/yr after tax → 12_000_000 / 26 = 461_538 fortnightly, plus $200 in.
     expect(summary.available.annualCents).toBe(125_200_00)

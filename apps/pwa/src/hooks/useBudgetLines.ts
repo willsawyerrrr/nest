@@ -13,6 +13,8 @@ export interface BudgetLineInput {
   name: string
   amount_cents: number
   frequency: Frequency
+  /** Weeks between allocations for the `every_n_weeks` frequency; null for every other frequency. */
+  interval_weeks: number | null
   goal_id: string | null
   /** The tracker a line's amount is derived from, or `null` for a manually entered amount. */
   derived_source: BudgetDerivedSource | null

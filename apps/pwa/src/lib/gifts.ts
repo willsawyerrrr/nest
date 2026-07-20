@@ -66,6 +66,11 @@ export function giftBudgetTotalCents(budgets: GiftBudget[]): number {
   return budgets.reduce((total, budget) => total + budget.budgeted_amount_cents, 0)
 }
 
+/** The household's overall gift totals: budgeted, spent, and remaining across every gift budget. */
+export function overallGiftTotals(budgets: GiftBudget[], purchases: GiftPurchase[]): GiftTotals {
+  return sumTotals(budgets.map((budget) => budgetTotals(budget, purchases)))
+}
+
 /** Sums a list of totals into one triple. */
 function sumTotals(totals: GiftTotals[]): GiftTotals {
   return totals.reduce<GiftTotals>(

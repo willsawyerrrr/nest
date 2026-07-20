@@ -12,6 +12,7 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     name: 'Line',
     amount_cents: 10_00,
     frequency: 'monthly',
+    interval_weeks: null,
     goal_id: null,
     derived_source: null,
     created_at: '',

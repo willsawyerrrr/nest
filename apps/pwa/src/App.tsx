@@ -505,6 +505,7 @@ function SummarySection({ householdId }: { householdId: string }) {
           group: line.line_group,
           amountCents: line.amount_cents,
           frequency: line.frequency,
+          intervalWeeks: line.interval_weeks ?? undefined,
         }),
       ),
       temporaryItems: (temporaryItems.items ?? []).map((item) => ({

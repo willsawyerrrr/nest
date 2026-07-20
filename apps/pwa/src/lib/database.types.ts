@@ -94,6 +94,7 @@ export type Database = {
           goal_id: string | null
           household_id: string
           id: string
+          interval_weeks: number | null
           line_group: Database['public']['Enums']['budget_group']
           name: string
           updated_at: string
@@ -106,6 +107,7 @@ export type Database = {
           goal_id?: string | null
           household_id: string
           id?: string
+          interval_weeks?: number | null
           line_group: Database['public']['Enums']['budget_group']
           name: string
           updated_at?: string
@@ -118,6 +120,7 @@ export type Database = {
           goal_id?: string | null
           household_id?: string
           id?: string
+          interval_weeks?: number | null
           line_group?: Database['public']['Enums']['budget_group']
           name?: string
           updated_at?: string

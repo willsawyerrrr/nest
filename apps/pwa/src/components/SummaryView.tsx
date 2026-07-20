@@ -170,10 +170,12 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
 
 /**
  * One reconciliation line as a compact ledger row: the label on the left and,
- * inline on the right, the fortnightly amount (emphasised) with the annual and
- * portion trailing as smaller dimmed figures — each its own text node. Running
- * figures (Available / After Outgoing / After Saving) get a tinted background
- * and a bolder label to stand out from the group lines.
+ * inline on the right, the fortnightly amount (emphasised) with the portion
+ * trailing as a smaller dimmed figure — each its own text node. The annual
+ * figure is dropped on narrow screens so the label keeps its width rather than
+ * truncating; it remains in the wide-screen table. Running figures (Available /
+ * After Outgoing / After Saving) get a tinted background and a bolder label to
+ * stand out from the group lines.
  */
 function ReconRow({
   label,
@@ -211,9 +213,6 @@ function ReconRow({
           c={signed ? moneyColor(amounts.fortnightlyCents) : undefined}
         >
           {formatCents(amounts.fortnightlyCents)}
-        </Text>
-        <Text size="xs" c="dimmed" w={88} ta="right">
-          {formatCents(amounts.annualCents)}
         </Text>
         <Text fw={700} size="xs" c="dimmed" w={48} ta="right">
           {formatPortion(portion)}

@@ -41,6 +41,12 @@ function memberOrTaxability(inflow: Inflow, memberName: (id: string) => string):
   return inflow.member_id ? memberName(inflow.member_id) : 'Taxable'
 }
 
+/** The dimmed row subtitle: member/taxability and the capitalised type, e.g. "Will · Salary". */
+function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): string {
+  const type = inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
+  return `${memberOrTaxability(inflow, memberName)} · ${type}`
+}
+
 /** The edit and delete controls shared by both the row and the card treatments. */
 function InflowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
@@ -85,8 +91,8 @@ function InflowRow({
         <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
           {inflow.name}
         </Text>
-        <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '9rem' }}>
-          {memberOrTaxability(inflow, memberName)}
+        <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
+          {inflowSubtitle(inflow, memberName)}
         </Text>
       </Group>
       <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>

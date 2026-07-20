@@ -88,7 +88,8 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   fortnightly pay split (rounded up to the nearest $5); the remainder that stays in the
   transaction account; and an "Unassigned" nudge totalling lines not yet routed.
   Each row shows the same account/saver icon and emoji-stripped name as the budget
-  list. A Refresh re-syncs Up accounts via `up-sync`.
+  list, and rows can be sorted by title or amount with a direction toggle (the
+  preference persists). A Refresh re-syncs Up accounts via `up-sync`.
 
 ## Out of scope / future
 

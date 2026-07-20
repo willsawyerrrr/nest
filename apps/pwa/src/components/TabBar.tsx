@@ -119,7 +119,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
         onClose={drawer.close}
         position="left"
         size="xs"
-        title="Nest"
+        title={<img src="/icon.svg" alt="Nest" width={28} height={28} />}
         hiddenFrom="sm"
         classNames={{ header: 'drawer-nav__header', body: 'drawer-nav__body' }}
       >
@@ -127,9 +127,9 @@ export function TabBar({ items }: { items: NavItem[] }) {
       </Drawer>
 
       <Box component="aside" className="sidebar" visibleFrom="sm">
-        <Text fw={700} size="lg" mb="md" px="xs">
-          Nest
-        </Text>
+        <Box mb="md" px="xs">
+          <img src="/icon.svg" alt="Nest" width={32} height={32} />
+        </Box>
         <NavList items={items} />
       </Box>
     </>

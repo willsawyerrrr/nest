@@ -113,6 +113,14 @@ describe('TabBar mobile drawer', () => {
   beforeEach(() => setViewportWidth(375))
   afterEach(() => setViewportWidth(1024))
 
+  it('shows the app icon and active page title in the top bar', () => {
+    renderTabBar('/budget')
+
+    const header = screen.getByRole('banner')
+    expect(within(header).getByAltText('Nest')).toBeInTheDocument()
+    expect(within(header).getByText('Budget')).toBeInTheDocument()
+  })
+
   it('opens the hamburger drawer and navigates on selecting an item', async () => {
     const user = userEvent.setup()
     renderTabBar('/summary')

@@ -140,7 +140,9 @@ export function BreakdownsScreen({
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={2}>Breakdowns</Title>
+        <Title order={2} visibleFrom="sm">
+          Breakdowns
+        </Title>
         {!adding && <Button onClick={() => setAdding(true)}>New breakdown</Button>}
       </Group>
 

@@ -76,7 +76,9 @@ export function ChangelogScreen({
 }: ChangelogScreenProps) {
   return (
     <Stack gap="lg">
-      <Title order={2}>What's new</Title>
+      <Title order={2} visibleFrom="sm">
+        What&apos;s new
+      </Title>
 
       {loading && <Loader />}
 

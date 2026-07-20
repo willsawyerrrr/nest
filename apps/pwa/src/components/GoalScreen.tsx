@@ -32,7 +32,9 @@ export function GoalScreen({
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center" wrap="nowrap">
-        <Title order={2}>Goals</Title>
+        <Title order={2} visibleFrom="sm">
+          Goals
+        </Title>
         <Button
           variant="light"
           size="xs"

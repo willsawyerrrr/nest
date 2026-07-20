@@ -276,7 +276,9 @@ export function SummaryView({ summary }: SummaryViewProps) {
 
   return (
     <Stack gap="sm">
-      <Title order={2}>Summary</Title>
+      <Title order={2} visibleFrom="sm">
+        Summary
+      </Title>
 
       {!hasData ? (
         <Text c="dimmed">

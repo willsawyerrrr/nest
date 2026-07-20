@@ -60,7 +60,9 @@ export function NetWorthView({ accounts, superIds }: NetWorthViewProps) {
 
   return (
     <Stack gap="sm">
-      <Title order={2}>Net worth</Title>
+      <Title order={2} visibleFrom="sm">
+        Net worth
+      </Title>
 
       <Card component="section" aria-label="Total net worth" withBorder radius="md" p="md">
         <Stack gap={0} align="center">

@@ -249,7 +249,9 @@ export function SplitsScreen({
 
   return (
     <Stack gap="md">
-      <Title order={2}>Splits</Title>
+      <Title order={2} visibleFrom="sm">
+        Splits
+      </Title>
 
       <Text size="sm" c="dimmed">
         Up can’t read or set pay splits, so these are recommendations: set each saver’s pay split in

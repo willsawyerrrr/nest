@@ -4,7 +4,9 @@ import { assignmentsByAccount, roundCentsUpToStep } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
+import { accountLabel } from '../lib/accountName'
 import { formatCents } from '../lib/money'
+import { AccountIcon } from './AccountIcon'
 
 /** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
 const ROUND_STEP_CENTS = 5_00
@@ -29,9 +31,12 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
   return (
     <Card withBorder radius="md" p="sm">
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Text fw={600} size="sm" truncate>
-          {account.name}
-        </Text>
+        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+          <AccountIcon name={account.name} size={16} />
+          <Text fw={600} size="sm" truncate>
+            {accountLabel(account.name)}
+          </Text>
+        </Group>
         <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
           <Group gap={2} wrap="nowrap" align="baseline">
             <Text fw={700} size="sm">

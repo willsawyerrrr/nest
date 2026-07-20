@@ -30,7 +30,7 @@ Deno.test('buildAccountRows attributes an individual account to the member', () 
   assertEquals(buildAccountRows([account()], member), [
     {
       external_id: 'acc-1',
-      name: 'Alex Spending',
+      name: "Alex's Spending",
       type: 'transaction',
       balance_cents: 1234,
       currency: 'AUD',
@@ -48,14 +48,14 @@ Deno.test('buildAccountRows leaves a joint account unowned', () => {
 })
 
 Deno.test('accountName prefixes an individual spending account with the owner name', () => {
-  assertEquals(accountName(account(), member, false), 'Alex Spending')
+  assertEquals(accountName(account(), member, false), "Alex's Spending")
 })
 
 Deno.test('accountName is idempotent: recomputed from Up it never double-prefixes', () => {
   // Up always returns the raw "Spending"; recomputing each sync keeps the name
-  // stable rather than compounding to "Alex Alex Spending".
-  assertEquals(accountName(account(), member, false), 'Alex Spending')
-  assertEquals(accountName(account(), member, false), 'Alex Spending')
+  // stable rather than compounding to "Alex's Alex's Spending".
+  assertEquals(accountName(account(), member, false), "Alex's Spending")
+  assertEquals(accountName(account(), member, false), "Alex's Spending")
 })
 
 Deno.test('accountName leaves a joint (shared) spending account unprefixed', () => {

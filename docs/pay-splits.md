@@ -37,8 +37,9 @@ only if Up's API ever exposes pay-split config.
 - **Fixed-dollar splits.** Up splits are treated as fixed dollar amounts (not
   percentages), so recommendations are the summed fortnightly amount per account.
   No pay-base / percentage math.
-- **Rounded to the nearest $5.** Cents-exact figures add no value when typed into
-  Up.
+- **Rounded up to the nearest $5.** Cents-exact figures add no value when typed
+  into Up, and rounding up (never down) keeps a recommended split from funding a
+  line short.
 - **Household-level.** Assignments are household totals (money is pooled). A
   per-saver recommendation is the combined amount both partners' pays should send
   to that saver; the app does not model per-member pay cadence.
@@ -67,8 +68,8 @@ main spending account is `type = 'transaction'`. Both are valid destinations.
 - `assignmentsByAccount(lines, goals)` — groups lines by resolved destination and
   sums each group's `fortnightlyCents`, returning per-account totals plus an
   `unassignedFortnightlyCents` bucket for unrouted lines.
-- `roundCentsToNearest(amountCents, stepCents)` — round-half-up to a step (used
-  with `5_00`).
+- `roundCentsUpToStep(amountCents, stepCents)` — round up to the next multiple of
+  a step, never below the amount (used with `5_00`).
 
 All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 
@@ -79,7 +80,7 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   balance accounts, which are not spendable). Savings / Investments lines show the
   goal-derived route instead of a picker.
 - **Splits tab** — for each Up saver with lines routed to it, the recommended
-  fortnightly pay split (rounded to $5); the remainder that stays in the
+  fortnightly pay split (rounded up to the nearest $5); the remainder that stays in the
   transaction account; and an "Unassigned" nudge totalling lines not yet routed.
   A Refresh re-syncs Up accounts via `up-sync`.
 
@@ -98,5 +99,5 @@ FK plus the `budget_line_destination_group` check) carries a line's destination;
 and `roundCentsToNearest`; the budget-line form offers a "Funded from" picker on
 non-Savings/Investments lines (Savings/Investments show the goal-derived route);
 and the Splits tab (between Budget and Goals) lists each account's recommended
-fortnightly split rounded to $5, with an Unassigned nudge and a Refresh that
+fortnightly split rounded up to the nearest $5, with an Unassigned nudge and a Refresh that
 re-syncs Up accounts via `up-sync`.

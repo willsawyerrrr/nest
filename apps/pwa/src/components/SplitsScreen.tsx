@@ -1,6 +1,6 @@
 import { Alert, Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
 import { IconRefresh } from '@tabler/icons-react'
-import { assignmentsByAccount, roundCentsToNearest } from '@nest/plan'
+import { assignmentsByAccount, roundCentsUpToStep } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
@@ -25,7 +25,7 @@ function isSaver(account: Account): boolean {
 
 /** One routed account: its name, the recommended fortnightly split, and the cents-exact figure. */
 function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightlyCents: number }) {
-  const rounded = roundCentsToNearest(fortnightlyCents, ROUND_STEP_CENTS)
+  const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   return (
     <Card withBorder radius="md" p="sm">
       <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -116,7 +116,7 @@ export function SplitsScreen({
       <Text size="sm" c="dimmed">
         Up can’t read or set pay splits, so these are recommendations: set each saver’s pay split in
         Up to match. Amounts are the fortnightly total of the budget lines routed to each account,
-        rounded to the nearest $5.
+        rounded up to the nearest $5.
       </Text>
 
       {nothingRouted && (

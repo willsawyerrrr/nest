@@ -23,7 +23,7 @@ export type { GoalProjection } from './goal'
 export { projectSuperBalance } from './retirement'
 export type { SuperProjection, SuperProjectionInput } from './retirement'
 
-export { assignmentsByAccount, resolveDestinationAccountId, roundCentsToNearest } from './splits'
+export { assignmentsByAccount, resolveDestinationAccountId, roundCentsUpToStep } from './splits'
 export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits'
 
 /** A monetary amount in integer minor units (cents). Never a float. */

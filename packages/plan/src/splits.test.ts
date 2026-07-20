@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentsByAccount, resolveDestinationAccountId, roundCentsToNearest } from './index'
+import { assignmentsByAccount, resolveDestinationAccountId, roundCentsUpToStep } from './index'
 import type { AssignableLine, RoutableGoal } from './index'
 
 const GOALS: RoutableGoal[] = [
@@ -120,23 +120,24 @@ describe('assignmentsByAccount', () => {
   })
 })
 
-describe('roundCentsToNearest', () => {
-  it('rounds to the nearest step', () => {
-    expect(roundCentsToNearest(12_49, 5_00)).toBe(10_00)
-    expect(roundCentsToNearest(12_50, 5_00)).toBe(15_00)
-    expect(roundCentsToNearest(13_00, 5_00)).toBe(15_00)
+describe('roundCentsUpToStep', () => {
+  it('rounds up to the next step, never below the amount', () => {
+    expect(roundCentsUpToStep(12_49, 5_00)).toBe(15_00)
+    expect(roundCentsUpToStep(12_50, 5_00)).toBe(15_00)
+    expect(roundCentsUpToStep(10_01, 5_00)).toBe(15_00)
   })
 
-  it('rounds a half-step up', () => {
-    expect(roundCentsToNearest(2_50, 5_00)).toBe(5_00)
+  it('rounds a fraction of a step up to a full step', () => {
+    expect(roundCentsUpToStep(1, 5_00)).toBe(5_00)
   })
 
   it('leaves an exact multiple unchanged', () => {
-    expect(roundCentsToNearest(500_00, 5_00)).toBe(500_00)
+    expect(roundCentsUpToStep(500_00, 5_00)).toBe(500_00)
+    expect(roundCentsUpToStep(0, 5_00)).toBe(0)
   })
 
   it('returns the amount unchanged for a non-positive step', () => {
-    expect(roundCentsToNearest(123_45, 0)).toBe(123_45)
-    expect(roundCentsToNearest(123_45, -5_00)).toBe(123_45)
+    expect(roundCentsUpToStep(123_45, 0)).toBe(123_45)
+    expect(roundCentsUpToStep(123_45, -5_00)).toBe(123_45)
   })
 })

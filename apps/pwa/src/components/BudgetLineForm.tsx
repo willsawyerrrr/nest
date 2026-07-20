@@ -44,6 +44,7 @@ const SCHEDULES: { value: Frequency; label: string }[] = [
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'biannual', label: 'Biannually' },
   { value: 'annual', label: 'Annually' },
+  { value: 'every_n_weeks', label: 'Every N weeks' },
 ]
 
 /** Presentational add/edit form for a single budget line. Persistence lives in the caller. */
@@ -59,6 +60,7 @@ export function BudgetLineForm({
   const [group, setGroup] = useState<BudgetGroup>(initial?.line_group ?? defaultGroup ?? 'needs')
   const [name, setName] = useState(initial?.name ?? '')
   const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
+  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [goalId, setGoalId] = useState<string | null>(initial?.goal_id ?? null)
   const [amountSource, setAmountSource] = useState<AmountSource>(
@@ -71,6 +73,8 @@ export function BudgetLineForm({
   const showGoalPicker = groupLinksGoal(group) && !derived
   // Offer the gift source when it is available, and always when editing the existing gift line.
   const showAmountSource = giftSourceAvailable || amountSource === 'gift'
+  const isEveryNWeeks = !derived && frequency === 'every_n_weeks'
+  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
 
   const changeGroup = (next: BudgetGroup) => {
     setGroup(next)
@@ -79,7 +83,11 @@ export function BudgetLineForm({
     }
   }
 
-  const canSubmit = name.trim() !== '' && (derived || amount !== '') && !submitting
+  const canSubmit =
+    name.trim() !== '' &&
+    (derived || amount !== '') &&
+    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
+    !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -93,6 +101,7 @@ export function BudgetLineForm({
       name: name.trim(),
       amount_cents: derived ? giftTotalCents : (dollarsToCents(amount) ?? 0),
       frequency: derived ? 'annual' : frequency,
+      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
       goal_id: showGoalPicker ? goalId : null,
       derived_source: derived ? 'gift' : null,
     }
@@ -166,6 +175,20 @@ export function BudgetLineForm({
               onChange={(value) => value && setFrequency(value as Frequency)}
               allowDeselect={false}
             />
+
+            {isEveryNWeeks && (
+              <NumberInput
+                label="Weeks between allocations"
+                size="sm"
+                description="How many weeks apart each allocation lands (e.g. 4 for once every four weeks)."
+                min={1}
+                step={1}
+                allowDecimal={false}
+                hideControls
+                value={intervalWeeks}
+                onChange={setIntervalWeeks}
+              />
+            )}
 
             <NumberInput
               label="Amount"

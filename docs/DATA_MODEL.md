@@ -125,8 +125,9 @@ no per-member scoping; each line stands alone under the household.
 - **budget_line** — a planned recurring allocation within one fixed group.
   - `id`, `household_id`, `line_group`
     (`needs` | `wants` | `discretionary` | `savings` | `investments`), `name`,
-    `amount_cents`, `frequency` (the shared enum above), `goal_id` (nullable),
-    `derived_source` (nullable), `created_at`, `updated_at`.
+    `amount_cents`, `frequency` (the shared enum above), `interval_weeks`
+    (nullable — non-null iff `frequency` is `every_n_weeks`, as on inflows),
+    `goal_id` (nullable), `derived_source` (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
   - `derived_source` (`budget_derived_source` enum) marks a line whose amount is

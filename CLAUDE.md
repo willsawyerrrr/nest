@@ -46,8 +46,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend
-  reconciliation via Up ingestion is a later enhancement. A budget line's amount
-  can be **derived** — rolled up from an itemised tracker via
+  reconciliation via Up ingestion is a later enhancement. Each line carries an
+  amount on a frequency (weekly through annual, or an arbitrary every-N-weeks
+  cadence, exactly as inflows do), normalised to fortnightly and annual. A budget
+  line's amount can be **derived** — rolled up from an itemised tracker via
   `budget_line.derived_source` rather than typed. Gift budget tracking (a
   per-recipient × occasion planner + purchase log) is the first such consumer.
 - Ingestion: both partners bank with Up. The savers → savings-goals slice is

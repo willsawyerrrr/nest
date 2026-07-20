@@ -36,10 +36,20 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027.
+- Superannuation: modelled in full per person. Concessional contributions reduce
+  taxable income and are taxed at 15% in the fund, with Division 293 for high
+  earners; contribution caps (with manual carry-forward) and the government
+  co-contribution are modelled, all from the versioned per-FY config alongside the
+  tax config. Each member's balance is a dated baseline that auto-accrues modelled
+  contributions between manual true-ups, seeds a net-worth view (assets only), and
+  projects to retirement under client-side (localStorage) return/age assumptions.
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend
-  reconciliation via Up ingestion is a later enhancement.
+  reconciliation via Up ingestion is a later enhancement. A budget line's amount
+  can be **derived** — rolled up from an itemised tracker via
+  `budget_line.derived_source` rather than typed. Gift budget tracking (a
+  per-recipient × occasion planner + purchase log) is the first such consumer.
 - Ingestion: both partners bank with Up. The savers → savings-goals slice is
   built and deployed — members connect an Up personal-access token (held in
   Vault), and `up-sync` polls saver balances into `accounts` so a linked goal

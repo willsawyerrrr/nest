@@ -12,6 +12,11 @@ liability, plan spending, and track savings goals.
   against tax already withheld.
 - **Spending plans** — budget by category and period; track actuals against plan.
 - **Savings goals** — set targets with dates and track progress.
+- **Superannuation & net worth** — model per-person super (contributions, caps,
+  Division 293, co-contribution) with its tax impact and a retirement projection,
+  and total balances into a net-worth view.
+- **Gift budgeting** — plan gift spend per recipient and occasion, track
+  purchases, and roll the total into a derived budget line.
 
 ## Scope decisions
 
@@ -72,9 +77,12 @@ pnpm build         # production build
 
 The plan-only app — income + tax estimate, fortnightly budget, and savings goals
 — is live in production and fully replaces the household's spreadsheet; it needs
-no transaction data. The Up savers → savings-goals layer is also live: members
-connect an Up token and link a goal to a synced Up saver, so goal progress tracks
-the real balance (synced on demand and hourly). Up transaction ingestion +
-reconciliation (ledger UI, actual spend vs budget, actual tax paid) is the next
-phase. See [`docs/ROADMAP.md`](docs/ROADMAP.md) and
-[`docs/HANDOFF.md`](docs/HANDOFF.md).
+no transaction data. Full superannuation modelling (concessional-contribution tax
+impact, Division 293, contribution caps, government co-contribution, and a
+retirement projection) and a net-worth view are live, as is gift budget tracking
+(a per-recipient × occasion planner whose total feeds a derived budget line). The
+Up savers → savings-goals layer is also live: members connect an Up token and link
+a goal to a synced Up saver, so goal progress tracks the real balance (synced on
+demand and hourly). Up transaction ingestion + reconciliation (ledger UI, actual
+spend vs budget, actual tax paid) is the next phase. See
+[`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md).

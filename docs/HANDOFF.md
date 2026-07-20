@@ -12,12 +12,17 @@ Two layers are live in production at <https://budget.willsawyerrrr.dev>.
 transaction data. Income + AU tax estimate, a fortnightly plan-only budget,
 savings goals, and a Summary reconciliation. Tabs are path-routed via
 `react-router-dom` (`/summary` `/net-worth` `/inflows` `/budget` `/goals` `/tax`
-`/super` `/household`; `/` and unknown routes redirect to `/summary`), so they are
-deep-linkable and reload-safe. Order: **Summary** (landing) · **Net worth** ·
-**Inflows** · **Budget** · **Goals** · **Tax** · **Super** · **Household**.
-Keyboard shortcuts: ⌘/Ctrl+1–8 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Tax
-profiles are edited on the Household tab. The household's real budget and income
-are loaded in production.
+`/super` `/gifts` `/household`; `/` and unknown routes redirect to `/summary`), so
+they are deep-linkable and reload-safe. Order: **Summary** (landing) · **Net
+worth** · **Inflows** · **Budget** · **Goals** · **Tax** · **Super** · **Gifts** ·
+**Household**. Navigation renders from one `NAV_ITEMS` table (`TabBar.tsx`): on
+mobile a fixed top app-bar with a hamburger that opens a left `Drawer` of every
+item, on desktop (`sm` and up) a persistent left sidebar of the same items.
+Keyboard shortcuts: ⌘/Ctrl+1–9 select a tab, ⌘/Ctrl+Shift+←/→ cycle. Content is
+capped at a 50rem max-width; on desktop budget lines and inflows render as dense
+single rows, while mobile keeps cards. The Mantine theme uses `primaryColor:
+'teal'`. Tax profiles are edited on the Household tab. The household's real budget
+and income are loaded in production.
 
 **Superannuation & net worth** — the Super tab edits each member's fund name and
 current balance for the financial year; the balance is held as a manual account
@@ -48,6 +53,17 @@ runs on demand (a Goals-tab Refresh button) and hourly (a `pg_cron` backstop).
 Transaction ingestion (spend/ledger reconciliation, actual PAYG vs estimate)
 stays deferred — see [`ROADMAP.md`](ROADMAP.md).
 
+**Gift budget tracking** — built and deployed, with the household's real gift
+budgets loaded in production. The Gifts tab plans a spend per recipient × occasion
+and records purchases against it, grouped collapsibly by occasion or by person
+(default collapsed) with budgeted / spent / remaining rolled up each way. It is
+the first consumer of **derived budget lines**: a budget line with
+`derived_source = 'gift'` takes its amount from the gift total (the sum of every
+`gift_budget.budgeted_amount_cents`, as an annual figure) rather than a typed
+amount, and the PWA substitutes that amount before the Budget tab renders and
+before the Summary reconciles. The mechanism is generic — each future source (e.g.
+medication) adds a `budget_derived_source` enum value and its own tables.
+
 ## Stack
 
 - **PWA** — React + Vite (`apps/pwa`), Mantine, mobile-first (primary device is
@@ -57,8 +73,12 @@ stays deferred — see [`ROADMAP.md`](ROADMAP.md).
 - **Backend** — Supabase (Postgres, Auth, PostgREST, Edge Functions, Vault),
   Sydney region, Pro tier.
 - **Pure TS packages** — `@budget/tax` (tax engine + verified FY2027 config,
-  `configsByYear`) and `@budget/plan` (budget / summary / goal math, including
-  the `Frequency` type). Both I/O-free, unit-tested, shared by the PWA.
+  `configsByYear`; models superannuation — concessional contributions reduce
+  taxable income, 15% contributions tax, Division 293, the contribution-cap and
+  government co-contribution helpers, with a versioned `super` block per FY) and
+  `@budget/plan` (budget / summary / goal math, the `Frequency` type, and
+  `projectSuperBalance` for the retirement projection). Both I/O-free,
+  unit-tested, shared by the PWA.
 - **Edge functions** — Deno/TypeScript under `supabase/functions/`, outside the
   pnpm workspace, with their own `deno.json` and test harness. Four functions:
   `up-connect`, `up-disconnect`, `up-sync`, `up-webhook`.
@@ -226,33 +246,47 @@ until the next merge triggers a deploy.
 
 ## Data model
 
-Inflows (taxable income + non-taxable; schedules from weekly through annual plus
-an "every N weeks" cadence carrying `interval_weeks`), tax_profile, budget_line
-(groups: needs / wants / discretionary / savings / investments), temporary_item,
-savings_goal (nullable `linked_account_id` → a synced Up saver), households /
-members (households carry nullable `invite_code` + `invite_code_expires_at`;
-members carry nullable `up_connected_at`), and the ledger tables (accounts,
-transactions, categories). `accounts` is populated by `up-sync` for Up savers;
-`transactions` remains unpopulated pending ingestion. Details:
-[`DATA_MODEL.md`](DATA_MODEL.md), [`budget-and-savings.md`](budget-and-savings.md),
-[`TAX.md`](TAX.md).
+Inflows (taxable income + non-taxable; `type` is `salary` / `wage` / `other` /
+`reimbursement` / `hobby` / `gift`, the non-taxable types being reporting labels
+only; schedules from weekly through annual plus an "every N weeks" cadence carrying
+`interval_weeks`), tax_profile, budget_line (groups: needs / wants / discretionary
+/ savings / investments; nullable `derived_source` for a rolled-up line),
+temporary_item, savings_goal (nullable `linked_account_id` → a synced Up saver),
+households / members (households carry nullable `invite_code` +
+`invite_code_expires_at`; members carry nullable `up_connected_at`), and the ledger
+tables (accounts, transactions, categories). Superannuation adds per-member
+`super_profile` (fund name, `sg_rate_override`, `linked_account_id` balance,
+`carry_forward_cap_cents`, dated-baseline `balance_as_of`) and `super_contribution`
+(kind / mode / amount-or-`percent_bp` / frequency / `fhss_eligible` /
+`contributor_member_id`). The gift tracker adds `gift_recipient`, `gift_occasion`,
+`gift_budget` (recipient × occasion + `budgeted_amount_cents` + optional
+`event_date`), and `gift_purchase`, which roll up into a `derived_source = 'gift'`
+budget line. `accounts` is populated by `up-sync` for Up savers and holds each
+member's super balance; `transactions` remains unpopulated pending ingestion.
+Details: [`DATA_MODEL.md`](DATA_MODEL.md),
+[`budget-and-savings.md`](budget-and-savings.md), [`TAX.md`](TAX.md).
 
 ## Open items / next
 
-- **Superannuation** — the active next phase (full modelling), scoped and
-  sub-phased in [`ROADMAP.md`](ROADMAP.md); not yet modelled in code.
+- **Up ledger + reconciliation** — the active next phase: transaction sync
+  (webhook + scheduled poll, dedupe on `external_id`), a ledger UI, spend-vs-budget
+  reconciliation, and actual PAYG-vs-estimate tracking. See [`ROADMAP.md`](ROADMAP.md).
 - **`service_role` grant policy** — decide whether to keep grants surgical
   (per-feature, as now) or broaden them. Current stance is surgical; any new
   server-side code must add its own grants.
-- **Up ledger + reconciliation** (deferred): transaction sync (webhook +
-  scheduled poll, dedupe on `external_id`), a ledger UI, spend-vs-budget
-  reconciliation, and actual PAYG-vs-estimate tracking. See [`ROADMAP.md`](ROADMAP.md).
+- **Auto-fetch super via CDR** — replace the periodic manual balance true-up by
+  pulling each fund's real balance once superannuation enters the Consumer Data
+  Right (not in scope today). See [`ROADMAP.md`](ROADMAP.md).
+- **Private / surprise gifts** (deferred) — hiding a gift one partner buys for the
+  other needs member-scoped visibility that departs from the household-only RLS
+  model; out of scope for now.
 - **Spreadsheet-parity gaps** (in [`spreadsheet-parity.md`](spreadsheet-parity.md)):
-  itemised sub-budget (line-item breakdown, e.g. the gift budget), a
+  a generic itemised sub-budget (line-item breakdown) for non-gift lists, a
   payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
+  The gift budget is built as the first derived-line consumer.
+- **Net worth beyond super** — the Net worth tab totals accounts (assets only);
+  liabilities are not yet modelled.
 - **CI watch** — `check` (~50–59s) is the long pole near the one-minute budget;
   profile it first if CI creeps up, then consider a third `test` shard.
 - **Supabase Management-API token** — rotate when done; keep the GitHub secret
   and `~/.config/claude/supabase_pat` in sync.
-</content>
-</invoke>

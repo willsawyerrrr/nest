@@ -64,8 +64,18 @@ versioning. No actual-spend reconciliation yet.
 | **Savings**       | Money set aside toward a goal                       |
 | **Investments**   | Money set aside to invest                           |
 
-A budget line = `household_id`, `group`, `name`, `amount` + `frequency`
+A budget line = `household_id`, `line_group`, `name`, `amount` + `frequency`
 (normalized to fortnightly and annual).
+
+### Derived budget lines
+
+A line's amount is normally typed. It can instead be **derived** — rolled up from
+an itemised tracker via `budget_line.derived_source` (the `budget_derived_source`
+enum), so the line and its detail never drift. The summary substitutes the
+source's rolled-up amount for the typed `amount_cents`. The gift tracker is the
+first consumer (`derived_source = 'gift'` takes the sum of every gift budget as
+its annual amount); the mechanism is generic and per-source. See
+[`DATA_MODEL.md`](DATA_MODEL.md#gifts--derived-budget-lines).
 
 ## Targets — goals & temporary items
 
@@ -133,9 +143,13 @@ income tables.
     `member_id` (required when `taxable`, else null).
   - Taxable inflows feed the tax estimate; non-taxable add to available cash.
 - **BudgetLine** — a planned allocation.
-  - `id`, `household_id`, `group` (enum: needs / wants / discretionary /
-    temporary / savings / investments), `name`, `amount_cents`, `schedule`,
-    `goal_id` (nullable; set on Savings lines that fund a goal).
+  - `id`, `household_id`, `line_group` (`budget_group` enum: needs / wants /
+    discretionary / savings / investments), `name`, `amount_cents`, `frequency`,
+    `goal_id` (nullable; set on Savings/Investments lines that fund a goal),
+    `derived_source` (nullable `budget_derived_source`; a rolled-up line — see
+    below).
+  - Temporary is a Summary group derived from the `temporary_item` table, not a
+    `budget_group` value: a budget line is never authored as temporary.
 - **SavingsGoal** — a persistent target.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),
     `current_cents` (manual fallback), `linked_account_id` (nullable → a synced

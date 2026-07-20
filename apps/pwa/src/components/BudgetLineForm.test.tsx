@@ -130,6 +130,7 @@ describe('BudgetLineForm', () => {
       goal_id: null,
       derived_source: null,
       destination_account_id: null,
+      breakdown_id: null,
       created_at: '',
       updated_at: '',
     }
@@ -357,6 +358,7 @@ describe('BudgetLineForm', () => {
       goal_id: 'g1',
       derived_source: null,
       destination_account_id: null,
+      breakdown_id: null,
       created_at: '',
       updated_at: '',
     }

@@ -185,5 +185,14 @@ Designed, not yet built. The gift tracker ships today on the `budget_derived_sou
 enum + `budget_line.derived_source` column; this design genericises that mechanism to
 user-created breakdowns keyed by `budget_line.breakdown_id`, with gifts becoming the
 first (`kind = 'gift'`) breakdown and medications the first generic one.
-</content>
-</invoke>
+
+## Open questions
+
+- **Empty-breakdown lifecycle is app-enforced, not DB-enforced.** Stage 1's schema
+  permits a breakdown with no items and no derived line, and does not itself create,
+  update, or remove the line as items come and go — that lifecycle lands in Stage 2's
+  app code. Whether any of it should be pushed into DB triggers is left open.
+- **One-line-per-breakdown is a convention, not a constraint.** No unique constraint
+  ties a breakdown to a single `budget_line`; the app is trusted to keep it 1:1.
+- **Roll-up amount is not enforced in the DB.** A derived line's `amount_cents` is
+  written by the app from the summed items; the schema does not compute or check it.

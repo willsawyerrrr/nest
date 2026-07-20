@@ -181,6 +181,31 @@ do $$ begin
     'Alice''s pay split should link to her own account';
 end $$;
 
+-- Alice's breakdown: a generic breakdown with one item, and a budget line
+-- derived from it. The composite FKs on (id, household_id) accept same-household
+-- links — the breakdown_item to its breakdown, and the budget_line to the
+-- breakdown it is derived from.
+insert into public.breakdown (household_id, name, line_group, kind)
+  values (current_setting('test.hid')::uuid, 'Medications', 'needs', 'generic');
+select id as bdid from public.breakdown limit 1 \gset
+select set_config('test.bdid', :'bdid', false);
+
+insert into public.breakdown_item (household_id, breakdown_id, name, amount_cents, frequency)
+  values (current_setting('test.hid')::uuid, current_setting('test.bdid')::uuid, 'Prescription', 30_00, 'monthly');
+
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, breakdown_id)
+  values (current_setting('test.hid')::uuid, 'needs', 'Medications', 0, 'annual', current_setting('test.bdid')::uuid);
+
+do $$ begin
+  assert (select count(*) from public.breakdown) = 1, 'Alice should see her breakdown';
+  assert (select count(*) from public.breakdown_item) = 1, 'Alice should see her breakdown item';
+  assert (select count(*) from public.breakdown_item
+    where breakdown_id = current_setting('test.bdid')::uuid) = 1,
+    'Alice''s breakdown item should link to her breakdown';
+  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.bdid')::uuid) = 1,
+    'Alice''s derived budget line should link to her breakdown';
+end $$;
+
 -- ── Server-side grants: service_role reads members and upserts accounts ──────
 
 -- The Up edge functions act as service_role directly against the ledger
@@ -309,6 +334,8 @@ do $$ begin
   assert (select count(*) from public.gift_budget) = 0, 'Bob must not see Alice''s gift budgets';
   assert (select count(*) from public.gift_purchase) = 0, 'Bob must not see Alice''s gift purchases';
   assert (select count(*) from public.pay_split) = 0, 'Bob must not see Alice''s pay splits';
+  assert (select count(*) from public.breakdown) = 0, 'Bob must not see Alice''s breakdowns';
+  assert (select count(*) from public.breakdown_item) = 0, 'Bob must not see Alice''s breakdown items';
 end $$;
 
 -- Bob must be blocked from writing into Alice's household (RLS WITH CHECK).
@@ -381,7 +408,7 @@ do $$ begin
   assert (select count(*) from public.inflows) = 2, 'Carol should see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
-  assert (select count(*) from public.budget_line) = 2, 'Carol should see both Alice''s budget lines';
+  assert (select count(*) from public.budget_line) = 3, 'Carol should see all three of Alice''s budget lines';
   assert (select count(*) from public.budget_line where derived_source = 'gift') = 1,
     'Carol should see Alice''s gift-derived budget line';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
@@ -392,6 +419,10 @@ do $$ begin
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
   assert (select count(*) from public.pay_split) = 1, 'Carol should see Alice''s pay split';
+  assert (select count(*) from public.breakdown) = 1, 'Carol should see Alice''s breakdown';
+  assert (select count(*) from public.breakdown_item) = 1, 'Carol should see Alice''s breakdown item';
+  assert (select count(*) from public.breakdown where id = current_setting('test.bdid')::uuid) = 1,
+    'Carol should see Alice''s breakdown by id';
   assert (select invite_code from public.households where id = current_setting('test.hid')::uuid) is null,
     'Joining should consume the invite code';
 end $$;

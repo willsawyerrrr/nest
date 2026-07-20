@@ -78,13 +78,14 @@ export function assignmentsByAccount(
 }
 
 /**
- * Rounds an amount to the nearest `stepCents`, halves rounding up — the figure a
- * person types into Up, where cents-exact splits add no value. A non-positive
- * step returns the amount unchanged.
+ * Rounds an amount up to the next multiple of `stepCents`, never below it — the
+ * figure a person types into Up, where cents-exact splits add no value and a
+ * recommended split should never fund a line short. An exact multiple is left
+ * unchanged; a non-positive step returns the amount unchanged.
  */
-export function roundCentsToNearest(amountCents: Money, stepCents: Money): Money {
+export function roundCentsUpToStep(amountCents: Money, stepCents: Money): Money {
   if (stepCents <= 0) {
     return amountCents
   }
-  return Math.round(amountCents / stepCents) * stepCents
+  return Math.ceil(amountCents / stepCents) * stepCents
 }

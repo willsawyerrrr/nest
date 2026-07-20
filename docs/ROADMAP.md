@@ -228,13 +228,13 @@ read-only API forces a recommend-only shape).
 - [x] Pure logic (`@nest/plan`): `resolveDestinationAccountId` (Savings/Investments
       route through their goal's linked account, every other line through its own
       destination), `assignmentsByAccount` (per-account fortnightly totals plus an
-      unassigned bucket), and `roundCentsToNearest` (round-half-up to $5).
+      unassigned bucket), and `roundCentsUpToStep` (round up to the nearest $5).
 - [x] Budget-line form: a "Funded from" account picker on
       non-Savings/Investments lines; Savings/Investments show the goal-derived
       route instead.
 - [x] Splits tab (between Budget and Goals): per-account recommended fortnightly
-      split rounded to $5, an Unassigned nudge for unrouted lines, and a Refresh
-      that re-syncs Up accounts via `up-sync`.
+      split rounded up to the nearest $5, an Unassigned nudge for unrouted lines,
+      and a Refresh that re-syncs Up accounts via `up-sync`.
 
 ## Now — Up ledger + reconciliation
 

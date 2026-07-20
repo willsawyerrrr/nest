@@ -79,7 +79,7 @@ describe('SplitsScreen', () => {
     expect(screen.getByText('$500.00')).toBeInTheDocument()
   })
 
-  it('rounds a split to the nearest $5 and shows the exact figure', () => {
+  it('rounds a split up to the next $5 and shows the exact figure', () => {
     const everyday = account({ id: 't1', name: 'Everyday', type: 'transaction' })
     renderScreen({
       accounts: [everyday],
@@ -89,7 +89,7 @@ describe('SplitsScreen', () => {
     })
 
     expect(screen.getByText('Stays in your everyday account')).toBeInTheDocument()
-    expect(screen.getByText('$100.00')).toBeInTheDocument()
+    expect(screen.getByText('$105.00')).toBeInTheDocument()
     expect(screen.getByText('$101.00 exact')).toBeInTheDocument()
   })
 

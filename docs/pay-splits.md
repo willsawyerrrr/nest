@@ -99,7 +99,7 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 Built and deployed. `budget_line.destination_account_id` (the nullable composite
 FK plus the `budget_line_destination_group` check) carries a line's destination;
 `@nest/plan` exposes the pure `resolveDestinationAccountId`, `assignmentsByAccount`,
-and `roundCentsToNearest`; the budget-line form offers a "Funded from" picker on
+and `roundCentsUpToStep`; the budget-line form offers a "Funded from" picker on
 non-Savings/Investments lines (Savings/Investments show the goal-derived route);
 and the Splits tab (between Budget and Goals) lists each account's recommended
 fortnightly split rounded up to the nearest $5, with an Unassigned nudge and a Refresh that

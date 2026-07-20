@@ -89,7 +89,7 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   transaction account; and an "Unassigned" nudge totalling lines not yet routed.
   Each row shows the same account/saver icon and emoji-stripped name as the budget
   list, and rows can be sorted by title or amount with a direction toggle (the
-  preference persists). A Refresh re-syncs Up accounts via `up-sync`.
+  preference persists).
 
 ## Out of scope / future
 
@@ -106,5 +106,4 @@ FK plus the `budget_line_destination_group` check) carries a line's destination;
 and `roundCentsUpToStep`; the budget-line form offers a "Funded from" picker on
 non-Savings/Investments lines (Savings/Investments show the goal-derived route);
 and the Splits tab (between Budget and Goals) lists each account's recommended
-fortnightly split rounded up to the nearest $5, with an Unassigned nudge and a Refresh that
-re-syncs Up accounts via `up-sync`.
+fortnightly split rounded up to the nearest $5, with an Unassigned nudge.

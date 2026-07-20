@@ -16,7 +16,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconPencil, IconTarget, IconTrash, IconWallet } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
@@ -86,6 +86,55 @@ function GiftBadge() {
   )
 }
 
+/** Whether lines in a group route via a savings goal rather than a funding account. */
+function groupLinksGoal(group: BudgetGroup): boolean {
+  return group === 'savings' || group === 'investments'
+}
+
+/** Where a budget line sends its money: a linked savings goal, or a funding account. */
+interface LineRoute {
+  kind: 'goal' | 'account'
+  name: string
+}
+
+/**
+ * The route a line displays: a Savings/Investments line names its linked goal;
+ * every other line names its funding account. Undefined when the line is
+ * unrouted or the target is not in the supplied names.
+ */
+function resolveRoute(
+  line: BudgetLine,
+  goalNames: Map<string, string>,
+  accountNames: Map<string, string>,
+): LineRoute | undefined {
+  if (groupLinksGoal(line.line_group)) {
+    const name = line.goal_id ? goalNames.get(line.goal_id) : undefined
+    return name ? { kind: 'goal', name } : undefined
+  }
+  const name = line.destination_account_id
+    ? accountNames.get(line.destination_account_id)
+    : undefined
+  return name ? { kind: 'account', name } : undefined
+}
+
+/** A subtle badge naming where a line routes: its linked goal or its funding account. */
+function RouteBadge({ route }: { route: LineRoute }) {
+  const Icon = route.kind === 'goal' ? IconTarget : IconWallet
+  const title = route.kind === 'goal' ? `Goal: ${route.name}` : `Funded from ${route.name}`
+  return (
+    <Badge
+      size="xs"
+      variant="light"
+      color="gray"
+      leftSection={<Icon size={10} />}
+      title={title}
+      style={{ maxWidth: '12rem' }}
+    >
+      {route.name}
+    </Badge>
+  )
+}
+
 /** The edit and delete controls shared by both the row and the card treatments. */
 function LineActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
@@ -108,10 +157,12 @@ function LineActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
  */
 function BudgetLineRow({
   line,
+  route,
   onEdit,
   onDelete,
 }: {
   line: BudgetLine
+  route?: LineRoute
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -133,6 +184,7 @@ function BudgetLineRow({
           {line.name}
         </Text>
         {derived && <GiftBadge />}
+        {route && <RouteBadge route={route} />}
       </Group>
       <Text size="sm" c="dimmed" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
         {formatCents(line.amount_cents)}
@@ -166,10 +218,12 @@ function BudgetLineRow({
 /** One budget line as a compact bordered card for mobile: name stacked over amount, frequency, and controls. */
 function BudgetLineCard({
   line,
+  route,
   onEdit,
   onDelete,
 }: {
   line: BudgetLine
+  route?: LineRoute
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -194,6 +248,7 @@ function BudgetLineCard({
               {formatFrequency(line.frequency, line.interval_weeks)}
             </Badge>
             {derived && <GiftBadge />}
+            {route && <RouteBadge route={route} />}
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
@@ -216,7 +271,12 @@ function BudgetLineCard({
  * A single budget line, rendered as a dense table-like row from the `sm`
  * breakpoint up and as a compact bordered card below it.
  */
-function BudgetLineItem(props: { line: BudgetLine; onEdit: () => void; onDelete: () => void }) {
+function BudgetLineItem(props: {
+  line: BudgetLine
+  route?: LineRoute
+  onEdit: () => void
+  onDelete: () => void
+}) {
   const wide = useMediaQuery('(min-width: 48em)')
   return wide ? <BudgetLineRow {...props} /> : <BudgetLineCard {...props} />
 }
@@ -238,6 +298,9 @@ export function BudgetLineList({
   // when no other line already derives from the gift tracker.
   const giftSourceAvailableFor = (id?: string) =>
     !lines.some((line) => line.derived_source === 'gift' && line.id !== id)
+  // Name lookups for each line's route badge: its linked goal or funding account.
+  const goalNames = new Map(goals.map((goal) => [goal.id, goal.name]))
+  const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
   const [addingItem, setAddingItem] = useState(false)
@@ -379,6 +442,7 @@ export function BudgetLineList({
                 <BudgetLineItem
                   key={line.id}
                   line={line}
+                  route={resolveRoute(line, goalNames, accountNames)}
                   onEdit={() => startEditing(line.id)}
                   onDelete={() => onDelete(line.id)}
                 />

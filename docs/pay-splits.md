@@ -79,6 +79,9 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   non-Savings/Investments lines (the household's accounts, excluding super-fund
   balance accounts, which are not spendable). Savings / Investments lines show the
   goal-derived route instead of a picker.
+- **Budget list** — each line shows a small badge naming its route: the linked
+  goal for a Savings/Investments line, the funding account otherwise. Unrouted
+  lines show none.
 - **Splits tab** — for each Up saver with lines routed to it, the recommended
   fortnightly pay split (rounded up to the nearest $5); the remainder that stays in the
   transaction account; and an "Unassigned" nudge totalling lines not yet routed.

@@ -97,6 +97,44 @@ describe('BudgetLineList', () => {
     expect(screen.getByText(/no investments lines yet/i)).toBeInTheDocument()
   })
 
+  it('identifies each line’s route: the funding account, and the goal for savings', () => {
+    render(
+      <BudgetLineList
+        lines={[
+          line({ id: 'n', line_group: 'needs', name: 'Rent', destination_account_id: 'acc1' }),
+          line({ id: 's', line_group: 'savings', name: 'Deposit saver', goal_id: 'g1' }),
+        ]}
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        accounts={[{ id: 'acc1', name: 'Everyday' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    expect(within(rent).getByText('Everyday')).toBeInTheDocument()
+
+    const deposit = screen.getByText('Deposit saver').closest('.mantine-Card-root') as HTMLElement
+    expect(within(deposit).getByText('House deposit')).toBeInTheDocument()
+  })
+
+  it('shows no route badge for an unrouted line', () => {
+    render(
+      <BudgetLineList
+        lines={[line({ id: 'n', line_group: 'needs', name: 'Rent' })]}
+        goals={[]}
+        accounts={[{ id: 'acc1', name: 'Everyday' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    expect(within(rent).queryByText('Everyday')).not.toBeInTheDocument()
+  })
+
   it('edits a line in place', async () => {
     const user = userEvent.setup()
     render(

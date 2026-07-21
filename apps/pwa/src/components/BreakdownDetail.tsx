@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useDisclosure } from '@mantine/hooks'
 import {
   ActionIcon,
-  Anchor,
   Badge,
   Button,
   Card,
@@ -16,8 +14,9 @@ import {
   TextInput,
   Title,
 } from '@mantine/core'
-import { IconArrowLeft, IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { annualCents, fortnightlyCents } from '@nest/plan'
+import { BreakdownPageLayout } from './BreakdownPageLayout'
 import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
 import type { BudgetGroup } from '../hooks/useBudgetLines'
@@ -210,21 +209,16 @@ export function BreakdownDetail({
   const totalFortnightly = fortnightlyCents(totalAnnual, 'annual')
 
   return (
-    <Stack gap="md">
-      <Anchor component={Link} to={backTo} size="sm">
-        <Group gap={4} wrap="nowrap">
-          <IconArrowLeft size={16} />
-          {backLabel}
-        </Group>
-      </Anchor>
-
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={2}>{breakdown.name}</Title>
+    <BreakdownPageLayout
+      backTo={backTo}
+      backLabel={backLabel}
+      title={breakdown.name}
+      action={
         <Button variant={editing ? 'filled' : 'default'} onClick={toggleEditing}>
           {editing ? 'Done' : 'Edit'}
         </Button>
-      </Group>
-
+      }
+    >
       <Collapse expanded={editing}>
         <BreakdownSettings
           breakdown={breakdown}
@@ -295,6 +289,6 @@ export function BreakdownDetail({
           </Button>
         )}
       </Stack>
-    </Stack>
+    </BreakdownPageLayout>
   )
 }

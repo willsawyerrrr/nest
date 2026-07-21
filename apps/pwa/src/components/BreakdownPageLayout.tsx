@@ -1,0 +1,46 @@
+import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { Anchor, Group, Stack, Title } from '@mantine/core'
+import { IconArrowLeft } from '@tabler/icons-react'
+
+interface BreakdownPageLayoutProps {
+  /** Where the back link returns to. */
+  backTo: string
+  /** The back link's label, naming its destination. */
+  backLabel: string
+  /** The page heading. */
+  title: string
+  /** Right-aligned header control (e.g. the Edit or Manage toggle). */
+  action?: ReactNode
+  children: ReactNode
+}
+
+/**
+ * The shared chrome for a breakdown detail page: a back link, a title with an
+ * optional right-aligned `action` control, and the page body as `children`.
+ */
+export function BreakdownPageLayout({
+  backTo,
+  backLabel,
+  title,
+  action,
+  children,
+}: BreakdownPageLayoutProps) {
+  return (
+    <Stack gap="md">
+      <Anchor component={Link} to={backTo} size="sm">
+        <Group gap={4} wrap="nowrap">
+          <IconArrowLeft size={16} />
+          {backLabel}
+        </Group>
+      </Anchor>
+
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Title order={2}>{title}</Title>
+        {action}
+      </Group>
+
+      {children}
+    </Stack>
+  )
+}

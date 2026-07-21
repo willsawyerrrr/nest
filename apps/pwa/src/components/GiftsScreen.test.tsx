@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { render, screen, within } from '../test/render'
 import { GiftsScreen } from './GiftsScreen'
 import type { GiftBudget, GiftOccasion, GiftPurchase, GiftRecipient } from '../hooks/useGifts'
@@ -32,25 +33,27 @@ const budget: GiftBudget = {
 
 function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}) {
   return render(
-    <GiftsScreen
-      recipients={[alice]}
-      occasions={[xmas]}
-      budgets={[budget]}
-      purchases={[]}
-      onCreateRecipient={vi.fn()}
-      onUpdateRecipient={vi.fn()}
-      onDeleteRecipient={vi.fn()}
-      onCreateOccasion={vi.fn()}
-      onUpdateOccasion={vi.fn()}
-      onDeleteOccasion={vi.fn()}
-      onCreateBudget={vi.fn()}
-      onUpdateBudget={vi.fn()}
-      onDeleteBudget={vi.fn()}
-      onCreatePurchase={vi.fn()}
-      onUpdatePurchase={vi.fn()}
-      onDeletePurchase={vi.fn()}
-      {...overrides}
-    />,
+    <MemoryRouter>
+      <GiftsScreen
+        recipients={[alice]}
+        occasions={[xmas]}
+        budgets={[budget]}
+        purchases={[]}
+        onCreateRecipient={vi.fn()}
+        onUpdateRecipient={vi.fn()}
+        onDeleteRecipient={vi.fn()}
+        onCreateOccasion={vi.fn()}
+        onUpdateOccasion={vi.fn()}
+        onDeleteOccasion={vi.fn()}
+        onCreateBudget={vi.fn()}
+        onUpdateBudget={vi.fn()}
+        onDeleteBudget={vi.fn()}
+        onCreatePurchase={vi.fn()}
+        onUpdatePurchase={vi.fn()}
+        onDeletePurchase={vi.fn()}
+        {...overrides}
+      />
+    </MemoryRouter>,
   )
 }
 

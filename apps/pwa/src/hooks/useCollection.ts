@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/database.types'
 
@@ -59,7 +60,7 @@ async function loadRows(
   table: HouseholdTable,
   match: Readonly<Record<string, ScopeValue>>,
   order: readonly string[],
-): Promise<{ data: unknown; error: unknown }> {
+): Promise<unknown> {
   let query = from(table).select('*')
   for (const [column, value] of Object.entries(match)) {
     query = query.eq(column, value)
@@ -67,14 +68,35 @@ async function loadRows(
   for (const column of order) {
     query = query.order(column)
   }
-  return query
+  const { data, error } = await query
+  if (error) {
+    throw error
+  }
+  return data
+}
+
+/**
+ * A collection's cache key: its table, the household, and the stable scope
+ * (order columns and equality filters). Two hooks reading the same table with
+ * the same scope share one cache entry and one in-flight request.
+ */
+function collectionKey(
+  table: HouseholdTable,
+  householdId: string,
+  matchKey: string,
+  orderKey: string,
+): QueryKey {
+  return [table, householdId, matchKey, orderKey]
 }
 
 /**
  * The household-scoped CRUD pattern every collection hook shares: load the
  * household's rows (RLS scopes reads) with an optional order and equality
- * filters, and create, update, and remove rows, reloading after each write so
- * derived state stays in step. `household_id` is injected on every insert.
+ * filters, and create, update, and remove rows. Reads are cached household-
+ * scoped and revalidated in the background, so a revisit renders the cached
+ * rows immediately while `loading` reports only the first, uncached load. Each
+ * write invalidates the collection's cache key so its rows refresh. `household_id`
+ * is injected on every insert.
  */
 export function useHouseholdCollection<
   T extends HouseholdTable,
@@ -85,10 +107,11 @@ export function useHouseholdCollection<
   config: CollectionConfig<T>,
 ): HouseholdCollection<Row<T>, CreateInput, UpdateInput> {
   const { table } = config
-  const [rows, setRows] = useState<Row<T>[] | null>(null)
+  const queryClient = useQueryClient()
 
-  // Snapshot the scope so the callbacks re-memoize only when it changes in
-  // substance, not when the config object literal is recreated each render.
+  // Snapshot the scope so the callbacks and query key re-derive only when it
+  // changes in substance, not when the config object literal is recreated each
+  // render.
   const orderKey = orderColumns(config.orderBy).join(',')
   const matchKey = JSON.stringify(config.match ?? {})
   const defaultsKey = JSON.stringify(config.insertDefaults ?? {})
@@ -96,13 +119,19 @@ export function useHouseholdCollection<
   const match = useMemo(() => config.match ?? {}, [matchKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const insertDefaults = useMemo(() => config.insertDefaults ?? {}, [defaultsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const queryKey = useMemo(
+    () => collectionKey(table, householdId, matchKey, orderKey),
+    [table, householdId, matchKey, orderKey],
+  )
+
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => (await loadRows(table, match, order)) as Row<T>[],
+  })
+
   const reload = useCallback(async () => {
-    const { data, error } = await loadRows(table, match, order)
-    if (error) {
-      throw error
-    }
-    setRows(data as Row<T>[])
-  }, [table, match, order])
+    await queryClient.invalidateQueries({ queryKey })
+  }, [queryClient, queryKey])
 
   const create = useCallback(
     async (input: CreateInput) => {
@@ -141,11 +170,7 @@ export function useHouseholdCollection<
     [table, reload],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { rows, loading: rows === null, reload, create, update, remove }
+  return { rows: query.data ?? null, loading: query.isPending, reload, create, update, remove }
 }
 
 /** The load and upsert surface of a financial-year-keyed household collection. */
@@ -178,20 +203,26 @@ export function useHouseholdUpsertCollection<T extends HouseholdTable, UpsertInp
   config: UpsertCollectionConfig<T>,
 ): HouseholdUpsertCollection<Row<T>, UpsertInput> {
   const { table, onConflict } = config
-  const [rows, setRows] = useState<Row<T>[] | null>(null)
+  const queryClient = useQueryClient()
 
   const matchKey = JSON.stringify(config.match ?? {})
   const defaultsKey = JSON.stringify(config.insertDefaults ?? {})
   const match = useMemo(() => config.match ?? {}, [matchKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const insertDefaults = useMemo(() => config.insertDefaults ?? {}, [defaultsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const queryKey = useMemo(
+    () => collectionKey(table, householdId, matchKey, ''),
+    [table, householdId, matchKey],
+  )
+
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => (await loadRows(table, match, [])) as Row<T>[],
+  })
+
   const reload = useCallback(async () => {
-    const { data, error } = await loadRows(table, match, [])
-    if (error) {
-      throw error
-    }
-    setRows(data as Row<T>[])
-  }, [table, match])
+    await queryClient.invalidateQueries({ queryKey })
+  }, [queryClient, queryKey])
 
   const upsert = useCallback(
     async (input: UpsertInput) => {
@@ -207,9 +238,5 @@ export function useHouseholdUpsertCollection<T extends HouseholdTable, UpsertInp
     [table, insertDefaults, householdId, onConflict, reload],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { rows, loading: rows === null, reload, upsert }
+  return { rows: query.data ?? null, loading: query.isPending, reload, upsert }
 }

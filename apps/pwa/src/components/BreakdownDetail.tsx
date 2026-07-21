@@ -206,7 +206,9 @@ export function BreakdownDetail({
 
       <Stack gap="sm">
         <Group justify="space-between" align="baseline" wrap="nowrap">
-          <Title order={3}>Items</Title>
+          <Title order={3} size="h5">
+            Items
+          </Title>
           <Text fw={700} aria-label="Breakdown fortnightly total">
             {formatPerFortnight(totalFortnightly)}
           </Text>

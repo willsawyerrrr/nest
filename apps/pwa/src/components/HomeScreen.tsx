@@ -52,7 +52,9 @@ function ConnectUpCard({
   return (
     <Card withBorder shadow="sm" radius="md" p="lg">
       <Stack gap="md">
-        <Title order={3}>Connect Up</Title>
+        <Title order={3} size="h5">
+          Connect Up
+        </Title>
 
         {connected ? (
           <Group justify="space-between">
@@ -177,7 +179,9 @@ export function HomeScreen({
 
         <Card withBorder shadow="sm" radius="md" p="lg">
           <Stack gap="md">
-            <Title order={3}>Invite someone</Title>
+            <Title order={3} size="h5">
+              Invite someone
+            </Title>
             {codeActive && inviteCode !== null && inviteCodeExpiresAt !== null ? (
               <Stack gap="xs">
                 <Group gap="xs" wrap="wrap">

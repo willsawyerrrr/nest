@@ -133,7 +133,7 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
   return (
     <Card component="section" aria-label="Allocation" withBorder radius="md" p="md">
       <Stack gap="md" align="center">
-        <Title order={4} style={{ alignSelf: 'flex-start' }}>
+        <Title order={3} size="h5" style={{ alignSelf: 'flex-start' }}>
           Fortnightly allocation
         </Title>
         <DonutChart

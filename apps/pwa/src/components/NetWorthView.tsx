@@ -24,7 +24,9 @@ function AccountGroup({
     <Card component="section" aria-label={title} withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
-          <Title order={4}>{title}</Title>
+          <Title order={3} size="h5">
+            {title}
+          </Title>
           <Text fw={700}>{formatCents(subtotalCents)}</Text>
         </Group>
         {accounts.length === 0 ? (

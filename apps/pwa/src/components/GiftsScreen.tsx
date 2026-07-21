@@ -344,7 +344,7 @@ function GiftGroupCard({
             <Group justify="space-between" wrap="nowrap" gap="sm" align="center">
               <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
                 {opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />}
-                <Title order={4} style={{ minWidth: 0 }}>
+                <Title order={3} size="h5" style={{ minWidth: 0 }}>
                   {group.label}
                 </Title>
                 {group.date && (
@@ -461,7 +461,9 @@ export function GiftsScreen({
       {budgets.length > 0 && (
         <Card withBorder radius="md" p="sm">
           <Stack gap={4}>
-            <Title order={4}>Total</Title>
+            <Title order={3} size="h5">
+              Total
+            </Title>
             <GiftMoneyBar totals={overall} label="Total gift" />
           </Stack>
         </Card>

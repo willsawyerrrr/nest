@@ -9,6 +9,7 @@ import {
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
   netAnnualSuperContributionByMember,
+  netAnnualSuperContributionFromRows,
   nonConcessionalByMember,
   superCapSummaryByMember,
   superCapSummaryFromRows,
@@ -317,5 +318,33 @@ describe('netAnnualSuperContributionByMember', () => {
     const grossByMember = new Map([['m1', 80_000_00]])
     const result = netAnnualSuperContributionByMember([], grossByMember, FY2027_CONFIG)
     expect(result.get('m1')).toBe(Math.round(0.12 * 80_000_00 * 0.85))
+  })
+})
+
+describe('netAnnualSuperContributionFromRows', () => {
+  it('derives gross from taxable inflows and skips non-taxable ones', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_weeks: null,
+      amount_cents: 100_000_00,
+    }
+    const nonTaxable: Inflow = {
+      ...baseInflow,
+      id: 'i2',
+      taxable: false,
+      type: 'other',
+      schedule: 'annual',
+      interval_weeks: null,
+      amount_cents: 5_000_00,
+    }
+    // The non-taxable inflow is ignored, so the result matches gross-only super
+    // on the $100k salary using the current financial year's config (FY2027).
+    const result = netAnnualSuperContributionFromRows([salary, nonTaxable], [])
+    expect(result.get('m1')).toBe(
+      netAnnualSuperContributionByMember([], new Map([['m1', 100_000_00]]), FY2027_CONFIG).get(
+        'm1',
+      ),
+    )
   })
 })

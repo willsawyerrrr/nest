@@ -1,5 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { centsToDollars, dollarsToCents, formatCents } from './money'
+import {
+  centsToDollars,
+  dollarsToCents,
+  formatCents,
+  formatPerFortnight,
+  formatPerYear,
+  moneyColor,
+} from './money'
+
+describe('formatPerFortnight', () => {
+  it('suffixes the currency with a fortnightly rate', () => {
+    expect(formatPerFortnight(1_234_56)).toBe('$1,234.56 / fn')
+  })
+})
+
+describe('formatPerYear', () => {
+  it('suffixes the currency with an annual rate', () => {
+    expect(formatPerYear(1_234_56)).toBe('$1,234.56 / year')
+  })
+})
+
+describe('moneyColor', () => {
+  it('is green for a positive amount', () => {
+    expect(moneyColor(1)).toBe('light-dark(#1f7a3d, var(--mantine-color-green-4))')
+  })
+
+  it('is red for a negative amount', () => {
+    expect(moneyColor(-1)).toBe(
+      'light-dark(var(--mantine-color-red-9), var(--mantine-color-red-4))',
+    )
+  })
+
+  it('is undefined for zero', () => {
+    expect(moneyColor(0)).toBeUndefined()
+  })
+})
 
 describe('formatCents', () => {
   it('always shows two decimals when the cents are a multiple of ten', () => {
@@ -42,5 +77,9 @@ describe('dollarsToCents', () => {
   it('rounds dollars to integer cents', () => {
     expect(dollarsToCents(2067.5)).toBe(2_067_50)
     expect(dollarsToCents('1234.56')).toBe(1_234_56)
+  })
+
+  it('returns null for an unparseable string', () => {
+    expect(dollarsToCents('abc')).toBeNull()
   })
 })

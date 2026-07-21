@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
   budgetTotals,
+  giftBudgetTotalCents,
   groupGifts,
   overallGiftTotals,
+  pairKey,
   spentCents,
   type GiftBudget,
   type GiftOccasion,
   type GiftPurchase,
   type GiftRecipient,
 } from './gifts'
+
+describe('pairKey', () => {
+  it('joins the recipient and occasion ids', () => {
+    expect(pairKey('r1', 'o1')).toBe('r1:o1')
+  })
+})
 
 function recipient(id: string, name: string): GiftRecipient {
   return { id, name, household_id: 'h', created_at: '', updated_at: '' }
@@ -110,6 +118,66 @@ describe('overallGiftTotals', () => {
       spentCents: 0,
       remainingCents: 0,
     })
+  })
+})
+
+describe('giftBudgetTotalCents', () => {
+  it('sums every budget’s budgeted cents', () => {
+    // 100 + 50 + 40 = 190.
+    expect(giftBudgetTotalCents(budgets)).toBe(190_00)
+  })
+
+  it('is zero with no budgets', () => {
+    expect(giftBudgetTotalCents([])).toBe(0)
+  })
+})
+
+describe('gift ordering tiebreaks on equal dates', () => {
+  it('orders occasions sharing a date by name then id', () => {
+    // Two occasions on the same date fall through to the name/id tiebreak.
+    const a = occasion('o-a', 'Anniversary', '2026-03-03')
+    const z = occasion('o-z', 'Zephyr party', '2026-03-03')
+    const groups = groupGifts([alice], [z, a], [], [], 'occasion')
+    expect(groups.map((group) => group.label)).toEqual(['Anniversary', 'Zephyr party'])
+  })
+
+  it('sorts a dated occasion ahead of an undated one, both comparison orders', () => {
+    // Two sorts with the entities in opposite input order so the comparator
+    // sees a dated occasion as both its first and its second argument.
+    for (const input of [
+      [xmas, undated],
+      [undated, xmas],
+    ] as GiftOccasion[][]) {
+      const groups = groupGifts([alice], input, [], [], 'occasion')
+      expect(groups.map((group) => group.label)).toEqual(['Christmas', 'Someday'])
+    }
+  })
+
+  it('sorts a dated person row ahead of an undated one, both comparison orders', () => {
+    // The undated occasion yields a row with a null effective date, so the row
+    // comparator hits both its null-first and null-second branches.
+    for (const budgetOrder of [
+      [budget('b1', alice.id, xmas.id, 10_00), budget('b2', alice.id, undated.id, 20_00)],
+      [budget('b2', alice.id, undated.id, 20_00), budget('b1', alice.id, xmas.id, 10_00)],
+    ]) {
+      const groups = groupGifts([alice], [xmas, undated], budgetOrder, [], 'person')
+      expect(groups[0]!.rows.map((row) => row.label)).toEqual(['Christmas', 'Someday'])
+    }
+  })
+
+  it('orders same-date person rows by label then budget id', () => {
+    // Alice has two occasions whose effective dates match, so the row order
+    // falls through to the label/id tiebreak in compareRowsByDate.
+    const early = occasion('o1', 'Zephyr', '2026-03-03')
+    const late = occasion('o2', 'Anvil', '2026-03-03')
+    const groups = groupGifts(
+      [alice],
+      [early, late],
+      [budget('b1', alice.id, early.id, 10_00), budget('b2', alice.id, late.id, 20_00)],
+      [],
+      'person',
+    )
+    expect(groups[0]!.rows.map((row) => row.label)).toEqual(['Anvil', 'Zephyr'])
   })
 })
 

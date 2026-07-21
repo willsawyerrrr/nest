@@ -56,7 +56,7 @@ describe('BreakdownsScreen', () => {
     const onCreate = vi.fn()
     renderScreen({ onCreate })
 
-    await user.click(screen.getByRole('button', { name: /new breakdown/i }))
+    await user.click(screen.getByRole('button', { name: /add breakdown/i }))
     await user.type(screen.getByLabelText(/name/i), 'Holiday')
     await user.click(screen.getByRole('combobox', { name: /group/i }))
     await user.click(await screen.findByRole('option', { name: 'Wants' }))

@@ -1,5 +1,5 @@
-import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
+import { useHouseholdCollection } from './useCollection'
 
 export type TemporaryItem = Tables<'temporary_item'>
 

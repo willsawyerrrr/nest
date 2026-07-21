@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
-import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
+import { useHouseholdCollection } from './useCollection'
 
 export type GiftRecipient = Tables<'gift_recipient'>
 export type GiftOccasion = Tables<'gift_occasion'>

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { breakdownAnnualTotals, breakdownItemCounts, reconcileBreakdownLines } from './breakdowns'
-import type { Breakdown } from '../hooks/useBreakdowns'
 import type { BreakdownItem } from '../hooks/useBreakdownItems'
+import type { Breakdown } from '../hooks/useBreakdowns'
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import { breakdownAnnualTotals, breakdownItemCounts, reconcileBreakdownLines } from './breakdowns'
 
 function breakdown(overrides: Partial<Breakdown> = {}): Breakdown {
   return {

@@ -1,7 +1,7 @@
 import { financialYearForDate } from '@nest/tax'
-import { useHouseholdCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 import type { Frequency } from '../lib/domain'
+import { useHouseholdCollection } from './useCollection'
 
 export type SuperContribution = Tables<'super_contribution'>
 export type SuperContributionKind = Enums<'super_contribution_kind'>

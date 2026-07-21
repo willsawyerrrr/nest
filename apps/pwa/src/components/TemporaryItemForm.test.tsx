@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { makeTemporaryItem } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { TemporaryItemForm } from './TemporaryItemForm'
-import { makeTemporaryItem } from '../test/fixtures'
 
 describe('TemporaryItemForm', () => {
   it('submits a new item with dollars converted to cents and a target date', async () => {

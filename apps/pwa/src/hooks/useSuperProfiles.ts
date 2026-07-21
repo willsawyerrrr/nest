@@ -1,6 +1,6 @@
 import { financialYearForDate } from '@nest/tax'
-import { useHouseholdUpsertCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
+import { useHouseholdUpsertCollection } from './useCollection'
 
 export type SuperProfile = Tables<'super_profile'>
 

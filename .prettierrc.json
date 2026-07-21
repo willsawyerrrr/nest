@@ -2,5 +2,16 @@
   "semi": false,
   "singleQuote": true,
   "printWidth": 100,
-  "trailingComma": "all"
+  "trailingComma": "all",
+  "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+  "importOrder": [
+    "^react$",
+    "^react-dom",
+    "^react-router",
+    "<THIRD_PARTY_MODULES>",
+    "^@nest/",
+    "^[.]"
+  ],
+  "importOrderParserPlugins": ["typescript", "jsx"],
+  "importOrderTypeScriptVersion": "6.0.3"
 }

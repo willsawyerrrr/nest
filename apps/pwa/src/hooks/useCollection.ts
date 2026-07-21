@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/database.types'
+import { supabase } from '../lib/supabase'
 
 /** A public table whose rows a household owns. */
 type HouseholdTable = keyof Database['public']['Tables']

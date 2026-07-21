@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import type { Account } from '../hooks/useAccounts'
 import { render, screen, within } from '../test/render'
 import { NetWorthView } from './NetWorthView'
-import type { Account } from '../hooks/useAccounts'
 
 function account(
   overrides: Partial<Account> & Pick<Account, 'id' | 'name' | 'balance_cents'>,

@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeBudgetLine as line } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { BudgetLineList } from './BudgetLineList'
-import { makeBudgetLine as line } from '../test/fixtures'
 
 const lines = [
   line({

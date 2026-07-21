@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 import { render, screen } from '../test/render'
 import { ChangelogScreen } from './ChangelogScreen'
-import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 
 const inProgress: InProgressEntry[] = [
   { type: 'feat', scope: 'splits', description: 'Confirm pay splits', number: 120, url: 'u' },

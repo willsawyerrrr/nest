@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMediaQuery } from '@mantine/hooks'
 import {
   ActionIcon,
   Badge,
@@ -15,17 +14,18 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { IconChevronRight, IconPencil } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
-import type { BudgetGroup } from '../lib/domain'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useSortPreference } from '../hooks/useSortPreference'
-import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { accountLabel } from '../lib/accountName'
-import { formatCents } from '../lib/money'
+import { BUDGET_GROUPS } from '../lib/budgetGroups'
+import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
+import { formatCents } from '../lib/money'
 import { sortBy, type SortDirection, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'

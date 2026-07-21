@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { makeMember } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { SuperContributionForm } from './SuperContributionForm'
-import { makeMember } from '../test/fixtures'
 
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 

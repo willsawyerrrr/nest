@@ -1,7 +1,7 @@
-import { useMembers } from '../hooks/useMembers'
-import { useInflows } from '../hooks/useInflows'
 import { InflowScreen } from '../components/InflowScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useInflows } from '../hooks/useInflows'
+import { useMembers } from '../hooks/useMembers'
 
 export function InflowsSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()

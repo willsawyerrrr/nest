@@ -4,8 +4,9 @@ import {
   paySplitNeedsUpdate,
   resolveDestinationAccountId,
   roundCentsUpToStep,
+  type AssignableLine,
+  type RoutableGoal,
 } from './index'
-import type { AssignableLine, RoutableGoal } from './index'
 
 const GOALS: RoutableGoal[] = [
   { id: 'goal-linked', linkedAccountId: 'saver-emergency' },

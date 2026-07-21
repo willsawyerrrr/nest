@@ -1,6 +1,6 @@
 import { financialYearForDate } from '@nest/tax'
-import { useHouseholdUpsertCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
+import { useHouseholdUpsertCollection } from './useCollection'
 
 export type TaxProfile = Tables<'tax_profile'>
 export type TaxResidency = Enums<'tax_residency'>

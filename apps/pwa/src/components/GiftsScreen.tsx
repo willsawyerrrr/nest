@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useDisclosure, useLocalStorage } from '@mantine/hooks'
 import {
   ActionIcon,
   Box,
@@ -13,10 +12,9 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core'
+import { useDisclosure, useLocalStorage } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
-import { BreakdownPageLayout } from './BreakdownPageLayout'
-import { EmptyState } from './EmptyState'
-import { EnumSegmentedControl } from './EnumSelect'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type {
   GiftBudget,
   GiftBudgetInput,
@@ -27,7 +25,7 @@ import type {
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
+import { formatIsoDate } from '../lib/dates'
 import {
   groupGifts,
   overallGiftTotals,
@@ -38,10 +36,12 @@ import {
   type GiftTotals,
 } from '../lib/gifts'
 import { formatCents, moneyColor } from '../lib/money'
-import { formatIsoDate } from '../lib/dates'
+import { BreakdownPageLayout } from './BreakdownPageLayout'
+import { EmptyState } from './EmptyState'
+import { EnumSegmentedControl } from './EnumSelect'
 import { GiftBudgetForm } from './GiftBudgetForm'
-import { GiftPurchaseForm } from './GiftPurchaseForm'
 import { GiftManagement } from './GiftManagement'
+import { GiftPurchaseForm } from './GiftPurchaseForm'
 
 interface GiftsScreenProps {
   /** Where the back link returns to. */

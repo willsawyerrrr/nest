@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { makeSaver as account, makeGoal as goal, makeBudgetLine as line } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { SplitsScreen } from './SplitsScreen'
-import { makeBudgetLine as line, makeGoal as goal, makeSaver as account } from '../test/fixtures'
 
 function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {}) {
   return render(

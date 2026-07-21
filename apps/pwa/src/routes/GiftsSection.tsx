@@ -1,6 +1,6 @@
-import { useGifts } from '../hooks/useGifts'
 import { GiftsScreen } from '../components/GiftsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useGifts } from '../hooks/useGifts'
 
 export function GiftsSection({
   householdId,

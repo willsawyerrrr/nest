@@ -1,3 +1,4 @@
+import { annualCents } from '@nest/plan'
 import {
   annualGrossCents,
   configsByYear,
@@ -11,11 +12,10 @@ import {
   type TaxProfileInput,
   type TaxYearConfig,
 } from '@nest/tax'
-import { annualCents } from '@nest/plan'
 import type { Inflow } from '../hooks/useInflows'
-import type { TaxProfile } from '../hooks/useTaxProfiles'
-import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution } from '../hooks/useSuperContributions'
+import type { SuperProfile } from '../hooks/useSuperProfiles'
+import type { TaxProfile } from '../hooks/useTaxProfiles'
 
 /** The tax engine's income types; any other inflow type is treated as `other`. */
 const TAXABLE_INCOME_TYPES = new Set<IncomeInput['type']>(['salary', 'wage', 'other'])

@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
-import { useHouseholdCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 import type { BudgetGroup } from '../lib/domain'
 import type { BreakdownItem } from './useBreakdownItems'
+import { useHouseholdCollection } from './useCollection'
 
 export type Breakdown = Tables<'breakdown'>
 type BreakdownKind = Enums<'breakdown_kind'>

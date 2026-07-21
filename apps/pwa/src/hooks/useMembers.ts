@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
 import type { Tables } from '../lib/database.types'
+import { supabase } from '../lib/supabase'
 
 export type Member = Tables<'members'>
 

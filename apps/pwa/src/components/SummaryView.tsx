@@ -1,5 +1,5 @@
-import { Card, ColorSwatch, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
 import { DonutChart } from '@mantine/charts'
+import { Card, ColorSwatch, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
 import { formatCents, moneyColor } from '../lib/money'

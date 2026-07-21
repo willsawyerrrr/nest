@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { toSummaryInput } from './summary'
-import type { Inflow } from '../hooks/useInflows'
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { Inflow } from '../hooks/useInflows'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import { toSummaryInput } from './summary'
 
 function inflow(overrides: Partial<Inflow> = {}): Inflow {
   return {

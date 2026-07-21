@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '../test/render'
 import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { OnboardingScreen } from './OnboardingScreen'
 
 describe('OnboardingScreen', () => {

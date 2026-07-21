@@ -9,8 +9,14 @@
  * rather than balances owing.
  */
 
-import { computeTax } from './index'
-import type { Money, Residency, TaxBreakdown, TaxInput, TaxYearConfig } from './index'
+import {
+  computeTax,
+  type Money,
+  type Residency,
+  type TaxBreakdown,
+  type TaxInput,
+  type TaxYearConfig,
+} from './index'
 
 /**
  * How often an income is received. Drives periods-per-year for annualisation.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { summarise } from '@nest/plan'
-import { applyBreakdownAmounts } from './derivedBudget'
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import { applyBreakdownAmounts } from './derivedBudget'
 
 function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
   return {

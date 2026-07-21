@@ -1,5 +1,6 @@
 import { Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core'
 import { fortnightlyCents, projectGoal } from '@nest/plan'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
@@ -144,6 +145,7 @@ function GoalCard({
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
 export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }: GoalListProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
+  const { confirm, modal } = useConfirmDelete()
 
   // Goals with an active linked contribution lead, each partition keeping its original order.
   const funded = goals.filter((goal) => contributionForGoal(goal.id, lines) > 0)
@@ -173,7 +175,13 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
             saver={linkedSaver(goal, savers)}
             contributionCents={contributionForGoal(goal.id, lines)}
             onEdit={() => startEditing(goal.id)}
-            onDelete={() => onDelete(goal.id)}
+            onDelete={() =>
+              confirm({
+                title: 'Delete goal?',
+                itemLabel: goal.name,
+                onConfirm: () => onDelete(goal.id),
+              })
+            }
           />
         ),
       )}
@@ -192,6 +200,8 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
           Add goal
         </Button>
       )}
+
+      {modal}
     </Stack>
   )
 }

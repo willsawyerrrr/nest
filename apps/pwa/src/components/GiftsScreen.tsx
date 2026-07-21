@@ -27,6 +27,7 @@ import type {
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import {
   groupGifts,
   overallGiftTotals,
@@ -171,6 +172,7 @@ function GiftRowCard({
   const [editingBudget, setEditingBudget] = useState(false)
   const [addingPurchase, setAddingPurchase] = useState(false)
   const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null)
+  const { confirm, modal } = useConfirmDelete()
 
   const rowPurchases = purchases.filter((purchase) => purchase.gift_budget_id === row.budgetId)
 
@@ -220,7 +222,13 @@ function GiftRowCard({
                     setAddingPurchase(false)
                     setEditingPurchaseId(purchase.id)
                   }}
-                  onDelete={() => void onDeletePurchase(purchase.id)}
+                  onDelete={() =>
+                    confirm({
+                      title: 'Delete purchase?',
+                      itemLabel: purchase.description || 'Purchase',
+                      onConfirm: () => onDeletePurchase(purchase.id),
+                    })
+                  }
                 />
               ),
             )}
@@ -272,7 +280,15 @@ function GiftRowCard({
                   size="xs"
                   variant="subtle"
                   color="red"
-                  onClick={() => void onDeleteBudget(row.budgetId)}
+                  onClick={() =>
+                    confirm({
+                      title: 'Delete gift budget?',
+                      itemLabel: row.label,
+                      description:
+                        'This also removes every purchase recorded against it. This cannot be undone.',
+                      onConfirm: () => onDeleteBudget(row.budgetId),
+                    })
+                  }
                 >
                   Delete budget
                 </Button>
@@ -281,6 +297,8 @@ function GiftRowCard({
           </Stack>
         </Collapse>
       </Stack>
+
+      {modal}
     </Card>
   )
 }

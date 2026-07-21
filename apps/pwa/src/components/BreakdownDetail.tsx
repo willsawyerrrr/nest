@@ -7,7 +7,6 @@ import {
   Card,
   Collapse,
   Group,
-  Modal,
   Stack,
   Text,
   TextInput,
@@ -15,6 +14,7 @@ import {
 } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { annualCents, fortnightlyCents } from '@nest/plan'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
@@ -55,8 +55,7 @@ function BreakdownSettings({
   const [name, setName] = useState(breakdown.name)
   const [group, setGroup] = useState<BudgetGroup>(breakdown.line_group)
   const [saving, setSaving] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const { confirm, modal } = useConfirmDelete()
 
   const dirty = name.trim() !== breakdown.name || group !== breakdown.line_group
   const canSave = name.trim() !== '' && dirty && !saving
@@ -67,15 +66,6 @@ function BreakdownSettings({
       await onSave({ name: name.trim(), line_group: group })
     } finally {
       setSaving(false)
-    }
-  }
-
-  const confirmDelete = async () => {
-    setDeleting(true)
-    try {
-      await onDelete()
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -100,33 +90,24 @@ function BreakdownSettings({
           <Button onClick={() => void save()} disabled={!canSave}>
             {saving ? 'Saving…' : 'Save changes'}
           </Button>
-          <Button color="red" variant="light" onClick={() => setConfirming(true)}>
+          <Button
+            color="red"
+            variant="light"
+            onClick={() =>
+              confirm({
+                title: 'Delete breakdown?',
+                itemLabel: breakdown.name,
+                description: 'This removes its items and its budget line. This cannot be undone.',
+                onConfirm: onDelete,
+              })
+            }
+          >
             Delete breakdown
           </Button>
         </Group>
       </Stack>
 
-      <Modal
-        opened={confirming}
-        onClose={() => (deleting ? undefined : setConfirming(false))}
-        title="Delete breakdown?"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            Delete <b>{breakdown.name}</b>? This removes its items and its budget line. This cannot
-            be undone.
-          </Text>
-          <Group grow>
-            <Button color="red" onClick={() => void confirmDelete()} loading={deleting}>
-              Delete
-            </Button>
-            <Button variant="default" onClick={() => setConfirming(false)} disabled={deleting}>
-              Cancel
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      {modal}
     </Card>
   )
 }
@@ -195,6 +176,7 @@ export function BreakdownDetail({
 }: BreakdownDetailProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const [editing, { toggle: toggleEditing }] = useDisclosure(false)
+  const { confirm, modal } = useConfirmDelete()
 
   const totalAnnual = items.reduce(
     (total, item) =>
@@ -251,7 +233,13 @@ export function BreakdownDetail({
               key={item.id}
               item={item}
               onEdit={() => startEditing(item.id)}
-              onDelete={() => void onDeleteItem(item.id)}
+              onDelete={() =>
+                confirm({
+                  title: 'Delete item?',
+                  itemLabel: item.name,
+                  onConfirm: () => onDeleteItem(item.id),
+                })
+              }
             />
           ),
         )}
@@ -270,6 +258,8 @@ export function BreakdownDetail({
           </Button>
         )}
       </Stack>
+
+      {modal}
     </BreakdownPageLayout>
   )
 }

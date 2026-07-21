@@ -1,5 +1,6 @@
 import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { isTemporaryActive } from '@nest/plan'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
@@ -67,6 +68,7 @@ export function TemporaryItemList({
   onDelete,
 }: TemporaryItemListProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
+  const { confirm, modal } = useConfirmDelete()
 
   const activeSubtotal = items.reduce(
     (total, item) =>
@@ -97,7 +99,13 @@ export function TemporaryItemList({
             item={item}
             now={now}
             onEdit={() => startEditing(item.id)}
-            onDelete={() => onDelete(item.id)}
+            onDelete={() =>
+              confirm({
+                title: 'Delete temporary line?',
+                itemLabel: item.name,
+                onConfirm: () => onDelete(item.id),
+              })
+            }
           />
         ),
       )}
@@ -115,6 +123,8 @@ export function TemporaryItemList({
           Add Temporary line
         </Button>
       )}
+
+      {modal}
     </GroupSection>
   )
 }

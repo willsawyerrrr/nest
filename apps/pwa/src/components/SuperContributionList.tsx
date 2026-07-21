@@ -1,4 +1,5 @@
 import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
@@ -87,6 +88,7 @@ export function SuperContributionList({
   onDelete,
 }: SuperContributionListProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
+  const { confirm, modal } = useConfirmDelete()
   const memberName = (id: string) =>
     members.find((candidate) => candidate.id === id)?.name ?? 'Unknown'
 
@@ -113,7 +115,13 @@ export function SuperContributionList({
             contribution={contribution}
             memberName={memberName}
             onEdit={() => startEditing(contribution.id)}
-            onDelete={() => onDelete(contribution.id)}
+            onDelete={() =>
+              confirm({
+                title: 'Delete contribution?',
+                itemLabel: kindLabel(contribution.kind),
+                onConfirm: () => onDelete(contribution.id),
+              })
+            }
           />
         ),
       )}
@@ -133,6 +141,8 @@ export function SuperContributionList({
           Add contribution
         </Button>
       )}
+
+      {modal}
     </Stack>
   )
 }

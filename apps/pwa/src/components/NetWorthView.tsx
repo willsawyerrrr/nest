@@ -19,10 +19,11 @@ interface NetWorthViewProps {
 }
 
 /**
- * A labelled group of accounts with per-account balances and a subtotal. When
- * `togglable` and `editing` are both set, each row carries a control to include
- * or exclude the account from net worth; `excluded` selects the direction (and
- * the muted styling of the whole group).
+ * A labelled group of accounts with per-account balances and, when
+ * `subtotalCents` is given, a subtotal. When `togglable` and `editing` are both
+ * set, each row carries a control to include or exclude the account from net
+ * worth; `excluded` selects the direction (and the muted styling of the whole
+ * group).
  */
 function AccountGroup({
   title,
@@ -37,7 +38,7 @@ function AccountGroup({
 }: {
   title: string
   accounts: Account[]
-  subtotalCents: number
+  subtotalCents?: number
   emptyLabel: string
   excluded: boolean
   editing: boolean
@@ -55,7 +56,7 @@ function AccountGroup({
           {title}
         </Title>
       </Group>
-      <Text fw={700}>{formatCents(subtotalCents)}</Text>
+      {subtotalCents !== undefined && <Text fw={700}>{formatCents(subtotalCents)}</Text>}
     </Group>
   )
 
@@ -191,10 +192,6 @@ export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthVi
         <AccountGroup
           title="Excluded from net worth"
           accounts={breakdown.excludedAccounts}
-          subtotalCents={breakdown.excludedAccounts.reduce(
-            (total, account) => total + account.balance_cents,
-            0,
-          )}
           emptyLabel=""
           excluded
           editing={editing}

@@ -75,10 +75,11 @@ describe('NetWorthView', () => {
     )
 
     const excluded = screen.getByRole('region', { name: 'Excluded from net worth' })
-    // The excluded group is collapsed by default; its subtotal shows in the
-    // header, but the accounts are revealed only once expanded.
+    // The excluded group carries no subtotal (its balances are off the total),
+    // and is collapsed by default — accounts appear only once expanded.
     const toggle = within(excluded).getByRole('button', { name: /excluded from net worth/i })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(excluded).queryByText('$5,000.00')).not.toBeInTheDocument()
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(within(excluded).getByText('Rainy day')).toBeInTheDocument()

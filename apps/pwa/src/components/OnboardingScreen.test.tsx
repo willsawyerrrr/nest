@@ -66,6 +66,15 @@ describe('OnboardingScreen', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
   })
 
+  it('ignores a submit while required fields are empty', () => {
+    const onCreate = vi.fn()
+    const { container } = render(<OnboardingScreen onCreate={onCreate} onJoin={vi.fn()} />)
+
+    fireEvent.submit(container.querySelector('form')!)
+
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
   it('shows an error when joining fails', async () => {
     const onJoin = vi.fn().mockRejectedValue(new Error('boom'))
     render(<OnboardingScreen onCreate={vi.fn()} onJoin={onJoin} />)

@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor } from '../test/render'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { SuperContributionForm } from './SuperContributionForm'
 
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
@@ -69,5 +69,45 @@ describe('SuperContributionForm', () => {
         expect.objectContaining({ kind: 'spouse', contributor_member_id: 'm2' }),
       ),
     )
+  })
+
+  it('captures the interval for an every-N-weeks contribution', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/contribution amount/i), '300')
+    await user.click(screen.getByRole('combobox', { name: /frequency/i }))
+    await user.click(await screen.findByRole('option', { name: 'Every N weeks' }))
+    await user.type(screen.getByLabelText(/weeks between contributions/i), '3')
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ frequency: 'every_n_weeks', interval_weeks: 3 }),
+      ),
+    )
+  })
+
+  it('shows an error when saving fails', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/contribution amount/i), '500')
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('ignores a submit while the form is incomplete', () => {
+    const onSubmit = vi.fn()
+    const { container } = render(
+      <SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />,
+    )
+
+    fireEvent.submit(container.querySelector('form')!)
+
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 })

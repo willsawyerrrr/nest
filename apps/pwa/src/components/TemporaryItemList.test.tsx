@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeTemporaryItem } from '../test/fixtures'
-import { render, screen, within } from '../test/render'
+import { render, screen, waitFor, within } from '../test/render'
 import { TemporaryItemList } from './TemporaryItemList'
 
 const items = [
@@ -87,5 +87,64 @@ describe('TemporaryItemList', () => {
 
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/name/i)).toHaveValue('Holiday')
+  })
+
+  it('saves an edited item through the caller', async () => {
+    const user = userEvent.setup()
+    const onUpdate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <TemporaryItemList
+        items={items}
+        now={now}
+        onCreate={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />,
+    )
+    const holiday = screen.getByText('Holiday').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(holiday).getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('t1', expect.objectContaining({})))
+  })
+
+  it('confirms before deleting an item', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    render(
+      <TemporaryItemList
+        items={items}
+        now={now}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+    const holiday = screen.getByText('Holiday').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(holiday).getByRole('button', { name: /delete/i }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }))
+
+    expect(onDelete).toHaveBeenCalledWith('t1')
+  })
+
+  it('adds a new item through the caller', async () => {
+    const user = userEvent.setup()
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <TemporaryItemList items={[]} onCreate={onCreate} onUpdate={vi.fn()} onDelete={vi.fn()} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /add temporary line/i }))
+    await user.type(screen.getByLabelText(/name/i), 'New couch')
+    await user.type(screen.getByLabelText(/contribution/i), '75')
+    await user.click(screen.getByRole('button', { name: /add item/i }))
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'New couch', contribution_cents: 7500 }),
+      ),
+    )
   })
 })

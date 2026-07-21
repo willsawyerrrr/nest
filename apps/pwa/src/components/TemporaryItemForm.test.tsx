@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeTemporaryItem } from '../test/fixtures'
-import { render, screen, waitFor } from '../test/render'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { TemporaryItemForm } from './TemporaryItemForm'
 
 describe('TemporaryItemForm', () => {
@@ -47,5 +47,24 @@ describe('TemporaryItemForm', () => {
     expect(screen.getByLabelText(/contribution/i)).toHaveValue('$120.00')
     expect(screen.getByLabelText(/target date/i)).toHaveValue('3 Aug 2027')
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+  })
+
+  it('shows an error when saving fails', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
+    render(<TemporaryItemForm initial={makeTemporaryItem()} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('ignores a submit while required fields are empty', () => {
+    const onSubmit = vi.fn()
+    const { container } = render(<TemporaryItemForm onSubmit={onSubmit} />)
+
+    fireEvent.submit(container.querySelector('form')!)
+
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 })

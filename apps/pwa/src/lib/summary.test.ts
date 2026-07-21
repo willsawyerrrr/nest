@@ -1,0 +1,142 @@
+import { describe, expect, it } from 'vitest'
+import { toSummaryInput } from './summary'
+import type { Inflow } from '../hooks/useInflows'
+import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { TemporaryItem } from '../hooks/useTemporaryItems'
+
+function inflow(overrides: Partial<Inflow> = {}): Inflow {
+  return {
+    id: 'i1',
+    household_id: 'h',
+    name: 'Inflow',
+    taxable: true,
+    member_id: null,
+    type: 'other',
+    schedule: 'weekly',
+    interval_weeks: null,
+    amount_cents: 100_00,
+    hourly_rate_cents: null,
+    hours_per_period: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
+  return {
+    id: 'l1',
+    household_id: 'h',
+    line_group: 'wants',
+    name: 'Line',
+    amount_cents: 10_00,
+    frequency: 'monthly',
+    interval_weeks: null,
+    goal_id: null,
+    destination_account_id: null,
+    breakdown_id: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+function temporaryItem(overrides: Partial<TemporaryItem> = {}): TemporaryItem {
+  return {
+    id: 't1',
+    household_id: 'h',
+    name: 'Item',
+    contribution_cents: 5_00,
+    target_date: '2030-01-01',
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+describe('toSummaryInput', () => {
+  it('passes the after-tax income through unchanged', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 80_000_00,
+      inflows: [],
+      budgetLines: [],
+      breakdownTotals: new Map(),
+      temporaryItems: [],
+    })
+    expect(result.afterTaxIncomeAnnualCents).toBe(80_000_00)
+  })
+
+  it('keeps only non-taxable inflows, mapping schedule and interval', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [
+        inflow({ id: 'taxable', taxable: true }),
+        inflow({
+          id: 'gift',
+          taxable: false,
+          amount_cents: 40_00,
+          schedule: 'every_n_weeks',
+          interval_weeks: 3,
+        }),
+      ],
+      budgetLines: [],
+      breakdownTotals: new Map(),
+      temporaryItems: [],
+    })
+    expect(result.nonTaxableInflows).toEqual([
+      { amountCents: 40_00, frequency: 'every_n_weeks', intervalWeeks: 3 },
+    ])
+  })
+
+  it('defaults a non-taxable inflow with no amount to zero cents', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [inflow({ taxable: false, amount_cents: null, interval_weeks: null })],
+      budgetLines: [],
+      breakdownTotals: new Map(),
+      temporaryItems: [],
+    })
+    expect(result.nonTaxableInflows[0]).toEqual({
+      amountCents: 0,
+      frequency: 'weekly',
+      intervalWeeks: undefined,
+    })
+  })
+
+  it('substitutes a derived line’s breakdown total as an annual amount', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [],
+      budgetLines: [line({ id: 'd', breakdown_id: 'b1', amount_cents: 0, frequency: 'monthly' })],
+      breakdownTotals: new Map([['b1', 150_00]]),
+      temporaryItems: [],
+    })
+    expect(result.budgetLines).toEqual([
+      { group: 'wants', amountCents: 150_00, frequency: 'annual', intervalWeeks: undefined },
+    ])
+  })
+
+  it('maps a manual budget line untouched', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [],
+      budgetLines: [line({ line_group: 'needs', amount_cents: 42_00, frequency: 'weekly' })],
+      breakdownTotals: new Map(),
+      temporaryItems: [],
+    })
+    expect(result.budgetLines).toEqual([
+      { group: 'needs', amountCents: 42_00, frequency: 'weekly', intervalWeeks: undefined },
+    ])
+  })
+
+  it('maps temporary items to their contribution and target date', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [],
+      budgetLines: [],
+      breakdownTotals: new Map(),
+      temporaryItems: [temporaryItem({ contribution_cents: 25_00, target_date: '2031-06-30' })],
+    })
+    expect(result.temporaryItems).toEqual([{ contributionCents: 25_00, targetDate: '2031-06-30' }])
+  })
+})

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useDisclosure } from '@mantine/hooks'
 import {
   ActionIcon,
   Anchor,
   Badge,
   Button,
   Card,
+  Collapse,
   Group,
   Modal,
   Select,
@@ -192,6 +194,7 @@ export function BreakdownDetail({
 }: BreakdownDetailProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [editing, { toggle: toggleEditing }] = useDisclosure(false)
 
   const totalAnnual = items.reduce(
     (total, item) =>
@@ -209,13 +212,20 @@ export function BreakdownDetail({
         </Group>
       </Anchor>
 
-      <Title order={2}>{breakdown.name}</Title>
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Title order={2}>{breakdown.name}</Title>
+        <Button variant={editing ? 'filled' : 'default'} onClick={toggleEditing}>
+          {editing ? 'Done' : 'Edit'}
+        </Button>
+      </Group>
 
-      <BreakdownSettings
-        breakdown={breakdown}
-        onSave={onUpdateBreakdown}
-        onDelete={onDeleteBreakdown}
-      />
+      <Collapse expanded={editing}>
+        <BreakdownSettings
+          breakdown={breakdown}
+          onSave={onUpdateBreakdown}
+          onDelete={onDeleteBreakdown}
+        />
+      </Collapse>
 
       <Stack gap="sm">
         <Group justify="space-between" align="baseline" wrap="nowrap">

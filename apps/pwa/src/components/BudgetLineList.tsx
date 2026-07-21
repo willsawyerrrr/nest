@@ -19,6 +19,7 @@ import { IconChevronRight, IconPencil } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { BudgetGroup } from '../lib/domain'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useSortPreference } from '../hooks/useSortPreference'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
@@ -335,6 +336,7 @@ export function BudgetLineList({
     startEditing,
     close: closeForms,
   } = useInlineEditing<AddContext>()
+  const { confirm, modal } = useConfirmDelete()
   const addingItem = adding?.kind === 'item'
   const addingGroup = adding?.kind === 'group' ? adding.group : null
   const [query, setQuery] = useState('')
@@ -483,7 +485,13 @@ export function BudgetLineList({
                   line={line}
                   route={resolveRoute(line, goals, accountNames)}
                   onEdit={() => startEditing(line.id)}
-                  onDelete={() => onDelete(line.id)}
+                  onDelete={() =>
+                    confirm({
+                      title: 'Delete budget line?',
+                      itemLabel: line.name,
+                      onConfirm: () => onDelete(line.id),
+                    })
+                  }
                 />
               )
             })}
@@ -508,6 +516,8 @@ export function BudgetLineList({
           </GroupSection>
         )
       })}
+
+      {modal}
     </Stack>
   )
 }

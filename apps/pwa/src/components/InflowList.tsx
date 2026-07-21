@@ -2,6 +2,7 @@ import { useMediaQuery } from '@mantine/hooks'
 import { Badge, Box, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
@@ -168,6 +169,7 @@ function InflowItem(props: {
 /** The household's inflows with an add affordance and inline add/edit forms. */
 export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: InflowListProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
+  const { confirm, modal } = useConfirmDelete()
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   return (
@@ -193,7 +195,13 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
               inflow={inflow}
               memberName={memberName}
               onEdit={() => startEditing(inflow.id)}
-              onDelete={() => onDelete(inflow.id)}
+              onDelete={() =>
+                confirm({
+                  title: 'Delete inflow?',
+                  itemLabel: inflow.name,
+                  onConfirm: () => onDelete(inflow.id),
+                })
+              }
             />
           ),
         )
@@ -213,6 +221,8 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
           Add inflow
         </Button>
       )}
+
+      {modal}
     </Stack>
   )
 }

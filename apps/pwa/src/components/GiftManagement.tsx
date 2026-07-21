@@ -1,15 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import {
-  ActionIcon,
-  Button,
-  Card,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core'
+import { ActionIcon, Button, Card, Group, Stack, Text, TextInput, Title } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import type {
@@ -18,6 +8,7 @@ import type {
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { formatIsoDate } from '../lib/dates'
 import { EmptyState } from './EmptyState'
 
@@ -32,11 +23,9 @@ interface GiftManagementProps {
   onDeleteOccasion: (id: string) => Promise<void>
 }
 
-/** A queued delete awaiting confirmation, carrying the cascade warning to show. */
-interface PendingDelete {
-  label: string
-  onConfirm: () => Promise<void>
-}
+/** The cascade warning shared by a recipient's and an occasion's delete confirmation. */
+const CASCADE_WARNING =
+  'This also removes its gift budgets and every purchase recorded against them. This cannot be undone.'
 
 /** Add/edit form for a recipient (a name) or an occasion (a name and optional date). */
 function GiftEntityForm({
@@ -174,21 +163,7 @@ export function GiftManagement({
   const [addingRecipient, setAddingRecipient] = useState(false)
   const [editingOccasionId, setEditingOccasionId] = useState<string | null>(null)
   const [addingOccasion, setAddingOccasion] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
-  const [deleting, setDeleting] = useState(false)
-
-  const confirmDelete = async () => {
-    if (!pendingDelete) {
-      return
-    }
-    setDeleting(true)
-    try {
-      await pendingDelete.onConfirm()
-      setPendingDelete(null)
-    } finally {
-      setDeleting(false)
-    }
-  }
+  const { confirm, modal } = useConfirmDelete()
 
   return (
     <Stack gap="lg">
@@ -216,8 +191,10 @@ export function GiftManagement({
                 setEditingRecipientId(recipient.id)
               }}
               onDelete={() =>
-                setPendingDelete({
-                  label: recipient.name,
+                confirm({
+                  title: 'Delete recipient?',
+                  itemLabel: recipient.name,
+                  description: CASCADE_WARNING,
                   onConfirm: () => onDeleteRecipient(recipient.id),
                 })
               }
@@ -273,8 +250,10 @@ export function GiftManagement({
                 setEditingOccasionId(occasion.id)
               }}
               onDelete={() =>
-                setPendingDelete({
-                  label: occasion.name,
+                confirm({
+                  title: 'Delete occasion?',
+                  itemLabel: occasion.name,
+                  description: CASCADE_WARNING,
                   onConfirm: () => onDeleteOccasion(occasion.id),
                 })
               }
@@ -304,27 +283,7 @@ export function GiftManagement({
         )}
       </Stack>
 
-      <Modal
-        opened={pendingDelete !== null}
-        onClose={() => (deleting ? undefined : setPendingDelete(null))}
-        title="Delete?"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            Delete <b>{pendingDelete?.label}</b>? This also removes its gift budgets and every
-            purchase recorded against them. This cannot be undone.
-          </Text>
-          <Group grow>
-            <Button color="red" onClick={() => void confirmDelete()} loading={deleting}>
-              Delete
-            </Button>
-            <Button variant="default" onClick={() => setPendingDelete(null)} disabled={deleting}>
-              Cancel
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      {modal}
     </Stack>
   )
 }

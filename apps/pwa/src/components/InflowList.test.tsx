@@ -172,11 +172,12 @@ describe('InflowList', () => {
     expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
   })
 
-  it('invokes the delete callback', async () => {
+  it('invokes the delete callback after confirming', async () => {
     const user = userEvent.setup()
     const { onDelete } = renderList([salary])
 
     await user.click(screen.getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i }))
     expect(onDelete).toHaveBeenCalledWith('i1')
   })
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
@@ -22,14 +22,15 @@ import { useGifts } from './hooks/useGifts'
 import { useBreakdowns } from './hooks/useBreakdowns'
 import { useBreakdownItems } from './hooks/useBreakdownItems'
 import type { Breakdown } from './hooks/useBreakdowns'
-import type { Member } from './hooks/useMembers'
 import { useUpConnection } from './hooks/useUpConnection'
 import { useRefreshSavers } from './hooks/useRefreshSavers'
+import { useReconcileBreakdownLines } from './hooks/useReconcileBreakdownLines'
+import { useDerivedLineEditor } from './hooks/useDerivedLineEditor'
+import { useSaveSuperProfile } from './hooks/useSaveSuperProfile'
 import { useChangelog } from './hooks/useChangelog'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
-import type { DerivedLineValues } from './components/DerivedBudgetLineForm'
 import { SplitsScreen } from './components/SplitsScreen'
 import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
@@ -47,16 +48,11 @@ import {
   netAnnualSuperContributionFromRows,
   superCapSummaryFromRows,
 } from './lib/tax'
-import { accountsWithEffectiveSuperBalances, superAccountIds, superAccountName } from './lib/super'
-import { todayIso } from './lib/dates'
+import { accountsWithEffectiveSuperBalances, superAccountIds } from './lib/super'
 import { giftBudgetTotalCents } from './lib/gifts'
 import { applyBreakdownAmounts } from './lib/derivedBudget'
-import {
-  breakdownAnnualTotals,
-  breakdownItemCounts,
-  reconcileBreakdownLines,
-} from './lib/breakdowns'
-import type { SuperFormValues } from './components/SuperProfileForm'
+import { breakdownAnnualTotals, breakdownItemCounts } from './lib/breakdowns'
+import { toSummaryInput } from './lib/summary'
 import './App.css'
 
 function LoadingScreen() {
@@ -277,67 +273,22 @@ function BudgetSection({ householdId }: { householdId: string }) {
     [breakdownRows, breakdownItems, giftBudgets.length],
   )
 
-  // The derived-line lifecycle is app-enforced: as breakdown items come and go,
-  // bring each breakdown's owned budget line into being, up to date, or away.
-  const lines = budgetLines.lines
-  const dataLoaded = !budgetLines.loading && !breakdowns.loading && !gifts.loading
-  const createLine = budgetLines.create
-  const updateLine = budgetLines.update
-  const removeLine = budgetLines.remove
-  const reconcilingRef = useRef(false)
-  useEffect(() => {
-    if (!lines || !dataLoaded || reconcilingRef.current) {
-      return
-    }
-    const ops = reconcileBreakdownLines(breakdownRows, totals, counts, lines)
-    if (ops.create.length === 0 && ops.update.length === 0 && ops.remove.length === 0) {
-      return
-    }
-    reconcilingRef.current = true
-    void (async () => {
-      try {
-        for (const input of ops.create) {
-          await createLine(input)
-        }
-        for (const { id, input } of ops.update) {
-          await updateLine(id, input)
-        }
-        for (const id of ops.remove) {
-          await removeLine(id)
-        }
-      } finally {
-        reconcilingRef.current = false
-      }
-    })()
-  }, [lines, dataLoaded, breakdownRows, totals, counts, createLine, updateLine, removeLine])
+  useReconcileBreakdownLines({
+    lines: budgetLines.lines,
+    dataLoaded: !budgetLines.loading && !breakdowns.loading && !gifts.loading,
+    breakdowns: breakdownRows,
+    totals,
+    counts,
+    createLine: budgetLines.create,
+    updateLine: budgetLines.update,
+    removeLine: budgetLines.remove,
+  })
 
-  // Editing a derived line fans out: its name and group belong to the owning
-  // breakdown (reconcile copies them back onto the line), its funding account to
-  // the line itself. The amount stays owned by the breakdown's items.
-  const updateBreakdown = breakdowns.update
-  const handleUpdateDerivedLine = useCallback(
-    async (lineId: string, values: DerivedLineValues) => {
-      const line = (lines ?? []).find((candidate) => candidate.id === lineId)
-      if (!line?.breakdown_id) {
-        return
-      }
-      await updateBreakdown(line.breakdown_id, {
-        name: values.name,
-        line_group: values.line_group,
-      })
-      await updateLine(lineId, {
-        line_group: values.line_group,
-        name: values.name,
-        amount_cents: line.amount_cents,
-        frequency: line.frequency,
-        interval_weeks: line.interval_weeks,
-        goal_id: line.goal_id,
-        breakdown_id: line.breakdown_id,
-        destination_account_id: values.destination_account_id,
-      })
-    },
-    [lines, updateBreakdown, updateLine],
-  )
+  const handleUpdateDerivedLine = useDerivedLineEditor({
+    lines: budgetLines.lines,
+    updateBreakdown: breakdowns.update,
+    updateLine: budgetLines.update,
+  })
 
   if (
     budgetLines.loading ||
@@ -483,40 +434,14 @@ function SuperSection({ householdId }: { householdId: string }) {
   const contributions = useSuperContributions(householdId)
   const inflows = useInflows(householdId)
 
-  const upsertProfile = superProfiles.upsert
-  const insertAccount = accounts.insert
-  const updateAccount = accounts.update
   const profileRows = superProfiles.profiles
 
-  // Persist a member's super: write the balance to their linked account (or
-  // create a manual one and link it), then upsert the profile's fund name.
-  const onSave = useCallback(
-    async (member: Member, values: SuperFormValues) => {
-      const profile = profileRows?.find((candidate) => candidate.member_id === member.id)
-      const fundName = values.fundName === '' ? null : values.fundName
-      const name = superAccountName(fundName, member.name)
-      let accountId = profile?.linked_account_id ?? null
-      if (accountId) {
-        await updateAccount(accountId, { balance_cents: values.balanceCents, name })
-      } else {
-        accountId = await insertAccount({
-          source: 'manual',
-          type: 'savings',
-          owner_member_id: member.id,
-          name,
-          balance_cents: values.balanceCents,
-        })
-      }
-      await upsertProfile({
-        member_id: member.id,
-        fund_name: fundName,
-        linked_account_id: accountId,
-        // Saving re-confirms the actual balance, so this is a true-up as of today.
-        balance_as_of: todayIso(),
-      })
-    },
-    [profileRows, insertAccount, updateAccount, upsertProfile],
-  )
+  const onSave = useSaveSuperProfile({
+    profiles: profileRows,
+    insertAccount: accounts.insert,
+    updateAccount: accounts.update,
+    upsertProfile: superProfiles.upsert,
+  })
 
   if (
     membersLoading ||
@@ -779,26 +704,13 @@ function SummarySection({ householdId }: { householdId: string }) {
     contributions.contributions ?? [],
   )
   const summary = summarise(
-    {
+    toSummaryInput({
       afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents,
-      nonTaxableInflows: (inflows.inflows ?? [])
-        .filter((inflow) => !inflow.taxable)
-        .map((inflow) => ({
-          amountCents: inflow.amount_cents ?? 0,
-          frequency: inflow.schedule,
-          intervalWeeks: inflow.interval_weeks ?? undefined,
-        })),
-      budgetLines: applyBreakdownAmounts(budgetLines.lines ?? [], totals).map((line) => ({
-        group: line.line_group,
-        amountCents: line.amount_cents,
-        frequency: line.frequency,
-        intervalWeeks: line.interval_weeks ?? undefined,
-      })),
-      temporaryItems: (temporaryItems.items ?? []).map((item) => ({
-        contributionCents: item.contribution_cents,
-        targetDate: item.target_date,
-      })),
-    },
+      inflows: inflows.inflows ?? [],
+      budgetLines: budgetLines.lines ?? [],
+      breakdownTotals: totals,
+      temporaryItems: temporaryItems.items ?? [],
+    }),
     new Date(),
   )
 

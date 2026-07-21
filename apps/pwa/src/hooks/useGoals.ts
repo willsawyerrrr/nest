@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
 
 export type Goal = Tables<'savings_goal'>
@@ -24,54 +23,9 @@ export interface UseGoalsResult {
 
 /** Loads and mutates the household's savings goals. RLS scopes reads to the household. */
 export function useGoals(householdId: string): UseGoalsResult {
-  const [goals, setGoals] = useState<Goal[] | null>(null)
-
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase.from('savings_goal').select('*').order('name')
-    if (error) {
-      throw error
-    }
-    setGoals(data)
-  }, [])
-
-  const create = useCallback(
-    async (input: GoalInput) => {
-      const { error } = await supabase
-        .from('savings_goal')
-        .insert({ ...input, household_id: householdId })
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [householdId, reload],
-  )
-
-  const update = useCallback(
-    async (id: string, input: GoalInput) => {
-      const { error } = await supabase.from('savings_goal').update(input).eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  const remove = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.from('savings_goal').delete().eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { goals, loading: goals === null, reload, create, update, remove }
+  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+    'savings_goal',
+    GoalInput
+  >(householdId, { table: 'savings_goal', orderBy: 'name' })
+  return { goals: rows, loading, reload, create, update, remove }
 }

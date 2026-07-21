@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 
@@ -31,54 +30,9 @@ export interface UseBudgetLinesResult {
 
 /** Loads and mutates the household's budget lines. RLS scopes reads to the household. */
 export function useBudgetLines(householdId: string): UseBudgetLinesResult {
-  const [lines, setLines] = useState<BudgetLine[] | null>(null)
-
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase.from('budget_line').select('*').order('name')
-    if (error) {
-      throw error
-    }
-    setLines(data)
-  }, [])
-
-  const create = useCallback(
-    async (input: BudgetLineInput) => {
-      const { error } = await supabase
-        .from('budget_line')
-        .insert({ ...input, household_id: householdId })
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [householdId, reload],
-  )
-
-  const update = useCallback(
-    async (id: string, input: BudgetLineInput) => {
-      const { error } = await supabase.from('budget_line').update(input).eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  const remove = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.from('budget_line').delete().eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { lines, loading: lines === null, reload, create, update, remove }
+  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+    'budget_line',
+    BudgetLineInput
+  >(householdId, { table: 'budget_line', orderBy: 'name' })
+  return { lines: rows, loading, reload, create, update, remove }
 }

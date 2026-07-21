@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useCallback } from 'react'
+import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
 
 export type GiftRecipient = Tables<'gift_recipient'>
@@ -61,155 +61,148 @@ export interface UseGiftsResult {
  * set so derived rollups stay in step (deletes cascade in the database).
  */
 export function useGifts(householdId: string): UseGiftsResult {
-  const [recipients, setRecipients] = useState<GiftRecipient[] | null>(null)
-  const [occasions, setOccasions] = useState<GiftOccasion[] | null>(null)
-  const [budgets, setBudgets] = useState<GiftBudget[] | null>(null)
-  const [purchases, setPurchases] = useState<GiftPurchase[] | null>(null)
+  const {
+    rows: recipientRows,
+    reload: reloadRecipients,
+    create: createRecipientRow,
+    update: updateRecipientRow,
+    remove: removeRecipientRow,
+  } = useHouseholdCollection<'gift_recipient', GiftRecipientInput>(householdId, {
+    table: 'gift_recipient',
+    orderBy: 'name',
+  })
+  const {
+    rows: occasionRows,
+    reload: reloadOccasions,
+    create: createOccasionRow,
+    update: updateOccasionRow,
+    remove: removeOccasionRow,
+  } = useHouseholdCollection<'gift_occasion', GiftOccasionInput>(householdId, {
+    table: 'gift_occasion',
+    orderBy: ['occasion_date', 'name'],
+  })
+  const {
+    rows: budgetRows,
+    reload: reloadBudgets,
+    create: createBudgetRow,
+    update: updateBudgetRow,
+    remove: removeBudgetRow,
+  } = useHouseholdCollection<'gift_budget', GiftBudgetInput>(householdId, {
+    table: 'gift_budget',
+  })
+  const {
+    rows: purchaseRows,
+    reload: reloadPurchases,
+    create: createPurchaseRow,
+    update: updatePurchaseRow,
+    remove: removePurchaseRow,
+  } = useHouseholdCollection<'gift_purchase', GiftPurchaseInput>(householdId, {
+    table: 'gift_purchase',
+    orderBy: 'purchased_on',
+  })
 
   const reload = useCallback(async () => {
-    const [recipientRes, occasionRes, budgetRes, purchaseRes] = await Promise.all([
-      supabase.from('gift_recipient').select('*').order('name'),
-      supabase.from('gift_occasion').select('*').order('occasion_date').order('name'),
-      supabase.from('gift_budget').select('*'),
-      supabase.from('gift_purchase').select('*').order('purchased_on'),
-    ])
-    for (const res of [recipientRes, occasionRes, budgetRes, purchaseRes]) {
-      if (res.error) {
-        throw res.error
-      }
-    }
-    setRecipients(recipientRes.data)
-    setOccasions(occasionRes.data)
-    setBudgets(budgetRes.data)
-    setPurchases(purchaseRes.data)
-  }, [])
+    await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets(), reloadPurchases()])
+  }, [reloadRecipients, reloadOccasions, reloadBudgets, reloadPurchases])
 
   const createRecipient = useCallback(
     async (input: GiftRecipientInput) => {
-      const { error } = await supabase
-        .from('gift_recipient')
-        .insert({ ...input, household_id: householdId })
-      if (error) throw error
-      await reload()
+      await createRecipientRow(input)
+      await Promise.all([reloadOccasions(), reloadBudgets(), reloadPurchases()])
     },
-    [householdId, reload],
+    [createRecipientRow, reloadOccasions, reloadBudgets, reloadPurchases],
   )
-
   const updateRecipient = useCallback(
     async (id: string, input: GiftRecipientInput) => {
-      const { error } = await supabase.from('gift_recipient').update(input).eq('id', id)
-      if (error) throw error
-      await reload()
+      await updateRecipientRow(id, input)
+      await Promise.all([reloadOccasions(), reloadBudgets(), reloadPurchases()])
     },
-    [reload],
+    [updateRecipientRow, reloadOccasions, reloadBudgets, reloadPurchases],
   )
-
   const removeRecipient = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('gift_recipient').delete().eq('id', id)
-      if (error) throw error
-      await reload()
+      await removeRecipientRow(id)
+      await Promise.all([reloadOccasions(), reloadBudgets(), reloadPurchases()])
     },
-    [reload],
+    [removeRecipientRow, reloadOccasions, reloadBudgets, reloadPurchases],
   )
 
   const createOccasion = useCallback(
     async (input: GiftOccasionInput) => {
-      const { error } = await supabase
-        .from('gift_occasion')
-        .insert({ ...input, household_id: householdId })
-      if (error) throw error
-      await reload()
+      await createOccasionRow(input)
+      await Promise.all([reloadRecipients(), reloadBudgets(), reloadPurchases()])
     },
-    [householdId, reload],
+    [createOccasionRow, reloadRecipients, reloadBudgets, reloadPurchases],
   )
-
   const updateOccasion = useCallback(
     async (id: string, input: GiftOccasionInput) => {
-      const { error } = await supabase.from('gift_occasion').update(input).eq('id', id)
-      if (error) throw error
-      await reload()
+      await updateOccasionRow(id, input)
+      await Promise.all([reloadRecipients(), reloadBudgets(), reloadPurchases()])
     },
-    [reload],
+    [updateOccasionRow, reloadRecipients, reloadBudgets, reloadPurchases],
   )
-
   const removeOccasion = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('gift_occasion').delete().eq('id', id)
-      if (error) throw error
-      await reload()
+      await removeOccasionRow(id)
+      await Promise.all([reloadRecipients(), reloadBudgets(), reloadPurchases()])
     },
-    [reload],
+    [removeOccasionRow, reloadRecipients, reloadBudgets, reloadPurchases],
   )
 
   const createBudget = useCallback(
     async (input: GiftBudgetInput) => {
-      const { error } = await supabase
-        .from('gift_budget')
-        .insert({ ...input, household_id: householdId })
-      if (error) throw error
-      await reload()
+      await createBudgetRow(input)
+      await Promise.all([reloadRecipients(), reloadOccasions(), reloadPurchases()])
     },
-    [householdId, reload],
+    [createBudgetRow, reloadRecipients, reloadOccasions, reloadPurchases],
   )
-
   const updateBudget = useCallback(
     async (id: string, input: GiftBudgetInput) => {
-      const { error } = await supabase.from('gift_budget').update(input).eq('id', id)
-      if (error) throw error
-      await reload()
+      await updateBudgetRow(id, input)
+      await Promise.all([reloadRecipients(), reloadOccasions(), reloadPurchases()])
     },
-    [reload],
+    [updateBudgetRow, reloadRecipients, reloadOccasions, reloadPurchases],
   )
-
   const removeBudget = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('gift_budget').delete().eq('id', id)
-      if (error) throw error
-      await reload()
+      await removeBudgetRow(id)
+      await Promise.all([reloadRecipients(), reloadOccasions(), reloadPurchases()])
     },
-    [reload],
+    [removeBudgetRow, reloadRecipients, reloadOccasions, reloadPurchases],
   )
 
   const createPurchase = useCallback(
     async (input: GiftPurchaseInput) => {
-      const { error } = await supabase
-        .from('gift_purchase')
-        .insert({ ...input, household_id: householdId })
-      if (error) throw error
-      await reload()
+      await createPurchaseRow(input)
+      await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets()])
     },
-    [householdId, reload],
+    [createPurchaseRow, reloadRecipients, reloadOccasions, reloadBudgets],
   )
-
   const updatePurchase = useCallback(
     async (id: string, input: GiftPurchaseInput) => {
-      const { error } = await supabase.from('gift_purchase').update(input).eq('id', id)
-      if (error) throw error
-      await reload()
+      await updatePurchaseRow(id, input)
+      await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets()])
     },
-    [reload],
+    [updatePurchaseRow, reloadRecipients, reloadOccasions, reloadBudgets],
   )
-
   const removePurchase = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('gift_purchase').delete().eq('id', id)
-      if (error) throw error
-      await reload()
+      await removePurchaseRow(id)
+      await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets()])
     },
-    [reload],
+    [removePurchaseRow, reloadRecipients, reloadOccasions, reloadBudgets],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
   return {
-    recipients,
-    occasions,
-    budgets,
-    purchases,
-    loading: recipients === null || occasions === null || budgets === null || purchases === null,
+    recipients: recipientRows,
+    occasions: occasionRows,
+    budgets: budgetRows,
+    purchases: purchaseRows,
+    loading:
+      recipientRows === null ||
+      occasionRows === null ||
+      budgetRows === null ||
+      purchaseRows === null,
     reload,
     createRecipient,
     updateRecipient,

@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
 import { financialYearForDate } from '@nest/tax'
-import { supabase } from '../lib/supabase'
+import { useHouseholdCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 import type { Frequency } from '../lib/domain'
 
@@ -41,65 +40,13 @@ export interface UseSuperContributionsResult {
  */
 export function useSuperContributions(householdId: string): UseSuperContributionsResult {
   const financialYear = financialYearForDate(new Date())
-  const [contributions, setContributions] = useState<SuperContribution[] | null>(null)
-
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('super_contribution')
-      .select('*')
-      .eq('financial_year', financialYear)
-    if (error) {
-      throw error
-    }
-    setContributions(data)
-  }, [financialYear])
-
-  const create = useCallback(
-    async (input: SuperContributionInput) => {
-      const { error } = await supabase
-        .from('super_contribution')
-        .insert({ ...input, household_id: householdId, financial_year: financialYear })
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [householdId, financialYear, reload],
-  )
-
-  const update = useCallback(
-    async (id: string, input: SuperContributionInput) => {
-      const { error } = await supabase.from('super_contribution').update(input).eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  const remove = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.from('super_contribution').delete().eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return {
-    contributions,
-    financialYear,
-    loading: contributions === null,
-    reload,
-    create,
-    update,
-    remove,
-  }
+  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+    'super_contribution',
+    SuperContributionInput
+  >(householdId, {
+    table: 'super_contribution',
+    match: { financial_year: financialYear },
+    insertDefaults: { financial_year: financialYear },
+  })
+  return { contributions: rows, financialYear, loading, reload, create, update, remove }
 }

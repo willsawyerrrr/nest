@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
 import { financialYearForDate } from '@nest/tax'
-import { supabase } from '../lib/supabase'
+import { useHouseholdUpsertCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 
 export type TaxProfile = Tables<'tax_profile'>
@@ -28,38 +27,14 @@ export interface UseTaxProfilesResult {
  */
 export function useTaxProfiles(householdId: string): UseTaxProfilesResult {
   const financialYear = financialYearForDate(new Date())
-  const [profiles, setProfiles] = useState<TaxProfile[] | null>(null)
-
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('tax_profile')
-      .select('*')
-      .eq('financial_year', financialYear)
-    if (error) {
-      throw error
-    }
-    setProfiles(data)
-  }, [financialYear])
-
-  const upsert = useCallback(
-    async (input: TaxProfileInput) => {
-      const { error } = await supabase
-        .from('tax_profile')
-        .upsert(
-          { ...input, household_id: householdId, financial_year: financialYear },
-          { onConflict: 'member_id,financial_year' },
-        )
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [householdId, financialYear, reload],
-  )
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { profiles, financialYear, loading: profiles === null, reload, upsert }
+  const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
+    'tax_profile',
+    TaxProfileInput
+  >(householdId, {
+    table: 'tax_profile',
+    match: { financial_year: financialYear },
+    insertDefaults: { financial_year: financialYear },
+    onConflict: 'member_id,financial_year',
+  })
+  return { profiles: rows, financialYear, loading, reload, upsert }
 }

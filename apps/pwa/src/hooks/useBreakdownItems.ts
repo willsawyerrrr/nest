@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
 import type { Frequency } from '../lib/domain'
 
@@ -28,58 +27,14 @@ export function useBreakdownItems(
   householdId: string,
   breakdownId: string,
 ): UseBreakdownItemsResult {
-  const [items, setItems] = useState<BreakdownItem[] | null>(null)
-
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('breakdown_item')
-      .select('*')
-      .eq('breakdown_id', breakdownId)
-      .order('name')
-    if (error) {
-      throw error
-    }
-    setItems(data)
-  }, [breakdownId])
-
-  const create = useCallback(
-    async (input: BreakdownItemInput) => {
-      const { error } = await supabase
-        .from('breakdown_item')
-        .insert({ ...input, breakdown_id: breakdownId, household_id: householdId })
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [breakdownId, householdId, reload],
-  )
-
-  const update = useCallback(
-    async (id: string, input: BreakdownItemInput) => {
-      const { error } = await supabase.from('breakdown_item').update(input).eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  const remove = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.from('breakdown_item').delete().eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { items, loading: items === null, reload, create, update, remove }
+  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+    'breakdown_item',
+    BreakdownItemInput
+  >(householdId, {
+    table: 'breakdown_item',
+    orderBy: 'name',
+    match: { breakdown_id: breakdownId },
+    insertDefaults: { breakdown_id: breakdownId },
+  })
+  return { items: rows, loading, reload, create, update, remove }
 }

@@ -175,17 +175,17 @@ runner so wall-clock is the slowest single job, plus a `ci-status` aggregate:
 
 - **check** — lint / format / typecheck / build. The long pole (~50–59s);
   watch it, since it is what keeps overall CI near the one-minute budget.
-- **test** — the Vitest workspace, sharded across four parallel runners with V8
+- **test** — the Vitest workspace, sharded across six parallel runners with V8
   coverage. A `test-shard` matrix job runs
-  `vitest run --shard=N/4 --coverage --reporter=blob` on four runners (each
-  covering a quarter of the files, the union running every test) and uploads its
-  blob report as an artifact; a `test` job downloads all four, merges them with
+  `vitest run --shard=N/6 --coverage --reporter=blob` on six runners (each
+  covering a sixth of the files, the union running every test) and uploads its
+  blob report as an artifact; a `test` job downloads all six, merges them with
   `vitest run --merge-reports --coverage`, and fails if a package drops below its
   threshold: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at
   100% statements / functions / lines with a branch floor (currently 93). The
   thresholds evaluate over the merged coverage of the whole suite; a shard sets
   `VITEST_SKIP_COVERAGE_THRESHOLDS` so its partial coverage does not fail the
-  check. The `test` job `needs` the shards so it stays green only when all four
+  check. The `test` job `needs` the shards so it stays green only when all six
   pass and the required-check name is preserved.
 - **rls** — Postgres 17 service; applies the auth shim, every migration in
   order, then `supabase/tests/rls/` isolation assertions (~22s).
@@ -195,7 +195,7 @@ runner so wall-clock is the slowest single job, plus a `ci-status` aggregate:
 
 The `ci-status` job `needs` all four and is the single required status check.
 Branch-protection ruleset "Protect main" requires **CI Status**; squash-only, no
-bypass. Keep CI under a minute; the next lever if `test` creeps up is a fifth
+bypass. Keep CI under a minute; the next lever if `test` creeps up is a seventh
 shard, and `check` is the job to profile first.
 
 Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports via
@@ -386,6 +386,6 @@ Details: [`DATA_MODEL.md`](DATA_MODEL.md),
 - **Net worth beyond super** — the Net worth tab totals accounts (assets only);
   liabilities are not yet modelled.
 - **CI watch** — `check` (~50–59s) is the long pole near the one-minute budget;
-  profile it first if CI creeps up, then consider a fifth `test` shard.
+  profile it first if CI creeps up, then consider a seventh `test` shard.
 - **Supabase Management-API token** — rotate when done; keep the GitHub secret
   and `~/.config/claude/supabase_pat` in sync.

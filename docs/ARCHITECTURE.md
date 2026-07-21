@@ -123,7 +123,7 @@ is CRUD over RLS.
 - CI runs parallel jobs (`check`, `test`, `rls`, `functions`), aggregated by a
   `ci-status` job that is the single required `CI Status` check. The tax
   and plan packages are unit-tested under Vitest; the edge functions have their own
-  Deno harness. The `test` job runs the suite sharded across four runners with V8
+  Deno harness. The `test` job runs the suite sharded across six runners with V8
   coverage, then merges the shards' blob reports to gate the suite — `@nest/plan`
   and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
   statements/functions/lines with a branch floor (currently 93). See

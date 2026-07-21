@@ -136,7 +136,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
   jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite,
-  sharded across four runners with V8 coverage, whose blob reports are merged via
+  sharded across six runners with V8 coverage, whose blob reports are merged via
   `--merge-reports` to gate coverage: `@nest/plan` and `@nest/tax` at 100% on
   every metric, `apps/pwa` at 100% statements/functions/lines with a branch floor,
   currently 93), `rls` (RLS isolation on a Postgres service), and `functions`

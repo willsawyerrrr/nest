@@ -65,7 +65,7 @@ transaction ingestion: reconciling spend and actual tax paid against the plan.
   factory, so tab switches render cached data and background-revalidate.
 - CI split into parallel `check` / `test` / `rls` / `functions` jobs behind a
   `ci-status` aggregate (the single required `CI Status` check; under a minute).
-  The `test` job shards the suite across four runners with V8 coverage and merges
+  The `test` job shards the suite across six runners with V8 coverage and merges
   the shards' blob reports to gate coverage — `@nest/plan` and `@nest/tax` at 100%
   on every metric, `apps/pwa` at 100% statements/functions/lines with a branch
   floor (currently 93). Prettier sorts imports and an oxlint `max-lines` cap (500)

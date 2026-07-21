@@ -106,6 +106,33 @@ against) that stored amount and offers a Confirm to re-record it.
 
 Details: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+## Frontend architecture
+
+`App.tsx` is a thin three-layer shell: an auth gate (`App` — holds the Supabase
+session, renders `LoadingScreen` while loading, then `SignInScreen` or the authed
+app), an onboarding branch (`AuthedApp` — `useHousehold`, renders `OnboardingScreen`
+when the caller has no household), and the routed shell (`HouseholdApp` — `<Routes>`
+plus the `TabBar`). Each tab's container is a `routes/*Section.tsx` component
+(`SummarySection`, `BudgetSection`, `BreakdownDetailSection`, …) rendered per route.
+
+Server state flows through TanStack Query (`@tanstack/react-query`): `main.tsx` wraps
+the app in a `QueryClientProvider` (30s `staleTime`), so a tab switch renders cached
+data and background-revalidates. Collection hooks are built on one factory,
+`hooks/useCollection.ts` — `useHouseholdCollection` (rows + `create` / `update` /
+`remove`) and its `useHouseholdUpsertCollection` variant — keyed by table +
+`household_id`, so hooks reading the same table share a cache entry and a write
+invalidates it. `useInflows`, `useBudgetLines`, `useGoals`, `useBreakdowns`,
+`useBreakdownItems`, `useGifts`, `useTemporaryItems`, `useSuperContributions`,
+`useTaxProfiles`, and `useSuperProfiles` are all built on it.
+
+Shared building blocks keep the screens uniform: `BreakdownPageLayout`,
+`ConfirmDeleteModal` (+ `useConfirmDelete`), `EmptyState`, `FortnightlyAmount`,
+`EditDeleteActions`, `EnumSelect` / `EnumSegmentedControl`, `useInlineEditing`, and
+`useSortPreference`. Canonical domain types (`Frequency`, `BudgetGroup`) live in
+`lib/domain.ts`, tied to the generated DB enums; the shared `FREQUENCY_OPTIONS`
+(`lib/frequency.ts`) and the `formatPerFortnight` / `formatPerYear` money helpers
+(`lib/money.ts`) are reused across forms and lists.
+
 ## Repo / dev workflow
 
 Bare-container git worktrees via the user's `git wt` / `git wt-clone` tooling:
@@ -143,7 +170,7 @@ the user to unlock 1Password — never fall back to `--no-gpg-sign`.
 
 ## CI
 
-Four parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
+Five parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
 runner so wall-clock is the slowest single job:
 
 - **check** — lint / format / typecheck / build. The long pole (~50–59s);
@@ -153,6 +180,11 @@ runner so wall-clock is the slowest single job:
   covering half the files, the union running every test); a lightweight `test`
   job `needs` both shards so the required `test` check stays green only when both
   shards pass and the required-check name is preserved.
+- **coverage** — runs the Vitest suite unsharded with V8 coverage and fails if a
+  package drops below its threshold: `@nest/plan` and `@nest/tax` at 100% on every
+  metric, `apps/pwa` at 100% statements / functions / lines with a branch floor
+  (currently 93). Unsharded so the thresholds evaluate over the whole suite; the
+  sharded matrix stays coverage-free.
 - **rls** — Postgres 17 service; applies the auth shim, every migration in
   order, then `supabase/tests/rls/` isolation assertions (~22s).
 - **functions** — Deno `fmt --check` / `lint` / `task check` / `test` over
@@ -162,6 +194,11 @@ runner so wall-clock is the slowest single job:
 Branch-protection ruleset "Protect main" requires **check**, **test**, **rls**,
 and **functions**; squash-only, no bypass. Keep CI under a minute; the next lever
 if `test` creeps up is a third shard, and `check` is the job to profile first.
+
+Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports via
+`@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint `max-lines`
+cap of 500 (`.oxlintrc.json`, off for tests and generated types) guards file size;
+and the edge functions pin every dependency through `supabase/functions/deno.lock`.
 
 ## Supabase
 

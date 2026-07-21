@@ -59,8 +59,15 @@ transaction ingestion: reconciling spend and actual tax paid against the plan.
 ### Foundations & platform
 
 - Stack, monorepo scaffold, Vercel hosting, `main` protection ruleset.
-- CI split into parallel `check` / `test` / `rls` / `functions` jobs (all
-  required; the `test` job sharded across runners; under a minute).
+- Frontend shell: `App.tsx` is a thin auth gate + onboarding branch + routed
+  shell, each tab a `routes/*Section.tsx` container; server state flows through a
+  household-scoped TanStack Query cache built on one `useHouseholdCollection`
+  factory, so tab switches render cached data and background-revalidate.
+- CI split into parallel `check` / `test` / `coverage` / `rls` / `functions` jobs
+  (the `test` job sharded across runners; under a minute). Coverage is gated —
+  `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
+  statements/functions/lines with a branch floor (currently 93). Prettier sorts
+  imports and an oxlint `max-lines` cap (500) guards file size.
 - Household, members, and RLS isolation (schema + automated CI tests).
 - Onboarding + first-run gating; Google OAuth; partner join via a temporary,
   opt-in, single-use invite code (`create_invite_code` / `join_household` /
@@ -231,8 +238,8 @@ the editor. The household's real gift budgets are loaded in production. See
       routed line survives an empty breakdown so its Splits routing is not lost.
       The Budget tab and Summary read the derived amount, so line and detail never
       drift.
-- [x] Cleanup: the `budget_derived_source` enum and `budget_line.derived_source`
-      column are dropped — breakdowns are the sole derived-line mechanism.
+- [x] Sole mechanism: `budget_line.breakdown_id` is the only derived-line marker —
+      there is no separate derived-source enum or column.
 
 ### Pay splits (complete)
 

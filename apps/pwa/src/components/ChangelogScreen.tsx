@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react'
-import { Alert, Card, Group, Loader, Stack, Text, Title } from '@mantine/core'
+import { Alert, Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 
 interface ChangelogScreenProps {
   implemented: ImplementedEntry[]
   inProgress: InProgressEntry[]
   configured: boolean
-  loading: boolean
   error: string | null
 }
 
@@ -71,7 +70,6 @@ export function ChangelogScreen({
   implemented,
   inProgress,
   configured,
-  loading,
   error,
 }: ChangelogScreenProps) {
   return (
@@ -80,21 +78,19 @@ export function ChangelogScreen({
         What&apos;s new
       </Title>
 
-      {loading && <Loader />}
-
       {error && (
         <Alert color="red" variant="light">
           {error}
         </Alert>
       )}
 
-      {!loading && !error && !configured && (
+      {!error && !configured && (
         <Text size="sm" c="dimmed">
           The changelog isn't configured yet.
         </Text>
       )}
 
-      {!loading && !error && configured && (
+      {!error && configured && (
         <>
           <Section
             title="In progress"

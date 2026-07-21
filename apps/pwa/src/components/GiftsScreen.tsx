@@ -49,6 +49,10 @@ import { GiftPurchaseForm } from './GiftPurchaseForm'
 import { GiftManagement } from './GiftManagement'
 
 interface GiftsScreenProps {
+  /** Where the back link returns to. */
+  backTo: string
+  /** The back link's label, naming its destination. */
+  backLabel: string
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
   budgets: GiftBudget[]
@@ -401,6 +405,8 @@ function GiftGroupCard({
 
 /** Presentational gift tracker: grouped budgets with spend rollups, plus recipient/occasion management. */
 export function GiftsScreen({
+  backTo,
+  backLabel,
   recipients,
   occasions,
   budgets,
@@ -435,10 +441,10 @@ export function GiftsScreen({
 
   return (
     <Stack gap="md">
-      <Anchor component={Link} to="/breakdowns" size="sm">
+      <Anchor component={Link} to={backTo} size="sm">
         <Group gap={4} wrap="nowrap">
           <IconArrowLeft size={16} />
-          Breakdowns
+          {backLabel}
         </Group>
       </Anchor>
 

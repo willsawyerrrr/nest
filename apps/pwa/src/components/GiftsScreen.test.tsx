@@ -35,6 +35,8 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
   return render(
     <MemoryRouter>
       <GiftsScreen
+        backTo="/breakdowns"
+        backLabel="Breakdowns"
         recipients={[alice]}
         occasions={[xmas]}
         budgets={[budget]}
@@ -56,6 +58,17 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
     </MemoryRouter>,
   )
 }
+
+describe('GiftsScreen back link', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('renders the back link to the given destination and label', () => {
+    renderScreen({ backTo: '/budget', backLabel: 'Budget' })
+
+    const link = screen.getByRole('link', { name: /budget/i })
+    expect(link).toHaveAttribute('href', '/budget')
+  })
+})
 
 describe('GiftsScreen grouping toggle', () => {
   beforeEach(() => localStorage.clear())

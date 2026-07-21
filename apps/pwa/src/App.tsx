@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
 import { summarise } from '@nest/plan'
@@ -523,7 +523,15 @@ function SuperSection({ householdId }: { householdId: string }) {
   )
 }
 
-function GiftsSection({ householdId }: { householdId: string }) {
+function GiftsSection({
+  householdId,
+  backTo,
+  backLabel,
+}: {
+  householdId: string
+  backTo: string
+  backLabel: string
+}) {
   const gifts = useGifts(householdId)
 
   if (gifts.loading) {
@@ -532,6 +540,8 @@ function GiftsSection({ householdId }: { householdId: string }) {
 
   return (
     <GiftsScreen
+      backTo={backTo}
+      backLabel={backLabel}
       recipients={gifts.recipients ?? []}
       occasions={gifts.occasions ?? []}
       budgets={gifts.budgets ?? []}
@@ -577,7 +587,14 @@ function BreakdownsSection({ householdId }: { householdId: string }) {
 
 function BreakdownDetailSection({ householdId }: { householdId: string }) {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const breakdowns = useBreakdowns(householdId)
+
+  // A breakdown opened from a budget line returns to the budget; otherwise it
+  // falls back to the Breakdowns tab (the default on a direct visit or refresh,
+  // where no origin is recorded in the navigation state).
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/breakdowns'
+  const backLabel = backTo === '/budget' ? 'Budget' : 'Breakdowns'
 
   if (breakdowns.loading) {
     return <LoadingScreen />
@@ -591,13 +608,15 @@ function BreakdownDetailSection({ householdId }: { householdId: string }) {
   // A gift breakdown is edited through the existing gift planner; a generic one
   // through its item editor.
   if (breakdown.kind === 'gift') {
-    return <GiftsSection householdId={householdId} />
+    return <GiftsSection householdId={householdId} backTo={backTo} backLabel={backLabel} />
   }
 
   return (
     <GenericBreakdownSection
       householdId={householdId}
       breakdown={breakdown}
+      backTo={backTo}
+      backLabel={backLabel}
       onUpdate={breakdowns.update}
       onDelete={breakdowns.remove}
     />
@@ -607,11 +626,15 @@ function BreakdownDetailSection({ householdId }: { householdId: string }) {
 function GenericBreakdownSection({
   householdId,
   breakdown,
+  backTo,
+  backLabel,
   onUpdate,
   onDelete,
 }: {
   householdId: string
   breakdown: Breakdown
+  backTo: string
+  backLabel: string
   onUpdate: (
     id: string,
     input: { name: string; line_group: Breakdown['line_group'] },
@@ -628,6 +651,8 @@ function GenericBreakdownSection({
   return (
     <BreakdownDetail
       breakdown={breakdown}
+      backTo={backTo}
+      backLabel={backLabel}
       items={items.items ?? []}
       onUpdateBreakdown={(input) => onUpdate(breakdown.id, input)}
       onDeleteBreakdown={async () => {

@@ -40,6 +40,8 @@ function renderDetail(overrides: Partial<Parameters<typeof BreakdownDetail>[0]> 
       <BreakdownDetail
         breakdown={breakdown()}
         items={[item()]}
+        backTo="/breakdowns"
+        backLabel="Breakdowns"
         onUpdateBreakdown={vi.fn()}
         onDeleteBreakdown={vi.fn()}
         onCreateItem={vi.fn()}
@@ -61,6 +63,13 @@ describe('BreakdownDetail', () => {
     // $10/month → $120/year → $4.62/fn.
     expect(screen.getByLabelText('Breakdown fortnightly total')).toHaveTextContent('$4.62 / fn')
     expect(screen.getByText(/rolls up to \$120\.00 \/ year/i)).toBeInTheDocument()
+  })
+
+  it('renders the back link to the given destination and label', () => {
+    renderDetail({ backTo: '/budget', backLabel: 'Budget' })
+
+    const link = screen.getByRole('link', { name: /budget/i })
+    expect(link).toHaveAttribute('href', '/budget')
   })
 
   it('hides the settings card until Edit is toggled', async () => {

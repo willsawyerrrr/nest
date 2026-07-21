@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
@@ -6,6 +6,7 @@ import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import {
   concessionalByMember,
+  currentTaxConfig,
   estimateHouseholdTaxFromRows,
   netAnnualSuperContributionByMember,
   nonConcessionalByMember,
@@ -71,6 +72,31 @@ const baseContribution: SuperContribution = {
   created_at: '',
   updated_at: '',
 }
+
+describe('currentTaxConfig', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('selects the versioned config for a date inside its financial year', () => {
+    // 15 Sep 2026 falls in FY2027 (1 Jul 2026 – 30 Jun 2027), which has a config.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-15T00:00:00Z'))
+    const config = currentTaxConfig()
+    expect(config.financialYear).toBe(2027)
+    expect(config).toBe(FY2027_CONFIG)
+  })
+
+  it('falls back to FY2027 for a date whose financial year has no config', () => {
+    // 1 Jan 2050 falls in FY2050, which has no versioned config, so resolution
+    // falls back to FY2027 rather than the date's own financial year.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2050-01-01T00:00:00Z'))
+    const config = currentTaxConfig()
+    expect(config.financialYear).toBe(2027)
+    expect(config).toBe(FY2027_CONFIG)
+  })
+})
 
 describe('concessionalByMember', () => {
   it('annualises an amount-mode concessional contribution by frequency', () => {

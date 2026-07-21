@@ -101,6 +101,12 @@ describe('NetWorthView', () => {
       />,
     )
 
+    // The toggle controls only appear once editing is turned on.
+    expect(
+      screen.queryByRole('button', { name: 'Exclude Holiday saver from net worth' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
     fireEvent.click(screen.getByRole('button', { name: 'Exclude Holiday saver from net worth' }))
     expect(onToggleExclude).toHaveBeenCalledWith('a3', true)
 
@@ -108,5 +114,51 @@ describe('NetWorthView', () => {
     fireEvent.click(screen.getByRole('button', { name: /excluded from net worth/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Include Rainy day in net worth' }))
     expect(onToggleExclude).toHaveBeenCalledWith('a4', false)
+  })
+
+  it('shows the exclude controls only while editing, and never on super', () => {
+    const withSuperAndOther: Account[] = [
+      account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 }),
+      account({ id: 'a3', name: 'Holiday saver', balance_cents: 200000 }),
+    ]
+    render(
+      <NetWorthView
+        accounts={withSuperAndOther}
+        superIds={new Set(['a1'])}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+
+    // Not editing: no per-account controls anywhere.
+    expect(
+      screen.queryByRole('button', { name: 'Exclude Holiday saver from net worth' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    // Editing: the other account gains a control; super never does.
+    expect(
+      screen.getByRole('button', { name: 'Exclude Holiday saver from net worth' }),
+    ).toBeInTheDocument()
+    const superSection = screen.getByRole('region', { name: 'Super' })
+    expect(within(superSection).queryByRole('button')).not.toBeInTheDocument()
+
+    // Done hides the controls again.
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(
+      screen.queryByRole('button', { name: 'Exclude Holiday saver from net worth' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers no Edit affordance when only super accounts exist', () => {
+    render(
+      <NetWorthView
+        accounts={[account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 })]}
+        superIds={new Set(['a1'])}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
 })

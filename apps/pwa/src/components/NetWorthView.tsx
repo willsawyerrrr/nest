@@ -1,6 +1,13 @@
-import { ActionIcon, Card, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Button, Card, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconChevronDown, IconChevronRight, IconEye, IconEyeOff } from '@tabler/icons-react'
+import {
+  IconCheck,
+  IconChevronDown,
+  IconChevronRight,
+  IconEye,
+  IconEyeOff,
+  IconPencil,
+} from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
 import { formatCents, moneyColor } from '../lib/money'
 import { netWorthBreakdown } from '../lib/super'
@@ -12,9 +19,10 @@ interface NetWorthViewProps {
 }
 
 /**
- * A labelled group of accounts with per-account balances and a subtotal. Each
- * row carries a toggle to include or exclude the account from net worth;
- * `excluded` selects the direction (and the muted styling of the whole group).
+ * A labelled group of accounts with per-account balances and a subtotal. When
+ * `togglable` and `editing` are both set, each row carries a control to include
+ * or exclude the account from net worth; `excluded` selects the direction (and
+ * the muted styling of the whole group).
  */
 function AccountGroup({
   title,
@@ -22,6 +30,8 @@ function AccountGroup({
   subtotalCents,
   emptyLabel,
   excluded,
+  editing,
+  togglable,
   collapsible = false,
   onToggleExclude,
 }: {
@@ -30,6 +40,8 @@ function AccountGroup({
   subtotalCents: number
   emptyLabel: string
   excluded: boolean
+  editing: boolean
+  togglable: boolean
   collapsible?: boolean
   onToggleExclude: (accountId: string, exclude: boolean) => void
 }) {
@@ -63,18 +75,20 @@ function AccountGroup({
               <Text size="md" ta="right">
                 {formatCents(account.balance_cents)}
               </Text>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label={
-                  excluded
-                    ? `Include ${account.name} in net worth`
-                    : `Exclude ${account.name} from net worth`
-                }
-                onClick={() => onToggleExclude(account.id, !excluded)}
-              >
-                {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-              </ActionIcon>
+              {editing && togglable && (
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  aria-label={
+                    excluded
+                      ? `Include ${account.name} in net worth`
+                      : `Exclude ${account.name} from net worth`
+                  }
+                  onClick={() => onToggleExclude(account.id, !excluded)}
+                >
+                  {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+                </ActionIcon>
+              )}
             </Group>
           </Group>
         ))}
@@ -118,12 +132,29 @@ function AccountGroup({
  */
 export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthViewProps) {
   const breakdown = netWorthBreakdown(accounts, superIds)
+  const [editing, { toggle: toggleEditing }] = useDisclosure(false)
+  // Super always counts towards net worth, so only the other and excluded
+  // groups can be edited; without any such account there is nothing to edit.
+  const hasTogglable = breakdown.otherAccounts.length > 0 || breakdown.excludedAccounts.length > 0
 
   return (
     <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Net worth
-      </Title>
+      <Group justify="space-between" align="center" wrap="nowrap">
+        <Title order={2} visibleFrom="sm">
+          Net worth
+        </Title>
+        {hasTogglable && (
+          <Button
+            variant={editing ? 'filled' : 'subtle'}
+            size="compact-sm"
+            ml="auto"
+            leftSection={editing ? <IconCheck size={16} /> : <IconPencil size={16} />}
+            onClick={toggleEditing}
+          >
+            {editing ? 'Done' : 'Edit'}
+          </Button>
+        )}
+      </Group>
 
       <Card component="section" aria-label="Total net worth" withBorder radius="md" p="md">
         <Stack gap={0} align="center">
@@ -142,6 +173,8 @@ export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthVi
         subtotalCents={breakdown.superTotalCents}
         emptyLabel="No super accounts yet. Add a balance on the Super tab."
         excluded={false}
+        editing={editing}
+        togglable={false}
         onToggleExclude={onToggleExclude}
       />
       <AccountGroup
@@ -150,6 +183,8 @@ export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthVi
         subtotalCents={breakdown.otherTotalCents}
         emptyLabel="No other accounts yet."
         excluded={false}
+        editing={editing}
+        togglable
         onToggleExclude={onToggleExclude}
       />
       {breakdown.excludedAccounts.length > 0 && (
@@ -162,6 +197,8 @@ export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthVi
           )}
           emptyLabel=""
           excluded
+          editing={editing}
+          togglable
           collapsible
           onToggleExclude={onToggleExclude}
         />

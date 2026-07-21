@@ -53,9 +53,13 @@ is CRUD over RLS.
   mode. Note the iOS standalone-PWA OAuth redirect quirk — the round-trip may
   return to Safari rather than the installed app; handled via redirect-URL config.
 - **PWA** — consumes PostgREST directly (RLS-enforced), runs the pure tax engine
-  client-side, and calls the Up edge functions. Client-side path routing via
-  `react-router-dom` makes each tab deep-linkable and reload-safe
-  (`apps/pwa/vercel.json` supplies the SPA fallback).
+  client-side, and calls the Up edge functions. `App.tsx` is a thin auth gate →
+  onboarding branch → routed shell, with each tab a `routes/*Section.tsx`
+  container. Client-side path routing via `react-router-dom` makes each tab
+  deep-linkable and reload-safe (`apps/pwa/vercel.json` supplies the SPA fallback).
+  Server state flows through TanStack Query — a household-scoped shared cache built
+  on the `useHouseholdCollection` factory (`hooks/useCollection.ts`), so tab
+  switches render cached data and background-revalidate.
 - **Tax engine** — pure, versioned TypeScript package (`@nest/tax`). The PWA
   imports it for the instant client-side estimate. Designed to be reused
   unchanged by a future authoritative edge function, so there is no duplication
@@ -116,7 +120,8 @@ is CRUD over RLS.
 - Migrations auto-deploy to prod via the GitHub → Supabase integration on merge;
   edge functions auto-deploy via `.github/workflows/deploy-functions.yml` on any
   push to `main` touching `supabase/functions/**` or `supabase/config.toml`.
-- CI runs four parallel jobs (`check`, `test`, `rls`, `functions`), all required.
-  The tax and plan packages are unit-tested under Vitest; the edge functions have
-  their own Deno harness. See [`HANDOFF.md`](HANDOFF.md) for the operational
-  detail.
+- CI runs parallel jobs (`check`, `test`, `coverage`, `rls`, `functions`). The tax
+  and plan packages are unit-tested under Vitest; the edge functions have their own
+  Deno harness. The `coverage` job gates the suite — `@nest/plan` and `@nest/tax` at
+  100% on every metric, `apps/pwa` at 100% statements/functions/lines with a branch
+  floor (currently 93). See [`HANDOFF.md`](HANDOFF.md) for the operational detail.

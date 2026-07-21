@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useDisclosure, useLocalStorage } from '@mantine/hooks'
 import {
   ActionIcon,
+  Anchor,
   Box,
   Button,
   Card,
@@ -14,7 +16,13 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core'
-import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
+import {
+  IconArrowLeft,
+  IconChevronDown,
+  IconChevronRight,
+  IconPencil,
+  IconTrash,
+} from '@tabler/icons-react'
 import type {
   GiftBudget,
   GiftBudgetInput,
@@ -427,6 +435,13 @@ export function GiftsScreen({
 
   return (
     <Stack gap="md">
+      <Anchor component={Link} to="/breakdowns" size="sm">
+        <Group gap={4} wrap="nowrap">
+          <IconArrowLeft size={16} />
+          Breakdowns
+        </Group>
+      </Anchor>
+
       <Group justify="space-between" align="center" wrap="wrap">
         <Title order={2}>Gifts</Title>
         <Button variant={managing ? 'filled' : 'default'} onClick={toggleManaging}>

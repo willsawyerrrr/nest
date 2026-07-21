@@ -224,18 +224,13 @@ function BudgetLineRow({
           / fn
         </Text>
       </Group>
-      {breakdown ? (
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap={4} wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
+        {breakdown ? (
           <BreakdownLink id={breakdown.id} />
-        </Group>
-      ) : (
-        onEdit &&
-        onDelete && (
-          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-            <LineActions onEdit={onEdit} onDelete={onDelete} />
-          </Group>
-        )
-      )}
+        ) : (
+          onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />
+        )}
+      </Group>
     </Group>
   )
 }

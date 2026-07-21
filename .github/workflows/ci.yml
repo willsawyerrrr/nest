@@ -110,3 +110,20 @@ jobs:
             psql -v ON_ERROR_STOP=1 -f "$f"
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/rls_isolation.sql
+
+  ci-status:
+    name: CI Status
+    if: ${{ always() }}
+    needs: [check, test, coverage, functions, rls]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs succeeded
+        run: |
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "Dependency results: $results"
+          for r in $results; do
+            if [ "$r" != "success" ]; then
+              echo "::error::A required CI job did not succeed (got '$r')."
+              exit 1
+            fi
+          done

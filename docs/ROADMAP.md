@@ -309,9 +309,9 @@ design (staged sync foundation, ledger UI, and the two reconciliation layers).
 ## Later
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
-  a payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
-  Small and low-risk; good HDD filler. (Gift budgets and generic itemised
-  sub-budgets are built as breakdowns — see Done.)
+  a wishlist of per-member aspirational purchases. Small and low-risk; good HDD
+  filler. (Gift budgets and generic itemised sub-budgets are built as breakdowns —
+  see Done.)
 - **Breakdowns follow-ups** (the feature itself is shipped — see Done). See
   [`breakdowns.md`](breakdowns.md).
   - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the

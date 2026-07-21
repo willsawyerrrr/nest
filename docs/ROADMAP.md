@@ -63,11 +63,13 @@ transaction ingestion: reconciling spend and actual tax paid against the plan.
   shell, each tab a `routes/*Section.tsx` container; server state flows through a
   household-scoped TanStack Query cache built on one `useHouseholdCollection`
   factory, so tab switches render cached data and background-revalidate.
-- CI split into parallel `check` / `test` / `coverage` / `rls` / `functions` jobs
-  (the `test` job sharded across runners; under a minute). Coverage is gated —
-  `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
-  statements/functions/lines with a branch floor (currently 93). Prettier sorts
-  imports and an oxlint `max-lines` cap (500) guards file size.
+- CI split into parallel `check` / `test` / `rls` / `functions` jobs behind a
+  `ci-status` aggregate (the single required `CI Status` check; under a minute).
+  The `test` job shards the suite across four runners with V8 coverage and merges
+  the shards' blob reports to gate coverage — `@nest/plan` and `@nest/tax` at 100%
+  on every metric, `apps/pwa` at 100% statements/functions/lines with a branch
+  floor (currently 93). Prettier sorts imports and an oxlint `max-lines` cap (500)
+  guards file size.
 - Household, members, and RLS isolation (schema + automated CI tests).
 - Onboarding + first-run gating; Google OAuth; partner join via a temporary,
   opt-in, single-use invite code (`create_invite_code` / `join_household` /

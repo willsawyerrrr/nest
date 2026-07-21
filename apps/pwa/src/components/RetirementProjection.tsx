@@ -15,7 +15,7 @@ import {
 } from '../lib/retirement'
 
 /** A member's inputs to their retirement projection: balance and net annual contribution. */
-export interface RetirementProjectionEntry {
+interface RetirementProjectionEntry {
   member: Member
   currentBalanceCents: number
   netAnnualContributionCents: number

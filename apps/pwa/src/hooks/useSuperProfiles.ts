@@ -6,7 +6,7 @@ import type { Tables } from '../lib/database.types'
 export type SuperProfile = Tables<'super_profile'>
 
 /** The super-profile fields a form supplies for a member in the current financial year. */
-export interface SuperProfileInput {
+interface SuperProfileInput {
   member_id: string
   fund_name: string | null
   linked_account_id: string | null

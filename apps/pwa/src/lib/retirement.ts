@@ -18,7 +18,7 @@ export interface RetirementAssumptions {
 }
 
 /** Default retirement age when none is stored — the FY2027 preservation age. */
-export const DEFAULT_RETIREMENT_AGE = 60
+const DEFAULT_RETIREMENT_AGE = 60
 
 /** Assumptions used until the household edits them. */
 export const DEFAULT_ASSUMPTIONS: RetirementAssumptions = {

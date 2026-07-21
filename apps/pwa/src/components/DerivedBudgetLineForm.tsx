@@ -4,6 +4,7 @@ import { Anchor, Button, Card, Group, Select, Stack, Text, TextInput } from '@ma
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
+import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
 
 /** The fields a derived-line edit surfaces: the breakdown's name and group, plus the line's funding account. */
@@ -93,12 +94,12 @@ export function DerivedBudgetLineForm({
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
-        <Select
+        <EnumSelect
           label="Group"
           size="sm"
           data={ACCOUNT_FUNDED_GROUPS}
           value={group}
-          onChange={(value) => value && setGroup(value as BudgetGroup)}
+          onChange={(value) => value && setGroup(value)}
           allowDeselect={false}
         />
 

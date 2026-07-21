@@ -5,6 +5,7 @@ import type { BudgetGroup, Frequency } from '../lib/domain'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { EnumSelect } from './EnumSelect'
 
 interface BudgetLineFormProps {
   initial?: BudgetLine
@@ -94,12 +95,12 @@ export function BudgetLineForm({
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
-        <Select
+        <EnumSelect
           label="Group"
           size="sm"
           data={BUDGET_GROUPS}
           value={group}
-          onChange={(value) => value && changeGroup(value as BudgetGroup)}
+          onChange={(value) => value && changeGroup(value)}
           allowDeselect={false}
         />
 
@@ -110,13 +111,13 @@ export function BudgetLineForm({
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
-        <Select
+        <EnumSelect
           label="Frequency"
           size="sm"
           description="The app converts every amount to fortnightly and annual."
           data={FREQUENCY_OPTIONS}
           value={frequency}
-          onChange={(value) => value && setFrequency(value as Frequency)}
+          onChange={(value) => value && setFrequency(value)}
           allowDeselect={false}
         />
 

@@ -63,9 +63,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Unsharded so thresholds evaluate over the full suite for these two
-      # money-critical packages; the sharded matrix above stays coverage-free.
-      - run: pnpm exec vitest run --project @nest/tax --project @nest/plan --coverage
+      # Unsharded so thresholds evaluate over the full suite for the tax and
+      # plan packages and the PWA; the sharded matrix above stays coverage-free.
+      - run: pnpm exec vitest run --project @nest/tax --project @nest/plan --project @nest/pwa --coverage
 
   functions:
     runs-on: ubuntu-latest

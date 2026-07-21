@@ -366,6 +366,10 @@ function GiftGroupCard({
             {group.rows.map((row) => {
               const budget = budgetsById.get(row.budgetId)
               if (!budget) {
+                // Unreachable: `group.rows` and `budgetsById` are both derived
+                // from the same `budgets` prop, so every row's `budgetId`
+                // always resolves to a budget here.
+                /* v8 ignore next */
                 return null
               }
               return (

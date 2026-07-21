@@ -89,6 +89,20 @@ describe('SuperContributionForm', () => {
     )
   })
 
+  it('flags the contribution as FHSS eligible when the switch is toggled on', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/contribution amount/i), '500')
+    await user.click(screen.getByLabelText(/fhss eligible/i))
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ fhss_eligible: true })),
+    )
+  })
+
   it('shows an error when saving fails', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))

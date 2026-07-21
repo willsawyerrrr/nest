@@ -442,4 +442,174 @@ exception when others then
   else raise; end if;
 end $$;
 
+-- ── Per-account balance privacy within a single household ────────────────────
+--
+-- The blocks above prove isolation *between* households. This block proves the
+-- new dimension: privacy *within* one household with two members. A member sees
+-- the full balance row only for shared accounts, their own accounts, and any
+-- household super account; a co-member's private spending and savers are hidden
+-- from `accounts` and `transactions` alike, while the identity-only
+-- `account_directory` still names any transaction account. A fresh household and
+-- uuids keep this independent of the counts asserted above.
+
+-- Two more users who will share one household: Alice owns her own spending
+-- account; Bob owns a spending account, a saver, and a super account. Seeding
+-- auth.users needs the owner role, as at the top of the script.
+reset role;
+insert into auth.users (instance_id, id, aud, role, email) values
+  ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'privacy-alice@example.com'),
+  ('00000000-0000-0000-0000-000000000000', '55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'privacy-bob@example.com');
+set local role authenticated;
+
+-- Alice creates the household and mints an invite code.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+select public.create_household('Privacy House', 'Alice') as priv_hid \gset
+select set_config('test.priv_hid', :'priv_hid', false);
+select invite_code as priv_code from public.create_invite_code() \gset
+select set_config('test.priv_code', :'priv_code', false);
+
+-- Bob joins, so both are members of the one household.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+select public.join_household(current_setting('test.priv_code'), 'Bob');
+
+-- Resolve both member ids (a member reads its co-members).
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+select id as priv_alice_mid from public.members
+  where household_id = current_setting('test.priv_hid')::uuid
+    and user_id = '44444444-4444-4444-4444-444444444444' \gset
+select set_config('test.priv_alice_mid', :'priv_alice_mid', false);
+select id as priv_bob_mid from public.members
+  where household_id = current_setting('test.priv_hid')::uuid
+    and user_id = '55555555-5555-5555-5555-555555555555' \gset
+select set_config('test.priv_bob_mid', :'priv_bob_mid', false);
+
+-- Alice creates the shared account and her own spending account, then a
+-- transaction on the shared account.
+insert into public.accounts (household_id, name)
+  values (current_setting('test.priv_hid')::uuid, 'Joint Everyday')
+  returning id as priv_shared \gset
+select set_config('test.priv_shared', :'priv_shared', false);
+
+insert into public.accounts (household_id, owner_member_id, name, type)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid, 'Alice''s Spending', 'transaction')
+  returning id as priv_alice_spending \gset
+select set_config('test.priv_alice_spending', :'priv_alice_spending', false);
+
+insert into public.transactions (household_id, account_id, posted_at, amount_cents, kind)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_shared')::uuid, now(), -50_00, 'expense');
+
+-- Bob creates his own spending account, a saver, and a super account, links the
+-- super account via a super_profile row (making it a household super account),
+-- and posts a transaction on his spending account.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+insert into public.accounts (household_id, owner_member_id, name, type)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 'Bob''s Spending', 'transaction')
+  returning id as priv_bob_spending \gset
+select set_config('test.priv_bob_spending', :'priv_bob_spending', false);
+
+insert into public.accounts (household_id, owner_member_id, name, type, source, external_id)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 'Bob''s Saver', 'savings', 'up', 'up-priv-bob-saver')
+  returning id as priv_bob_saver \gset
+select set_config('test.priv_bob_saver', :'priv_bob_saver', false);
+
+insert into public.accounts (household_id, owner_member_id, name, type)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 'Bob''s Super', 'savings')
+  returning id as priv_bob_super \gset
+select set_config('test.priv_bob_super', :'priv_bob_super', false);
+
+insert into public.super_profile (household_id, member_id, financial_year, fund_name, linked_account_id)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 2027, 'AustralianSuper', current_setting('test.priv_bob_super')::uuid);
+
+insert into public.transactions (household_id, account_id, posted_at, amount_cents, kind)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_spending')::uuid, now(), -25_00, 'expense');
+
+-- 1. Alice reads `public.accounts`: shared, her own spending, and Bob's super
+-- (super stays mutually visible) — but never Bob's private spending or saver.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+begin
+  assert (select count(*) from public.accounts where household_id = v_hid) = 3,
+    'Alice should see exactly 3 accounts: shared, her own spending, and Bob''s super';
+  assert exists (select 1 from public.accounts where id = current_setting('test.priv_shared')::uuid),
+    'Alice should see the shared account';
+  assert exists (select 1 from public.accounts where id = current_setting('test.priv_alice_spending')::uuid),
+    'Alice should see her own spending account';
+  assert exists (select 1 from public.accounts where id = current_setting('test.priv_bob_super')::uuid),
+    'Alice should see Bob''s super account (super stays mutually visible)';
+  assert not exists (select 1 from public.accounts where id = current_setting('test.priv_bob_spending')::uuid),
+    'Alice must not see Bob''s private spending account';
+  assert not exists (select 1 from public.accounts where id = current_setting('test.priv_bob_saver')::uuid),
+    'Alice must not see Bob''s private saver';
+end $$;
+
+-- 2. Alice reads `public.transactions`: the shared-account transaction, but not
+-- the one on Bob's private spending account.
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+begin
+  assert (select count(*) from public.transactions where household_id = v_hid) = 1,
+    'Alice should see exactly the shared-account transaction';
+  assert exists (select 1 from public.transactions where account_id = current_setting('test.priv_shared')::uuid),
+    'Alice should see the shared-account transaction';
+  assert not exists (select 1 from public.transactions where account_id = current_setting('test.priv_bob_spending')::uuid),
+    'Alice must not see a transaction on Bob''s private spending account';
+end $$;
+
+-- 3. Alice reads `public.account_directory`: shared, her own, and Bob's spending
+-- (transaction type, name only) — but not Bob's saver or super. The view carries
+-- no balance column at all.
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+begin
+  assert (select count(*) from public.account_directory where household_id = v_hid) = 3,
+    'Alice''s directory should list shared, her own, and Bob''s spending accounts';
+  assert exists (select 1 from public.account_directory where id = current_setting('test.priv_shared')::uuid),
+    'Directory should carry the shared account';
+  assert exists (select 1 from public.account_directory where id = current_setting('test.priv_alice_spending')::uuid),
+    'Directory should carry Alice''s own account';
+  assert (select name from public.account_directory where id = current_setting('test.priv_bob_spending')::uuid) = 'Bob''s Spending',
+    'Directory should name Bob''s spending account';
+  assert not exists (select 1 from public.account_directory where id = current_setting('test.priv_bob_saver')::uuid),
+    'Directory must not carry Bob''s private saver';
+  assert not exists (select 1 from public.account_directory where id = current_setting('test.priv_bob_super')::uuid),
+    'Directory must not carry Bob''s super account';
+  assert not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'account_directory' and column_name = 'balance_cents'),
+    'account_directory must expose no balance column';
+end $$;
+
+-- 4. Alice cannot update Bob's private spending account: the row fails the update
+-- policy's USING clause, so it is silently invisible — the update matches 0 rows
+-- and update ... returning reads no balance.
+do $$
+declare
+  v_balance bigint;
+  v_count int;
+begin
+  update public.accounts set balance_cents = 999_00
+    where id = current_setting('test.priv_bob_spending')::uuid
+    returning balance_cents into v_balance;
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'Alice''s update must match 0 of Bob''s private accounts';
+  assert v_balance is null, 'Alice must not read Bob''s balance via update ... returning';
+end $$;
+
+-- 5. Symmetry: acting as Bob, he cannot see Alice's private spending account, but
+-- does see the shared account and his own accounts.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+begin
+  assert not exists (select 1 from public.accounts where id = current_setting('test.priv_alice_spending')::uuid),
+    'Bob must not see Alice''s private spending account';
+  assert exists (select 1 from public.accounts where id = current_setting('test.priv_shared')::uuid),
+    'Bob should see the shared account';
+  assert exists (select 1 from public.accounts where id = current_setting('test.priv_bob_super')::uuid),
+    'Bob should see his own super account';
+  assert (select count(*) from public.accounts where household_id = v_hid) = 4,
+    'Bob should see his 4 balance-visible accounts: shared, own spending, own saver, own super';
+end $$;
+
 rollback;

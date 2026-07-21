@@ -1,3 +1,4 @@
+import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
 import type { Inflow } from '../hooks/useInflows'
@@ -70,6 +71,20 @@ export function makeSaver(overrides: Partial<Saver> = {}): Saver {
     currency: 'AUD',
     created_at: '',
     updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds an `account_directory` identity row (no balance). */
+export function makeAccountDirectoryEntry(
+  overrides: Partial<AccountDirectoryEntry> = {},
+): AccountDirectoryEntry {
+  return {
+    id: 'a1',
+    owner_member_id: null,
+    name: 'Up Saver',
+    type: 'savings',
+    source: 'up',
     ...overrides,
   }
 }

@@ -238,12 +238,28 @@ populated; spending-plan reconciliation against them is a later phase.
   - `up-sync` upserts Up accounts on conflict `(source, external_id)`, so a
     saver's `balance_cents` stays current; a linked savings goal reads its balance
     from here. `service_role` holds `select`/`insert`/`update` for that upsert.
+  - **Balance privacy.** RLS returns the full row (including `balance_cents`) only
+    for shared/joint accounts (`owner_member_id` null), the caller's own accounts,
+    and household super accounts (those linked from a `super_profile`); a
+    co-member's individual spending account and savers are excluded, so their
+    balance is never returned. Inserts and updates are limited to shared or
+    self-owned accounts.
+- **account_directory** (view) — an identity-only surface over `accounts` for
+  budgeting and splits: `id`, `household_id`, `owner_member_id`, `name`, `type`,
+  `source` — never `balance_cents`. It carries shared accounts, the caller's own
+  accounts, and any member's `transaction` account, so a co-member's spending
+  account can be named as a budget-line funding destination and summed into the
+  pay split without exposing its balance; a co-member's savers and other
+  individual accounts are absent. A definer's-rights view (`security_invoker =
+  off`).
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
     `category_id` (nullable), `posted_at`, `amount_cents` (signed, negative =
     outflow), `description`, `kind` (`income` | `expense` | `transfer`),
     `status` (`pending` | `settled`), `source` (`up` | `manual`),
     `external_id` (dedupe key), `notes`, `created_at`, `updated_at`.
+  - RLS gates each transaction to the balance-visible account set, so a member
+    reads and writes transactions only on accounts whose balance they can see.
 - **categories** — hierarchical income/expense taxonomy.
   - `id`, `household_id`, `parent_id` (nullable, self-referential), `name`,
     `kind` (`income` | `expense`), `is_archived`, `created_at`, `updated_at`.
@@ -278,6 +294,12 @@ not-yet-member can act past RLS in the narrow ways allowed:
 - `revoke_invite_code()` — clear the caller's household's invite code.
 - `household_ids_for_current_user()` — the households the caller belongs to;
   the basis for every RLS policy.
+- `current_member_ids()`, `household_super_account_ids()`, and
+  `visible_balance_account_ids()` — the SECURITY DEFINER helpers behind per-account
+  balance privacy: the caller's member ids, the household's super-linked account
+  ids, and the account ids whose balance the caller may see (shared, own, or
+  super) — the last gating the `transactions` policies without recursing through
+  the `accounts` policies.
 
 The Up token RPCs are also `SECURITY DEFINER`, but granted to `service_role`
 alone (not `authenticated`) — they are the only path to the token, which lives in

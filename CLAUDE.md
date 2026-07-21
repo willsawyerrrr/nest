@@ -21,13 +21,22 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   package.
 - Household & money: the two partners share ONE household with money fully
   pooled — no multi-household UI (no picker or switcher), no per-person budgets
-  or splitting. All household members can manage everything: RLS is gated on
-  household membership only, and record attribution to a member is a
-  tax/reporting tag, not a permission. `household_id` + RLS isolate the
-  household's data from all other Supabase users. A partner joins via a
-  temporary, opt-in, single-use invite code (`create_invite_code` mints one,
-  `join_household` redeems and consumes it, `revoke_invite_code` clears it); no
-  email infrastructure.
+  or splitting. All household members manage the shared planning data, and record
+  attribution to a member is a tax/reporting tag, not a permission. `household_id`
+  + RLS isolate the household's data from all other Supabase users; within the
+  household, membership gates the shared and own data, and a per-account
+  balance-privacy boundary sits on top. A member sees an account's full row
+  (balance included) and its transactions only for shared/joint accounts
+  (`owner_member_id` null), their own accounts, and household superannuation
+  accounts (retirement/net-worth planning stays mutually visible); a co-member's
+  individual spending account and savers keep their balance and transactions
+  private. A co-member's spending account stays visible by NAME ONLY through the
+  identity-only `account_directory` view (no balance column) so it can be a
+  budget-line funding destination and summed into the pay split; a co-member's
+  savers are not visible at all. Consequently a member's net-worth view sums only
+  balances they can see. A partner joins via a temporary, opt-in, single-use
+  invite code (`create_invite_code` mints one, `join_household` redeems and
+  consumes it, `revoke_invite_code` clears it); no email infrastructure.
 - Inflows: the household owns many projection-based inflows, split by taxability
   — taxable income (salary, wage, or other regular income on a schedule — weekly
   through annual, or an arbitrary every-N-weeks or every-N-months cadence — each
@@ -67,8 +76,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Ingestion: both partners bank with Up. The account-balance slice is built and
   deployed — members connect an Up personal-access token (held in Vault), and
   `up-sync` polls every Up account (savers and spending alike) into `accounts`,
-  so a goal linked to a saver tracks its real balance and every account is
-  available as a budget-line funding destination. Deduped on (source,
+  so a goal linked to a saver tracks its real balance and every account the
+  member can see — plus any member's spending account by name via
+  `account_directory` — is available as a budget-line funding destination (a
+  co-member's savers stay private). Deduped on (source,
   external_id): a joint account shared across both partners collapses to one
   shared row (`owner_member_id` null), while individual accounts are attributed
   to their owner; an individual spending account's name is stored prefixed with

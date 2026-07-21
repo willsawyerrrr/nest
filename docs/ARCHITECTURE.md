@@ -104,7 +104,11 @@ is CRUD over RLS.
 
 - **RLS is the security boundary.** Policies grant access when `auth.uid()` maps
   to a member of the row's household; joint vs owner-scoped rows handled in
-  policy. Tested deliberately (pgTAP / integration tests), not by inspection.
+  policy. `accounts` and `transactions` add per-account balance privacy on top — a
+  member sees a balance and its transactions only for shared, own, or household
+  super accounts, with a co-member's spending account exposed by name (no balance)
+  through the `account_directory` view. Tested deliberately (pgTAP / integration
+  tests), not by inspection.
 - Up tokens and webhook secrets encrypted at rest (Vault).
 
 ## Cross-cutting conventions

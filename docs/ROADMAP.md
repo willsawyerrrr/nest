@@ -13,9 +13,18 @@ transaction ingestion: reconciling spend and actual tax paid against the plan.
 
 - **Single shared household; money fully pooled.** No per-person budgets, no
   splitting, no "who owes whom".
-- **All household members manage everything** — RLS is gated on household
-  membership only; member attribution on a record is a tax/reporting tag, not a
-  permission.
+- **All household members manage the shared planning data** — RLS gates it on
+  household membership; member attribution on a record is a tax/reporting tag, not
+  a permission.
+- **Per-account balance privacy.** On top of membership, an individual account's
+  balance and transactions are private to its owner: a member sees an account's
+  full row (balance included) and its transactions only for shared/joint accounts
+  (`owner_member_id` null), their own accounts, and household superannuation
+  accounts (retirement/net-worth planning stays mutually visible). A co-member's
+  spending account is still visible by name only via the identity-only
+  `account_directory` view (no balance) so it can be a budget-line funding
+  destination and summed into the pay split; a co-member's savers are not visible
+  at all, and a member's net-worth view sums only balances they can see.
 - **Money-in is modelled as inflows.** The household owns many projection-based
   inflows, each on a schedule — weekly, fortnightly, monthly, quarterly,
   biannual, annual, or an arbitrary "every N weeks" cadence — split by
@@ -306,10 +315,11 @@ design (staged sync foundation, ledger UI, and the two reconciliation layers).
 - **Breakdowns follow-ups** (the feature itself is shipped — see Done). See
   [`breakdowns.md`](breakdowns.md).
   - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
-    other needs per-member visibility on gift records, a departure from the
-    household-only RLS model where every member sees everything. It would require
-    member-scoped policies (and UI) that no other part of the app has, so it is out
-    of scope for now.
+    other needs per-record member visibility on gift breakdowns — a finer-grained
+    carve-out than the per-account balance privacy, which hides a whole owned
+    account rather than individual rows within otherwise-shared data. It would
+    require member-scoped policies and UI on the gift tables, so it is out of scope
+    for now.
   - **Up-tagged gift purchases.** Once Up ingestion lands, an Up transaction can be
     tagged to a gifting event instead of hand-entering the purchase.
 - **Payslips — expected vs actual income and tax** ([`payslips.md`](payslips.md)):
@@ -330,5 +340,5 @@ design (staged sync foundation, ledger UI, and the two reconciliation layers).
   covers super, at which point a true-up could be automated from the real balance.
 - Reconcile projected income against actual deposits; joint-income ownership
   split; net worth (assets and liabilities) beyond super — the Net worth tab totals
-  assets only today; recurring bills and forecasting; non-resident and part-year
-  tax; notifications; additional bank sources / CSV.
+  the assets a member can see only today; recurring bills and forecasting;
+  non-resident and part-year tax; notifications; additional bank sources / CSV.

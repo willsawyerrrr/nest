@@ -11,7 +11,7 @@ import {
   Title,
 } from '@mantine/core'
 import { assignmentsByAccount, paySplitNeedsUpdate, roundCentsUpToStep } from '@nest/plan'
-import type { Account } from '../hooks/useAccounts'
+import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
 import { useSortPreference } from '../hooks/useSortPreference'
@@ -26,7 +26,7 @@ const ROUND_STEP_CENTS = 5_00
 
 /** One routed account: the account and its recommended fortnightly split. */
 interface SplitRowData {
-  account: Account
+  account: AccountDirectoryEntry
   fortnightlyCents: number
 }
 
@@ -54,7 +54,7 @@ function compareRows(key: SortKey): (a: SplitRowData, b: SplitRowData) => number
 }
 
 interface SplitsScreenProps {
-  accounts: Account[]
+  accounts: AccountDirectoryEntry[]
   lines: BudgetLine[]
   goals: Goal[]
   /**
@@ -69,12 +69,18 @@ interface SplitsScreenProps {
 }
 
 /** Whether an account is a synced Up saver (as opposed to the everyday transaction account). */
-function isSaver(account: Account): boolean {
+function isSaver(account: AccountDirectoryEntry): boolean {
   return account.source === 'up' && account.type === 'savings'
 }
 
 /** One routed account: its name, the recommended fortnightly split, and the cents-exact figure. */
-function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightlyCents: number }) {
+function SplitRow({
+  account,
+  fortnightlyCents,
+}: {
+  account: AccountDirectoryEntry
+  fortnightlyCents: number
+}) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   return (
     <Card withBorder radius="md" p="sm">
@@ -112,7 +118,7 @@ function SaverSplitRow({
   configuredCents,
   onConfirm,
 }: {
-  account: Account
+  account: AccountDirectoryEntry
   fortnightlyCents: number
   configuredCents: number | null
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>

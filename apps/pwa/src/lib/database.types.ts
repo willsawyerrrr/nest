@@ -1007,7 +1007,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      account_directory: {
+        Row: {
+          household_id: string
+          id: string
+          name: string
+          owner_member_id: string | null
+          source: Database['public']['Enums']['ledger_source']
+          type: Database['public']['Enums']['account_type']
+        }
+        Relationships: []
+      }
     }
     Functions: {
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }

@@ -49,14 +49,19 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   reconciliation via Up ingestion is a later enhancement. Each line carries an
   amount on a frequency (weekly through annual, or an arbitrary every-N-weeks
   cadence, exactly as inflows do), normalised to fortnightly and annual. A budget
-  line's amount can be **derived** — rolled up from an itemised tracker via
-  `budget_line.derived_source` rather than typed. Gift budget tracking (a
-  per-recipient × occasion planner + purchase log) is the first such consumer. A
-  line can also be **routed** to the account that funds it via
+  line's amount can be **derived** — rolled up from a user-created **breakdown**
+  (an itemised list) that owns the line via `budget_line.breakdown_id` rather than
+  typed. A breakdown's `breakdown_kind` selects the editor: `gift` is the
+  recipient × occasion planner + purchase log (reached from the Breakdowns tab, not
+  a standalone Gifts tab); `generic` is a name + group with an item list (amount +
+  frequency), which is how medications and any other itemised budget are modelled.
+  A line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
   goal's linked saver instead); the Splits tab sums each account's routed lines
-  into a recommended fortnightly Up pay split. Up exposes no pay-split API, so
-  splits are recommend-only — computed here, typed into Up by hand.
+  into a recommended fortnightly Up pay split. Up exposes no pay-split API, so the
+  household types the split into Up by hand and **confirms** the amount it set into
+  the `pay_split` table; the Splits tab flags when the recommendation later drifts
+  from the confirmed amount and offers a Confirm to re-record it.
 - Ingestion: both partners bank with Up. The account-balance slice is built and
   deployed — members connect an Up personal-access token (held in Vault), and
   `up-sync` polls every Up account (savers and spending alike) into `accounts`,
@@ -69,8 +74,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the household's two spending accounts. Up transaction ingestion (spend/ledger reconciliation,
   actual tax paid) is deferred. Sources (Up Bank API + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
-  `up-webhook`) live under `supabase/functions/` and auto-deploy to prod on merge
-  via `.github/workflows/deploy-functions.yml`.
+  `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
+  prod on merge via `.github/workflows/deploy-functions.yml`.
+- Changelog: an in-app "What's new" tab reads recent user-facing changes from
+  GitHub via the `changelog` edge function (a server-held `GITHUB_CHANGELOG_TOKEN`
+  fine-grained PAT), showing open PR titles as in-progress and merged-commit
+  subjects as implemented, keeping only `feat`/`fix`/`perf` entries.
 
 ## Conventions
 

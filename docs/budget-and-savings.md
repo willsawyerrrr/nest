@@ -70,13 +70,14 @@ weeks` cadence carries its interval `N` in `interval_weeks`.
 
 ### Derived budget lines
 
-A line's amount is normally typed. It can instead be **derived** — rolled up from
-an itemised tracker via `budget_line.derived_source` (the `budget_derived_source`
-enum), so the line and its detail never drift. The summary substitutes the
-source's rolled-up amount for the typed `amount_cents`. The gift tracker is the
-first consumer (`derived_source = 'gift'` takes the sum of every gift budget as
-its annual amount); the mechanism is generic and per-source. See
-[`DATA_MODEL.md`](DATA_MODEL.md#gifts--derived-budget-lines).
+A line's amount is normally typed. It can instead be **derived** — rolled up from a
+user-created **breakdown** (an itemised list) that owns the line via
+`budget_line.breakdown_id`, so the line and its detail never drift. The summary
+substitutes the breakdown's rolled-up amount for the typed `amount_cents`. Gifts
+are the first breakdown (`kind = 'gift'`); medications and any other itemised
+budget are `generic` breakdowns the household creates. See
+[`breakdowns.md`](breakdowns.md) and
+[`DATA_MODEL.md`](DATA_MODEL.md#breakdowns).
 
 ## Targets — goals & temporary items
 
@@ -148,8 +149,9 @@ income tables.
     discretionary / savings / investments), `name`, `amount_cents`, `frequency`,
     `interval_weeks` (int ≥ 1, non-null iff `frequency` is `every_n_weeks`, else
     null), `goal_id` (nullable; set on Savings/Investments lines that fund a goal),
-    `derived_source` (nullable `budget_derived_source`; a rolled-up line — see
-    below).
+    `breakdown_id` (nullable; a derived line owned by a breakdown — see above),
+    `destination_account_id` (nullable; the Up account funding the line, for the
+    Splits tab).
   - Temporary is a Summary group derived from the `temporary_item` table, not a
     `budget_group` value: a budget line is never authored as temporary.
 - **SavingsGoal** — a persistent target.

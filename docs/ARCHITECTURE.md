@@ -26,13 +26,15 @@ Clients talk to the database in the way that fits each job:
   enforced by DB constraints + Row-Level Security; correctness is aided by
   generated TypeScript types.
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
-  Four live under `supabase/functions/`, auto-deployed to prod on merge (see
+  Five live under `supabase/functions/`, auto-deployed to prod on merge (see
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
-  member's Up token), `up-sync` (poll saver balances), and `up-webhook`
-  (near-real-time receiver). They hold Up tokens server-side (via Vault) and are
-  JWT-verified, except `up-webhook` (`verify_jwt=false`, signature-verified
-  instead). The pure tax engine runs client-side in the PWA; an authoritative
-  server-side tax estimate is a future edge function.
+  member's Up token), `up-sync` (poll saver balances), `up-webhook`
+  (near-real-time receiver), and `changelog` (proxy GitHub for the in-app "What's
+  new" feed). The Up functions hold Up tokens server-side (via Vault); `changelog`
+  holds a GitHub PAT server-side. All are JWT-verified except `up-webhook`
+  (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
+  client-side in the PWA; an authoritative server-side tax estimate is a future
+  edge function.
 - **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress) and
   household management (`create_household`, `join_household`, and the temporary
   invite-code RPCs `create_invite_code` / `revoke_invite_code`), callable through

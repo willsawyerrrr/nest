@@ -15,8 +15,10 @@ liability, plan spending, and track savings goals.
 - **Superannuation & net worth** — model per-person super (contributions, caps,
   Division 293, co-contribution) with its tax impact and a retirement projection,
   and total balances into a net-worth view.
-- **Gift budgeting** — plan gift spend per recipient and occasion, track
-  purchases, and roll the total into a derived budget line.
+- **Breakdowns** — user-created itemised lists (gifts by recipient × occasion,
+  medications, any costed list) that roll up into a single derived budget line.
+- **Pay splits** — route each budget line to the Up account that funds it and get
+  a recommended fortnightly pay split per account to type into Up.
 
 ## Scope decisions
 
@@ -40,6 +42,9 @@ liability, plan spending, and track savings goals.
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — entities and relationships.
 - [`docs/budget-and-savings.md`](docs/budget-and-savings.md) — plan-only budget,
   savings, and Summary math.
+- [`docs/breakdowns.md`](docs/breakdowns.md) — user-created itemised derived lines.
+- [`docs/pay-splits.md`](docs/pay-splits.md) — routing lines to Up accounts and the
+  recommended pay split.
 - [`docs/TAX.md`](docs/TAX.md) — AU tax modelling design.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased delivery plan.
 
@@ -79,10 +84,12 @@ The plan-only app — income + tax estimate, fortnightly budget, and savings goa
 — is live in production and fully replaces the household's spreadsheet; it needs
 no transaction data. Full superannuation modelling (concessional-contribution tax
 impact, Division 293, contribution caps, government co-contribution, and a
-retirement projection) and a net-worth view are live, as is gift budget tracking
-(a per-recipient × occasion planner whose total feeds a derived budget line). The
-Up savers → savings-goals layer is also live: members connect an Up token and link
-a goal to a synced Up saver, so goal progress tracks the real balance (synced on
-demand and hourly). Up transaction ingestion + reconciliation (ledger UI, actual
+retirement projection) and a net-worth view are live, as are user-created
+breakdowns (itemised lists that roll up into a derived budget line, with gifts the
+first `kind = 'gift'` breakdown), pay splits (per-account fortnightly split
+recommendations against routed budget lines), and an in-app "What's new" changelog.
+The Up savers → savings-goals layer is also live: members connect an Up token and
+link a goal to a synced Up saver, so goal progress tracks the real balance (synced
+on demand and hourly). Up transaction ingestion + reconciliation (ledger UI, actual
 spend vs budget, actual tax paid) is the next phase. See
 [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md).

@@ -4,9 +4,10 @@ Phased so each phase is independently useful. The plan-only app (income, tax,
 budget, savings goals) is built and deployed — it fully replaces the household's
 spreadsheet and needs no transaction data. The Up savers → savings-goals slice is
 built and deployed on top of it. Full superannuation modelling — which extends the
-tax engine and seeds a net-worth view — is complete, as is gift budget tracking
-(the first derived-budget-line consumer). Next is Up transaction ingestion:
-reconciling spend and actual tax paid against the plan.
+tax engine and seeds a net-worth view — is complete, as are pay splits, the in-app
+changelog, and user-created breakdowns (itemised lists that roll up into a derived
+budget line, with gifts as the first `kind = 'gift'` breakdown). Next is Up
+transaction ingestion: reconciling spend and actual tax paid against the plan.
 
 ## Product decisions
 
@@ -201,28 +202,36 @@ the FY2027 tax config was.
       retirement-age assumptions are client-side inputs persisted in localStorage
       — not stored in the database.
 
-### Gift budget tracking (complete)
+### Breakdowns — derived budget lines (complete)
 
-The first consumer of derived budget lines; the generic model that supersedes it —
-user-created **Breakdowns** — is designed in Later, with gifts becoming its special
-`kind = 'gift'` breakdown and its data preserved and migrated across the pivot. A
-dedicated gift planner + tracker, richer than the spreadsheet's plan-only Gifts
-sheet, with the household's real gift budgets loaded in production.
+User-created itemised lists that each own one derived budget line, so a line and
+its detail are a single source of truth. Breakdowns are data, not a fixed enum:
+gifts and medications are breakdown rows the household creates, `kind` selecting
+the editor. The household's real gift budgets are loaded in production. See
+[`breakdowns.md`](breakdowns.md) for the full design.
 
-- [x] Schema (generic + gifts): the `budget_derived_source` enum, the nullable
-      `budget_line.derived_source` column, and the four gift tables
-      (`gift_recipient`, `gift_occasion`, `gift_budget` with an optional per-pairing
-      `event_date`, `gift_purchase`), with RLS + isolation tests and regenerated
-      types.
-- [x] Gifts tab: plan a spend per **recipient × occasion**, then record purchases
-      against it. Two-way collapsible grouping (by occasion or by person, default
-      collapsed), each group rolling up budgeted / spent / remaining, reusing the
-      Budget tab's `GroupSection`. The effective date is
+- [x] Schema: `breakdown` (name / `line_group` / `breakdown_kind`) and
+      `breakdown_item` (name / amount / frequency), plus `budget_line.breakdown_id`
+      owning the derived line, with RLS + isolation tests and regenerated types.
+      The four gift tables (`gift_recipient`, `gift_occasion`, `gift_budget` with
+      an optional per-pairing `event_date`, `gift_purchase`) back the
+      `kind = 'gift'` breakdown.
+- [x] Breakdowns tab (`/breakdowns`): lists every breakdown with its group and
+      fortnightly + annual total, and a New breakdown action. `/breakdowns/:id` is
+      the editor, chosen by `kind` — a generic item editor, or the gift planner.
+- [x] Gift planner (`kind = 'gift'`): plan a spend per **recipient × occasion**,
+      then record purchases against it. Two-way collapsible grouping (by occasion
+      or by person, default collapsed), each group rolling up budgeted / spent /
+      remaining, reusing the Budget tab's `GroupSection`. The effective date is
       `event_date ?? occasion.occasion_date`.
-- [x] Derived budget line: a single `derived_source = 'gift'` line per household
-      takes its annual amount from the sum of every `gift_budget.budgeted_amount_cents`;
-      the Budget tab and the Summary both substitute it, so the line and the tracker
-      never drift.
+- [x] Derived-line lifecycle (`reconcileBreakdownLines`): the line exists iff the
+      breakdown has items, its amount is the summed-annualised roll-up
+      (`applyBreakdownAmounts`), and its group and name track the breakdown. A
+      routed line survives an empty breakdown so its Splits routing is not lost.
+      The Budget tab and Summary read the derived amount, so line and detail never
+      drift.
+- [x] Cleanup: the `budget_derived_source` enum and `budget_line.derived_source`
+      column are dropped — breakdowns are the sole derived-line mechanism.
 
 ### Pay splits (complete)
 
@@ -282,32 +291,10 @@ design (staged sync foundation, ledger UI, and the two reconciliation layers).
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
   a payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
-  Small and low-risk; good HDD filler. (The gift budget is built — see Done; generic
-  itemised sub-budgets are covered by Breakdowns below.)
-- **Breakdowns** (user-created itemised budget lines). See
-  [`breakdowns.md`](breakdowns.md) for the full design. A **breakdown** is a
-  household-created, named itemised list whose items roll up into a single real,
-  routable budget line, so the line and its detail share one source of truth and
-  never drift. Breakdowns replace the fixed derived-line sources with data: rather
-  than a `budget_derived_source` enum naming a hardcoded catalogue, a budget line
-  points at its owning breakdown via `budget_line.breakdown_id`, and the household
-  creates arbitrary breakdowns. A small `breakdown_kind` enum selects the editor,
-  not a per-instance type:
-  - **Gifts** is the first breakdown — the special `kind = 'gift'`, keeping its
-    existing recipient × occasion + purchases planner and its `gift_*` tables (its
-    data is preserved and migrated onto a `gift` breakdown; see Done).
-  - **Medications** and any future itemised budget are `kind = 'generic'`
-    breakdowns the household creates — a name + group and a list of items (amount +
-    frequency), needing no bespoke schema or tab.
-  - Staged, additive rollout: add the tables + `budget_line.breakdown_id` alongside
-    the existing enum and backfill gifts, switch the app over, then drop the
-    `budget_derived_source` enum and `derived_source` column. Stages 1 and 2 are
-    shipped: the schema is live, the **Breakdowns** tab replaces the standalone
-    Gifts tab, generic breakdowns are live (a name + group and an item editor), the
-    gift planner is reached as the `kind = 'gift'` breakdown, and the derived-line
-    lifecycle (create / update / remove keyed on `breakdown_id`) is app-enforced.
-    Stage 3 — dropping the `budget_derived_source` enum and `derived_source`
-    column and the dead gift-specific code — remains.
+  Small and low-risk; good HDD filler. (Gift budgets and generic itemised
+  sub-budgets are built as breakdowns — see Done.)
+- **Breakdowns follow-ups** (the feature itself is shipped — see Done). See
+  [`breakdowns.md`](breakdowns.md).
   - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
     other needs per-member visibility on gift records, a departure from the
     household-only RLS model where every member sees everything. It would require

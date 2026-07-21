@@ -12,10 +12,10 @@ Two layers are live in production at <https://nest.willsawyerrrr.dev>.
 transaction data. Income + AU tax estimate, a fortnightly plan-only budget,
 savings goals, and a Summary reconciliation. Tabs are path-routed via
 `react-router-dom` (`/summary` `/net-worth` `/inflows` `/budget` `/splits`
-`/goals` `/tax` `/super` `/gifts` `/household` `/whats-new`; `/` and unknown
+`/goals` `/tax` `/super` `/breakdowns` `/household` `/whats-new`; `/` and unknown
 routes redirect to `/summary`), so they are deep-linkable and reload-safe. Order:
 **Summary** (landing) · **Net worth** · **Inflows** · **Budget** · **Splits** ·
-**Goals** · **Tax** · **Super** · **Gifts** · **Household** · **What's new**.
+**Goals** · **Tax** · **Super** · **Breakdowns** · **Household** · **What's new**.
 Navigation renders from one `NAV_ITEMS` table (`TabBar.tsx`): on
 mobile a fixed top app-bar showing the app icon and the current page title, with
 a hamburger that opens a left `Drawer` of every item, on desktop (`sm` and up) a
@@ -57,16 +57,33 @@ runs on demand (a Goals-tab Refresh button) and hourly (a `pg_cron` backstop).
 Transaction ingestion (spend/ledger reconciliation, actual PAYG vs estimate)
 stays deferred — see [`ROADMAP.md`](ROADMAP.md).
 
-**Gift budget tracking** — built and deployed, with the household's real gift
-budgets loaded in production. The Gifts tab plans a spend per recipient × occasion
-and records purchases against it, grouped collapsibly by occasion or by person
-(default collapsed) with budgeted / spent / remaining rolled up each way. It is
-the first consumer of **derived budget lines**: a budget line with
-`derived_source = 'gift'` takes its amount from the gift total (the sum of every
-`gift_budget.budgeted_amount_cents`, as an annual figure) rather than a typed
-amount, and the PWA substitutes that amount before the Budget tab renders and
-before the Summary reconciles. The mechanism is generic — each future source (e.g.
-medication) adds a `budget_derived_source` enum value and its own tables.
+**Breakdowns (derived budget lines)** — built and deployed, with the household's
+real gift budgets loaded in production. A **breakdown** is a user-created,
+household-scoped itemised list that owns one **derived** budget line via
+`budget_line.breakdown_id`; the line's amount is the summed-annualised roll-up of
+the breakdown's items, so line and detail never drift. `breakdown_kind` selects
+the editor: `generic` is a simple item list (name + amount + frequency) — how
+medications and any other itemised budget are modelled — while `gift` is the
+recipient × occasion planner + purchase log, grouped collapsibly by occasion or by
+person with budgeted / spent / remaining rolled up each way, rolling up from the
+`gift_*` tables. The **Breakdowns** tab lists every breakdown (name, group,
+fortnightly + annual total) and taps through to `/breakdowns/:id`; the gift planner
+is reached as the `kind = 'gift'` breakdown, not a standalone tab. A derived line
+exists only while its breakdown has items (a routed line survives an empty
+breakdown so its Splits routing is not lost), is not manually editable, and routes
+through the Splits tab like any line. There is no `budget_derived_source` enum or
+`budget_line.derived_source` column — breakdowns are the sole derived-line
+mechanism.
+
+**Pay splits** — built and deployed. Each budget line is routed to the Up account
+that funds it via `budget_line.destination_account_id` (Savings/Investments route
+through their goal's linked saver instead). The Splits tab (between Budget and
+Goals) sums each account's routed lines into a recommended fortnightly pay split,
+rounded up to the nearest $5, with an Unassigned nudge for unrouted lines. Up
+exposes no pay-split API, so the household types the split into Up by hand and
+**confirms** the amount into the `pay_split` table (one row per account); the tab
+flags each saver whose recommendation has drifted from (or was never confirmed
+against) that stored amount and offers a Confirm to re-record it.
 
 ## Stack
 
@@ -287,7 +304,8 @@ Inflows (taxable income + non-taxable; `type` is `salary` / `wage` / `other` /
 `reimbursement` / `hobby` / `gift`, the non-taxable types being reporting labels
 only; schedules from weekly through annual plus an "every N weeks" cadence carrying
 `interval_weeks`), tax_profile, budget_line (groups: needs / wants / discretionary
-/ savings / investments; nullable `derived_source` for a rolled-up line),
+/ savings / investments; nullable `breakdown_id` for a derived line and nullable
+`destination_account_id` for its Splits routing),
 temporary_item, savings_goal (nullable `linked_account_id` → a synced Up saver),
 households / members (households carry nullable `invite_code` +
 `invite_code_expires_at`; members carry nullable `up_connected_at`), and the ledger
@@ -295,11 +313,15 @@ tables (accounts, transactions, categories). Superannuation adds per-member
 `super_profile` (fund name, `sg_rate_override`, `linked_account_id` balance,
 `carry_forward_cap_cents`, dated-baseline `balance_as_of`) and `super_contribution`
 (kind / mode / amount-or-`percent_bp` / frequency / `fhss_eligible` /
-`contributor_member_id`). The gift tracker adds `gift_recipient`, `gift_occasion`,
-`gift_budget` (recipient × occasion + `budgeted_amount_cents` + optional
-`event_date`), and `gift_purchase`, which roll up into a `derived_source = 'gift'`
-budget line. `accounts` is populated by `up-sync` for Up savers and holds each
-member's super balance; `transactions` remains unpopulated pending ingestion.
+`contributor_member_id`). Breakdowns add `breakdown` (name / `line_group` / `kind`)
+and `breakdown_item` (name / amount / frequency), owning a derived budget line via
+`budget_line.breakdown_id`; the `kind = 'gift'` breakdown rolls up from the gift
+tables `gift_recipient`, `gift_occasion`, `gift_budget` (recipient × occasion +
+`budgeted_amount_cents` + optional `event_date`), and `gift_purchase`. `pay_split`
+(one row per account, `confirmed_fortnightly_cents`) holds the confirmed Up split
+the Splits tab compares against. `accounts` is populated by `up-sync` for Up savers
+and holds each member's super balance; `transactions` remains unpopulated pending
+ingestion.
 Details: [`DATA_MODEL.md`](DATA_MODEL.md),
 [`budget-and-savings.md`](budget-and-savings.md), [`TAX.md`](TAX.md).
 
@@ -318,9 +340,8 @@ Details: [`DATA_MODEL.md`](DATA_MODEL.md),
   other needs member-scoped visibility that departs from the household-only RLS
   model; out of scope for now.
 - **Spreadsheet-parity gaps** (in [`spreadsheet-parity.md`](spreadsheet-parity.md)):
-  a generic itemised sub-budget (line-item breakdown) for non-gift lists, a
-  payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
-  The gift budget is built as the first derived-line consumer.
+  a payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
+  Generic itemised sub-budgets ship as breakdowns.
 - **Net worth beyond super** — the Net worth tab totals accounts (assets only);
   liabilities are not yet modelled.
 - **CI watch** — `check` (~50–59s) is the long pole near the one-minute budget;

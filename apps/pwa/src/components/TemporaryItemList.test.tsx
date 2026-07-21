@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { makeTemporaryItem } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { TemporaryItemList } from './TemporaryItemList'
-import { makeTemporaryItem } from '../test/fixtures'
 
 const items = [
   makeTemporaryItem(),

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { makeBudgetLine } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { BudgetLineForm } from './BudgetLineForm'
-import { makeBudgetLine } from '../test/fixtures'
 
 /** Picks an option from a Mantine `Select` identified by its label. */
 async function selectOption(

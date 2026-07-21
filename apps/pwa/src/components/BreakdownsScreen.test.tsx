@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import type { Breakdown } from '../hooks/useBreakdowns'
 import { render, screen, waitFor, within } from '../test/render'
 import { BreakdownsScreen } from './BreakdownsScreen'
-import type { Breakdown } from '../hooks/useBreakdowns'
 
 function breakdown(overrides: Partial<Breakdown> = {}): Breakdown {
   return {

@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it } from 'vitest'
+import { makeMember } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { RetirementProjection } from './RetirementProjection'
-import { makeMember } from '../test/fixtures'
 
 const member = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 

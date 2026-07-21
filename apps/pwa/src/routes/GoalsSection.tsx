@@ -1,10 +1,10 @@
 import { useCallback } from 'react'
-import { useGoals } from '../hooks/useGoals'
-import { useBudgetLines } from '../hooks/useBudgetLines'
-import { useSavers } from '../hooks/useSavers'
-import { useRefreshSavers } from '../hooks/useRefreshSavers'
 import { GoalScreen } from '../components/GoalScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useBudgetLines } from '../hooks/useBudgetLines'
+import { useGoals } from '../hooks/useGoals'
+import { useRefreshSavers } from '../hooks/useRefreshSavers'
+import { useSavers } from '../hooks/useSavers'
 
 export function GoalsSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)

@@ -1,8 +1,8 @@
 import userEvent from '@testing-library/user-event'
-import { fireEvent, render, screen, within } from '../test/render'
 import { describe, expect, it, vi } from 'vitest'
-import { HomeScreen } from './HomeScreen'
 import { makeMember } from '../test/fixtures'
+import { fireEvent, render, screen, within } from '../test/render'
+import { HomeScreen } from './HomeScreen'
 
 const members = [
   makeMember({ id: 'm1', name: 'Will', user_id: 'u1' }),

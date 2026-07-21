@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useUpConnection } from './useUpConnection'
 import { supabase } from '../lib/supabase'
+import { useUpConnection } from './useUpConnection'
 
 vi.mock('../lib/supabase', () => ({
   supabase: { functions: { invoke: vi.fn() } },

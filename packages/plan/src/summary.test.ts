@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isTemporaryActive, summarise } from './index'
-import type { SummaryInput, TemporaryItem } from './index'
+import { isTemporaryActive, summarise, type SummaryInput, type TemporaryItem } from './index'
 
 const NOW = new Date('2026-07-19T00:00:00Z')
 

@@ -1,8 +1,8 @@
 import type { SummaryInput } from '@nest/plan'
-import { applyBreakdownAmounts } from './derivedBudget'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Inflow } from '../hooks/useInflows'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import { applyBreakdownAmounts } from './derivedBudget'
 
 /** The household rows a Summary is built from, before adapting to the plan's shape. */
 export interface SummarySources {

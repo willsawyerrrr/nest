@@ -1,6 +1,6 @@
 import { Stack, Title } from '@mantine/core'
-import type { Member } from '../hooks/useMembers'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
+import type { Member } from '../hooks/useMembers'
 import { InflowList } from './InflowList'
 
 interface InflowScreenProps {

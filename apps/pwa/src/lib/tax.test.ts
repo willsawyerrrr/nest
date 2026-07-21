@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
-import type { TaxProfile } from '../hooks/useTaxProfiles'
-import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution } from '../hooks/useSuperContributions'
+import type { SuperProfile } from '../hooks/useSuperProfiles'
+import type { TaxProfile } from '../hooks/useTaxProfiles'
 import {
   concessionalByMember,
   currentTaxConfig,

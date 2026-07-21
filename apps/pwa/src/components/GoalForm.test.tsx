@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor } from '../test/render'
-import { GoalForm } from './GoalForm'
+import { describe, expect, it, vi } from 'vitest'
 import type { Goal } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
 import { makeGoal, makeSaver } from '../test/fixtures'
+import { render, screen, waitFor } from '../test/render'
+import { GoalForm } from './GoalForm'
 
 function goal(overrides: Partial<Goal> = {}): Goal {
   return makeGoal({

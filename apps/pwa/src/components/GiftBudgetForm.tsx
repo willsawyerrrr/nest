@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, NumberInput, Select, Stack, Text } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { GiftBudget, GiftBudgetInput, GiftOccasion, GiftRecipient } from '../hooks/useGifts'
-import { centsToDollars, dollarsToCents } from '../lib/money'
 import { pairKey } from '../lib/gifts'
+import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface GiftBudgetFormProps {
   recipients: GiftRecipient[]

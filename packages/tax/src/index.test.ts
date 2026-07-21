@@ -12,8 +12,10 @@ import {
   medicareLevySurcharge,
   superCoContribution,
   taxableIncome,
+  type AssessableIncome,
+  type TaxInput,
+  type TaxYearConfig,
 } from './index'
-import type { AssessableIncome, TaxInput, TaxYearConfig } from './index'
 
 /**
  * FIXTURE — deliberately round, made-up figures, NOT official ATO rates or

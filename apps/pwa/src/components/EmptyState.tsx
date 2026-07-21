@@ -1,5 +1,5 @@
-import { Text } from '@mantine/core'
 import type { ReactNode } from 'react'
+import { Text } from '@mantine/core'
 
 interface EmptyStateProps {
   /** The "nothing here yet" message to show in place of a list's items. */

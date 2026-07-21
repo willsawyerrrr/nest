@@ -1,11 +1,11 @@
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { HomeScreen } from '../components/HomeScreen'
+import { LoadingScreen } from '../components/LoadingScreen'
 import { type Household } from '../hooks/useHousehold'
 import { useMembers } from '../hooks/useMembers'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useUpConnection } from '../hooks/useUpConnection'
-import { HomeScreen } from '../components/HomeScreen'
-import { LoadingScreen } from '../components/LoadingScreen'
+import { supabase } from '../lib/supabase'
 
 export function HomeSection({
   household,

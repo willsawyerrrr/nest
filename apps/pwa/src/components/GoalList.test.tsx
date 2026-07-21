@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { makeGoal as goal, makeBudgetLine as line, makeSaver as saver } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { GoalList } from './GoalList'
-import { makeBudgetLine as line, makeGoal as goal, makeSaver as saver } from '../test/fixtures'
 
 function card(name: string): HTMLElement {
   return screen.getByText(name).closest('.mantine-Card-root') as HTMLElement

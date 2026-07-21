@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useDisclosure } from '@mantine/hooks'
 import {
   ActionIcon,
   Badge,
@@ -12,18 +11,19 @@ import {
   TextInput,
   Title,
 } from '@mantine/core'
+import { useDisclosure } from '@mantine/hooks'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { annualCents, fortnightlyCents } from '@nest/plan'
+import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
+import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
-import { BreakdownPageLayout } from './BreakdownPageLayout'
-import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
-import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
-import type { BudgetGroup } from '../lib/domain'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
-import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
+import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
+import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
 import { BreakdownItemForm } from './BreakdownItemForm'
+import { BreakdownPageLayout } from './BreakdownPageLayout'
 import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'

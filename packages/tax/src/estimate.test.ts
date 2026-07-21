@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { annualGrossCents, estimateHouseholdTax, FY2027_CONFIG } from './index'
-import type { IncomeInput, IncomeSchedule, TaxProfileInput } from './index'
+import {
+  annualGrossCents,
+  estimateHouseholdTax,
+  FY2027_CONFIG,
+  type IncomeInput,
+  type IncomeSchedule,
+  type TaxProfileInput,
+} from './index'
 
 /** Builds a salary income of `amountCents` per period on `schedule`. */
 function salary(schedule: IncomeSchedule, amountCents: number): IncomeInput {

@@ -1,14 +1,14 @@
 import { Stack, Text, Title } from '@mantine/core'
 import type { Account } from '../hooks/useAccounts'
 import type { Member } from '../hooks/useMembers'
-import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
-import type { SuperCapSummary } from '../lib/tax'
+import type { SuperProfile } from '../hooks/useSuperProfiles'
 import { accruedBalanceCents } from '../lib/super'
-import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
-import { SuperContributionList } from './SuperContributionList'
-import { SuperCapsSummary } from './SuperCapsSummary'
+import type { SuperCapSummary } from '../lib/tax'
 import { RetirementProjection } from './RetirementProjection'
+import { SuperCapsSummary } from './SuperCapsSummary'
+import { SuperContributionList } from './SuperContributionList'
+import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
 
 interface SuperScreenProps {
   members: Member[]

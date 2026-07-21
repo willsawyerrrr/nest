@@ -1,7 +1,7 @@
 /* eslint-disable react/only-export-components -- test-only render helper re-exports Testing Library utilities. */
 import type { ReactElement, ReactNode } from 'react'
-import { render as rtlRender, type RenderOptions } from '@testing-library/react'
 import { MantineProvider } from '@mantine/core'
+import { render as rtlRender, type RenderOptions } from '@testing-library/react'
 import { theme } from '../theme'
 
 function Providers({ children }: { children: ReactNode }) {

@@ -1,6 +1,6 @@
 import type { Account } from '../hooks/useAccounts'
-import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { SuperContributionKind } from '../hooks/useSuperContributions'
+import type { SuperProfile } from '../hooks/useSuperProfiles'
 
 /** Human-readable labels for each super-contribution kind, for forms and lists. */
 export const SUPER_CONTRIBUTION_KINDS: { value: SuperContributionKind; label: string }[] = [

@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor, within } from '../test/render'
-import { TaxProfileList } from './TaxProfileList'
+import { describe, expect, it, vi } from 'vitest'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
 import { makeMember } from '../test/fixtures'
+import { render, screen, waitFor, within } from '../test/render'
+import { TaxProfileList } from './TaxProfileList'
 
 const members = [
   makeMember({ id: 'm1', name: 'Will', user_id: 'u1' }),

@@ -1,6 +1,6 @@
-import { useHouseholdCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 import type { Frequency } from '../lib/domain'
+import { useHouseholdCollection } from './useCollection'
 
 export type Inflow = Tables<'inflows'>
 export type InflowType = Enums<'inflow_type'>

@@ -2,13 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { ActionIcon, Button, Card, Group, Stack, Text, TextInput, Title } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type {
   GiftOccasion,
   GiftOccasionInput,
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { formatIsoDate } from '../lib/dates'
 import { EmptyState } from './EmptyState'
 

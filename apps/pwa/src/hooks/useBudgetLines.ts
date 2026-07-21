@@ -1,6 +1,6 @@
-import { useHouseholdCollection } from './useCollection'
 import type { Tables } from '../lib/database.types'
 import type { BudgetGroup, Frequency } from '../lib/domain'
+import { useHouseholdCollection } from './useCollection'
 
 export type BudgetLine = Tables<'budget_line'>
 

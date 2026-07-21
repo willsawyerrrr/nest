@@ -1,10 +1,10 @@
+import { LoadingScreen } from '../components/LoadingScreen'
+import { SplitsScreen } from '../components/SplitsScreen'
+import { useAccounts } from '../hooks/useAccounts'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGoals } from '../hooks/useGoals'
-import { useAccounts } from '../hooks/useAccounts'
-import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { usePaySplits } from '../hooks/usePaySplits'
-import { SplitsScreen } from '../components/SplitsScreen'
-import { LoadingScreen } from '../components/LoadingScreen'
+import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { superAccountIds } from '../lib/super'
 
 export function SplitsSection({ householdId }: { householdId: string }) {

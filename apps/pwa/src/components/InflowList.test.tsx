@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor, within } from '../test/render'
-import { InflowList } from './InflowList'
+import { describe, expect, it, vi } from 'vitest'
 import type { Inflow } from '../hooks/useInflows'
 import { makeInflow, makeMember } from '../test/fixtures'
+import { render, screen, waitFor, within } from '../test/render'
+import { InflowList } from './InflowList'
 
 const members = [makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })]
 

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useCallback } from 'react'
+import { useHouseholdCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 import type { BudgetGroup } from '../lib/domain'
 import type { BreakdownItem } from './useBreakdownItems'
@@ -35,69 +35,56 @@ export interface UseBreakdownsResult {
  * Loads and mutates the household's breakdowns, alongside every generic
  * breakdown item so a caller can roll up each breakdown's total and count its
  * items. RLS scopes reads to the household; deletes cascade to items in the
- * database.
+ * database, so every breakdown write reloads the items too.
  */
 export function useBreakdowns(householdId: string): UseBreakdownsResult {
-  const [breakdowns, setBreakdowns] = useState<Breakdown[] | null>(null)
-  const [items, setItems] = useState<BreakdownItem[] | null>(null)
+  const {
+    rows: breakdownRows,
+    reload: reloadBreakdowns,
+    create: createBreakdown,
+    update: updateBreakdown,
+    remove: removeBreakdown,
+  } = useHouseholdCollection<'breakdown', BreakdownInput, BreakdownUpdate>(householdId, {
+    table: 'breakdown',
+    orderBy: 'name',
+  })
+  const { rows: itemRows, reload: reloadItems } = useHouseholdCollection<'breakdown_item', never>(
+    householdId,
+    { table: 'breakdown_item', orderBy: 'name' },
+  )
 
   const reload = useCallback(async () => {
-    const [breakdownRes, itemRes] = await Promise.all([
-      supabase.from('breakdown').select('*').order('name'),
-      supabase.from('breakdown_item').select('*').order('name'),
-    ])
-    for (const res of [breakdownRes, itemRes]) {
-      if (res.error) {
-        throw res.error
-      }
-    }
-    setBreakdowns(breakdownRes.data)
-    setItems(itemRes.data)
-  }, [])
+    await Promise.all([reloadBreakdowns(), reloadItems()])
+  }, [reloadBreakdowns, reloadItems])
 
   const create = useCallback(
     async (input: BreakdownInput) => {
-      const { error } = await supabase
-        .from('breakdown')
-        .insert({ ...input, household_id: householdId })
-      if (error) {
-        throw error
-      }
-      await reload()
+      await createBreakdown(input)
+      await reloadItems()
     },
-    [householdId, reload],
+    [createBreakdown, reloadItems],
   )
 
   const update = useCallback(
     async (id: string, input: BreakdownUpdate) => {
-      const { error } = await supabase.from('breakdown').update(input).eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
+      await updateBreakdown(id, input)
+      await reloadItems()
     },
-    [reload],
+    [updateBreakdown, reloadItems],
   )
 
   const remove = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('breakdown').delete().eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
+      await removeBreakdown(id)
+      await reloadItems()
     },
-    [reload],
+    [removeBreakdown, reloadItems],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
   return {
-    breakdowns,
-    items,
-    loading: breakdowns === null || items === null,
+    breakdowns: breakdownRows,
+    items: itemRows,
+    loading: breakdownRows === null || itemRows === null,
     reload,
     create,
     update,

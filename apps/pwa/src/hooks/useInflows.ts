@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useHouseholdCollection } from './useCollection'
 import type { Enums, Tables } from '../lib/database.types'
 import type { Frequency } from '../lib/domain'
 
@@ -30,54 +29,9 @@ export interface UseInflowsResult {
 
 /** Loads and mutates the household's inflows. RLS scopes reads to the household. */
 export function useInflows(householdId: string): UseInflowsResult {
-  const [inflows, setInflows] = useState<Inflow[] | null>(null)
-
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase.from('inflows').select('*').order('name')
-    if (error) {
-      throw error
-    }
-    setInflows(data)
-  }, [])
-
-  const create = useCallback(
-    async (input: InflowInput) => {
-      const { error } = await supabase
-        .from('inflows')
-        .insert({ ...input, household_id: householdId })
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [householdId, reload],
-  )
-
-  const update = useCallback(
-    async (id: string, input: InflowInput) => {
-      const { error } = await supabase.from('inflows').update(input).eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  const remove = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.from('inflows').delete().eq('id', id)
-      if (error) {
-        throw error
-      }
-      await reload()
-    },
-    [reload],
-  )
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { inflows, loading: inflows === null, reload, create, update, remove }
+  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+    'inflows',
+    InflowInput
+  >(householdId, { table: 'inflows', orderBy: 'name' })
+  return { inflows: rows, loading, reload, create, update, remove }
 }

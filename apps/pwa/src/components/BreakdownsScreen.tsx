@@ -17,6 +17,7 @@ import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
 import type { BudgetGroup } from '../lib/domain'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import { formatPerYear } from '../lib/money'
+import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
 
@@ -155,9 +156,7 @@ export function BreakdownsScreen({
       )}
 
       {breakdowns.length === 0 && !adding ? (
-        <Text c="dimmed" size="sm">
-          No breakdowns yet.
-        </Text>
+        <EmptyState>No breakdowns yet.</EmptyState>
       ) : (
         breakdowns.map((breakdown) => (
           <BreakdownRow

@@ -30,6 +30,7 @@ import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'
 import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
 import { EditDeleteActions } from './EditDeleteActions'
+import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { GroupSection } from './GroupSection'
 
@@ -423,9 +424,7 @@ export function BudgetLineList({
         return (
           <GroupSection key={group} title={label} subtotalCents={subtotal}>
             {!searching && groupLines.length === 0 && addingGroup !== group && (
-              <Text c="dimmed" size="sm">
-                No {label.toLowerCase()} lines yet.
-              </Text>
+              <EmptyState>No {label.toLowerCase()} lines yet.</EmptyState>
             )}
 
             {visibleLines.map((line) => {

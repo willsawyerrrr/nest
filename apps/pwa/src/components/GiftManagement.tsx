@@ -19,6 +19,7 @@ import type {
   GiftRecipientInput,
 } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
+import { EmptyState } from './EmptyState'
 
 interface GiftManagementProps {
   recipients: GiftRecipient[]
@@ -193,11 +194,7 @@ export function GiftManagement({
     <Stack gap="lg">
       <Stack gap="sm">
         <Title order={3}>Recipients</Title>
-        {recipients.length === 0 && !addingRecipient && (
-          <Text c="dimmed" size="sm">
-            No recipients yet.
-          </Text>
-        )}
+        {recipients.length === 0 && !addingRecipient && <EmptyState>No recipients yet.</EmptyState>}
         {recipients.map((recipient) =>
           editingRecipientId === recipient.id ? (
             <GiftEntityForm
@@ -252,11 +249,7 @@ export function GiftManagement({
 
       <Stack gap="sm">
         <Title order={3}>Occasions</Title>
-        {occasions.length === 0 && !addingOccasion && (
-          <Text c="dimmed" size="sm">
-            No occasions yet.
-          </Text>
-        )}
+        {occasions.length === 0 && !addingOccasion && <EmptyState>No occasions yet.</EmptyState>}
         {occasions.map((occasion) =>
           editingOccasionId === occasion.id ? (
             <GiftEntityForm

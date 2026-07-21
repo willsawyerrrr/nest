@@ -15,6 +15,7 @@ import {
 } from '@mantine/core'
 import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
+import { EmptyState } from './EmptyState'
 import { EnumSegmentedControl } from './EnumSelect'
 import type {
   GiftBudget,
@@ -197,9 +198,7 @@ function GiftRowCard({
         <Collapse expanded={opened}>
           <Stack gap="xs" pt="xs">
             {rowPurchases.length === 0 && !addingPurchase && (
-              <Text c="dimmed" size="xs">
-                No purchases yet.
-              </Text>
+              <EmptyState>No purchases yet.</EmptyState>
             )}
             {rowPurchases.map((purchase) =>
               editingPurchaseId === purchase.id ? (
@@ -344,9 +343,7 @@ function GiftGroupCard({
         <Collapse expanded={opened}>
           <Stack gap="xs">
             {group.rows.length === 0 && !addingBudget && (
-              <Text c="dimmed" size="sm">
-                No gift budgets yet.
-              </Text>
+              <EmptyState>No gift budgets yet.</EmptyState>
             )}
             {group.rows.map((row) => {
               const budget = budgetsById.get(row.budgetId)
@@ -483,10 +480,10 @@ export function GiftsScreen({
           </Text>
         </Box>
       ) : groups.length === 0 ? (
-        <Text c="dimmed" size="sm">
+        <EmptyState>
           No {groupBy === 'occasion' ? 'occasions' : 'recipients'} yet. Tap <b>Manage</b> to add
           one.
-        </Text>
+        </EmptyState>
       ) : (
         groups.map((group) => (
           <GiftGroupCard

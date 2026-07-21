@@ -5,6 +5,7 @@ import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryIte
 import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
 import { EditDeleteActions } from './EditDeleteActions'
+import { EmptyState } from './EmptyState'
 import { GroupSection } from './GroupSection'
 import { TemporaryItemForm } from './TemporaryItemForm'
 
@@ -77,11 +78,7 @@ export function TemporaryItemList({
 
   return (
     <GroupSection title="Temporary" subtotalCents={activeSubtotal}>
-      {items.length === 0 && !adding && (
-        <Text c="dimmed" size="sm">
-          No temporary lines yet.
-        </Text>
-      )}
+      {items.length === 0 && !adding && <EmptyState>No temporary lines yet.</EmptyState>}
 
       {items.map((item) =>
         editingId === item.id ? (

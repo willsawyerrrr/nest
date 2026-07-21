@@ -1,14 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import {
-  Button,
-  Card,
-  Center,
-  SegmentedControl,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core'
+import { Button, Card, Center, Stack, Text, TextInput, Title } from '@mantine/core'
+import { EnumSegmentedControl } from './EnumSelect'
 
 interface OnboardingScreenProps {
   onCreate: (name: string, memberName: string) => void | Promise<void>
@@ -69,10 +61,10 @@ export function OnboardingScreen({ onCreate, onJoin }: OnboardingScreenProps) {
               ? 'Name your household and yourself to get started.'
               : 'Enter the invite code your partner shared with you.'}
           </Text>
-          <SegmentedControl
+          <EnumSegmentedControl
             fullWidth
             value={mode}
-            onChange={(value) => switchMode(value as Mode)}
+            onChange={switchMode}
             data={[
               { value: 'create', label: 'Create' },
               { value: 'join', label: 'Join' },

@@ -15,6 +15,7 @@ import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { EnumSelect } from './EnumSelect'
 
 interface InflowFormProps {
   members: Member[]
@@ -146,16 +147,16 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           />
         )}
 
-        <Select
+        <EnumSelect
           label="Type"
           size="sm"
           data={typeOptions}
           value={type}
-          onChange={(value) => value && setType(value as InflowType)}
+          onChange={(value) => value && setType(value)}
           allowDeselect={false}
         />
 
-        <Select
+        <EnumSelect
           label="Frequency"
           size="sm"
           description={
@@ -168,7 +169,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           }
           data={FREQUENCY_OPTIONS}
           value={schedule}
-          onChange={(value) => value && setSchedule(value as Frequency)}
+          onChange={(value) => value && setSchedule(value)}
           allowDeselect={false}
         />
 

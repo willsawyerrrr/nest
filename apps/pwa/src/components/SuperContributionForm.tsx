@@ -1,15 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import {
-  Button,
-  Card,
-  Group,
-  NumberInput,
-  SegmentedControl,
-  Select,
-  Stack,
-  Switch,
-  Text,
-} from '@mantine/core'
+import { Button, Card, Group, NumberInput, Select, Stack, Switch, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type {
   SuperContribution,
@@ -21,6 +11,7 @@ import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
+import { EnumSegmentedControl, EnumSelect } from './EnumSelect'
 
 interface SuperContributionFormProps {
   member: Member
@@ -94,12 +85,12 @@ export function SuperContributionForm({
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
-        <Select
+        <EnumSelect
           label="Kind"
           size="sm"
           data={SUPER_CONTRIBUTION_KINDS}
           value={kind}
-          onChange={(value) => value && setKind(value as SuperContributionKind)}
+          onChange={(value) => value && setKind(value)}
           allowDeselect={false}
         />
 
@@ -116,12 +107,12 @@ export function SuperContributionForm({
           />
         )}
 
-        <SegmentedControl
+        <EnumSegmentedControl
           fullWidth
           size="sm"
           aria-label="Contribution mode"
           value={mode}
-          onChange={(value) => setMode(value as SuperContributionMode)}
+          onChange={setMode}
           data={[
             { value: 'amount', label: 'Amount' },
             { value: 'percent', label: 'Percent of salary' },
@@ -155,12 +146,12 @@ export function SuperContributionForm({
           />
         )}
 
-        <Select
+        <EnumSelect
           label="Frequency"
           size="sm"
           data={FREQUENCY_OPTIONS}
           value={frequency}
-          onChange={(value) => value && setFrequency(value as Frequency)}
+          onChange={(value) => value && setFrequency(value)}
           allowDeselect={false}
         />
 

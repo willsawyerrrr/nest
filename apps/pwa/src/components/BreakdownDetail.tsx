@@ -8,7 +8,6 @@ import {
   Collapse,
   Group,
   Modal,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -25,6 +24,7 @@ import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { BreakdownItemForm } from './BreakdownItemForm'
+import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
 
 interface BreakdownDetailProps {
@@ -87,12 +87,12 @@ function BreakdownSettings({
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
-        <Select
+        <EnumSelect
           label="Group"
           size="sm"
           data={BUDGET_GROUPS}
           value={group}
-          onChange={(value) => value && setGroup(value as BudgetGroup)}
+          onChange={(value) => value && setGroup(value)}
           allowDeselect={false}
         />
         <Group grow>

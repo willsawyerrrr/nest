@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Card, Group, NumberInput, Stack, Text, TextInput } from '@mantine/core'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
 import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { EnumSelect } from './EnumSelect'
 
 interface BreakdownItemFormProps {
   initial?: BreakdownItem
@@ -60,13 +61,13 @@ export function BreakdownItemForm({ initial, onSubmit, onCancel }: BreakdownItem
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
-        <Select
+        <EnumSelect
           label="Frequency"
           size="sm"
           description="The app converts every amount to fortnightly and annual."
           data={FREQUENCY_OPTIONS}
           value={frequency}
-          onChange={(value) => value && setFrequency(value as Frequency)}
+          onChange={(value) => value && setFrequency(value)}
           allowDeselect={false}
         />
 

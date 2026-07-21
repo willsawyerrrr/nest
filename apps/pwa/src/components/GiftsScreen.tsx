@@ -8,7 +8,6 @@ import {
   Collapse,
   Group,
   Progress,
-  SegmentedControl,
   Stack,
   Text,
   Title,
@@ -16,6 +15,7 @@ import {
 } from '@mantine/core'
 import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
+import { EnumSegmentedControl } from './EnumSelect'
 import type {
   GiftBudget,
   GiftBudgetInput,
@@ -465,11 +465,11 @@ export function GiftsScreen({
         />
       </Collapse>
 
-      <SegmentedControl
+      <EnumSegmentedControl
         fullWidth
         aria-label="Group gifts by"
         value={groupBy}
-        onChange={(value) => setGroupBy(value as GiftGroupBy)}
+        onChange={setGroupBy}
         data={[
           { value: 'occasion', label: 'By occasion' },
           { value: 'person', label: 'By person' },

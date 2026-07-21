@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Group,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -18,6 +17,7 @@ import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
 import type { BudgetGroup } from '../lib/domain'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import { formatPerYear } from '../lib/money'
+import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
 
 interface BreakdownsScreenProps {
@@ -66,13 +66,13 @@ function NewBreakdownForm({
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
-        <Select
+        <EnumSelect
           label="Group"
           size="sm"
           description="The budget group the rolled-up line belongs to."
           data={BUDGET_GROUPS}
           value={group}
-          onChange={(value) => value && setGroup(value as BudgetGroup)}
+          onChange={(value) => value && setGroup(value)}
           allowDeselect={false}
         />
         {error && (

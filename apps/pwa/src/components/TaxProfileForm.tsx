@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Checkbox, Group, NumberInput, Select, Stack, Text } from '@mantine/core'
+import { Button, Card, Checkbox, Group, NumberInput, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput, TaxResidency } from '../hooks/useTaxProfiles'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { EnumSelect } from './EnumSelect'
 
 interface TaxProfileFormProps {
   member: Member
@@ -52,12 +53,12 @@ export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfi
       <Stack gap="xs">
         <Text fw={600}>{member.name}</Text>
 
-        <Select
+        <EnumSelect
           label="Residency"
           size="sm"
           data={RESIDENCIES}
           value={residency}
-          onChange={(value) => value && setResidency(value as TaxResidency)}
+          onChange={(value) => value && setResidency(value)}
           allowDeselect={false}
         />
 

@@ -124,6 +124,15 @@ describe('TabBar mobile drawer', () => {
     expect(within(header).getByText('Budget')).toBeInTheDocument()
   })
 
+  it('shows only the app icon, no page title, when no tab matches the route', () => {
+    renderTabBar('/nowhere')
+
+    const header = screen.getByRole('banner')
+    expect(within(header).getByAltText('Nest')).toBeInTheDocument()
+    // No nav item matches, so there is no active label and the title is omitted.
+    expect(header).toHaveTextContent('')
+  })
+
   it('opens the hamburger drawer and navigates on selecting an item', async () => {
     const user = userEvent.setup()
     renderTabBar('/summary')

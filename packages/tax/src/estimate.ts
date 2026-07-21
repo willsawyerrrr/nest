@@ -208,6 +208,9 @@ export function estimateHouseholdTax(
   for (const profile of profiles) note(profile.memberId)
 
   const members = memberOrder.map((memberId) => {
+    // Every id in `memberOrder` was appended by `note()`, which always writes an
+    // `incomeByMember` bucket in the same call, so the fallback is unreachable.
+    /* v8 ignore next */
     const bucket = incomeByMember.get(memberId) ?? { salaryOrWagesCents: 0, otherCents: 0 }
     const profile = profileByMember.get(memberId) ?? { memberId, ...DEFAULT_PROFILE }
     const concessionalCents = concessionalByMember?.get(memberId) ?? 0

@@ -165,6 +165,47 @@ describe('gift ordering tiebreaks on equal dates', () => {
     }
   })
 
+  it('orders two dated occasions by date in either input order', () => {
+    // With two dated occasions the comparator's date arm runs in both directions,
+    // hitting each side of its `<` ternary regardless of input order.
+    for (const input of [
+      [xmas, bday],
+      [bday, xmas],
+    ] as GiftOccasion[][]) {
+      const groups = groupGifts([alice], input, [], [], 'occasion')
+      expect(groups.map((group) => group.label)).toEqual(['Birthday', 'Christmas'])
+    }
+  })
+
+  it('breaks an equal date and name tie between occasions by id', () => {
+    const a = occasion('o-a', 'Gala', '2026-03-03')
+    const b = occasion('o-b', 'Gala', '2026-03-03')
+    const groups = groupGifts([alice], [b, a], [], [], 'occasion')
+    expect(groups.map((group) => group.key)).toEqual(['o-a', 'o-b'])
+  })
+
+  it('breaks an equal name tie between recipients by id', () => {
+    const a = recipient('r-a', 'Sam')
+    const b = recipient('r-b', 'Sam')
+    const groups = groupGifts([b, a], [xmas], [], [], 'person')
+    expect(groups.map((group) => group.key)).toEqual(['r-a', 'r-b'])
+  })
+
+  it('breaks an equal date and label tie between person rows by budget id', () => {
+    // Two occasions share a name and date, so their rows fall through the row
+    // comparator's label tiebreak to the budget-id one.
+    const first = occasion('o1', 'Party', '2026-03-03')
+    const second = occasion('o2', 'Party', '2026-03-03')
+    const groups = groupGifts(
+      [alice],
+      [first, second],
+      [budget('b2', alice.id, second.id, 10_00), budget('b1', alice.id, first.id, 20_00)],
+      [],
+      'person',
+    )
+    expect(groups[0]!.rows.map((row) => row.budgetId)).toEqual(['b1', 'b2'])
+  })
+
   it('orders same-date person rows by label then budget id', () => {
     // Alice has two occasions whose effective dates match, so the row order
     // falls through to the label/id tiebreak in compareRowsByDate.

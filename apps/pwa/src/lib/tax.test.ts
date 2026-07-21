@@ -153,6 +153,21 @@ describe('estimateHouseholdTaxFromRows', () => {
     expect(member.annualTaxCents).toBeLessThan(withoutSuper.members[0]!.annualTaxCents)
   })
 
+  it('maps a foreign-resident profile through the estimate', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 100_000_00,
+    }
+    const estimate = estimateHouseholdTaxFromRows(
+      [salary],
+      [{ ...profile, residency: 'foreign_resident' }],
+    )
+    expect(estimate.members).toHaveLength(1)
+    expect(estimate.annualGrossCents).toBe(100_000_00)
+  })
+
   it('annualises an every-N-weeks taxable inflow via the shared normalization', () => {
     // $300 every 4 weeks → round(300_00 × 52 / 4) = 3_900_00/yr.
     const estimate = estimateHouseholdTaxFromRows([baseInflow], [profile])

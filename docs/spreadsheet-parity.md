@@ -72,10 +72,10 @@ annual total, exactly like the app.
 | Per-category portion of after-tax income | ✅ Have | Rendered per line |
 | Allocation ranking + `Unallocated` | ✅ Have | Summary allocation donut with remaining/unallocated |
 | Savings goals | ✅ Have | App richer: target date, current balance, contribution link, progress + ETA |
-| **Payment-method tag per bill** (Debit/Transfer/Card/Saver) | ❌ Missing | No per-line payment-method attribute |
+| **Payment-method tag per bill** (Debit/Transfer/Card/Saver) | ➖ Not planned | Deliberate non-gap — the household keeps this in the sheet |
 | **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ✅ Have | Shipped as breakdowns: a user-created itemised list rolls up into a derived budget line, gifts being the first `kind = 'gift'` breakdown and generic breakdowns covering any other list |
 | **Wishlist** (per-member aspirational purchases) | ❌ Missing | No wishlist surface |
-| **Finance-admin to-do list** | ❌ Missing | No task/checklist surface |
+| **Finance-admin to-do list** | ➖ Not planned | Deliberate non-gap — the household keeps this in the sheet |
 | **Free-text notes on a budget line** ("Spendings" scratch list) | ❌ Missing | Budget lines have no notes field |
 | Per-member breakdown of discretionary spend / wishlist / gifts | 🟨 Partial | App pools money by explicit design; per-line member tagging is deliberately out of scope. Itemisation is covered by breakdowns; free-text notes are not |
 
@@ -91,46 +91,32 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
    other list (e.g. the "Spendings" scratch list, medications). See
    [`breakdowns.md`](breakdowns.md) and [`ROADMAP.md`](ROADMAP.md).
 
-2. **Payment-method tag per budget line** (enum: Debit / Transfer / Card / Saver)
-   — records how each bill is paid. _Why:_ the household tracks this now, and it
-   is directly useful for the upcoming Up-ingestion phase to match a planned bill
-   to the account/transaction it settles against. _Size:_ S. _Backend + frontend_
-   (nullable enum column on `budget_line` + a select in the line form).
-
-3. **Wishlist** — a per-member list of aspirational purchases (name + amount),
+2. **Wishlist** — a per-member list of aspirational purchases (name + amount),
    separate from the budget, that can later graduate into a Discretionary line or
    a savings goal. _Why:_ it is a standalone sheet the household keeps; it also
    feeds future budgeting decisions. _Size:_ S–M. _Backend + frontend_ (new
    `wishlist_item` table with optional `member_id` tag + a simple screen/section).
 
-4. **Finance-admin to-do list** — a lightweight checklist of finance actions
-   (chase a reimbursement, change a payment on a bill). _Why:_ captures recurring
-   admin the household tracks in the sheet; low effort, high day-to-day utility.
-   _Size:_ S. _Backend + frontend_ (small `finance_todo` table: text + done flag,
-   or fold into an existing table; checklist UI).
-
-5. **Free-text note on a budget line** — the "Spendings" scratch annotations.
+3. **Free-text note on a budget line** — the "Spendings" scratch annotations.
    _Why:_ small quality-of-life; lets a line carry context without a full
    breakdown. Largely subsumed by gap 1, so build only if line-items are not.
    _Size:_ S. _Backend + frontend_ (nullable `notes` text column + textarea).
 
-**Deliberate non-gaps** (documented, not to build): the app's tax engine already
-exceeds the sheet's flat-Medicare / no-offset model; app Goals already exceed the
-sheet's flat target list; and per-person *budget* splitting is intentionally out
-of scope (money is fully pooled — member tags are a tax/reporting concept only).
-Wishlist and Gifts still warrant an optional per-member tag for display, without
-implying per-person budgets.
+**Deliberate non-gaps** (documented, not to build): a **payment-method tag per
+bill** (Debit / Transfer / Card / Saver) and a **finance-admin to-do list** — the
+household keeps both in the spreadsheet, and neither needs to move into the app.
+The app's tax engine already exceeds the sheet's flat-Medicare / no-offset model;
+app Goals already exceed the sheet's flat target list; and per-person *budget*
+splitting is intentionally out of scope (money is fully pooled — member tags are a
+tax/reporting concept only). Wishlist and Gifts still warrant an optional
+per-member tag for display, without implying per-person budgets.
 
 ## 4. Recommended next builds
 
 1. **Generic itemised sub-budget (gap 1)** — the largest remaining fidelity loss
    vs the sheet for non-gift lists; the gift budget is already built, so this
    covers any other "list of small things under one line".
-2. **Payment-method tag (gap 2)** — cheap, and it pre-wires budget lines for the
-   Up-ingestion/reconciliation phase that is next on the roadmap.
-3. **Wishlist (gap 3)** — self-contained, low-risk, restores a whole sheet the
+2. **Wishlist (gap 2)** — self-contained, low-risk, restores a whole sheet the
    household uses.
-4. **Finance-admin to-do (gap 4)** — small, and rounds out the "everything the
-   sheet did" story so the app can fully retire it.
 
-Gap 5 (line notes) is optional and only if gap 1 is deferred.
+Gap 3 (line notes) is optional and only if gap 1 is deferred.

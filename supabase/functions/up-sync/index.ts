@@ -19,22 +19,14 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { UpClient } from '../_shared/up.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+import { handlePreflight, json } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
 import { isServiceRoleToken } from './auth.ts'
 import { type AccountRow, runSync } from './sync.ts'
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
-
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const preflight = handlePreflight(request)
+  if (preflight) return preflight
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')

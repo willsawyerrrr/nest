@@ -5,24 +5,15 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { corsHeaders } from '../_shared/cors.ts'
+import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
 import { runDisconnect } from './disconnect.ts'
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
-
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-  if (request.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405)
-  }
+  const preflight = handlePreflight(request)
+  if (preflight) return preflight
+  const methodError = requirePost(request)
+  if (methodError) return methodError
 
   // Captured from member resolution so clearToken can reuse the service client.
   let admin: SupabaseClient | null = null

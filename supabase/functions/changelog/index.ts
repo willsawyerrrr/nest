@@ -7,20 +7,12 @@
  * function degrades to `configured: false` when the secret is unset.
  */
 
-import { corsHeaders } from '../_shared/cors.ts'
+import { handlePreflight, json } from '../_shared/http.ts'
 import { runChangelog } from './changelog.ts'
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
-
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const preflight = handlePreflight(request)
+  if (preflight) return preflight
 
   const result = await runChangelog(Deno.env.get('GITHUB_CHANGELOG_TOKEN'))
   return json(result.body, result.status)

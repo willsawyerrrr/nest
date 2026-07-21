@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card, Group, NumberInput, Stack, Text } from '@mantine/core'
 import { projectSuperBalance } from '@nest/plan'
 import type { Member } from '../hooks/useMembers'
-import { formatCents } from '../lib/money'
+import { formatCents, formatPerYear } from '../lib/money'
 import {
   ASSUMPTIONS_STORAGE_KEY,
   readAssumptions,
@@ -92,8 +92,8 @@ function MemberProjectionCard({
               />
               <Figure label="Current balance" value={formatCents(currentBalanceCents)} />
               <Figure
-                label="Est. net contribution / yr"
-                value={formatCents(netAnnualContributionCents)}
+                label="Est. net contribution"
+                value={formatPerYear(netAnnualContributionCents)}
               />
             </Group>
             <Group gap="lg" wrap="wrap" align="flex-end">

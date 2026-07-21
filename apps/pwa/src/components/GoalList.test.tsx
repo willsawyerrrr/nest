@@ -55,7 +55,7 @@ describe('GoalList', () => {
 
     const trip = card('Trip')
     expect(within(trip).getByText('On track')).toBeInTheDocument()
-    expect(within(trip).getByText(/By 1 Jan 2035 needs .+\/fn/)).toBeInTheDocument()
+    expect(within(trip).getByText(/By 1 Jan 2035 needs .+\/ fn/)).toBeInTheDocument()
   })
 
   it('marks an already-met goal as reached at 100%', () => {

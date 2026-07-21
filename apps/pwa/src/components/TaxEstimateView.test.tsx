@@ -115,10 +115,8 @@ describe('TaxEstimateView', () => {
 
     const willCard = screen.getByRole('region', { name: 'Will' })
     // Annual $26,000 and its fortnightly split $1,000 both shown.
-    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent('$26,000.00/yr')
-    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent(
-      '$1,000.00/fortnight',
-    )
+    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent('$26,000.00 / year')
+    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent('$1,000.00 / fn')
     expect(within(willCard).getByRole('row', { name: /Division 293 tax/ })).toHaveTextContent(
       '$1,500.00',
     )

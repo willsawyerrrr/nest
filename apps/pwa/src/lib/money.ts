@@ -10,6 +10,16 @@ export function formatCents(cents: number): string {
   return currency.format(cents / 100)
 }
 
+/** Formats integer cents as a fortnightly rate (e.g. `$1,234.56 / fn`). */
+export function formatPerFortnight(cents: number): string {
+  return `${formatCents(cents)} / fn`
+}
+
+/** Formats integer cents as an annual rate (e.g. `$1,234.56 / year`). */
+export function formatPerYear(cents: number): string {
+  return `${formatCents(cents)} / year`
+}
+
 /**
  * The text colour for a signed money figure: green for a positive amount, red for
  * a negative one, and the inherited neutral colour for zero. This is the app's one

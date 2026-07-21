@@ -454,7 +454,7 @@ export function GiftsScreen({
       title="Gifts"
       action={
         <Button variant={managing ? 'filled' : 'default'} onClick={toggleManaging}>
-          {managing ? 'Done managing' : 'Manage'}
+          {managing ? 'Done' : 'Manage'}
         </Button>
       }
     >

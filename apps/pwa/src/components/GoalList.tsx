@@ -4,7 +4,7 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
-import { formatCents } from '../lib/money'
+import { formatCents, formatPerFortnight } from '../lib/money'
 import { formatIsoDate } from '../lib/dates'
 import { EditDeleteActions } from './EditDeleteActions'
 import { GoalForm } from './GoalForm'
@@ -77,8 +77,8 @@ function GoalCard({
     const required = projection.requiredFortnightlyContributionCents ?? 0
     const onTrack = contributionCents >= required
     status = onTrack ? { label: 'On track', color: 'teal' } : { label: 'Behind', color: 'orange' }
-    eta = `By ${formatIsoDate(goal.target_date)} needs ${formatCents(required)}/fn${
-      onTrack ? '' : ` (contributing ${formatCents(contributionCents)}/fn)`
+    eta = `By ${formatIsoDate(goal.target_date)} needs ${formatPerFortnight(required)}${
+      onTrack ? '' : ` (contributing ${formatPerFortnight(contributionCents)})`
     }`
   } else if (
     projection.fortnightsToTarget !== null &&
@@ -132,7 +132,7 @@ function GoalCard({
         )}
         {contributionCents > 0 && (
           <Text size="xs" c="dimmed">
-            Linked contribution {formatCents(contributionCents)} / fn
+            Linked contribution {formatPerFortnight(contributionCents)}
           </Text>
         )}
       </Stack>

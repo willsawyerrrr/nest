@@ -4,7 +4,7 @@ import { Anchor, Button, Card, Group, Select, Stack, Text, TextInput } from '@ma
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
-import { formatCents } from '../lib/money'
+import { FortnightlyAmount } from './FortnightlyAmount'
 
 /** The fields a derived-line edit surfaces: the breakdown's name and group, plus the line's funding account. */
 export interface DerivedLineValues {
@@ -127,14 +127,7 @@ export function DerivedBudgetLineForm({
             Amount
           </Text>
           <Group justify="space-between" wrap="nowrap" gap="sm">
-            <Group gap={4} align="baseline" wrap="nowrap">
-              <Text fw={700} size="sm">
-                {formatCents(fortnightly)}
-              </Text>
-              <Text size="xs" c="dimmed">
-                / fn
-              </Text>
-            </Group>
+            <FortnightlyAmount cents={fortnightly} />
             <Anchor
               component={Link}
               to={`/breakdowns/${initial.breakdown_id}`}

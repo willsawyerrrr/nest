@@ -22,9 +22,10 @@ import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
 import type { BudgetGroup } from '../lib/domain'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
-import { formatCents } from '../lib/money'
+import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { BreakdownItemForm } from './BreakdownItemForm'
+import { FortnightlyAmount } from './FortnightlyAmount'
 
 interface BreakdownDetailProps {
   breakdown: Breakdown
@@ -161,14 +162,7 @@ function ItemRow({
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Group gap={2} wrap="nowrap" align="baseline">
-            <Text fw={700} size="sm">
-              {formatCents(fortnightly)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              / fn
-            </Text>
-          </Group>
+          <FortnightlyAmount cents={fortnightly} />
           <ActionIcon variant="subtle" aria-label={`Edit ${item.name}`} onClick={onEdit}>
             <IconPencil size={16} />
           </ActionIcon>
@@ -231,11 +225,11 @@ export function BreakdownDetail({
         <Group justify="space-between" align="baseline" wrap="nowrap">
           <Title order={3}>Items</Title>
           <Text fw={700} aria-label="Breakdown fortnightly total">
-            {formatCents(totalFortnightly)} / fn
+            {formatPerFortnight(totalFortnightly)}
           </Text>
         </Group>
         <Text size="xs" c="dimmed">
-          Rolls up to {formatCents(totalAnnual)} / year.
+          Rolls up to {formatPerYear(totalAnnual)}.
         </Text>
 
         {items.length === 0 && !adding && (

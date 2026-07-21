@@ -17,7 +17,8 @@ import { fortnightlyCents } from '@nest/plan'
 import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
 import type { BudgetGroup } from '../lib/domain'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
-import { formatCents } from '../lib/money'
+import { formatPerYear } from '../lib/money'
+import { FortnightlyAmount } from './FortnightlyAmount'
 
 interface BreakdownsScreenProps {
   breakdowns: Breakdown[]
@@ -109,16 +110,9 @@ function BreakdownRow({ breakdown, annualCents }: { breakdown: Breakdown; annual
           </Stack>
           <Group gap="xs" wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
             <Stack gap={0} align="flex-end">
-              <Group gap={2} wrap="nowrap" align="baseline">
-                <Text fw={700} size="sm">
-                  {formatCents(fortnightly)}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  / fn
-                </Text>
-              </Group>
+              <FortnightlyAmount cents={fortnightly} />
               <Text size="xs" c="dimmed">
-                {formatCents(annualCents)} / year
+                {formatPerYear(annualCents)}
               </Text>
             </Stack>
             <IconChevronRight size={16} />

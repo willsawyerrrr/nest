@@ -16,9 +16,10 @@ import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
 import { useSortPreference } from '../hooks/useSortPreference'
 import { accountLabel } from '../lib/accountName'
-import { formatCents } from '../lib/money'
+import { formatCents, formatPerFortnight } from '../lib/money'
 import { sortBy, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
+import { FortnightlyAmount } from './FortnightlyAmount'
 
 /** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
 const ROUND_STEP_CENTS = 5_00
@@ -90,14 +91,7 @@ function SplitRow({ account, fortnightlyCents }: { account: Account; fortnightly
               {formatCents(fortnightlyCents)} exact
             </Text>
           )}
-          <Group gap={2} wrap="nowrap" align="baseline">
-            <Text fw={700} size="sm">
-              {formatCents(rounded)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              / fn
-            </Text>
-          </Group>
+          <FortnightlyAmount cents={rounded} />
         </Group>
       </Group>
     </Card>
@@ -150,14 +144,7 @@ function SaverSplitRow({
               {formatCents(fortnightlyCents)} exact
             </Text>
           )}
-          <Group gap={2} wrap="nowrap" align="baseline">
-            <Text fw={700} size="sm">
-              {formatCents(rounded)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              / fn
-            </Text>
-          </Group>
+          <FortnightlyAmount cents={rounded} />
         </Group>
       </Group>
       {needsUpdate && (
@@ -165,7 +152,7 @@ function SaverSplitRow({
           <Text size="xs" c="dimmed">
             {configuredCents === null
               ? 'Not set in Up yet'
-              : `was ${formatCents(configuredCents)} → ${formatCents(rounded)} / fn`}
+              : `was ${formatCents(configuredCents)} → ${formatPerFortnight(rounded)}`}
           </Text>
           <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, rounded)}>
             {configuredCents === null ? 'Mark as set' : 'Confirm'}
@@ -317,7 +304,7 @@ export function SplitsScreen({
 
       {unassignedFortnightlyCents > 0 && (
         <Alert color="yellow" variant="light" title="Unassigned">
-          {formatCents(unassignedFortnightlyCents)} / fn comes from budget lines not yet routed to
+          {formatPerFortnight(unassignedFortnightlyCents)} comes from budget lines not yet routed to
           an account. Set a “Funded from” account on those lines, or link their Savings goal to an
           Up saver, to fold them into a split.
         </Alert>

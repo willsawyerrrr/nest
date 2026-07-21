@@ -1,6 +1,6 @@
 import { Card, Stack, Table, Text, Title } from '@mantine/core'
 import type { HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
-import { formatCents } from '../lib/money'
+import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
@@ -98,8 +98,8 @@ function BreakdownTable({ breakdown }: { breakdown: TaxBreakdown }) {
   return (
     <Stack gap={4}>
       <Text size="xs" c="dimmed">
-        Taxable income (after super): {formatCents(breakdown.taxableIncomeCents)}/yr ·{' '}
-        {formatCents(Math.round(breakdown.taxableIncomeCents / FORTNIGHTS_PER_YEAR))}/fortnight
+        Taxable income (after super): {formatPerYear(breakdown.taxableIncomeCents)} ·{' '}
+        {formatPerFortnight(Math.round(breakdown.taxableIncomeCents / FORTNIGHTS_PER_YEAR))}
       </Text>
       <Table.ScrollContainer minWidth={0}>
         <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs" aria-label="Tax breakdown">
@@ -188,8 +188,8 @@ function FiguresCard({
         </Table.ScrollContainer>
         {concessionalCents > 0 && (
           <Text size="xs" c="dimmed">
-            Concessional super: {formatCents(concessionalCents)}/yr ·{' '}
-            {formatCents(Math.round(concessionalCents / FORTNIGHTS_PER_YEAR))}/fortnight — deducted
+            Concessional super: {formatPerYear(concessionalCents)} ·{' '}
+            {formatPerFortnight(Math.round(concessionalCents / FORTNIGHTS_PER_YEAR))} — deducted
             from gross, so taxable income and after-tax cash are shown after super.
           </Text>
         )}

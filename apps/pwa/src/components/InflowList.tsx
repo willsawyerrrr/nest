@@ -9,6 +9,7 @@ import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { toIncomeInput } from '../lib/tax'
 import { EditDeleteActions } from './EditDeleteActions'
+import { FortnightlyAmount } from './FortnightlyAmount'
 import { InflowForm } from './InflowForm'
 
 interface InflowListProps {
@@ -89,20 +90,11 @@ function InflowRow({
           {formatFrequency(inflow.schedule, inflow.interval_weeks)}
         </Badge>
       </Box>
-      <Group
-        gap={2}
-        wrap="nowrap"
+      <FortnightlyAmount
+        cents={fortnightlyOf(inflow)}
         justify="flex-end"
-        align="baseline"
         style={{ width: '7rem', flexShrink: 0 }}
-      >
-        <Text fw={700} size="sm">
-          {formatCents(fortnightlyOf(inflow))}
-        </Text>
-        <Text size="xs" c="dimmed">
-          / fn
-        </Text>
-      </Group>
+      />
       <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
@@ -150,14 +142,7 @@ function InflowCard({
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Group gap={2} wrap="nowrap" align="baseline">
-            <Text fw={700} size="sm">
-              {formatCents(fortnightlyOf(inflow))}
-            </Text>
-            <Text size="xs" c="dimmed">
-              / fn
-            </Text>
-          </Group>
+          <FortnightlyAmount cents={fortnightlyOf(inflow)} />
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>

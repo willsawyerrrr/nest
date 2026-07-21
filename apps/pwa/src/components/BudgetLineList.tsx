@@ -30,6 +30,7 @@ import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'
 import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
 import { EditDeleteActions } from './EditDeleteActions'
+import { FortnightlyAmount } from './FortnightlyAmount'
 import { GroupSection } from './GroupSection'
 
 interface BudgetLineListProps {
@@ -221,20 +222,11 @@ function BudgetLineRow({
           {formatFrequency(line.frequency, line.interval_weeks)}
         </Badge>
       </Box>
-      <Group
-        gap={2}
-        wrap="nowrap"
+      <FortnightlyAmount
+        cents={fortnightly}
         justify="flex-end"
-        align="baseline"
         style={{ width: '7rem', flexShrink: 0 }}
-      >
-        <Text fw={700} size="sm">
-          {formatCents(fortnightly)}
-        </Text>
-        <Text size="xs" c="dimmed">
-          / fn
-        </Text>
-      </Group>
+      />
       <Group gap={4} wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
         {breakdown ? (
           <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
@@ -287,14 +279,7 @@ function BudgetLineCard({
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Group gap={2} wrap="nowrap" align="baseline">
-            <Text fw={700} size="sm">
-              {formatCents(fortnightly)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              / fn
-            </Text>
-          </Group>
+          <FortnightlyAmount cents={fortnightly} />
           {breakdown ? (
             <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
           ) : (

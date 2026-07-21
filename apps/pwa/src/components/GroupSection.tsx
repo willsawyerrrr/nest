@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Group, Stack, Text, Title } from '@mantine/core'
-import { formatCents } from '../lib/money'
+import { formatPerFortnight } from '../lib/money'
 
 interface GroupSectionProps {
   title: string
@@ -15,7 +15,7 @@ export function GroupSection({ title, subtotalCents, children }: GroupSectionPro
       <Group justify="space-between" align="baseline" wrap="nowrap">
         <Title order={3}>{title}</Title>
         <Text fw={700} aria-label={`${title} fortnightly subtotal`}>
-          {formatCents(subtotalCents)} / fn
+          {formatPerFortnight(subtotalCents)}
         </Text>
       </Group>
       {children}

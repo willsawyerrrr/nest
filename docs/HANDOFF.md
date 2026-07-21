@@ -71,9 +71,9 @@ fortnightly + annual total) and taps through to `/breakdowns/:id`; the gift plan
 is reached as the `kind = 'gift'` breakdown, not a standalone tab. A derived line
 exists only while its breakdown has items (a routed line survives an empty
 breakdown so its Splits routing is not lost), is not manually editable, and routes
-through the Splits tab like any line. There is no `budget_derived_source` enum or
-`budget_line.derived_source` column — breakdowns are the sole derived-line
-mechanism.
+through the Splits tab like any line. `budget_line.breakdown_id` is the sole
+derived-line mechanism: a non-null `breakdown_id` marks the line as derived and
+owned by that breakdown; a null `breakdown_id` is an ordinary manual line.
 
 **Pay splits** — built and deployed. Each budget line is routed to the Up account
 that funds it via `budget_line.destination_account_id` (Savings/Investments route

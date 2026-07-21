@@ -182,9 +182,11 @@ each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design
 The derived line's amount is the summed-annualised roll-up of the breakdown's
 items and is read-only in every budget surface. The line exists only while the
 breakdown has items (a routed line — one carrying a `destination_account_id` —
-survives an empty breakdown so its Splits routing is not lost). The
-`budget_derived_source` enum and `budget_line.derived_source` column that
-preceded this are dropped; `breakdown_id` is the sole derived-line mechanism.
+survives an empty breakdown so its Splits routing is not lost).
+`budget_line.breakdown_id` is the sole derived-line mechanism: a non-null
+`breakdown_id` marks the line as derived and owned by that breakdown, its amount
+rolled up from the breakdown's items; a null `breakdown_id` is an ordinary
+manual line.
 
 ### Gift tables
 

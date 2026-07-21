@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Goal } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
 import { makeGoal, makeSaver } from '../test/fixtures'
-import { render, screen, waitFor } from '../test/render'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { GoalForm } from './GoalForm'
 
 function goal(overrides: Partial<Goal> = {}): Goal {
@@ -116,6 +116,30 @@ describe('GoalForm', () => {
     await user.click(await screen.findByRole('option', { name: 'Up House Saver' }))
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('House deposit')
+  })
+
+  it('ignores a form submit while required fields are missing', () => {
+    const onSubmit = vi.fn()
+    render(<GoalForm savers={[]} onSubmit={onSubmit} />)
+
+    fireEvent.submit(
+      screen.getByRole('button', { name: /add goal/i }).closest('form') as HTMLFormElement,
+    )
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('surfaces an error and re-enables submit when saving fails', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
+    render(<GoalForm savers={[]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Emergency fund')
+    await user.type(screen.getByLabelText(/target amount/i), '10000')
+    await user.click(screen.getByRole('button', { name: /add goal/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save this goal/i)
+    expect(screen.getByRole('button', { name: /add goal/i })).toBeEnabled()
   })
 
   it('keeps the manual balance when no saver is linked', async () => {

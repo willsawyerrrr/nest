@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeInflow, makeMember } from '../test/fixtures'
-import { render, screen, waitFor } from '../test/render'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { InflowForm } from './InflowForm'
 
 const members = [
@@ -212,6 +212,32 @@ describe('InflowForm', () => {
     expect(screen.getByRole('combobox', { name: /member/i })).toHaveValue('Sam')
     expect(screen.getByLabelText(/amount/i)).toHaveValue('$5,000.00')
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+  })
+
+  it('ignores a form submit while required fields are missing', () => {
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    fireEvent.submit(
+      screen.getByRole('button', { name: /add inflow/i }).closest('form') as HTMLFormElement,
+    )
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('tags the inflow to the chosen member', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await user.type(screen.getByLabelText(/amount/i), '100')
+    await selectOption(user, /member/i, 'Sam')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ member_id: 'm2' })),
+    )
   })
 
   it('shows an error when saving fails', async () => {

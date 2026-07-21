@@ -94,6 +94,24 @@ describe('HomeScreen', () => {
     expect(screen.queryByRole('button', { name: /create invite code/i })).not.toBeInTheDocument()
   })
 
+  it('describes a code lapsing within a day', () => {
+    renderHome({
+      inviteCode: 'abcd1234',
+      inviteCodeExpiresAt: new Date(Date.now() + 3 * 3_600_000).toISOString(),
+    })
+
+    expect(screen.getByText(/Expires within a day/)).toBeInTheDocument()
+  })
+
+  it('invokes onCreateInviteCode from the regenerate button', () => {
+    const onCreateInviteCode = vi.fn()
+    renderHome({ ...activeCode, onCreateInviteCode })
+
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    expect(onCreateInviteCode).toHaveBeenCalledOnce()
+  })
+
   it('invokes onRevokeInviteCode from the revoke button', () => {
     const onRevokeInviteCode = vi.fn()
     renderHome({ ...activeCode, onRevokeInviteCode })

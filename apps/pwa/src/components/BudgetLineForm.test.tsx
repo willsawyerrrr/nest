@@ -294,6 +294,29 @@ describe('BudgetLineForm', () => {
     )
   })
 
+  it('ignores a submit while invalid', () => {
+    const onSubmit = vi.fn()
+    const { container } = render(<BudgetLineForm defaultGroup="needs" onSubmit={onSubmit} />)
+
+    const form = container.querySelector('form') as HTMLFormElement
+    form.requestSubmit()
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('shows an error when the save fails', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue(new Error('nope'))
+    render(<BudgetLineForm defaultGroup="needs" onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Rent')
+    await user.type(screen.getByLabelText(/amount/i), '1000')
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save this budget line/i)
+    expect(screen.getByRole('button', { name: /add line/i })).toBeEnabled()
+  })
+
   it('preserves an existing line goal link on edit', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

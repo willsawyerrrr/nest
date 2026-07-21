@@ -125,6 +125,37 @@ describe('BreakdownDetail', () => {
     )
   })
 
+  it('edits an item in place', async () => {
+    const user = userEvent.setup()
+    const onUpdateItem = vi.fn().mockResolvedValue(undefined)
+    renderDetail({ onUpdateItem })
+
+    await user.click(screen.getByRole('button', { name: /edit vitamin d/i }))
+    const form = screen.getByRole('combobox', { name: /frequency/i }).closest('form') as HTMLElement
+    const nameInput = within(form).getByLabelText(/name/i)
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Vitamin C')
+    await user.click(within(form).getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onUpdateItem).toHaveBeenCalledWith(
+        'i1',
+        expect.objectContaining({ name: 'Vitamin C' }),
+      ),
+    )
+  })
+
+  it('deletes an item after confirming', async () => {
+    const user = userEvent.setup()
+    const onDeleteItem = vi.fn()
+    renderDetail({ onDeleteItem })
+
+    await user.click(screen.getByRole('button', { name: /delete vitamin d/i }))
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+    await waitFor(() => expect(onDeleteItem).toHaveBeenCalledWith('i1'))
+  })
+
   it('deletes the breakdown after confirming', async () => {
     const user = userEvent.setup()
     const onDeleteBreakdown = vi.fn()

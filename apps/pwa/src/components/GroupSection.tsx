@@ -13,7 +13,9 @@ export function GroupSection({ title, subtotalCents, children }: GroupSectionPro
   return (
     <Stack gap="xs">
       <Group justify="space-between" align="baseline" wrap="nowrap">
-        <Title order={3}>{title}</Title>
+        <Title order={3} size="h5">
+          {title}
+        </Title>
         <Text fw={700} aria-label={`${title} fortnightly subtotal`}>
           {formatPerFortnight(subtotalCents)}
         </Text>

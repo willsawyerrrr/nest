@@ -168,7 +168,9 @@ export function GiftManagement({
   return (
     <Stack gap="lg">
       <Stack gap="sm">
-        <Title order={3}>Recipients</Title>
+        <Title order={3} size="h5">
+          Recipients
+        </Title>
         {recipients.length === 0 && !addingRecipient && <EmptyState>No recipients yet.</EmptyState>}
         {recipients.map((recipient) =>
           editingRecipientId === recipient.id ? (
@@ -225,7 +227,9 @@ export function GiftManagement({
       </Stack>
 
       <Stack gap="sm">
-        <Title order={3}>Occasions</Title>
+        <Title order={3} size="h5">
+          Occasions
+        </Title>
         {occasions.length === 0 && !addingOccasion && <EmptyState>No occasions yet.</EmptyState>}
         {occasions.map((occasion) =>
           editingOccasionId === occasion.id ? (

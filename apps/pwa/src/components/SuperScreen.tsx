@@ -75,9 +75,9 @@ export function SuperScreen({
               onSubmit={(values) => onSave(member, values)}
             />
             {capSummary && <SuperCapsSummary summary={capSummary} />}
-            <Text fw={600} size="sm">
+            <Title order={3} size="h5">
               Contributions
-            </Text>
+            </Title>
             <SuperContributionList
               member={member}
               members={members}

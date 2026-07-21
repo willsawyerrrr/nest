@@ -48,4 +48,13 @@ describe('useUpConnection', () => {
     await expect(result.current.connect('bad')).rejects.toThrow('rejected')
     expect(reload).not.toHaveBeenCalled()
   })
+
+  it('surfaces a disconnect error and does not refresh', async () => {
+    const reload = vi.fn().mockResolvedValue(undefined)
+    invoke.mockResolvedValue({ data: null, error: new Error('rejected') })
+    const { result } = renderHook(() => useUpConnection(reload))
+
+    await expect(result.current.disconnect()).rejects.toThrow('rejected')
+    expect(reload).not.toHaveBeenCalled()
+  })
 })

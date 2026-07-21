@@ -2,30 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor } from '../test/render'
 import { InflowForm } from './InflowForm'
-import type { Member } from '../hooks/useMembers'
-import type { Inflow } from '../hooks/useInflows'
+import { makeInflow, makeMember } from '../test/fixtures'
 
-const members: Member[] = [
-  {
-    id: 'm1',
-    household_id: 'h1',
-    name: 'Will',
-    email: null,
-    user_id: 'u1',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
-  {
-    id: 'm2',
-    household_id: 'h1',
-    name: 'Sam',
-    email: null,
-    user_id: 'u2',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
+const members = [
+  makeMember({ id: 'm1', name: 'Will', user_id: 'u1' }),
+  makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' }),
 ]
 
 /** Picks an option from a Mantine `Select` identified by its label. */
@@ -157,21 +138,15 @@ describe('InflowForm', () => {
   })
 
   it('preselects a saved non-taxable type when editing', () => {
-    const inflow: Inflow = {
+    const inflow = makeInflow({
       id: 'i2',
-      household_id: 'h1',
       member_id: null,
       name: 'Etsy shop',
       taxable: false,
       type: 'hobby',
       schedule: 'monthly',
-      interval_weeks: null,
       amount_cents: 15000,
-      hourly_rate_cents: null,
-      hours_per_period: null,
-      created_at: '',
-      updated_at: '',
-    }
+    })
     render(<InflowForm members={members} initial={inflow} onSubmit={vi.fn()} />)
 
     expect(screen.getByRole('combobox', { name: /type/i })).toHaveValue('Hobby income')
@@ -226,21 +201,11 @@ describe('InflowForm', () => {
   })
 
   it('prefills fields from an existing inflow when editing', () => {
-    const inflow: Inflow = {
-      id: 'i1',
-      household_id: 'h1',
+    const inflow = makeInflow({
       member_id: 'm2',
       name: 'Old job',
-      taxable: true,
-      type: 'salary',
       schedule: 'monthly',
-      interval_weeks: null,
-      amount_cents: 500000,
-      hourly_rate_cents: null,
-      hours_per_period: null,
-      created_at: '',
-      updated_at: '',
-    }
+    })
     render(<InflowForm members={members} initial={inflow} onSubmit={vi.fn()} />)
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('Old job')

@@ -2,57 +2,24 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor, within } from '../test/render'
 import { InflowList } from './InflowList'
-import type { Member } from '../hooks/useMembers'
 import type { Inflow } from '../hooks/useInflows'
+import { makeInflow, makeMember } from '../test/fixtures'
 
-const members: Member[] = [
-  {
-    id: 'm1',
-    household_id: 'h1',
-    name: 'Will',
-    email: null,
-    user_id: 'u1',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
-]
+const members = [makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })]
 
-const base = {
-  household_id: 'h1',
-  interval_weeks: null,
-  created_at: '',
-  updated_at: '',
-}
+const salary = makeInflow()
 
-const salary: Inflow = {
-  ...base,
-  id: 'i1',
-  member_id: 'm1',
-  name: 'Day job',
-  taxable: true,
-  type: 'salary',
-  schedule: 'fortnightly',
-  amount_cents: 500000,
-  hourly_rate_cents: null,
-  hours_per_period: null,
-}
-
-const wage: Inflow = {
-  ...base,
+const wage = makeInflow({
   id: 'i2',
-  member_id: 'm1',
   name: 'Shifts',
-  taxable: true,
   type: 'wage',
   schedule: 'weekly',
   amount_cents: null,
   hourly_rate_cents: 4500,
   hours_per_period: 38,
-}
+})
 
-const reimbursement: Inflow = {
-  ...base,
+const reimbursement = makeInflow({
   id: 'i3',
   member_id: null,
   name: 'Travel',
@@ -60,23 +27,16 @@ const reimbursement: Inflow = {
   type: 'reimbursement',
   schedule: 'monthly',
   amount_cents: 8000,
-  hourly_rate_cents: null,
-  hours_per_period: null,
-}
+})
 
-const everyNWeeks: Inflow = {
-  ...base,
+const everyNWeeks = makeInflow({
   id: 'i4',
-  member_id: 'm1',
   name: 'Side gig',
-  taxable: true,
   type: 'other',
   schedule: 'every_n_weeks',
   interval_weeks: 4,
   amount_cents: 20000,
-  hourly_rate_cents: null,
-  hours_per_period: null,
-}
+})
 
 function renderList(inflows: Inflow[]) {
   const onCreate = vi.fn().mockResolvedValue(undefined)

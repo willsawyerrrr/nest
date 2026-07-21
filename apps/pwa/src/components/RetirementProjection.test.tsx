@@ -2,18 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '../test/render'
 import { RetirementProjection } from './RetirementProjection'
-import type { Member } from '../hooks/useMembers'
+import { makeMember } from '../test/fixtures'
 
-const member: Member = {
-  id: 'm1',
-  household_id: 'h1',
-  name: 'Will',
-  email: null,
-  user_id: 'u1',
-  up_connected_at: null,
-  created_at: '',
-  updated_at: '',
-}
+const member = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 
 const entry = {
   member,

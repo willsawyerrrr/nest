@@ -2,59 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '../test/render'
 import { GoalList } from './GoalList'
-import type { Goal } from '../hooks/useGoals'
-import type { BudgetLine } from '../hooks/useBudgetLines'
-import type { Saver } from '../hooks/useSavers'
-
-function goal(overrides: Partial<Goal> = {}): Goal {
-  return {
-    id: 'g1',
-    household_id: 'h1',
-    name: 'Goal',
-    target_amount_cents: 1_000_000,
-    target_date: null,
-    current_balance_cents: 0,
-    linked_account_id: null,
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
-
-function saver(overrides: Partial<Saver> = {}): Saver {
-  return {
-    id: 'a1',
-    household_id: 'h1',
-    owner_member_id: null,
-    name: 'Up Saver',
-    type: 'savings',
-    source: 'up',
-    external_id: 'up-a1',
-    balance_cents: 0,
-    currency: 'AUD',
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
-
-function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
-  return {
-    id: Math.random().toString(),
-    household_id: 'h1',
-    line_group: 'savings',
-    name: 'Line',
-    amount_cents: 50_000,
-    frequency: 'fortnightly',
-    interval_weeks: null,
-    goal_id: null,
-    destination_account_id: null,
-    breakdown_id: null,
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
+import { makeBudgetLine as line, makeGoal as goal, makeSaver as saver } from '../test/fixtures'
 
 function card(name: string): HTMLElement {
   return screen.getByText(name).closest('.mantine-Card-root') as HTMLElement

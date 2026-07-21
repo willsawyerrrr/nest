@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor } from '../test/render'
 import { BudgetLineForm } from './BudgetLineForm'
-import type { BudgetLine } from '../hooks/useBudgetLines'
+import { makeBudgetLine } from '../test/fixtures'
 
 /** Picks an option from a Mantine `Select` identified by its label. */
 async function selectOption(
@@ -118,20 +118,12 @@ describe('BudgetLineForm', () => {
   })
 
   it('prefills fields from an existing line when editing', () => {
-    const line: BudgetLine = {
-      id: 'l1',
-      household_id: 'h1',
+    const line = makeBudgetLine({
       line_group: 'needs',
       name: 'Rent',
       amount_cents: 200000,
       frequency: 'monthly',
-      interval_weeks: null,
-      goal_id: null,
-      destination_account_id: null,
-      breakdown_id: null,
-      created_at: '',
-      updated_at: '',
-    }
+    })
     render(<BudgetLineForm initial={line} onSubmit={vi.fn()} />)
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('Rent')
@@ -305,20 +297,12 @@ describe('BudgetLineForm', () => {
   it('preserves an existing line goal link on edit', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    const line: BudgetLine = {
-      id: 'l1',
-      household_id: 'h1',
+    const line = makeBudgetLine({
       line_group: 'savings',
       name: 'House deposit',
       amount_cents: 50000,
-      frequency: 'fortnightly',
-      interval_weeks: null,
       goal_id: 'g1',
-      destination_account_id: null,
-      breakdown_id: null,
-      created_at: '',
-      updated_at: '',
-    }
+    })
     render(<BudgetLineForm initial={line} onSubmit={onSubmit} />)
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))

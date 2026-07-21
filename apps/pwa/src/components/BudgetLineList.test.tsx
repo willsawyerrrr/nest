@@ -3,27 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen, within } from '../test/render'
 import { BudgetLineList } from './BudgetLineList'
-import type { BudgetLine } from '../hooks/useBudgetLines'
+import { makeBudgetLine as line } from '../test/fixtures'
 
-function line(overrides: Partial<BudgetLine>): BudgetLine {
-  return {
-    id: Math.random().toString(),
-    household_id: 'h1',
-    line_group: 'needs',
-    name: 'Line',
-    amount_cents: 10000,
-    frequency: 'fortnightly',
-    interval_weeks: null,
-    goal_id: null,
-    destination_account_id: null,
-    breakdown_id: null,
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
-
-const lines: BudgetLine[] = [
+const lines = [
   line({
     id: 'a',
     line_group: 'needs',

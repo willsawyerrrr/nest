@@ -4,37 +4,20 @@ import { render, screen, waitFor } from '../test/render'
 import { GoalForm } from './GoalForm'
 import type { Goal } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
+import { makeGoal, makeSaver } from '../test/fixtures'
 
 function goal(overrides: Partial<Goal> = {}): Goal {
-  return {
-    id: 'g1',
-    household_id: 'h1',
+  return makeGoal({
     name: 'House deposit',
     target_amount_cents: 5_000_000,
     target_date: '2027-01-01',
     current_balance_cents: 1_000_000,
-    linked_account_id: null,
-    created_at: '',
-    updated_at: '',
     ...overrides,
-  }
+  })
 }
 
 function saver(overrides: Partial<Saver> = {}): Saver {
-  return {
-    id: 'a1',
-    household_id: 'h1',
-    owner_member_id: null,
-    name: 'Up House Saver',
-    type: 'savings',
-    source: 'up',
-    external_id: 'up-a1',
-    balance_cents: 3_000_000,
-    currency: 'AUD',
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
+  return makeSaver({ name: 'Up House Saver', balance_cents: 3_000_000, ...overrides })
 }
 
 describe('GoalForm', () => {

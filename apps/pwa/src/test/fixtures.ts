@@ -69,6 +69,7 @@ export function makeSaver(overrides: Partial<Saver> = {}): Saver {
     external_id: 'up-a1',
     balance_cents: 0,
     currency: 'AUD',
+    exclude_from_net_worth: false,
     created_at: '',
     updated_at: '',
     ...overrides,

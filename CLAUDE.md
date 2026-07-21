@@ -51,8 +51,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   earners; contribution caps (with manual carry-forward) and the government
   co-contribution are modelled, all from the versioned per-FY config alongside the
   tax config. Each member's balance is a dated baseline that auto-accrues modelled
-  contributions between manual true-ups, seeds a net-worth view (assets only), and
-  projects to retirement under client-side (localStorage) return/age assumptions.
+  contributions between manual true-ups, seeds a net-worth view (assets only,
+  from which any account can be excluded via a shared household-wide flag that
+  drops it from net-worth totals alone — not retirement projection or
+  budgeting), and projects to retirement under client-side (localStorage)
+  return/age assumptions.
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend

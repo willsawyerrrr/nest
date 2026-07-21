@@ -32,6 +32,9 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
         new Date(),
       )}
       superIds={superAccountIds(profileRows)}
+      onToggleExclude={(id, exclude) => {
+        void accounts.update(id, { exclude_from_net_worth: exclude })
+      }}
     />
   )
 }

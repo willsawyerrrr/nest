@@ -33,6 +33,7 @@ export type Database = {
           balance_cents: number
           created_at: string
           currency: string
+          exclude_from_net_worth: boolean
           external_id: string | null
           household_id: string
           id: string
@@ -46,6 +47,7 @@ export type Database = {
           balance_cents?: number
           created_at?: string
           currency?: string
+          exclude_from_net_worth?: boolean
           external_id?: string | null
           household_id: string
           id?: string
@@ -59,6 +61,7 @@ export type Database = {
           balance_cents?: number
           created_at?: string
           currency?: string
+          exclude_from_net_worth?: boolean
           external_id?: string | null
           household_id?: string
           id?: string

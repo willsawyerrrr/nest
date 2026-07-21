@@ -138,7 +138,7 @@ export function BreakdownsScreen({
         <Title order={2} visibleFrom="sm">
           Breakdowns
         </Title>
-        {!adding && <Button onClick={() => setAdding(true)}>New breakdown</Button>}
+        {!adding && <Button onClick={() => setAdding(true)}>Add breakdown</Button>}
       </Group>
 
       <Text c="dimmed" size="sm">

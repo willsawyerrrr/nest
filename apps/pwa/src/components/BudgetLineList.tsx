@@ -360,7 +360,7 @@ export function BudgetLineList({
         wrap="wrap"
       >
         <Button onClick={startAddingItem} style={{ flexShrink: 0 }}>
-          Add item
+          Add line
         </Button>
         <TextInput
           aria-label="Search budget lines"

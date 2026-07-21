@@ -194,7 +194,8 @@ describe('BudgetLineList', () => {
 
     await user.click(screen.getByRole('button', { name: /add wants line/i }))
 
-    expect(screen.getByRole('button', { name: /add line/i })).toBeInTheDocument()
+    // The universal trigger stays put and the opened form adds its own submit button.
+    expect(screen.getAllByRole('button', { name: 'Add line' })).toHaveLength(2)
     expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Wants')
   })
 
@@ -444,7 +445,7 @@ describe('BudgetLineList', () => {
     }
   })
 
-  it('opens an unscoped add form via the universal Add item button', async () => {
+  it('opens an unscoped add form via the universal Add line button', async () => {
     const user = userEvent.setup()
     render(
       <BudgetLineList
@@ -456,9 +457,10 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Add item' }))
+    await user.click(screen.getByRole('button', { name: 'Add line' }))
 
-    expect(screen.getByRole('button', { name: /add line/i })).toBeInTheDocument()
+    // The trigger stays put and the opened form adds its own submit button.
+    expect(screen.getAllByRole('button', { name: 'Add line' })).toHaveLength(2)
     // Unlike the per-group button, it defaults to the first group, not a scoped one.
     expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Needs')
   })

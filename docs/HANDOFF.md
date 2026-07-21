@@ -170,31 +170,33 @@ the user to unlock 1Password — never fall back to `--no-gpg-sign`.
 
 ## CI
 
-Five parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
-runner so wall-clock is the slowest single job:
+Four parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own
+runner so wall-clock is the slowest single job, plus a `ci-status` aggregate:
 
 - **check** — lint / format / typecheck / build. The long pole (~50–59s);
   watch it, since it is what keeps overall CI near the one-minute budget.
-- **test** — the Vitest workspace, sharded across parallel runners. A
-  `test-shard` matrix job runs `vitest run --shard=N/2` on two runners (each
-  covering half the files, the union running every test); a lightweight `test`
-  job `needs` both shards so the required `test` check stays green only when both
-  shards pass and the required-check name is preserved.
-- **coverage** — runs the Vitest suite unsharded with V8 coverage and fails if a
-  package drops below its threshold: `@nest/plan` and `@nest/tax` at 100% on every
-  metric, `apps/pwa` at 100% statements / functions / lines with a branch floor
-  (currently 93). Unsharded so the thresholds evaluate over the whole suite; the
-  sharded matrix stays coverage-free.
+- **test** — the Vitest workspace, sharded across six parallel runners with V8
+  coverage. A `test-shard` matrix job runs
+  `vitest run --shard=N/6 --coverage --reporter=blob` on six runners (each
+  covering a sixth of the files, the union running every test) and uploads its
+  blob report as an artifact; a `test` job downloads all six, merges them with
+  `vitest run --merge-reports --coverage`, and fails if a package drops below its
+  threshold: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at
+  100% statements / functions / lines with a branch floor (currently 93). The
+  thresholds evaluate over the merged coverage of the whole suite; a shard sets
+  `VITEST_SKIP_COVERAGE_THRESHOLDS` so its partial coverage does not fail the
+  check. The `test` job `needs` the shards so it stays green only when all six
+  pass and the required-check name is preserved.
 - **rls** — Postgres 17 service; applies the auth shim, every migration in
   order, then `supabase/tests/rls/` isolation assertions (~22s).
 - **functions** — Deno `fmt --check` / `lint` / `task check` / `test` over
   `supabase/functions` (the edge functions live outside the pnpm workspace,
   pinned to Deno 2.9.3).
 
-Branch-protection ruleset "Protect main" requires **check**, **test**,
-**coverage**, **rls**, and **functions**; squash-only, no bypass. Keep CI under a
-minute; the next lever if `test` creeps up is a third shard, and `check` is the
-job to profile first.
+The `ci-status` job `needs` all four and is the single required status check.
+Branch-protection ruleset "Protect main" requires **CI Status**; squash-only, no
+bypass. Keep CI under a minute; the next lever if `test` creeps up is a seventh
+shard, and `check` is the job to profile first.
 
 Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports via
 `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint `max-lines`
@@ -384,6 +386,6 @@ Details: [`DATA_MODEL.md`](DATA_MODEL.md),
 - **Net worth beyond super** — the Net worth tab totals accounts (assets only);
   liabilities are not yet modelled.
 - **CI watch** — `check` (~50–59s) is the long pole near the one-minute budget;
-  profile it first if CI creeps up, then consider a third `test` shard.
+  profile it first if CI creeps up, then consider a seventh `test` shard.
 - **Supabase Management-API token** — rotate when done; keep the GitHub secret
   and `~/.config/claude/supabase_pat` in sync.

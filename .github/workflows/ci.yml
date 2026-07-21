@@ -26,7 +26,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4, 5, 6]
+    # Collecting coverage while running the suite is heavier than a bare run, so
+    # the suite is split across six runners to keep each shard within the CI
+    # time budget. Each shard records a blob report of its coverage; the `test`
+    # job merges them. A single shard covers only part of the suite, so it skips
+    # the thresholds (they are enforced on the merged result instead).
+    env:
+      VITEST_SKIP_COVERAGE_THRESHOLDS: '1'
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -35,7 +42,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/2
+      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/6 --coverage --reporter=blob
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blob-${{ matrix.shard }}
+          path: .vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
 
   test:
     runs-on: ubuntu-latest
@@ -52,10 +65,6 @@ jobs:
             exit 1
           fi
           echo "all shards passed"
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -63,9 +72,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Unsharded so thresholds evaluate over the full suite for the tax and
-      # plan packages and the PWA; the sharded matrix above stays coverage-free.
-      - run: pnpm exec vitest run --project @nest/tax --project @nest/plan --project @nest/pwa --coverage
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-*
+          merge-multiple: true
+          path: .vitest-reports/
+      # Merge the shards' blob reports and enforce the coverage thresholds from
+      # vitest.config.ts against the combined result; this replays the recorded
+      # runs rather than executing the suite again.
+      - run: pnpm exec vitest run --merge-reports --coverage
 
   functions:
     runs-on: ubuntu-latest
@@ -114,7 +129,7 @@ jobs:
   ci-status:
     name: CI Status
     if: ${{ always() }}
-    needs: [check, test, coverage, functions, rls]
+    needs: [check, test, functions, rls]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded

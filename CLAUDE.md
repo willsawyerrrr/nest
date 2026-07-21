@@ -136,12 +136,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
   jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite,
-  sharded across runners), `coverage` (the unsharded suite under V8 coverage,
-  gated: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
-  statements/functions/lines with a branch floor, currently 93), `rls` (RLS
-  isolation on a Postgres service), and `functions` (Deno fmt/lint/check/test over
-  `supabase/functions`) — all required, each on its own runner, so overall
-  wall-clock is the slowest single job, not the sum. Steps WITHIN a job stay
+  sharded across six runners with V8 coverage, whose blob reports are merged via
+  `--merge-reports` to gate coverage: `@nest/plan` and `@nest/tax` at 100% on
+  every metric, `apps/pwa` at 100% statements/functions/lines with a branch floor,
+  currently 93), `rls` (RLS isolation on a Postgres service), and `functions`
+  (Deno fmt/lint/check/test over `supabase/functions`) — each on its own runner
+  and aggregated by a `ci-status` job that is the single required `CI Status`
+  check, so overall wall-clock is the slowest single job, not the sum. Steps
+  WITHIN a job stay
   sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
   causes contention and inflates each one without improving wall-clock time.
   Splitting into separate jobs avoids that by giving each its own runner.

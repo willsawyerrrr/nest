@@ -120,9 +120,11 @@ is CRUD over RLS.
 - Migrations auto-deploy to prod via the GitHub → Supabase integration on merge;
   edge functions auto-deploy via `.github/workflows/deploy-functions.yml` on any
   push to `main` touching `supabase/functions/**` or `supabase/config.toml`.
-- CI runs parallel jobs (`check`, `test`, `coverage`, `rls`, `functions`), all
-  required. The tax
+- CI runs parallel jobs (`check`, `test`, `rls`, `functions`), aggregated by a
+  `ci-status` job that is the single required `CI Status` check. The tax
   and plan packages are unit-tested under Vitest; the edge functions have their own
-  Deno harness. The `coverage` job gates the suite — `@nest/plan` and `@nest/tax` at
-  100% on every metric, `apps/pwa` at 100% statements/functions/lines with a branch
-  floor (currently 93). See [`HANDOFF.md`](HANDOFF.md) for the operational detail.
+  Deno harness. The `test` job runs the suite sharded across six runners with V8
+  coverage, then merges the shards' blob reports to gate the suite — `@nest/plan`
+  and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
+  statements/functions/lines with a branch floor (currently 93). See
+  [`HANDOFF.md`](HANDOFF.md) for the operational detail.

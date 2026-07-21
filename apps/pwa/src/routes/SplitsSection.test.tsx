@@ -1,0 +1,58 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '../test/render'
+import { SplitsSection } from './SplitsSection'
+
+const hooks = vi.hoisted(() => ({
+  useBudgetLines: vi.fn(),
+  useGoals: vi.fn(),
+  useAccounts: vi.fn(),
+  useSuperProfiles: vi.fn(),
+  usePaySplits: vi.fn(),
+  screenProps: null as Record<string, unknown> | null,
+}))
+
+vi.mock('../components/LoadingScreen', () => ({
+  LoadingScreen: () => <div data-testid="loading" />,
+}))
+vi.mock('../hooks/useBudgetLines', () => ({ useBudgetLines: hooks.useBudgetLines }))
+vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
+vi.mock('../hooks/useAccounts', () => ({ useAccounts: hooks.useAccounts }))
+vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
+vi.mock('../hooks/usePaySplits', () => ({ usePaySplits: hooks.usePaySplits }))
+vi.mock('../components/SplitsScreen', () => ({
+  SplitsScreen: (props: Record<string, unknown>) => {
+    hooks.screenProps = props
+    return <div data-testid="splits-screen" />
+  },
+}))
+
+describe('SplitsSection', () => {
+  it('shows the loading screen until data loads', () => {
+    hooks.useBudgetLines.mockReturnValue({ loading: true })
+    hooks.useGoals.mockReturnValue({ loading: false })
+    hooks.useAccounts.mockReturnValue({ loading: false })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false })
+    hooks.usePaySplits.mockReturnValue({ loading: false })
+    render(<SplitsSection householdId="h1" />)
+    expect(screen.getByTestId('loading')).toBeInTheDocument()
+  })
+
+  it('renders the splits screen and forwards confirmations', () => {
+    const confirm = vi.fn()
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+    hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
+    hooks.useAccounts.mockReturnValue({
+      loading: false,
+      accounts: [{ id: 'a1', name: 'Spending' }],
+    })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.usePaySplits.mockReturnValue({ loading: false, configuredByAccount: {}, confirm })
+    render(<SplitsSection householdId="h1" />)
+    expect(screen.getByTestId('splits-screen')).toBeInTheDocument()
+
+    const onConfirm = hooks.screenProps?.onConfirm as (id: string, cents: number) => void
+    onConfirm('a1', 1000)
+    expect(confirm).toHaveBeenCalledWith('a1', 1000)
+    expect(hooks.screenProps?.accounts).toEqual([{ id: 'a1', name: 'Spending' }])
+  })
+})

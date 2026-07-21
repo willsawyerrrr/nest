@@ -1,0 +1,42 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '../test/render'
+import { ChangelogSection } from './ChangelogSection'
+
+const hooks = vi.hoisted(() => ({ useChangelog: vi.fn(), screenProps: null as unknown }))
+
+vi.mock('../components/LoadingScreen', () => ({
+  LoadingScreen: () => <div data-testid="loading" />,
+}))
+vi.mock('../hooks/useChangelog', () => ({ useChangelog: hooks.useChangelog }))
+vi.mock('../components/ChangelogScreen', () => ({
+  ChangelogScreen: (props: unknown) => {
+    hooks.screenProps = props
+    return <div data-testid="changelog-screen" />
+  },
+}))
+
+describe('ChangelogSection', () => {
+  it('shows the loading screen while the changelog loads', () => {
+    hooks.useChangelog.mockReturnValue({ loading: true })
+    render(<ChangelogSection />)
+    expect(screen.getByTestId('loading')).toBeInTheDocument()
+  })
+
+  it('renders the changelog screen with loaded data', () => {
+    hooks.useChangelog.mockReturnValue({
+      loading: false,
+      implemented: [{ description: 'a' }],
+      inProgress: [{ description: 'b' }],
+      configured: true,
+      error: null,
+    })
+    render(<ChangelogSection />)
+    expect(screen.getByTestId('changelog-screen')).toBeInTheDocument()
+    expect(hooks.screenProps).toMatchObject({
+      implemented: [{ description: 'a' }],
+      inProgress: [{ description: 'b' }],
+      configured: true,
+      error: null,
+    })
+  })
+})

@@ -22,10 +22,10 @@ export default defineConfig({
       // measured coverage, so the thresholds pass today and catch regressions.
       thresholds: {
         'packages/tax/**': {
-          statements: 97,
-          branches: 88,
+          statements: 100,
+          branches: 100,
           functions: 100,
-          lines: 96,
+          lines: 100,
         },
         'packages/plan/**': {
           statements: 100,
@@ -35,7 +35,7 @@ export default defineConfig({
         },
         'apps/pwa/**': {
           statements: 100,
-          branches: 91,
+          branches: 93,
           functions: 100,
           lines: 100,
         },

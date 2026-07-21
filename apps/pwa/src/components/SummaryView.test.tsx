@@ -152,6 +152,32 @@ describe('SummaryView', () => {
     expect(screen.getByRole('region', { name: 'Available' })).toBeInTheDocument()
   })
 
+  it('shows a zero portion when there is no available cash to divide by', () => {
+    // Budget lines but no income: available is zero, so each running portion
+    // takes the divide-by-zero guard and reads 0.0%.
+    const zero = { fortnightlyCents: 0, annualCents: 0 }
+    const negative = { fortnightlyCents: -375_000, annualCents: -9_750_000 }
+    const noAvailable: BudgetSummary = {
+      available: zero,
+      groups: {
+        needs: group(375_000, 9_750_000, 0),
+        wants: group(0, 0, 0),
+        discretionary: group(0, 0, 0),
+        temporary: group(0, 0, 0),
+        savings: group(0, 0, 0),
+        investments: group(0, 0, 0),
+      },
+      outgoings: { fortnightlyCents: 375_000, annualCents: 9_750_000 },
+      savingsBlock: zero,
+      afterOutgoing: negative,
+      afterSaving: negative,
+    }
+    render(<SummaryView summary={noAvailable} />)
+
+    const available = screen.getByRole('region', { name: 'Available' })
+    expect(within(available).getByText('0.0%')).toBeInTheDocument()
+  })
+
   it('shows an empty state when there is nothing to reconcile', () => {
     const zero = { fortnightlyCents: 0, annualCents: 0 }
     const empty: BudgetSummary = {

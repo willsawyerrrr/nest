@@ -58,6 +58,67 @@ describe('GoalList', () => {
     expect(within(trip).getByText(/By 1 Jan 2035 needs .+\/ fn/)).toBeInTheDocument()
   })
 
+  it('marks a dated goal behind when its contribution falls short of what it needs', () => {
+    const goals = [
+      goal({
+        id: 'g1',
+        name: 'Wedding',
+        target_amount_cents: 1_000_000,
+        current_balance_cents: 0,
+        target_date: '2027-01-01',
+      }),
+    ]
+    const lines = [line({ goal_id: 'g1', amount_cents: 1_00, frequency: 'fortnightly' })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={lines}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const wedding = card('Wedding')
+    expect(within(wedding).getByText('Behind')).toBeInTheDocument()
+    expect(within(wedding).getByText(/contributing/)).toBeInTheDocument()
+  })
+
+  it('names a single fortnight in the singular when an undated goal completes in one', () => {
+    const goals = [goal({ id: 'g1', name: 'Sprint', target_amount_cents: 50_000 })]
+    const lines = [line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={lines}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    // $500 remaining at $500/fn reaches the target in exactly one fortnight.
+    expect(within(card('Sprint')).getByText(/^1 fortnight —/)).toBeInTheDocument()
+  })
+
+  it('shows 100% for a zero-target goal', () => {
+    const goals = [goal({ id: 'g1', name: 'Placeholder', target_amount_cents: 0 })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={[]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    expect(within(card('Placeholder')).getByText('100%')).toBeInTheDocument()
+  })
+
   it('marks an already-met goal as reached at 100%', () => {
     const goals = [
       goal({

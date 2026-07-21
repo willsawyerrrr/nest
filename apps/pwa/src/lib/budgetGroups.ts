@@ -11,5 +11,8 @@ export const BUDGET_GROUPS: { value: BudgetGroup; label: string }[] = [
 
 /** The human label for a budget group. */
 export function groupLabel(group: BudgetGroup): string {
+  // `BUDGET_GROUPS` covers every `BudgetGroup` value, so a valid enum always
+  // matches and the `?? group` fallback is unreachable.
+  /* v8 ignore next */
   return BUDGET_GROUPS.find((entry) => entry.value === group)?.label ?? group
 }

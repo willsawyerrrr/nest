@@ -350,6 +350,37 @@ describe('BudgetLineList', () => {
     expect(within(card).queryByText('House deposit')).not.toBeInTheDocument()
   })
 
+  it('shows no route badge for a savings line with no linked goal', () => {
+    render(
+      <BudgetLineList
+        lines={[line({ id: 's', line_group: 'savings', name: 'Unlinked', goal_id: null })]}
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const card = screen.getByText('Unlinked').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).queryByText('House deposit')).not.toBeInTheDocument()
+  })
+
+  it('icons a savings line’s route from the goal’s linked saver', () => {
+    render(
+      <BudgetLineList
+        lines={[line({ id: 's', line_group: 'savings', name: 'Deposit', goal_id: 'g1' })]}
+        goals={[{ id: 'g1', name: 'House', linkedAccountId: 'acc1' }]}
+        accounts={[{ id: 'acc1', name: 'Up House Saver' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const deposit = screen.getByText('Deposit').closest('.mantine-Card-root') as HTMLElement
+    expect(within(deposit).getByText('House')).toBeInTheDocument()
+  })
+
   it('sorts the lines within a group by name', async () => {
     const user = userEvent.setup()
     render(
@@ -371,6 +402,112 @@ describe('BudgetLineList', () => {
 
     const namesAfter = screen.getAllByText(/Rent|Power/).map((node) => node.textContent)
     expect(namesAfter).toEqual(['Power', 'Rent'])
+  })
+
+  it('sorts the lines within a group by fortnightly amount', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineList
+        lines={[
+          line({
+            id: 'r',
+            line_group: 'needs',
+            name: 'Rent',
+            amount_cents: 20000,
+            frequency: 'fortnightly',
+          }),
+          line({
+            id: 'p',
+            line_group: 'needs',
+            name: 'Power',
+            amount_cents: 5000,
+            frequency: 'weekly',
+          }),
+          line({
+            id: 'q',
+            line_group: 'needs',
+            name: 'Quarterly',
+            amount_cents: 30000,
+            frequency: 'every_n_weeks',
+            interval_count: 4,
+          }),
+        ]}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: /sort by/i }))
+    await user.click(screen.getByRole('option', { name: 'Amount' }))
+
+    // Power $100/fn, Quarterly $150/fn (every 4 weeks), Rent $200/fn ascending.
+    expect(screen.getAllByText(/Rent|Power|Quarterly/).map((node) => node.textContent)).toEqual([
+      'Power',
+      'Quarterly',
+      'Rent',
+    ])
+  })
+
+  it('renders a derived line read-only when derived edits are unsupported', () => {
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
+          goals={[]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const card = screen.getByText('Presents').closest('.mantine-Card-root') as HTMLElement
+    // The chevron still links to the breakdown, but with no derived-edit handler
+    // there is no inline edit pencil.
+    expect(within(card).getByRole('link', { name: /open breakdown/i })).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+  })
+
+  it('renders a route badge and a derived chevron in the dense desktop row', () => {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('48em'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+    try {
+      render(
+        <MemoryRouter>
+          <BudgetLineList
+            lines={[
+              line({ id: 'n', line_group: 'needs', name: 'Rent', destination_account_id: 'acc1' }),
+              line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' }),
+            ]}
+            goals={[]}
+            accounts={[{ id: 'acc1', name: 'Everyday' }]}
+            breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
+            onCreate={vi.fn()}
+            onUpdate={vi.fn()}
+            onUpdateDerivedLine={vi.fn()}
+            onDelete={vi.fn()}
+          />
+        </MemoryRouter>,
+      )
+
+      expect(screen.getByText('Everyday')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /open breakdown/i })).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
   })
 
   it('persists the chosen sort across a remount', async () => {

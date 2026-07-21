@@ -46,9 +46,10 @@ non-concessional and co-contribution untaxed) to retirement, showing the result
 in nominal and today's (real) dollars. The projection math is pure
 (`projectSuperBalance` in `@nest/plan`); the shared return/inflation/growth and
 retirement-age assumptions and each member's age are client-side inputs persisted
-in localStorage, not stored in the database. The Net worth tab sums every
-account's `balance_cents` (assets only; liabilities not modelled yet), split into
-Super vs Other accounts.
+in localStorage, not stored in the database. The Net worth tab sums the
+`balance_cents` of every account the member can see (assets only; liabilities not
+modelled yet), split into Super vs Other accounts; a co-member's private
+spending/saver balances are excluded.
 
 **Up savers → savings goals** — built, merged, and deployed. Each member
 connects their Up personal access token on the Household tab; a goal links to a
@@ -220,7 +221,14 @@ and the edge functions pin every dependency through `supabase/functions/deno.loc
     rotated, update **both** the GitHub secret **and** the local file, or CD
     breaks.
 - **RLS is the security boundary** — policies gate on household membership via
-  the `public.household_ids_for_current_user()` SECURITY DEFINER helper.
+  the `public.household_ids_for_current_user()` SECURITY DEFINER helper. On top of
+  that, `accounts` and `transactions` enforce per-account balance privacy: a
+  member sees the balance and transactions of shared/joint accounts, their own
+  accounts, and household super accounts only (via the `current_member_ids`,
+  `household_super_account_ids`, and `visible_balance_account_ids` SECURITY
+  DEFINER helpers). The identity-only `account_directory` view exposes a
+  co-member's spending account by name (no balance column) for budget-line routing
+  and pay-split totals; a co-member's savers appear nowhere.
 - **Vault** holds all secrets that must never reach a client: each member's Up
   token (`up_token:<member_id>`) and the hourly-cron config (`up_sync_cron_url`,
   `up_sync_cron_key`). Tokens are written/read/cleared only by the
@@ -376,8 +384,9 @@ Details: [`DATA_MODEL.md`](DATA_MODEL.md),
   pulling each fund's real balance once superannuation enters the Consumer Data
   Right (not in scope today). See [`ROADMAP.md`](ROADMAP.md).
 - **Private / surprise gifts** (deferred) — hiding a gift one partner buys for the
-  other needs member-scoped visibility that departs from the household-only RLS
-  model; out of scope for now.
+  other needs per-record member visibility on gift breakdowns, finer-grained than
+  the per-account balance privacy (which hides a whole owned account, not
+  individual rows within shared data); out of scope for now.
 - **Spreadsheet-parity gaps** (in [`spreadsheet-parity.md`](spreadsheet-parity.md)):
   a payment-method tag per budget line, a wishlist, and a finance-admin to-do list.
   Generic itemised sub-budgets ship as breakdowns.

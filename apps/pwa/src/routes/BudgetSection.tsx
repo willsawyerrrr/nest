@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { BudgetScreen } from '../components/BudgetScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
-import { useAccounts } from '../hooks/useAccounts'
+import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useDerivedLineEditor } from '../hooks/useDerivedLineEditor'
@@ -21,7 +21,7 @@ export function BudgetSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)
   const gifts = useGifts(householdId)
   const breakdowns = useBreakdowns(householdId)
-  const accounts = useAccounts(householdId)
+  const accounts = useAccountDirectory()
   const superProfiles = useSuperProfiles(householdId)
 
   const giftBudgets = useMemo(() => gifts.budgets ?? [], [gifts.budgets])

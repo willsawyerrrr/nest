@@ -1,6 +1,6 @@
 import { LoadingScreen } from '../components/LoadingScreen'
 import { SplitsScreen } from '../components/SplitsScreen'
-import { useAccounts } from '../hooks/useAccounts'
+import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGoals } from '../hooks/useGoals'
 import { usePaySplits } from '../hooks/usePaySplits'
@@ -10,7 +10,7 @@ import { superAccountIds } from '../lib/super'
 export function SplitsSection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const goals = useGoals(householdId)
-  const accounts = useAccounts(householdId)
+  const accounts = useAccountDirectory()
   const superProfiles = useSuperProfiles(householdId)
   const paySplits = usePaySplits(householdId)
 

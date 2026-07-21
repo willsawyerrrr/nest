@@ -5,7 +5,7 @@ import { SplitsSection } from './SplitsSection'
 const hooks = vi.hoisted(() => ({
   useBudgetLines: vi.fn(),
   useGoals: vi.fn(),
-  useAccounts: vi.fn(),
+  useAccountDirectory: vi.fn(),
   useSuperProfiles: vi.fn(),
   usePaySplits: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
@@ -16,7 +16,9 @@ vi.mock('../components/LoadingScreen', () => ({
 }))
 vi.mock('../hooks/useBudgetLines', () => ({ useBudgetLines: hooks.useBudgetLines }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
-vi.mock('../hooks/useAccounts', () => ({ useAccounts: hooks.useAccounts }))
+vi.mock('../hooks/useAccountDirectory', () => ({
+  useAccountDirectory: hooks.useAccountDirectory,
+}))
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/usePaySplits', () => ({ usePaySplits: hooks.usePaySplits }))
 vi.mock('../components/SplitsScreen', () => ({
@@ -30,7 +32,7 @@ describe('SplitsSection', () => {
   it('shows the loading screen until data loads', () => {
     hooks.useBudgetLines.mockReturnValue({ loading: true })
     hooks.useGoals.mockReturnValue({ loading: false })
-    hooks.useAccounts.mockReturnValue({ loading: false })
+    hooks.useAccountDirectory.mockReturnValue({ loading: false })
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
     hooks.usePaySplits.mockReturnValue({ loading: false })
     render(<SplitsSection householdId="h1" />)
@@ -41,7 +43,7 @@ describe('SplitsSection', () => {
     const confirm = vi.fn()
     hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
     hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
-    hooks.useAccounts.mockReturnValue({
+    hooks.useAccountDirectory.mockReturnValue({
       loading: false,
       accounts: [{ id: 'a1', name: 'Spending' }],
     })

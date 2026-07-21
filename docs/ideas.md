@@ -230,9 +230,9 @@ Recurring shorthand:
 
 ### 10. Net worth (assets + liabilities)
 
-- **What / value.** A first-cut net-worth view is shipped — it totals every
-  account's balance (assets only), split into Super vs Other, with super balances
-  auto-accruing from modelled contributions. The remaining scope is **liabilities**
+- **What / value.** A first-cut net-worth view is shipped — it totals the account
+  balances a member can see (assets only), split into Super vs Other, with super
+  balances auto-accruing from modelled contributions. The remaining scope is **liabilities**
   (Up `HOME_LOAN` balance, credit cards, other loans) and **trend over time**, so
   the one number that ties the whole household picture together also captures debt
   and history, not just current assets.

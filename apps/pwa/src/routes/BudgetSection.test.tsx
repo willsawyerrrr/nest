@@ -8,7 +8,7 @@ const hooks = vi.hoisted(() => ({
   useGoals: vi.fn(),
   useGifts: vi.fn(),
   useBreakdowns: vi.fn(),
-  useAccounts: vi.fn(),
+  useAccountDirectory: vi.fn(),
   useSuperProfiles: vi.fn(),
   derivedEditor: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
@@ -22,7 +22,9 @@ vi.mock('../hooks/useTemporaryItems', () => ({ useTemporaryItems: hooks.useTempo
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
 vi.mock('../hooks/useGifts', () => ({ useGifts: hooks.useGifts }))
 vi.mock('../hooks/useBreakdowns', () => ({ useBreakdowns: hooks.useBreakdowns }))
-vi.mock('../hooks/useAccounts', () => ({ useAccounts: hooks.useAccounts }))
+vi.mock('../hooks/useAccountDirectory', () => ({
+  useAccountDirectory: hooks.useAccountDirectory,
+}))
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/useReconcileBreakdownLines', () => ({ useReconcileBreakdownLines: vi.fn() }))
 vi.mock('../hooks/useDerivedLineEditor', () => ({
@@ -42,7 +44,7 @@ describe('BudgetSection', () => {
     hooks.useGoals.mockReturnValue({ loading: false })
     hooks.useGifts.mockReturnValue({ loading: false })
     hooks.useBreakdowns.mockReturnValue({ loading: false })
-    hooks.useAccounts.mockReturnValue({ loading: false })
+    hooks.useAccountDirectory.mockReturnValue({ loading: false })
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
     render(<BudgetSection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
@@ -74,7 +76,7 @@ describe('BudgetSection', () => {
       items: [],
       update: vi.fn(),
     })
-    hooks.useAccounts.mockReturnValue({
+    hooks.useAccountDirectory.mockReturnValue({
       loading: false,
       accounts: [{ id: 'a1', name: 'Spending' }],
     })

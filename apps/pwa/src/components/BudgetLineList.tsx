@@ -24,6 +24,7 @@ import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'
+import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
 import { GroupSection } from './GroupSection'
 
 interface BudgetLineListProps {
@@ -31,10 +32,12 @@ interface BudgetLineListProps {
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
-  /** The household's breakdowns; a line sourced from one links through to it. */
-  breakdowns?: { id: string; name: string }[]
+  /** The household's breakdowns; a line sourced from one links through to it and seeds its editor. */
+  breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
+  /** Saves a derived line's edit, fanning the name/group to its breakdown and the funding account to the line. */
+  onUpdateDerivedLine?: (lineId: string, values: DerivedLineValues) => Promise<void>
   onDelete: (id: string) => void
 }
 
@@ -88,6 +91,26 @@ function BreakdownLink({ id }: { id: string }) {
     >
       <IconChevronRight size={16} />
     </ActionIcon>
+  )
+}
+
+/** A derived line's controls: an inline edit pencil beside the chevron to its breakdown. */
+function DerivedLineControls({
+  breakdownId,
+  onEdit,
+}: {
+  breakdownId: string
+  onEdit?: () => void
+}) {
+  return (
+    <>
+      {onEdit && (
+        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
+          <IconPencil size={16} />
+        </ActionIcon>
+      )}
+      <BreakdownLink id={breakdownId} />
+    </>
   )
 }
 
@@ -170,7 +193,7 @@ function LineActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
  * to fill, with the amount, frequency, and fortnightly figure right-aligned in
  * fixed columns and the controls at the end, separated by a light rule rather
  * than a bordered card so many lines fit and scan as a table. A derived line
- * shows its breakdown link in place of the edit/delete controls.
+ * shows an edit pencil and its breakdown chevron in place of the edit/delete controls.
  */
 function BudgetLineRow({
   line,
@@ -227,7 +250,7 @@ function BudgetLineRow({
       </Group>
       <Group gap={4} wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
         {breakdown ? (
-          <BreakdownLink id={breakdown.id} />
+          <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
         ) : (
           onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />
         )}
@@ -238,8 +261,8 @@ function BudgetLineRow({
 
 /**
  * One budget line as a compact bordered card for mobile: name stacked over
- * amount, frequency, and controls. A derived line shows its breakdown link in
- * place of the edit/delete controls.
+ * amount, frequency, and controls. A derived line shows an edit pencil and its
+ * breakdown chevron in place of the edit/delete controls.
  */
 function BudgetLineCard({
   line,
@@ -286,7 +309,7 @@ function BudgetLineCard({
             </Text>
           </Group>
           {breakdown ? (
-            <BreakdownLink id={breakdown.id} />
+            <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
           ) : (
             onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />
           )}
@@ -314,8 +337,10 @@ function BudgetLineItem(props: {
 /**
  * The household's budget lines grouped by the five groups, each group showing a
  * fortnightly subtotal, a per-group add affordance, and inline add/edit forms.
- * A derived line (one owned by a breakdown) is read-only: it links to its
- * breakdown and carries no edit or delete control.
+ * A derived line (one owned by a breakdown) edits inline like a manual line —
+ * its name and group flow to the breakdown and its funding account to the line —
+ * but its amount stays breakdown-owned, so it carries an edit pencil and a
+ * chevron to its breakdown rather than a delete control.
  */
 export function BudgetLineList({
   lines,
@@ -324,6 +349,7 @@ export function BudgetLineList({
   breakdowns = [],
   onCreate,
   onUpdate,
+  onUpdateDerivedLine,
   onDelete,
 }: BudgetLineListProps) {
   // Account name lookup for each line's route badge and its icon.
@@ -453,15 +479,37 @@ export function BudgetLineList({
               const breakdown = line.breakdown_id
                 ? breakdownsById.get(line.breakdown_id)
                 : undefined
-              // A derived line is read-only: it links to its breakdown and is
-              // never edited or deleted from the budget.
+              // A derived line edits inline: its name and group flow to the
+              // breakdown and its funding account to the line, while its amount
+              // stays owned by the breakdown.
               if (breakdown) {
-                return (
+                return editingId === line.id && onUpdateDerivedLine ? (
+                  <DerivedBudgetLineForm
+                    key={line.id}
+                    initial={{
+                      id: line.id,
+                      breakdown_id: breakdown.id,
+                      name: breakdown.name,
+                      line_group: breakdown.line_group,
+                      destination_account_id: line.destination_account_id,
+                      amount_cents: line.amount_cents,
+                      frequency: line.frequency,
+                      interval_weeks: line.interval_weeks,
+                    }}
+                    accounts={accounts}
+                    onSave={async (values) => {
+                      await onUpdateDerivedLine(line.id, values)
+                      closeForms()
+                    }}
+                    onCancel={closeForms}
+                  />
+                ) : (
                   <BudgetLineItem
                     key={line.id}
                     line={line}
                     route={resolveRoute(line, goals, accountNames)}
                     breakdown={breakdown}
+                    onEdit={onUpdateDerivedLine ? () => startEditing(line.id) : undefined}
                   />
                 )
               }

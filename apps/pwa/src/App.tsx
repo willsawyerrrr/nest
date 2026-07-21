@@ -29,6 +29,7 @@ import { useChangelog } from './hooks/useChangelog'
 import { HomeScreen } from './components/HomeScreen'
 import { InflowScreen } from './components/InflowScreen'
 import { BudgetScreen } from './components/BudgetScreen'
+import type { DerivedLineValues } from './components/DerivedBudgetLineForm'
 import { SplitsScreen } from './components/SplitsScreen'
 import { GoalScreen } from './components/GoalScreen'
 import { TaxEstimateView } from './components/TaxEstimateView'
@@ -310,6 +311,34 @@ function BudgetSection({ householdId }: { householdId: string }) {
     })()
   }, [lines, dataLoaded, breakdownRows, totals, counts, createLine, updateLine, removeLine])
 
+  // Editing a derived line fans out: its name and group belong to the owning
+  // breakdown (reconcile copies them back onto the line), its funding account to
+  // the line itself. The amount stays owned by the breakdown's items.
+  const updateBreakdown = breakdowns.update
+  const handleUpdateDerivedLine = useCallback(
+    async (lineId: string, values: DerivedLineValues) => {
+      const line = (lines ?? []).find((candidate) => candidate.id === lineId)
+      if (!line?.breakdown_id) {
+        return
+      }
+      await updateBreakdown(line.breakdown_id, {
+        name: values.name,
+        line_group: values.line_group,
+      })
+      await updateLine(lineId, {
+        line_group: values.line_group,
+        name: values.name,
+        amount_cents: line.amount_cents,
+        frequency: line.frequency,
+        interval_weeks: line.interval_weeks,
+        goal_id: line.goal_id,
+        breakdown_id: line.breakdown_id,
+        destination_account_id: values.destination_account_id,
+      })
+    },
+    [lines, updateBreakdown, updateLine],
+  )
+
   if (
     budgetLines.loading ||
     temporaryItems.loading ||
@@ -335,10 +364,15 @@ function BudgetSection({ householdId }: { householdId: string }) {
       accounts={(accounts.accounts ?? [])
         .filter((account) => !superIds.has(account.id))
         .map((account) => ({ id: account.id, name: account.name }))}
-      breakdowns={breakdownRows.map((breakdown) => ({ id: breakdown.id, name: breakdown.name }))}
+      breakdowns={breakdownRows.map((breakdown) => ({
+        id: breakdown.id,
+        name: breakdown.name,
+        line_group: breakdown.line_group,
+      }))}
       temporaryItems={temporaryItems.items ?? []}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
+      onUpdateDerivedLine={handleUpdateDerivedLine}
       onDeleteLine={budgetLines.remove}
       onCreateItem={temporaryItems.create}
       onUpdateItem={temporaryItems.update}

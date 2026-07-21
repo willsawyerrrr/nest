@@ -103,9 +103,15 @@ items live in `gift_budget`).
   items again or the line is re-routed. The reconcile runs where the budget lines
   load, computing the creates, updates, and removes needed to bring each
   breakdown's line into step, and is a no-op once they already match.
-- **System-managed.** A derived line is not created via the budget form, is not
-  manually deletable, and its amount is not hand-editable. Deleting the breakdown
-  cascade-deletes its line (via the FK).
+- **System-managed amount.** A derived line is not created via the budget form and
+  is not manually deletable, and its amount is not hand-editable — it is rolled up
+  from the breakdown's items. Deleting the breakdown cascade-deletes its line (via
+  the FK).
+- **Editable inline.** A derived line's name, group, and funding account edit
+  inline from the budget list like a manual line: the name and group write to the
+  owning `breakdown` (the reconcile pass copies them back onto the line), and the
+  funding account is set on the line's `destination_account_id`. The group choices
+  exclude Savings/Investments, which route via a goal rather than a funding account.
 - **Routable.** A derived line is an ordinary `budget_line` in every other respect:
   it carries a `destination_account_id` and feeds the Splits tab's per-account
   recommendation like any line.
@@ -122,9 +128,11 @@ items live in `gift_budget`).
     elsewhere); rename the breakdown; choose its group; delete the breakdown.
   - `kind = 'gift'` — the existing recipient × occasion + purchases planner,
     unchanged, reached via this route.
-- **Budget list** — a derived line renders as a tap-through link to its breakdown
-  (`/breakdowns/:id`), replacing the fixed "from Gifts" badge. Its amount shows
-  read-only.
+- **Budget list** — a derived line carries a tap-through chevron to its breakdown
+  (`/breakdowns/:id`), replacing the fixed "from Gifts" badge, and an edit pencil
+  that opens an inline editor for its name, group, and funding account. Its amount
+  shows read-only there, with a link to the breakdown page to change the itemised
+  total.
 - **Removed surfaces** — the standalone **Gifts** tab (gifts is reached from the
   Breakdowns list) and the budget-line form's **Amount source** picker. There is no
   Health tab; medications is a generic breakdown the household creates.
@@ -165,8 +173,9 @@ column are dropped only once nothing reads them.
   remove-when-empty (`reconcileBreakdownLines`), keeping a routed line so its Splits
   routing survives an empty breakdown; the amount, group, and name tracked from the
   breakdown.
-- Tap-through links from the budget list to the breakdown, with the derived line
-  read-only (no edit or delete control).
+- Tap-through links from the budget list to the breakdown, with the derived line's
+  name, group, and funding account editable inline (its amount stays breakdown-owned;
+  no delete control).
 - Removed the **Gifts** tab and the budget-form **Amount source** picker.
 - The gift breakdown drives its budget line from its existing `gift_*` tables.
 - `budget_derived_source` and `budget_line.derived_source` remain in the DB,

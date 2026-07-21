@@ -1,18 +1,21 @@
 import { Stack, Title } from '@mantine/core'
-import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
+import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { BudgetLineList } from './BudgetLineList'
+import type { DerivedLineValues } from './DerivedBudgetLineForm'
 import { TemporaryItemList } from './TemporaryItemList'
 
 interface BudgetScreenProps {
   lines: BudgetLine[]
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   accounts: { id: string; name: string }[]
-  /** The household's breakdowns, naming the tap-through link on each derived line. */
-  breakdowns: { id: string; name: string }[]
+  /** The household's breakdowns, naming the tap-through link on each derived line and seeding its editor. */
+  breakdowns: { id: string; name: string; line_group: BudgetGroup }[]
   temporaryItems: TemporaryItem[]
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
+  /** Saves a derived line's edit, fanning the name/group to its breakdown and the funding account to the line. */
+  onUpdateDerivedLine: (lineId: string, values: DerivedLineValues) => Promise<void>
   onDeleteLine: (id: string) => Promise<void>
   onCreateItem: (input: TemporaryItemInput) => Promise<void>
   onUpdateItem: (id: string, input: TemporaryItemInput) => Promise<void>
@@ -28,6 +31,7 @@ export function BudgetScreen({
   temporaryItems,
   onCreateLine,
   onUpdateLine,
+  onUpdateDerivedLine,
   onDeleteLine,
   onCreateItem,
   onUpdateItem,
@@ -46,6 +50,7 @@ export function BudgetScreen({
           breakdowns={breakdowns}
           onCreate={onCreateLine}
           onUpdate={onUpdateLine}
+          onUpdateDerivedLine={onUpdateDerivedLine}
           onDelete={(id) => void onDeleteLine(id)}
         />
       </Stack>

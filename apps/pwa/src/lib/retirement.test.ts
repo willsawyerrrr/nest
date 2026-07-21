@@ -66,6 +66,11 @@ describe('member ages', () => {
     localStorage.setItem(AGES_STORAGE_KEY, JSON.stringify({ m1: 40, m2: 'x' }))
     expect(readMemberAges()).toEqual({ m1: 40 })
   })
+
+  it('returns an empty map on unparseable storage', () => {
+    localStorage.setItem(AGES_STORAGE_KEY, '{not json')
+    expect(readMemberAges()).toEqual({})
+  })
 })
 
 describe('yearsToRetirement', () => {

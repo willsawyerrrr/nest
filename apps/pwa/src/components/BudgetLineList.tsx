@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
+import { useMediaQuery } from '@mantine/hooks'
 import {
   ActionIcon,
   Badge,
@@ -18,10 +18,12 @@ import {
 import { IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
+import { useSortPreference } from '../hooks/useSortPreference'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { accountLabel } from '../lib/accountName'
 import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
+import { sortBy, type SortDirection, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'
 import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
@@ -44,17 +46,8 @@ interface BudgetLineListProps {
 /** How the lines within each group are ordered. */
 type SortKey = 'default' | 'name' | 'amount'
 
-/** Which way a sorted order runs. */
-type SortDirection = 'asc' | 'desc'
-
-/** The persisted sort preference for the budget lines. */
-interface SortPreference {
-  key: SortKey
-  direction: SortDirection
-}
-
 const SORT_STORAGE_KEY = 'budget-line-sort'
-const DEFAULT_SORT: SortPreference = { key: 'default', direction: 'asc' }
+const DEFAULT_SORT: SortPreference<SortKey> = { key: 'default', direction: 'asc' }
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'default', label: 'Default' },
@@ -70,13 +63,15 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   if (key === 'default') {
     return lines
   }
-  const sorted = [...lines].sort((a, b) =>
-    key === 'name'
-      ? a.name.localeCompare(b.name)
-      : fortnightlyCents(a.amount_cents, a.frequency, a.interval_weeks ?? undefined) -
-        fortnightlyCents(b.amount_cents, b.frequency, b.interval_weeks ?? undefined),
+  return sortBy(
+    lines,
+    (a, b) =>
+      key === 'name'
+        ? a.name.localeCompare(b.name)
+        : fortnightlyCents(a.amount_cents, a.frequency, a.interval_weeks ?? undefined) -
+          fortnightlyCents(b.amount_cents, b.frequency, b.interval_weeks ?? undefined),
+    direction,
   )
-  return direction === 'desc' ? sorted.reverse() : sorted
 }
 
 /** A chevron control linking a derived line through to its breakdown's editor. */
@@ -359,12 +354,12 @@ export function BudgetLineList({
   const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
   const [addingItem, setAddingItem] = useState(false)
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useLocalStorage<SortPreference>({
-    key: SORT_STORAGE_KEY,
-    defaultValue: DEFAULT_SORT,
-    getInitialValueInEffect: false,
-  })
-  const { key: sortKey, direction: sortDirection } = sort
+  const {
+    key: sortKey,
+    direction: sortDirection,
+    setKey,
+    toggleDirection,
+  } = useSortPreference(SORT_STORAGE_KEY, DEFAULT_SORT)
 
   const startAdding = (group: BudgetGroup) => {
     setEditingId(null)
@@ -416,21 +411,14 @@ export function BudgetLineList({
             aria-label="Sort by"
             data={SORT_OPTIONS}
             value={sortKey}
-            onChange={(value) =>
-              value && setSort((current) => ({ ...current, key: value as SortKey }))
-            }
+            onChange={(value) => value && setKey(value as SortKey)}
             allowDeselect={false}
           />
           <ActionIcon
             variant="default"
             size="lg"
             aria-label="Toggle sort direction"
-            onClick={() =>
-              setSort((current) => ({
-                ...current,
-                direction: current.direction === 'asc' ? 'desc' : 'asc',
-              }))
-            }
+            onClick={toggleDirection}
           >
             {sortDirection === 'asc' ? '↑' : '↓'}
           </ActionIcon>

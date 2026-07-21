@@ -1,4 +1,3 @@
-import { useLocalStorage } from '@mantine/hooks'
 import {
   ActionIcon,
   Alert,
@@ -15,8 +14,10 @@ import { assignmentsByAccount, paySplitNeedsUpdate, roundCentsUpToStep } from '@
 import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
+import { useSortPreference } from '../hooks/useSortPreference'
 import { accountLabel } from '../lib/accountName'
 import { formatCents } from '../lib/money'
+import { sortBy, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
 
 /** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
@@ -31,17 +32,8 @@ interface SplitRowData {
 /** Which field the split rows are ordered by. */
 type SortKey = 'title' | 'amount'
 
-/** Which way a sorted order runs. */
-type SortDirection = 'asc' | 'desc'
-
-/** The persisted sort preference for the split rows. */
-interface SortPreference {
-  key: SortKey
-  direction: SortDirection
-}
-
 const SORT_STORAGE_KEY = 'splits-sort'
-const DEFAULT_SORT: SortPreference = { key: 'title', direction: 'asc' }
+const DEFAULT_SORT: SortPreference<SortKey> = { key: 'title', direction: 'asc' }
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'title', label: 'Title' },
@@ -49,18 +41,15 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ]
 
 /**
- * Orders rows by the chosen key and direction, sorting a copy so the caller's
- * array is untouched. `title` compares the displayed account labels (the leading
- * emoji stripped, as shown); `amount` compares the fortnightly split. Both sort
- * ascending then reverse for descending.
+ * Compares two rows by the chosen key for ascending order. `title` compares the
+ * displayed account labels (the leading emoji stripped, as shown); `amount`
+ * compares the fortnightly split.
  */
-function sortRows(rows: SplitRowData[], key: SortKey, direction: SortDirection): SplitRowData[] {
-  const sorted = [...rows].sort((a, b) =>
+function compareRows(key: SortKey): (a: SplitRowData, b: SplitRowData) => number {
+  return (a, b) =>
     key === 'title'
       ? accountLabel(a.account.name).localeCompare(accountLabel(b.account.name))
-      : a.fortnightlyCents - b.fortnightlyCents,
-  )
-  return direction === 'desc' ? sorted.reverse() : sorted
+      : a.fortnightlyCents - b.fortnightlyCents
 }
 
 interface SplitsScreenProps {
@@ -216,26 +205,27 @@ export function SplitsScreen({
     goals.map((goal) => ({ id: goal.id, linkedAccountId: goal.linked_account_id })),
   )
 
-  const [sort, setSort] = useLocalStorage<SortPreference>({
-    key: SORT_STORAGE_KEY,
-    defaultValue: DEFAULT_SORT,
-    getInitialValueInEffect: false,
-  })
-  const { key: sortKey, direction: sortDirection } = sort
+  const {
+    key: sortKey,
+    direction: sortDirection,
+    setKey,
+    toggleDirection,
+  } = useSortPreference(SORT_STORAGE_KEY, DEFAULT_SORT)
 
   const accountById = new Map(accounts.map((account) => [account.id, account]))
   const rows = Object.entries(byAccount)
     .map(([id, fortnightlyCents]) => ({ account: accountById.get(id), fortnightlyCents }))
     .filter((row): row is SplitRowData => row.account !== undefined)
 
-  const saverRows = sortRows(
+  const comparator = compareRows(sortKey)
+  const saverRows = sortBy(
     rows.filter((row) => isSaver(row.account)),
-    sortKey,
+    comparator,
     sortDirection,
   )
-  const otherRows = sortRows(
+  const otherRows = sortBy(
     rows.filter((row) => !isSaver(row.account)),
-    sortKey,
+    comparator,
     sortDirection,
   )
   const nothingRouted = rows.length === 0 && unassignedFortnightlyCents === 0
@@ -272,21 +262,14 @@ export function SplitsScreen({
             aria-label="Sort by"
             data={SORT_OPTIONS}
             value={sortKey}
-            onChange={(value) =>
-              value && setSort((current) => ({ ...current, key: value as SortKey }))
-            }
+            onChange={(value) => value && setKey(value as SortKey)}
             allowDeselect={false}
           />
           <ActionIcon
             variant="default"
             size="lg"
             aria-label="Toggle sort direction"
-            onClick={() =>
-              setSort((current) => ({
-                ...current,
-                direction: current.direction === 'asc' ? 'desc' : 'asc',
-              }))
-            }
+            onClick={toggleDirection}
           >
             {sortDirection === 'asc' ? '↑' : '↓'}
           </ActionIcon>

@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { useMediaQuery } from '@mantine/hooks'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BudgetSummary, GroupSummary } from '@nest/plan'
 import { render, screen, within } from '../test/render'
 import { SummaryView } from './SummaryView'
+
+vi.mock('@mantine/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@mantine/hooks')>()
+  return { ...actual, useMediaQuery: vi.fn(() => false) }
+})
+
+beforeEach(() => vi.mocked(useMediaQuery).mockReturnValue(false))
 
 const group = (fortnightlyCents: number, annualCents: number, portion: number): GroupSummary => ({
   fortnightlyCents,
@@ -103,6 +111,45 @@ describe('SummaryView', () => {
       expect(order.indexOf(label)).toBeGreaterThan(afterOutgoing)
     }
     expect(order.indexOf('After Saving')).toBeGreaterThan(order.indexOf('Investments'))
+  })
+
+  it('renders the reconciliation table with running rows on wide screens', () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true)
+    render(<SummaryView summary={summary} />)
+
+    const table = screen.getByRole('table')
+    // Running figures render as table rows in the wide layout, with the annual column.
+    expect(within(table).getByRole('rowheader', { name: 'Available' })).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: 'After Outgoing' })).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: 'After Saving' })).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: 'Needs' })).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: 'Savings' })).toBeInTheDocument()
+    // The annual figure appears in the wide table but not the narrow ledger.
+    expect(within(table).getByText('$52,000.00')).toBeInTheDocument()
+  })
+
+  it('omits the allocation donut when nothing is allocated but there is still data', () => {
+    const zero = { fortnightlyCents: 0, annualCents: 0 }
+    const noAllocation: BudgetSummary = {
+      available: { fortnightlyCents: 500_000, annualCents: 13_000_000 },
+      groups: {
+        needs: group(0, 0, 0),
+        wants: group(0, 0, 0),
+        discretionary: group(0, 0, 0),
+        temporary: group(0, 0, 0),
+        savings: group(0, 0, 0),
+        investments: group(0, 0, 0),
+      },
+      outgoings: zero,
+      savingsBlock: zero,
+      afterOutgoing: { fortnightlyCents: 500_000, annualCents: 13_000_000 },
+      afterSaving: zero,
+    }
+    render(<SummaryView summary={noAllocation} />)
+
+    expect(screen.queryByRole('region', { name: 'Allocation' })).not.toBeInTheDocument()
+    // The reconciliation rows still render.
+    expect(screen.getByRole('region', { name: 'Available' })).toBeInTheDocument()
   })
 
   it('shows an empty state when there is nothing to reconcile', () => {

@@ -53,6 +53,29 @@ describe('RetirementProjection', () => {
     expect(screen.getByLabelText(/expected return/i)).toHaveValue('9%')
   })
 
+  it('persists every edited assumption', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<RetirementProjection entries={[entry]} preservationAge={60} />)
+
+    const retirementAge = screen.getByLabelText(/retirement age/i)
+    await user.clear(retirementAge)
+    await user.type(retirementAge, '65')
+
+    const inflation = screen.getByLabelText(/inflation/i)
+    await user.clear(inflation)
+    await user.type(inflation, '3')
+
+    const growth = screen.getByLabelText(/contribution growth/i)
+    await user.clear(growth)
+    await user.type(growth, '4')
+
+    unmount()
+    render(<RetirementProjection entries={[entry]} preservationAge={60} />)
+    expect(screen.getByLabelText(/retirement age/i)).toHaveValue('65')
+    expect(screen.getByLabelText(/inflation/i)).toHaveValue('3%')
+    expect(screen.getByLabelText(/contribution growth/i)).toHaveValue('4%')
+  })
+
   it('shows both real and nominal projected balances', async () => {
     const user = userEvent.setup()
     render(<RetirementProjection entries={[entry]} preservationAge={60} />)

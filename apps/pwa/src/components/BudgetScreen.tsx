@@ -1,6 +1,7 @@
 import { Stack, Title } from '@mantine/core'
-import type { BudgetGroup, BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
+import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
+import type { BudgetGroup } from '../lib/domain'
 import { BudgetLineList } from './BudgetLineList'
 import type { DerivedLineValues } from './DerivedBudgetLineForm'
 import { TemporaryItemList } from './TemporaryItemList'

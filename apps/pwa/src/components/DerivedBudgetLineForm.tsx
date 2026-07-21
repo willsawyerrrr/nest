@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Anchor, Button, Card, Group, Select, Stack, Text, TextInput } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
-import type { BudgetGroup, Frequency } from '../hooks/useBudgetLines'
+import type { BudgetGroup, Frequency } from '../lib/domain'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { formatCents } from '../lib/money'
 

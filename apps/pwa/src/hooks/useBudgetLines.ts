@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Enums, Tables } from '../lib/database.types'
+import type { Tables } from '../lib/database.types'
+import type { BudgetGroup, Frequency } from '../lib/domain'
 
 export type BudgetLine = Tables<'budget_line'>
-export type BudgetGroup = Enums<'budget_group'>
-export type Frequency = Enums<'frequency'>
 
 /** The budget-line fields a form supplies; identifiers and household are set by the hook. */
 export interface BudgetLineInput {

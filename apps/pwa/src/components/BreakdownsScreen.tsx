@@ -15,7 +15,7 @@ import {
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
-import type { BudgetGroup } from '../hooks/useBudgetLines'
+import type { BudgetGroup } from '../lib/domain'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import { formatCents } from '../lib/money'
 

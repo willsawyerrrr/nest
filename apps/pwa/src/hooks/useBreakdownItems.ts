@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Tables } from '../lib/database.types'
-import type { Frequency } from './useBudgetLines'
+import type { Frequency } from '../lib/domain'
 
 export type BreakdownItem = Tables<'breakdown_item'>
 

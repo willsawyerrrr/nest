@@ -3,6 +3,7 @@ import { ActionIcon, Badge, Button, Card, Group, Stack, Text } from '@mantine/co
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { isTemporaryActive } from '@nest/plan'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
+import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
 import { GroupSection } from './GroupSection'
 import { TemporaryItemForm } from './TemporaryItemForm'
@@ -14,15 +15,6 @@ interface TemporaryItemListProps {
   onCreate: (input: TemporaryItemInput) => Promise<void>
   onUpdate: (id: string, input: TemporaryItemInput) => Promise<void>
   onDelete: (id: string) => void
-}
-
-/** Formats an ISO date (`YYYY-MM-DD`) as e.g. `3 Aug 2027`. */
-function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-AU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
 }
 
 /** One temporary item's display card, with its active/expired state and controls. */
@@ -47,7 +39,7 @@ function TemporaryItemCard({
           </Text>
           <Group gap={6} wrap="nowrap">
             <Text size="xs" c="dimmed">
-              until {formatDate(item.target_date)}
+              until {formatIsoDate(item.target_date)}
             </Text>
             <Badge size="xs" variant="light" color={active ? 'teal' : 'gray'}>
               {active ? 'Active' : 'Expired'}

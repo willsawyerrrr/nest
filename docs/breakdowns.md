@@ -3,9 +3,9 @@
 A **breakdown** is a user-created, household-scoped itemised list whose items roll
 up into a single budget line. The household creates arbitrary breakdowns; each one
 owns a real budget line whose amount is the sum of the breakdown's items, so the
-line and its detail are one source of truth and never drift. Breakdowns replace the
-fixed set of derived-budget-line sources with data: the gift planner and
-medications are breakdowns, not hardcoded enum cases.
+line and its detail are one source of truth and never drift. Breakdowns are the
+sole source of derived budget lines: the gift planner and medications are
+breakdowns defined as data, not hardcoded enum cases.
 
 Amounts are integer minor units (cents). Every item carries an amount + frequency,
 normalised to fortnightly and annual exactly as a budget line is.
@@ -28,19 +28,19 @@ normalised to fortnightly and annual exactly as a budget line is.
   simple item editor; `kind = 'gift'` uses the recipient × occasion + purchases
   planner and keeps its bespoke `gift_*` tables. `kind` is a small enum that selects
   behaviour, not an open per-breakdown enumeration.
-- **Derived lines are never created from the budget form.** The budget-line form's
-  "Amount source" picker is removed; a derived line comes into being only through its
+- **Derived lines are never created from the budget form.** The budget-line form has
+  no "Amount source" picker; a derived line comes into being only through its
   breakdown.
-- **Gifts is a breakdown.** The gift planner keeps its exact UX and its
+- **Gifts is a breakdown.** The gift planner uses its own UX and its
   `gift_recipient` / `gift_occasion` / `gift_budget` / `gift_purchase` tables; it is
-  reached as a `kind = 'gift'` breakdown rather than a standalone tab.
+  reached as a `kind = 'gift'` breakdown, not a standalone tab.
 - **Medications is a generic breakdown.** There is no bespoke Health tab or
   medication schema; the household creates a generic breakdown and lists its
   medications as items.
 
 ## Data model
 
-Two new tables plus one column on `budget_line`, mirroring the gift tables'
+Two tables plus one column on `budget_line`, mirroring the gift tables'
 conventions — composite `(id, household_id)` keys, RLS on household membership, a
 `set_updated_at` trigger, and explicit grants.
 
@@ -57,7 +57,7 @@ conventions — composite `(id, household_id)` keys, RLS on household membership
 - `created_at` / `updated_at timestamptz not null default now()`
 - `unique (id, household_id)` — the composite key children reference.
 
-A new enum `create type public.breakdown_kind as enum ('generic', 'gift')` backs
+The enum `create type public.breakdown_kind as enum ('generic', 'gift')` backs
 `kind`.
 
 ### `breakdown_item`
@@ -82,17 +82,14 @@ items live in `gift_budget`).
   `foreign key (breakdown_id, household_id) references public.breakdown (id, household_id) on delete cascade`.
 - A budget line with a non-null `breakdown_id` is a **derived line** owned by that
   breakdown; null is an ordinary manual line.
-- This column **replaces** the `budget_derived_source` enum and the
-  `budget_line.derived_source` column, both dropped at the end of the rollout (see
-  Rollout).
 
 ## Behaviour
 
 - **Roll-up amount.** A derived line's amount is the summed annualised items via
   `@nest/plan` `annualCents` — for a generic breakdown, over its `breakdown_item`
   rows; for a `gift` breakdown, over `gift_budget.budgeted_amount_cents` (an annual
-  figure, as today). The line's `frequency` is `annual`. The amount is read-only in
-  every budget surface (list, form, summary).
+  figure). The line's `frequency` is `annual`. The amount is read-only in every
+  budget surface (list, form, summary).
 - **Lifecycle.** The derived line exists iff the breakdown has ≥ 1 item (for a
   `gift` breakdown: ≥ 1 gift budget). Adding the first item creates the line; adding
   or editing items updates its amount; removing the last item removes the line. The
@@ -118,106 +115,39 @@ items live in `gift_budget`).
 
 ## UI
 
-- **Breakdowns tab** (route `/breakdowns`, taking the standalone Gifts tab's slot in
-  `NAV_ITEMS`) — lists every breakdown with its name, group, and rolled-up
-  fortnightly + annual total, plus a **New breakdown** action (a name and a group).
-  Each row taps through to `/breakdowns/:id`.
+- **Breakdowns tab** (route `/breakdowns`, in `NAV_ITEMS`) — lists every breakdown
+  with its name, group, and rolled-up fortnightly + annual total, plus a **New
+  breakdown** action (a name and a group). Each row taps through to
+  `/breakdowns/:id`.
 - **`/breakdowns/:id`** — the editor, chosen by `kind`:
   - `kind = 'generic'` — a simple item editor: the item list with add / edit /
     remove (name + amount + frequency, `every_n_weeks` taking an interval as
     elsewhere); rename the breakdown; choose its group; delete the breakdown.
-  - `kind = 'gift'` — the existing recipient × occasion + purchases planner,
-    unchanged, reached via this route.
+  - `kind = 'gift'` — the recipient × occasion + purchases planner, reached via this
+    route.
 - **Budget list** — a derived line carries a tap-through chevron to its breakdown
-  (`/breakdowns/:id`), replacing the fixed "from Gifts" badge, and an edit pencil
-  that opens an inline editor for its name, group, and funding account. Its amount
-  shows read-only there, with a link to the breakdown page to change the itemised
-  total.
-- **Removed surfaces** — the standalone **Gifts** tab (gifts is reached from the
-  Breakdowns list) and the budget-line form's **Amount source** picker. There is no
-  Health tab; medications is a generic breakdown the household creates.
+  (`/breakdowns/:id`) and an edit pencil that opens an inline editor for its name,
+  group, and funding account. Its amount shows read-only there, with a link to the
+  breakdown page to change the itemised total.
+- **Absent surfaces** — there is no standalone Gifts tab (gifts is reached from the
+  Breakdowns list) and no budget-line-form Amount source picker. There is no Health
+  tab; medications is a generic breakdown the household creates.
 
 ## Pure logic (`@nest/plan`)
 
-The roll-up reuses the existing `annualCents`: a generic breakdown's amount is the
-sum of `annualCents(item.amount_cents, item.frequency, item.interval_weeks)` over
-its items; a `gift` breakdown's amount is the existing gift-budget total. No
-per-source special-casing beyond the two `kind` branches.
+The roll-up reuses `annualCents`: a generic breakdown's amount is the sum of
+`annualCents(item.amount_cents, item.frequency, item.interval_weeks)` over its
+items; a `gift` breakdown's amount is the gift-budget total. No per-source
+special-casing beyond the two `kind` branches.
 
-## Rollout — additive, staged
+## Invariants
 
-Three PRs, each keeping `main` releasable and CI green. The schema lands alongside
-the existing `derived_source` before any code switches over, and the old enum and
-column are dropped only once nothing reads them.
-
-### Stage 1 — schema (additive)
-
-- Add `breakdown` + `breakdown_item` + `budget_line.breakdown_id` **alongside** the
-  existing `budget_derived_source` enum and `budget_line.derived_source` column
-  (neither dropped yet).
-- Backfill: for each household with gift data, create one `kind = 'gift'` breakdown
-  named "Gifts" whose `line_group` is the existing gift-derived line's group, and set
-  that line's `breakdown_id` to the new breakdown.
-- RLS isolation tests for `breakdown` and `breakdown_item`; regenerate
-  `database.types`.
-- App code is unchanged and still compiles — it continues to read `derived_source`.
-  Green.
-
-### Stage 2 — app switch (done)
-
-- Generic roll-up keyed by `breakdown_id` (`applyBreakdownAmounts`); `useBreakdowns`
-  / `useBreakdownItems` hooks.
-- The **Breakdowns** tab and `/breakdowns/:id` (the generic editor plus the gift
-  editor, dispatched by `kind`).
-- Derived-line lifecycle: create-on-first-item, update-on-change,
-  remove-when-empty (`reconcileBreakdownLines`), keeping a routed line so its Splits
-  routing survives an empty breakdown; the amount, group, and name tracked from the
-  breakdown.
-- Tap-through links from the budget list to the breakdown, with the derived line's
-  name, group, and funding account editable inline (its amount stays breakdown-owned;
-  no delete control).
-- Removed the **Gifts** tab and the budget-form **Amount source** picker.
-- The gift breakdown drives its budget line from its existing `gift_*` tables.
-- `budget_derived_source` and `budget_line.derived_source` remain in the DB,
-  unread by the app, until Stage 3.
-- Green.
-
-### Stage 3 — cleanup (done)
-
-- Dropped the `budget_derived_source` enum and `budget_line.derived_source`
-  column; breakdowns fully replace the derived-source mechanism.
-- Removed the dead `derived_source` references from the app (`BudgetLineInput`,
-  the budget form, `derivedInput`, and test fixtures) and regenerated
-  `database.types`.
-- Green.
-
-## Notes
-
-- A bespoke medication feature (PR #154) was explored and closed as superseded by
-  this design — medications is a generic breakdown, needing no dedicated schema or
-  tab. Its branch `feat/health-tracking` is retained for reference.
-- Gift data is preserved across the pivot: the gift tracker's tables and UX are
-  unchanged, and Stage 1 migrates the existing gift-derived line onto a `gift`
-  breakdown.
-
-## Status
-
-Shipped. The schema (`breakdown`, `breakdown_item`, `budget_line.breakdown_id`) is
-live with gifts backfilled onto a `kind = 'gift'` breakdown, and the app reads
-breakdowns keyed by `budget_line.breakdown_id`: the Breakdowns tab, the generic item
-editor, the gift planner reached by `kind`, and the app-enforced derived-line
-lifecycle. Gifts is the first (`kind = 'gift'`) breakdown and generic breakdowns
-(e.g. medications) are user-created. The `budget_derived_source` enum and
-`budget_line.derived_source` column are dropped — breakdowns are the sole
-derived-line mechanism.
-
-## Open questions
-
-- **Empty-breakdown lifecycle is app-enforced, not DB-enforced.** Stage 1's schema
+- **Empty-breakdown lifecycle is app-enforced, not DB-enforced.** The schema
   permits a breakdown with no items and no derived line, and does not itself create,
-  update, or remove the line as items come and go — that lifecycle lands in Stage 2's
-  app code. Whether any of it should be pushed into DB triggers is left open.
-- **One-line-per-breakdown is a convention, not a constraint.** No unique constraint
-  ties a breakdown to a single `budget_line`; the app is trusted to keep it 1:1.
-- **Roll-up amount is not enforced in the DB.** A derived line's `amount_cents` is
-  written by the app from the summed items; the schema does not compute or check it.
+  update, or remove the line as items come and go — the app's reconcile pass owns
+  that lifecycle.
+- **One-line-per-breakdown is app-enforced, not DB-enforced.** No unique constraint
+  ties a breakdown to a single `budget_line`; the app keeps the relationship 1:1.
+- **Roll-up amount is app-enforced, not DB-enforced.** A derived line's
+  `amount_cents` is written by the app from the summed items; the schema does not
+  compute or check it.

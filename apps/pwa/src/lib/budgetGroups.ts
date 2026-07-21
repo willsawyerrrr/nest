@@ -1,4 +1,4 @@
-import type { BudgetGroup } from '../hooks/useBudgetLines'
+import type { BudgetGroup } from './domain'
 
 /** The five budget groups in display order, each with its human label. */
 export const BUDGET_GROUPS: { value: BudgetGroup; label: string }[] = [

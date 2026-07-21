@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Enums, Tables } from '../lib/database.types'
-import type { BudgetGroup } from './useBudgetLines'
+import type { BudgetGroup } from '../lib/domain'
 import type { BreakdownItem } from './useBreakdownItems'
 
 export type Breakdown = Tables<'breakdown'>

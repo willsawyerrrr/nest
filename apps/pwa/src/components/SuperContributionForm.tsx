@@ -12,12 +12,12 @@ import {
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type {
-  Frequency,
   SuperContribution,
   SuperContributionInput,
   SuperContributionKind,
   SuperContributionMode,
 } from '../hooks/useSuperContributions'
+import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'

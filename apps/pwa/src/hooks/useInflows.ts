@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Enums, Tables } from '../lib/database.types'
+import type { Frequency } from '../lib/domain'
 
 export type Inflow = Tables<'inflows'>
 export type InflowType = Enums<'inflow_type'>
-export type Frequency = Enums<'frequency'>
 
 /** The inflow fields a form supplies; identifiers and household are set by the hook. */
 export interface InflowInput {

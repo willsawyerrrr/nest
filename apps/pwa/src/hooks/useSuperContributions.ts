@@ -2,9 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { financialYearForDate } from '@nest/tax'
 import { supabase } from '../lib/supabase'
 import type { Enums, Tables } from '../lib/database.types'
-import type { Frequency } from './useInflows'
-
-export type { Frequency }
+import type { Frequency } from '../lib/domain'
 
 export type SuperContribution = Tables<'super_contribution'>
 export type SuperContributionKind = Enums<'super_contribution_kind'>

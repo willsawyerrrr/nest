@@ -11,7 +11,8 @@ import {
   TextInput,
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
-import type { Frequency, Inflow, InflowInput, InflowType } from '../hooks/useInflows'
+import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
+import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 

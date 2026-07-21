@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
-import type { Frequency } from '../hooks/useBudgetLines'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
+import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 

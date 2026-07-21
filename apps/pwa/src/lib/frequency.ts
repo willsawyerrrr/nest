@@ -1,4 +1,4 @@
-import type { Frequency } from '@nest/plan'
+import type { Frequency } from './domain'
 
 /** Human-readable labels for the fixed (non-interpolated) frequencies. */
 const FIXED_LABELS: Record<Exclude<Frequency, 'every_n_weeks'>, string> = {

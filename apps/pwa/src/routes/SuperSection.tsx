@@ -1,0 +1,68 @@
+import { useMembers } from '../hooks/useMembers'
+import { useSuperProfiles } from '../hooks/useSuperProfiles'
+import { useAccounts } from '../hooks/useAccounts'
+import { useSuperContributions } from '../hooks/useSuperContributions'
+import { useInflows } from '../hooks/useInflows'
+import { useSaveSuperProfile } from '../hooks/useSaveSuperProfile'
+import { SuperScreen } from '../components/SuperScreen'
+import { LoadingScreen } from '../components/LoadingScreen'
+import {
+  currentTaxConfig,
+  netAnnualSuperContributionFromRows,
+  superCapSummaryFromRows,
+} from '../lib/tax'
+
+export function SuperSection({ householdId }: { householdId: string }) {
+  const { members, loading: membersLoading } = useMembers()
+  const superProfiles = useSuperProfiles(householdId)
+  const accounts = useAccounts(householdId)
+  const contributions = useSuperContributions(householdId)
+  const inflows = useInflows(householdId)
+
+  const profileRows = superProfiles.profiles
+
+  const onSave = useSaveSuperProfile({
+    profiles: profileRows,
+    insertAccount: accounts.insert,
+    updateAccount: accounts.update,
+    upsertProfile: superProfiles.upsert,
+  })
+
+  if (
+    membersLoading ||
+    superProfiles.loading ||
+    accounts.loading ||
+    contributions.loading ||
+    inflows.loading ||
+    !members
+  ) {
+    return <LoadingScreen />
+  }
+
+  const capSummaries = superCapSummaryFromRows(
+    inflows.inflows ?? [],
+    profileRows ?? [],
+    contributions.contributions ?? [],
+  )
+  const netContributionByMember = netAnnualSuperContributionFromRows(
+    inflows.inflows ?? [],
+    contributions.contributions ?? [],
+  )
+
+  return (
+    <SuperScreen
+      members={members}
+      profiles={profileRows ?? []}
+      accounts={accounts.accounts ?? []}
+      contributions={contributions.contributions ?? []}
+      capSummaries={capSummaries}
+      netContributionByMember={netContributionByMember}
+      preservationAge={currentTaxConfig().super.preservationAge}
+      financialYear={superProfiles.financialYear}
+      onSave={onSave}
+      onCreateContribution={contributions.create}
+      onUpdateContribution={contributions.update}
+      onDeleteContribution={contributions.remove}
+    />
+  )
+}

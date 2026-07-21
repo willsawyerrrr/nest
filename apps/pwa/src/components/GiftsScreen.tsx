@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useDisclosure, useLocalStorage } from '@mantine/hooks'
 import {
   ActionIcon,
-  Anchor,
   Box,
   Button,
   Card,
@@ -16,13 +14,8 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core'
-import {
-  IconArrowLeft,
-  IconChevronDown,
-  IconChevronRight,
-  IconPencil,
-  IconTrash,
-} from '@tabler/icons-react'
+import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
+import { BreakdownPageLayout } from './BreakdownPageLayout'
 import type {
   GiftBudget,
   GiftBudgetInput,
@@ -440,21 +433,16 @@ export function GiftsScreen({
   const noEntities = recipients.length === 0 && occasions.length === 0
 
   return (
-    <Stack gap="md">
-      <Anchor component={Link} to={backTo} size="sm">
-        <Group gap={4} wrap="nowrap">
-          <IconArrowLeft size={16} />
-          {backLabel}
-        </Group>
-      </Anchor>
-
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={2}>Gifts</Title>
+    <BreakdownPageLayout
+      backTo={backTo}
+      backLabel={backLabel}
+      title="Gifts"
+      action={
         <Button variant={managing ? 'filled' : 'default'} onClick={toggleManaging}>
           {managing ? 'Done managing' : 'Manage'}
         </Button>
-      </Group>
-
+      }
+    >
       {budgets.length > 0 && (
         <Card withBorder radius="md" p="sm">
           <Stack gap={4}>
@@ -519,6 +507,6 @@ export function GiftsScreen({
           />
         ))
       )}
-    </Stack>
+    </BreakdownPageLayout>
   )
 }

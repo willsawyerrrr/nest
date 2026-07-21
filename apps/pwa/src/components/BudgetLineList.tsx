@@ -19,6 +19,7 @@ import { IconChevronRight, IconPencil } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { BudgetGroup } from '../lib/domain'
+import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useSortPreference } from '../hooks/useSortPreference'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { accountLabel } from '../lib/accountName'
@@ -44,6 +45,9 @@ interface BudgetLineListProps {
   onUpdateDerivedLine?: (lineId: string, values: DerivedLineValues) => Promise<void>
   onDelete: (id: string) => void
 }
+
+/** Which add form is open: the top-level item form, or a per-group line form. */
+type AddContext = { kind: 'item' } | { kind: 'group'; group: BudgetGroup }
 
 /** How the lines within each group are ordered. */
 type SortKey = 'default' | 'name' | 'amount'
@@ -338,9 +342,15 @@ export function BudgetLineList({
   // Account name lookup for each line's route badge and its icon.
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
   const breakdownsById = new Map(breakdowns.map((breakdown) => [breakdown.id, breakdown]))
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [addingGroup, setAddingGroup] = useState<BudgetGroup | null>(null)
-  const [addingItem, setAddingItem] = useState(false)
+  const {
+    editingId,
+    adding,
+    startAdding: startAddingContext,
+    startEditing,
+    close: closeForms,
+  } = useInlineEditing<AddContext>()
+  const addingItem = adding?.kind === 'item'
+  const addingGroup = adding?.kind === 'group' ? adding.group : null
   const [query, setQuery] = useState('')
   const {
     key: sortKey,
@@ -349,26 +359,8 @@ export function BudgetLineList({
     toggleDirection,
   } = useSortPreference(SORT_STORAGE_KEY, DEFAULT_SORT)
 
-  const startAdding = (group: BudgetGroup) => {
-    setEditingId(null)
-    setAddingItem(false)
-    setAddingGroup(group)
-  }
-  const startEditing = (id: string) => {
-    setAddingGroup(null)
-    setAddingItem(false)
-    setEditingId(id)
-  }
-  const startAddingItem = () => {
-    setEditingId(null)
-    setAddingGroup(null)
-    setAddingItem(true)
-  }
-  const closeForms = () => {
-    setEditingId(null)
-    setAddingGroup(null)
-    setAddingItem(false)
-  }
+  const startAdding = (group: BudgetGroup) => startAddingContext({ kind: 'group', group })
+  const startAddingItem = () => startAddingContext({ kind: 'item' })
 
   const search = query.trim().toLowerCase()
   const searching = search !== ''

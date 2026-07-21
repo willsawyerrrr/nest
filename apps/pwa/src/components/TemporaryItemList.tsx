@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { isTemporaryActive } from '@nest/plan'
+import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
@@ -65,21 +65,7 @@ export function TemporaryItemList({
   onUpdate,
   onDelete,
 }: TemporaryItemListProps) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
-
-  const startAdding = () => {
-    setEditingId(null)
-    setAdding(true)
-  }
-  const startEditing = (id: string) => {
-    setAdding(false)
-    setEditingId(id)
-  }
-  const closeForms = () => {
-    setEditingId(null)
-    setAdding(false)
-  }
+  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
 
   const activeSubtotal = items.reduce(
     (total, item) =>
@@ -128,7 +114,7 @@ export function TemporaryItemList({
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={startAdding}>
+        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
           Add Temporary line
         </Button>
       )}

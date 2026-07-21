@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
 import { formatCents } from '../lib/money'
@@ -85,15 +85,9 @@ export function SuperContributionList({
   onUpdate,
   onDelete,
 }: SuperContributionListProps) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
+  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const memberName = (id: string) =>
     members.find((candidate) => candidate.id === id)?.name ?? 'Unknown'
-
-  const closeForms = () => {
-    setEditingId(null)
-    setAdding(false)
-  }
 
   return (
     <Stack gap="xs">
@@ -115,10 +109,7 @@ export function SuperContributionList({
             key={contribution.id}
             contribution={contribution}
             memberName={memberName}
-            onEdit={() => {
-              setAdding(false)
-              setEditingId(contribution.id)
-            }}
+            onEdit={() => startEditing(contribution.id)}
             onDelete={() => onDelete(contribution.id)}
           />
         ),
@@ -135,15 +126,7 @@ export function SuperContributionList({
           onCancel={closeForms}
         />
       ) : (
-        <Button
-          variant="light"
-          size="xs"
-          fullWidth
-          onClick={() => {
-            setEditingId(null)
-            setAdding(true)
-          }}
-        >
+        <Button variant="light" size="xs" fullWidth onClick={() => startAdding(true)}>
           Add contribution
         </Button>
       )}

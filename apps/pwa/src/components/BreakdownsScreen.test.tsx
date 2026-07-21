@@ -70,4 +70,39 @@ describe('BreakdownsScreen', () => {
       }),
     )
   })
+
+  it('closes the new-breakdown form on cancel', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await user.click(screen.getByRole('button', { name: /add breakdown/i }))
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument()
+  })
+
+  it('ignores a submit while the name is blank', async () => {
+    const user = userEvent.setup()
+    const onCreate = vi.fn()
+    const { container } = renderScreen({ onCreate })
+
+    await user.click(screen.getByRole('button', { name: /add breakdown/i }))
+    const form = container.querySelector('form') as HTMLFormElement
+    form.requestSubmit()
+
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('shows an error when creating the breakdown fails', async () => {
+    const user = userEvent.setup()
+    const onCreate = vi.fn().mockRejectedValue(new Error('nope'))
+    renderScreen({ onCreate })
+
+    await user.click(screen.getByRole('button', { name: /add breakdown/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Holiday')
+    await user.click(screen.getByRole('button', { name: /add breakdown/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not create this breakdown/i)
+  })
 })

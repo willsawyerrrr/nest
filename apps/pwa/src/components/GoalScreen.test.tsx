@@ -1,6 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '../test/render'
+import { makeGoal } from '../test/fixtures'
+import { render, screen, within } from '../test/render'
 import { GoalScreen } from './GoalScreen'
 
 const noop = vi.fn()
@@ -40,5 +41,16 @@ describe('GoalScreen refresh', () => {
   it('renders a refresh error when one is present', () => {
     renderScreen({ refreshError: 'Could not refresh balances. Try again.' })
     expect(screen.getByText(/could not refresh balances/i)).toBeInTheDocument()
+  })
+
+  it('deletes a goal through the list', async () => {
+    const user = userEvent.setup()
+    const onDeleteGoal = vi.fn().mockResolvedValue(undefined)
+    renderScreen({ goals: [makeGoal({ id: 'g1', name: 'Car' })], onDeleteGoal })
+
+    await user.click(screen.getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i }))
+
+    expect(onDeleteGoal).toHaveBeenCalledWith('g1')
   })
 })

@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeGoal as goal, makeBudgetLine as line, makeSaver as saver } from '../test/fixtures'
-import { render, screen, within } from '../test/render'
+import { render, screen, waitFor, within } from '../test/render'
 import { GoalList } from './GoalList'
 
 function card(name: string): HTMLElement {
@@ -179,6 +179,76 @@ describe('GoalList', () => {
     await user.click(screen.getByRole('button', { name: /add goal/i }))
     expect(screen.getByRole('button', { name: /add goal/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/target amount/i)).toBeInTheDocument()
+  })
+
+  it('saves an inline edit and closes the form', async () => {
+    const user = userEvent.setup()
+    const onUpdate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <GoalList
+        goals={[goal({ id: 'g1', name: 'Car' })]}
+        lines={[]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(within(card('Car')).getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith('g1', expect.objectContaining({ name: 'Car' })),
+    )
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
+  })
+
+  it('creates a goal from the add form and closes it', async () => {
+    const user = userEvent.setup()
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <GoalList
+        goals={[]}
+        lines={[]}
+        savers={[]}
+        onCreate={onCreate}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /add goal/i }))
+    await user.type(screen.getByLabelText(/name/i), 'Holiday')
+    await user.type(screen.getByLabelText(/target amount/i), '5000')
+    await user.click(screen.getByRole('button', { name: /add goal/i }))
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Holiday', target_amount_cents: 500_000 }),
+      ),
+    )
+    expect(screen.queryByLabelText(/target amount/i)).not.toBeInTheDocument()
+  })
+
+  it('deletes a goal after confirming', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    render(
+      <GoalList
+        goals={[goal({ id: 'g1', name: 'Car' })]}
+        lines={[]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+
+    await user.click(within(card('Car')).getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i }))
+
+    expect(onDelete).toHaveBeenCalledWith('g1')
   })
 
   it('uses a linked saver balance for progress and ETA, not the manual value', () => {

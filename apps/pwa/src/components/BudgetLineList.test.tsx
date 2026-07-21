@@ -2,7 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBudgetLine as line } from '../test/fixtures'
-import { render, screen, within } from '../test/render'
+import { render, screen, waitFor, within } from '../test/render'
 import { BudgetLineList } from './BudgetLineList'
 
 const lines = [
@@ -160,6 +160,101 @@ describe('BudgetLineList', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue('Rent')
   })
 
+  it('saves a manual line edit', async () => {
+    const user = userEvent.setup()
+    const onUpdate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(rent).getByRole('button', { name: /edit/i }))
+    const nameInput = screen.getByLabelText(/name/i)
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Mortgage')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith('a', expect.objectContaining({ name: 'Mortgage' })),
+    )
+  })
+
+  it('deletes a line after confirming', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(rent).getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i }))
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('a'))
+  })
+
+  it('creates a line from the universal add form', async () => {
+    const user = userEvent.setup()
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <BudgetLineList
+        lines={[]}
+        goals={[]}
+        onCreate={onCreate}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add line' }))
+    const form = screen.getByRole('textbox', { name: /name/i }).closest('form') as HTMLElement
+    await user.type(within(form).getByLabelText(/name/i), 'Misc')
+    await user.type(within(form).getByLabelText(/amount/i), '10')
+    await user.click(within(form).getByRole('button', { name: 'Add line' }))
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Misc' })),
+    )
+  })
+
+  it('creates a line from a per-group add form', async () => {
+    const user = userEvent.setup()
+    const onCreate = vi.fn().mockResolvedValue(undefined)
+    render(
+      <BudgetLineList
+        lines={[]}
+        goals={[]}
+        onCreate={onCreate}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /add wants line/i }))
+    const form = screen.getByRole('textbox', { name: /name/i }).closest('form') as HTMLElement
+    await user.type(within(form).getByLabelText(/name/i), 'Dining')
+    await user.type(within(form).getByLabelText(/amount/i), '50')
+    await user.click(within(form).getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ line_group: 'wants', name: 'Dining' }),
+      ),
+    )
+  })
+
   it('offers the funding accounts when editing a line', async () => {
     const user = userEvent.setup()
     render(
@@ -218,6 +313,41 @@ describe('BudgetLineList', () => {
     expect(screen.queryByText('Streaming')).not.toBeInTheDocument()
     // The group's subtotal stays computed over every line, not the filtered set.
     expect(screen.getByLabelText('Needs fortnightly subtotal')).toHaveTextContent('$200.00 / fn')
+  })
+
+  it('clears the search with the clear button', async () => {
+    const user = userEvent.setup()
+    render(
+      <BudgetLineList
+        lines={lines}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const search = screen.getByLabelText('Search budget lines')
+    await user.type(search, 'rent')
+    await user.click(screen.getByRole('button', { name: /clear search/i }))
+
+    expect(search).toHaveValue('')
+    expect(screen.getByText('Power')).toBeInTheDocument()
+  })
+
+  it('shows no route badge for a savings line with an unresolved goal', () => {
+    render(
+      <BudgetLineList
+        lines={[line({ id: 's', line_group: 'savings', name: 'Mystery saver', goal_id: 'gone' })]}
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const card = screen.getByText('Mystery saver').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).queryByText('House deposit')).not.toBeInTheDocument()
   })
 
   it('sorts the lines within a group by name', async () => {

@@ -121,6 +121,29 @@ describe('InflowList', () => {
     }
   })
 
+  it('labels a non-taxable inflow in the desktop row subtitle', () => {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('48em'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+    try {
+      renderList([reimbursement])
+
+      const row = screen.getByText('Travel').closest('div')?.parentElement as HTMLElement
+      expect(within(row).getByText('Non-taxable · Reimbursement')).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('renders the add button after the inflow cards', () => {
     renderList([salary, wage])
 

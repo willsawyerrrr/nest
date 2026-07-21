@@ -174,4 +174,233 @@ describe('GiftsScreen spend rollup', () => {
     expect(screen.getAllByText('Left $70.00').length).toBeGreaterThan(0)
     expect(screen.queryByText('Left $100.00')).not.toBeInTheDocument()
   })
+
+  it('reports zero remaining budget as fully spent when over budget', () => {
+    const purchase: GiftPurchase = {
+      id: 'p1',
+      gift_budget_id: 'b1',
+      amount_cents: 20_00,
+      description: 'Book',
+      purchased_on: '2026-11-01',
+      household_id: 'h',
+      created_at: '',
+      updated_at: '',
+    }
+    renderScreen({ budgets: [{ ...budget, budgeted_amount_cents: 0 }], purchases: [purchase] })
+
+    expect(screen.getAllByText('Left -$20.00').length).toBeGreaterThan(0)
+  })
+})
+
+const bob: GiftRecipient = { ...alice, id: 'r2', name: 'Bob' }
+
+describe('GiftsScreen manage toggle', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('reveals recipient/occasion management and flips the button label', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await user.click(screen.getByRole('button', { name: 'Manage' }))
+    expect(screen.getByRole('heading', { name: 'Recipients' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.getByRole('button', { name: 'Manage' })).toBeInTheDocument()
+  })
+})
+
+describe('GiftsScreen empty prompts', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('prompts to add both a recipient and an occasion when neither exists', () => {
+    renderScreen({ recipients: [], occasions: [], budgets: [] })
+    expect(screen.getByText(/add a recipient and an occasion/i)).toBeInTheDocument()
+  })
+
+  it('prompts to add an occasion when only recipients exist', () => {
+    renderScreen({ recipients: [alice], occasions: [], budgets: [] })
+    expect(screen.getByText(/no occasions yet\. tap/i)).toBeInTheDocument()
+  })
+
+  it('prompts to add a recipient when grouping by person with none', async () => {
+    const user = userEvent.setup()
+    renderScreen({ recipients: [], occasions: [xmas], budgets: [] })
+
+    await user.click(screen.getByRole('radio', { name: 'By person' }))
+    expect(screen.getByText(/no recipients yet\. tap/i)).toBeInTheDocument()
+  })
+})
+
+describe('GiftsScreen group budgets', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('shows an empty note for a group with no budgets', async () => {
+    const user = userEvent.setup()
+    const birthday: GiftOccasion = { ...xmas, id: 'o2', name: 'Birthday', occasion_date: null }
+    renderScreen({ occasions: [xmas, birthday] })
+
+    await user.click(screen.getByRole('button', { name: /Birthday/ }))
+    expect(screen.getByText('No gift budgets yet.')).toBeInTheDocument()
+  })
+
+  it('adds a gift budget to a group, locking the occasion', async () => {
+    const user = userEvent.setup()
+    const onCreateBudget = vi.fn()
+    renderScreen({ recipients: [alice, bob], onCreateBudget })
+
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+    await user.click(screen.getByRole('button', { name: 'Add gift budget' }))
+
+    // The occasion is locked to the group, so only the recipient can be chosen.
+    expect(screen.queryByRole('combobox', { name: /occasion/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: /recipient/i }))
+    await user.click(await screen.findByRole('option', { name: 'Bob' }))
+    await user.type(screen.getByLabelText(/budget/i), '40')
+    await user.click(screen.getByRole('button', { name: 'Add budget' }))
+
+    expect(onCreateBudget).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient_id: 'r2', occasion_id: 'o1' }),
+    )
+  })
+
+  it('cancels adding a gift budget', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+    await user.click(screen.getByRole('button', { name: 'Add gift budget' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('button', { name: 'Add gift budget' })).toBeInTheDocument()
+  })
+})
+
+async function expandRow(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /Christmas/ }))
+  await user.click(screen.getByRole('button', { name: /Alice/ }))
+}
+
+describe('GiftsScreen purchases', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('shows an empty note and adds a purchase', async () => {
+    const user = userEvent.setup()
+    const onCreatePurchase = vi.fn()
+    renderScreen({ onCreatePurchase })
+
+    await expandRow(user)
+    expect(screen.getByText('No purchases yet.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add purchase' }))
+    await user.type(screen.getByLabelText(/amount/i), '25')
+    await user.click(screen.getByRole('button', { name: 'Add purchase' }))
+
+    expect(onCreatePurchase).toHaveBeenCalledWith(
+      expect.objectContaining({ gift_budget_id: 'b1', amount_cents: 25_00 }),
+    )
+  })
+
+  it('cancels adding a purchase', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await expandRow(user)
+    await user.click(screen.getByRole('button', { name: 'Add purchase' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('button', { name: 'Add purchase' })).toBeInTheDocument()
+  })
+
+  it('cancels editing a purchase', async () => {
+    const user = userEvent.setup()
+    const purchase: GiftPurchase = {
+      id: 'p1',
+      gift_budget_id: 'b1',
+      amount_cents: 30_00,
+      description: 'Book',
+      purchased_on: '2026-11-01',
+      household_id: 'h',
+      created_at: '',
+      updated_at: '',
+    }
+    renderScreen({ purchases: [purchase] })
+
+    await expandRow(user)
+    await user.click(screen.getByRole('button', { name: 'Edit Book' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('button', { name: 'Edit Book' })).toBeInTheDocument()
+  })
+
+  it('cancels editing a budget from a row', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await expandRow(user)
+    await user.click(screen.getByRole('button', { name: 'Edit budget' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('button', { name: 'Add purchase' })).toBeInTheDocument()
+  })
+
+  it('confirms before deleting a budget', async () => {
+    const user = userEvent.setup()
+    const onDeleteBudget = vi.fn()
+    renderScreen({ onDeleteBudget })
+
+    await expandRow(user)
+    await user.click(screen.getByRole('button', { name: 'Delete budget' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+
+    expect(onDeleteBudget).toHaveBeenCalledWith('b1')
+  })
+
+  it('edits and deletes an existing purchase', async () => {
+    const user = userEvent.setup()
+    const onUpdatePurchase = vi.fn()
+    const onDeletePurchase = vi.fn()
+    const purchase: GiftPurchase = {
+      id: 'p1',
+      gift_budget_id: 'b1',
+      amount_cents: 30_00,
+      description: 'Book',
+      purchased_on: '2026-11-01',
+      household_id: 'h',
+      created_at: '',
+      updated_at: '',
+    }
+    renderScreen({ purchases: [purchase], onUpdatePurchase, onDeletePurchase })
+
+    await expandRow(user)
+    await user.click(screen.getByRole('button', { name: 'Edit Book' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(onUpdatePurchase).toHaveBeenCalledWith(
+      'p1',
+      expect.objectContaining({ gift_budget_id: 'b1', amount_cents: 30_00, description: 'Book' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Delete Book' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(onDeletePurchase).toHaveBeenCalledWith('p1')
+  })
+
+  it('labels an undescribed purchase as a generic purchase', async () => {
+    const user = userEvent.setup()
+    const purchase: GiftPurchase = {
+      id: 'p1',
+      gift_budget_id: 'b1',
+      amount_cents: 30_00,
+      description: '',
+      purchased_on: '2026-11-01',
+      household_id: 'h',
+      created_at: '',
+      updated_at: '',
+    }
+    renderScreen({ purchases: [purchase] })
+
+    await expandRow(user)
+    expect(screen.getByRole('button', { name: 'Edit purchase' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete purchase' })).toBeInTheDocument()
+  })
 })

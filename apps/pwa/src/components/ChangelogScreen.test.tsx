@@ -61,4 +61,21 @@ describe('ChangelogScreen', () => {
     renderScreen({ configured: false })
     expect(screen.getByText(/isn't configured yet/i)).toBeInTheDocument()
   })
+
+  it('renders no emoji for an unrecognised type', () => {
+    renderScreen({
+      implemented: [
+        {
+          type: 'chore',
+          scope: null,
+          description: 'Tidy things up',
+          date: '2026-07-08T00:00:00Z',
+          sha: 'abc123',
+        },
+      ],
+    })
+
+    expect(screen.getByText('Tidy things up')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
 })

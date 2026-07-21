@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Tables } from '../lib/database.types'
 
-export type PaySplit = Tables<'pay_split'>
+type PaySplit = Tables<'pay_split'>
 
 export interface UsePaySplitsResult {
   /** The confirmed fortnightly split per account, keyed by account id. */

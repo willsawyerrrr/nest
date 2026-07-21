@@ -40,7 +40,7 @@ export function toIncomeInput(inflow: Inflow): IncomeInput {
 }
 
 /** Maps a `tax_profile` row to the tax engine's `TaxProfileInput`. */
-export function toTaxProfileInput(profile: TaxProfile): TaxProfileInput {
+function toTaxProfileInput(profile: TaxProfile): TaxProfileInput {
   const residency: Residency =
     profile.residency === 'foreign_resident' ? 'foreignResident' : 'resident'
   return {
@@ -117,7 +117,7 @@ export function currentTaxConfig(): TaxYearConfig {
 }
 
 /** Per-member annual gross salary from the household's taxable inflows. */
-export function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
+function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
   const grossByMember = new Map<string, number>()
   for (const inflow of inflows) {
     if (!inflow.taxable) {

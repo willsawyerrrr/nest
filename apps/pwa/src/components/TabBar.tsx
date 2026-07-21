@@ -26,7 +26,7 @@ export function cycleIndex(index: number, length: number) {
 }
 
 /** Index of the tab whose route `pathname` sits under, or `-1` if none. */
-export function tabIndexForPath(items: NavItem[], pathname: string) {
+function tabIndexForPath(items: NavItem[], pathname: string) {
   return items.findIndex((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 }
 

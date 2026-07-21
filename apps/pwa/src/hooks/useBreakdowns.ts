@@ -5,7 +5,7 @@ import type { BudgetGroup } from './useBudgetLines'
 import type { BreakdownItem } from './useBreakdownItems'
 
 export type Breakdown = Tables<'breakdown'>
-export type BreakdownKind = Enums<'breakdown_kind'>
+type BreakdownKind = Enums<'breakdown_kind'>
 
 /** The fields creating a breakdown supplies; identifiers and household are set by the hook. */
 export interface BreakdownInput {

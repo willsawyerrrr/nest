@@ -15,7 +15,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconChevronRight, IconPencil } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { BudgetGroup } from '../lib/domain'
@@ -28,6 +28,7 @@ import { sortBy, type SortDirection, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
 import { BudgetLineForm } from './BudgetLineForm'
 import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
+import { EditDeleteActions } from './EditDeleteActions'
 import { GroupSection } from './GroupSection'
 
 interface BudgetLineListProps {
@@ -170,20 +171,6 @@ function RouteBadge({ route }: { route: LineRoute }) {
   )
 }
 
-/** The edit and delete controls shared by both the row and the card treatments. */
-function LineActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  return (
-    <>
-      <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
-        <IconPencil size={16} />
-      </ActionIcon>
-      <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
-        <IconTrash size={16} />
-      </ActionIcon>
-    </>
-  )
-}
-
 /**
  * One budget line as a single dense table-like row for desktop: the name grows
  * to fill, with the amount, frequency, and fortnightly figure right-aligned in
@@ -248,7 +235,7 @@ function BudgetLineRow({
         {breakdown ? (
           <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
         ) : (
-          onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />
+          onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         )}
       </Group>
     </Group>
@@ -307,7 +294,7 @@ function BudgetLineCard({
           {breakdown ? (
             <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
           ) : (
-            onEdit && onDelete && <LineActions onEdit={onEdit} onDelete={onDelete} />
+            onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           )}
         </Group>
       </Group>

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { ActionIcon, Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
 import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
+import { EditDeleteActions } from './EditDeleteActions'
 import { SuperContributionForm } from './SuperContributionForm'
 
 interface SuperContributionListProps {
@@ -69,12 +69,7 @@ function ContributionCard({
           <Text fw={700} size="sm">
             {describeValue(contribution)}
           </Text>
-          <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
-            <IconPencil size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
-            <IconTrash size={16} />
-          </ActionIcon>
+          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
     </Card>

@@ -9,6 +9,7 @@ import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { toIncomeInput } from '../lib/tax'
 import { EditDeleteActions } from './EditDeleteActions'
+import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { InflowForm } from './InflowForm'
 
@@ -172,9 +173,7 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
   return (
     <Stack gap="sm">
       {inflows.length === 0 && !adding ? (
-        <Text c="dimmed" ta="center">
-          No inflows yet. Add one to get started.
-        </Text>
+        <EmptyState>No inflows yet. Add one to get started.</EmptyState>
       ) : (
         inflows.map((inflow) =>
           editingId === inflow.id ? (

@@ -6,6 +6,7 @@ import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
 import { EditDeleteActions } from './EditDeleteActions'
+import { EmptyState } from './EmptyState'
 import { SuperContributionForm } from './SuperContributionForm'
 
 interface SuperContributionListProps {
@@ -91,6 +92,8 @@ export function SuperContributionList({
 
   return (
     <Stack gap="xs">
+      {contributions.length === 0 && !adding && <EmptyState>No contributions yet.</EmptyState>}
+
       {contributions.map((contribution) =>
         editingId === contribution.id ? (
           <SuperContributionForm

@@ -24,6 +24,7 @@ import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { BreakdownItemForm } from './BreakdownItemForm'
+import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
 
@@ -232,11 +233,7 @@ export function BreakdownDetail({
           Rolls up to {formatPerYear(totalAnnual)}.
         </Text>
 
-        {items.length === 0 && !adding && (
-          <Text c="dimmed" size="sm">
-            No items yet.
-          </Text>
-        )}
+        {items.length === 0 && !adding && <EmptyState>No items yet.</EmptyState>}
 
         {items.map((item) =>
           editingId === item.id ? (

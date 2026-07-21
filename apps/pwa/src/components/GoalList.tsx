@@ -7,6 +7,7 @@ import type { Saver } from '../hooks/useSavers'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { formatIsoDate } from '../lib/dates'
 import { EditDeleteActions } from './EditDeleteActions'
+import { EmptyState } from './EmptyState'
 import { GoalForm } from './GoalForm'
 
 interface GoalListProps {
@@ -151,11 +152,7 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
 
   return (
     <Stack gap="sm">
-      {goals.length === 0 && !adding && (
-        <Text c="dimmed" size="sm">
-          No goals yet.
-        </Text>
-      )}
+      {goals.length === 0 && !adding && <EmptyState>No goals yet.</EmptyState>}
 
       {orderedGoals.map((goal) =>
         editingId === goal.id ? (

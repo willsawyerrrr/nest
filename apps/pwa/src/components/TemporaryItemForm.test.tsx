@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor } from '../test/render'
 import { TemporaryItemForm } from './TemporaryItemForm'
-import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import { makeTemporaryItem } from '../test/fixtures'
 
 describe('TemporaryItemForm', () => {
   it('submits a new item with dollars converted to cents and a target date', async () => {
@@ -40,15 +40,7 @@ describe('TemporaryItemForm', () => {
   })
 
   it('prefills fields from an existing item when editing', () => {
-    const item: TemporaryItem = {
-      id: 't1',
-      household_id: 'h1',
-      name: 'Holiday',
-      contribution_cents: 12000,
-      target_date: '2027-08-03',
-      created_at: '',
-      updated_at: '',
-    }
+    const item = makeTemporaryItem()
     render(<TemporaryItemForm initial={item} onSubmit={vi.fn()} />)
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('Holiday')

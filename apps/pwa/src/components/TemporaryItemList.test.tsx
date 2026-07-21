@@ -2,27 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '../test/render'
 import { TemporaryItemList } from './TemporaryItemList'
-import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import { makeTemporaryItem } from '../test/fixtures'
 
-const items: TemporaryItem[] = [
-  {
-    id: 't1',
-    household_id: 'h1',
-    name: 'Holiday',
-    contribution_cents: 12000,
-    target_date: '2027-08-03',
-    created_at: '',
-    updated_at: '',
-  },
-  {
+const items = [
+  makeTemporaryItem(),
+  makeTemporaryItem({
     id: 't2',
-    household_id: 'h1',
     name: 'Old laptop fund',
     contribution_cents: 5000,
     target_date: '2020-01-01',
-    created_at: '',
-    updated_at: '',
-  },
+  }),
 ]
 
 const now = new Date('2027-01-01T00:00:00')

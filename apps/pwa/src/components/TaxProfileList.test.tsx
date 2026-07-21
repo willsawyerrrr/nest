@@ -2,30 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor, within } from '../test/render'
 import { TaxProfileList } from './TaxProfileList'
-import type { Member } from '../hooks/useMembers'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
+import { makeMember } from '../test/fixtures'
 
-const members: Member[] = [
-  {
-    id: 'm1',
-    household_id: 'h1',
-    name: 'Will',
-    email: null,
-    user_id: 'u1',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
-  {
-    id: 'm2',
-    household_id: 'h1',
-    name: 'Sam',
-    email: null,
-    user_id: 'u2',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
+const members = [
+  makeMember({ id: 'm1', name: 'Will', user_id: 'u1' }),
+  makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' }),
 ]
 
 const samProfile: TaxProfile = {

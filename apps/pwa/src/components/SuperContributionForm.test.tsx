@@ -2,20 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor } from '../test/render'
 import { SuperContributionForm } from './SuperContributionForm'
-import type { Member } from '../hooks/useMembers'
+import { makeMember } from '../test/fixtures'
 
-const will: Member = {
-  id: 'm1',
-  household_id: 'h1',
-  name: 'Will',
-  email: null,
-  user_id: 'u1',
-  up_connected_at: null,
-  created_at: '',
-  updated_at: '',
-}
+const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 
-const sam: Member = { ...will, id: 'm2', name: 'Sam', user_id: 'u2' }
+const sam = makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' })
 
 describe('SuperContributionForm', () => {
   it('submits an amount-mode contribution converted to cents', async () => {

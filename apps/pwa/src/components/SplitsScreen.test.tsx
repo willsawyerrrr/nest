@@ -2,54 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen } from '../test/render'
 import { SplitsScreen } from './SplitsScreen'
-import type { Account } from '../hooks/useAccounts'
-import type { BudgetLine } from '../hooks/useBudgetLines'
-import type { Goal } from '../hooks/useGoals'
-
-function account(overrides: Partial<Account> & Pick<Account, 'id' | 'name'>): Account {
-  return {
-    household_id: 'h1',
-    owner_member_id: null,
-    type: 'transaction',
-    source: 'manual',
-    external_id: null,
-    balance_cents: 0,
-    currency: 'AUD',
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
-
-function line(overrides: Partial<BudgetLine> & Pick<BudgetLine, 'id' | 'line_group'>): BudgetLine {
-  return {
-    household_id: 'h1',
-    name: 'Line',
-    amount_cents: 0,
-    frequency: 'fortnightly',
-    interval_weeks: null,
-    goal_id: null,
-    destination_account_id: null,
-    breakdown_id: null,
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
-
-function goal(overrides: Partial<Goal> & Pick<Goal, 'id'>): Goal {
-  return {
-    household_id: 'h1',
-    name: 'Goal',
-    target_amount_cents: 0,
-    target_date: null,
-    current_balance_cents: 0,
-    linked_account_id: null,
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
+import { makeBudgetLine as line, makeGoal as goal, makeSaver as account } from '../test/fixtures'
 
 function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {}) {
   return render(

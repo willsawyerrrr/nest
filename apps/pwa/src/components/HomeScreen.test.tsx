@@ -2,29 +2,11 @@ import userEvent from '@testing-library/user-event'
 import { fireEvent, render, screen, within } from '../test/render'
 import { describe, expect, it, vi } from 'vitest'
 import { HomeScreen } from './HomeScreen'
-import type { Member } from '../hooks/useMembers'
+import { makeMember } from '../test/fixtures'
 
-const members: Member[] = [
-  {
-    id: 'm1',
-    household_id: 'h1',
-    name: 'Will',
-    email: null,
-    user_id: 'u1',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
-  {
-    id: 'm2',
-    household_id: 'h1',
-    name: 'Sam',
-    email: null,
-    user_id: 'u2',
-    up_connected_at: null,
-    created_at: '',
-    updated_at: '',
-  },
+const members = [
+  makeMember({ id: 'm1', name: 'Will', user_id: 'u1' }),
+  makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' }),
 ]
 
 function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {

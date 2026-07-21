@@ -2,18 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { render, screen, waitFor } from '../test/render'
 import { SuperProfileForm } from './SuperProfileForm'
-import type { Member } from '../hooks/useMembers'
+import { makeMember } from '../test/fixtures'
 
-const member: Member = {
-  id: 'm1',
-  household_id: 'h1',
-  name: 'Will',
-  email: null,
-  user_id: 'u1',
-  up_connected_at: null,
-  created_at: '',
-  updated_at: '',
-}
+const member = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 
 describe('SuperProfileForm', () => {
   it('submits fund name and balance converted to cents', async () => {

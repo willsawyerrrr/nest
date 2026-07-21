@@ -29,6 +29,10 @@ import { BreakdownItemForm } from './BreakdownItemForm'
 interface BreakdownDetailProps {
   breakdown: Breakdown
   items: BreakdownItem[]
+  /** Where the back link returns to. */
+  backTo: string
+  /** The back link's label, naming its destination. */
+  backLabel: string
   onUpdateBreakdown: (input: BreakdownUpdate) => Promise<void>
   onDeleteBreakdown: () => Promise<void>
   onCreateItem: (input: BreakdownItemInput) => Promise<void>
@@ -186,6 +190,8 @@ function ItemRow({
 export function BreakdownDetail({
   breakdown,
   items,
+  backTo,
+  backLabel,
   onUpdateBreakdown,
   onDeleteBreakdown,
   onCreateItem,
@@ -205,10 +211,10 @@ export function BreakdownDetail({
 
   return (
     <Stack gap="md">
-      <Anchor component={Link} to="/breakdowns" size="sm">
+      <Anchor component={Link} to={backTo} size="sm">
         <Group gap={4} wrap="nowrap">
           <IconArrowLeft size={16} />
-          Breakdowns
+          {backLabel}
         </Group>
       </Anchor>
 

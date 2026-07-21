@@ -82,6 +82,7 @@ function BreakdownLink({ id }: { id: string }) {
     <ActionIcon
       component={Link}
       to={`/breakdowns/${id}`}
+      state={{ from: '/budget' }}
       variant="subtle"
       aria-label="Open breakdown"
     >

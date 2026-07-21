@@ -12,6 +12,7 @@ import {
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { Frequency, Inflow, InflowInput, InflowType } from '../hooks/useInflows'
+import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface InflowFormProps {
@@ -36,16 +37,6 @@ const NON_TAXABLE_TYPES: { value: InflowType; label: string }[] = [
 
 /** The type a form defaults to for each taxability mode. */
 const DEFAULT_TYPE = { taxable: 'salary', nonTaxable: 'reimbursement' } as const
-
-const SCHEDULES: { value: Frequency; label: string }[] = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'biannual', label: 'Biannually' },
-  { value: 'annual', label: 'Annually' },
-  { value: 'every_n_weeks', label: 'Every N weeks' },
-]
 
 /** The unit of one pay period, for labelling the gross amount by frequency. */
 const PERIOD_NOUN: Record<Frequency, string> = {
@@ -174,7 +165,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
               fortnightly.
             </>
           }
-          data={SCHEDULES}
+          data={FREQUENCY_OPTIONS}
           value={schedule}
           onChange={(value) => value && setSchedule(value as Frequency)}
           allowDeselect={false}

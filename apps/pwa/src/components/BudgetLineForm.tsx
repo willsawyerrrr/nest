@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
 import type { BudgetGroup, BudgetLine, BudgetLineInput, Frequency } from '../hooks/useBudgetLines'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
+import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface BudgetLineFormProps {
@@ -19,16 +20,6 @@ interface BudgetLineFormProps {
 function groupLinksGoal(group: BudgetGroup): boolean {
   return group === 'savings' || group === 'investments'
 }
-
-const SCHEDULES: { value: Frequency; label: string }[] = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'biannual', label: 'Biannually' },
-  { value: 'annual', label: 'Annually' },
-  { value: 'every_n_weeks', label: 'Every N weeks' },
-]
 
 /** Presentational add/edit form for a single manual budget line. Persistence lives in the caller. */
 export function BudgetLineForm({
@@ -122,7 +113,7 @@ export function BudgetLineForm({
           label="Frequency"
           size="sm"
           description="The app converts every amount to fortnightly and annual."
-          data={SCHEDULES}
+          data={FREQUENCY_OPTIONS}
           value={frequency}
           onChange={(value) => value && setFrequency(value as Frequency)}
           allowDeselect={false}

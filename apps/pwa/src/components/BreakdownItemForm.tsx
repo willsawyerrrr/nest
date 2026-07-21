@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
 import type { Frequency } from '../hooks/useBudgetLines'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
+import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 
 interface BreakdownItemFormProps {
@@ -9,16 +10,6 @@ interface BreakdownItemFormProps {
   onSubmit: (input: BreakdownItemInput) => void | Promise<void>
   onCancel?: () => void
 }
-
-const SCHEDULES: { value: Frequency; label: string }[] = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'biannual', label: 'Biannually' },
-  { value: 'annual', label: 'Annually' },
-  { value: 'every_n_weeks', label: 'Every N weeks' },
-]
 
 /** Presentational add/edit form for a single breakdown item. Persistence lives in the caller. */
 export function BreakdownItemForm({ initial, onSubmit, onCancel }: BreakdownItemFormProps) {
@@ -73,7 +64,7 @@ export function BreakdownItemForm({ initial, onSubmit, onCancel }: BreakdownItem
           label="Frequency"
           size="sm"
           description="The app converts every amount to fortnightly and annual."
-          data={SCHEDULES}
+          data={FREQUENCY_OPTIONS}
           value={frequency}
           onChange={(value) => value && setFrequency(value as Frequency)}
           allowDeselect={false}

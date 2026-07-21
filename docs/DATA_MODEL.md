@@ -127,13 +127,19 @@ no per-member scoping; each line stands alone under the household.
     (`needs` | `wants` | `discretionary` | `savings` | `investments`), `name`,
     `amount_cents`, `frequency` (the shared enum above), `interval_weeks`
     (nullable — non-null iff `frequency` is `every_n_weeks`, as on inflows),
-    `goal_id` (nullable), `derived_source` (nullable), `created_at`, `updated_at`.
+    `goal_id` (nullable), `breakdown_id` (nullable), `destination_account_id`
+    (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
-  - `derived_source` (`budget_derived_source` enum) marks a line whose amount is
-    rolled up from an itemised source rather than typed by hand — see
-    [Gifts / derived budget lines](#gifts--derived-budget-lines). Null is an
-    ordinary manual line.
+  - `breakdown_id` marks a **derived line** whose amount is rolled up from a
+    breakdown's items rather than typed by hand — see [Breakdowns](#breakdowns).
+    Null is an ordinary manual line. Composite FK `(breakdown_id, household_id)` →
+    `breakdown` `on delete cascade`.
+  - `destination_account_id` routes the line to the Up account that funds it for
+    the Splits tab — see [Pay splits](#pay-splits). Nullable composite FK
+    `(destination_account_id, household_id)` → `accounts`, `on delete set null`.
+    A CHECK (`budget_line_destination_group`) bars it on `savings`/`investments`
+    lines, which route via their goal's linked saver instead.
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
     (nullable), `current_balance_cents` (default 0), `linked_account_id`
@@ -151,29 +157,41 @@ no per-member scoping; each line stands alone under the household.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
     `target_date` (not null), `created_at`, `updated_at`.
 
-## Gifts / derived budget lines
+## Breakdowns
 
 A budget line's amount is normally typed by hand. It can instead be **derived**:
-rolled up from an itemised source so the line and its detail share one source of
-truth and never drift. `budget_line.derived_source` (the `budget_derived_source`
-enum) names that source; null is an ordinary manual line. A line with
-`derived_source = 'gift'` takes its amount from the gift tracker — the sum of
-every `gift_budget.budgeted_amount_cents`, treated as an annual figure — in place
-of its typed `amount_cents`, and the PWA substitutes that amount before the
-Budget tab renders and before the Summary reconciles, so both reflect the gift
-total. The tracker's amount is not editable from the budget line; editing gift
-budgets moves the line. The PWA offers a single gift-derived line per household
-to avoid double-counting.
+rolled up from a **breakdown** — a user-created itemised list that owns the line —
+so the line and its detail share one source of truth and never drift. Breakdowns
+are data, not a fixed enum: the household creates arbitrary breakdowns and assigns
+each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design.
 
-`derived_source` is a deliberate enum-based simplification: each new source needs
-a migration to extend the enum plus code to roll it up (a registry/polymorphic
-design is deferred). Revisit if derived sources proliferate. Health / medication
-is a candidate second source.
+- **breakdown** — a household-created itemised list that owns one derived line.
+  - `id`, `household_id`, `name` (the rolled-up line's name), `line_group`
+    (`budget_group` enum — the group the rolled-up line belongs to), `kind`
+    (`breakdown_kind` enum: `generic` | `gift`, default `generic`), `created_at`,
+    `updated_at`. Unique on `(id, household_id)`.
+  - `kind` selects the editor and roll-up source: `generic` rolls up
+    `breakdown_item` rows; `gift` rolls up the `gift_*` tables.
+- **breakdown_item** — a line item of a `generic` breakdown (a `gift` breakdown
+  owns none — its items live in `gift_budget`).
+  - `id`, `household_id`, `breakdown_id`, `name`, `amount_cents`, `frequency`
+    (the shared enum), `interval_weeks` (nullable — the same CHECK as
+    `budget_line`), `created_at`, `updated_at`. Composite FK
+    `(breakdown_id, household_id)` → `breakdown` `on delete cascade`.
 
-The gift tracker is the first consumer: plan a spend per **recipient × occasion**,
-then record the actual purchases against it. All four tables are household-scoped
-under the ledger's RLS, with composite foreign keys on `(id, household_id)` that
-keep every reference inside the household.
+The derived line's amount is the summed-annualised roll-up of the breakdown's
+items and is read-only in every budget surface. The line exists only while the
+breakdown has items (a routed line — one carrying a `destination_account_id` —
+survives an empty breakdown so its Splits routing is not lost). The
+`budget_derived_source` enum and `budget_line.derived_source` column that
+preceded this are dropped; `breakdown_id` is the sole derived-line mechanism.
+
+### Gift tables
+
+The `kind = 'gift'` breakdown keeps the bespoke gift planner: plan a spend per
+**recipient × occasion**, then record the actual purchases against it. All four
+tables are household-scoped under the ledger's RLS, with composite foreign keys on
+`(id, household_id)` that keep every reference inside the household.
 
 - **gift_recipient** — a named person the household budgets gifts for.
   - `id`, `household_id`, `name`, `created_at`, `updated_at`. Unique on
@@ -224,6 +242,22 @@ populated; spending-plan reconciliation against them is a later phase.
 - **categories** — hierarchical income/expense taxonomy.
   - `id`, `household_id`, `parent_id` (nullable, self-referential), `name`,
     `kind` (`income` | `expense`), `is_archived`, `created_at`, `updated_at`.
+
+## Pay splits
+
+Each budget line routes to the Up account that funds it via
+`budget_line.destination_account_id`; the Splits tab sums those into a recommended
+fortnightly pay split per account. Up exposes no pay-split API, so the household
+sets the split in Up by hand and confirms the amount app-side. See
+[`pay-splits.md`](pay-splits.md).
+
+- **pay_split** — the fortnightly split the household has confirmed as set in Up
+  for one account.
+  - `id`, `household_id`, `account_id`, `confirmed_fortnightly_cents`,
+    `confirmed_at`, `created_at`, `updated_at`.
+  - `unique (household_id, account_id)` keeps it one-per-account; composite FK
+    `(account_id, household_id)` → `accounts` `on delete cascade`. The Splits tab
+    compares the recommendation against this to surface drift and offer a Confirm.
 
 ## RPCs
 

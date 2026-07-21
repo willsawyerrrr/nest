@@ -97,7 +97,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
             <img src="/icon.svg" alt="Nest" width={28} height={28} />
             {activeLabel ? (
-              <Text fw={700} size="lg" truncate>
+              <Text fw={700} fz="1.5rem" truncate>
                 {activeLabel}
               </Text>
             ) : null}

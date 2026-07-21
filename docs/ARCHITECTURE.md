@@ -120,7 +120,8 @@ is CRUD over RLS.
 - Migrations auto-deploy to prod via the GitHub → Supabase integration on merge;
   edge functions auto-deploy via `.github/workflows/deploy-functions.yml` on any
   push to `main` touching `supabase/functions/**` or `supabase/config.toml`.
-- CI runs parallel jobs (`check`, `test`, `coverage`, `rls`, `functions`). The tax
+- CI runs parallel jobs (`check`, `test`, `coverage`, `rls`, `functions`), all
+  required. The tax
   and plan packages are unit-tested under Vitest; the edge functions have their own
   Deno harness. The `coverage` job gates the suite — `@nest/plan` and `@nest/tax` at
   100% on every metric, `apps/pwa` at 100% statements/functions/lines with a branch

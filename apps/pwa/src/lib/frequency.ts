@@ -25,3 +25,11 @@ export function formatFrequency(frequency: Frequency, intervalWeeks?: number | n
   }
   return FIXED_LABELS[frequency]
 }
+
+/** Select options for every frequency, in fixed-label order then `every_n_weeks`. */
+export const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
+  ...(Object.entries(FIXED_LABELS) as [Exclude<Frequency, 'every_n_weeks'>, string][]).map(
+    ([value, label]) => ({ value, label }),
+  ),
+  { value: 'every_n_weeks', label: formatFrequency('every_n_weeks') },
+]

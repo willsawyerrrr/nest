@@ -18,6 +18,7 @@ import type {
   SuperContributionKind,
   SuperContributionMode,
 } from '../hooks/useSuperContributions'
+import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
 
@@ -28,16 +29,6 @@ interface SuperContributionFormProps {
   onSubmit: (input: SuperContributionInput) => void | Promise<void>
   onCancel?: () => void
 }
-
-const FREQUENCIES: { value: Frequency; label: string }[] = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'biannual', label: 'Biannually' },
-  { value: 'annual', label: 'Annually' },
-  { value: 'every_n_weeks', label: 'Every N weeks' },
-]
 
 /** Basis points as a percent number for a `NumberInput`, or `''` when unset. */
 function bpToPercent(bp: number | null | undefined): number | '' {
@@ -167,7 +158,7 @@ export function SuperContributionForm({
         <Select
           label="Frequency"
           size="sm"
-          data={FREQUENCIES}
+          data={FREQUENCY_OPTIONS}
           value={frequency}
           onChange={(value) => value && setFrequency(value as Frequency)}
           allowDeselect={false}

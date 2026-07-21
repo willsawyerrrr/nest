@@ -63,6 +63,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: '2.9.3'
+          cache: true
+          cache-hash: ${{ hashFiles('supabase/functions/deno.json') }}
       - run: deno fmt --check
       - run: deno lint
       - run: deno task check

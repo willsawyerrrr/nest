@@ -140,8 +140,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   gated: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
   statements/functions/lines with a branch floor, currently 93), `rls` (RLS
   isolation on a Postgres service), and `functions` (Deno fmt/lint/check/test over
-  `supabase/functions`), each on its own runner, so overall wall-clock is the
-  slowest single job, not the sum. Steps WITHIN a job stay
+  `supabase/functions`) — all required, each on its own runner, so overall
+  wall-clock is the slowest single job, not the sum. Steps WITHIN a job stay
   sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
   causes contention and inflates each one without improving wall-clock time.
   Splitting into separate jobs avoids that by giving each its own runner.

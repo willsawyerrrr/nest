@@ -191,9 +191,10 @@ runner so wall-clock is the slowest single job:
   `supabase/functions` (the edge functions live outside the pnpm workspace,
   pinned to Deno 2.9.3).
 
-Branch-protection ruleset "Protect main" requires **check**, **test**, **rls**,
-and **functions**; squash-only, no bypass. Keep CI under a minute; the next lever
-if `test` creeps up is a third shard, and `check` is the job to profile first.
+Branch-protection ruleset "Protect main" requires **check**, **test**,
+**coverage**, **rls**, and **functions**; squash-only, no bypass. Keep CI under a
+minute; the next lever if `test` creeps up is a third shard, and `check` is the
+job to profile first.
 
 Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports via
 `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint `max-lines`

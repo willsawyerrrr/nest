@@ -20,14 +20,7 @@ const implemented: ImplementedEntry[] = [
 
 function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> = {}) {
   return render(
-    <ChangelogScreen
-      implemented={[]}
-      inProgress={[]}
-      configured
-      loading={false}
-      error={null}
-      {...overrides}
-    />,
+    <ChangelogScreen implemented={[]} inProgress={[]} configured error={null} {...overrides} />,
   )
 }
 
@@ -57,11 +50,6 @@ describe('ChangelogScreen', () => {
     expect(screen.getByText('Nothing in the works right now.')).toBeInTheDocument()
     expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument()
     expect(screen.getByText('Correct a rounding error')).toBeInTheDocument()
-  })
-
-  it('shows a loader while loading', () => {
-    const { container } = renderScreen({ loading: true })
-    expect(container.querySelector('.mantine-Loader-root')).toBeInTheDocument()
   })
 
   it('shows an error alert', () => {

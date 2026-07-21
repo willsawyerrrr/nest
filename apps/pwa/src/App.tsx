@@ -703,12 +703,15 @@ function GenericBreakdownSection({
 function ChangelogSection() {
   const { implemented, inProgress, configured, loading, error } = useChangelog()
 
+  if (loading) {
+    return <LoadingScreen />
+  }
+
   return (
     <ChangelogScreen
       implemented={implemented}
       inProgress={inProgress}
       configured={configured}
-      loading={loading}
       error={error}
     />
   )

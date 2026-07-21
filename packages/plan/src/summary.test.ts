@@ -42,7 +42,7 @@ describe('summarise', () => {
       {
         ...HOUSEHOLD,
         budgetLines: [
-          { group: 'wants', amountCents: 40_00, frequency: 'every_n_weeks', intervalWeeks: 4 },
+          { group: 'wants', amountCents: 40_00, frequency: 'every_n_weeks', interval: 4 },
         ],
       },
       NOW,

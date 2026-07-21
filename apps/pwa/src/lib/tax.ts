@@ -35,7 +35,7 @@ export function toIncomeInput(inflow: Inflow): IncomeInput {
     amountCents: inflow.amount_cents ?? undefined,
     hourlyRateCents: inflow.hourly_rate_cents ?? undefined,
     hoursPerPeriod: inflow.hours_per_period ?? undefined,
-    intervalWeeks: inflow.interval_weeks ?? undefined,
+    interval: inflow.interval_count ?? undefined,
   }
 }
 
@@ -78,7 +78,7 @@ function annualByMember(
     const annual =
       row.mode === 'percent'
         ? Math.round(((row.percent_bp ?? 0) / 10_000) * (grossByMember.get(row.member_id) ?? 0))
-        : annualCents(row.amount_cents ?? 0, row.frequency, row.interval_weeks ?? undefined)
+        : annualCents(row.amount_cents ?? 0, row.frequency, row.interval_count ?? undefined)
     byMember.set(row.member_id, (byMember.get(row.member_id) ?? 0) + annual)
   }
   return byMember

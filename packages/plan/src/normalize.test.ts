@@ -67,3 +67,50 @@ describe('every_n_weeks cadence', () => {
     expect(fortnightlyCents(1_000_00, 'every_n_weeks')).toBe(0)
   })
 })
+
+describe('every_n_months cadence', () => {
+  it('annualises every-1-month as the monthly case', () => {
+    expect(annualCents(1_000_00, 'every_n_months', 1)).toBe(annualCents(1_000_00, 'monthly'))
+    expect(fortnightlyCents(1_000_00, 'every_n_months', 1)).toBe(
+      fortnightlyCents(1_000_00, 'monthly'),
+    )
+  })
+
+  it('annualises every-3-months as the quarterly case', () => {
+    expect(annualCents(1_000_00, 'every_n_months', 3)).toBe(annualCents(1_000_00, 'quarterly'))
+    expect(fortnightlyCents(1_000_00, 'every_n_months', 3)).toBe(
+      fortnightlyCents(1_000_00, 'quarterly'),
+    )
+  })
+
+  it('annualises every-6-months as the biannual case', () => {
+    expect(annualCents(1_000_00, 'every_n_months', 6)).toBe(annualCents(1_000_00, 'biannual'))
+    expect(fortnightlyCents(1_000_00, 'every_n_months', 6)).toBe(
+      fortnightlyCents(1_000_00, 'biannual'),
+    )
+  })
+
+  it('annualises every-12-months as the annual case', () => {
+    expect(annualCents(1_000_00, 'every_n_months', 12)).toBe(annualCents(1_000_00, 'annual'))
+    expect(fortnightlyCents(1_000_00, 'every_n_months', 12)).toBe(
+      fortnightlyCents(1_000_00, 'annual'),
+    )
+  })
+
+  it('rounds an uneven cadence to whole cents', () => {
+    // round(100_00 × 12 / 5) = round(120_000 / 5) = 24_000.
+    expect(annualCents(100_00, 'every_n_months', 5)).toBe(24_000)
+    // round(1_000_00 × 12 / 7) = round(1_200_000 / 7) = round(171_428.57) = 171_429.
+    expect(annualCents(1_000_00, 'every_n_months', 7)).toBe(171_429)
+    // round(171_429 / 26) = round(6_593.42) = 6_593.
+    expect(fortnightlyCents(1_000_00, 'every_n_months', 7)).toBe(6_593)
+  })
+
+  it('defensively annualises to zero when the interval is missing or invalid', () => {
+    expect(annualCents(1_000_00, 'every_n_months')).toBe(0)
+    expect(annualCents(1_000_00, 'every_n_months', 0)).toBe(0)
+    expect(annualCents(1_000_00, 'every_n_months', -2)).toBe(0)
+    expect(annualCents(1_000_00, 'every_n_months', 1.5)).toBe(0)
+    expect(fortnightlyCents(1_000_00, 'every_n_months')).toBe(0)
+  })
+})

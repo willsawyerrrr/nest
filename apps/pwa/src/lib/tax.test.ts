@@ -23,7 +23,7 @@ const baseInflow: Inflow = {
   taxable: true,
   type: 'salary',
   schedule: 'every_n_weeks',
-  interval_weeks: 4,
+  interval_count: 4,
   amount_cents: 300_00,
   hourly_rate_cents: null,
   hours_per_period: null,
@@ -67,7 +67,7 @@ const baseContribution: SuperContribution = {
   amount_cents: 500_00,
   percent_bp: null,
   frequency: 'fortnightly',
-  interval_weeks: null,
+  interval_count: null,
   fhss_eligible: false,
   contributor_member_id: null,
   created_at: '',
@@ -138,7 +138,7 @@ describe('estimateHouseholdTaxFromRows', () => {
     const salary: Inflow = {
       ...baseInflow,
       schedule: 'annual',
-      interval_weeks: null,
+      interval_count: null,
       amount_cents: 100_000_00,
     }
     const contribution: SuperContribution = {
@@ -161,11 +161,11 @@ describe('estimateHouseholdTaxFromRows', () => {
 
   it('matches the fortnightly case when the interval is 2 weeks', () => {
     const everyTwoWeeks = estimateHouseholdTaxFromRows(
-      [{ ...baseInflow, schedule: 'every_n_weeks', interval_weeks: 2 }],
+      [{ ...baseInflow, schedule: 'every_n_weeks', interval_count: 2 }],
       [profile],
     )
     const fortnightly = estimateHouseholdTaxFromRows(
-      [{ ...baseInflow, schedule: 'fortnightly', interval_weeks: null }],
+      [{ ...baseInflow, schedule: 'fortnightly', interval_count: null }],
       [profile],
     )
     expect(everyTwoWeeks.annualGrossCents).toBe(fortnightly.annualGrossCents)
@@ -270,7 +270,7 @@ describe('superCapSummaryFromRows', () => {
     const salary: Inflow = {
       ...baseInflow,
       schedule: 'annual',
-      interval_weeks: null,
+      interval_count: null,
       amount_cents: 49_293_00,
     }
     const contribution: SuperContribution = {
@@ -326,7 +326,7 @@ describe('netAnnualSuperContributionFromRows', () => {
     const salary: Inflow = {
       ...baseInflow,
       schedule: 'annual',
-      interval_weeks: null,
+      interval_count: null,
       amount_cents: 100_000_00,
     }
     const nonTaxable: Inflow = {
@@ -335,7 +335,7 @@ describe('netAnnualSuperContributionFromRows', () => {
       taxable: false,
       type: 'other',
       schedule: 'annual',
-      interval_weeks: null,
+      interval_count: null,
       amount_cents: 5_000_00,
     }
     // The non-taxable inflow is ignored, so the result matches gross-only super

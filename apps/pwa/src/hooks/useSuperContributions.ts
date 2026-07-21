@@ -19,7 +19,7 @@ export interface SuperContributionInput {
   amount_cents: number | null
   percent_bp: number | null
   frequency: Frequency
-  interval_weeks: number | null
+  interval_count: number | null
   fhss_eligible: boolean
   contributor_member_id: string | null
 }

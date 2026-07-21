@@ -49,7 +49,7 @@ const contribution: SuperContribution = {
   amount_cents: 50000,
   percent_bp: null,
   frequency: 'fortnightly',
-  interval_weeks: null,
+  interval_count: null,
   fhss_eligible: false,
   contributor_member_id: null,
   created_at: '',

@@ -30,7 +30,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   email infrastructure.
 - Inflows: the household owns many projection-based inflows, split by taxability
   — taxable income (salary, wage, or other regular income on a schedule — weekly
-  through annual, or an arbitrary every-N-weeks cadence — each tagged to a member
+  through annual, or an arbitrary every-N-weeks or every-N-months cadence — each
+  tagged to a member
   for tax) and non-taxable inflows (reimbursement, hobby income, gift, or other —
   the type is a reporting label, excluded from tax and added to available cash).
 - Tax: full AU income tax, versioned per financial year; estimate-only
@@ -47,8 +48,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend
   reconciliation via Up ingestion is a later enhancement. Each line carries an
-  amount on a frequency (weekly through annual, or an arbitrary every-N-weeks
-  cadence, exactly as inflows do), normalised to fortnightly and annual. A budget
+  amount on a frequency (weekly through annual, or an arbitrary every-N-weeks or
+  every-N-months cadence, exactly as inflows do), normalised to fortnightly and
+  annual. A budget
   line's amount can be **derived** — rolled up from a user-created **breakdown**
   (an itemised list) that owns the line via `budget_line.breakdown_id` rather than
   typed. A breakdown's `breakdown_kind` selects the editor: `gift` is the

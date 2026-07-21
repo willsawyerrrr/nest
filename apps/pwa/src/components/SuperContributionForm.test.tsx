@@ -84,7 +84,28 @@ describe('SuperContributionForm', () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ frequency: 'every_n_weeks', interval_weeks: 3 }),
+        expect.objectContaining({ frequency: 'every_n_weeks', interval_count: 3 }),
+      ),
+    )
+  })
+
+  it('captures the interval for an every-N-months contribution and gates submit on it', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<SuperContributionForm member={will} members={[will, sam]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/contribution amount/i), '300')
+    await user.click(screen.getByRole('combobox', { name: /frequency/i }))
+    await user.click(await screen.findByRole('option', { name: 'Every N months' }))
+    // Without a valid interval the form cannot submit.
+    expect(screen.getByRole('button', { name: /add contribution/i })).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/months between contributions/i), '3')
+    await user.click(screen.getByRole('button', { name: /add contribution/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ frequency: 'every_n_months', interval_count: 3 }),
       ),
     )
   })

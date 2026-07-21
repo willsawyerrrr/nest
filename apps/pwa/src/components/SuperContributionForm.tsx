@@ -39,7 +39,7 @@ export function SuperContributionForm({
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [percent, setPercent] = useState<number | string>(bpToPercent(initial?.percent_bp))
   const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
-  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
+  const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
   const [fhssEligible, setFhssEligible] = useState(initial?.fhss_eligible ?? false)
   const [contributorId, setContributorId] = useState(initial?.contributor_member_id ?? '')
   const [submitting, setSubmitting] = useState(false)
@@ -47,12 +47,13 @@ export function SuperContributionForm({
 
   const otherMembers = members.filter((candidate) => candidate.id !== member.id)
   const isPercent = mode === 'percent'
-  const isEveryNWeeks = frequency === 'every_n_weeks'
+  const isEveryN = frequency === 'every_n_weeks' || frequency === 'every_n_months'
+  const intervalUnit = frequency === 'every_n_months' ? 'months' : 'weeks'
   const isSpouse = kind === 'spouse'
-  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
+  const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
   const canSubmit =
     (isPercent ? percent !== '' : amount !== '') &&
-    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
+    (isEveryN ? interval !== '' && intervalValid : true) &&
     (isSpouse ? contributorId !== '' : true) &&
     !submitting
 
@@ -70,7 +71,7 @@ export function SuperContributionForm({
       amount_cents: isPercent ? null : dollarsToCents(amount),
       percent_bp: isPercent ? Math.round(Number(percent) * 100) : null,
       frequency,
-      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
+      interval_count: isEveryN ? Number(interval) : null,
       fhss_eligible: fhssEligible,
       contributor_member_id: isSpouse ? contributorId : null,
     }
@@ -155,16 +156,16 @@ export function SuperContributionForm({
           allowDeselect={false}
         />
 
-        {isEveryNWeeks && (
+        {isEveryN && (
           <NumberInput
-            label="Weeks between contributions"
+            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between contributions`}
             size="sm"
             min={1}
             step={1}
             allowDecimal={false}
             hideControls
-            value={intervalWeeks}
-            onChange={setIntervalWeeks}
+            value={interval}
+            onChange={setInterval}
           />
         )}
 

@@ -34,7 +34,7 @@ const everyNWeeks = makeInflow({
   name: 'Side gig',
   type: 'other',
   schedule: 'every_n_weeks',
-  interval_weeks: 4,
+  interval_count: 4,
   amount_cents: 20000,
 })
 

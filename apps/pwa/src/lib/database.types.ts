@@ -131,7 +131,7 @@ export type Database = {
           frequency: Database['public']['Enums']['frequency']
           household_id: string
           id: string
-          interval_weeks: number | null
+          interval_count: number | null
           name: string
           updated_at: string
         }
@@ -142,7 +142,7 @@ export type Database = {
           frequency: Database['public']['Enums']['frequency']
           household_id: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           name: string
           updated_at?: string
         }
@@ -153,7 +153,7 @@ export type Database = {
           frequency?: Database['public']['Enums']['frequency']
           household_id?: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           name?: string
           updated_at?: string
         }
@@ -184,7 +184,7 @@ export type Database = {
           goal_id: string | null
           household_id: string
           id: string
-          interval_weeks: number | null
+          interval_count: number | null
           line_group: Database['public']['Enums']['budget_group']
           name: string
           updated_at: string
@@ -198,7 +198,7 @@ export type Database = {
           goal_id?: string | null
           household_id: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           line_group: Database['public']['Enums']['budget_group']
           name: string
           updated_at?: string
@@ -212,7 +212,7 @@ export type Database = {
           goal_id?: string | null
           household_id?: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           line_group?: Database['public']['Enums']['budget_group']
           name?: string
           updated_at?: string
@@ -504,7 +504,7 @@ export type Database = {
           hours_per_period: number | null
           household_id: string
           id: string
-          interval_weeks: number | null
+          interval_count: number | null
           member_id: string | null
           name: string
           schedule: Database['public']['Enums']['frequency']
@@ -519,7 +519,7 @@ export type Database = {
           hours_per_period?: number | null
           household_id: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           member_id?: string | null
           name: string
           schedule: Database['public']['Enums']['frequency']
@@ -534,7 +534,7 @@ export type Database = {
           hours_per_period?: number | null
           household_id?: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           member_id?: string | null
           name?: string
           schedule?: Database['public']['Enums']['frequency']
@@ -706,7 +706,7 @@ export type Database = {
           frequency: Database['public']['Enums']['frequency']
           household_id: string
           id: string
-          interval_weeks: number | null
+          interval_count: number | null
           kind: Database['public']['Enums']['super_contribution_kind']
           member_id: string
           mode: Database['public']['Enums']['super_contribution_mode']
@@ -722,7 +722,7 @@ export type Database = {
           frequency: Database['public']['Enums']['frequency']
           household_id: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           kind: Database['public']['Enums']['super_contribution_kind']
           member_id: string
           mode: Database['public']['Enums']['super_contribution_mode']
@@ -738,7 +738,7 @@ export type Database = {
           frequency?: Database['public']['Enums']['frequency']
           household_id?: string
           id?: string
-          interval_weeks?: number | null
+          interval_count?: number | null
           kind?: Database['public']['Enums']['super_contribution_kind']
           member_id?: string
           mode?: Database['public']['Enums']['super_contribution_mode']
@@ -1040,7 +1040,14 @@ export type Database = {
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
       frequency:
-        'weekly' | 'fortnightly' | 'monthly' | 'annual' | 'quarterly' | 'biannual' | 'every_n_weeks'
+        | 'weekly'
+        | 'fortnightly'
+        | 'monthly'
+        | 'annual'
+        | 'quarterly'
+        | 'biannual'
+        | 'every_n_weeks'
+        | 'every_n_months'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
       ledger_source: 'up' | 'manual'
       super_contribution_kind:
@@ -1185,6 +1192,7 @@ export const Constants = {
         'quarterly',
         'biannual',
         'every_n_weeks',
+        'every_n_months',
       ],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement', 'hobby', 'gift'],
       ledger_source: ['up', 'manual'],

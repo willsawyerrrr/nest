@@ -72,8 +72,9 @@ items live in `gift_budget`).
 - `name text not null`
 - `amount_cents bigint not null`
 - `frequency public.frequency not null`
-- `interval_weeks int` — with the same CHECK as `budget_line`: set (≥ 1) only when
-  `frequency = 'every_n_weeks'`, null otherwise.
+- `interval_count int` — with the same CHECK as `budget_line`: set (≥ 1) only when
+  `frequency in ('every_n_weeks', 'every_n_months')`, null otherwise; its unit
+  (weeks or months) is read from the frequency.
 - `created_at` / `updated_at timestamptz not null default now()`
 
 ### `budget_line.breakdown_id`
@@ -121,8 +122,9 @@ items live in `gift_budget`).
   `/breakdowns/:id`.
 - **`/breakdowns/:id`** — the editor, chosen by `kind`:
   - `kind = 'generic'` — a simple item editor: the item list with add / edit /
-    remove (name + amount + frequency, `every_n_weeks` taking an interval as
-    elsewhere); rename the breakdown; choose its group; delete the breakdown.
+    remove (name + amount + frequency, `every_n_weeks`/`every_n_months` taking an
+    interval as elsewhere); rename the breakdown; choose its group; delete the
+    breakdown.
   - `kind = 'gift'` — the recipient × occasion + purchases planner, reached via this
     route.
 - **Budget list** — a derived line carries a tap-through chevron to its breakdown
@@ -136,7 +138,7 @@ items live in `gift_budget`).
 ## Pure logic (`@nest/plan`)
 
 The roll-up reuses `annualCents`: a generic breakdown's amount is the sum of
-`annualCents(item.amount_cents, item.frequency, item.interval_weeks)` over its
+`annualCents(item.amount_cents, item.frequency, item.interval_count)` over its
 items; a `gift` breakdown's amount is the gift-budget total. No per-source
 special-casing beyond the two `kind` branches.
 

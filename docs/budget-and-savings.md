@@ -43,10 +43,12 @@ normalize to a **fortnight** (primary) and to an **annual** total.
 | biannual        | 2              |
 | annual          | 1              |
 | every N weeks    | 52 ÷ N         |
+| every N months   | 12 ÷ N         |
 
 Fixed frequencies: annual amount = `amount × periods_per_year`. The `every N
 weeks` cadence — an amount received once every N weeks, where N is a
-user-supplied positive integer — annualises to `round(amount × 52 ÷ N)`.
+user-supplied positive integer — annualises to `round(amount × 52 ÷ N)`, and the
+`every N months` cadence — once every N months — to `round(amount × 12 ÷ N)`.
 Fortnightly amount = `round(annual ÷ 26)` in every case.
 
 ## Budget (plan-only, fortnightly)
@@ -66,7 +68,8 @@ versioning. No actual-spend reconciliation yet.
 
 A budget line = `household_id`, `line_group`, `name`, `amount` + `frequency`
 (normalized to fortnightly and annual). Like inflows, a line on the `every N
-weeks` cadence carries its interval `N` in `interval_weeks`.
+weeks` or `every N months` cadence carries its interval `N` in `interval_count`,
+the unit read from the frequency.
 
 ### Derived budget lines
 
@@ -140,15 +143,17 @@ income tables.
 
 - **Inflow** — money in.
   - `id`, `household_id`, `name`, `taxable` (bool), `type`, `schedule`,
-    `interval_weeks` (int ≥ 1, non-null iff `schedule` is `every_n_weeks`, else
-    null), `amount_cents` (or wage `hourly_rate_cents` + `hours_per_period`),
+    `interval_count` (int ≥ 1, non-null iff `schedule` is
+    `every_n_weeks`/`every_n_months`, else null), `amount_cents` (or wage
+    `hourly_rate_cents` + `hours_per_period`),
     `member_id` (required when `taxable`, else null).
   - Taxable inflows feed the tax estimate; non-taxable add to available cash.
 - **BudgetLine** — a planned allocation.
   - `id`, `household_id`, `line_group` (`budget_group` enum: needs / wants /
     discretionary / savings / investments), `name`, `amount_cents`, `frequency`,
-    `interval_weeks` (int ≥ 1, non-null iff `frequency` is `every_n_weeks`, else
-    null), `goal_id` (nullable; set on Savings/Investments lines that fund a goal),
+    `interval_count` (int ≥ 1, non-null iff `frequency` is
+    `every_n_weeks`/`every_n_months`, else null), `goal_id` (nullable; set on
+    Savings/Investments lines that fund a goal),
     `breakdown_id` (nullable; a derived line owned by a breakdown — see above),
     `destination_account_id` (nullable; the Up account funding the line, for the
     Splits tab).

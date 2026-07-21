@@ -12,7 +12,7 @@ const initial = {
   destination_account_id: null,
   amount_cents: 120_00,
   frequency: 'annual' as const,
-  interval_weeks: null,
+  interval_count: null,
 }
 
 function renderForm(overrides: Partial<Parameters<typeof DerivedBudgetLineForm>[0]> = {}) {

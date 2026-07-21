@@ -36,7 +36,7 @@ describe('InflowForm', () => {
         member_id: 'm1',
         type: 'salary',
         schedule: 'fortnightly',
-        interval_weeks: null,
+        interval_count: null,
         amount_cents: 123456,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -62,7 +62,7 @@ describe('InflowForm', () => {
         member_id: 'm1',
         type: 'wage',
         schedule: 'fortnightly',
-        interval_weeks: null,
+        interval_count: null,
         amount_cents: null,
         hourly_rate_cents: 4500,
         hours_per_period: 38,
@@ -89,7 +89,7 @@ describe('InflowForm', () => {
         member_id: null,
         type: 'reimbursement',
         schedule: 'fortnightly',
-        interval_weeks: null,
+        interval_count: null,
         amount_cents: 8000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -178,8 +178,42 @@ describe('InflowForm', () => {
         member_id: 'm1',
         type: 'salary',
         schedule: 'every_n_weeks',
-        interval_weeks: 4,
+        interval_count: 4,
         amount_cents: 30000,
+        hourly_rate_cents: null,
+        hours_per_period: null,
+      }),
+    )
+  })
+
+  it('reveals the months input for the every-N-months cadence and submits the interval', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    expect(screen.queryByLabelText(/months between payments/i)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/name/i), 'Quarterly bonus')
+    await user.type(screen.getByLabelText(/amount/i), '900')
+    await selectOption(user, /frequency/i, 'Every N months')
+
+    const months = screen.getByLabelText(/months between payments/i)
+    expect(months).toBeInTheDocument()
+    // Without a valid interval the form cannot submit.
+    expect(screen.getByRole('button', { name: /add inflow/i })).toBeDisabled()
+
+    await user.type(months, '3')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        name: 'Quarterly bonus',
+        taxable: true,
+        member_id: 'm1',
+        type: 'salary',
+        schedule: 'every_n_months',
+        interval_count: 3,
+        amount_cents: 90000,
         hourly_rate_cents: null,
         hours_per_period: null,
       }),

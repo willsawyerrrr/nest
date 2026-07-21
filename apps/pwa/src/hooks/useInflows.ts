@@ -12,7 +12,7 @@ export interface InflowInput {
   member_id: string | null
   type: InflowType
   schedule: Frequency
-  interval_weeks: number | null
+  interval_count: number | null
   amount_cents: number | null
   hourly_rate_cents: number | null
   hours_per_period: number | null

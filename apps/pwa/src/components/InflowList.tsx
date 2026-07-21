@@ -89,7 +89,7 @@ function InflowRow({
       </Text>
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
         <Badge size="sm" variant="light">
-          {formatFrequency(inflow.schedule, inflow.interval_weeks)}
+          {formatFrequency(inflow.schedule, inflow.interval_count)}
         </Badge>
       </Box>
       <FortnightlyAmount
@@ -139,7 +139,7 @@ function InflowCard({
               {inflow.type}
             </Badge>
             <Badge size="xs" variant="outline">
-              {formatFrequency(inflow.schedule, inflow.interval_weeks)}
+              {formatFrequency(inflow.schedule, inflow.interval_count)}
             </Badge>
           </Group>
         </Stack>

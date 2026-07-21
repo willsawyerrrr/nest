@@ -66,7 +66,7 @@ export function assignmentsByAccount(
   const byAccount: Record<string, Money> = {}
   let unassignedFortnightlyCents = 0
   for (const line of lines) {
-    const fortnightly = fortnightlyCents(line.amountCents, line.frequency, line.intervalWeeks)
+    const fortnightly = fortnightlyCents(line.amountCents, line.frequency, line.interval)
     const accountId = resolveDestinationAccountId(line, goals)
     if (accountId === null) {
       unassignedFortnightlyCents += fortnightly

@@ -10,6 +10,7 @@ export {
   annualCents,
   fortnightlyCents,
   FORTNIGHTS_PER_YEAR,
+  MONTHS_PER_YEAR,
   PERIODS_PER_YEAR,
   WEEKS_PER_YEAR,
 } from './normalize'
@@ -36,12 +37,20 @@ export type Money = number
 
 /**
  * How often an amount recurs. Drives periods-per-year for normalization; the
- * fortnight (26 periods/year) is the plan's primary period. `every_n_weeks` is
- * an arbitrary cadence — an amount received once every N weeks — carrying its
- * own interval N rather than a fixed periods-per-year.
+ * fortnight (26 periods/year) is the plan's primary period. `every_n_weeks` and
+ * `every_n_months` are arbitrary cadences — an amount received once every N
+ * weeks or every N months — each carrying its own interval N rather than a fixed
+ * periods-per-year.
  */
 export type Frequency =
-  'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'biannual' | 'annual' | 'every_n_weeks'
+  | 'weekly'
+  | 'fortnightly'
+  | 'monthly'
+  | 'quarterly'
+  | 'biannual'
+  | 'annual'
+  | 'every_n_weeks'
+  | 'every_n_months'
 
 /**
  * The six fixed groups a budget line can belong to. `temporary` is absent: a
@@ -55,8 +64,12 @@ export interface BudgetLine {
   readonly group: BudgetGroup
   readonly amountCents: Money
   readonly frequency: Frequency
-  /** Weeks between allocations, required only when `frequency` is `every_n_weeks`. */
-  readonly intervalWeeks?: number
+  /**
+   * The interval N, required only for the `every_n_weeks`/`every_n_months`
+   * cadences: allocated once every N weeks or N months, the unit read from
+   * `frequency`.
+   */
+  readonly interval?: number
 }
 
 /**
@@ -66,8 +79,12 @@ export interface BudgetLine {
 export interface NonTaxableInflow {
   readonly amountCents: Money
   readonly frequency: Frequency
-  /** Weeks between payments, required only when `frequency` is `every_n_weeks`. */
-  readonly intervalWeeks?: number
+  /**
+   * The interval N, required only for the `every_n_weeks`/`every_n_months`
+   * cadences: received once every N weeks or N months, the unit read from
+   * `frequency`.
+   */
+  readonly interval?: number
 }
 
 /**

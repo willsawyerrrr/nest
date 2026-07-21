@@ -27,7 +27,7 @@ function item(overrides: Partial<BreakdownItem> = {}): BreakdownItem {
     name: 'Vitamin D',
     amount_cents: 10_00,
     frequency: 'monthly',
-    interval_weeks: null,
+    interval_count: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -102,7 +102,7 @@ describe('BreakdownDetail', () => {
         name: 'Fish oil',
         amount_cents: 15_00,
         frequency: 'fortnightly',
-        interval_weeks: null,
+        interval_count: null,
       }),
     )
   })

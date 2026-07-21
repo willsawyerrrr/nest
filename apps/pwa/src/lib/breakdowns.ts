@@ -25,7 +25,7 @@ export function breakdownAnnualTotals(
           .reduce(
             (total, item) =>
               total +
-              annualCents(item.amount_cents, item.frequency, item.interval_weeks ?? undefined),
+              annualCents(item.amount_cents, item.frequency, item.interval_count ?? undefined),
             0,
           ),
       )
@@ -84,7 +84,7 @@ function derivedInput(
     name: breakdown.name,
     amount_cents: totalCents,
     frequency: 'annual',
-    interval_weeks: null,
+    interval_count: null,
     goal_id: line?.goal_id ?? null,
     breakdown_id: breakdown.id,
     destination_account_id: destinationAccountId,
@@ -123,7 +123,7 @@ export function reconcileBreakdownLines(
         line.name !== breakdown.name ||
         line.line_group !== breakdown.line_group ||
         line.frequency !== 'annual' ||
-        line.interval_weeks !== null ||
+        line.interval_count !== null ||
         (groupRoutesViaGoal(breakdown.line_group) && line.destination_account_id !== null)
       ) {
         ops.update.push({ id: line.id, input: derivedInput(breakdown, total, line) })

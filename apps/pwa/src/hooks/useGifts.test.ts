@@ -1,0 +1,83 @@
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useGifts } from './useGifts'
+
+const { builder } = vi.hoisted(() => {
+  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
+    result: { data: [], error: null },
+  } as never
+  for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order']) {
+    b[method] = vi.fn(() => b)
+  }
+  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
+    Promise.resolve(b.result).then(onFulfilled, onRejected)
+  return { builder: b }
+})
+
+vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
+
+function makeWrapper() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children)
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  builder.result = { data: [], error: null }
+})
+
+describe('useGifts', () => {
+  it('loads every gift collection and runs each mutation with its cross-reloads', async () => {
+    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.recipients).toEqual([])
+    expect(result.current.occasions).toEqual([])
+    expect(result.current.budgets).toEqual([])
+    expect(result.current.purchases).toEqual([])
+
+    await act(async () => {
+      await result.current.reload()
+      await result.current.createRecipient({ name: 'Mum' })
+      await result.current.updateRecipient('r1', { name: 'Mum' })
+      await result.current.removeRecipient('r1')
+      await result.current.createOccasion({ name: 'Birthday', occasion_date: null })
+      await result.current.updateOccasion('o1', { name: 'Birthday', occasion_date: null })
+      await result.current.removeOccasion('o1')
+      await result.current.createBudget({
+        recipient_id: 'r1',
+        occasion_id: 'o1',
+        budgeted_amount_cents: 100,
+        event_date: null,
+      })
+      await result.current.updateBudget('gb1', {
+        recipient_id: 'r1',
+        occasion_id: 'o1',
+        budgeted_amount_cents: 100,
+        event_date: null,
+      })
+      await result.current.removeBudget('gb1')
+      await result.current.createPurchase({
+        gift_budget_id: 'gb1',
+        amount_cents: 50,
+        description: 'x',
+        purchased_on: '2027-01-01',
+      })
+      await result.current.updatePurchase('gp1', {
+        gift_budget_id: 'gb1',
+        amount_cents: 50,
+        description: 'x',
+        purchased_on: '2027-01-01',
+      })
+      await result.current.removePurchase('gp1')
+    })
+  })
+
+  it('reports loading while any collection is null', async () => {
+    builder.result = { data: null, error: new Error('load failed') }
+    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    expect(result.current.loading).toBe(true)
+  })
+})

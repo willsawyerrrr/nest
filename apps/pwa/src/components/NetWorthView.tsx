@@ -1,5 +1,6 @@
-import { ActionIcon, Card, Group, Stack, Text, Title } from '@mantine/core'
-import { IconEye, IconEyeOff } from '@tabler/icons-react'
+import { ActionIcon, Card, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { useDisclosure } from '@mantine/hooks'
+import { IconChevronDown, IconChevronRight, IconEye, IconEyeOff } from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
 import { formatCents, moneyColor } from '../lib/money'
 import { netWorthBreakdown } from '../lib/super'
@@ -21,6 +22,7 @@ function AccountGroup({
   subtotalCents,
   emptyLabel,
   excluded,
+  collapsible = false,
   onToggleExclude,
 }: {
   title: string
@@ -28,8 +30,57 @@ function AccountGroup({
   subtotalCents: number
   emptyLabel: string
   excluded: boolean
+  collapsible?: boolean
   onToggleExclude: (accountId: string, exclude: boolean) => void
 }) {
+  const [opened, { toggle }] = useDisclosure(false)
+
+  const header = (
+    <Group justify="space-between" wrap="nowrap">
+      <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+        {collapsible && (opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />)}
+        <Title order={3} size="h5" c={excluded ? 'dimmed' : undefined}>
+          {title}
+        </Title>
+      </Group>
+      <Text fw={700}>{formatCents(subtotalCents)}</Text>
+    </Group>
+  )
+
+  const body =
+    accounts.length === 0 ? (
+      <Text c="dimmed" size="sm">
+        {emptyLabel}
+      </Text>
+    ) : (
+      <Stack gap="xs">
+        {accounts.map((account) => (
+          <Group key={account.id} justify="space-between" wrap="nowrap" gap="sm">
+            <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+              {account.name}
+            </Text>
+            <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+              <Text size="md" ta="right">
+                {formatCents(account.balance_cents)}
+              </Text>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                aria-label={
+                  excluded
+                    ? `Include ${account.name} in net worth`
+                    : `Exclude ${account.name} from net worth`
+                }
+                onClick={() => onToggleExclude(account.id, !excluded)}
+              >
+                {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+              </ActionIcon>
+            </Group>
+          </Group>
+        ))}
+      </Stack>
+    )
+
   return (
     <Card
       component="section"
@@ -40,43 +91,18 @@ function AccountGroup({
       style={{ opacity: excluded ? 0.7 : 1 }}
     >
       <Stack gap="xs">
-        <Group justify="space-between" wrap="nowrap">
-          <Title order={3} size="h5" c={excluded ? 'dimmed' : undefined}>
-            {title}
-          </Title>
-          <Text fw={700}>{formatCents(subtotalCents)}</Text>
-        </Group>
-        {accounts.length === 0 ? (
-          <Text c="dimmed" size="sm">
-            {emptyLabel}
-          </Text>
+        {collapsible ? (
+          <>
+            <UnstyledButton onClick={toggle} aria-expanded={opened} w="100%">
+              {header}
+            </UnstyledButton>
+            {opened && body}
+          </>
         ) : (
-          <Stack gap="xs">
-            {accounts.map((account) => (
-              <Group key={account.id} justify="space-between" wrap="nowrap" gap="sm">
-                <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
-                  {account.name}
-                </Text>
-                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-                  <Text size="md" ta="right">
-                    {formatCents(account.balance_cents)}
-                  </Text>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={
-                      excluded
-                        ? `Include ${account.name} in net worth`
-                        : `Exclude ${account.name} from net worth`
-                    }
-                    onClick={() => onToggleExclude(account.id, !excluded)}
-                  >
-                    {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-                  </ActionIcon>
-                </Group>
-              </Group>
-            ))}
-          </Stack>
+          <>
+            {header}
+            {body}
+          </>
         )}
       </Stack>
     </Card>
@@ -136,6 +162,7 @@ export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthVi
           )}
           emptyLabel=""
           excluded
+          collapsible
           onToggleExclude={onToggleExclude}
         />
       )}

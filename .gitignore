@@ -13,6 +13,7 @@ dist/
 dev-dist/
 build/
 .next/
+coverage/
 *.log
 *.tsbuildinfo
 

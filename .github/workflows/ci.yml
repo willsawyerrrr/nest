@@ -53,6 +53,20 @@ jobs:
           fi
           echo "all shards passed"
 
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Unsharded so thresholds evaluate over the full suite for these two
+      # money-critical packages; the sharded matrix above stays coverage-free.
+      - run: pnpm exec vitest run --project @nest/tax --project @nest/plan --coverage
+
   functions:
     runs-on: ubuntu-latest
     defaults:

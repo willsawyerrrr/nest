@@ -16,6 +16,7 @@ import {
 } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { annualCents, fortnightlyCents } from '@nest/plan'
+import { useInlineEditing } from '../hooks/useInlineEditing'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
@@ -197,8 +198,7 @@ export function BreakdownDetail({
   onUpdateItem,
   onDeleteItem,
 }: BreakdownDetailProps) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
+  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const [editing, { toggle: toggleEditing }] = useDisclosure(false)
 
   const totalAnnual = items.reduce(
@@ -251,18 +251,15 @@ export function BreakdownDetail({
               initial={item}
               onSubmit={async (input) => {
                 await onUpdateItem(item.id, input)
-                setEditingId(null)
+                closeForms()
               }}
-              onCancel={() => setEditingId(null)}
+              onCancel={closeForms}
             />
           ) : (
             <ItemRow
               key={item.id}
               item={item}
-              onEdit={() => {
-                setAdding(false)
-                setEditingId(item.id)
-              }}
+              onEdit={() => startEditing(item.id)}
               onDelete={() => void onDeleteItem(item.id)}
             />
           ),
@@ -272,19 +269,12 @@ export function BreakdownDetail({
           <BreakdownItemForm
             onSubmit={async (input) => {
               await onCreateItem(input)
-              setAdding(false)
+              closeForms()
             }}
-            onCancel={() => setAdding(false)}
+            onCancel={closeForms}
           />
         ) : (
-          <Button
-            variant="light"
-            fullWidth
-            onClick={() => {
-              setEditingId(null)
-              setAdding(true)
-            }}
-          >
+          <Button variant="light" fullWidth onClick={() => startAdding(true)}>
             Add item
           </Button>
         )}

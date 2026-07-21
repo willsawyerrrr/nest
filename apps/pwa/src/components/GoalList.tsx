@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core'
 import { fortnightlyCents, projectGoal } from '@nest/plan'
+import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
@@ -142,21 +142,7 @@ function GoalCard({
 
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
 export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }: GoalListProps) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
-
-  const startAdding = () => {
-    setEditingId(null)
-    setAdding(true)
-  }
-  const startEditing = (id: string) => {
-    setAdding(false)
-    setEditingId(id)
-  }
-  const closeForms = () => {
-    setEditingId(null)
-    setAdding(false)
-  }
+  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
 
   // Goals with an active linked contribution lead, each partition keeping its original order.
   const funded = goals.filter((goal) => contributionForGoal(goal.id, lines) > 0)
@@ -205,7 +191,7 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={startAdding}>
+        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
           Add goal
         </Button>
       )}

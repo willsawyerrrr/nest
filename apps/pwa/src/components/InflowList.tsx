@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { useMediaQuery } from '@mantine/hooks'
 import { Badge, Box, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
+import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
 import { formatCents } from '../lib/money'
@@ -181,22 +181,8 @@ function InflowItem(props: {
 
 /** The household's inflows with an add affordance and inline add/edit forms. */
 export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: InflowListProps) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
+  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
-
-  const startAdding = () => {
-    setEditingId(null)
-    setAdding(true)
-  }
-  const startEditing = (id: string) => {
-    setAdding(false)
-    setEditingId(id)
-  }
-  const closeForms = () => {
-    setEditingId(null)
-    setAdding(false)
-  }
 
   return (
     <Stack gap="sm">
@@ -239,7 +225,7 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={startAdding}>
+        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
           Add inflow
         </Button>
       )}

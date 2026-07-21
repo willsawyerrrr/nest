@@ -77,8 +77,8 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
     (a, b) =>
       key === 'name'
         ? a.name.localeCompare(b.name)
-        : fortnightlyCents(a.amount_cents, a.frequency, a.interval_weeks ?? undefined) -
-          fortnightlyCents(b.amount_cents, b.frequency, b.interval_weeks ?? undefined),
+        : fortnightlyCents(a.amount_cents, a.frequency, a.interval_count ?? undefined) -
+          fortnightlyCents(b.amount_cents, b.frequency, b.interval_count ?? undefined),
     direction,
   )
 }
@@ -201,7 +201,7 @@ function BudgetLineRow({
   const fortnightly = fortnightlyCents(
     line.amount_cents,
     line.frequency,
-    line.interval_weeks ?? undefined,
+    line.interval_count ?? undefined,
   )
   return (
     <Group
@@ -221,7 +221,7 @@ function BudgetLineRow({
       </Text>
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
         <Badge size="sm" variant="light">
-          {formatFrequency(line.frequency, line.interval_weeks)}
+          {formatFrequency(line.frequency, line.interval_count)}
         </Badge>
       </Box>
       <FortnightlyAmount
@@ -261,7 +261,7 @@ function BudgetLineCard({
   const fortnightly = fortnightlyCents(
     line.amount_cents,
     line.frequency,
-    line.interval_weeks ?? undefined,
+    line.interval_count ?? undefined,
   )
   return (
     <Card withBorder radius="md" p="xs">
@@ -275,7 +275,7 @@ function BudgetLineCard({
               {formatCents(line.amount_cents)}
             </Text>
             <Badge size="xs" variant="light">
-              {formatFrequency(line.frequency, line.interval_weeks)}
+              {formatFrequency(line.frequency, line.interval_count)}
             </Badge>
             {route && <RouteBadge route={route} />}
           </Group>
@@ -410,7 +410,7 @@ export function BudgetLineList({
         const subtotal = groupLines.reduce(
           (total, line) =>
             total +
-            fortnightlyCents(line.amount_cents, line.frequency, line.interval_weeks ?? undefined),
+            fortnightlyCents(line.amount_cents, line.frequency, line.interval_count ?? undefined),
           0,
         )
         const visibleLines = sortLines(
@@ -448,7 +448,7 @@ export function BudgetLineList({
                       destination_account_id: line.destination_account_id,
                       amount_cents: line.amount_cents,
                       frequency: line.frequency,
-                      interval_weeks: line.interval_weeks,
+                      interval_count: line.interval_count,
                     }}
                     accounts={accounts}
                     onSave={async (values) => {

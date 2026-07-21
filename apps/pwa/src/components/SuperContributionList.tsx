@@ -53,7 +53,7 @@ function ContributionCard({
           </Text>
           <Group gap={6} wrap="wrap">
             <Badge size="xs" variant="outline">
-              {formatFrequency(contribution.frequency, contribution.interval_weeks)}
+              {formatFrequency(contribution.frequency, contribution.interval_count)}
             </Badge>
             {contribution.fhss_eligible && (
               <Badge size="xs" variant="light" color="teal">

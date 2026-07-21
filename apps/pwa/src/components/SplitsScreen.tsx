@@ -185,7 +185,7 @@ export function SplitsScreen({
       group: line.line_group,
       amountCents: line.amount_cents,
       frequency: line.frequency,
-      intervalWeeks: line.interval_weeks ?? undefined,
+      interval: line.interval_count ?? undefined,
       goalId: line.goal_id,
       destinationAccountId: line.destination_account_id,
     })),

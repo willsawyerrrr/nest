@@ -16,18 +16,19 @@ interface BreakdownItemFormProps {
 export function BreakdownItemForm({ initial, onSubmit, onCancel }: BreakdownItemFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
-  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
+  const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const isEveryNWeeks = frequency === 'every_n_weeks'
-  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
+  const isEveryN = frequency === 'every_n_weeks' || frequency === 'every_n_months'
+  const intervalUnit = frequency === 'every_n_months' ? 'months' : 'weeks'
+  const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
 
   const canSubmit =
     name.trim() !== '' &&
     amount !== '' &&
-    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
+    (isEveryN ? interval !== '' && intervalValid : true) &&
     !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -41,7 +42,7 @@ export function BreakdownItemForm({ initial, onSubmit, onCancel }: BreakdownItem
       name: name.trim(),
       amount_cents: dollarsToCents(amount) ?? 0,
       frequency,
-      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
+      interval_count: isEveryN ? Number(interval) : null,
     }
     try {
       await onSubmit(input)
@@ -71,17 +72,17 @@ export function BreakdownItemForm({ initial, onSubmit, onCancel }: BreakdownItem
           allowDeselect={false}
         />
 
-        {isEveryNWeeks && (
+        {isEveryN && (
           <NumberInput
-            label="Weeks between allocations"
+            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between allocations`}
             size="sm"
-            description="How many weeks apart each allocation lands (e.g. 4 for once every four weeks)."
+            description={`How many ${intervalUnit} apart each allocation lands (e.g. 4 for once every four ${intervalUnit}).`}
             min={1}
             step={1}
             allowDecimal={false}
             hideControls
-            value={intervalWeeks}
-            onChange={setIntervalWeeks}
+            value={interval}
+            onChange={setInterval}
           />
         )}
 

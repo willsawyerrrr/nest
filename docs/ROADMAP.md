@@ -73,8 +73,9 @@ transaction ingestion: reconciling spend and actual tax paid against the plan.
 - Verified FY2027 tax config + marginal HELP model; the pure `@nest/tax`
   engine (`configsByYear`).
 - Inflows model: taxable / non-taxable split, member-tagged taxable income,
-  schedules from weekly through annual plus an arbitrary "every N weeks" cadence
-  (`interval_weeks`); only taxable inflows feed the tax estimate.
+  schedules from weekly through annual plus an arbitrary "every N weeks" or
+  "every N months" cadence (`interval_count`); only taxable inflows feed the tax
+  estimate.
 - Income + tax-estimate UI: inflow management and the tax view (per-person
   breakdown + household take-home, annual and fortnightly, as per-card tables).
   Each member card shows a full component breakdown — income tax, Low Income Tax

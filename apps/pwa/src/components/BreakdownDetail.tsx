@@ -125,7 +125,7 @@ function ItemRow({
   const fortnightly = fortnightlyCents(
     item.amount_cents,
     item.frequency,
-    item.interval_weeks ?? undefined,
+    item.interval_count ?? undefined,
   )
   return (
     <Card withBorder radius="md" p="xs">
@@ -139,7 +139,7 @@ function ItemRow({
               {formatCents(item.amount_cents)}
             </Text>
             <Badge size="xs" variant="light">
-              {formatFrequency(item.frequency, item.interval_weeks)}
+              {formatFrequency(item.frequency, item.interval_count)}
             </Badge>
           </Group>
         </Stack>
@@ -180,7 +180,7 @@ export function BreakdownDetail({
 
   const totalAnnual = items.reduce(
     (total, item) =>
-      total + annualCents(item.amount_cents, item.frequency, item.interval_weeks ?? undefined),
+      total + annualCents(item.amount_cents, item.frequency, item.interval_count ?? undefined),
     0,
   )
   const totalFortnightly = fortnightlyCents(totalAnnual, 'annual')

@@ -30,7 +30,7 @@ describe('BudgetLineForm', () => {
         name: 'Dining out',
         amount_cents: 25050,
         frequency: 'fortnightly',
-        interval_weeks: null,
+        interval_count: null,
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
@@ -55,7 +55,7 @@ describe('BudgetLineForm', () => {
         name: 'Emergency fund',
         amount_cents: 40000,
         frequency: 'monthly',
-        interval_weeks: null,
+        interval_count: null,
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
@@ -80,12 +80,52 @@ describe('BudgetLineForm', () => {
         name: 'Bin night',
         amount_cents: 2000,
         frequency: 'every_n_weeks',
-        interval_weeks: 4,
+        interval_count: 4,
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
       }),
     )
+  })
+
+  it('submits an every-N-months line with its interval', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<BudgetLineForm defaultGroup="needs" onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Car service')
+    await selectOption(user, /frequency/i, 'Every N months')
+    await user.type(screen.getByLabelText(/months between allocations/i), '6')
+    await user.type(screen.getByLabelText(/amount/i), '300')
+    await user.click(screen.getByRole('button', { name: /add line/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        line_group: 'needs',
+        name: 'Car service',
+        amount_cents: 30000,
+        frequency: 'every_n_months',
+        interval_count: 6,
+        goal_id: null,
+        breakdown_id: null,
+        destination_account_id: null,
+      }),
+    )
+  })
+
+  it('keeps submit disabled on an every-N-months line until the interval is valid', async () => {
+    const user = userEvent.setup()
+    render(<BudgetLineForm defaultGroup="needs" onSubmit={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Car service')
+    await selectOption(user, /frequency/i, 'Every N months')
+    await user.type(screen.getByLabelText(/amount/i), '300')
+
+    const button = screen.getByRole('button', { name: /add line/i })
+    expect(button).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/months between allocations/i), '6')
+    expect(button).toBeEnabled()
   })
 
   it('keeps submit disabled on an every-N-weeks line until the interval is valid', async () => {

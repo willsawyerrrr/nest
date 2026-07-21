@@ -10,8 +10,8 @@ export interface BudgetLineInput {
   name: string
   amount_cents: number
   frequency: Frequency
-  /** Weeks between allocations for the `every_n_weeks` frequency; null for every other frequency. */
-  interval_weeks: number | null
+  /** Interval count for the `every_n_weeks`/`every_n_months` frequency (weeks or months, read from `frequency`); null for every fixed frequency. */
+  interval_count: number | null
   goal_id: string | null
   /** The breakdown that owns this line (its amount, name, and group), or `null` for a manual line. */
   breakdown_id: string | null

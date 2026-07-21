@@ -302,8 +302,9 @@ to prod via `deploy-functions.yml` like the others.
 
 Inflows (taxable income + non-taxable; `type` is `salary` / `wage` / `other` /
 `reimbursement` / `hobby` / `gift`, the non-taxable types being reporting labels
-only; schedules from weekly through annual plus an "every N weeks" cadence carrying
-`interval_weeks`), tax_profile, budget_line (groups: needs / wants / discretionary
+only; schedules from weekly through annual plus an "every N weeks" or "every N
+months" cadence carrying `interval_count`), tax_profile, budget_line (groups:
+needs / wants / discretionary
 / savings / investments; nullable `breakdown_id` for a derived line and nullable
 `destination_account_id` for its Splits routing),
 temporary_item, savings_goal (nullable `linked_account_id` → a synced Up saver),

@@ -13,7 +13,7 @@ function inflow(overrides: Partial<Inflow> = {}): Inflow {
     member_id: null,
     type: 'other',
     schedule: 'weekly',
-    interval_weeks: null,
+    interval_count: null,
     amount_cents: 100_00,
     hourly_rate_cents: null,
     hours_per_period: null,
@@ -31,7 +31,7 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     name: 'Line',
     amount_cents: 10_00,
     frequency: 'monthly',
-    interval_weeks: null,
+    interval_count: null,
     goal_id: null,
     destination_account_id: null,
     breakdown_id: null,
@@ -76,7 +76,7 @@ describe('toSummaryInput', () => {
           taxable: false,
           amount_cents: 40_00,
           schedule: 'every_n_weeks',
-          interval_weeks: 3,
+          interval_count: 3,
         }),
       ],
       budgetLines: [],
@@ -84,14 +84,14 @@ describe('toSummaryInput', () => {
       temporaryItems: [],
     })
     expect(result.nonTaxableInflows).toEqual([
-      { amountCents: 40_00, frequency: 'every_n_weeks', intervalWeeks: 3 },
+      { amountCents: 40_00, frequency: 'every_n_weeks', interval: 3 },
     ])
   })
 
   it('defaults a non-taxable inflow with no amount to zero cents', () => {
     const result = toSummaryInput({
       afterTaxIncomeAnnualCents: 0,
-      inflows: [inflow({ taxable: false, amount_cents: null, interval_weeks: null })],
+      inflows: [inflow({ taxable: false, amount_cents: null, interval_count: null })],
       budgetLines: [],
       breakdownTotals: new Map(),
       temporaryItems: [],
@@ -99,7 +99,7 @@ describe('toSummaryInput', () => {
     expect(result.nonTaxableInflows[0]).toEqual({
       amountCents: 0,
       frequency: 'weekly',
-      intervalWeeks: undefined,
+      interval: undefined,
     })
   })
 
@@ -112,7 +112,7 @@ describe('toSummaryInput', () => {
       temporaryItems: [],
     })
     expect(result.budgetLines).toEqual([
-      { group: 'wants', amountCents: 150_00, frequency: 'annual', intervalWeeks: undefined },
+      { group: 'wants', amountCents: 150_00, frequency: 'annual', interval: undefined },
     ])
   })
 
@@ -125,7 +125,7 @@ describe('toSummaryInput', () => {
       temporaryItems: [],
     })
     expect(result.budgetLines).toEqual([
-      { group: 'needs', amountCents: 42_00, frequency: 'weekly', intervalWeeks: undefined },
+      { group: 'needs', amountCents: 42_00, frequency: 'weekly', interval: undefined },
     ])
   })
 

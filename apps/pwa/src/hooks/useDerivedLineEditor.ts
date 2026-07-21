@@ -36,7 +36,7 @@ export function useDerivedLineEditor({
         name: values.name,
         amount_cents: line.amount_cents,
         frequency: line.frequency,
-        interval_weeks: line.interval_weeks,
+        interval_count: line.interval_count,
         goal_id: line.goal_id,
         breakdown_id: line.breakdown_id,
         destination_account_id: values.destination_account_id,

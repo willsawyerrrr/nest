@@ -12,7 +12,7 @@ function item(overrides: Partial<BreakdownItem> = {}): BreakdownItem {
     name: 'Vitamin D',
     amount_cents: 10_00,
     frequency: 'monthly',
-    interval_weeks: null,
+    interval_count: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -43,7 +43,7 @@ describe('BreakdownItemForm', () => {
         name: 'Fish oil',
         amount_cents: 15_00,
         frequency: 'fortnightly',
-        interval_weeks: null,
+        interval_count: null,
       }),
     )
   })
@@ -64,9 +64,45 @@ describe('BreakdownItemForm', () => {
         name: 'Contacts',
         amount_cents: 20_00,
         frequency: 'every_n_weeks',
-        interval_weeks: 4,
+        interval_count: 4,
       }),
     )
+  })
+
+  it('submits an every-N-months item with its interval after changing frequency', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<BreakdownItemForm onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Dental checkup')
+    await selectOption(user, /frequency/i, 'Every N months')
+    await user.type(screen.getByLabelText(/months between allocations/i), '6')
+    await user.type(screen.getByLabelText(/amount/i), '90')
+    await user.click(screen.getByRole('button', { name: /add item/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        name: 'Dental checkup',
+        amount_cents: 90_00,
+        frequency: 'every_n_months',
+        interval_count: 6,
+      }),
+    )
+  })
+
+  it('keeps submit disabled on an every-N-months item until the interval is valid', async () => {
+    const user = userEvent.setup()
+    render(<BreakdownItemForm onSubmit={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Dental checkup')
+    await selectOption(user, /frequency/i, 'Every N months')
+    await user.type(screen.getByLabelText(/amount/i), '90')
+
+    const button = screen.getByRole('button', { name: /add item/i })
+    expect(button).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/months between allocations/i), '6')
+    expect(button).toBeEnabled()
   })
 
   it('keeps submit disabled until required fields are filled', async () => {

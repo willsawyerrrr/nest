@@ -49,6 +49,7 @@ const PERIOD_NOUN: Record<Frequency, string> = {
   biannual: 'half-year',
   annual: 'year',
   every_n_weeks: 'payment',
+  every_n_months: 'payment',
 }
 
 /** Presentational add/edit form for a single inflow. Persistence lives in the caller. */
@@ -58,7 +59,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [memberId, setMemberId] = useState(initial?.member_id ?? members[0]?.id ?? '')
   const [type, setType] = useState<InflowType>(initial?.type ?? DEFAULT_TYPE.taxable)
   const [schedule, setSchedule] = useState<Frequency>(initial?.schedule ?? 'fortnightly')
-  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
+  const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [hourlyRate, setHourlyRate] = useState<number | string>(
     centsToDollars(initial?.hourly_rate_cents),
@@ -79,13 +80,14 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   }
 
   const isWage = taxable && type === 'wage'
-  const isEveryNWeeks = schedule === 'every_n_weeks'
-  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
+  const isEveryN = schedule === 'every_n_weeks' || schedule === 'every_n_months'
+  const intervalUnit = schedule === 'every_n_months' ? 'months' : 'weeks'
+  const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
   const canSubmit =
     name.trim() !== '' &&
     (taxable ? memberId !== '' : true) &&
     (isWage ? hourlyRate !== '' && hours !== '' : amount !== '') &&
-    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
+    (isEveryN ? interval !== '' && intervalValid : true) &&
     !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -101,7 +103,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       member_id: taxable ? memberId : null,
       type,
       schedule,
-      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
+      interval_count: isEveryN ? Number(interval) : null,
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
@@ -173,17 +175,17 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           allowDeselect={false}
         />
 
-        {isEveryNWeeks && (
+        {isEveryN && (
           <NumberInput
-            label="Weeks between payments"
+            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between payments`}
             size="sm"
-            description="How many weeks apart each payment lands (e.g. 4 for once every four weeks)."
+            description={`How many ${intervalUnit} apart each payment lands (e.g. 4 for once every four ${intervalUnit}).`}
             min={1}
             step={1}
             allowDecimal={false}
             hideControls
-            value={intervalWeeks}
-            onChange={setIntervalWeeks}
+            value={interval}
+            onChange={setInterval}
           />
         )}
 

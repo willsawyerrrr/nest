@@ -28,7 +28,7 @@ interface DerivedBudgetLineFormProps {
     destination_account_id: string | null
     amount_cents: number
     frequency: Frequency
-    interval_weeks: number | null
+    interval_count: number | null
   }
   /** The household's accounts, offered as the funding destination. */
   accounts?: { id: string; name: string }[]
@@ -68,7 +68,7 @@ export function DerivedBudgetLineForm({
   const fortnightly = fortnightlyCents(
     initial.amount_cents,
     initial.frequency,
-    initial.interval_weeks ?? undefined,
+    initial.interval_count ?? undefined,
   )
   const canSubmit = name.trim() !== '' && !submitting
 

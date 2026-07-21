@@ -35,7 +35,7 @@ export function BudgetLineForm({
   const [group, setGroup] = useState<BudgetGroup>(initial?.line_group ?? defaultGroup ?? 'needs')
   const [name, setName] = useState(initial?.name ?? '')
   const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
-  const [intervalWeeks, setIntervalWeeks] = useState<number | string>(initial?.interval_weeks ?? '')
+  const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [goalId, setGoalId] = useState<string | null>(initial?.goal_id ?? null)
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
@@ -48,8 +48,9 @@ export function BudgetLineForm({
   // Savings/Investments lines route to their goal's account, so they carry no
   // direct destination; every other group offers a "Funded from" picker.
   const showAccountPicker = !groupLinksGoal(group)
-  const isEveryNWeeks = frequency === 'every_n_weeks'
-  const intervalValid = Number.isInteger(Number(intervalWeeks)) && Number(intervalWeeks) >= 1
+  const isEveryN = frequency === 'every_n_weeks' || frequency === 'every_n_months'
+  const intervalUnit = frequency === 'every_n_months' ? 'months' : 'weeks'
+  const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
 
   const changeGroup = (next: BudgetGroup) => {
     setGroup(next)
@@ -64,7 +65,7 @@ export function BudgetLineForm({
   const canSubmit =
     name.trim() !== '' &&
     amount !== '' &&
-    (isEveryNWeeks ? intervalWeeks !== '' && intervalValid : true) &&
+    (isEveryN ? interval !== '' && intervalValid : true) &&
     !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -79,7 +80,7 @@ export function BudgetLineForm({
       name: name.trim(),
       amount_cents: dollarsToCents(amount) ?? 0,
       frequency,
-      interval_weeks: isEveryNWeeks ? Number(intervalWeeks) : null,
+      interval_count: isEveryN ? Number(interval) : null,
       goal_id: showGoalPicker ? goalId : null,
       breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
@@ -121,17 +122,17 @@ export function BudgetLineForm({
           allowDeselect={false}
         />
 
-        {isEveryNWeeks && (
+        {isEveryN && (
           <NumberInput
-            label="Weeks between allocations"
+            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between allocations`}
             size="sm"
-            description="How many weeks apart each allocation lands (e.g. 4 for once every four weeks)."
+            description={`How many ${intervalUnit} apart each allocation lands (e.g. 4 for once every four ${intervalUnit}).`}
             min={1}
             step={1}
             allowDecimal={false}
             hideControls
-            value={intervalWeeks}
-            onChange={setIntervalWeeks}
+            value={interval}
+            onChange={setInterval}
           />
         )}
 

@@ -42,7 +42,7 @@ foreign keys on `(id, household_id)`.
 - **inflows** — projected recurring money in, split by taxability.
   - `id`, `household_id`, `member_id` (nullable), `name`,
     `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
-    `taxable` (default true), `schedule`, `interval_weeks` (nullable),
+    `taxable` (default true), `schedule`, `interval_count` (nullable),
     `amount_cents` (nullable), `hourly_rate_cents` (nullable),
     `hours_per_period` (nullable), `created_at`, `updated_at`.
   - `taxable` inflows feed the per-member tax estimate and require `member_id`;
@@ -50,9 +50,10 @@ foreign keys on `(id, household_id)`.
     available cash and may omit it. For non-taxable inflows `type` is a reporting
     label only — taxability, not type, decides whether an inflow is taxed.
   - `schedule` is the shared `frequency` enum: `weekly`, `fortnightly`,
-    `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`. For
-    `every_n_weeks`, `interval_weeks` holds N (≥ 1); it is null for every other
-    schedule.
+    `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`,
+    `every_n_months`. For `every_n_weeks` and `every_n_months`, `interval_count`
+    holds N (≥ 1) — the unit (weeks or months) read from the schedule; it is null
+    for every fixed schedule.
   - Amount shape by `type`: `wage` carries `hourly_rate_cents` ×
     `hours_per_period` (and null `amount_cents`); every other type carries a
     flat `amount_cents` per period.
@@ -107,11 +108,12 @@ config alongside the tax parameters, not a table.
     `personal_non_concessional` | `spouse`),
     `mode` (`amount` | `percent`), `amount_cents` (nullable),
     `percent_bp` (nullable — basis points of gross salary),
-    `frequency` (the shared enum), `interval_weeks` (nullable),
+    `frequency` (the shared enum), `interval_count` (nullable),
     `fhss_eligible` (default false), `contributor_member_id` (nullable),
     `created_at`, `updated_at`.
   - A check enforces exactly one of `amount_cents` / `percent_bp` per `mode`, and
-    `interval_weeks` is set only for `every_n_weeks` (as on inflows). The
+    `interval_count` is set only for `every_n_weeks`/`every_n_months` (as on
+    inflows). The
     concessional kinds (`salary_sacrifice`, `personal_deductible`) reduce taxable
     income; `spouse` may carry `contributor_member_id` (the paying member, for the
     spouse-contribution tax offset). `fhss_eligible` tags contributions counting
@@ -125,8 +127,9 @@ no per-member scoping; each line stands alone under the household.
 - **budget_line** — a planned recurring allocation within one fixed group.
   - `id`, `household_id`, `line_group`
     (`needs` | `wants` | `discretionary` | `savings` | `investments`), `name`,
-    `amount_cents`, `frequency` (the shared enum above), `interval_weeks`
-    (nullable — non-null iff `frequency` is `every_n_weeks`, as on inflows),
+    `amount_cents`, `frequency` (the shared enum above), `interval_count`
+    (nullable — non-null iff `frequency` is `every_n_weeks`/`every_n_months`, as
+    on inflows),
     `goal_id` (nullable), `breakdown_id` (nullable), `destination_account_id`
     (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
@@ -175,7 +178,7 @@ each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design
 - **breakdown_item** — a line item of a `generic` breakdown (a `gift` breakdown
   owns none — its items live in `gift_budget`).
   - `id`, `household_id`, `breakdown_id`, `name`, `amount_cents`, `frequency`
-    (the shared enum), `interval_weeks` (nullable — the same CHECK as
+    (the shared enum), `interval_count` (nullable — the same CHECK as
     `budget_line`), `created_at`, `updated_at`. Composite FK
     `(breakdown_id, household_id)` → `breakdown` `on delete cascade`.
 

@@ -49,6 +49,108 @@ describe('annualGrossCents', () => {
     expect(annualGrossCents({ memberId: 'm', type: 'salary', schedule: 'annual' })).toBe(0)
     expect(annualGrossCents({ memberId: 'm', type: 'wage', schedule: 'weekly' })).toBe(0)
   })
+
+  it('annualises the every_n_weeks cadence as round(perPeriod × 52 / interval)', () => {
+    expect(
+      annualGrossCents({ memberId: 'm', type: 'salary', schedule: 'every_n_weeks', interval: 1 }),
+    ).toBe(0)
+    expect(
+      annualGrossCents({
+        memberId: 'm',
+        type: 'salary',
+        schedule: 'every_n_weeks',
+        amountCents: 1_000_00,
+        interval: 1,
+      }),
+    ).toBe(52_000_00)
+    expect(
+      annualGrossCents({
+        memberId: 'm',
+        type: 'salary',
+        schedule: 'every_n_weeks',
+        amountCents: 1_000_00,
+        interval: 2,
+      }),
+    ).toBe(26_000_00)
+    // round(100_00 × 52 / 3) = round(173_333.33) = 173_333.
+    expect(
+      annualGrossCents({
+        memberId: 'm',
+        type: 'salary',
+        schedule: 'every_n_weeks',
+        amountCents: 100_00,
+        interval: 3,
+      }),
+    ).toBe(173_333)
+  })
+
+  it('annualises the every_n_months cadence as round(perPeriod × 12 / interval)', () => {
+    // n=1 equals monthly.
+    expect(
+      annualGrossCents({
+        memberId: 'm',
+        type: 'salary',
+        schedule: 'every_n_months',
+        amountCents: 1_000_00,
+        interval: 1,
+      }),
+    ).toBe(12_000_00)
+    // n=12 equals annual.
+    expect(
+      annualGrossCents({
+        memberId: 'm',
+        type: 'salary',
+        schedule: 'every_n_months',
+        amountCents: 1_000_00,
+        interval: 12,
+      }),
+    ).toBe(1_000_00)
+    // round(1_000_00 × 12 / 7) = round(171_428.57) = 171_429.
+    expect(
+      annualGrossCents({
+        memberId: 'm',
+        type: 'salary',
+        schedule: 'every_n_months',
+        amountCents: 1_000_00,
+        interval: 7,
+      }),
+    ).toBe(171_429)
+  })
+
+  it('annualises the interpolated cadences to zero for a missing or invalid interval', () => {
+    for (const schedule of ['every_n_weeks', 'every_n_months'] as const) {
+      expect(
+        annualGrossCents({ memberId: 'm', type: 'salary', schedule, amountCents: 1_000_00 }),
+      ).toBe(0)
+      expect(
+        annualGrossCents({
+          memberId: 'm',
+          type: 'salary',
+          schedule,
+          amountCents: 1_000_00,
+          interval: 0,
+        }),
+      ).toBe(0)
+      expect(
+        annualGrossCents({
+          memberId: 'm',
+          type: 'salary',
+          schedule,
+          amountCents: 1_000_00,
+          interval: -3,
+        }),
+      ).toBe(0)
+      expect(
+        annualGrossCents({
+          memberId: 'm',
+          type: 'salary',
+          schedule,
+          amountCents: 1_000_00,
+          interval: 2.5,
+        }),
+      ).toBe(0)
+    }
+  })
 })
 
 describe('estimateHouseholdTax', () => {

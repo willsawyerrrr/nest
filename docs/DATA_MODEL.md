@@ -234,7 +234,10 @@ populated; spending-plan reconciliation against them is a later phase.
   - `id`, `household_id`, `owner_member_id` (nullable = joint), `name`,
     `type` (`transaction` | `savings` | `credit` | `offset` | `other`),
     `source` (`up` | `manual`), `external_id`, `balance_cents`,
-    `currency` (default `AUD`), `created_at`, `updated_at`.
+    `currency` (default `AUD`), `exclude_from_net_worth` (default `false` — a
+    shared, household-wide flag that drops the account from net-worth totals
+    only, leaving retirement projection and budgeting untouched), `created_at`,
+    `updated_at`.
   - `up-sync` upserts Up accounts on conflict `(source, external_id)`, so a
     saver's `balance_cents` stays current; a linked savings goal reads its balance
     from here. `service_role` holds `select`/`insert`/`update` for that upsert.

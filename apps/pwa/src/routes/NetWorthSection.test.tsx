@@ -46,4 +46,20 @@ describe('NetWorthSection', () => {
     expect(hooks.screenProps).toHaveProperty('accounts')
     expect(hooks.screenProps).toHaveProperty('superIds')
   })
+
+  it('toggling exclusion updates the account with the flag', () => {
+    const update = vi.fn().mockResolvedValue(undefined)
+    hooks.useAccounts.mockReturnValue({ loading: false, accounts: [], update })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
+    render(<NetWorthSection householdId="h1" />)
+
+    const onToggleExclude = hooks.screenProps?.onToggleExclude as (
+      id: string,
+      exclude: boolean,
+    ) => void
+    onToggleExclude('a1', true)
+    expect(update).toHaveBeenCalledWith('a1', { exclude_from_net_worth: true })
+  })
 })

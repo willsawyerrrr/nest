@@ -9,13 +9,14 @@ import {
   superAccountName,
 } from './super'
 
-function account(id: string, balanceCents: number): Account {
+function account(id: string, balanceCents: number, excludeFromNetWorth = false): Account {
   return {
     id,
     name: id,
     balance_cents: balanceCents,
     household_id: 'h1',
     currency: 'AUD',
+    exclude_from_net_worth: excludeFromNetWorth,
     external_id: null,
     owner_member_id: null,
     source: 'manual',
@@ -125,6 +126,19 @@ describe('netWorthBreakdown', () => {
     expect(breakdown.otherAccounts.map((a) => a.id)).toEqual(['a3'])
     expect(breakdown.superTotalCents).toBe(150000)
     expect(breakdown.otherTotalCents).toBe(25000)
+    expect(breakdown.excludedAccounts).toEqual([])
     expect(breakdown.totalCents).toBe(175000)
+  })
+
+  it('collects excluded accounts separately and leaves them out of every total', () => {
+    const accounts = [account('a1', 100000), account('a2', 50000, true), account('a3', 25000, true)]
+    const breakdown = netWorthBreakdown(accounts, new Set(['a1', 'a2']))
+
+    expect(breakdown.superAccounts.map((a) => a.id)).toEqual(['a1'])
+    expect(breakdown.otherAccounts).toEqual([])
+    expect(breakdown.excludedAccounts.map((a) => a.id)).toEqual(['a2', 'a3'])
+    expect(breakdown.superTotalCents).toBe(100000)
+    expect(breakdown.otherTotalCents).toBe(0)
+    expect(breakdown.totalCents).toBe(100000)
   })
 })

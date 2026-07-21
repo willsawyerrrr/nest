@@ -49,7 +49,10 @@ retirement-age assumptions and each member's age are client-side inputs persiste
 in localStorage, not stored in the database. The Net worth tab sums the
 `balance_cents` of every account the member can see (assets only; liabilities not
 modelled yet), split into Super vs Other accounts; a co-member's private
-spending/saver balances are excluded.
+spending/saver balances are excluded. Any account can be toggled out of the
+totals via its `exclude_from_net_worth` flag — a shared, household-wide setting
+(both partners' views drop it) that surfaces the account in a muted "Excluded
+from net worth" group and leaves retirement projection and budgeting untouched.
 
 **Up savers → savings goals** — built, merged, and deployed. Each member
 connects their Up personal access token on the Household tab; a goal links to a

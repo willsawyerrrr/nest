@@ -86,10 +86,15 @@ export function accountsWithEffectiveSuperBalances(
   })
 }
 
-/** Net worth split into super vs other accounts, each with a subtotal and a grand total. */
+/**
+ * Net worth split into super vs other accounts, each with a subtotal and a grand
+ * total, alongside the accounts the household has excluded from net-worth
+ * tracking (surfaced so they can be toggled back, never counted in the totals).
+ */
 export interface NetWorthBreakdown {
   superAccounts: Account[]
   otherAccounts: Account[]
+  excludedAccounts: Account[]
   superTotalCents: number
   otherTotalCents: number
   totalCents: number
@@ -101,20 +106,25 @@ function sumBalances(accounts: readonly Account[]): number {
 }
 
 /**
- * Splits `accounts` into super accounts (those whose id is a `super_account_id`)
- * and everything else, with per-group subtotals and the assets-only grand total.
+ * Splits the included accounts into super accounts (those whose id is a
+ * `super_account_id`) and everything else, with per-group subtotals and the
+ * assets-only grand total. Accounts flagged `exclude_from_net_worth` are
+ * collected separately and left out of every subtotal and the total.
  */
 export function netWorthBreakdown(
   accounts: readonly Account[],
   superIds: ReadonlySet<string>,
 ): NetWorthBreakdown {
-  const superAccounts = accounts.filter((account) => superIds.has(account.id))
-  const otherAccounts = accounts.filter((account) => !superIds.has(account.id))
+  const excludedAccounts = accounts.filter((account) => account.exclude_from_net_worth)
+  const includedAccounts = accounts.filter((account) => !account.exclude_from_net_worth)
+  const superAccounts = includedAccounts.filter((account) => superIds.has(account.id))
+  const otherAccounts = includedAccounts.filter((account) => !superIds.has(account.id))
   const superTotalCents = sumBalances(superAccounts)
   const otherTotalCents = sumBalances(otherAccounts)
   return {
     superAccounts,
     otherAccounts,
+    excludedAccounts,
     superTotalCents,
     otherTotalCents,
     totalCents: superTotalCents + otherTotalCents,

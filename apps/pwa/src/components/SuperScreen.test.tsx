@@ -34,6 +34,7 @@ const account: Account = {
   external_id: null,
   balance_cents: 100_000_00,
   currency: 'AUD',
+  exclude_from_net_worth: false,
   owner_member_id: 'm1',
   created_at: '',
   updated_at: '',

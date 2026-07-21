@@ -63,6 +63,19 @@ describe('BreakdownDetail', () => {
     expect(screen.getByText(/rolls up to \$120\.00 \/ year/i)).toBeInTheDocument()
   })
 
+  it('hides the settings card until Edit is toggled', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+
+    expect(
+      screen.getByRole('button', { name: /delete breakdown/i, hidden: true }),
+    ).not.toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: /^edit$/i }))
+
+    expect(screen.getByRole('button', { name: /delete breakdown/i })).toBeVisible()
+  })
+
   it('adds an item', async () => {
     const user = userEvent.setup()
     const onCreateItem = vi.fn()
@@ -90,6 +103,7 @@ describe('BreakdownDetail', () => {
     const onUpdateBreakdown = vi.fn()
     renderDetail({ onUpdateBreakdown })
 
+    await user.click(screen.getByRole('button', { name: /^edit$/i }))
     const nameInput = screen.getByLabelText(/name/i)
     await user.clear(nameInput)
     await user.type(nameInput, 'Health')
@@ -107,6 +121,7 @@ describe('BreakdownDetail', () => {
     const onDeleteBreakdown = vi.fn()
     renderDetail({ onDeleteBreakdown })
 
+    await user.click(screen.getByRole('button', { name: /^edit$/i }))
     await user.click(screen.getByRole('button', { name: /delete breakdown/i }))
     // The confirm modal's Delete button.
     await user.click(screen.getByRole('button', { name: /^delete$/i }))

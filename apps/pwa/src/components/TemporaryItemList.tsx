@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { ActionIcon, Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { isTemporaryActive } from '@nest/plan'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
+import { EditDeleteActions } from './EditDeleteActions'
 import { GroupSection } from './GroupSection'
 import { TemporaryItemForm } from './TemporaryItemForm'
 
@@ -50,12 +50,7 @@ function TemporaryItemCard({
           <Text fw={700} size="sm">
             {formatCents(item.contribution_cents)}
           </Text>
-          <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
-            <IconPencil size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
-            <IconTrash size={16} />
-          </ActionIcon>
+          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
     </Card>

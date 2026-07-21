@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useMediaQuery } from '@mantine/hooks'
-import { ActionIcon, Badge, Box, Button, Card, Group, Stack, Text } from '@mantine/core'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { Badge, Box, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
 import type { Member } from '../hooks/useMembers'
@@ -9,6 +8,7 @@ import type { Inflow, InflowInput } from '../hooks/useInflows'
 import { formatCents } from '../lib/money'
 import { formatFrequency } from '../lib/frequency'
 import { toIncomeInput } from '../lib/tax'
+import { EditDeleteActions } from './EditDeleteActions'
 import { InflowForm } from './InflowForm'
 
 interface InflowListProps {
@@ -45,20 +45,6 @@ function memberOrTaxability(inflow: Inflow, memberName: (id: string) => string):
 function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): string {
   const type = inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
   return `${memberOrTaxability(inflow, memberName)} · ${type}`
-}
-
-/** The edit and delete controls shared by both the row and the card treatments. */
-function InflowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  return (
-    <>
-      <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
-        <IconPencil size={16} />
-      </ActionIcon>
-      <ActionIcon variant="subtle" color="red" aria-label="Delete" onClick={onDelete}>
-        <IconTrash size={16} />
-      </ActionIcon>
-    </>
-  )
 }
 
 /**
@@ -118,7 +104,7 @@ function InflowRow({
         </Text>
       </Group>
       <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-        <InflowActions onEdit={onEdit} onDelete={onDelete} />
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </Group>
   )
@@ -172,7 +158,7 @@ function InflowCard({
               / fn
             </Text>
           </Group>
-          <InflowActions onEdit={onEdit} onDelete={onDelete} />
+          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
     </Card>

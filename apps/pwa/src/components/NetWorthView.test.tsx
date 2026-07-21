@@ -75,6 +75,12 @@ describe('NetWorthView', () => {
     )
 
     const excluded = screen.getByRole('region', { name: 'Excluded from net worth' })
+    // The excluded group is collapsed by default; its subtotal shows in the
+    // header, but the accounts are revealed only once expanded.
+    const toggle = within(excluded).getByRole('button', { name: /excluded from net worth/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(within(excluded).getByText('Rainy day')).toBeInTheDocument()
     // Grand total counts only the included accounts: 125000 + 2000 dollars.
     const total = screen.getByRole('region', { name: 'Total net worth' })
@@ -98,6 +104,8 @@ describe('NetWorthView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Exclude Holiday saver from net worth' }))
     expect(onToggleExclude).toHaveBeenCalledWith('a3', true)
 
+    // The include control lives in the excluded group, collapsed by default.
+    fireEvent.click(screen.getByRole('button', { name: /excluded from net worth/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Include Rainy day in net worth' }))
     expect(onToggleExclude).toHaveBeenCalledWith('a4', false)
   })

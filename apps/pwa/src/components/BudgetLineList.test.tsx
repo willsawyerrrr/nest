@@ -300,15 +300,16 @@ describe('BudgetLineList', () => {
     ])
   })
 
-  it('renders a derived line as a read-only tap-through to its breakdown', () => {
+  it('renders a derived line with an edit pencil beside its breakdown chevron', () => {
     render(
       <MemoryRouter>
         <BudgetLineList
           lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
           goals={[]}
-          breakdowns={[{ id: 'b1', name: 'Gifts' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
+          onUpdateDerivedLine={vi.fn()}
           onDelete={vi.fn()}
         />
       </MemoryRouter>,
@@ -319,11 +320,108 @@ describe('BudgetLineList', () => {
       'href',
       '/breakdowns/b1',
     )
-    // The old breakdown chip is gone; the chevron is the only affordance.
+    // The breakdown chip is gone; the chevron and pencil are the affordances.
     expect(within(card).queryByText('Gifts')).not.toBeInTheDocument()
-    // A derived line is system-managed: no edit or delete controls.
-    expect(within(card).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+    // A derived line edits inline like a manual line, but never deletes from the budget.
+    expect(within(card).getByRole('button', { name: /edit/i })).toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
+  })
+
+  it('opens the derived-line editor with the amount locked and no frequency input', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[
+            line({
+              id: 'g',
+              line_group: 'wants',
+              name: 'Presents',
+              amount_cents: 12000,
+              frequency: 'annual',
+              breakdown_id: 'b1',
+            }),
+          ]}
+          goals={[]}
+          accounts={[{ id: 'acc1', name: 'Everyday' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onUpdateDerivedLine={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+
+    // The name seeds from the owning breakdown.
+    expect(screen.getByRole('textbox', { name: /name/i })).toHaveValue('Gifts')
+    // The amount is breakdown-owned: linked out, never an editable input.
+    expect(screen.queryByRole('spinbutton', { name: /amount/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /frequency/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /edit in breakdown/i })).toHaveAttribute(
+      'href',
+      '/breakdowns/b1',
+    )
+  })
+
+  it('offers only the account-funded groups when editing a derived line', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
+          goals={[]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onUpdateDerivedLine={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('combobox', { name: /group/i }))
+
+    expect(screen.getByRole('option', { name: 'Needs' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Discretionary' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Savings' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Investments' })).not.toBeInTheDocument()
+  })
+
+  it('saves a derived line’s name, group, and funding account', async () => {
+    const user = userEvent.setup()
+    const onUpdateDerivedLine = vi.fn().mockResolvedValue(undefined)
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
+          goals={[]}
+          accounts={[{ id: 'acc1', name: 'Everyday' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onUpdateDerivedLine={onUpdateDerivedLine}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+    const nameInput = screen.getByRole('textbox', { name: /name/i })
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Christmas gifts')
+    await user.click(screen.getByRole('combobox', { name: /funded from/i }))
+    await user.click(await screen.findByRole('option', { name: 'Everyday' }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(onUpdateDerivedLine).toHaveBeenCalledWith('g', {
+      name: 'Christmas gifts',
+      line_group: 'wants',
+      destination_account_id: 'acc1',
+    })
   })
 
   it('renders each line as a dense borderless row on desktop', () => {

@@ -159,6 +159,39 @@ describe('reconcileBreakdownLines', () => {
     expect(ops.update).toHaveLength(0)
   })
 
+  it('nulls the funding account of a line under a goal-routed breakdown', () => {
+    const b = breakdown({ id: 'g', name: 'Deposit', line_group: 'savings' })
+    const existing = line({
+      id: 'l1',
+      breakdown_id: 'g',
+      name: 'Deposit',
+      line_group: 'savings',
+      amount_cents: 120_00,
+      frequency: 'annual',
+      destination_account_id: 'acc1',
+    })
+    const ops = reconcileBreakdownLines([b], new Map([['g', 120_00]]), new Map([['g', 2]]), [
+      existing,
+    ])
+    expect(ops.update).toEqual([
+      {
+        id: 'l1',
+        input: {
+          line_group: 'savings',
+          name: 'Deposit',
+          amount_cents: 120_00,
+          frequency: 'annual',
+          interval_weeks: null,
+          goal_id: null,
+          breakdown_id: 'g',
+          destination_account_id: null,
+        },
+      },
+    ])
+    expect(ops.create).toHaveLength(0)
+    expect(ops.remove).toHaveLength(0)
+  })
+
   it('keeps an empty breakdown’s line when it carries routing', () => {
     const b = breakdown({ id: 'g' })
     const existing = line({ id: 'l1', breakdown_id: 'g', destination_account_id: 'acc1' })

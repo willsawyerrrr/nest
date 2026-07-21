@@ -63,12 +63,22 @@ export interface BreakdownLineOps {
   remove: string[]
 }
 
+/** Whether a group routes via a savings goal rather than a funding account (the DB CHECK bars a destination). */
+function groupRoutesViaGoal(group: Breakdown['line_group']): boolean {
+  return group === 'savings' || group === 'investments'
+}
+
 /** The derived-line fields a breakdown drives, preserving the line's routing and any goal link. */
 function derivedInput(
   breakdown: Breakdown,
   totalCents: number,
   line?: BudgetLine,
 ): BudgetLineInput {
+  // A goal-routed group carries no funding account, so a lingering destination
+  // is cleared to keep the DB CHECK satisfied when a breakdown moves to one.
+  const destinationAccountId = groupRoutesViaGoal(breakdown.line_group)
+    ? null
+    : (line?.destination_account_id ?? null)
   return {
     line_group: breakdown.line_group,
     name: breakdown.name,
@@ -77,7 +87,7 @@ function derivedInput(
     interval_weeks: null,
     goal_id: line?.goal_id ?? null,
     breakdown_id: breakdown.id,
-    destination_account_id: line?.destination_account_id ?? null,
+    destination_account_id: destinationAccountId,
   }
 }
 
@@ -88,7 +98,8 @@ function derivedInput(
  *
  * - A breakdown with items but no line yields a create.
  * - A breakdown whose line has drifted from its name, group, or rolled-up amount
- *   (or is not annual) yields an update, keeping the line's routing and goal link.
+ *   (or is not annual) yields an update, keeping the line's routing and goal link;
+ *   a line under a goal-routed group has its funding account cleared.
  * - A breakdown with no items whose line is empty yields a remove, unless the line
  *   carries a `destination_account_id`, in which case its routing is preserved and
  *   it is left in place.
@@ -112,7 +123,8 @@ export function reconcileBreakdownLines(
         line.name !== breakdown.name ||
         line.line_group !== breakdown.line_group ||
         line.frequency !== 'annual' ||
-        line.interval_weeks !== null
+        line.interval_weeks !== null ||
+        (groupRoutesViaGoal(breakdown.line_group) && line.destination_account_id !== null)
       ) {
         ops.update.push({ id: line.id, input: derivedInput(breakdown, total, line) })
       }

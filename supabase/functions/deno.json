@@ -13,7 +13,7 @@
   "tasks": {
     "fmt": "deno fmt",
     "lint": "deno lint",
-    "check": "deno check up-connect/index.ts up-disconnect/index.ts up-webhook/index.ts up-sync/index.ts up-sync/auth.ts _shared/up.ts changelog/index.ts changelog/changelog.ts",
+    "check": "deno check **/*.ts",
     "test": "deno test"
   }
 }

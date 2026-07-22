@@ -57,9 +57,9 @@ function GrantCard({
   const grossCents = grossVestedValueCents(planGrant, asOf)
   const exerciseCents = exerciseCostCents(planGrant, asOf)
   const netCents = grantValueCents(planGrant, asOf)
-  // Options carry a strike, so gross, exercise cost, and net all differ and are
-  // worth spelling out; a share grant's gross equals its net, so a single value
-  // is clearer.
+  // Options carry a strike, so gross vested value and exercise cost both differ
+  // from the net headline and are worth spelling out; a share grant's gross
+  // equals its net, so a single value is clearer.
   const hasStrike = grant.instrument_type === 'option'
   return (
     <Card withBorder radius="md" p="xs">
@@ -82,7 +82,7 @@ function GrantCard({
           {hasStrike && (
             <Text size="xs" c="dimmed">
               Vested value {formatCents(grossCents)} &middot; Exercise cost{' '}
-              {formatCents(exerciseCents)} &middot; Counts as {formatCents(netCents)}
+              {formatCents(exerciseCents)}
             </Text>
           )}
         </Stack>

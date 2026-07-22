@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Card, Group, Select, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { MoneyInput } from './MoneyInput'
 
 interface GoalFormProps {
   initial?: Goal
@@ -72,13 +73,9 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
-        <NumberInput
+        <MoneyInput
           label="Target amount"
           size="sm"
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
           min={0}
           hideControls
           value={targetAmount}
@@ -115,14 +112,10 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
         )}
 
         {linkedAccountId === null && (
-          <NumberInput
+          <MoneyInput
             label="Current balance"
             size="sm"
             description="Entered manually for now."
-            prefix="$"
-            thousandSeparator
-            decimalScale={2}
-            fixedDecimalScale
             min={0}
             hideControls
             value={currentBalance}

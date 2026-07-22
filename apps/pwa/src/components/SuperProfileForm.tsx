@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, NumberInput, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Card, Stack, Text, TextInput } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
 import { accruedBalanceCents } from '../lib/super'
+import { MoneyInput } from './MoneyInput'
 
 /** The values a super form submits for one member: fund name and the confirmed actual balance. */
 export interface SuperFormValues {
@@ -112,13 +113,9 @@ export function SuperProfileForm({
           onChange={(event) => setFundName(event.currentTarget.value)}
         />
 
-        <NumberInput
+        <MoneyInput
           label={isTrueUp ? 'Actual balance today' : 'Current balance'}
           size="sm"
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
           min={0}
           hideControls
           value={balance}

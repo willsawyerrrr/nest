@@ -6,6 +6,7 @@ import type { EquityGrantInput, EquityGrantRow } from '../hooks/useEquityGrants'
 import { EQUITY_INSTRUMENT_TYPES, VESTING_FREQUENCIES } from '../lib/equity'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSegmentedControl, EnumSelect } from './EnumSelect'
+import { MoneyInput } from './MoneyInput'
 
 interface EquityGrantFormProps {
   member: { id: string; name: string }
@@ -159,14 +160,10 @@ export function EquityGrantForm({ member, initial, onSubmit, onCancel }: EquityG
         />
 
         {isOption && (
-          <NumberInput
+          <MoneyInput
             label="Strike price"
             size="sm"
             description="Per-share exercise price."
-            prefix="$"
-            thousandSeparator
-            decimalScale={2}
-            fixedDecimalScale
             min={0}
             hideControls
             value={strikePrice}
@@ -174,14 +171,10 @@ export function EquityGrantForm({ member, initial, onSubmit, onCancel }: EquityG
           />
         )}
 
-        <NumberInput
+        <MoneyInput
           label="Price per share"
           size="sm"
           description="Current fair value per share (409A-equivalent), maintained by you."
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
           min={0}
           hideControls
           value={pricePerShare}

@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { MoneyInput } from './MoneyInput'
 
 interface TemporaryItemFormProps {
   initial?: TemporaryItem
@@ -57,14 +58,10 @@ export function TemporaryItemForm({ initial, onSubmit, onCancel }: TemporaryItem
           onChange={(event) => setName(event.currentTarget.value)}
         />
 
-        <NumberInput
+        <MoneyInput
           label="Contribution"
           size="sm"
           description="The fortnightly amount put toward this item."
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
           min={0}
           hideControls
           value={contribution}

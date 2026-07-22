@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, NumberInput, Stack, Text, Title } from '@mantine/core'
+import { Button, Card, Stack, Text, Title } from '@mantine/core'
 import type { HelpDebt, HelpDebtInput } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { MoneyInput } from './MoneyInput'
 
 interface HelpDebtScreenProps {
   members: Member[]
@@ -44,13 +45,9 @@ function MemberHelpDebtForm({
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
         <Text fw={600}>{member.name}</Text>
-        <NumberInput
+        <MoneyInput
           label="HELP debt"
           size="sm"
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
           min={0}
           hideControls
           value={balance}

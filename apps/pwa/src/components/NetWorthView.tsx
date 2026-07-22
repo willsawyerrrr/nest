@@ -146,9 +146,8 @@ export function NetWorthView({ accounts, superIds, onToggleExclude }: NetWorthVi
         </Title>
         {hasTogglable && (
           <Button
-            variant={editing ? 'filled' : 'subtle'}
-            size="compact-sm"
-            ml="auto"
+            variant={editing ? 'filled' : 'light'}
+            size="xs"
             leftSection={editing ? <IconCheck size={16} /> : <IconPencil size={16} />}
             onClick={toggleEditing}
           >

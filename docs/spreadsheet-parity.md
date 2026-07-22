@@ -89,7 +89,7 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
    that roll up into a single derived budget line via `budget_line.breakdown_id`;
    gifts are the first `kind = 'gift'` breakdown, generic breakdowns cover any
    other list (e.g. the "Spendings" scratch list, medications). See
-   [`breakdowns.md`](breakdowns.md) and [`ROADMAP.md`](ROADMAP.md).
+   [`breakdowns.md`](breakdowns.md) and [`roadmap.md`](roadmap.md).
 
 2. **Wishlist** — a per-member list of aspirational purchases (name + amount),
    separate from the budget, that can later graduate into a Discretionary line or

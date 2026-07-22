@@ -2,9 +2,9 @@
 
 Per-member superannuation modelling and the net-worth view it seeds. For the
 tax and projection **math** and the versioned per-FY config, see
-[`TAX.md`](TAX.md); for the schema (`super_profile`, `super_contribution`, the
+[`tax.md`](tax.md); for the schema (`super_profile`, `super_contribution`, the
 `exclude_from_net_worth` column, and the `account_directory` view) see
-[`DATA_MODEL.md`](DATA_MODEL.md#superannuation).
+[`data-model.md`](data-model.md#superannuation).
 
 Amounts are integer minor units (cents). The fortnight and financial year are the
 primary periods, as everywhere in the app.
@@ -33,7 +33,7 @@ Each member's card shows their concessional and non-concessional cap usage (the
 concessional cap includes their manual carry-forward), warns when either cap is
 exceeded, and estimates the government co-contribution when it applies. The caps,
 carry-forward, and co-contribution income test all come from the versioned per-FY
-config — see [`TAX.md`](TAX.md#super-contribution-caps-and-co-contribution).
+config — see [`tax.md`](tax.md#super-contribution-caps-and-co-contribution).
 
 ### Retirement projection
 
@@ -42,7 +42,7 @@ balance plus their net-of-15%-tax annual contribution (concessional and employer
 SG taxed in the fund; non-concessional and co-contribution untaxed) to
 retirement, showing the result in nominal and today's (real) dollars. The
 projection math is pure (`projectSuperBalance` in `@nest/plan` — see
-[`TAX.md`](TAX.md#retirement-projection)); the shared return / inflation / growth
+[`tax.md`](tax.md#retirement-projection)); the shared return / inflation / growth
 and retirement-age assumptions and each member's age are client-side inputs
 persisted in localStorage, not stored in the database.
 
@@ -52,7 +52,7 @@ The Net worth tab sums the `balance_cents` of every account the member can see
 (assets only; liabilities not modelled yet), split into Super vs Other accounts.
 A co-member's private spending / saver balances are excluded, so each member's
 total covers only balances they can see (the per-account balance-privacy model —
-see [`ARCHITECTURE.md`](ARCHITECTURE.md#security)).
+see [`architecture.md`](architecture.md#security)).
 
 Any account can be toggled out of the totals via its `exclude_from_net_worth`
 flag — a shared, household-wide setting (both partners' views drop it) that

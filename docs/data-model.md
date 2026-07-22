@@ -6,14 +6,14 @@ ending year. Row-Level Security is the isolation boundary: every table is scoped
 to a `household_id`, and a member sees or changes only rows in a household they
 belong to. On top of membership, `accounts` and `transactions` add per-account
 balance privacy — a co-member's own-account balance rows are not visible (see the
-security model in [`ARCHITECTURE.md`](ARCHITECTURE.md#security)). Cross-household
+security model in [`architecture.md`](architecture.md#security)). Cross-household
 references are additionally blocked by composite foreign keys on
 `(id, household_id)`.
 
 > The planning tables (inflows, budget lines, temporary items, savings goals)
 > are described from the user's perspective in
 > [`budget-and-savings.md`](budget-and-savings.md); tax inputs in
-> [`TAX.md`](TAX.md). The `supabase/migrations/` files are authoritative.
+> [`tax.md`](tax.md). The `supabase/migrations/` files are authoritative.
 
 ## Household & members
 
@@ -72,7 +72,7 @@ references are additionally blocked by composite foreign keys on
     `help_debt_cents` (HELP/HECS balance), `created_at`, `updated_at`.
   - Unique on `(member_id, financial_year)`.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
-  see [`TAX.md`](TAX.md).
+  see [`tax.md`](tax.md).
 
 ## Superannuation
 
@@ -230,7 +230,7 @@ tables are household-scoped under the ledger's RLS, with composite foreign keys 
 ## Ledger
 
 `accounts` is populated by the `up-sync` edge function for Up savers (see the Up
-integration in [`ARCHITECTURE.md`](ARCHITECTURE.md)); a savings goal links to one
+integration in [`architecture.md`](architecture.md)); a savings goal links to one
 via `savings_goal.linked_account_id`. `transactions` and `categories` exist as
 the target for transaction ingestion (Up Bank API + manual entry) but are not yet
 populated; spending-plan reconciliation against them is a later phase.

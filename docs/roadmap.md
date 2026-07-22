@@ -27,7 +27,7 @@ does not restate them.
 - CI split into parallel `check` / `test` / `rls` / `functions` jobs behind a
   `ci-status` aggregate (the single required `CI Status` check; under a minute),
   with sharded coverage gating and static import-sort / file-size gates — see
-  [`ARCHITECTURE.md`](ARCHITECTURE.md#ci).
+  [`architecture.md`](architecture.md#ci).
 - Household, members, and RLS isolation (schema + automated CI tests).
 - Onboarding + first-run gating; Google OAuth; partner join via a temporary,
   opt-in, single-use invite code (`create_invite_code` / `join_household` /
@@ -355,7 +355,7 @@ ledger's spend-side actual-tax-paid tracking in **Now**.
   Staged smallest-useful-first: manual entry + variance, then optional file
   attachment to a private Storage bucket, then OCR pre-fill.
 - **Touches.** No external API needed for manual entry — it's a
-  `Payslip`/`IncomeEvent` table (already sketched in `DATA_MODEL.md`) + a small
+  `Payslip`/`IncomeEvent` table (already sketched in `data-model.md`) + a small
   entry form, RLS, types, feeding the tax engine's `paygWithheldCents`. Automated
   capture (OCR of a PDF, or an email-forward parser) would need a parsing service
   and file storage (Supabase Storage) and is where the L cost lives.
@@ -408,7 +408,7 @@ ledger's spend-side actual-tax-paid tracking in **Now**.
   On-call and bill-due events depend on ideas 1 and 3.
 - **Feasibility / risks.** Adding Calendar scope re-triggers the OAuth consent
   screen and may complicate the published-consent-screen setup noted in
-  `ARCHITECTURE.md`. Idempotency matters — use stable event IDs so re-syncs
+  `architecture.md`. Idempotency matters — use stable event IDs so re-syncs
   update rather than duplicate. A read-only ICS feed the user subscribes to is a
   lighter-touch alternative that avoids write scopes entirely.
 
@@ -508,7 +508,7 @@ ledger's spend-side actual-tax-paid tracking in **Now**.
 - **Effort.** M — reporting SQL/views + chart screens. `@mantine/charts` +
   `recharts` are already in the stack (the Summary donut uses them).
 - **Touches.** Backend: reporting views (spend-vs-budget per category/period is
-  already named in `ARCHITECTURE.md` as intended derived reporting). Frontend: a
+  already named in `architecture.md` as intended derived reporting). Frontend: a
   Trends/Insights screen or tab. No external API.
 - **Dependencies.** **Ingestion** (needs actual spend to trend).
 - **Feasibility / risks.** Reconciling Up categories to the six household budget

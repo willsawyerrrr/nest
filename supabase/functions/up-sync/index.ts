@@ -80,10 +80,11 @@ Deno.serve(async (request) => {
       return data
     },
     listAccounts: (token) => new UpClient(token).listAccounts(),
+    // Balance lives in account_balance, split out of accounts. A single
+    // SECURITY DEFINER RPC upserts identity (on source,external_id) and balance
+    // (on account_id) atomically, so the two never diverge across a sync.
     upsertAccounts: async (rows: AccountRow[]) => {
-      const { error } = await supabase
-        .from('accounts')
-        .upsert(rows, { onConflict: 'source,external_id' })
+      const { error } = await supabase.rpc('upsert_up_accounts', { rows })
       if (error) throw new Error(`Failed to upsert accounts: ${error.message}`)
     },
   }, householdId)

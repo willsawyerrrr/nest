@@ -291,31 +291,51 @@ via `savings_goal.linked_account_id`. `transactions` and `categories` exist as
 the target for transaction ingestion (Up Bank API + manual entry) but are not yet
 populated; spending-plan reconciliation against them is a later phase.
 
-- **accounts** — a bank or savings account.
+- **accounts** — an identity-only bank or savings account; its balance lives in
+  `account_balance`.
   - `id`, `household_id`, `owner_member_id` (nullable = joint), `name`,
     `type` (`transaction` | `savings` | `credit` | `offset` | `other`),
-    `source` (`up` | `manual`), `external_id`, `balance_cents`,
+    `source` (`up` | `manual`), `external_id`,
     `currency` (default `AUD`), `exclude_from_net_worth` (default `false` — a
     shared, household-wide flag that drops the account from net-worth totals
     only, leaving retirement projection and budgeting untouched), `created_at`,
     `updated_at`.
-  - `up-sync` upserts Up accounts on conflict `(source, external_id)`, so a
-    saver's `balance_cents` stays current; a linked savings goal reads its balance
-    from here. `service_role` holds `select`/`insert`/`update` for that upsert.
-  - **Balance privacy.** RLS returns the full row (including `balance_cents`) only
-    for shared/joint accounts (`owner_member_id` null), the caller's own accounts,
-    and household super accounts (those linked from a `super_profile`); a
-    co-member's individual spending account and savers are excluded, so their
-    balance is never returned. Inserts and updates are limited to shared or
-    self-owned accounts.
+  - **Identity privacy.** SELECT spans both account surfaces' rules: a member
+    reads the identity of shared/joint accounts (`owner_member_id` null), their
+    own accounts, any member's `transaction` account (so a co-member's spending
+    can be named for routing), and any household super account (retirement stays
+    joint). A co-member's plain saver stays invisible. Inserts, updates, and
+    deletes are limited to shared or self-owned rows. No balance column: a balance
+    write goes through `account_balance`, gated separately.
+- **account_balance** — one balance per account, keyed 1:1 by `account_id`
+  (`on delete cascade`, plus a composite FK `(account_id, household_id)` →
+  `accounts`).
+  - `account_id`, `household_id`, `balance_cents` (bigint), `updated_at`.
+  - Split out of `accounts` so the identity surface needs no SECURITY DEFINER
+    view. `up-sync` keeps a saver's balance current; a linked savings goal reads
+    its balance from here.
+  - **Balance privacy.** RLS returns a balance only for the balance-visible set —
+    shared/joint accounts, the caller's own, and household super accounts (those
+    linked from a `super_profile`), identical to the `transactions` gate
+    (`visible_balance_account_ids()`); a co-member's spending and savers are
+    excluded, so their balance is never returned. `authenticated` holds
+    `select`/`insert`/`update`/`delete`; `service_role` holds
+    `select`/`insert`/`update` for the sync.
 - **account_directory** (view) — an identity-only surface over `accounts` for
   budgeting and splits: `id`, `household_id`, `owner_member_id`, `name`, `type`,
-  `source` — never `balance_cents`. It carries shared accounts, the caller's own
+  `source` — never a balance. It carries shared accounts, the caller's own
   accounts, and any member's `transaction` account, so a co-member's spending
   account can be named as a budget-line funding destination and summed into the
-  pay split without exposing its balance; a co-member's savers and other
-  individual accounts are absent. A definer's-rights view (`security_invoker =
-  off`).
+  pay split without exposing its balance; a co-member's savers and super accounts
+  are absent. A plain invoker view (`security_invoker = on`): it reads under the
+  caller's own `accounts` RLS, then narrows to the directory rule.
+- **accounts_with_balance** (view) — account identity joined to its balance for
+  the balance-visible set (shared, own, and household super accounts), exposing
+  the account columns plus `balance_cents`. A plain invoker view
+  (`security_invoker = on`): the `accounts` and `account_balance` policies both
+  apply, and the inner join yields a row only where identity and balance are both
+  visible, so a co-member's spending or saver balance never appears. Net worth,
+  goal balances, and super balances read from here.
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
     `category_id` (nullable), `posted_at`, `amount_cents` (signed, negative =
@@ -366,8 +386,8 @@ not-yet-member can act past RLS in the narrow ways allowed:
   `visible_balance_account_ids()` — the SECURITY DEFINER helpers behind per-account
   balance privacy: the caller's member ids, the household's super-linked account
   ids, and the account ids whose balance the caller may see (shared, own, or
-  super) — the last gating the `transactions` policies without recursing through
-  the `accounts` policies.
+  super) — the last gating the `account_balance` and `transactions` policies
+  without recursing through the `accounts` policies.
 - `hidden_gift_budget_ids_for_current_member()` — the SECURITY DEFINER helper
   behind private gifts: the gift-budget ids whose recipient is linked to one of
   the caller's members, gating the `gift_purchase` policies so a member never sees
@@ -383,6 +403,10 @@ Vault:
   sync only).
 - `clear_up_token(member_id)` — delete the Vault secret and null
   `up_connected_at`.
+- `upsert_up_accounts(rows jsonb)` — the `up-sync` dual-write: for each row,
+  upserts the account identity into `accounts` (on `(source, external_id)`) and
+  its balance into `account_balance` (on `account_id`) in one transaction, so
+  identity and balance never diverge.
 
 ## Derived / computed (not stored)
 

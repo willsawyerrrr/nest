@@ -11,19 +11,21 @@ interface UseSaveSuperProfileParams {
   profiles: SuperProfile[] | null
   insertAccount: UseAccountsResult['insert']
   updateAccount: UseAccountsResult['update']
+  upsertBalance: UseAccountsResult['upsertBalance']
   upsertProfile: UseSuperProfilesResult['upsert']
 }
 
 /**
  * Composes the super-profile and account collections into a single member save:
- * writes the balance to the member's linked account (or creates a manual one and
- * links it), then upserts the profile's fund name, re-confirming the balance as
- * of today.
+ * writes the identity to the member's linked account (or creates a manual one and
+ * links it), upserts its balance into `account_balance`, then upserts the
+ * profile's fund name, re-confirming the balance as of today.
  */
 export function useSaveSuperProfile({
   profiles,
   insertAccount,
   updateAccount,
+  upsertBalance,
   upsertProfile,
 }: UseSaveSuperProfileParams): (member: Member, values: SuperFormValues) => Promise<void> {
   return useCallback(
@@ -33,16 +35,16 @@ export function useSaveSuperProfile({
       const name = superAccountName(fundName, member.name)
       let accountId = profile?.linked_account_id ?? null
       if (accountId) {
-        await updateAccount(accountId, { balance_cents: values.balanceCents, name })
+        await updateAccount(accountId, { name })
       } else {
         accountId = await insertAccount({
           source: 'manual',
           type: 'savings',
           owner_member_id: member.id,
           name,
-          balance_cents: values.balanceCents,
         })
       }
+      await upsertBalance(accountId, values.balanceCents)
       await upsertProfile({
         member_id: member.id,
         fund_name: fundName,
@@ -51,6 +53,6 @@ export function useSaveSuperProfile({
         balance_as_of: todayIso(),
       })
     },
-    [profiles, insertAccount, updateAccount, upsertProfile],
+    [profiles, insertAccount, updateAccount, upsertBalance, upsertProfile],
   )
 }

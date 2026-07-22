@@ -7,7 +7,7 @@ const { builder } = vi.hoisted(() => {
   const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
     result: { data: [], error: null },
   } as never
-  for (const method of ['select', 'insert', 'update', 'eq', 'order', 'single']) {
+  for (const method of ['select', 'insert', 'update', 'upsert', 'eq', 'order', 'single']) {
     b[method] = vi.fn(() => b)
   }
   b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
@@ -41,7 +41,6 @@ describe('useAccounts', () => {
         type: 'savings',
         owner_member_id: 'm1',
         name: 'Will Super',
-        balance_cents: 1000,
       })
     })
     expect(inserted).toBe('newacc')
@@ -51,13 +50,27 @@ describe('useAccounts', () => {
 
     builder.result = { data: [makeSaver()], error: null }
     await act(async () => {
-      await result.current.update('a1', { balance_cents: 5 })
+      await result.current.update('a1', { name: 'Renamed' })
     })
-    expect(builder.update).toHaveBeenCalledWith({ balance_cents: 5 })
+    expect(builder.update).toHaveBeenCalledWith({ name: 'Renamed' })
     expect(builder.eq).toHaveBeenCalledWith('id', 'a1')
   })
 
-  it('propagates load, insert, and update errors', async () => {
+  it('upserts a balance into account_balance keyed on the account id', async () => {
+    const { result } = renderHook(() => useAccounts('h1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    builder.result = { data: null, error: null }
+    await act(async () => {
+      await result.current.upsertBalance('a1', 1234)
+    })
+    expect(builder.upsert).toHaveBeenCalledWith(
+      { account_id: 'a1', household_id: 'h1', balance_cents: 1234 },
+      { onConflict: 'account_id' },
+    )
+  })
+
+  it('propagates load, insert, update, and balance errors', async () => {
     const { result } = renderHook(() => useAccounts('h1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -68,9 +81,9 @@ describe('useAccounts', () => {
         source: 'manual',
         type: 'savings',
         name: 'x',
-        balance_cents: 0,
       }),
     ).rejects.toThrow('boom')
     await expect(result.current.update('a1', {})).rejects.toThrow('boom')
+    await expect(result.current.upsertBalance('a1', 0)).rejects.toThrow('boom')
   })
 })

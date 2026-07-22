@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
+import type { Account } from './useAccounts'
 
-export type Saver = Tables<'accounts'>
+export type Saver = Account
 
 export interface UseSaversResult {
   savers: Saver[] | null
@@ -20,7 +20,7 @@ export function useSavers(): UseSaversResult {
 
   const reload = useCallback(async () => {
     const { data, error } = await supabase
-      .from('accounts')
+      .from('accounts_with_balance')
       .select('*')
       .eq('source', 'up')
       .eq('type', 'savings')

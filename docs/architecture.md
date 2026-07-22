@@ -100,9 +100,12 @@ is CRUD over RLS.
   member's JWT; an hourly `pg_cron` job (`up-sync-hourly`) calls it through
   `pg_net` with the service-role key as a backstop. The schedule reads its
   invocation URL/key from Vault at run time and is guarded on both extensions, so
-  it no-ops where they are absent. Upserts dedupe on `(source, external_id)`.
+  it no-ops where they are absent. Sync writes go through the
+  `upsert_up_accounts` RPC, which upserts each account's identity (dedupe on
+  `(source, external_id)`) and its balance (on `account_id`) in one transaction.
 - A goal links to a synced saver via `savings_goal.linked_account_id`; a linked
-  goal's current balance comes from that account's `balance_cents`.
+  goal's current balance comes from that account's balance in `account_balance`
+  (read via the `accounts_with_balance` view).
 - Each member links their own token; accounts are attributed to that member
   (joint accounts left owner-null) in the shared household ledger.
 - Reference: <https://developer.up.com.au/>
@@ -111,10 +114,14 @@ is CRUD over RLS.
 
 - **RLS is the security boundary.** Policies grant access when `auth.uid()` maps
   to a member of the row's household; joint vs owner-scoped rows handled in
-  policy. `accounts` and `transactions` add per-account balance privacy on top — a
-  member sees a balance and its transactions only for shared, own, or household
-  super accounts, with a co-member's spending account exposed by name (no balance)
-  through the `account_directory` view. Tested deliberately (pgTAP / integration
+  policy. Balances live in `account_balance` (split out of the identity table so
+  the account surfaces need no SECURITY DEFINER view) and, with `transactions`,
+  add per-account balance privacy on top: a member sees a balance and its
+  transactions only for shared, own, or household super accounts, gated by
+  `visible_balance_account_ids()`. A co-member's spending account is exposed by
+  name (no balance) through the `account_directory` view; both it and
+  `accounts_with_balance` are plain invoker views (`security_invoker = on`), so no
+  view reads past the caller's RLS. Tested deliberately (pgTAP / integration
   tests), not by inspection.
 - Up tokens and webhook secrets encrypted at rest (Vault).
 

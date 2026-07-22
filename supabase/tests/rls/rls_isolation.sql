@@ -282,12 +282,26 @@ do $$ begin
   assert (select count(*) from public.members) >= 1,
     'service_role should select from members';
 end $$;
-insert into public.accounts (household_id, name, source, external_id)
-  values (current_setting('test.hid')::uuid, 'Up Everyday', 'up', 'up-acct-demo');
-update public.accounts set balance_cents = 500_00 where external_id = 'up-acct-demo';
+-- up-sync dual-writes identity and balance through the upsert_up_accounts RPC
+-- (SECURITY DEFINER, service_role only); one call upserts both tables atomically.
+select public.upsert_up_accounts(jsonb_build_array(jsonb_build_object(
+  'household_id', current_setting('test.hid'),
+  'owner_member_id', null,
+  'name', 'Up Everyday',
+  'type', 'transaction',
+  'source', 'up',
+  'external_id', 'up-acct-demo',
+  'currency', 'AUD',
+  'balance_cents', 500_00
+)));
 do $$ begin
-  assert (select balance_cents from public.accounts where external_id = 'up-acct-demo') = 500_00,
-    'service_role should insert into and update accounts';
+  assert (
+    select b.balance_cents
+    from public.account_balance b
+    join public.accounts a on a.id = b.account_id
+    where a.external_id = 'up-acct-demo'
+  ) = 500_00,
+    'service_role upsert_up_accounts writes the account identity and its balance';
 end $$;
 rollback to savepoint svc_grants;
 reset role;
@@ -557,6 +571,12 @@ insert into public.accounts (household_id, owner_member_id, name, type)
   returning id as priv_alice_spending \gset
 select set_config('test.priv_alice_spending', :'priv_alice_spending', false);
 
+-- Balances live in account_balance now; Alice records hers for the two accounts
+-- she owns/shares (both in her balance-visible set).
+insert into public.account_balance (account_id, household_id, balance_cents) values
+  (current_setting('test.priv_shared')::uuid, current_setting('test.priv_hid')::uuid, 100_00),
+  (current_setting('test.priv_alice_spending')::uuid, current_setting('test.priv_hid')::uuid, 200_00);
+
 insert into public.transactions (household_id, account_id, posted_at, amount_cents, kind)
   values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_shared')::uuid, now(), -50_00, 'expense');
 
@@ -579,30 +599,65 @@ insert into public.accounts (household_id, owner_member_id, name, type)
   returning id as priv_bob_super \gset
 select set_config('test.priv_bob_super', :'priv_bob_super', false);
 
+-- Bob records balances for the three accounts he owns (all in his balance-visible
+-- set), so the privacy checks below read real values rather than absent rows.
+insert into public.account_balance (account_id, household_id, balance_cents) values
+  (current_setting('test.priv_bob_spending')::uuid, current_setting('test.priv_hid')::uuid, 300_00),
+  (current_setting('test.priv_bob_saver')::uuid, current_setting('test.priv_hid')::uuid, 400_00),
+  (current_setting('test.priv_bob_super')::uuid, current_setting('test.priv_hid')::uuid, 500_00);
+
 insert into public.super_profile (household_id, member_id, financial_year, fund_name, linked_account_id)
   values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 2027, 'AustralianSuper', current_setting('test.priv_bob_super')::uuid);
 
 insert into public.transactions (household_id, account_id, posted_at, amount_cents, kind)
   values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_spending')::uuid, now(), -25_00, 'expense');
 
--- 1. Alice reads `public.accounts`: shared, her own spending, and Bob's super
--- (super stays mutually visible) — but never Bob's private spending or saver.
+-- 1. Identity vs balance now live in different surfaces. Alice's *identity*
+-- surface (`public.accounts`) names shared, her own spending, Bob's spending
+-- (transaction, for routing), and Bob's super (retirement stays joint) — but
+-- never Bob's private saver, and it carries no balance column at all.
 select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
 do $$
 declare v_hid uuid := current_setting('test.priv_hid')::uuid;
 begin
-  assert (select count(*) from public.accounts where household_id = v_hid) = 3,
-    'Alice should see exactly 3 accounts: shared, her own spending, and Bob''s super';
+  assert (select count(*) from public.accounts where household_id = v_hid) = 4,
+    'Alice should see 4 account identities: shared, her spending, Bob''s spending, Bob''s super';
   assert exists (select 1 from public.accounts where id = current_setting('test.priv_shared')::uuid),
-    'Alice should see the shared account';
+    'Alice should see the shared account identity';
   assert exists (select 1 from public.accounts where id = current_setting('test.priv_alice_spending')::uuid),
-    'Alice should see her own spending account';
+    'Alice should see her own spending account identity';
+  assert exists (select 1 from public.accounts where id = current_setting('test.priv_bob_spending')::uuid),
+    'Alice should see Bob''s spending identity (transaction, for routing)';
   assert exists (select 1 from public.accounts where id = current_setting('test.priv_bob_super')::uuid),
-    'Alice should see Bob''s super account (super stays mutually visible)';
-  assert not exists (select 1 from public.accounts where id = current_setting('test.priv_bob_spending')::uuid),
-    'Alice must not see Bob''s private spending account';
+    'Alice should see Bob''s super identity (retirement stays joint)';
   assert not exists (select 1 from public.accounts where id = current_setting('test.priv_bob_saver')::uuid),
     'Alice must not see Bob''s private saver';
+  assert not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'accounts' and column_name = 'balance_cents'),
+    'accounts must carry no balance column after the split';
+end $$;
+
+-- 1b. Alice's *balance* surface (`accounts_with_balance` / `account_balance`) is
+-- the balance-visible set: shared, her own, and Bob's super — never Bob's
+-- spending or saver balance.
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+begin
+  assert (select count(*) from public.accounts_with_balance where household_id = v_hid) = 3,
+    'Alice''s balance surface should be shared, her spending, and Bob''s super';
+  assert (select count(*) from public.account_balance where household_id = v_hid) = 3,
+    'Alice should read exactly 3 balances';
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_shared')::uuid),
+    'Alice should see the shared balance';
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_alice_spending')::uuid),
+    'Alice should see her own balance';
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_bob_super')::uuid),
+    'Alice should see Bob''s super balance (retirement stays joint)';
+  assert not exists (select 1 from public.account_balance where account_id = current_setting('test.priv_bob_spending')::uuid),
+    'Alice must not read Bob''s spending balance';
+  assert not exists (select 1 from public.account_balance where account_id = current_setting('test.priv_bob_saver')::uuid),
+    'Alice must not read Bob''s saver balance';
 end $$;
 
 -- 2. Alice reads `public.transactions`: the shared-account transaction, but not
@@ -642,36 +697,54 @@ begin
     'account_directory must expose no balance column';
 end $$;
 
--- 4. Alice cannot update Bob's private spending account: the row fails the update
--- policy's USING clause, so it is silently invisible — the update matches 0 rows
--- and update ... returning reads no balance.
+-- 4. Alice cannot update Bob's private spending balance: the row fails the
+-- account_balance update policy's USING clause, so it is silently invisible — the
+-- update matches 0 rows and update ... returning reads no balance.
 do $$
 declare
   v_balance bigint;
   v_count int;
 begin
-  update public.accounts set balance_cents = 999_00
-    where id = current_setting('test.priv_bob_spending')::uuid
+  update public.account_balance set balance_cents = 999_00
+    where account_id = current_setting('test.priv_bob_spending')::uuid
     returning balance_cents into v_balance;
   get diagnostics v_count = row_count;
-  assert v_count = 0, 'Alice''s update must match 0 of Bob''s private accounts';
+  assert v_count = 0, 'Alice''s update must match 0 of Bob''s private balances';
   assert v_balance is null, 'Alice must not read Bob''s balance via update ... returning';
 end $$;
 
--- 5. Symmetry: acting as Bob, he cannot see Alice's private spending account, but
--- does see the shared account and his own accounts.
+-- 5. Symmetry: acting as Bob, he cannot read Alice's private spending balance, but
+-- does see the shared balance and his own balances. His balance-visible set is
+-- shared, own spending, own saver, and own super.
 select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
 do $$
 declare v_hid uuid := current_setting('test.priv_hid')::uuid;
 begin
-  assert not exists (select 1 from public.accounts where id = current_setting('test.priv_alice_spending')::uuid),
-    'Bob must not see Alice''s private spending account';
-  assert exists (select 1 from public.accounts where id = current_setting('test.priv_shared')::uuid),
-    'Bob should see the shared account';
-  assert exists (select 1 from public.accounts where id = current_setting('test.priv_bob_super')::uuid),
-    'Bob should see his own super account';
-  assert (select count(*) from public.accounts where household_id = v_hid) = 4,
-    'Bob should see his 4 balance-visible accounts: shared, own spending, own saver, own super';
+  assert not exists (select 1 from public.account_balance where account_id = current_setting('test.priv_alice_spending')::uuid),
+    'Bob must not read Alice''s private spending balance';
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_shared')::uuid),
+    'Bob should see the shared balance';
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_bob_super')::uuid),
+    'Bob should see his own super balance';
+  assert (select count(*) from public.accounts_with_balance where household_id = v_hid) = 4,
+    'Bob''s balance-visible set: shared, own spending, own saver, own super';
+  assert (select count(*) from public.account_balance where household_id = v_hid) = 4,
+    'Bob should read exactly 4 balances';
+end $$;
+
+-- 6. No SECURITY DEFINER view remains anywhere in the public schema: every view
+-- is security_invoker = on, so no view reads past the caller's RLS. A view with
+-- the option absent or set off would reintroduce the boundary bypass the split
+-- removes.
+do $$
+declare v_bad text;
+begin
+  select string_agg(c.relname, ', ') into v_bad
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'v'
+    and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=on%';
+  assert v_bad is null, format('views missing security_invoker=on: %s', v_bad);
 end $$;
 
 -- ── Private gift purchases within a household ────────────────────────────────

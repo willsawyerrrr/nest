@@ -28,9 +28,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_balance: {
+        Row: {
+          account_id: string
+          balance_cents: number
+          household_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          balance_cents?: number
+          household_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          balance_cents?: number
+          household_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'account_balance_account_id_fkey'
+            columns: ['account_id']
+            isOneToOne: true
+            referencedRelation: 'accounts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'account_balance_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       accounts: {
         Row: {
-          balance_cents: number
           created_at: string
           currency: string
           exclude_from_net_worth: boolean
@@ -44,7 +79,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          balance_cents?: number
           created_at?: string
           currency?: string
           exclude_from_net_worth?: boolean
@@ -58,7 +92,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          balance_cents?: number
           created_at?: string
           currency?: string
           exclude_from_net_worth?: boolean
@@ -1150,6 +1183,38 @@ export type Database = {
         }
         Relationships: []
       }
+      accounts_with_balance: {
+        Row: {
+          balance_cents: number
+          created_at: string
+          currency: string
+          exclude_from_net_worth: boolean
+          external_id: string | null
+          household_id: string
+          id: string
+          name: string
+          owner_member_id: string | null
+          source: Database['public']['Enums']['ledger_source']
+          type: Database['public']['Enums']['account_type']
+          updated_at: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'accounts_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'accounts_owner_member_id_household_id_fkey'
+            columns: ['owner_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
     }
     Functions: {
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
@@ -1179,6 +1244,7 @@ export type Database = {
         Returns: undefined
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
+      upsert_up_accounts: { Args: { rows: Json }; Returns: undefined }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'

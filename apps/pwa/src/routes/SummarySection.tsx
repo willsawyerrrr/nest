@@ -56,9 +56,12 @@ export function SummarySection({ householdId }: { householdId: string }) {
       budgetLines: budgetLines.lines ?? [],
       breakdownTotals: totals,
       temporaryItems: temporaryItems.items ?? [],
+      // The salary-sacrifice total is currently just the net concessional
+      // super, and is the bucket other pre-tax sacrifices (e.g. a novated
+      // lease) will add into.
+      salarySacrificeAnnualCents: estimate.annualNetConcessionalSuperCents,
       // The pre-tax "Tax" slice is income tax and levies plus the 15% super
       // contributions tax (the gross concessional less what nets into the fund).
-      netConcessionalSuperAnnualCents: estimate.annualNetConcessionalSuperCents,
       taxAnnualCents:
         estimate.annualTaxCents +
         (estimate.annualConcessionalContributionsCents - estimate.annualNetConcessionalSuperCents),

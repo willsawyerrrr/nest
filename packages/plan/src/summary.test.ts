@@ -99,20 +99,20 @@ describe('summarise', () => {
     expect(summary.groups.temporary.portion).toBeCloseTo(100_00 / 4_815_38, 6)
   })
 
-  it('derives the gross-basis tax and net-super slices from the supplied annuals', () => {
+  it('derives the gross-basis tax and salary-sacrifice slices from the supplied annuals', () => {
     const withGross = summarise(
-      { ...HOUSEHOLD, taxAnnualCents: 39_000_00, netConcessionalSuperAnnualCents: 13_000_00 },
+      { ...HOUSEHOLD, taxAnnualCents: 39_000_00, salarySacrificeAnnualCents: 13_000_00 },
       NOW,
     )
     expect(withGross.tax.annualCents).toBe(39_000_00)
     expect(withGross.tax.fortnightlyCents).toBe(Math.round(39_000_00 / 26))
-    expect(withGross.superSaved.annualCents).toBe(13_000_00)
-    expect(withGross.superSaved.fortnightlyCents).toBe(Math.round(13_000_00 / 26))
+    expect(withGross.salarySacrifice.annualCents).toBe(13_000_00)
+    expect(withGross.salarySacrifice.fortnightlyCents).toBe(Math.round(13_000_00 / 26))
   })
 
-  it('yields zero tax and net super when those inputs are omitted', () => {
+  it('yields zero tax and salary sacrifice when those inputs are omitted', () => {
     expect(summary.tax).toEqual({ fortnightlyCents: 0, annualCents: 0 })
-    expect(summary.superSaved).toEqual({ fortnightlyCents: 0, annualCents: 0 })
+    expect(summary.salarySacrifice).toEqual({ fortnightlyCents: 0, annualCents: 0 })
   })
 
   it('guards portion against divide-by-zero when nothing is available', () => {

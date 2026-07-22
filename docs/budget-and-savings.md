@@ -132,18 +132,20 @@ The allocation donut leading the dashboard can be viewed on a **take-home
 device). Take-home is the default: the budget-group and buffer slices as shares
 of Available — what the household does with each pay once it lands. Gross keeps
 those same slices but prepends a **Tax** slice (income tax and levies, including
-the 15% super contributions tax) and a **Salary-sacrifice super** slice (the net
-concessional super landing in the fund), so the donut sums to gross income —
-where every gross dollar goes before the household is paid. The slices keep the
+the 15% super contributions tax) and a **Salary sacrifice** slice (the
+household's total pre-tax amounts sacrificed from pay — currently just the net
+concessional super landing in the fund, but extensible to other sacrifices such
+as a novated lease), so the donut sums to gross income — where every gross dollar
+goes before the household is paid. The slices keep the
 same fortnightly values in both modes; only the percentage denominator changes
 (Available in take-home, the gross basis in gross), and the ledger and donut
 share it so their percentages agree.
 
 The basis also drives the stat tiles and the reconciliation ledger. Take-home
 shows the three Income / Outgoing / Remaining tiles and a ledger that runs from
-Available down through the groups to the buffer. Gross adds a Gross / Tax / Super
-row of tiles above those three, and leads the ledger with a **Gross** subtotal
-and the **Tax** and **Salary-sacrifice super** deductions before Available
+Available down through the groups to the buffer. Gross adds a Gross / Tax /
+Salary sacrifice row of tiles above those three, and leads the ledger with a
+**Gross** subtotal and the **Tax** and **Salary sacrifice** deductions before Available
 (itself then read as after-tax, after-super cash); everything from Available
 downward is identical in both modes.
 

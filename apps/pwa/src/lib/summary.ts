@@ -15,8 +15,12 @@ export interface SummarySources {
   temporaryItems: TemporaryItem[]
   /** Annual income tax and levies (including the 15% super contributions tax) for the gross-basis view. */
   taxAnnualCents?: number
-  /** Annual net salary-sacrifice super (after the 15% contributions tax) for the gross-basis view. */
-  netConcessionalSuperAnnualCents?: number
+  /**
+   * Total salary sacrifice for the year (currently the net concessional super,
+   * from the tax estimate; extensible to other pre-tax sacrifices), for the
+   * gross-basis view.
+   */
+  salarySacrificeAnnualCents?: number
 }
 
 /**
@@ -32,12 +36,12 @@ export function toSummaryInput({
   breakdownTotals,
   temporaryItems,
   taxAnnualCents = 0,
-  netConcessionalSuperAnnualCents = 0,
+  salarySacrificeAnnualCents = 0,
 }: SummarySources): SummaryInput {
   return {
     afterTaxIncomeAnnualCents,
     taxAnnualCents,
-    netConcessionalSuperAnnualCents,
+    salarySacrificeAnnualCents,
     nonTaxableInflows: inflows
       .filter((inflow) => !inflow.taxable)
       .map((inflow) => ({

@@ -237,7 +237,18 @@ recipient is a household member (see **Private gifts** below).
   - `member_id`, when set, links the recipient to a household member: the
     recipient *is* that member, and their gift purchases are hidden from them.
     Null is an external person, fully shared. Composite foreign key
-    `(member_id, household_id)` → `members` `on delete set null (member_id)`.
+    `(member_id, household_id)` → `members` `on delete cascade`, and a partial
+    unique index on `(household_id, member_id) where member_id is not null` keeps
+    it one recipient per member.
+  - **Every household member is a permanent recipient.** An AFTER INSERT trigger
+    on `members` (`add_member_gift_recipient`, `SECURITY DEFINER` so it bypasses
+    the insert RLS on whichever path added the member) auto-creates the member's
+    recipient, and the `on delete cascade` FK removes it with the member — a
+    member recipient exists iff the member does. A `BEFORE UPDATE` guard
+    (`prevent_member_recipient_edit`) rejects edits to any recipient with a
+    non-null `member_id`, so a member recipient is never renamed or relinked;
+    DELETE is left unguarded so the cascade can fire. Adding a recipient by hand
+    is therefore for external people only.
 - **gift_occasion** — a named gifting occasion with an optional date.
   - `id`, `household_id`, `name`, `occasion_date` (nullable), `created_at`,
     `updated_at`. Unique on `(id, household_id)`. Recurrence/year-scoping is out

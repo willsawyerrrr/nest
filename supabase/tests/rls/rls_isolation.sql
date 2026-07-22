@@ -153,7 +153,7 @@ end $$;
 -- line rolls up the gift tracker.
 insert into public.gift_recipient (household_id, name)
   values (current_setting('test.hid')::uuid, 'Mum');
-select id as rid from public.gift_recipient limit 1 \gset
+select id as rid from public.gift_recipient where name = 'Mum' limit 1 \gset
 select set_config('test.rid', :'rid', false);
 
 insert into public.gift_occasion (household_id, name, occasion_date)
@@ -178,7 +178,8 @@ insert into public.budget_line (household_id, line_group, name, amount_cents, fr
   values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', current_setting('test.gbdid')::uuid, current_setting('test.aid')::uuid);
 
 do $$ begin
-  assert (select count(*) from public.gift_recipient) = 1, 'Alice should see her gift recipient';
+  assert (select count(*) from public.gift_recipient) = 2,
+    'Alice should see her gift recipient plus her own auto-created member recipient';
   assert (select count(*) from public.gift_occasion) = 1, 'Alice should see her gift occasion';
   assert (select count(*) from public.gift_budget) = 1, 'Alice should see her gift budget';
   assert (select count(*) from public.gift_budget
@@ -194,6 +195,41 @@ do $$ begin
   assert (select destination_account_id from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid)
     = current_setting('test.aid')::uuid,
     'Alice''s gift budget line should route to her own account';
+end $$;
+
+-- Household members are permanent gift recipients. The AFTER INSERT trigger on
+-- members auto-created exactly one member-linked recipient for Alice when her
+-- household was created; it cannot be edited (the guard trigger rejects the
+-- update) and the partial unique index blocks a second recipient for her member.
+-- An external recipient (Mum) stays freely editable.
+do $$ begin
+  assert (select count(*) from public.gift_recipient
+    where member_id = current_setting('test.mid')::uuid) = 1,
+    'Alice''s member should have exactly one auto-created gift recipient';
+end $$;
+
+do $$ begin
+  update public.gift_recipient set name = 'Hacked'
+    where member_id = current_setting('test.mid')::uuid;
+  raise exception 'FAIL: a member gift recipient was edited';
+exception when others then
+  if sqlerrm = 'Member gift recipients are managed automatically and cannot be edited' then
+    raise notice 'PASS: member gift recipient cannot be edited';
+  else raise; end if;
+end $$;
+
+do $$ begin
+  update public.gift_recipient set name = 'Mummy' where id = current_setting('test.rid')::uuid;
+  assert (select name from public.gift_recipient where id = current_setting('test.rid')::uuid) = 'Mummy',
+    'an external gift recipient should stay editable';
+end $$;
+
+do $$ begin
+  insert into public.gift_recipient (household_id, member_id, name)
+    values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'Dup');
+  raise exception 'FAIL: a duplicate member gift recipient was inserted';
+exception when unique_violation then
+  raise notice 'PASS: a member may have only one gift recipient';
 end $$;
 
 -- Alice confirms the fortnightly pay split she has set in Up for her account;
@@ -444,7 +480,8 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
   assert (select count(*) from public.help_debt) = 1, 'Carol should see Alice''s HELP debt';
   assert (select count(*) from public.equity_grant) = 1, 'Carol should see Alice''s equity grant';
-  assert (select count(*) from public.gift_recipient) = 1, 'Carol should see Alice''s gift recipient';
+  assert (select count(*) from public.gift_recipient) = 3,
+    'Carol should see Alice''s external recipient plus both members'' auto-created recipients';
   assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
@@ -645,11 +682,23 @@ end $$;
 -- budgeted amount, but never the purchase, and cannot log one for his own gift;
 -- Alice (the buyer) sees the purchase. Symmetric for a gift Bob buys for Alice.
 
--- Alice creates a recipient linked to Bob, an occasion, a budget, and a purchase.
+-- Both members are permanent recipients, auto-created on create_household and
+-- join_household — the household has exactly those two member recipients and no
+-- external ones, so Alice reuses Bob's auto-created recipient for his gift.
 select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
-insert into public.gift_recipient (household_id, member_id, name)
-  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 'Bob')
-  returning id as priv_bob_recipient \gset
+do $$ begin
+  assert (select count(*) from public.gift_recipient
+    where household_id = current_setting('test.priv_hid')::uuid) = 2,
+    'Privacy House should have exactly the two auto-created member recipients';
+  assert (select count(*) from public.gift_recipient
+    where household_id = current_setting('test.priv_hid')::uuid
+      and member_id = current_setting('test.priv_bob_mid')::uuid) = 1,
+    'Bob''s join should auto-create his gift recipient';
+end $$;
+
+select id as priv_bob_recipient from public.gift_recipient
+  where household_id = current_setting('test.priv_hid')::uuid
+    and member_id = current_setting('test.priv_bob_mid')::uuid \gset
 select set_config('test.priv_bob_recipient', :'priv_bob_recipient', false);
 
 insert into public.gift_occasion (household_id, name)
@@ -694,10 +743,11 @@ exception when insufficient_privilege then
   raise notice 'PASS: Bob cannot log a purchase for his own gift';
 end $$;
 
--- Symmetry: Bob budgets a gift for Alice and logs a purchase against it.
-insert into public.gift_recipient (household_id, member_id, name)
-  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid, 'Alice')
-  returning id as priv_alice_recipient \gset
+-- Symmetry: Bob budgets a gift for Alice, reusing her auto-created recipient, and
+-- logs a purchase against it.
+select id as priv_alice_recipient from public.gift_recipient
+  where household_id = current_setting('test.priv_hid')::uuid
+    and member_id = current_setting('test.priv_alice_mid')::uuid \gset
 select set_config('test.priv_alice_recipient', :'priv_alice_recipient', false);
 
 insert into public.gift_occasion (household_id, name)

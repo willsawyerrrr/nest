@@ -44,6 +44,11 @@ normalised to fortnightly and annual exactly as a budget line is.
   RLS on `gift_purchase`, and in the Gifts screen, which shows only the agreed
   budgeted amount plus a note). Any other member — the buyer — sees them normally.
   An unlinked recipient is an external person, fully shared.
+- **Every household member is a permanent recipient.** A member's recipient is
+  auto-created with the member and removed with them, and cannot be renamed or
+  deleted (enforced in the database by an insert trigger, an `on delete cascade`
+  FK, a one-per-member unique index, and an update guard). The Gifts screen lists
+  the members first as fixed rows; adding a recipient is for external people only.
 - **Medications is a generic breakdown.** There is no bespoke Health tab or
   medication schema; the household creates a generic breakdown and lists its
   medications as items.

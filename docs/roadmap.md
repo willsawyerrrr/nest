@@ -69,12 +69,13 @@ does not restate them.
 - Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
   'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/help-debt`
-  `/equity` `/breakdowns` `/household`; `/` and unknown routes redirect to
+  `/inflows` `/budget` `/splits` `/goals` `/tax` `/deductions` `/super`
+  `/help-debt` `/equity` `/breakdowns` `/household`; `/` and unknown routes
+  redirect to
   `/summary`), so
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
-  Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Super · Help
-  debt · Breakdowns · Household. The gift planner is reached from the Breakdowns
+  Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
+  deductions · Super · Help debt · Breakdowns · Household. The gift planner is reached from the Breakdowns
   list (`/breakdowns/:id` for the gift breakdown), not a standalone tab. One
   `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
   and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to

@@ -70,6 +70,9 @@ vi.mock('./routes/BudgetSection', () => ({ BudgetSection: () => <div>BudgetSecti
 vi.mock('./routes/SplitsSection', () => ({ SplitsSection: () => <div>SplitsSection</div> }))
 vi.mock('./routes/GoalsSection', () => ({ GoalsSection: () => <div>GoalsSection</div> }))
 vi.mock('./routes/TaxSection', () => ({ TaxSection: () => <div>TaxSection</div> }))
+vi.mock('./routes/DeductionsSection', () => ({
+  DeductionsSection: () => <div>DeductionsSection</div>,
+}))
 vi.mock('./routes/SuperSection', () => ({ SuperSection: () => <div>SuperSection</div> }))
 vi.mock('./routes/HelpDebtSection', () => ({ HelpDebtSection: () => <div>HelpDebtSection</div> }))
 vi.mock('./routes/EquitySection', () => ({ EquitySection: () => <div>EquitySection</div> }))
@@ -203,5 +206,11 @@ describe('App', () => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp(['/equity'])
     expect(await screen.findByText('EquitySection')).toBeInTheDocument()
+  })
+
+  it('routes to the deductions section', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp(['/deductions'])
+    expect(await screen.findByText('DeductionsSection')).toBeInTheDocument()
   })
 })

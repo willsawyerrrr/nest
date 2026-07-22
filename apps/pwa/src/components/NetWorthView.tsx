@@ -166,8 +166,10 @@ function LiabilityGroup({
 }
 
 /**
- * A group of equity holdings, each shown as its vested value, with a subtotal.
- * Rendered only when the household holds at least one grant with vested value.
+ * A group of equity holdings, each shown as its vested value, with a subtotal
+ * and a dimmed caption clarifying the figure is the net "if exercised today"
+ * value (gross vested value less the strike/exercise cost). Rendered only when
+ * the household holds at least one grant with vested value.
  */
 function EquityGroup({
   holdings,
@@ -197,6 +199,10 @@ function EquityGroup({
             </Group>
           ))}
         </Stack>
+        <Text size="xs" c="dimmed">
+          If exercised today, net of the strike price. See the Equity tab for the gross vested
+          value.
+        </Text>
       </Stack>
     </Card>
   )

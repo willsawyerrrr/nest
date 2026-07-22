@@ -1,5 +1,10 @@
 import { Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
-import { grantValueCents, vestedQuantity } from '@nest/plan'
+import {
+  exerciseCostCents,
+  grantValueCents,
+  grossVestedValueCents,
+  vestedQuantity,
+} from '@nest/plan'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { EquityGrantInput, EquityGrantRow } from '../hooks/useEquityGrants'
 import { useInlineEditing } from '../hooks/useInlineEditing'
@@ -30,7 +35,12 @@ function frequencyLabel(frequency: string): string {
   return VESTING_FREQUENCIES.find((entry) => entry.value === frequency)?.label ?? frequency
 }
 
-/** One grant's display card, showing its schedule, vested quantity, and value. */
+/**
+ * One grant's display card, showing its schedule, vested quantity, and value.
+ * The net "counts toward net worth" value is shown for every grant; an option
+ * grant additionally breaks out its gross vested value and exercise cost, since
+ * these differ from the net once the strike is paid.
+ */
 function GrantCard({
   grant,
   asOf,
@@ -44,7 +54,13 @@ function GrantCard({
 }) {
   const planGrant = equityGrantToPlan(grant)
   const vested = vestedQuantity(planGrant, asOf)
-  const valueCents = grantValueCents(planGrant, asOf)
+  const grossCents = grossVestedValueCents(planGrant, asOf)
+  const exerciseCents = exerciseCostCents(planGrant, asOf)
+  const netCents = grantValueCents(planGrant, asOf)
+  // Options carry a strike, so gross, exercise cost, and net all differ and are
+  // worth spelling out; a share grant's gross equals its net, so a single value
+  // is clearer.
+  const hasStrike = grant.instrument_type === 'option'
   return (
     <Card withBorder radius="md" p="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -63,10 +79,16 @@ function GrantCard({
               {vested.toLocaleString()} / {grant.quantity.toLocaleString()} vested
             </Text>
           </Group>
+          {hasStrike && (
+            <Text size="xs" c="dimmed">
+              Vested value {formatCents(grossCents)} &middot; Exercise cost{' '}
+              {formatCents(exerciseCents)} &middot; Counts as {formatCents(netCents)}
+            </Text>
+          )}
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
           <Text fw={700} size="sm">
-            {formatCents(valueCents)}
+            {formatCents(netCents)}
           </Text>
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>

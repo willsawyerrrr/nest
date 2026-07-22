@@ -24,7 +24,13 @@ export type { GoalProjection } from './goal'
 export { projectSuperBalance } from './retirement'
 export type { SuperProjection, SuperProjectionInput } from './retirement'
 
-export { equityTotalCents, grantValueCents, vestedQuantity } from './equity'
+export {
+  equityTotalCents,
+  exerciseCostCents,
+  grantValueCents,
+  grossVestedValueCents,
+  vestedQuantity,
+} from './equity'
 export type { EquityGrant, EquityInstrumentType, VestingFrequency } from './equity'
 
 export {

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { equityTotalCents, grantValueCents, vestedQuantity, type EquityGrant } from './equity'
+import {
+  equityTotalCents,
+  exerciseCostCents,
+  grantValueCents,
+  grossVestedValueCents,
+  vestedQuantity,
+  type EquityGrant,
+} from './equity'
 
 /** A 48-unit grant on a 12-month cliff / 48-month / monthly schedule from 2024-01-15. */
 function grant(overrides: Partial<EquityGrant> = {}): EquityGrant {
@@ -85,6 +92,43 @@ describe('grantValueCents', () => {
 
   it('is zero before anything vests', () => {
     expect(grantValueCents(grant(), new Date('2024-06-15'))).toBe(0)
+  })
+})
+
+describe('gross, exercise cost, and net decomposition', () => {
+  it('decomposes an option grant into gross, exercise cost, and net', () => {
+    const options = grant({
+      instrumentType: 'option',
+      strikePriceCents: 40,
+      pricePerShareCents: 1_00,
+    })
+    const asOf = new Date('2025-01-15')
+    // 12 vested units.
+    const gross = grossVestedValueCents(options, asOf)
+    const exerciseCost = exerciseCostCents(options, asOf)
+    const net = grantValueCents(options, asOf)
+    expect(gross).toBe(12 * 1_00) // vested × price = $12.00
+    expect(exerciseCost).toBe(12 * 40) // vested × strike = $4.80
+    expect(net).toBe(gross - exerciseCost) // $7.20
+  })
+
+  it('leaves a share grant with gross == net and no exercise cost', () => {
+    const shares = grant({ pricePerShareCents: 1_00 })
+    const asOf = new Date('2025-01-15')
+    expect(exerciseCostCents(shares, asOf)).toBe(0)
+    expect(grossVestedValueCents(shares, asOf)).toBe(grantValueCents(shares, asOf))
+  })
+
+  it('floors an underwater option net at zero while gross stays positive', () => {
+    const underwater = grant({
+      instrumentType: 'option',
+      strikePriceCents: 5_00,
+      pricePerShareCents: 1_00,
+    })
+    const asOf = new Date('2028-01-15') // fully vested: 48 units.
+    expect(grossVestedValueCents(underwater, asOf)).toBe(48 * 1_00) // $48.00
+    expect(exerciseCostCents(underwater, asOf)).toBe(48 * 5_00) // $240.00
+    expect(grantValueCents(underwater, asOf)).toBe(0)
   })
 })
 

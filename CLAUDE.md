@@ -83,6 +83,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (`hidden_gift_budget_ids_for_current_member`) hides that member's own-gift
   purchases from them and blocks them logging one, while the Gifts screen shows
   them only the budgeted amount — the buyer (any other member) sees everything.
+  Both household members are permanent recipients: each member's recipient is
+  auto-created with the member (an insert trigger), removed with them (an
+  `on delete cascade` FK), limited to one per member (a partial unique index),
+  and non-editable (an update guard), so adding a recipient is for external
+  people only.
   A line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
   goal's linked saver instead); the Splits tab sums each account's routed lines

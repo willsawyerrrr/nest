@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import {
   ActionIcon,
+  Badge,
   Button,
   Card,
   Group,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -41,56 +41,36 @@ interface GiftManagementProps {
 interface GiftEntityValues {
   name: string
   date: string | null
-  memberId: string | null
 }
 
 /** The cascade warning shared by a recipient's and an occasion's delete confirmation. */
 const CASCADE_WARNING =
   'This also removes its gift budgets and every purchase recorded against them. This cannot be undone.'
 
-/** The "Who is this for?" option that marks a recipient as an external, non-member person. */
-const EXTERNAL_VALUE = '__external__'
-
 /**
- * Add/edit form for a recipient (a household member or an external person) or an
- * occasion (a name and optional date). A member-linked recipient takes the
- * member's name automatically; an external recipient supplies its own name.
+ * Add/edit form for an external recipient (a name) or an occasion (a name and an
+ * optional date). Household members are permanent recipients created automatically,
+ * so this form only ever adds or edits external people.
  */
 function GiftEntityForm({
   kind,
-  members,
   initialName,
   initialDate,
-  initialMemberId,
   onSubmit,
   onCancel,
 }: {
   kind: 'recipient' | 'occasion'
-  members?: Member[]
   initialName?: string
   initialDate?: string | null
-  initialMemberId?: string | null
   onSubmit: (values: GiftEntityValues) => Promise<void>
   onCancel: () => void
 }) {
   const [name, setName] = useState(initialName ?? '')
   const [date, setDate] = useState<string | null>(initialDate ?? null)
-  // Who the recipient is: a member id, EXTERNAL_VALUE for someone else, or null
-  // until a choice is made. Editing an existing external recipient (a name but no
-  // member) starts on EXTERNAL_VALUE; adding starts unset.
-  const [who, setWho] = useState<string | null>(
-    initialMemberId ?? (initialName !== undefined ? EXTERNAL_VALUE : null),
-  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const isExternal = who === EXTERNAL_VALUE
-  const isMember = who !== null && !isExternal
-  const showName = kind === 'occasion' || isExternal
-
-  const canSubmit =
-    !submitting &&
-    (kind === 'recipient' ? isMember || (isExternal && name.trim() !== '') : name.trim() !== '')
+  const canSubmit = !submitting && name.trim() !== ''
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -99,13 +79,8 @@ function GiftEntityForm({
     }
     setSubmitting(true)
     setError(null)
-    const selectedMember = isMember ? members?.find((member) => member.id === who) : undefined
     try {
-      await onSubmit({
-        name: selectedMember ? selectedMember.name : name.trim(),
-        date: kind === 'occasion' ? date : null,
-        memberId: kind === 'recipient' && isMember ? who : null,
-      })
+      await onSubmit({ name: name.trim(), date: kind === 'occasion' ? date : null })
     } catch {
       setError('Could not save. Please try again.')
       setSubmitting(false)
@@ -115,28 +90,12 @@ function GiftEntityForm({
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
-        {kind === 'recipient' && members && (
-          <Select
-            label="Who is this for?"
-            size="sm"
-            description="A household member's gift purchases and remaining budget stay hidden from them."
-            placeholder="Choose a person"
-            data={[
-              ...members.map((member) => ({ value: member.id, label: member.name })),
-              { value: EXTERNAL_VALUE, label: 'Someone else…' },
-            ]}
-            value={who}
-            onChange={setWho}
-          />
-        )}
-        {showName && (
-          <TextInput
-            label="Name"
-            size="sm"
-            value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
-          />
-        )}
+        <TextInput
+          label="Name"
+          size="sm"
+          value={name}
+          onChange={(event) => setName(event.currentTarget.value)}
+        />
         {kind === 'occasion' && (
           <DateInput
             label="Date"
@@ -166,53 +125,67 @@ function GiftEntityForm({
   )
 }
 
-/** One recipient or occasion row with edit/delete controls. */
+/**
+ * One recipient or occasion row. Edit and delete controls appear only when an
+ * `actions` pair is supplied; a member recipient is fixed and passes none.
+ */
 function EntityRow({
   label,
   meta,
-  onEdit,
-  onDelete,
+  tag,
+  actions,
 }: {
   label: string
   meta?: string
-  onEdit: () => void
-  onDelete: () => void
+  tag?: string
+  actions?: { onEdit: () => void; onDelete: () => void }
 }) {
   return (
     <Card withBorder radius="md" p="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate>
-            {label}
-          </Text>
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            <Text fw={600} size="sm" truncate>
+              {label}
+            </Text>
+            {tag && (
+              <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+                {tag}
+              </Badge>
+            )}
+          </Group>
           {meta && (
             <Text size="xs" c="dimmed">
               {meta}
             </Text>
           )}
         </Stack>
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <ActionIcon variant="subtle" aria-label={`Edit ${label}`} onClick={onEdit}>
-            <IconPencil size={16} />
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={`Delete ${label}`}
-            onClick={onDelete}
-          >
-            <IconTrash size={16} />
-          </ActionIcon>
-        </Group>
+        {actions && (
+          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+            <ActionIcon variant="subtle" aria-label={`Edit ${label}`} onClick={actions.onEdit}>
+              <IconPencil size={16} />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              aria-label={`Delete ${label}`}
+              onClick={actions.onDelete}
+            >
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Group>
+        )}
       </Group>
     </Card>
   )
 }
 
 /**
- * Manages the household's gift recipients and occasions: add, rename, set an
- * occasion's optional date, and delete. A delete is confirmed first, warning
- * that it cascades to that entity's budgets and purchases.
+ * Manages the household's gift recipients and occasions. Each household member is
+ * a permanent recipient, shown first as a fixed row that cannot be edited or
+ * deleted; external people are added, renamed, and removed below. An occasion
+ * carries an optional date. A delete is confirmed first, warning that it cascades
+ * to that entity's budgets and purchases.
  */
 export function GiftManagement({
   recipients,
@@ -233,6 +206,8 @@ export function GiftManagement({
   const { confirm, modal } = useConfirmDelete()
 
   const memberNameById = new Map(members.map((member) => [member.id, member.name]))
+  const memberRecipients = recipients.filter((recipient) => recipient.member_id !== null)
+  const externalRecipients = recipients.filter((recipient) => recipient.member_id === null)
 
   return (
     <Stack gap="lg">
@@ -241,16 +216,26 @@ export function GiftManagement({
           Recipients
         </Title>
         {recipients.length === 0 && !addingRecipient && <EmptyState>No recipients yet.</EmptyState>}
-        {recipients.map((recipient) =>
+        {memberRecipients.map((recipient) => (
+          <EntityRow
+            key={recipient.id}
+            label={memberNameById.get(recipient.member_id as string) ?? recipient.name}
+            tag="Household member"
+            meta={
+              recipient.member_id === currentMemberId
+                ? 'Purchases hidden from you'
+                : 'Purchases hidden from them'
+            }
+          />
+        ))}
+        {externalRecipients.map((recipient) =>
           editingRecipientId === recipient.id ? (
             <GiftEntityForm
               key={recipient.id}
               kind="recipient"
-              members={members}
               initialName={recipient.name}
-              initialMemberId={recipient.member_id}
-              onSubmit={async ({ name, memberId }) => {
-                await onUpdateRecipient(recipient.id, { name, member_id: memberId })
+              onSubmit={async ({ name }) => {
+                await onUpdateRecipient(recipient.id, { name, member_id: null })
                 setEditingRecipientId(null)
               }}
               onCancel={() => setEditingRecipientId(null)}
@@ -258,39 +243,28 @@ export function GiftManagement({
           ) : (
             <EntityRow
               key={recipient.id}
-              label={
-                recipient.member_id
-                  ? (memberNameById.get(recipient.member_id) ?? recipient.name)
-                  : recipient.name
-              }
-              meta={
-                recipient.member_id
-                  ? recipient.member_id === currentMemberId
-                    ? 'Purchases hidden from you'
-                    : 'Purchases hidden from them'
-                  : undefined
-              }
-              onEdit={() => {
-                setAddingRecipient(false)
-                setEditingRecipientId(recipient.id)
+              label={recipient.name}
+              actions={{
+                onEdit: () => {
+                  setAddingRecipient(false)
+                  setEditingRecipientId(recipient.id)
+                },
+                onDelete: () =>
+                  confirm({
+                    title: 'Delete recipient?',
+                    itemLabel: recipient.name,
+                    description: CASCADE_WARNING,
+                    onConfirm: () => onDeleteRecipient(recipient.id),
+                  }),
               }}
-              onDelete={() =>
-                confirm({
-                  title: 'Delete recipient?',
-                  itemLabel: recipient.name,
-                  description: CASCADE_WARNING,
-                  onConfirm: () => onDeleteRecipient(recipient.id),
-                })
-              }
             />
           ),
         )}
         {addingRecipient ? (
           <GiftEntityForm
             kind="recipient"
-            members={members}
-            onSubmit={async ({ name, memberId }) => {
-              await onCreateRecipient({ name, member_id: memberId })
+            onSubmit={async ({ name }) => {
+              await onCreateRecipient({ name, member_id: null })
               setAddingRecipient(false)
             }}
             onCancel={() => setAddingRecipient(false)}
@@ -332,18 +306,19 @@ export function GiftManagement({
               key={occasion.id}
               label={occasion.name}
               meta={occasion.occasion_date ? formatIsoDate(occasion.occasion_date) : undefined}
-              onEdit={() => {
-                setAddingOccasion(false)
-                setEditingOccasionId(occasion.id)
+              actions={{
+                onEdit: () => {
+                  setAddingOccasion(false)
+                  setEditingOccasionId(occasion.id)
+                },
+                onDelete: () =>
+                  confirm({
+                    title: 'Delete occasion?',
+                    itemLabel: occasion.name,
+                    description: CASCADE_WARNING,
+                    onConfirm: () => onDeleteOccasion(occasion.id),
+                  }),
               }}
-              onDelete={() =>
-                confirm({
-                  title: 'Delete occasion?',
-                  itemLabel: occasion.name,
-                  description: CASCADE_WARNING,
-                  onConfirm: () => onDeleteOccasion(occasion.id),
-                })
-              }
             />
           ),
         )}

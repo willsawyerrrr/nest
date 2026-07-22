@@ -336,8 +336,33 @@ describe('GiftsScreen private gifts for the current member', () => {
 
     // The gift shows only its agreed budget plus a note, with no expandable
     // purchase log, add-purchase control, or "Secret" purchase.
-    expect(screen.getByText(/purchases hidden — this is a gift for you/i)).toBeInTheDocument()
+    expect(screen.getByText(/spending on this gift is hidden from you/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Me/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add purchase' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Secret')).not.toBeInTheDocument()
+  })
+
+  it('lets the current member edit the agreed budget for their own gift', async () => {
+    const user = userEvent.setup()
+    const onUpdateBudget = vi.fn()
+    renderScreen({
+      recipients: [meRecipient],
+      budgets: [myGift],
+      purchases: [myPurchase],
+      currentMemberId: 'me',
+      onUpdateBudget,
+    })
+
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+    await user.click(screen.getByRole('button', { name: 'Edit budget' }))
+
+    // The edit form opens for the own-gift, yet its spend and purchases stay hidden.
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(onUpdateBudget).toHaveBeenCalledWith(
+      'b9',
+      expect.objectContaining({ recipient_id: 'r9' }),
+    )
     expect(screen.queryByText('Secret')).not.toBeInTheDocument()
   })
 
@@ -353,7 +378,7 @@ describe('GiftsScreen private gifts for the current member', () => {
     await user.click(screen.getByRole('button', { name: /Christmas/ }))
     await user.click(screen.getByRole('button', { name: /^Me/ }))
 
-    expect(screen.queryByText(/purchases hidden — this is a gift for you/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/spending on this gift is hidden from you/i)).not.toBeInTheDocument()
     expect(screen.getByText('Secret')).toBeInTheDocument()
   })
 

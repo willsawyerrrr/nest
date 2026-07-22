@@ -49,7 +49,7 @@ does not restate them.
   Offset, Medicare levy, surcharge, HELP/HECS repayment, and Division 293 tax
   building up to the total, with a footnote that capital gains tax is out of scope
   and not modelled. Tax profiles are edited on the Household tab; each member's
-  HELP/HECS balance is edited on the Help debt tab.
+  HELP/HECS balance is edited on the HELP debt tab.
 - Budget, savings-goal, and temporary-item schema (RLS, tests, types).
 - `@nest/plan` pure math package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry.

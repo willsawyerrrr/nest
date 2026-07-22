@@ -77,7 +77,7 @@ references are additionally blocked by composite foreign keys on
     `created_at`, `updated_at`.
   - Unique on `(member_id)`; composite FK on `(member_id, household_id)` →
     `members`. Feeds the tax engine's marginal HELP repayment and the Net worth
-    tab as a liability. Edited on the Help debt tab.
+    tab as a liability. Edited on the HELP debt tab.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`tax.md`](tax.md).
 

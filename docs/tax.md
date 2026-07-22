@@ -19,7 +19,7 @@ versioned config per financial year, because AU rates and thresholds change year
 - Claims tax-free threshold (affects withholding expectations).
 - Private hospital cover held (Medicare levy surcharge).
 - HECS/HELP debt balance — a member's single standing balance from the
-  `help_debt` table (edited on the Help debt tab), not the tax profile.
+  `help_debt` table (edited on the HELP debt tab), not the tax profile.
 - Concessional (pre-tax) super contributions — salary sacrifice and personal
   deductible.
 - PAYG tax withheld to date (from payslips).

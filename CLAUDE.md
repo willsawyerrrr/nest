@@ -24,17 +24,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   or splitting. All household members manage the shared planning data, and record
   attribution to a member is a tax/reporting tag, not a permission. `household_id`
   + RLS isolate the household's data from all other Supabase users; within the
-  household, membership gates the shared and own data, and a per-account
-  balance-privacy boundary sits on top. A member sees an account's full row
-  (balance included) and its transactions only for shared/joint accounts
-  (`owner_member_id` null), their own accounts, and household superannuation
-  accounts (retirement/net-worth planning stays mutually visible); a co-member's
-  individual spending account and savers keep their balance and transactions
-  private. A co-member's spending account stays visible by NAME ONLY through the
-  identity-only `account_directory` view (no balance column) so it can be a
-  budget-line funding destination and summed into the pay split; a co-member's
-  savers are not visible at all. Consequently a member's net-worth view sums only
-  balances they can see. A partner joins via a temporary, opt-in, single-use
+  household, membership gates the shared and own data, with a per-account
+  balance-privacy boundary on top — a member sees balances and transactions only
+  for shared/joint, own, and household-super accounts, a co-member's spending
+  account is visible by NAME ONLY (for routing) and their savers not at all, so a
+  net-worth view sums only visible balances. The helper-function and
+  view mechanics behind this live in ARCHITECTURE.md (Security) and DATA_MODEL.md
+  (the ledger tables and `account_directory`). A partner joins via a temporary, opt-in, single-use
   invite code (`create_invite_code` mints one, `join_household` redeems and
   consumes it, `revoke_invite_code` clears it); no email infrastructure.
 - Inflows: the household owns many projection-based inflows, split by taxability
@@ -149,15 +145,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   parallel subagents from sharing a working tree or colliding on git state.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
-  jobs — `check` (lint, format, typecheck, build), `test` (the Vitest suite,
-  sharded across six runners with V8 coverage, whose blob reports are merged via
-  `--merge-reports` to gate coverage: `@nest/plan` and `@nest/tax` at 100% on
-  every metric, `apps/pwa` at 100% statements/functions/lines with a branch floor,
-  currently 93), `rls` (RLS isolation on a Postgres service), and `functions`
-  (Deno fmt/lint/check/test over `supabase/functions`) — each on its own runner
-  and aggregated by a `ci-status` job that is the single required `CI Status`
-  check, so overall wall-clock is the slowest single job, not the sum. Steps
-  WITHIN a job stay
+  jobs (`check`, `test`, `rls`, `functions`) aggregated by a `ci-status` job that
+  is the single required `CI Status` check, so overall wall-clock is the slowest
+  single job, not the sum; the job/coverage/shard specifics are canonical in
+  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#ci). Steps WITHIN a job stay
   sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
   causes contention and inflates each one without improving wall-clock time.
   Splitting into separate jobs avoids that by giving each its own runner.

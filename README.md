@@ -22,6 +22,9 @@ liability, plan spending, and track savings goals.
 
 ## Scope decisions
 
+A pitch-level summary; the full locked list is canonical in
+[`CLAUDE.md`](CLAUDE.md#fixed-scope-decisions).
+
 - **Platform:** a single React PWA serving both iOS (installed via Safari) and
   web, with Supabase Auth via Google OAuth.
 - **Backend:** [Supabase](https://supabase.com/) (Sydney region, Pro) — managed
@@ -36,17 +39,26 @@ liability, plan spending, and track savings goals.
 
 ## Documentation
 
-- [`docs/HANDOFF.md`](docs/HANDOFF.md) — operational handoff: what is live, where
-  it runs, and how to work on it.
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system shape and integrations.
-- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — entities and relationships.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system shape, integrations,
+  security model, and CI.
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — entities, relationships, and RPCs.
+- [`docs/operations.md`](docs/operations.md) — runbook: where it runs, what
+  deploys it, and per-service setup.
+- [`docs/TAX.md`](docs/TAX.md) — AU tax modelling design.
 - [`docs/budget-and-savings.md`](docs/budget-and-savings.md) — plan-only budget,
   savings, and Summary math.
+- [`docs/super-and-net-worth.md`](docs/super-and-net-worth.md) — super modelling
+  and the net-worth view.
 - [`docs/breakdowns.md`](docs/breakdowns.md) — user-created itemised derived lines.
 - [`docs/pay-splits.md`](docs/pay-splits.md) — routing lines to Up accounts and the
   recommended pay split.
-- [`docs/TAX.md`](docs/TAX.md) — AU tax modelling design.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased delivery plan.
+- [`docs/up-ledger-sync.md`](docs/up-ledger-sync.md) — the Up transaction ingestion
+  + reconciliation phase.
+- [`docs/payslips.md`](docs/payslips.md) — expected vs actual income and tax from
+  payslips.
+- [`docs/spreadsheet-parity.md`](docs/spreadsheet-parity.md) — feature-parity audit
+  against the household's spreadsheet.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased delivery plan and idea backlog.
 
 ## Repository layout
 
@@ -92,4 +104,5 @@ The Up savers → savings-goals layer is also live: members connect an Up token 
 link a goal to a synced Up saver, so goal progress tracks the real balance (synced
 on demand and hourly). Up transaction ingestion + reconciliation (ledger UI, actual
 spend vs budget, actual tax paid) is the next phase. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md).
+[`docs/ROADMAP.md`](docs/ROADMAP.md) for the plan and
+[`docs/operations.md`](docs/operations.md) for what is deployed and how.

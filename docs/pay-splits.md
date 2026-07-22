@@ -95,11 +95,11 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 
 - **Budget-line form** — a "Funded from" account picker for
   non-Savings/Investments lines, sourced from the identity-only `account_directory`
-  view (shared accounts, the caller's own accounts, and any member's spending
-  account by name — so a co-member's spending account is selectable without
-  exposing its balance; a co-member's savers are absent), excluding super-fund
-  balance accounts, which are not spendable. Savings / Investments lines show the
-  goal-derived route instead of a picker.
+  view (so a co-member's spending account is selectable by name without exposing
+  its balance — see
+  [`DATA_MODEL.md`](DATA_MODEL.md#ledger)), excluding super-fund balance accounts,
+  which are not spendable. Savings / Investments lines show the goal-derived route
+  instead of a picker.
 - **Budget list** — each line shows a small badge naming its route: the linked
   goal for a Savings/Investments line, the funding account otherwise. The badge's
   icon is the account/saver's own icon — its Up emoji when its name carries one,

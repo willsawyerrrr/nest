@@ -121,14 +121,17 @@ function BreakdownTable({
   breakdown,
   grossCents,
   concessionalCents,
+  deductionsCents,
 }: {
   breakdown: TaxBreakdown
   grossCents: number
   concessionalCents: number
+  deductionsCents: number
 }) {
   const incomeLines: ComponentLine[] = [
     { label: 'Gross income', annualCents: grossCents, alwaysShow: true },
     { label: 'Concessional super', annualCents: concessionalCents, subtract: true },
+    { label: 'Deductions', annualCents: deductionsCents, subtract: true },
     { label: 'Taxable income', annualCents: breakdown.taxableIncomeCents, total: true },
   ]
   const taxLines: ComponentLine[] = [
@@ -166,11 +169,13 @@ function FiguresCard({
   row,
   breakdown,
   concessionalCents = 0,
+  deductionsCents = 0,
 }: {
   name: string
   row: Row
   breakdown?: TaxBreakdown
   concessionalCents?: number
+  deductionsCents?: number
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
@@ -181,6 +186,7 @@ function FiguresCard({
             breakdown={breakdown}
             grossCents={row.annualGrossCents}
             concessionalCents={concessionalCents}
+            deductionsCents={deductionsCents}
           />
         )}
         <Table.ScrollContainer minWidth={0}>
@@ -247,6 +253,7 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
               row={member}
               breakdown={member.breakdown}
               concessionalCents={member.annualConcessionalContributionsCents}
+              deductionsCents={member.annualDeductionsCents}
             />
           ))}
           <Text size="xs" c="dimmed">

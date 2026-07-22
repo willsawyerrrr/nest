@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
+import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
 import type { SuperContribution } from '../hooks/useSuperContributions'
@@ -8,6 +9,7 @@ import type { TaxProfile } from '../hooks/useTaxProfiles'
 import {
   concessionalByMember,
   currentTaxConfig,
+  deductionsByMember,
   estimateHouseholdTaxFromRows,
   helpDebtCentsByMember,
   netAnnualSuperContributionByMember,
@@ -234,6 +236,59 @@ describe('estimateHouseholdTaxFromRows', () => {
     )
     expect(everyTwoWeeks.annualGrossCents).toBe(fortnightly.annualGrossCents)
     expect(everyTwoWeeks.annualTaxCents).toBe(fortnightly.annualTaxCents)
+  })
+})
+
+describe('deductionsByMember', () => {
+  const baseDeduction: DeductionRow = {
+    id: 'd1',
+    household_id: 'h1',
+    member_id: 'm1',
+    description: 'Home office',
+    amount_cents: 1_200_00,
+    deduction_date: '2026-08-01',
+    financial_year: 2027,
+    created_at: '',
+    updated_at: '',
+  }
+
+  it('sums each member deduction amount by member id', () => {
+    const result = deductionsByMember([
+      baseDeduction,
+      { ...baseDeduction, id: 'd2', amount_cents: 300_00 },
+      { ...baseDeduction, id: 'd3', member_id: 'm2', amount_cents: 500_00 },
+    ])
+    expect(result.get('m1')).toBe(1_500_00)
+    expect(result.get('m2')).toBe(500_00)
+  })
+})
+
+describe('estimateHouseholdTaxFromRows deductions', () => {
+  const salary: Inflow = {
+    ...baseInflow,
+    schedule: 'annual',
+    interval_count: null,
+    amount_cents: 100_000_00,
+  }
+  const deduction: DeductionRow = {
+    id: 'd1',
+    household_id: 'h1',
+    member_id: 'm1',
+    description: 'Tools',
+    amount_cents: 10_000_00,
+    deduction_date: '2026-08-01',
+    financial_year: 2027,
+    created_at: '',
+    updated_at: '',
+  }
+
+  it('lowers tax when deductions are supplied', () => {
+    const withDeduction = estimateHouseholdTaxFromRows([salary], [profile], [], [], [deduction])
+    const withoutDeduction = estimateHouseholdTaxFromRows([salary], [profile], [], [], [])
+    expect(withDeduction.members[0]!.annualDeductionsCents).toBe(10_000_00)
+    expect(withDeduction.members[0]!.annualTaxCents).toBeLessThan(
+      withoutDeduction.members[0]!.annualTaxCents,
+    )
   })
 })
 

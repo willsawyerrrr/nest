@@ -1,5 +1,6 @@
 import { LoadingScreen } from '../components/LoadingScreen'
 import { TaxEstimateView } from '../components/TaxEstimateView'
+import { useDeductions } from '../hooks/useDeductions'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
@@ -13,6 +14,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
   const taxProfiles = useTaxProfiles(householdId)
   const contributions = useSuperContributions(householdId)
   const helpDebts = useHelpDebts(householdId)
+  const deductions = useDeductions(householdId)
 
   if (
     membersLoading ||
@@ -20,6 +22,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
     taxProfiles.loading ||
     contributions.loading ||
     helpDebts.loading ||
+    deductions.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -30,6 +33,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
     taxProfiles.profiles ?? [],
     contributions.contributions ?? [],
     helpDebts.helpDebts ?? [],
+    deductions.deductions ?? [],
   )
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 

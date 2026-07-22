@@ -97,13 +97,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   people only.
   A line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
-  goal's linked saver instead); the Splits tab sums each account's routed lines
+  goal's linked saver instead); the Pay splits tab sums each account's routed lines
   into a recommended fortnightly Up pay split. The household designates the single
   spending account its pay lands in (`households.pay_account_id`, set via the
   `set_household_pay_account` RPC); pay stays there and every other routed account
   — the other spending accounts and the savers — becomes a recommended split. Up
   exposes no pay-split API, so the household types the split into Up by hand and
-  **confirms** the amount it set into the `pay_split` table; the Splits tab flags
+  **confirms** the amount it set into the `pay_split` table; the Pay splits tab flags
   when the recommendation later drifts from the confirmed amount and offers a
   Confirm to re-record it.
 - Ingestion: both partners bank with Up. The account-balance slice is built and

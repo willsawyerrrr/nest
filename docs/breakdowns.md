@@ -17,7 +17,7 @@ normalised to fortnightly and annual exactly as a budget line is.
   and assigns to a budget group. There is no fixed catalogue of sources and no
   migration per new source.
 - **A breakdown owns exactly one budget line.** The rolled-up line is a real,
-  routable `budget_line` row (it participates in the Splits tab's account routing
+  routable `budget_line` row (it participates in the Pay splits tab's account routing
   like any line). Its group, name, and amount come from the breakdown; the amount is
   read-only and system-managed.
 - **The line exists only when there is something to roll up.** A breakdown with no
@@ -114,7 +114,7 @@ items live in `gift_budget`).
   or editing items updates its amount; removing the last item removes the line. The
   line's `line_group` follows the breakdown's group and its `name` follows the
   breakdown's name. The one exception to removal: an emptied breakdown whose line
-  carries a `destination_account_id` keeps its line so its Splits routing is not
+  carries a `destination_account_id` keeps its line so its pay-split routing is not
   silently lost — the line stays in place (rolling up to $0) until the breakdown has
   items again or the line is re-routed. The reconcile runs app-wide from a headless
   component mounted under the authenticated shell (not on any one route), so a
@@ -123,7 +123,7 @@ items live in `gift_budget`).
   no-op once they already match. Every collection write invalidates its table's
   whole `[table, householdId]` cache prefix, so a breakdown-item edit refreshes both
   the scoped item query and the unscoped roll-up, the reconcile sees the fresh
-  totals, and the derived amount propagates live to the Budget, Splits, and Summary
+  totals, and the derived amount propagates live to the Budget, Pay splits, and Summary
   tabs with no reload.
 - **System-managed amount.** A derived line is not created via the budget form and
   is not manually deletable, and its amount is not hand-editable — it is rolled up
@@ -135,7 +135,7 @@ items live in `gift_budget`).
   funding account is set on the line's `destination_account_id`. The group choices
   exclude Savings/Investments, which route via a goal rather than a funding account.
 - **Routable.** A derived line is an ordinary `budget_line` in every other respect:
-  it carries a `destination_account_id` and feeds the Splits tab's per-account
+  it carries a `destination_account_id` and feeds the Pay splits tab's per-account
   recommendation like any line.
 
 ## UI

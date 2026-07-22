@@ -9,8 +9,8 @@ import { giftBudgetTotalCents } from '../lib/gifts'
 /**
  * Runs the derived-line reconcile for the whole session, independent of the
  * active route. Mounted under the authenticated shell so a breakdown edit made
- * anywhere rewrites the owned budget line, keeping the Budget and Splits tabs in
- * step without a reload. Renders nothing.
+ * anywhere rewrites the owned budget line, keeping the Budget and Pay splits tabs
+ * in step without a reload. Renders nothing.
  */
 export function BreakdownLineReconciler({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)

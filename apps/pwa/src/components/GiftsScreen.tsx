@@ -107,8 +107,25 @@ function GiftRowCard({
 
   const rowPurchases = purchases.filter((purchase) => purchase.gift_budget_id === row.budgetId)
 
-  // A gift for the signed-in member shows only its agreed (shared) budget: its
-  // spend, remaining, and purchase log stay hidden so the surprise is not spoiled.
+  // The agreed budget is jointly planned, so both the buyer and the recipient
+  // edit it through the same form.
+  const budgetEditForm = (
+    <GiftBudgetForm
+      recipients={recipients}
+      occasions={occasions}
+      initial={budget}
+      takenPairs={takenPairs}
+      onSubmit={async (input) => {
+        await onUpdateBudget(row.budgetId, input)
+        setEditingBudget(false)
+      }}
+      onCancel={() => setEditingBudget(false)}
+    />
+  )
+
+  // A gift for the signed-in member shows only its agreed (shared) budget, which
+  // they can edit: its spend, remaining, and purchase log stay hidden so the
+  // surprise is not spoiled.
   if (hidden) {
     return (
       <Card withBorder radius="md" p="xs">
@@ -129,8 +146,17 @@ function GiftRowCard({
             </Text>
           </Group>
           <Text size="xs" c="dimmed">
-            Purchases hidden — this is a gift for you.
+            Spending on this gift is hidden from you — this is a gift for you.
           </Text>
+          {editingBudget ? (
+            budgetEditForm
+          ) : (
+            <Group gap="xs">
+              <Button size="xs" variant="subtle" onClick={() => setEditingBudget(true)}>
+                Edit budget
+              </Button>
+            </Group>
+          )}
         </Stack>
       </Card>
     )
@@ -203,17 +229,7 @@ function GiftRowCard({
                 onCancel={() => setAddingPurchase(false)}
               />
             ) : editingBudget ? (
-              <GiftBudgetForm
-                recipients={recipients}
-                occasions={occasions}
-                initial={budget}
-                takenPairs={takenPairs}
-                onSubmit={async (input) => {
-                  await onUpdateBudget(row.budgetId, input)
-                  setEditingBudget(false)
-                }}
-                onCancel={() => setEditingBudget(false)}
-              />
+              budgetEditForm
             ) : (
               <Group gap="xs">
                 <Button

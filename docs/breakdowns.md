@@ -42,7 +42,10 @@ normalised to fortnightly and annual exactly as a budget line is.
   member (`gift_recipient.member_id`): when it is, that member is the recipient,
   and their gift's purchases and progress are hidden from them (in the database via
   RLS on `gift_purchase`, and in the Gifts screen, which shows only the agreed
-  budgeted amount plus a note). Any other member — the buyer — sees them normally.
+  budgeted amount plus a note). The recipient may still edit that shared agreed
+  amount — RLS on `gift_budget` permits it and the Gifts screen offers the edit
+  control — since the budget is jointly planned; only the spend stays hidden. Any
+  other member — the buyer — sees everything.
   An unlinked recipient is an external person, fully shared.
 - **Every household member is a permanent recipient.** A member's recipient is
   auto-created with the member and removed with them, and cannot be renamed or

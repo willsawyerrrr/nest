@@ -86,7 +86,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   and when it does, RLS on `gift_purchase`
   (`hidden_gift_budget_ids_for_current_member`) hides that member's own-gift
   purchases from them and blocks them logging one, while the Gifts screen shows
-  them only the budgeted amount — the buyer (any other member) sees everything.
+  them only the budgeted amount. The recipient may still edit that shared agreed
+  amount (RLS on `gift_budget` permits it and the Gifts screen offers the edit
+  control), since the budget is jointly planned; only the spend stays hidden — the
+  buyer (any other member) sees everything.
   Both household members are permanent recipients: each member's recipient is
   auto-created with the member (an insert trigger), removed with them (an
   `on delete cascade` FK), limited to one per member (a partial unique index),

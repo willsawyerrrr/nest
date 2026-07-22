@@ -807,6 +807,21 @@ do $$ begin
     'Bob must not see purchases logged against his own gift';
 end $$;
 
+-- Bob can edit the shared agreed budget for his own gift, and doing so still
+-- reveals none of its purchases.
+do $$
+declare v_count int;
+begin
+  update public.gift_budget set budgeted_amount_cents = 250_00
+    where id = current_setting('test.priv_bob_gift')::uuid;
+  get diagnostics v_count = row_count;
+  assert v_count = 1, 'Bob should update the agreed budget for his own gift';
+  assert (select budgeted_amount_cents from public.gift_budget where id = current_setting('test.priv_bob_gift')::uuid) = 250_00,
+    'Bob''s edit to his own gift''s agreed budget should persist';
+  assert (select count(*) from public.gift_purchase where gift_budget_id = current_setting('test.priv_bob_gift')::uuid) = 0,
+    'Editing his own gift''s budget must not reveal its purchases to Bob';
+end $$;
+
 -- Bob cannot log a purchase for his own gift (the surprise stays hidden).
 do $$ begin
   insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, purchased_on)

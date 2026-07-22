@@ -21,6 +21,7 @@ const will: MemberTaxEstimate = {
   annualGrossCents: 10_000_000,
   annualConcessionalContributionsCents: 0,
   annualNetConcessionalSuperCents: 0,
+  annualDeductionsCents: 0,
   annualTaxCents: 2_500_000,
   annualAfterTaxCents: 7_500_000,
   fortnightlyGrossCents: 384_615,
@@ -34,6 +35,7 @@ const sam: MemberTaxEstimate = {
   annualGrossCents: 6_000_000,
   annualConcessionalContributionsCents: 0,
   annualNetConcessionalSuperCents: 0,
+  annualDeductionsCents: 0,
   annualTaxCents: 1_000_000,
   annualAfterTaxCents: 5_000_000,
   fortnightlyGrossCents: 230_769,
@@ -47,6 +49,7 @@ const estimate: HouseholdTaxEstimate = {
   annualGrossCents: 16_000_000,
   annualConcessionalContributionsCents: 0,
   annualNetConcessionalSuperCents: 0,
+  annualDeductionsCents: 0,
   annualTaxCents: 3_500_000,
   annualAfterTaxCents: 12_500_000,
   fortnightlyGrossCents: 615_384,
@@ -168,6 +171,27 @@ describe('TaxEstimateView', () => {
     expect(within(willIncome).queryByRole('row', { name: /Concessional super/ })).toBeNull()
   })
 
+  it('shows a Deductions row for a member with deductions, absent otherwise', () => {
+    const willWithDeductions: MemberTaxEstimate = {
+      ...will,
+      annualDeductionsCents: 5_000_00,
+      breakdown: { ...breakdown, taxableIncomeCents: 95_000_00 },
+    }
+    const withDeductions: HouseholdTaxEstimate = { ...estimate, members: [willWithDeductions, sam] }
+    render(
+      <TaxEstimateView estimate={withDeductions} financialYear={2027} memberName={memberName} />,
+    )
+
+    const willIncome = incomeTable('Will')
+    const deductions = within(willIncome).getByRole('row', { name: /Deductions/ })
+    // The deduction reads as a subtraction from gross toward taxable income.
+    expect(deductions).toHaveTextContent('-$5,000.00')
+
+    // Sam has no deductions, so the Deductions row is absent.
+    const samIncome = incomeTable('Sam')
+    expect(within(samIncome).queryByRole('row', { name: /Deductions/ })).toBeNull()
+  })
+
   it('shows a Division 293 line for a member with contributions, absent otherwise', () => {
     const willWithSuper: MemberTaxEstimate = {
       ...will,
@@ -251,6 +275,7 @@ describe('TaxEstimateView', () => {
       annualGrossCents: 0,
       annualConcessionalContributionsCents: 0,
       annualNetConcessionalSuperCents: 0,
+      annualDeductionsCents: 0,
       annualTaxCents: 0,
       annualAfterTaxCents: 0,
       fortnightlyGrossCents: 0,

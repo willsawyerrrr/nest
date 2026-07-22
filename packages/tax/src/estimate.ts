@@ -75,6 +75,8 @@ export interface MemberTaxEstimate {
   readonly annualGrossCents: Money
   readonly annualConcessionalContributionsCents: Money
   readonly annualNetConcessionalSuperCents: Money
+  /** Annual work-related deductions reducing taxable income only (not after-tax cash). */
+  readonly annualDeductionsCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
@@ -89,6 +91,7 @@ export interface HouseholdTaxEstimate {
   readonly annualGrossCents: Money
   readonly annualConcessionalContributionsCents: Money
   readonly annualNetConcessionalSuperCents: Money
+  readonly annualDeductionsCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
@@ -176,12 +179,16 @@ interface MemberIncome {
  * no income yields a zero estimate. Household fields are the sum of members'.
  * `concessionalByMember`, when supplied, gives each member's annual concessional
  * super contributions — reducing taxable income and the after-tax cash available.
+ * `deductionsByMember`, when supplied, gives each member's annual work-related
+ * deductions — reducing taxable income only, so tax falls and after-tax cash
+ * rises; the diverted cash of a concessional contribution has no counterpart here.
  */
 export function estimateHouseholdTax(
   incomes: readonly IncomeInput[],
   profiles: readonly TaxProfileInput[],
   config: TaxYearConfig,
   concessionalByMember?: ReadonlyMap<string, Money>,
+  deductionsByMember?: ReadonlyMap<string, Money>,
 ): HouseholdTaxEstimate {
   const incomeByMember = new Map<string, MemberIncome>()
   const memberOrder: string[] = []
@@ -219,6 +226,7 @@ export function estimateHouseholdTax(
     const bucket = incomeByMember.get(memberId) ?? { salaryOrWagesCents: 0, otherCents: 0 }
     const profile = profileByMember.get(memberId) ?? { memberId, ...DEFAULT_PROFILE }
     const concessionalCents = concessionalByMember?.get(memberId) ?? 0
+    const deductionsCents = deductionsByMember?.get(memberId) ?? 0
     const input: TaxInput = {
       assessableIncome: {
         salaryOrWagesCents: bucket.salaryOrWagesCents,
@@ -226,7 +234,7 @@ export function estimateHouseholdTax(
         investmentCents: 0,
         otherCents: bucket.otherCents,
       },
-      deductionsCents: 0,
+      deductionsCents,
       residency: profile.residency,
       privateHospitalCover: profile.privateHospitalCover,
       helpDebtCents: profile.helpDebtCents,
@@ -248,6 +256,7 @@ export function estimateHouseholdTax(
       annualGrossCents: annualGross,
       annualConcessionalContributionsCents: concessionalCents,
       annualNetConcessionalSuperCents: netConcessionalCents,
+      annualDeductionsCents: deductionsCents,
       annualTaxCents: annualTax,
       annualAfterTaxCents: annualAfterTax,
       fortnightlyGrossCents: fortnightlyOf(annualGross),
@@ -267,6 +276,7 @@ export function estimateHouseholdTax(
       (member) => member.annualConcessionalContributionsCents,
     ),
     annualNetConcessionalSuperCents: sum((member) => member.annualNetConcessionalSuperCents),
+    annualDeductionsCents: sum((member) => member.annualDeductionsCents),
     annualTaxCents: sum((member) => member.annualTaxCents),
     annualAfterTaxCents: sum((member) => member.annualAfterTaxCents),
     fortnightlyGrossCents: sum((member) => member.fortnightlyGrossCents),

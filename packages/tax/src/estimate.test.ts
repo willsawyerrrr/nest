@@ -311,6 +311,30 @@ describe('estimateHouseholdTax', () => {
     expect(alex.annualNetConcessionalSuperCents).toBe(Math.round(20_000_00 * netRate))
   })
 
+  it('reduces taxable income and lowers tax without cutting after-tax cash for deductions', () => {
+    const deductions = new Map([['alex', 10_000_00]])
+    const household = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG, undefined, deductions)
+    const baseline = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG)
+    const alex = household.members.find((m) => m.memberId === 'alex')!
+    const alexBase = baseline.members.find((m) => m.memberId === 'alex')!
+
+    expect(alex.annualDeductionsCents).toBe(10_000_00)
+    // Taxable income drops by the deduction, so tax falls below the baseline.
+    expect(alex.breakdown.taxableIncomeCents).toBe(
+      alexBase.breakdown.taxableIncomeCents - 10_000_00,
+    )
+    expect(alex.annualTaxCents).toBeLessThan(alexBase.annualTaxCents)
+    // Unlike a concessional contribution, a deduction is not diverted from cash,
+    // so after-tax cash rises (less tax) rather than falling by the deduction.
+    expect(alex.annualAfterTaxCents).toBe(alex.annualGrossCents - alex.annualTaxCents)
+    expect(alex.annualAfterTaxCents).toBeGreaterThanOrEqual(alexBase.annualAfterTaxCents)
+    // Sam, with no deduction supplied, is unaffected.
+    const sam = household.members.find((m) => m.memberId === 'sam')!
+    expect(sam.annualDeductionsCents).toBe(0)
+    // The household deductions total is the sum of its members'.
+    expect(household.annualDeductionsCents).toBe(10_000_00)
+  })
+
   it('sums concessional and net-super figures across members', () => {
     const concessional = new Map([
       ['alex', 20_000_00],

@@ -80,17 +80,21 @@ describe('TabBar', () => {
     expect(pathname()).toBe('/net-worth')
   })
 
-  it('exposes the Breakdowns tab and jumps to the HELP debt tab on mod+9', async () => {
+  it('exposes the Breakdowns tab and jumps to the Super tab on mod+9', async () => {
     const user = userEvent.setup()
     renderTabBar('/summary')
 
     expect(screen.getByRole('link', { name: 'Breakdowns' })).toHaveAttribute('href', '/breakdowns')
     expect(screen.getByRole('link', { name: 'HELP debt' })).toHaveAttribute('href', '/help-debt')
     expect(screen.getByRole('link', { name: 'Equity' })).toHaveAttribute('href', '/equity')
+    expect(screen.getByRole('link', { name: 'Tax deductions' })).toHaveAttribute(
+      'href',
+      '/deductions',
+    )
 
     await user.keyboard('{Control>}9{/Control}')
 
-    expect(pathname()).toBe('/help-debt')
+    expect(pathname()).toBe('/super')
   })
 
   it('cycles to the next tab on mod+shift+ArrowRight', async () => {

@@ -12,6 +12,7 @@ import {
   type TaxProfileInput,
   type TaxYearConfig,
 } from '@nest/tax'
+import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
 import type { SuperContribution } from '../hooks/useSuperContributions'
@@ -59,6 +60,18 @@ function toTaxProfileInput(profile: TaxProfile, helpDebtCents: number): TaxProfi
 /** Each member's HELP balance in cents, keyed by member id. */
 export function helpDebtCentsByMember(helpDebts: readonly HelpDebt[]): Map<string, number> {
   return new Map(helpDebts.map((debt) => [debt.member_id, debt.balance_cents]))
+}
+
+/** Each member's total annual deductions in cents, summed from their deduction rows. */
+export function deductionsByMember(deductions: readonly DeductionRow[]): Map<string, number> {
+  const byMember = new Map<string, number>()
+  for (const deduction of deductions) {
+    byMember.set(
+      deduction.member_id,
+      (byMember.get(deduction.member_id) ?? 0) + deduction.amount_cents,
+    )
+  }
+  return byMember
 }
 
 /** The contribution kinds that reduce taxable income (concessional super). */
@@ -284,13 +297,15 @@ export function netAnnualSuperContributionFromRows(
  * is threaded in from `helpDebts`; a member with a HELP balance but no tax
  * profile still contributes a resident, cover-less profile so their repayment is
  * assessed. Concessional super contributions, when supplied, reduce each
- * member's taxable income and after-tax cash.
+ * member's taxable income and after-tax cash; deductions, when supplied, reduce
+ * each member's taxable income only (so tax falls and after-tax cash rises).
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly Inflow[],
   profiles: readonly TaxProfile[],
   contributions: readonly SuperContribution[] = [],
   helpDebts: readonly HelpDebt[] = [],
+  deductions: readonly DeductionRow[] = [],
 ): HouseholdTaxEstimate {
   const config = currentTaxConfig()
   const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
@@ -320,5 +335,6 @@ export function estimateHouseholdTaxFromRows(
     [...profileInputByMember.values()],
     config,
     concessionalByMember(contributions, grossByMember),
+    deductionsByMember(deductions),
   )
 }

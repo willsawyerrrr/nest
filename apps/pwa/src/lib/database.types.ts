@@ -332,6 +332,99 @@ export type Database = {
           },
         ]
       }
+      deduction: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          deduction_date: string
+          description: string
+          financial_year: number
+          household_id: string
+          id: string
+          member_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          deduction_date: string
+          description: string
+          financial_year: number
+          household_id: string
+          id?: string
+          member_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          deduction_date?: string
+          description?: string
+          financial_year?: number
+          household_id?: string
+          id?: string
+          member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'deduction_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'deduction_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      deduction_receipt: {
+        Row: {
+          created_at: string
+          deduction_id: string
+          file_name: string
+          household_id: string
+          id: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          deduction_id: string
+          file_name: string
+          household_id: string
+          id?: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          deduction_id?: string
+          file_name?: string
+          household_id?: string
+          id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'deduction_receipt_deduction_id_household_id_fkey'
+            columns: ['deduction_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'deduction'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'deduction_receipt_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       equity_grant: {
         Row: {
           cliff_months: number

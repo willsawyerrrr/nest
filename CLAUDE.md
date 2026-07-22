@@ -49,6 +49,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   balance is a single standing figure (the `help_debt` table, not FY-scoped),
   edited on its own HELP debt tab, that feeds the tax estimate and counts as a
   net-worth liability.
+- Tax deductions: each member owns many deductible expenses on their own Tax
+  deductions tab (the `deduction` table, FY-scoped), each an amount and date
+  tagged to a member. A deduction reduces that member's taxable income in the
+  tax estimate — so their estimated tax falls and take-home rises — appearing as
+  a Deductions line in the Tax tab's income build-up and flowing through to the
+  Summary. Each deduction may carry stored receipts (`deduction_receipt`), the
+  files held in a private Supabase Storage bucket (`receipts`) laid out under
+  `<household_id>/…` so Storage RLS gates access by household membership.
 - Superannuation: modelled in full per person. Concessional contributions reduce
   taxable income and are taxed at 15% in the fund, with Division 293 for high
   earners; contribution caps (with manual carry-forward) and the government

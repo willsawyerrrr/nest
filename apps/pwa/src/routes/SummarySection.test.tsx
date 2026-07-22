@@ -11,6 +11,7 @@ const hooks = vi.hoisted(() => ({
   useGifts: vi.fn(),
   useBreakdowns: vi.fn(),
   useHelpDebts: vi.fn(),
+  useDeductions: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -27,6 +28,7 @@ vi.mock('../hooks/useSuperContributions', () => ({
 vi.mock('../hooks/useGifts', () => ({ useGifts: hooks.useGifts }))
 vi.mock('../hooks/useBreakdowns', () => ({ useBreakdowns: hooks.useBreakdowns }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
+vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../components/SummaryView', () => ({
   SummaryView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -44,6 +46,7 @@ describe('SummarySection', () => {
     hooks.useGifts.mockReturnValue({ loading: false })
     hooks.useBreakdowns.mockReturnValue({ loading: false })
     hooks.useHelpDebts.mockReturnValue({ loading: false })
+    hooks.useDeductions.mockReturnValue({ loading: false })
     render(<SummarySection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -57,6 +60,7 @@ describe('SummarySection', () => {
     hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
     hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     render(<SummarySection householdId="h1" />)
     expect(screen.getByTestId('summary-view')).toBeInTheDocument()
     expect(hooks.screenProps).toHaveProperty('summary')

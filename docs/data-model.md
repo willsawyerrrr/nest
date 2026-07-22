@@ -78,6 +78,20 @@ references are additionally blocked by composite foreign keys on
   - Unique on `(member_id)`; composite FK on `(member_id, household_id)` →
     `members`. Feeds the tax engine's marginal HELP repayment and the Net worth
     tab as a liability. Edited on the HELP debt tab.
+- **equity_grant** — per member; many rows per member (a collection). A startup
+  equity grant with a cliff and vesting schedule whose vested value counts toward
+  net worth as an asset.
+  - `id`, `household_id`, `member_id`, `label`, `instrument_type`
+    (`option` | `share`), `quantity` (bigint whole units, `>= 0`), `grant_date`,
+    `cliff_months` (int, default 12), `vesting_period_months` (int, default 48,
+    `> 0`), `vesting_frequency` (`monthly` | `quarterly` | `annual`),
+    `strike_price_cents` (bigint, nullable, options only), `price_per_share_cents`
+    (bigint, `>= 0`, user-maintained current fair value), `price_as_of`
+    (nullable), `created_at`, `updated_at`.
+  - Composite FK on `(member_id, household_id)` → `members`. Vesting and
+    valuation are computed client-side by `@nest/plan` (`vestedQuantity`,
+    `grantValueCents`); the vested value seeds the Net worth tab as an asset.
+    Edited on the Equity tab.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`tax.md`](tax.md).
 

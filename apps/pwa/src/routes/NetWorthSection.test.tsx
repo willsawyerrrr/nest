@@ -8,6 +8,7 @@ const hooks = vi.hoisted(() => ({
   useSuperContributions: vi.fn(),
   useInflows: vi.fn(),
   useHelpDebts: vi.fn(),
+  useEquityGrants: vi.fn(),
   useMembers: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -22,6 +23,7 @@ vi.mock('../hooks/useSuperContributions', () => ({
 }))
 vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
+vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../components/NetWorthView', () => ({
   NetWorthView: (props: Record<string, unknown>) => {
@@ -36,7 +38,25 @@ function mockLoaded() {
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+  hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [] })
   hooks.useMembers.mockReturnValue({ loading: false, members: [] })
+}
+
+/** A fully vested share grant fixture, valued at quantity × price per share. */
+function vestedShareGrant(overrides: Record<string, unknown> = {}) {
+  return {
+    member_id: 'm1',
+    label: 'Shares',
+    instrument_type: 'share',
+    quantity: 10,
+    grant_date: '2020-01-01',
+    cliff_months: 0,
+    vesting_period_months: 1,
+    vesting_frequency: 'monthly',
+    strike_price_cents: null,
+    price_per_share_cents: 5_00,
+    ...overrides,
+  }
 }
 
 describe('NetWorthSection', () => {
@@ -54,6 +74,28 @@ describe('NetWorthSection', () => {
     expect(hooks.screenProps).toHaveProperty('accounts')
     expect(hooks.screenProps).toHaveProperty('superIds')
     expect(hooks.screenProps?.liabilities).toEqual([])
+    expect(hooks.screenProps?.equity).toEqual([])
+  })
+
+  it('maps each grant with vested value to a named equity holding', () => {
+    mockLoaded()
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    hooks.useEquityGrants.mockReturnValue({
+      loading: false,
+      grants: [
+        vestedShareGrant({ member_id: 'm1', label: 'Shares' }),
+        vestedShareGrant({ member_id: 'm9', label: 'Options' }),
+        vestedShareGrant({ member_id: 'm1', label: 'Empty', quantity: 0 }),
+      ],
+    })
+    render(<NetWorthSection householdId="h1" />)
+
+    // Fully vested: 10 × $5.00 = $50.00. The zero-quantity grant has no value and
+    // is dropped; an unknown member falls back to "Unknown".
+    expect(hooks.screenProps?.equity).toEqual([
+      { label: 'Alex — Shares', valueCents: 50_00 },
+      { label: 'Unknown — Options', valueCents: 50_00 },
+    ])
   })
 
   it('maps each member with a positive HELP balance to a named liability', () => {

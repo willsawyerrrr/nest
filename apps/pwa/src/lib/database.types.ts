@@ -299,6 +299,75 @@ export type Database = {
           },
         ]
       }
+      equity_grant: {
+        Row: {
+          cliff_months: number
+          created_at: string
+          grant_date: string
+          household_id: string
+          id: string
+          instrument_type: string
+          label: string
+          member_id: string
+          price_as_of: string | null
+          price_per_share_cents: number
+          quantity: number
+          strike_price_cents: number | null
+          updated_at: string
+          vesting_frequency: string
+          vesting_period_months: number
+        }
+        Insert: {
+          cliff_months?: number
+          created_at?: string
+          grant_date: string
+          household_id: string
+          id?: string
+          instrument_type: string
+          label: string
+          member_id: string
+          price_as_of?: string | null
+          price_per_share_cents?: number
+          quantity: number
+          strike_price_cents?: number | null
+          updated_at?: string
+          vesting_frequency?: string
+          vesting_period_months?: number
+        }
+        Update: {
+          cliff_months?: number
+          created_at?: string
+          grant_date?: string
+          household_id?: string
+          id?: string
+          instrument_type?: string
+          label?: string
+          member_id?: string
+          price_as_of?: string | null
+          price_per_share_cents?: number
+          quantity?: number
+          strike_price_cents?: number | null
+          updated_at?: string
+          vesting_frequency?: string
+          vesting_period_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'equity_grant_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'equity_grant_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       gift_budget: {
         Row: {
           budgeted_amount_cents: number

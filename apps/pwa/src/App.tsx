@@ -11,6 +11,7 @@ import { BreakdownDetailSection } from './routes/BreakdownDetailSection'
 import { BreakdownsSection } from './routes/BreakdownsSection'
 import { BudgetSection } from './routes/BudgetSection'
 import { ChangelogSection } from './routes/ChangelogSection'
+import { EquitySection } from './routes/EquitySection'
 import { GoalsSection } from './routes/GoalsSection'
 import { HelpDebtSection } from './routes/HelpDebtSection'
 import { HomeSection } from './routes/HomeSection'
@@ -127,6 +128,7 @@ function HouseholdApp({
           <Route path="/tax" element={<TaxSection householdId={household.id} />} />
           <Route path="/super" element={<SuperSection householdId={household.id} />} />
           <Route path="/help-debt" element={<HelpDebtSection householdId={household.id} />} />
+          <Route path="/equity" element={<EquitySection householdId={household.id} />} />
           <Route path="/breakdowns" element={<BreakdownsSection householdId={household.id} />} />
           <Route
             path="/breakdowns/:id"

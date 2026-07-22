@@ -10,11 +10,12 @@ import {
 } from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
 import { formatCents, moneyColor } from '../lib/money'
-import { netWorthBreakdown, type Liability } from '../lib/super'
+import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
 
 interface NetWorthViewProps {
   accounts: Account[]
   superIds: Set<string>
+  equity: EquityHolding[]
   liabilities: Liability[]
   onToggleExclude: (accountId: string, exclude: boolean) => void
 }
@@ -165,19 +166,61 @@ function LiabilityGroup({
 }
 
 /**
+ * A group of equity holdings, each shown as a positive (green) vested value,
+ * with a subtotal. Rendered only when the household holds at least one grant with
+ * vested value.
+ */
+function EquityGroup({
+  holdings,
+  subtotalCents,
+}: {
+  holdings: EquityHolding[]
+  subtotalCents: number
+}) {
+  return (
+    <Card component="section" aria-label="Equity" withBorder radius="md" p="sm">
+      <Stack gap="xs">
+        <Group justify="space-between" wrap="nowrap">
+          <Title order={3} size="h5">
+            Equity
+          </Title>
+          <Text fw={700} c={moneyColor(subtotalCents)}>
+            {formatCents(subtotalCents)}
+          </Text>
+        </Group>
+        <Stack gap="xs">
+          {holdings.map((holding) => (
+            <Group key={holding.label} justify="space-between" wrap="nowrap" gap="sm">
+              <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+                {holding.label}
+              </Text>
+              <Text size="md" ta="right" c={moneyColor(holding.valueCents)}>
+                {formatCents(holding.valueCents)}
+              </Text>
+            </Group>
+          ))}
+        </Stack>
+      </Stack>
+    </Card>
+  )
+}
+
+/**
  * Presentational net worth: assets less liabilities across every included
  * account, split into super and other accounts with per-account balances and
- * subtotals, then each member's HELP debt as a liability subtracted from the
- * total. Accounts the household has excluded from tracking are listed in a
- * muted group at the bottom, off the total, each toggleable back in.
+ * subtotals, plus each grant's vested equity value as an asset, then each
+ * member's HELP debt as a liability subtracted from the total. Accounts the
+ * household has excluded from tracking are listed in a muted group at the bottom,
+ * off the total, each toggleable back in.
  */
 export function NetWorthView({
   accounts,
   superIds,
+  equity,
   liabilities,
   onToggleExclude,
 }: NetWorthViewProps) {
-  const breakdown = netWorthBreakdown(accounts, superIds, liabilities)
+  const breakdown = netWorthBreakdown(accounts, superIds, liabilities, equity)
   const [editing, { toggle: toggleEditing }] = useDisclosure(false)
   // Super always counts towards net worth, so only the other and excluded
   // groups can be edited; without any such account there is nothing to edit.
@@ -232,6 +275,12 @@ export function NetWorthView({
         togglable
         onToggleExclude={onToggleExclude}
       />
+      {breakdown.equityHoldings.length > 0 && (
+        <EquityGroup
+          holdings={breakdown.equityHoldings}
+          subtotalCents={breakdown.equityTotalCents}
+        />
+      )}
       {breakdown.liabilities.length > 0 && (
         <LiabilityGroup
           liabilities={breakdown.liabilities}

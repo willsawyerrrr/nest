@@ -86,6 +86,7 @@ describe('TabBar', () => {
 
     expect(screen.getByRole('link', { name: 'Breakdowns' })).toHaveAttribute('href', '/breakdowns')
     expect(screen.getByRole('link', { name: 'HELP debt' })).toHaveAttribute('href', '/help-debt')
+    expect(screen.getByRole('link', { name: 'Equity' })).toHaveAttribute('href', '/equity')
 
     await user.keyboard('{Control>}9{/Control}')
 

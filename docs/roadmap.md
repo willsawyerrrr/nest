@@ -70,7 +70,8 @@ does not restate them.
   'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
   `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/help-debt`
-  `/breakdowns` `/household`; `/` and unknown routes redirect to `/summary`), so
+  `/equity` `/breakdowns` `/household`; `/` and unknown routes redirect to
+  `/summary`), so
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
   Summary · Net worth · Inflows · Budget · Splits · Goals · Tax · Super · Help
   debt · Breakdowns · Household. The gift planner is reached from the Breakdowns
@@ -435,7 +436,11 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
 
 - **What / value.** Automates the asset balances behind the shipped **net worth**
   view (super fund balances, brokerage/share holdings) — replacing the manual
-  balance entry / contribution-accrual the super feature uses today. Combined with
+  balance entry / contribution-accrual the super feature uses today. Startup
+  equity grants already ship on the Equity tab as a manual asset: their vested
+  value (options at their gain over the strike, shares at a user-maintained price
+  per share) feeds net worth, with no Cake or cap-table API involved. Combined
+  with
   Up `HOME_LOAN` account balances (a liability, not yet modelled) and Up
   savers/transaction balances (assets), the household gets a genuine net-worth
   figure, not just a cash-flow plan.
@@ -519,14 +524,14 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
 
 - **What / value.** The net-worth view totals assets less liabilities — account
   balances a member can see, split into Super vs Other (super balances
-  auto-accruing from modelled contributions), less each member's HELP debt as a
-  first liability. The remaining scope is **more liabilities** (Up `HOME_LOAN`
-  balance, credit cards, other loans) and **trend over time**, so the one number
-  that ties the whole household picture together also captures those debts and
-  history.
+  auto-accruing from modelled contributions), plus the vested value of each
+  startup-equity grant, less each member's HELP debt as a first liability. The
+  remaining scope is **more liabilities** (Up `HOME_LOAN` balance, credit cards,
+  other loans) and **trend over time**, so the one number that ties the whole
+  household picture together also captures those debts and history.
 - **Effort.** M for the remaining liabilities + trend work (given balances arrive
-  from ingestion + manual entry per idea 6). The HELP-debt liability is a shipped
-  down-payment on this.
+  from ingestion + manual entry per idea 6). The HELP-debt liability and the
+  vested-equity asset are shipped down-payments on this.
 - **Touches.** Schema: an `asset`/`liability` model (or generalise the existing
   `Account` model, which already has `type` including `credit`/`offset` and a
   nullable `owner_member_id` for joint) + periodic balance snapshots for a

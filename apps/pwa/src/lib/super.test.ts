@@ -141,4 +141,23 @@ describe('netWorthBreakdown', () => {
     expect(breakdown.otherTotalCents).toBe(0)
     expect(breakdown.totalCents).toBe(100000)
   })
+
+  it('adds vested equity as an asset and subtracts liabilities in the total', () => {
+    const accounts = [account('a1', 100000), account('a2', 50000)]
+    const breakdown = netWorthBreakdown(
+      accounts,
+      new Set(['a1']),
+      [{ label: 'Will HELP debt', balanceCents: 20000 }],
+      [
+        { label: 'Will — options', valueCents: 30000 },
+        { label: 'Sam — shares', valueCents: 10000 },
+      ],
+    )
+
+    expect(breakdown.equityHoldings.map((h) => h.label)).toEqual(['Will — options', 'Sam — shares'])
+    expect(breakdown.equityTotalCents).toBe(40000)
+    expect(breakdown.liabilitiesTotalCents).toBe(20000)
+    // super 100000 + other 50000 + equity 40000 − liabilities 20000 = 170000.
+    expect(breakdown.totalCents).toBe(170000)
+  })
 })

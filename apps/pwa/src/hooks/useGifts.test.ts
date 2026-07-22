@@ -40,8 +40,8 @@ describe('useGifts', () => {
 
     await act(async () => {
       await result.current.reload()
-      await result.current.createRecipient({ name: 'Mum' })
-      await result.current.updateRecipient('r1', { name: 'Mum' })
+      await result.current.createRecipient({ name: 'Mum', member_id: null })
+      await result.current.updateRecipient('r1', { name: 'Mum', member_id: null })
       await result.current.removeRecipient('r1')
       await result.current.createOccasion({ name: 'Birthday', occasion_date: null })
       await result.current.updateOccasion('o1', { name: 'Birthday', occasion_date: null })

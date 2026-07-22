@@ -19,7 +19,7 @@ describe('pairKey', () => {
 })
 
 function recipient(id: string, name: string): GiftRecipient {
-  return { id, name, household_id: 'h', created_at: '', updated_at: '' }
+  return { id, name, member_id: null, household_id: 'h', created_at: '', updated_at: '' }
 }
 
 function occasion(id: string, name: string, occasion_date: string | null): GiftOccasion {

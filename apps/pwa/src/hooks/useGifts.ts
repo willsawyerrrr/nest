@@ -10,6 +10,8 @@ export type GiftPurchase = Tables<'gift_purchase'>
 /** The recipient fields a form supplies; the household is set by the hook. */
 export interface GiftRecipientInput {
   name: string
+  /** The household member this recipient is, or null for an external person. */
+  member_id: string | null
 }
 
 /** The occasion fields a form supplies; the household is set by the hook. */

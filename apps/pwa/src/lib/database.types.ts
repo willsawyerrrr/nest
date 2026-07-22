@@ -511,6 +511,7 @@ export type Database = {
           created_at: string
           household_id: string
           id: string
+          member_id: string | null
           name: string
           updated_at: string
         }
@@ -518,6 +519,7 @@ export type Database = {
           created_at?: string
           household_id: string
           id?: string
+          member_id?: string | null
           name: string
           updated_at?: string
         }
@@ -525,6 +527,7 @@ export type Database = {
           created_at?: string
           household_id?: string
           id?: string
+          member_id?: string | null
           name?: string
           updated_at?: string
         }
@@ -535,6 +538,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gift_recipient_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
           },
         ]
       }

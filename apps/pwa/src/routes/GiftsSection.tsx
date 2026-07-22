@@ -1,6 +1,8 @@
 import { GiftsScreen } from '../components/GiftsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useCurrentMember } from '../hooks/useCurrentMember'
 import { useGifts } from '../hooks/useGifts'
+import { useMembers } from '../hooks/useMembers'
 
 export function GiftsSection({
   householdId,
@@ -12,8 +14,10 @@ export function GiftsSection({
   backLabel: string
 }) {
   const gifts = useGifts(householdId)
+  const { members, loading: membersLoading } = useMembers()
+  const { member, loading: memberLoading } = useCurrentMember()
 
-  if (gifts.loading) {
+  if (gifts.loading || membersLoading || memberLoading) {
     return <LoadingScreen />
   }
 
@@ -25,6 +29,8 @@ export function GiftsSection({
       occasions={gifts.occasions ?? []}
       budgets={gifts.budgets ?? []}
       purchases={gifts.purchases ?? []}
+      members={members ?? []}
+      currentMemberId={member?.id ?? null}
       onCreateRecipient={gifts.createRecipient}
       onUpdateRecipient={gifts.updateRecipient}
       onDeleteRecipient={gifts.removeRecipient}

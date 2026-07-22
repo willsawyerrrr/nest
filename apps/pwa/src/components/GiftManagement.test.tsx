@@ -1,16 +1,20 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { GiftOccasion, GiftRecipient } from '../hooks/useGifts'
+import { makeMember } from '../test/fixtures'
 import { fireEvent, render, screen, waitFor, within } from '../test/render'
 import { GiftManagement } from './GiftManagement'
 
 const alice: GiftRecipient = {
   id: 'r1',
   name: 'Alice',
+  member_id: null,
   household_id: 'h',
   created_at: '',
   updated_at: '',
 }
+
+const will = makeMember({ id: 'm1', name: 'Will' })
 const xmas: GiftOccasion = {
   id: 'o1',
   name: 'Christmas',
@@ -26,6 +30,7 @@ function renderManagement(overrides: Partial<Parameters<typeof GiftManagement>[0
     <GiftManagement
       recipients={[]}
       occasions={[]}
+      members={[]}
       onCreateRecipient={vi.fn()}
       onUpdateRecipient={vi.fn()}
       onDeleteRecipient={vi.fn()}
@@ -64,7 +69,9 @@ describe('GiftManagement', () => {
     await user.type(screen.getByLabelText('Name'), 'Carol')
     await user.click(add)
 
-    await waitFor(() => expect(onCreateRecipient).toHaveBeenCalledWith({ name: 'Carol' }))
+    await waitFor(() =>
+      expect(onCreateRecipient).toHaveBeenCalledWith({ name: 'Carol', member_id: null }),
+    )
   })
 
   it('adds an occasion with no date', async () => {
@@ -92,7 +99,49 @@ describe('GiftManagement', () => {
     await user.type(name, 'Alicia')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    await waitFor(() => expect(onUpdateRecipient).toHaveBeenCalledWith('r1', { name: 'Alicia' }))
+    await waitFor(() =>
+      expect(onUpdateRecipient).toHaveBeenCalledWith('r1', { name: 'Alicia', member_id: null }),
+    )
+  })
+
+  it('links a recipient to a household member and writes member_id', async () => {
+    const user = userEvent.setup()
+    const onCreateRecipient = vi.fn()
+    renderManagement({ members: [will], onCreateRecipient })
+
+    await user.click(screen.getByRole('button', { name: 'Add recipient' }))
+    await user.type(screen.getByLabelText('Name'), 'Will')
+    await user.click(screen.getByRole('combobox', { name: 'Household member' }))
+    await user.click(await screen.findByRole('option', { name: 'Will' }))
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() =>
+      expect(onCreateRecipient).toHaveBeenCalledWith({ name: 'Will', member_id: 'm1' }),
+    )
+  })
+
+  it('shows the linked member on a recipient and preselects it when editing', async () => {
+    const user = userEvent.setup()
+    const linked: GiftRecipient = { ...alice, name: 'Will', member_id: 'm1' }
+    const onUpdateRecipient = vi.fn()
+    renderManagement({ recipients: [linked], members: [will], onUpdateRecipient })
+
+    expect(screen.getByText(/Will — purchases hidden from them/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit Will' }))
+    expect(screen.getByRole('combobox', { name: 'Household member' })).toHaveValue('Will')
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() =>
+      expect(onUpdateRecipient).toHaveBeenCalledWith('r1', { name: 'Will', member_id: 'm1' }),
+    )
+  })
+
+  it('falls back to a generic label when a linked member is not in the list', () => {
+    const linked: GiftRecipient = { ...alice, name: 'Ghost', member_id: 'gone' }
+    renderManagement({ recipients: [linked], members: [will] })
+
+    expect(screen.getByText(/A member — purchases hidden from them/i)).toBeInTheDocument()
   })
 
   it('edits an occasion, keeping its date', async () => {

@@ -8,6 +8,7 @@ import { GiftBudgetForm } from './GiftBudgetForm'
 const alice: GiftRecipient = {
   id: 'r1',
   name: 'Alice',
+  member_id: null,
   household_id: 'h',
   created_at: '',
   updated_at: '',

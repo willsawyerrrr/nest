@@ -227,11 +227,17 @@ manual line.
 The `kind = 'gift'` breakdown keeps the bespoke gift planner: plan a spend per
 **recipient × occasion**, then record the actual purchases against it. All four
 tables are household-scoped under the ledger's RLS, with composite foreign keys on
-`(id, household_id)` that keep every reference inside the household.
+`(id, household_id)` that keep every reference inside the household. A gift's
+agreed budget is shared, but its purchases are private from the recipient when the
+recipient is a household member (see **Private gifts** below).
 
 - **gift_recipient** — a named person the household budgets gifts for.
-  - `id`, `household_id`, `name`, `created_at`, `updated_at`. Unique on
-    `(id, household_id)`.
+  - `id`, `household_id`, `name`, `member_id` (nullable), `created_at`,
+    `updated_at`. Unique on `(id, household_id)`.
+  - `member_id`, when set, links the recipient to a household member: the
+    recipient *is* that member, and their gift purchases are hidden from them.
+    Null is an external person, fully shared. Composite foreign key
+    `(member_id, household_id)` → `members` `on delete set null (member_id)`.
 - **gift_occasion** — a named gifting occasion with an optional date.
   - `id`, `household_id`, `name`, `occasion_date` (nullable), `created_at`,
     `updated_at`. Unique on `(id, household_id)`. Recurrence/year-scoping is out
@@ -252,6 +258,19 @@ tables are household-scoped under the ledger's RLS, with composite foreign keys 
     `description` (default `''`), `purchased_on`, `created_at`, `updated_at`.
   - Composite foreign key `(gift_budget_id, household_id)` → `gift_budget`
     `on delete cascade`.
+
+**Private gifts.** `gift_recipient`, `gift_occasion`, and `gift_budget` carry the
+shared blanket "household members manage" policy — the agreed budget is set
+together and a recipient may see their own budgeted amount, and it still feeds the
+derived Gifts budget line and pay splits unchanged. `gift_purchase` instead has
+per-command policies gated on the caller not being the gift's recipient:
+`SELECT`/`UPDATE`/`DELETE`/`INSERT` all require
+`gift_budget_id not in (select hidden_gift_budget_ids_for_current_member())` (plus
+household membership). `hidden_gift_budget_ids_for_current_member()` is a
+`SECURITY DEFINER` helper returning the gift-budget ids whose recipient is linked
+to one of the caller's members (mirroring `visible_balance_account_ids`), so a
+member never reads and cannot log a purchase for their own surprise, while the
+buyer — any other member — sees and manages it normally.
 
 ## Ledger
 
@@ -338,6 +357,10 @@ not-yet-member can act past RLS in the narrow ways allowed:
   ids, and the account ids whose balance the caller may see (shared, own, or
   super) — the last gating the `transactions` policies without recursing through
   the `accounts` policies.
+- `hidden_gift_budget_ids_for_current_member()` — the SECURITY DEFINER helper
+  behind private gifts: the gift-budget ids whose recipient is linked to one of
+  the caller's members, gating the `gift_purchase` policies so a member never sees
+  or logs a purchase for a gift meant for them.
 
 The Up token RPCs are also `SECURITY DEFINER`, but granted to `service_role`
 alone (not `authenticated`) — they are the only path to the token, which lives in

@@ -30,8 +30,10 @@ Clients talk to the database in the way that fits each job:
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
   member's Up token), `up-sync` (poll saver balances), `up-webhook`
   (near-real-time receiver), and `changelog` (proxy GitHub for the in-app "What's
-  new" feed). The Up functions hold Up tokens server-side (via Vault); `changelog`
-  holds a GitHub PAT server-side. All are JWT-verified except `up-webhook`
+  new" feed; it accepts the client's build commit SHA and cuts the raw commit
+  list at it, keeping that commit and older, so a stale/cached PWA never shows
+  changes newer than its build). The Up functions hold Up tokens server-side (via
+  Vault); `changelog` holds a GitHub PAT server-side. All are JWT-verified except `up-webhook`
   (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
   client-side in the PWA; an authoritative server-side tax estimate is a future
   edge function.

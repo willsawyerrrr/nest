@@ -130,8 +130,12 @@ the function proxies the API.
   merged-commit subjects on `main` (implemented) and open PR titles (in
   progress) from the GitHub REST API, keeps only user-facing Conventional Commit
   types (feat / fix / perf) while excluding `ci`-scoped entries (CI/plumbing,
-  not user-facing), and returns the shaped lists. The parsing and
-  filtering are the pure `parseChangelogSubject` / `runChangelog` in
+  not user-facing), and returns the shaped lists. It takes an optional `sha` in
+  the request body — the client's build commit — and cuts the raw newest-first
+  commit list at that commit (keeping it and older, prefix-matched, fail-open)
+  before parsing, so a stale/cached PWA never shows implemented entries newer
+  than its build; open PRs are unaffected. The parsing, cutoff, and filtering are
+  the pure `parseChangelogSubject` / `cutoffCommitsAtSha` / `runChangelog` in
   `changelog/changelog.ts` (HTTP injected), unit-tested against a stubbed
   `fetch`. A GitHub failure surfaces as a `502`.
 

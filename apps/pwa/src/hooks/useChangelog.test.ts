@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from '../lib/supabase'
 import { useChangelog } from './useChangelog'
 
@@ -10,6 +10,28 @@ const invoke = vi.mocked(supabase.functions.invoke)
 describe('useChangelog', () => {
   beforeEach(() => {
     invoke.mockReset()
+    invoke.mockResolvedValue({
+      data: { configured: true, implemented: [], inProgress: [] },
+      error: null,
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('passes the build commit SHA when one is stamped in', async () => {
+    vi.stubEnv('VITE_COMMIT_SHA', 'abc123')
+    const { result } = renderHook(() => useChangelog())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(invoke).toHaveBeenCalledWith('changelog', { body: { sha: 'abc123' } })
+  })
+
+  it('sends an empty body when no build SHA is stamped in', async () => {
+    vi.stubEnv('VITE_COMMIT_SHA', '')
+    const { result } = renderHook(() => useChangelog())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(invoke).toHaveBeenCalledWith('changelog', { body: {} })
   })
 
   it('loads the implemented and in-progress entries', async () => {

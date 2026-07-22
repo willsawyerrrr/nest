@@ -102,7 +102,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Changelog: an in-app "What's new" tab reads recent user-facing changes from
   GitHub via the `changelog` edge function (a server-held `GITHUB_CHANGELOG_TOKEN`
   fine-grained PAT), showing open PR titles as in-progress and merged-commit
-  subjects as implemented, keeping only `feat`/`fix`/`perf` entries.
+  subjects as implemented, keeping only `feat`/`fix`/`perf` entries. The build's
+  commit SHA is stamped into the app (`VITE_COMMIT_SHA` from
+  `VERCEL_GIT_COMMIT_SHA`) and sent to the function, which cuts the raw commit
+  list at that commit so a stale/cached PWA never shows implemented entries newer
+  than the build it is running.
 
 ## Conventions
 

@@ -70,6 +70,42 @@ describe('GiftBudgetForm', () => {
     )
   })
 
+  it('offers a per-gift date only when the chosen occasion has no date of its own', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    // Christmas (dated) is the default occasion: the per-gift date is hidden.
+    expect(screen.queryByLabelText(/^date$/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/uses the occasion’s date — 25 Dec 2026/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: /occasion/i }))
+    await user.click(await screen.findByRole('option', { name: 'Birthday' }))
+
+    // Birthday has no date: the per-gift date field appears.
+    expect(screen.getByLabelText(/^date$/i)).toBeInTheDocument()
+    expect(screen.queryByText(/uses the occasion’s date/i)).not.toBeInTheDocument()
+  })
+
+  it('clears any per-gift date when the chosen occasion has one', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    renderForm({ initial: { ...budget, occasion_id: 'o1', event_date: '2026-01-01' }, onSubmit })
+
+    // The dated occasion governs, so no per-gift date is offered.
+    expect(screen.queryByLabelText(/^date$/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        recipient_id: 'r1',
+        occasion_id: 'o1',
+        budgeted_amount_cents: 100_00,
+        event_date: null,
+      }),
+    )
+  })
+
   it('disables submit until an amount is entered', async () => {
     const user = userEvent.setup()
     renderForm()

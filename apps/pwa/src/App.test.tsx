@@ -66,6 +66,7 @@ vi.mock('./routes/GoalsSection', () => ({ GoalsSection: () => <div>GoalsSection<
 vi.mock('./routes/TaxSection', () => ({ TaxSection: () => <div>TaxSection</div> }))
 vi.mock('./routes/SuperSection', () => ({ SuperSection: () => <div>SuperSection</div> }))
 vi.mock('./routes/HelpDebtSection', () => ({ HelpDebtSection: () => <div>HelpDebtSection</div> }))
+vi.mock('./routes/EquitySection', () => ({ EquitySection: () => <div>EquitySection</div> }))
 vi.mock('./routes/BreakdownsSection', () => ({
   BreakdownsSection: () => <div>BreakdownsSection</div>,
 }))
@@ -190,5 +191,11 @@ describe('App', () => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp(['/help-debt'])
     expect(await screen.findByText('HelpDebtSection')).toBeInTheDocument()
+  })
+
+  it('routes to the equity section', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp(['/equity'])
+    expect(await screen.findByText('EquitySection')).toBeInTheDocument()
   })
 })

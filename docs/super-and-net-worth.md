@@ -49,10 +49,13 @@ persisted in localStorage, not stored in the database.
 ## Net worth tab
 
 The Net worth tab totals assets less liabilities. Assets are the `balance_cents`
-of every account the member can see, split into Super vs Other accounts; each
-member's outstanding HELP debt (from the `help_debt` table — see the HELP debt
-tab) is a liability, shown as a negative figure in a Liabilities group and
-subtracted from the grand total. A co-member's private spending / saver balances
+of every account the member can see, split into Super vs Other accounts, plus the
+current vested value of each equity grant (from the `equity_grant` table — see the
+Equity tab) shown in an Equity group. Each member's outstanding HELP debt (from
+the `help_debt` table — see the HELP debt tab) is a liability, shown as a negative
+figure in a Liabilities group and subtracted from the grand total. So the grand
+total is super + other accounts + vested equity − liabilities. A co-member's
+private spending / saver balances
 are excluded, so each member's total covers only balances they can see (the
 per-account balance-privacy model — see
 [`architecture.md`](architecture.md#security)).
@@ -69,3 +72,23 @@ The HELP debt tab edits each member's single standing HELP/HECS balance (one
 `help_debt` row per member, not financial-year-scoped). The balance drives the
 compulsory HELP repayment on the Tax tab and counts as a liability on the Net
 worth tab.
+
+## Equity tab
+
+The Equity tab tracks each member's startup equity grants (options or shares),
+grouped by member with add / edit / delete. Each grant records its `quantity`,
+`grant_date`, cliff and vesting period in months, vesting frequency (monthly /
+quarterly / annual), and — for options — a per-share `strike_price_cents`. There
+is no Cake (or other cap-table) API, so entry is manual: the household maintains
+`price_per_share_cents` (the current fair value per share, a 409A-equivalent)
+itself, alongside an optional `price_as_of` date.
+
+A grant vests nothing before its cliff, then vests whole tranches on each
+interval boundary up to the vesting period; the vested quantity rounds down. The
+vested value is intrinsic: options are worth the vested quantity times the excess
+of the price per share over the strike (never negative, so underwater options are
+worth nothing), and shares are worth the vested quantity times the price per
+share. Only the vested value counts toward net worth, valued as of today; the
+vesting and valuation math is pure (`vestedQuantity`, `grantValueCents`,
+`equityTotalCents` in `@nest/plan`). The Net worth tab sums every grant's vested
+value into its Equity assets group.

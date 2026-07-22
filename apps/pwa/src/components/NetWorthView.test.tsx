@@ -32,6 +32,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={accounts}
         superIds={new Set(['a1', 'a2'])}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
@@ -53,11 +54,51 @@ describe('NetWorthView', () => {
     expect(within(total).getByText('$202,000.00')).toBeInTheDocument()
   })
 
+  it('lists equity holdings as positive figures and adds them to the total', () => {
+    render(
+      <NetWorthView
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        superIds={new Set()}
+        equity={[
+          { label: 'Will — 2024 options', valueCents: 3000000 },
+          { label: 'Sam — 2023 shares', valueCents: 1000000 },
+        ]}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+
+    const equity = screen.getByRole('region', { name: 'Equity' })
+    expect(within(equity).getByText('Will — 2024 options')).toBeInTheDocument()
+    expect(within(equity).getByText('$30,000.00')).toBeInTheDocument()
+    expect(within(equity).getByText('$10,000.00')).toBeInTheDocument()
+    // Subtotal: $30,000 + $10,000 = $40,000.
+    expect(within(equity).getByText('$40,000.00')).toBeInTheDocument()
+
+    // Grand total: $5,000 accounts + $40,000 equity = $45,000.
+    const total = screen.getByRole('region', { name: 'Total net worth' })
+    expect(within(total).getByText('$45,000.00')).toBeInTheDocument()
+  })
+
+  it('omits the equity group when there are no holdings', () => {
+    render(
+      <NetWorthView
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        superIds={new Set()}
+        equity={[]}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('region', { name: 'Equity' })).not.toBeInTheDocument()
+  })
+
   it('lists liabilities as negative figures and subtracts them from the total', () => {
     render(
       <NetWorthView
         accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
         superIds={new Set()}
+        equity={[]}
         liabilities={[
           { label: 'Will HELP debt', balanceCents: 3000000 },
           { label: 'Sam HELP debt', balanceCents: 1000000 },
@@ -83,6 +124,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
         superIds={new Set()}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
@@ -95,6 +137,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={[]}
         superIds={new Set()}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
@@ -119,6 +162,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={withExcluded}
         superIds={new Set(['a1'])}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
@@ -148,6 +192,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={withExcluded}
         superIds={new Set()}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={onToggleExclude}
       />,
@@ -177,6 +222,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={withSuperAndOther}
         superIds={new Set(['a1'])}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
@@ -208,6 +254,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={[account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 })]}
         superIds={new Set(['a1'])}
+        equity={[]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
       />,

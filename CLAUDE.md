@@ -51,11 +51,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   co-contribution are modelled, all from the versioned per-FY config alongside the
   tax config. Each member's balance is a dated baseline that auto-accrues modelled
   contributions between manual true-ups, seeds a net-worth view (assets less
-  liabilities: account balances split into super and other, less each member's
-  HELP debt; any account can be excluded via a shared household-wide flag that
-  drops it from net-worth totals alone — not retirement projection or
-  budgeting), and projects to retirement under client-side (localStorage)
-  return/age assumptions.
+  liabilities: account balances split into super and other, plus the vested value
+  of each member's startup-equity grants, less each member's HELP debt; any
+  account can be excluded via a shared household-wide flag that drops it from
+  net-worth totals alone — not retirement projection or budgeting), and projects
+  to retirement under client-side (localStorage) return/age assumptions.
+- Equity: each member owns many startup-equity grants (options or shares) on their
+  own Equity tab (the `equity_grant` table), with a cliff and vesting schedule.
+  Entry is manual — there is no Cake or cap-table API — so the household maintains
+  the current price per share itself. Only the vested portion is valued (options
+  at their gain over the strike, shares at the price per share) and that vested
+  value counts toward net worth as an asset. The vesting and valuation math is
+  pure, in `@nest/plan`.
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend

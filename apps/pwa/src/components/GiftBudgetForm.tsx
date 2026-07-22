@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, Select, Stack, Text } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { GiftBudget, GiftBudgetInput, GiftOccasion, GiftRecipient } from '../hooks/useGifts'
+import { formatIsoDate } from '../lib/dates'
 import { pairKey } from '../lib/gifts'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
@@ -45,6 +46,12 @@ export function GiftBudgetForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // When the chosen occasion carries its own date, that date governs and no
+  // per-gift override is offered.
+  const selectedOccasion = occasions.find((occasion) => occasion.id === occasionId)
+  const occasionDate = selectedOccasion?.occasion_date ?? null
+  const occasionHasDate = occasionDate !== null
+
   // A new pairing must be unique; an edit keeps its own pairing.
   const isNewPair =
     pairKey(recipientId, occasionId) !==
@@ -66,7 +73,7 @@ export function GiftBudgetForm({
         recipient_id: recipientId,
         occasion_id: occasionId,
         budgeted_amount_cents: dollarsToCents(amount) ?? 0,
-        event_date: eventDate,
+        event_date: occasionHasDate ? null : eventDate,
       })
     } catch {
       setError('Could not save this gift budget. Please try again.')
@@ -109,15 +116,21 @@ export function GiftBudgetForm({
           onChange={setAmount}
         />
 
-        <DateInput
-          label="Date"
-          size="sm"
-          description="Optional. When this gift is due — e.g. this person's birthday. Falls back to the occasion's date."
-          valueFormat="D MMM YYYY"
-          clearable
-          value={eventDate}
-          onChange={setEventDate}
-        />
+        {occasionDate !== null ? (
+          <Text size="sm" c="dimmed">
+            Uses the occasion&rsquo;s date — {formatIsoDate(occasionDate)}
+          </Text>
+        ) : (
+          <DateInput
+            label="Date"
+            size="sm"
+            description="Optional. When this gift is due — e.g. this person's birthday. Falls back to the occasion's date."
+            valueFormat="D MMM YYYY"
+            clearable
+            value={eventDate}
+            onChange={setEventDate}
+          />
+        )}
 
         {duplicate && (
           <Text role="alert" c="red" size="sm">

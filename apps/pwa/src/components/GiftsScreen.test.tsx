@@ -102,13 +102,18 @@ describe('GiftsScreen budget date', () => {
     expect(screen.getByText('15 Nov 2026')).toBeInTheDocument()
   })
 
-  it('preselects a saved date when editing and persists it on save', async () => {
+  it('preselects a saved date when editing an undated occasion and persists it on save', async () => {
     const user = userEvent.setup()
     const onUpdateBudget = vi.fn()
-    renderScreen({ budgets: [{ ...budget, event_date: '2026-11-15' }], onUpdateBudget })
+    const bday: GiftOccasion = { ...xmas, id: 'o2', name: 'Birthday', occasion_date: null }
+    renderScreen({
+      occasions: [bday],
+      budgets: [{ ...budget, occasion_id: 'o2', event_date: '2026-11-15' }],
+      onUpdateBudget,
+    })
 
     // Groups default collapsed, so expand the occasion group before its rows show.
-    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+    await user.click(screen.getByRole('button', { name: /Birthday/ }))
     await user.click(screen.getByRole('button', { name: /Alice/ }))
     await user.click(screen.getByRole('button', { name: 'Edit budget' }))
 
@@ -120,6 +125,24 @@ describe('GiftsScreen budget date', () => {
       'b1',
       expect.objectContaining({ event_date: '2026-11-15' }),
     )
+  })
+
+  it('hides the per-gift date and clears any override when editing a dated occasion', async () => {
+    const user = userEvent.setup()
+    const onUpdateBudget = vi.fn()
+    renderScreen({ budgets: [{ ...budget, event_date: '2026-11-15' }], onUpdateBudget })
+
+    // Groups default collapsed, so expand the occasion group before its rows show.
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+    await user.click(screen.getByRole('button', { name: /Alice/ }))
+    await user.click(screen.getByRole('button', { name: 'Edit budget' }))
+
+    // Christmas is dated, so its date governs — no per-gift date field is shown.
+    expect(screen.queryByLabelText('Date')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(onUpdateBudget).toHaveBeenCalledWith('b1', expect.objectContaining({ event_date: null }))
   })
 })
 

@@ -1,6 +1,6 @@
 import { Card, Stack, Table, Text, Title } from '@mantine/core'
 import type { HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
-import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
+import { formatCents } from '../lib/money'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
@@ -44,20 +44,25 @@ function PeriodRow({
   )
 }
 
-/** A single tax-component line: its annual amount and the matching fortnightly share. */
+/** A single build-up line: its annual amount and the matching fortnightly share. */
 interface ComponentLine {
   /** Plain-language label, abbreviations spelled out. */
   label: string
   annualCents: number
-  /** Reduces tax (an offset): rendered as a negative figure. */
+  /** Reduces the running figure (a deduction or offset): rendered as a negative. */
   subtract?: boolean
-  /** A core component shown even at zero; others appear only when non-zero. */
+  /** A core line shown even at zero; others appear only when non-zero. */
   alwaysShow?: boolean
-  /** The built-up total, emphasised. */
+  /** The built-up subtotal or total, emphasised. */
   total?: boolean
 }
 
-/** One component's annual and fortnightly figures as a table body row headed by its label. */
+/** Whether a line appears: core lines and totals always, others only when non-zero. */
+function isVisible(line: ComponentLine): boolean {
+  return Boolean(line.alwaysShow || line.total || line.annualCents > 0)
+}
+
+/** One line's annual and fortnightly figures as a table body row headed by its label. */
 function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
   const annual = subtract ? -annualCents : annualCents
   const fw = total ? 700 : undefined
@@ -76,52 +81,71 @@ function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
   )
 }
 
+/** A labelled table of build-up lines with annual and fortnightly columns. */
+function ComponentTable({ label, lines }: { label: string; lines: ComponentLine[] }) {
+  return (
+    <Table.ScrollContainer minWidth={0}>
+      <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs" aria-label={label}>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th />
+            <Table.Th scope="col" ta="right">
+              Annual
+            </Table.Th>
+            <Table.Th scope="col" ta="right">
+              Fortnightly
+            </Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {lines.map((line) => (
+            <ComponentRow key={line.label} {...line} />
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Table.ScrollContainer>
+  )
+}
+
 /**
- * How a member's total tax is built up, component by component, annual and
- * fortnightly. Income tax, Medicare levy, and the total always show; the Low
- * Income Tax Offset, Medicare levy surcharge, HELP/HECS repayment, and Division
- * 293 tax appear only when they apply, with any omitted components named below so
- * a reader knows they were considered and are nil.
+ * How a member's gross income becomes the taxable income it is taxed on, then how
+ * that tax is built up — each figure annual with its fortnightly share. The first
+ * table runs gross income down through any pre-tax deduction (concessional super)
+ * to taxable income; the second builds the tax back up. Gross income, taxable
+ * income, income tax, Medicare levy, and the total always show; the concessional
+ * super deduction, Low Income Tax Offset, Medicare levy surcharge, HELP/HECS
+ * repayment, and Division 293 tax appear only when they apply, with any omitted tax
+ * components named below so a reader knows they were considered and are nil.
  */
-function BreakdownTable({ breakdown }: { breakdown: TaxBreakdown }) {
-  const lines: ComponentLine[] = [
+function BreakdownTable({
+  breakdown,
+  grossCents,
+  concessionalCents,
+}: {
+  breakdown: TaxBreakdown
+  grossCents: number
+  concessionalCents: number
+}) {
+  const incomeLines: ComponentLine[] = [
+    { label: 'Gross income', annualCents: grossCents, alwaysShow: true },
+    { label: 'Concessional super', annualCents: concessionalCents, subtract: true },
+    { label: 'Taxable income', annualCents: breakdown.taxableIncomeCents, total: true },
+  ]
+  const taxLines: ComponentLine[] = [
     { label: 'Income tax', annualCents: breakdown.incomeTaxCents, alwaysShow: true },
     { label: 'Low Income Tax Offset', annualCents: breakdown.litoOffsetCents, subtract: true },
     { label: 'Medicare levy', annualCents: breakdown.medicareLevyCents, alwaysShow: true },
     { label: 'Medicare levy surcharge', annualCents: breakdown.medicareLevySurchargeCents },
     { label: 'HELP/HECS repayment', annualCents: breakdown.helpRepaymentCents },
     { label: 'Division 293 tax', annualCents: breakdown.division293Cents },
+    { label: 'Total tax', annualCents: breakdown.totalLiabilityCents, total: true },
   ]
-  const shown = lines.filter((line) => line.alwaysShow || line.annualCents > 0)
-  const omitted = lines.filter((line) => !line.alwaysShow && line.annualCents === 0)
+  const omitted = taxLines.filter((line) => !isVisible(line))
 
   return (
-    <Stack gap={4}>
-      <Text size="xs" c="dimmed">
-        Taxable income (after super): {formatPerYear(breakdown.taxableIncomeCents)} ·{' '}
-        {formatPerFortnight(Math.round(breakdown.taxableIncomeCents / FORTNIGHTS_PER_YEAR))}
-      </Text>
-      <Table.ScrollContainer minWidth={0}>
-        <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs" aria-label="Tax breakdown">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th />
-              <Table.Th scope="col" ta="right">
-                Annual
-              </Table.Th>
-              <Table.Th scope="col" ta="right">
-                Fortnightly
-              </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {shown.map((line) => (
-              <ComponentRow key={line.label} {...line} />
-            ))}
-            <ComponentRow label="Total tax" annualCents={breakdown.totalLiabilityCents} total />
-          </Table.Tbody>
-        </Table>
-      </Table.ScrollContainer>
+    <Stack gap="xs">
+      <ComponentTable label="Taxable income" lines={incomeLines.filter(isVisible)} />
+      <ComponentTable label="Tax breakdown" lines={taxLines.filter(isVisible)} />
       {omitted.length > 0 && (
         <Text size="xs" c="dimmed">
           Not applicable this year: {omitted.map((line) => line.label).join(', ')}.
@@ -132,11 +156,10 @@ function BreakdownTable({ breakdown }: { breakdown: TaxBreakdown }) {
 }
 
 /**
- * One row's annual and fortnightly gross/tax/after-tax figures as a compact
- * table. When `breakdown` is given, the component-by-component build-up of the tax
- * is shown above it. When `concessionalCents` is positive, its annual and
- * fortnightly split is noted below with a reminder that gross is reduced before
- * tax.
+ * One row's annual and fortnightly gross/tax/after-tax figures as a compact table.
+ * When `breakdown` is given, the income build-up down to taxable income and the
+ * component-by-component build-up of the tax are shown above it; `grossCents` and
+ * `concessionalCents` feed that income build-up.
  */
 function FiguresCard({
   name,
@@ -153,9 +176,20 @@ function FiguresCard({
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Text fw={600}>{name}</Text>
-        {breakdown && <BreakdownTable breakdown={breakdown} />}
+        {breakdown && (
+          <BreakdownTable
+            breakdown={breakdown}
+            grossCents={row.annualGrossCents}
+            concessionalCents={concessionalCents}
+          />
+        )}
         <Table.ScrollContainer minWidth={0}>
-          <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs">
+          <Table
+            fz="sm"
+            verticalSpacing={4}
+            horizontalSpacing="xs"
+            aria-label="Income and tax summary"
+          >
             <Table.Thead>
               <Table.Tr>
                 <Table.Th />
@@ -186,13 +220,6 @@ function FiguresCard({
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
-        {concessionalCents > 0 && (
-          <Text size="xs" c="dimmed">
-            Concessional super: {formatPerYear(concessionalCents)} ·{' '}
-            {formatPerFortnight(Math.round(concessionalCents / FORTNIGHTS_PER_YEAR))} — deducted
-            from gross, so taxable income and after-tax cash are shown after super.
-          </Text>
-        )}
       </Stack>
     </Card>
   )

@@ -52,21 +52,33 @@ const estimate: HouseholdTaxEstimate = {
 
 const memberName = (id: string) => ({ m1: 'Will', m2: 'Sam' })[id] ?? 'Unknown'
 
+/** The gross/tax/after-tax summary table within a named card. */
+function summaryTable(name: string) {
+  return within(screen.getByRole('region', { name })).getByRole('table', {
+    name: 'Income and tax summary',
+  })
+}
+
+/** The gross-to-taxable-income build-up table within a named card. */
+function incomeTable(name: string) {
+  return within(screen.getByRole('region', { name })).getByRole('table', { name: 'Taxable income' })
+}
+
 describe('TaxEstimateView', () => {
   it('renders per-member annual and fortnightly figures by name', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
 
-    const willCard = screen.getByRole('region', { name: 'Will' })
-    expect(within(willCard).getByText('$100,000.00')).toBeInTheDocument()
-    expect(within(willCard).getByText('$25,000.00')).toBeInTheDocument()
-    expect(within(willCard).getByText('$75,000.00')).toBeInTheDocument()
-    expect(within(willCard).getByText('$3,846.15')).toBeInTheDocument()
-    expect(within(willCard).getByText('$961.54')).toBeInTheDocument()
-    expect(within(willCard).getByText('$2,884.61')).toBeInTheDocument()
+    const willSummary = summaryTable('Will')
+    expect(within(willSummary).getByText('$100,000.00')).toBeInTheDocument()
+    expect(within(willSummary).getByText('$25,000.00')).toBeInTheDocument()
+    expect(within(willSummary).getByText('$75,000.00')).toBeInTheDocument()
+    expect(within(willSummary).getByText('$3,846.15')).toBeInTheDocument()
+    expect(within(willSummary).getByText('$961.54')).toBeInTheDocument()
+    expect(within(willSummary).getByText('$2,884.61')).toBeInTheDocument()
 
-    const samCard = screen.getByRole('region', { name: 'Sam' })
-    expect(within(samCard).getByText('$60,000.00')).toBeInTheDocument()
-    expect(within(samCard).getByText('$50,000.00')).toBeInTheDocument()
+    const samSummary = summaryTable('Sam')
+    expect(within(samSummary).getByText('$60,000.00')).toBeInTheDocument()
+    expect(within(samSummary).getByText('$50,000.00')).toBeInTheDocument()
   })
 
   it('lays out each card as an annual/fortnightly table with gross/tax/after-tax columns', () => {
@@ -91,6 +103,14 @@ describe('TaxEstimateView', () => {
     expect(within(householdCard).getByText('$4,807.68')).toBeInTheDocument()
   })
 
+  it('shows no income build-up on the household card, which has no per-component breakdown', () => {
+    render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
+
+    const householdCard = screen.getByRole('region', { name: 'Household' })
+    expect(within(householdCard).queryByRole('table', { name: 'Taxable income' })).toBeNull()
+    expect(within(householdCard).queryByRole('table', { name: 'Tax breakdown' })).toBeNull()
+  })
+
   it('orders the household card before the member cards', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
 
@@ -104,7 +124,47 @@ describe('TaxEstimateView', () => {
     expect(screen.getByRole('heading', { name: /FY2027/ })).toBeInTheDocument()
   })
 
-  it('shows concessional super and a Division 293 line for a member with contributions', () => {
+  it('builds up taxable income from gross less concessional super', () => {
+    const willWithSuper: MemberTaxEstimate = {
+      ...will,
+      annualConcessionalContributionsCents: 26_000_00,
+      breakdown: { ...breakdown, taxableIncomeCents: 74_000_00 },
+    }
+    const withSuper: HouseholdTaxEstimate = { ...estimate, members: [willWithSuper, sam] }
+    render(<TaxEstimateView estimate={withSuper} financialYear={2027} memberName={memberName} />)
+
+    const willIncome = incomeTable('Will')
+    expect(within(willIncome).getByRole('row', { name: /Gross income/ })).toHaveTextContent(
+      '$100,000.00',
+    )
+    // The concessional super deduction reads as a subtraction, annual and fortnightly.
+    const concessional = within(willIncome).getByRole('row', { name: /Concessional super/ })
+    expect(concessional).toHaveTextContent('-$26,000.00')
+    expect(concessional).toHaveTextContent('-$1,000.00')
+    expect(within(willIncome).getByRole('row', { name: /Taxable income/ })).toHaveTextContent(
+      '$74,000.00',
+    )
+  })
+
+  it('shows gross and taxable income with no deduction row when there is no concessional super', () => {
+    const noSuper: MemberTaxEstimate = {
+      ...will,
+      breakdown: { ...breakdown, taxableIncomeCents: 100_000_00 },
+    }
+    const withoutSuper: HouseholdTaxEstimate = { ...estimate, members: [noSuper, sam] }
+    render(<TaxEstimateView estimate={withoutSuper} financialYear={2027} memberName={memberName} />)
+
+    const willIncome = incomeTable('Will')
+    expect(within(willIncome).getByRole('row', { name: /Gross income/ })).toHaveTextContent(
+      '$100,000.00',
+    )
+    expect(within(willIncome).getByRole('row', { name: /Taxable income/ })).toHaveTextContent(
+      '$100,000.00',
+    )
+    expect(within(willIncome).queryByRole('row', { name: /Concessional super/ })).toBeNull()
+  })
+
+  it('shows a Division 293 line for a member with contributions, absent otherwise', () => {
     const willWithSuper: MemberTaxEstimate = {
       ...will,
       annualConcessionalContributionsCents: 26_000_00,
@@ -114,17 +174,14 @@ describe('TaxEstimateView', () => {
     render(<TaxEstimateView estimate={withSuper} financialYear={2027} memberName={memberName} />)
 
     const willCard = screen.getByRole('region', { name: 'Will' })
-    // Annual $26,000 and its fortnightly split $1,000 both shown.
-    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent('$26,000.00 / year')
-    expect(within(willCard).getByText(/Concessional super/)).toHaveTextContent('$1,000.00 / fn')
     expect(within(willCard).getByRole('row', { name: /Division 293 tax/ })).toHaveTextContent(
       '$1,500.00',
     )
 
     // Sam has no contributions, so the concessional line and Division 293 row are absent.
     const samCard = screen.getByRole('region', { name: 'Sam' })
-    expect(within(samCard).queryByText(/Concessional super/)).not.toBeInTheDocument()
-    expect(within(samCard).queryByRole('row', { name: /Division 293 tax/ })).not.toBeInTheDocument()
+    expect(within(samCard).queryByRole('row', { name: /Concessional super/ })).toBeNull()
+    expect(within(samCard).queryByRole('row', { name: /Division 293 tax/ })).toBeNull()
   })
 
   it('builds up total tax from its components for a member', () => {
@@ -146,33 +203,34 @@ describe('TaxEstimateView', () => {
     const withFull: HouseholdTaxEstimate = { ...estimate, members: [willFull, sam] }
     render(<TaxEstimateView estimate={withFull} financialYear={2027} memberName={memberName} />)
 
-    const willCard = screen.getByRole('region', { name: 'Will' })
-    expect(within(willCard).getByRole('row', { name: /Income tax/ })).toHaveTextContent(
-      '$24,000.00',
-    )
+    const willTax = within(screen.getByRole('region', { name: 'Will' })).getByRole('table', {
+      name: 'Tax breakdown',
+    })
+    expect(within(willTax).getByRole('row', { name: /Income tax/ })).toHaveTextContent('$24,000.00')
     // The offset reads as a subtraction.
-    expect(within(willCard).getByRole('row', { name: /Low Income Tax Offset/ })).toHaveTextContent(
+    expect(within(willTax).getByRole('row', { name: /Low Income Tax Offset/ })).toHaveTextContent(
       '-$700.00',
     )
     expect(
-      within(willCard).getByRole('row', { name: /Medicare levy surcharge/ }),
+      within(willTax).getByRole('row', { name: /Medicare levy surcharge/ }),
     ).toBeInTheDocument()
-    expect(within(willCard).getByRole('row', { name: /HELP\/HECS repayment/ })).toBeInTheDocument()
-    expect(within(willCard).getByRole('row', { name: /Total tax/ })).toHaveTextContent('$30,800.00')
+    expect(within(willTax).getByRole('row', { name: /HELP\/HECS repayment/ })).toBeInTheDocument()
+    expect(within(willTax).getByRole('row', { name: /Total tax/ })).toHaveTextContent('$30,800.00')
   })
 
   it('always shows income tax, Medicare levy, and total tax even at zero', () => {
     render(<TaxEstimateView estimate={estimate} financialYear={2027} memberName={memberName} />)
 
     // Sam's breakdown is all zero, yet the core rows are still present.
-    const samCard = screen.getByRole('region', { name: 'Sam' })
-    expect(within(samCard).getByRole('row', { name: /Income tax/ })).toBeInTheDocument()
-    expect(within(samCard).getByRole('row', { name: /Medicare levy/ })).toBeInTheDocument()
-    expect(within(samCard).getByRole('row', { name: /Total tax/ })).toBeInTheDocument()
+    const samTax = within(screen.getByRole('region', { name: 'Sam' })).getByRole('table', {
+      name: 'Tax breakdown',
+    })
+    expect(within(samTax).getByRole('row', { name: /Income tax/ })).toBeInTheDocument()
+    expect(within(samTax).getByRole('row', { name: /Medicare levy/ })).toBeInTheDocument()
+    expect(within(samTax).getByRole('row', { name: /Total tax/ })).toBeInTheDocument()
     // Non-applicable components are named rather than shown as noisy $0 rows.
-    expect(
-      within(samCard).queryByRole('row', { name: /Medicare levy surcharge/ }),
-    ).not.toBeInTheDocument()
+    expect(within(samTax).queryByRole('row', { name: /Medicare levy surcharge/ })).toBeNull()
+    const samCard = screen.getByRole('region', { name: 'Sam' })
     expect(within(samCard).getByText(/Not applicable this year/)).toHaveTextContent(
       'Medicare levy surcharge',
     )

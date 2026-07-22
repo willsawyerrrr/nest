@@ -66,12 +66,15 @@ export interface TaxProfileInput {
  * A single member's annual and fortnightly estimate, with the full breakdown.
  * `annualConcessionalContributionsCents` is the pre-tax super diverted from cash;
  * after-tax figures are gross less those contributions less tax, so they reflect
- * the cash actually available to budget.
+ * the cash actually available to budget. `annualNetConcessionalSuperCents` is what
+ * of those contributions lands in the fund after the 15% contributions tax — the
+ * beneficial amount actually saved into super.
  */
 export interface MemberTaxEstimate {
   readonly memberId: string
   readonly annualGrossCents: Money
   readonly annualConcessionalContributionsCents: Money
+  readonly annualNetConcessionalSuperCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
@@ -84,6 +87,8 @@ export interface MemberTaxEstimate {
 export interface HouseholdTaxEstimate {
   readonly members: readonly MemberTaxEstimate[]
   readonly annualGrossCents: Money
+  readonly annualConcessionalContributionsCents: Money
+  readonly annualNetConcessionalSuperCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
@@ -233,10 +238,16 @@ export function estimateHouseholdTax(
     const annualTax = breakdown.totalLiabilityCents
     // After-tax cash excludes concessional super (diverted from cash to the fund).
     const annualAfterTax = annualGross - concessionalCents - annualTax
+    // What of the concessional super lands in the fund after the 15% contributions
+    // tax — the amount actually saved, not the pre-tax amount diverted from cash.
+    const netConcessionalCents = Math.round(
+      concessionalCents * (1 - config.super.contributionsTaxRate),
+    )
     return {
       memberId,
       annualGrossCents: annualGross,
       annualConcessionalContributionsCents: concessionalCents,
+      annualNetConcessionalSuperCents: netConcessionalCents,
       annualTaxCents: annualTax,
       annualAfterTaxCents: annualAfterTax,
       fortnightlyGrossCents: fortnightlyOf(annualGross),
@@ -252,6 +263,10 @@ export function estimateHouseholdTax(
   return {
     members,
     annualGrossCents: sum((member) => member.annualGrossCents),
+    annualConcessionalContributionsCents: sum(
+      (member) => member.annualConcessionalContributionsCents,
+    ),
+    annualNetConcessionalSuperCents: sum((member) => member.annualNetConcessionalSuperCents),
     annualTaxCents: sum((member) => member.annualTaxCents),
     annualAfterTaxCents: sum((member) => member.annualAfterTaxCents),
     fortnightlyGrossCents: sum((member) => member.fortnightlyGrossCents),

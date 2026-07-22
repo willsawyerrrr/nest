@@ -127,6 +127,17 @@ money against outgoings and money set aside, leaving a buffer.
 The dashboard shows each group's fortnightly, annual, and **portion** (share of
 Available), plus the running "After Outgoing" and "After Saving" figures.
 
+The allocation donut leading the dashboard can be viewed on a **take-home
+(post-tax)** or **gross (pre-tax)** basis via a toggle (the choice persists per
+device). Take-home is the default: the budget-group and buffer slices as shares
+of Available — what the household does with each pay once it lands. Gross keeps
+those same slices but prepends a **Tax** slice (income tax and levies, including
+the 15% super contributions tax) and a **Salary-sacrifice super** slice (the net
+concessional super landing in the fund), so the donut sums to gross income —
+where every gross dollar goes before the household is paid. The slices keep the
+same fortnightly values in both modes; only the denominator changes. The
+reconciliation ledger below the donut is always a take-home view.
+
 | Line          | Composition                          |
 | ------------- | ------------------------------------ |
 | Available     | after-tax income + non-taxable in    |

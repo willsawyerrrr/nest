@@ -23,6 +23,17 @@ export interface SummaryInput {
   readonly nonTaxableInflows: readonly NonTaxableInflow[]
   readonly budgetLines: readonly BudgetLine[]
   readonly temporaryItems: readonly TemporaryItem[]
+  /**
+   * The annual income tax and levies (including the 15% super contributions
+   * tax) that separate gross income from take-home, for the gross-basis view.
+   * Absent ⇒ nil.
+   */
+  readonly taxAnnualCents?: Money
+  /**
+   * The annual concessional super landing in the fund after the 15%
+   * contributions tax, for the gross-basis view. Absent ⇒ nil.
+   */
+  readonly netConcessionalSuperAnnualCents?: Money
 }
 
 /**
@@ -31,6 +42,9 @@ export interface SummaryInput {
  * temporary items only); `outgoings` is Needs + Wants + Discretionary +
  * Temporary; `savingsBlock` is Savings + Investments; `afterOutgoing` and
  * `afterSaving` are the running remainders, the latter being the buffer.
+ * `tax` and `superSaved` are the gross-basis-only slices — income tax and
+ * levies, and net salary-sacrifice super — that with `available` sum to the
+ * gross income basis; both nil unless the corresponding inputs are supplied.
  */
 export interface BudgetSummary {
   readonly available: Amounts
@@ -39,6 +53,8 @@ export interface BudgetSummary {
   readonly savingsBlock: Amounts
   readonly afterOutgoing: Amounts
   readonly afterSaving: Amounts
+  readonly tax: Amounts
+  readonly superSaved: Amounts
 }
 
 /**
@@ -137,5 +153,12 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
     annualCents: afterOutgoing.annualCents - savingsBlock.annualCents,
   }
 
-  return { available, groups, outgoings, savingsBlock, afterOutgoing, afterSaving }
+  const annualToAmounts = (annual: Money): Amounts => ({
+    fortnightlyCents: Math.round(annual / FORTNIGHTS_PER_YEAR),
+    annualCents: annual,
+  })
+  const tax = annualToAmounts(input.taxAnnualCents ?? 0)
+  const superSaved = annualToAmounts(input.netConcessionalSuperAnnualCents ?? 0)
+
+  return { available, groups, outgoings, savingsBlock, afterOutgoing, afterSaving, tax, superSaved }
 }

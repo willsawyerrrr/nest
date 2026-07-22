@@ -1,4 +1,5 @@
 import { useMediaQuery } from '@mantine/hooks'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BudgetSummary, GroupSummary } from '@nest/plan'
 import { render, screen, within } from '../test/render'
@@ -9,7 +10,11 @@ vi.mock('@mantine/hooks', async (importOriginal) => {
   return { ...actual, useMediaQuery: vi.fn(() => false) }
 })
 
-beforeEach(() => vi.mocked(useMediaQuery).mockReturnValue(false))
+beforeEach(() => {
+  vi.mocked(useMediaQuery).mockReturnValue(false)
+  // Reset the persisted income-basis toggle so each test starts on take-home.
+  localStorage.clear()
+})
 
 const group = (fortnightlyCents: number, annualCents: number, portion: number): GroupSummary => ({
   fortnightlyCents,
@@ -31,6 +36,8 @@ const summary: BudgetSummary = {
   savingsBlock: { fortnightlyCents: 100_000, annualCents: 2_600_000 },
   afterOutgoing: { fortnightlyCents: 125_000, annualCents: 3_250_000 },
   afterSaving: { fortnightlyCents: 25_000, annualCents: 650_000 },
+  tax: { fortnightlyCents: 150_000, annualCents: 3_900_000 },
+  superSaved: { fortnightlyCents: 50_000, annualCents: 1_300_000 },
 }
 
 describe('SummaryView', () => {
@@ -71,6 +78,33 @@ describe('SummaryView', () => {
     expect(within(donut).getByText('Needs')).toBeInTheDocument()
     expect(within(donut).getByText('Buffer')).toBeInTheDocument()
     expect(within(donut).getByText('40.0%')).toBeInTheDocument()
+  })
+
+  it('omits the tax and super slices on the default take-home basis', () => {
+    render(<SummaryView summary={summary} />)
+
+    const donut = within(screen.getByRole('region', { name: 'Allocation' }))
+    expect(donut.queryByText('Tax')).not.toBeInTheDocument()
+    expect(donut.queryByText('Salary-sacrifice super')).not.toBeInTheDocument()
+    // The take-home tiles show, not the gross basis/tax/super ones.
+    expect(donut.getByText('Income')).toBeInTheDocument()
+    expect(donut.queryByText('Super')).not.toBeInTheDocument()
+  })
+
+  it('adds the tax and super slices and gross tiles on the gross basis', async () => {
+    const user = userEvent.setup()
+    render(<SummaryView summary={summary} />)
+
+    await user.click(screen.getByRole('radio', { name: 'Gross' }))
+
+    const donut = within(screen.getByRole('region', { name: 'Allocation' }))
+    // The prepended pre-tax slices appear (Tax as both a legend row and a tile).
+    expect(donut.getAllByText('Tax').length).toBeGreaterThanOrEqual(1)
+    expect(donut.getByText('Salary-sacrifice super')).toBeInTheDocument()
+    // The tiles switch to the gross basis, tax, and net super.
+    expect(donut.getByText('Super')).toBeInTheDocument()
+    expect(donut.queryByText('Income')).not.toBeInTheDocument()
+    expect(donut.queryByText('Outgoing')).not.toBeInTheDocument()
   })
 
   it('renders income, outgoing, and remaining totals within the allocation graph', () => {
@@ -144,6 +178,8 @@ describe('SummaryView', () => {
       savingsBlock: zero,
       afterOutgoing: { fortnightlyCents: 500_000, annualCents: 13_000_000 },
       afterSaving: zero,
+      tax: zero,
+      superSaved: zero,
     }
     render(<SummaryView summary={noAllocation} />)
 
@@ -171,6 +207,8 @@ describe('SummaryView', () => {
       savingsBlock: zero,
       afterOutgoing: negative,
       afterSaving: negative,
+      tax: zero,
+      superSaved: zero,
     }
     render(<SummaryView summary={noAvailable} />)
 
@@ -194,6 +232,8 @@ describe('SummaryView', () => {
       savingsBlock: zero,
       afterOutgoing: zero,
       afterSaving: zero,
+      tax: zero,
+      superSaved: zero,
     }
     render(<SummaryView summary={empty} />)
 

@@ -66,6 +66,32 @@ describe('toSummaryInput', () => {
     expect(result.afterTaxIncomeAnnualCents).toBe(80_000_00)
   })
 
+  it('passes the gross-basis tax and net-super annuals through', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [],
+      budgetLines: [],
+      breakdownTotals: new Map(),
+      temporaryItems: [],
+      taxAnnualCents: 39_000_00,
+      netConcessionalSuperAnnualCents: 13_000_00,
+    })
+    expect(result.taxAnnualCents).toBe(39_000_00)
+    expect(result.netConcessionalSuperAnnualCents).toBe(13_000_00)
+  })
+
+  it('defaults the gross-basis tax and net-super annuals to zero when omitted', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [],
+      budgetLines: [],
+      breakdownTotals: new Map(),
+      temporaryItems: [],
+    })
+    expect(result.taxAnnualCents).toBe(0)
+    expect(result.netConcessionalSuperAnnualCents).toBe(0)
+  })
+
   it('keeps only non-taxable inflows, mapping schedule and interval', () => {
     const result = toSummaryInput({
       afterTaxIncomeAnnualCents: 0,

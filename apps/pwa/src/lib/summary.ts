@@ -13,6 +13,10 @@ export interface SummarySources {
   /** Each breakdown's rolled-up annual total, keyed by breakdown id, for derived lines. */
   breakdownTotals: Map<string, number>
   temporaryItems: TemporaryItem[]
+  /** Annual income tax and levies (including the 15% super contributions tax) for the gross-basis view. */
+  taxAnnualCents?: number
+  /** Annual net salary-sacrifice super (after the 15% contributions tax) for the gross-basis view. */
+  netConcessionalSuperAnnualCents?: number
 }
 
 /**
@@ -27,9 +31,13 @@ export function toSummaryInput({
   budgetLines,
   breakdownTotals,
   temporaryItems,
+  taxAnnualCents = 0,
+  netConcessionalSuperAnnualCents = 0,
 }: SummarySources): SummaryInput {
   return {
     afterTaxIncomeAnnualCents,
+    taxAnnualCents,
+    netConcessionalSuperAnnualCents,
     nonTaxableInflows: inflows
       .filter((inflow) => !inflow.taxable)
       .map((inflow) => ({

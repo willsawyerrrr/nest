@@ -302,4 +302,28 @@ describe('estimateHouseholdTax', () => {
     const sam = household.members.find((m) => m.memberId === 'sam')!
     expect(sam.annualConcessionalContributionsCents).toBe(0)
   })
+
+  it('nets concessional super of the 15% contributions tax', () => {
+    const concessional = new Map([['alex', 20_000_00]])
+    const household = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG, concessional)
+    const alex = household.members.find((m) => m.memberId === 'alex')!
+    const netRate = 1 - FY2027_CONFIG.super.contributionsTaxRate
+    expect(alex.annualNetConcessionalSuperCents).toBe(Math.round(20_000_00 * netRate))
+  })
+
+  it('sums concessional and net-super figures across members', () => {
+    const concessional = new Map([
+      ['alex', 20_000_00],
+      ['sam', 5_000_00],
+    ])
+    const household = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG, concessional)
+    const sumOf = (pick: (m: (typeof household.members)[number]) => number) =>
+      household.members.reduce((total, m) => total + pick(m), 0)
+    expect(household.annualConcessionalContributionsCents).toBe(
+      sumOf((m) => m.annualConcessionalContributionsCents),
+    )
+    expect(household.annualNetConcessionalSuperCents).toBe(
+      sumOf((m) => m.annualNetConcessionalSuperCents),
+    )
+  })
 })

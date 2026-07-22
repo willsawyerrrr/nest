@@ -1,8 +1,27 @@
 import { DonutChart } from '@mantine/charts'
-import { Card, ColorSwatch, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
+import {
+  Card,
+  ColorSwatch,
+  Group,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  Title,
+} from '@mantine/core'
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
 import { formatCents, moneyColor } from '../lib/money'
+
+/**
+ * The basis the allocation donut divides against: take-home (post-tax) available
+ * cash, or gross (pre-tax) income with the tax and net-super slices prepended.
+ */
+type IncomeBasis = 'take-home' | 'gross'
+
+/** localStorage key persisting the allocation donut's income basis. */
+const INCOME_BASIS_STORAGE_KEY = 'summary-income-basis'
 
 interface SummaryViewProps {
   summary: BudgetSummary
@@ -60,6 +79,12 @@ const OUTGOING_KEYS: (keyof BudgetSummary['groups'])[] = [
 /** The colour of the leftover-buffer segment (After Saving) in the donut. */
 const BUFFER_COLOR = 'var(--mantine-color-gray-5)'
 
+/** The colour of the gross-basis Tax slice. */
+const TAX_COLOR = 'var(--mantine-color-red-7)'
+
+/** The colour of the gross-basis salary-sacrifice-super slice. */
+const SUPER_COLOR = 'var(--mantine-color-green-8)'
+
 /** A donut segment: an allocation slice with its label, amount, colour, and share. */
 interface Segment {
   name: string
@@ -69,28 +94,47 @@ interface Segment {
 }
 
 /**
- * The allocation segments for the donut: each non-empty group by its fortnightly
- * amount, plus a Buffer slice for a positive After Saving remainder. Empty groups
- * and a non-positive (over-allocated) buffer are omitted.
+ * The gross income basis in fortnightly cents: take-home available cash plus the
+ * tax and net salary-sacrifice-super slices that precede it.
  */
-function allocationSegments(summary: BudgetSummary): Segment[] {
-  const segments: Segment[] = GROUP_ORDER.map(({ key, label, color }) => ({
-    name: label,
-    value: summary.groups[key].fortnightlyCents,
-    color,
-    portion: summary.groups[key].portion,
-  })).filter((segment) => segment.value > 0)
+function grossBasisCents(summary: BudgetSummary): number {
+  return (
+    summary.available.fortnightlyCents +
+    summary.tax.fortnightlyCents +
+    summary.superSaved.fortnightlyCents
+  )
+}
 
-  const bufferCents = summary.afterSaving.fortnightlyCents
-  const availableCents = summary.available.fortnightlyCents
-  if (bufferCents > 0) {
-    segments.push({
-      name: 'Buffer',
-      value: bufferCents,
-      color: BUFFER_COLOR,
-      portion: availableCents === 0 ? 0 : bufferCents / availableCents,
-    })
+/** The fortnightly basis a mode's donut divides its slices against. */
+function basisCents(summary: BudgetSummary, mode: IncomeBasis): number {
+  return mode === 'gross' ? grossBasisCents(summary) : summary.available.fortnightlyCents
+}
+
+/**
+ * The allocation segments for the donut, as shares of the mode's basis. In both
+ * modes: each non-empty group by its fortnightly amount, then a Buffer slice for
+ * a positive After Saving remainder. In `gross` mode a Tax slice and a
+ * salary-sacrifice-super slice are prepended (each when positive), so the donut
+ * sums to gross income. Empty slices and a non-positive buffer are omitted.
+ */
+function allocationSegments(summary: BudgetSummary, mode: IncomeBasis): Segment[] {
+  const basis = basisCents(summary, mode)
+  const portionOf = (value: number): number => (basis === 0 ? 0 : value / basis)
+  const add = (segments: Segment[], name: string, value: number, color: string): void => {
+    if (value > 0) {
+      segments.push({ name, value, color, portion: portionOf(value) })
+    }
   }
+
+  const segments: Segment[] = []
+  if (mode === 'gross') {
+    add(segments, 'Tax', summary.tax.fortnightlyCents, TAX_COLOR)
+    add(segments, 'Salary-sacrifice super', summary.superSaved.fortnightlyCents, SUPER_COLOR)
+  }
+  for (const { key, label, color } of GROUP_ORDER) {
+    add(segments, label, summary.groups[key].fortnightlyCents, color)
+  }
+  add(segments, 'Buffer', summary.afterSaving.fortnightlyCents, BUFFER_COLOR)
   return segments
 }
 
@@ -120,12 +164,41 @@ function TotalTile({
 }
 
 /**
- * A donut of how available fortnightly cash splits across the groups, with the
- * leftover buffer shown in the centre, a row of income/outgoing/remaining
- * totals, and a legend of each slice's share.
+ * The three stat tiles beneath the donut. Take-home shows income, outgoing, and
+ * the remaining buffer; gross shows the gross basis, tax, and net super saved.
+ */
+function DonutTiles({ summary, mode }: { summary: BudgetSummary; mode: IncomeBasis }) {
+  if (mode === 'gross') {
+    return (
+      <>
+        <TotalTile label="Gross" cents={grossBasisCents(summary)} />
+        <TotalTile label="Tax" cents={summary.tax.fortnightlyCents} />
+        <TotalTile label="Super" cents={summary.superSaved.fortnightlyCents} />
+      </>
+    )
+  }
+  return (
+    <>
+      <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
+      <TotalTile label="Outgoing" cents={summary.outgoings.fortnightlyCents} />
+      <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} signed />
+    </>
+  )
+}
+
+/**
+ * A donut of how fortnightly cash splits across the groups, viewable on a
+ * take-home (post-tax) or gross (pre-tax) basis via a toggle. The leftover
+ * buffer shows in the centre, a row of totals below, and a legend of each
+ * slice's share of the basis.
  */
 function AllocationDonut({ summary }: { summary: BudgetSummary }) {
-  const segments = allocationSegments(summary)
+  const [mode, setMode] = useLocalStorage<IncomeBasis>({
+    key: INCOME_BASIS_STORAGE_KEY,
+    defaultValue: 'take-home',
+    getInitialValueInEffect: false,
+  })
+  const segments = allocationSegments(summary, mode)
   if (segments.length === 0) {
     return null
   }
@@ -133,9 +206,21 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
   return (
     <Card component="section" aria-label="Allocation" withBorder radius="md" p="md">
       <Stack gap="md" align="center">
-        <Title order={3} size="h5" style={{ alignSelf: 'flex-start' }}>
-          Fortnightly allocation
-        </Title>
+        <Group justify="space-between" wrap="nowrap" w="100%">
+          <Title order={3} size="h5">
+            Fortnightly allocation
+          </Title>
+          <SegmentedControl
+            size="xs"
+            aria-label="Income basis"
+            value={mode}
+            onChange={(value) => setMode(value as IncomeBasis)}
+            data={[
+              { value: 'take-home', label: 'Take-home' },
+              { value: 'gross', label: 'Gross' },
+            ]}
+          />
+        </Group>
         <DonutChart
           data={segments.map(({ name, value, color }) => ({ name, value, color }))}
           size={180}
@@ -146,9 +231,7 @@ function AllocationDonut({ summary }: { summary: BudgetSummary }) {
           chartLabel={`${formatCents(summary.afterSaving.fortnightlyCents)} buffer`}
         />
         <SimpleGrid cols={3} spacing="xs" w="100%">
-          <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
-          <TotalTile label="Outgoing" cents={summary.outgoings.fortnightlyCents} />
-          <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} signed />
+          <DonutTiles summary={summary} mode={mode} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" verticalSpacing={4} w="100%">
           {segments.map((segment) => (

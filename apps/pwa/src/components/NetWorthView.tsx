@@ -166,9 +166,8 @@ function LiabilityGroup({
 }
 
 /**
- * A group of equity holdings, each shown as a positive (green) vested value,
- * with a subtotal. Rendered only when the household holds at least one grant with
- * vested value.
+ * A group of equity holdings, each shown as its vested value, with a subtotal.
+ * Rendered only when the household holds at least one grant with vested value.
  */
 function EquityGroup({
   holdings,
@@ -184,9 +183,7 @@ function EquityGroup({
           <Title order={3} size="h5">
             Equity
           </Title>
-          <Text fw={700} c={moneyColor(subtotalCents)}>
-            {formatCents(subtotalCents)}
-          </Text>
+          <Text fw={700}>{formatCents(subtotalCents)}</Text>
         </Group>
         <Stack gap="xs">
           {holdings.map((holding) => (
@@ -194,7 +191,7 @@ function EquityGroup({
               <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
                 {holding.label}
               </Text>
-              <Text size="md" ta="right" c={moneyColor(holding.valueCents)}>
+              <Text size="md" ta="right">
                 {formatCents(holding.valueCents)}
               </Text>
             </Group>

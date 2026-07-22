@@ -78,6 +78,9 @@ describe('NetWorthView', () => {
     // Grand total: $5,000 accounts + $40,000 equity = $45,000.
     const total = screen.getByRole('region', { name: 'Total net worth' })
     expect(within(total).getByText('$45,000.00')).toBeInTheDocument()
+
+    // A dimmed caption clarifies the equity figure is net of the strike price.
+    expect(within(equity).getByText(/net of the strike price/i)).toBeInTheDocument()
   })
 
   it('omits the equity group when there are no holdings', () => {

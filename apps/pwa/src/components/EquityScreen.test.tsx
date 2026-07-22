@@ -61,6 +61,34 @@ describe('EquityScreen', () => {
     expect(within(card).getByText('$12.00')).toBeInTheDocument()
   })
 
+  it('shows a single value for a share grant, with no strike breakdown', () => {
+    renderScreen()
+    const card = screen.getByText('2024 shares').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText('$12.00')).toBeInTheDocument()
+    expect(within(card).queryByText(/Exercise cost/)).not.toBeInTheDocument()
+    expect(within(card).queryByText(/Counts as/)).not.toBeInTheDocument()
+  })
+
+  it('breaks an option grant into gross, exercise cost, and net', () => {
+    // 12 vested × $1.00 = $12.00 gross; × $0.40 strike = $4.80 exercise cost;
+    // net $7.20 counts toward net worth.
+    renderScreen({
+      grants: [
+        makeGrant({
+          label: '2024 options',
+          instrument_type: 'option',
+          strike_price_cents: 40,
+        }),
+      ],
+    })
+    const card = screen.getByText('2024 options').closest('.mantine-Card-root') as HTMLElement
+    expect(
+      within(card).getByText(/Vested value \$12\.00 · Exercise cost \$4\.80 · Counts as \$7\.20/),
+    ).toBeInTheDocument()
+    // The bold headline figure is the net that counts toward net worth.
+    expect(within(card).getByText('$7.20')).toBeInTheDocument()
+  })
+
   it('edits a grant in place and saves the change', async () => {
     const user = userEvent.setup()
     const onUpdate = vi.fn().mockResolvedValue(undefined)

@@ -85,10 +85,18 @@ itself, alongside an optional `price_as_of` date.
 
 A grant vests nothing before its cliff, then vests whole tranches on each
 interval boundary up to the vesting period; the vested quantity rounds down. The
-vested value is intrinsic: options are worth the vested quantity times the excess
-of the price per share over the strike (never negative, so underwater options are
-worth nothing), and shares are worth the vested quantity times the price per
-share. Only the vested value counts toward net worth, valued as of today; the
-vesting and valuation math is pure (`vestedQuantity`, `grantValueCents`,
-`equityTotalCents` in `@nest/plan`). The Net worth tab sums every grant's vested
-value into its Equity assets group.
+net-worth figure is the net "if exercised today" value: the gross vested value
+(vested quantity times the price per share) less the exercise cost (vested
+quantity times the strike). So options are worth the vested quantity times the
+excess of the price per share over the strike (never negative, so underwater
+options are worth nothing), and shares — which carry no strike — are worth their
+full gross vested value. Only this net value counts toward net worth, valued as
+of today; the vesting and valuation math is pure (`vestedQuantity`,
+`grossVestedValueCents`, `exerciseCostCents`, `grantValueCents`,
+`equityTotalCents` in `@nest/plan`).
+
+The Equity tab shows both figures for an option grant — the gross vested value,
+the exercise cost, and the net that counts toward net worth — while a share
+grant, whose gross equals its net, shows the single value. The Net worth tab
+sums every grant's net value into its Equity assets group, captioned to note the
+figure is the vested value net of the strike/exercise cost.

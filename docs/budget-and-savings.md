@@ -135,8 +135,17 @@ those same slices but prepends a **Tax** slice (income tax and levies, including
 the 15% super contributions tax) and a **Salary-sacrifice super** slice (the net
 concessional super landing in the fund), so the donut sums to gross income —
 where every gross dollar goes before the household is paid. The slices keep the
-same fortnightly values in both modes; only the denominator changes. The
-reconciliation ledger below the donut is always a take-home view.
+same fortnightly values in both modes; only the percentage denominator changes
+(Available in take-home, the gross basis in gross), and the ledger and donut
+share it so their percentages agree.
+
+The basis also drives the stat tiles and the reconciliation ledger. Take-home
+shows the three Income / Outgoing / Remaining tiles and a ledger that runs from
+Available down through the groups to the buffer. Gross adds a Gross / Tax / Super
+row of tiles above those three, and leads the ledger with a **Gross** subtotal
+and the **Tax** and **Salary-sacrifice super** deductions before Available
+(itself then read as after-tax, after-super cash); everything from Available
+downward is identical in both modes.
 
 | Line          | Composition                          |
 | ------------- | ------------------------------------ |

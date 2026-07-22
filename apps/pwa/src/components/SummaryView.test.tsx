@@ -80,18 +80,22 @@ describe('SummaryView', () => {
     expect(within(donut).getByText('40.0%')).toBeInTheDocument()
   })
 
-  it('omits the tax and super slices on the default take-home basis', () => {
+  it('omits the tax and super slices and the gross ledger rows on take-home', () => {
     render(<SummaryView summary={summary} />)
 
     const donut = within(screen.getByRole('region', { name: 'Allocation' }))
     expect(donut.queryByText('Tax')).not.toBeInTheDocument()
     expect(donut.queryByText('Salary-sacrifice super')).not.toBeInTheDocument()
-    // The take-home tiles show, not the gross basis/tax/super ones.
+    // The three take-home tiles show, not the gross basis/tax/super trio.
     expect(donut.getByText('Income')).toBeInTheDocument()
     expect(donut.queryByText('Super')).not.toBeInTheDocument()
+    // The ledger starts at Available with no Gross/Tax/Super breakdown.
+    expect(screen.queryByRole('region', { name: 'Gross' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Tax' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Salary-sacrifice super' })).not.toBeInTheDocument()
   })
 
-  it('adds the tax and super slices and gross tiles on the gross basis', async () => {
+  it('adds the tax and super slices and keeps both tile sets on the gross basis', async () => {
     const user = userEvent.setup()
     render(<SummaryView summary={summary} />)
 
@@ -101,10 +105,37 @@ describe('SummaryView', () => {
     // The prepended pre-tax slices appear (Tax as both a legend row and a tile).
     expect(donut.getAllByText('Tax').length).toBeGreaterThanOrEqual(1)
     expect(donut.getByText('Salary-sacrifice super')).toBeInTheDocument()
-    // The tiles switch to the gross basis, tax, and net super.
+    // The gross trio is added while the take-home tiles remain.
     expect(donut.getByText('Super')).toBeInTheDocument()
-    expect(donut.queryByText('Income')).not.toBeInTheDocument()
-    expect(donut.queryByText('Outgoing')).not.toBeInTheDocument()
+    expect(donut.getAllByText('Gross').length).toBeGreaterThanOrEqual(1)
+    expect(donut.getByText('Income')).toBeInTheDocument()
+    expect(donut.getByText('Outgoing')).toBeInTheDocument()
+    expect(donut.getByText('Remaining')).toBeInTheDocument()
+  })
+
+  it('leads the ledger with a Gross subtotal and tax and super deductions on the gross basis', async () => {
+    const user = userEvent.setup()
+    render(<SummaryView summary={summary} />)
+
+    await user.click(screen.getByRole('radio', { name: 'Gross' }))
+
+    // Gross basis = available 500_000 + tax 150_000 + super 50_000 = 700_000/fn.
+    const gross = screen.getByRole('region', { name: 'Gross' })
+    expect(within(gross).getByText('$7,000.00')).toBeInTheDocument()
+    expect(within(gross).getByText('100.0%')).toBeInTheDocument()
+
+    const tax = screen.getByRole('region', { name: 'Tax' })
+    expect(within(tax).getByText('$1,500.00')).toBeInTheDocument()
+    // Tax is 150_000 / 700_000 of gross.
+    expect(within(tax).getByText('21.4%')).toBeInTheDocument()
+
+    const superRow = screen.getByRole('region', { name: 'Salary-sacrifice super' })
+    expect(within(superRow).getByText('$500.00')).toBeInTheDocument()
+
+    // The ledger still runs from Available downward, now read as after-tax cash.
+    const available = screen.getByRole('region', { name: 'Available' })
+    // Available is 500_000 / 700_000 of gross.
+    expect(within(available).getByText('71.4%')).toBeInTheDocument()
   })
 
   it('renders income, outgoing, and remaining totals within the allocation graph', () => {

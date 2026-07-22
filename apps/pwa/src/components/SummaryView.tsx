@@ -38,19 +38,22 @@ function formatPortion(portion: number): string {
   return percent.format(portion)
 }
 
-/** A running line's portion: its fortnightly share of available cash (0 when available is 0). */
-function runningPortion(amounts: Amounts, available: Amounts): number {
-  return available.fortnightlyCents === 0
-    ? 0
-    : amounts.fortnightlyCents / available.fortnightlyCents
+/**
+ * A slice's share of the mode's fortnightly basis (0 when the basis is 0), so
+ * the ledger and donut agree on every percentage.
+ */
+function portionAgainst(fortnightlyCents: number, basisFortnightly: number): number {
+  return basisFortnightly === 0 ? 0 : fortnightlyCents / basisFortnightly
 }
 
-/** A group's totals plus its portion of available cash. */
-interface GroupRow {
+/** One reconciliation ledger line: its label, amounts, and rendering flags. */
+interface LedgerRow {
   label: string
-  fortnightlyCents: number
-  annualCents: number
-  portion: number
+  amounts: Amounts
+  /** A running subtotal (Gross / Available / After Outgoing / After Saving): tinted and bold. */
+  running: boolean
+  /** Whether the amount takes the money-sign colour. */
+  signed?: boolean
 }
 
 /**
@@ -94,15 +97,23 @@ interface Segment {
 }
 
 /**
- * The gross income basis in fortnightly cents: take-home available cash plus the
- * tax and net salary-sacrifice-super slices that precede it.
+ * The gross income basis: take-home available cash plus the tax and net
+ * salary-sacrifice-super slices that precede it.
  */
+function grossAmounts(summary: BudgetSummary): Amounts {
+  return {
+    fortnightlyCents:
+      summary.available.fortnightlyCents +
+      summary.tax.fortnightlyCents +
+      summary.superSaved.fortnightlyCents,
+    annualCents:
+      summary.available.annualCents + summary.tax.annualCents + summary.superSaved.annualCents,
+  }
+}
+
+/** The gross income basis in fortnightly cents. */
 function grossBasisCents(summary: BudgetSummary): number {
-  return (
-    summary.available.fortnightlyCents +
-    summary.tax.fortnightlyCents +
-    summary.superSaved.fortnightlyCents
-  )
+  return grossAmounts(summary).fortnightlyCents
 }
 
 /** The fortnightly basis a mode's donut divides its slices against. */
@@ -164,21 +175,20 @@ function TotalTile({
 }
 
 /**
- * The three stat tiles beneath the donut. Take-home shows income, outgoing, and
- * the remaining buffer; gross shows the gross basis, tax, and net super saved.
+ * The stat tiles beneath the donut. Both modes show income, outgoing, and the
+ * remaining buffer; gross prepends the gross basis, tax, and net super saved, so
+ * gross renders six tiles across two rows.
  */
 function DonutTiles({ summary, mode }: { summary: BudgetSummary; mode: IncomeBasis }) {
-  if (mode === 'gross') {
-    return (
-      <>
-        <TotalTile label="Gross" cents={grossBasisCents(summary)} />
-        <TotalTile label="Tax" cents={summary.tax.fortnightlyCents} />
-        <TotalTile label="Super" cents={summary.superSaved.fortnightlyCents} />
-      </>
-    )
-  }
   return (
     <>
+      {mode === 'gross' && (
+        <>
+          <TotalTile label="Gross" cents={grossBasisCents(summary)} />
+          <TotalTile label="Tax" cents={summary.tax.fortnightlyCents} />
+          <TotalTile label="Super" cents={summary.superSaved.fortnightlyCents} />
+        </>
+      )}
       <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
       <TotalTile label="Outgoing" cents={summary.outgoings.fortnightlyCents} />
       <TotalTile label="Remaining" cents={summary.afterSaving.fortnightlyCents} signed />
@@ -192,12 +202,15 @@ function DonutTiles({ summary, mode }: { summary: BudgetSummary; mode: IncomeBas
  * buffer shows in the centre, a row of totals below, and a legend of each
  * slice's share of the basis.
  */
-function AllocationDonut({ summary }: { summary: BudgetSummary }) {
-  const [mode, setMode] = useLocalStorage<IncomeBasis>({
-    key: INCOME_BASIS_STORAGE_KEY,
-    defaultValue: 'take-home',
-    getInitialValueInEffect: false,
-  })
+function AllocationDonut({
+  summary,
+  mode,
+  setMode,
+}: {
+  summary: BudgetSummary
+  mode: IncomeBasis
+  setMode: (value: IncomeBasis) => void
+}) {
   const segments = allocationSegments(summary, mode)
   if (segments.length === 0) {
     return null
@@ -329,28 +342,67 @@ function RunningRow({
   )
 }
 
+/** A non-running group's row in the wide-screen table. */
+function GroupTableRow({ row, portion }: { row: LedgerRow; portion: number }) {
+  return (
+    <Table.Tr>
+      <Table.Th scope="row">{row.label}</Table.Th>
+      <Table.Td>{formatCents(row.amounts.fortnightlyCents)}</Table.Td>
+      <Table.Td>{formatCents(row.amounts.annualCents)}</Table.Td>
+      <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
+    </Table.Tr>
+  )
+}
+
+/**
+ * The reconciliation ledger rows in order: on the gross basis, a Gross running
+ * subtotal then Tax and net-super deductions precede Available; then Available,
+ * the outgoing groups, After Outgoing, the saving groups, and After Saving.
+ */
+function ledgerRows(summary: BudgetSummary, mode: IncomeBasis): LedgerRow[] {
+  const groupRows = (keys: (keyof BudgetSummary['groups'])[]): LedgerRow[] =>
+    GROUP_ORDER.filter(({ key }) => keys.includes(key)).map(({ key, label }) => ({
+      label,
+      amounts: summary.groups[key],
+      running: false,
+    }))
+  const savingKeys = GROUP_ORDER.map(({ key }) => key).filter((key) => !OUTGOING_KEYS.includes(key))
+
+  return [
+    ...(mode === 'gross'
+      ? [
+          { label: 'Gross', amounts: grossAmounts(summary), running: true },
+          { label: 'Tax', amounts: summary.tax, running: false },
+          { label: 'Salary-sacrifice super', amounts: summary.superSaved, running: false },
+        ]
+      : []),
+    { label: 'Available', amounts: summary.available, running: true },
+    ...groupRows(OUTGOING_KEYS),
+    { label: 'After Outgoing', amounts: summary.afterOutgoing, running: true },
+    ...groupRows(savingKeys),
+    { label: 'After Saving', amounts: summary.afterSaving, running: true, signed: true },
+  ]
+}
+
 /**
  * Presentational Summary reconciliation, mirroring the household's spreadsheet:
  * Available, each group's fortnightly/annual/portion, and the running After
- * Outgoing and After Saving (remaining buffer) figures. A compact ledger of
- * rows shows on narrow screens; a table appears at wider breakpoints.
+ * Outgoing and After Saving (remaining buffer) figures. On the gross basis a
+ * Gross subtotal and the Tax and net-super deductions lead the ledger. A compact
+ * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  */
 export function SummaryView({ summary }: SummaryViewProps) {
   const wide = useMediaQuery('(min-width: 48em)')
-
-  const groupRow = (key: keyof BudgetSummary['groups'], label: string): GroupRow => ({
-    label,
-    fortnightlyCents: summary.groups[key].fortnightlyCents,
-    annualCents: summary.groups[key].annualCents,
-    portion: summary.groups[key].portion,
+  const [mode, setMode] = useLocalStorage<IncomeBasis>({
+    key: INCOME_BASIS_STORAGE_KEY,
+    defaultValue: 'take-home',
+    getInitialValueInEffect: false,
   })
 
-  const outgoingRows: GroupRow[] = GROUP_ORDER.filter(({ key }) => OUTGOING_KEYS.includes(key)).map(
-    ({ key, label }) => groupRow(key, label),
-  )
-  const savingRows: GroupRow[] = GROUP_ORDER.filter(({ key }) => !OUTGOING_KEYS.includes(key)).map(
-    ({ key, label }) => groupRow(key, label),
-  )
+  const basisFortnightly = basisCents(summary, mode)
+  const portionOf = (amounts: Amounts): number =>
+    portionAgainst(amounts.fortnightlyCents, basisFortnightly)
+  const rows = ledgerRows(summary, mode)
 
   const hasData =
     summary.available.annualCents !== 0 ||
@@ -369,7 +421,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
         </Text>
       ) : (
         <>
-          <AllocationDonut summary={summary} />
+          <AllocationDonut summary={summary} mode={mode} setMode={setMode} />
           {wide ? (
             <Table.ScrollContainer minWidth={0}>
               <Table striped withTableBorder>
@@ -382,69 +434,35 @@ export function SummaryView({ summary }: SummaryViewProps) {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  <RunningRow
-                    label="Available"
-                    amounts={summary.available}
-                    portion={runningPortion(summary.available, summary.available)}
-                  />
-                  {outgoingRows.map((row) => (
-                    <Table.Tr key={row.label}>
-                      <Table.Th scope="row">{row.label}</Table.Th>
-                      <Table.Td>{formatCents(row.fortnightlyCents)}</Table.Td>
-                      <Table.Td>{formatCents(row.annualCents)}</Table.Td>
-                      <Table.Td fw={700}>{formatPortion(row.portion)}</Table.Td>
-                    </Table.Tr>
-                  ))}
-                  <RunningRow
-                    label="After Outgoing"
-                    amounts={summary.afterOutgoing}
-                    portion={runningPortion(summary.afterOutgoing, summary.available)}
-                  />
-                  {savingRows.map((row) => (
-                    <Table.Tr key={row.label}>
-                      <Table.Th scope="row">{row.label}</Table.Th>
-                      <Table.Td>{formatCents(row.fortnightlyCents)}</Table.Td>
-                      <Table.Td>{formatCents(row.annualCents)}</Table.Td>
-                      <Table.Td fw={700}>{formatPortion(row.portion)}</Table.Td>
-                    </Table.Tr>
-                  ))}
-                  <RunningRow
-                    label="After Saving"
-                    amounts={summary.afterSaving}
-                    portion={runningPortion(summary.afterSaving, summary.available)}
-                    signed
-                  />
+                  {rows.map((row) =>
+                    row.running ? (
+                      <RunningRow
+                        key={row.label}
+                        label={row.label}
+                        amounts={row.amounts}
+                        portion={portionOf(row.amounts)}
+                        signed={row.signed}
+                      />
+                    ) : (
+                      <GroupTableRow key={row.label} row={row} portion={portionOf(row.amounts)} />
+                    ),
+                  )}
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
           ) : (
             <Card withBorder radius="md" p="xs">
               <Stack gap={2}>
-                <ReconRow
-                  label="Available"
-                  amounts={summary.available}
-                  portion={runningPortion(summary.available, summary.available)}
-                  running
-                />
-                {outgoingRows.map((row) => (
-                  <ReconRow key={row.label} label={row.label} amounts={row} portion={row.portion} />
+                {rows.map((row) => (
+                  <ReconRow
+                    key={row.label}
+                    label={row.label}
+                    amounts={row.amounts}
+                    portion={portionOf(row.amounts)}
+                    running={row.running}
+                    signed={row.signed}
+                  />
                 ))}
-                <ReconRow
-                  label="After Outgoing"
-                  amounts={summary.afterOutgoing}
-                  portion={runningPortion(summary.afterOutgoing, summary.available)}
-                  running
-                />
-                {savingRows.map((row) => (
-                  <ReconRow key={row.label} label={row.label} amounts={row} portion={row.portion} />
-                ))}
-                <ReconRow
-                  label="After Saving"
-                  amounts={summary.afterSaving}
-                  portion={runningPortion(summary.afterSaving, summary.available)}
-                  running
-                  signed
-                />
               </Stack>
             </Card>
           )}

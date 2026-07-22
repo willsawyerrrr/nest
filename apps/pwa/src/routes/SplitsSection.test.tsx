@@ -8,6 +8,7 @@ const hooks = vi.hoisted(() => ({
   useAccountDirectory: vi.fn(),
   useSuperProfiles: vi.fn(),
   usePaySplits: vi.fn(),
+  usePayAccount: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -21,6 +22,7 @@ vi.mock('../hooks/useAccountDirectory', () => ({
 }))
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/usePaySplits', () => ({ usePaySplits: hooks.usePaySplits }))
+vi.mock('../hooks/usePayAccount', () => ({ usePayAccount: hooks.usePayAccount }))
 vi.mock('../components/SplitsScreen', () => ({
   SplitsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -35,6 +37,7 @@ describe('SplitsSection', () => {
     hooks.useAccountDirectory.mockReturnValue({ loading: false })
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
     hooks.usePaySplits.mockReturnValue({ loading: false })
+    hooks.usePayAccount.mockReturnValue({ loading: false })
     render(<SplitsSection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -49,6 +52,8 @@ describe('SplitsSection', () => {
     })
     hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
     hooks.usePaySplits.mockReturnValue({ loading: false, configuredByAccount: {}, confirm })
+    const setPayAccount = vi.fn()
+    hooks.usePayAccount.mockReturnValue({ loading: false, payAccountId: null, setPayAccount })
     render(<SplitsSection householdId="h1" />)
     expect(screen.getByTestId('splits-screen')).toBeInTheDocument()
 
@@ -56,5 +61,10 @@ describe('SplitsSection', () => {
     onConfirm('a1', 1000)
     expect(confirm).toHaveBeenCalledWith('a1', 1000)
     expect(hooks.screenProps?.accounts).toEqual([{ id: 'a1', name: 'Spending' }])
+    expect(hooks.screenProps?.payAccountId).toBeNull()
+
+    const onSetPayAccount = hooks.screenProps?.onSetPayAccount as (id: string | null) => void
+    onSetPayAccount('a1')
+    expect(setPayAccount).toHaveBeenCalledWith('a1')
   })
 })

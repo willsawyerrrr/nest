@@ -92,6 +92,21 @@ export function paySplitNeedsUpdate(
 }
 
 /**
+ * Whether a routed account belongs in the recommended pay splits (a transfer
+ * destination the household mirrors into Up) rather than the "stays" section
+ * (the pay account itself, where pay lands with no transfer needed). Once the
+ * household has designated a pay account, every other routed account — the other
+ * spending accounts and the savers — is a split destination; until then, only
+ * savers are, and spending accounts are shown as staying put.
+ */
+export function isRecommendedSplitAccount(
+  account: { readonly isPayAccount: boolean; readonly isSaver: boolean },
+  hasPayAccount: boolean,
+): boolean {
+  return hasPayAccount ? !account.isPayAccount : account.isSaver
+}
+
+/**
  * Rounds an amount up to the next multiple of `stepCents`, never below it — the
  * figure a person types into Up, where cents-exact splits add no value and a
  * recommended split should never fund a line short. An exact multiple is left

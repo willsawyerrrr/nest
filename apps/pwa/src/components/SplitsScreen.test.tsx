@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeSaver as account, makeGoal as goal, makeBudgetLine as line } from '../test/fixtures'
-import { render, screen } from '../test/render'
+import { render, screen, within } from '../test/render'
 import { SplitsScreen } from './SplitsScreen'
 
 function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {}) {
@@ -11,6 +11,8 @@ function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {
       lines={[]}
       goals={[]}
       configuredByAccount={new Map()}
+      payAccountId={null}
+      onSetPayAccount={vi.fn()}
       onConfirm={vi.fn()}
       {...overrides}
     />,
@@ -82,17 +84,69 @@ describe('SplitsScreen', () => {
   })
 
   it('rounds a split up to the next $5 and shows the exact figure', () => {
-    const everyday = account({ id: 't1', name: 'Everyday', type: 'transaction' })
+    const spending = account({ id: 't1', name: 'Spending', type: 'transaction' })
     renderScreen({
-      accounts: [everyday],
+      accounts: [spending],
       lines: [
         line({ id: 'l1', line_group: 'needs', amount_cents: 101_00, destination_account_id: 't1' }),
       ],
     })
 
-    expect(screen.getByText('Stays in your everyday account')).toBeInTheDocument()
+    expect(screen.getByText('Stays in your spending account')).toBeInTheDocument()
+    expect(screen.queryByText(/everyday/i)).not.toBeInTheDocument()
     expect(screen.getByText('$105.00')).toBeInTheDocument()
     expect(screen.getByText('$101.00 exact')).toBeInTheDocument()
+  })
+
+  it('designates the pay account through the “Paid into” selector', async () => {
+    const user = userEvent.setup()
+    const onSetPayAccount = vi.fn()
+    const pay = account({ id: 't1', name: 'Pay', type: 'transaction' })
+    renderScreen({ accounts: [pay], payAccountId: null, onSetPayAccount })
+
+    await user.click(screen.getByRole('combobox', { name: 'Paid into' }))
+    await user.click(screen.getByRole('option', { name: 'Pay' }))
+    expect(onSetPayAccount).toHaveBeenCalledWith('t1')
+  })
+
+  it('prompts to choose the pay account when none is set and spending accounts exist', () => {
+    const spending = account({ id: 't1', name: 'Spending', type: 'transaction' })
+    renderScreen({
+      accounts: [spending],
+      payAccountId: null,
+      lines: [
+        line({ id: 'l1', line_group: 'needs', amount_cents: 100_00, destination_account_id: 't1' }),
+      ],
+    })
+
+    expect(screen.getByText('Choose the account you’re paid into')).toBeInTheDocument()
+  })
+
+  it('splits to a non-pay spending account and keeps the pay account staying put', () => {
+    const pay = account({ id: 't1', name: 'Pay', type: 'transaction' })
+    const other = account({ id: 't2', name: 'Bills', type: 'transaction' })
+    renderScreen({
+      accounts: [pay, other],
+      payAccountId: 't1',
+      lines: [
+        line({ id: 'l1', line_group: 'needs', amount_cents: 200_00, destination_account_id: 't1' }),
+        line({ id: 'l2', line_group: 'needs', amount_cents: 150_00, destination_account_id: 't2' }),
+      ],
+    })
+
+    // The non-pay spending account joins the recommended splits with a confirm affordance.
+    expect(screen.getByText('Recommended pay splits')).toBeInTheDocument()
+    const confirmButton = screen.getByRole('button', { name: /mark as set/i })
+    const recommendedCard = confirmButton.closest('.mantine-Card-root') as HTMLElement
+    expect(within(recommendedCard).getByText('Bills')).toBeInTheDocument()
+
+    // The pay account stays put, with no transfer.
+    const staysSection = screen.getByText('Stays in your pay account').closest('div') as HTMLElement
+    expect(
+      within(staysSection).getByText('Pay lands here — no transfer needed.'),
+    ).toBeInTheDocument()
+    expect(within(staysSection).getByText('Pay')).toBeInTheDocument()
+    expect(screen.queryByText(/everyday/i)).not.toBeInTheDocument()
   })
 
   it('nudges about budget lines not yet routed to an account', () => {

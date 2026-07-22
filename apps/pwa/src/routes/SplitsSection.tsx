@@ -3,6 +3,7 @@ import { SplitsScreen } from '../components/SplitsScreen'
 import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGoals } from '../hooks/useGoals'
+import { usePayAccount } from '../hooks/usePayAccount'
 import { usePaySplits } from '../hooks/usePaySplits'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { superAccountIds } from '../lib/super'
@@ -13,13 +14,15 @@ export function SplitsSection({ householdId }: { householdId: string }) {
   const accounts = useAccountDirectory()
   const superProfiles = useSuperProfiles(householdId)
   const paySplits = usePaySplits(householdId)
+  const payAccount = usePayAccount(householdId)
 
   if (
     budgetLines.loading ||
     goals.loading ||
     accounts.loading ||
     superProfiles.loading ||
-    paySplits.loading
+    paySplits.loading ||
+    payAccount.loading
   ) {
     return <LoadingScreen />
   }
@@ -32,6 +35,8 @@ export function SplitsSection({ householdId }: { householdId: string }) {
       lines={budgetLines.lines ?? []}
       goals={goals.goals ?? []}
       configuredByAccount={paySplits.configuredByAccount}
+      payAccountId={payAccount.payAccountId}
+      onSetPayAccount={(id) => void payAccount.setPayAccount(id)}
       onConfirm={(id, cents) => void paySplits.confirm(id, cents)}
     />
   )

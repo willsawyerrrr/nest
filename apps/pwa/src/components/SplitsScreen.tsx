@@ -10,7 +10,12 @@ import {
   Text,
   Title,
 } from '@mantine/core'
-import { assignmentsByAccount, paySplitNeedsUpdate, roundCentsUpToStep } from '@nest/plan'
+import {
+  assignmentsByAccount,
+  isRecommendedSplitAccount,
+  paySplitNeedsUpdate,
+  roundCentsUpToStep,
+} from '@nest/plan'
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
@@ -58,23 +63,36 @@ interface SplitsScreenProps {
   lines: BudgetLine[]
   goals: Goal[]
   /**
-   * The split currently configured for each saver, keyed by account id — a
+   * The split currently configured for each account, keyed by account id — a
    * source-agnostic concept. Today it arrives from the household's app-side
    * confirmation; if the bank's API ever exposes the real configured split, this
    * map is fed from there instead, with no change to the comparison here.
    */
   configuredByAccount: Map<string, number>
+  /**
+   * The spending account the household's pay lands in — the split source — or null
+   * when none is designated. When set, pay stays here and every other routed
+   * account becomes a recommended split; until then, only savers are recommended.
+   */
+  payAccountId: string | null
+  /** Designates (or, with null, clears) the household's pay account. */
+  onSetPayAccount: (accountId: string | null) => void | Promise<void>
   /** Records the amount the household has confirmed as set in Up for an account. */
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
 }
 
-/** Whether an account is a synced Up saver (as opposed to the everyday transaction account). */
+/** Whether an account is a synced Up saver (as opposed to a spending transaction account). */
 function isSaver(account: AccountDirectoryEntry): boolean {
   return account.source === 'up' && account.type === 'savings'
 }
 
-/** One routed account: its name, the recommended fortnightly split, and the cents-exact figure. */
-function SplitRow({
+/** Whether an account is a spending account (a transaction account, pay-account-eligible). */
+function isSpending(account: AccountDirectoryEntry): boolean {
+  return account.type === 'transaction'
+}
+
+/** One routed account that stays put: its name and the fortnightly amount that stays. */
+function StaysRow({
   account,
   fortnightlyCents,
 }: {
@@ -105,14 +123,14 @@ function SplitRow({
 }
 
 /**
- * A saver's recommended fortnightly split with drift against what is currently
- * configured. When the rounded recommendation differs from the configured
- * amount (or it has never been confirmed), the row is flagged, shows the change,
- * and offers a Confirm to record the new amount; otherwise it renders plainly,
- * with no status indicator. The configured amount is source-agnostic — see
- * `SplitsScreenProps`.
+ * A routed account's recommended fortnightly split with drift against what is
+ * currently configured. When the rounded recommendation differs from the
+ * configured amount (or it has never been confirmed), the row is flagged, shows
+ * the change, and offers a Confirm to record the new amount; otherwise it renders
+ * plainly, with no status indicator. The configured amount is source-agnostic —
+ * see `SplitsScreenProps`.
  */
-function SaverSplitRow({
+function RecommendedSplitRow({
   account,
   fortnightlyCents,
   configuredCents,
@@ -170,20 +188,25 @@ function SaverSplitRow({
 }
 
 /**
- * Recommended fortnightly pay splits, one per account funded by budget lines.
- * The plan computes what each saver's split should be, and the household mirrors
- * it into Up by hand. Each saver row compares its recommendation against the
- * split currently configured for that account (`configuredByAccount`) and, when
- * they differ, flags the drift and offers a Confirm to record the new amount.
- * Savings/Investments lines route via their goal's linked saver; every other
- * line routes via its own funding account. Presentational — persistence lives in
- * the caller.
+ * Recommended fortnightly pay splits, one per account funded by budget lines. The
+ * plan computes what each account's split should be, and the household mirrors it
+ * into Up by hand. The household designates the spending account its pay lands in;
+ * pay stays there while every other routed account — the other spending accounts
+ * and the savers — is a recommended split. Until a pay account is chosen, only
+ * savers are recommended and spending accounts are shown as staying put. Each
+ * recommended row compares its recommendation against the split currently
+ * configured for that account (`configuredByAccount`) and, when they differ, flags
+ * the drift and offers a Confirm to record the new amount. Savings/Investments
+ * lines route via their goal's linked saver; every other line routes via its own
+ * funding account. Presentational — persistence lives in the caller.
  */
 export function SplitsScreen({
   accounts,
   lines,
   goals,
   configuredByAccount,
+  payAccountId,
+  onSetPayAccount,
   onConfirm,
 }: SplitsScreenProps) {
   const { byAccount, unassignedFortnightlyCents } = assignmentsByAccount(
@@ -205,25 +228,30 @@ export function SplitsScreen({
     toggleDirection,
   } = useSortPreference(SORT_STORAGE_KEY, DEFAULT_SORT)
 
+  const hasPayAccount = payAccountId !== null
+  const spendingAccounts = accounts.filter(isSpending)
+
   const accountById = new Map(accounts.map((account) => [account.id, account]))
   const rows = Object.entries(byAccount)
     .map(([id, fortnightlyCents]) => ({ account: accountById.get(id), fortnightlyCents }))
     .filter((row): row is SplitRowData => row.account !== undefined)
 
+  const isRecommended = (row: SplitRowData) =>
+    isRecommendedSplitAccount(
+      { isPayAccount: row.account.id === payAccountId, isSaver: isSaver(row.account) },
+      hasPayAccount,
+    )
+
   const comparator = compareRows(sortKey)
-  const saverRows = sortBy(
-    rows.filter((row) => isSaver(row.account)),
-    comparator,
-    sortDirection,
-  )
-  const otherRows = sortBy(
-    rows.filter((row) => !isSaver(row.account)),
+  const recommendedRows = sortBy(rows.filter(isRecommended), comparator, sortDirection)
+  const staysRows = sortBy(
+    rows.filter((row) => !isRecommended(row)),
     comparator,
     sortDirection,
   )
   const nothingRouted = rows.length === 0 && unassignedFortnightlyCents === 0
 
-  const saversToUpdate = saverRows.filter((row) =>
+  const rowsToUpdate = recommendedRows.filter((row) =>
     paySplitNeedsUpdate(
       roundCentsUpToStep(row.fortnightlyCents, ROUND_STEP_CENTS),
       configuredByAccount.get(row.account.id) ?? null,
@@ -237,10 +265,32 @@ export function SplitsScreen({
       </Title>
 
       <Text size="sm" c="dimmed">
-        Up can’t read or set pay splits, so these are recommendations: set each saver’s pay split in
-        Up to match. Amounts are the fortnightly total of the budget lines routed to each account,
-        rounded up to the nearest $5.
+        Up can’t read or set pay splits, so these are recommendations: set each account’s pay split
+        in Up to match. Amounts are the fortnightly total of the budget lines routed to each
+        account, rounded up to the nearest $5.
       </Text>
+
+      {spendingAccounts.length > 0 && (
+        <Select
+          label="Paid into"
+          description="The spending account your pay lands in. Every other spending account and saver is then a recommended split."
+          placeholder="Choose a spending account"
+          data={spendingAccounts.map((account) => ({
+            value: account.id,
+            label: accountLabel(account.name),
+          }))}
+          value={payAccountId}
+          onChange={(value) => void onSetPayAccount(value)}
+          clearable
+        />
+      )}
+
+      {!hasPayAccount && spendingAccounts.length > 0 && (
+        <Alert color="blue" variant="light" title="Choose the account you’re paid into">
+          Pick the spending account your pay lands in above. Once set, your other spending accounts
+          join the recommended pay splits alongside your savers.
+        </Alert>
+      )}
 
       {nothingRouted && (
         <Text c="dimmed" size="sm">
@@ -269,20 +319,20 @@ export function SplitsScreen({
         </Group>
       )}
 
-      {saverRows.length > 0 && (
+      {recommendedRows.length > 0 && (
         <Stack gap="xs">
           <Group gap="xs" align="center">
             <Title order={3} size="h5">
               Recommended pay splits
             </Title>
-            {saversToUpdate > 0 && (
+            {rowsToUpdate > 0 && (
               <Badge size="sm" variant="light" color="yellow">
-                {saversToUpdate} to update
+                {rowsToUpdate} to update
               </Badge>
             )}
           </Group>
-          {saverRows.map((row) => (
-            <SaverSplitRow
+          {recommendedRows.map((row) => (
+            <RecommendedSplitRow
               key={row.account.id}
               account={row.account}
               fortnightlyCents={row.fortnightlyCents}
@@ -293,13 +343,18 @@ export function SplitsScreen({
         </Stack>
       )}
 
-      {otherRows.length > 0 && (
+      {staysRows.length > 0 && (
         <Stack gap="xs">
           <Title order={3} size="h5">
-            Stays in your everyday account
+            {hasPayAccount ? 'Stays in your pay account' : 'Stays in your spending account'}
           </Title>
-          {otherRows.map((row) => (
-            <SplitRow
+          {hasPayAccount && (
+            <Text size="xs" c="dimmed">
+              Pay lands here — no transfer needed.
+            </Text>
+          )}
+          {staysRows.map((row) => (
+            <StaysRow
               key={row.account.id}
               account={row.account}
               fortnightlyCents={row.fortnightlyCents}

@@ -35,6 +35,7 @@ export type { EquityGrant, EquityInstrumentType, VestingFrequency } from './equi
 
 export {
   assignmentsByAccount,
+  isRecommendedSplitAccount,
   paySplitNeedsUpdate,
   resolveDestinationAccountId,
   roundCentsUpToStep,

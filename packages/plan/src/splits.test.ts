@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assignmentsByAccount,
+  isRecommendedSplitAccount,
   paySplitNeedsUpdate,
   resolveDestinationAccountId,
   roundCentsUpToStep,
@@ -159,5 +160,21 @@ describe('paySplitNeedsUpdate', () => {
 
   it('is up to date when the recommendation equals the confirmed amount', () => {
     expect(paySplitNeedsUpdate(400_00, 400_00)).toBe(false)
+  })
+})
+
+describe('isRecommendedSplitAccount', () => {
+  it('splits to every account but the pay account once one is designated', () => {
+    expect(isRecommendedSplitAccount({ isPayAccount: false, isSaver: false }, true)).toBe(true)
+    expect(isRecommendedSplitAccount({ isPayAccount: false, isSaver: true }, true)).toBe(true)
+  })
+
+  it('keeps the designated pay account out of the recommended splits', () => {
+    expect(isRecommendedSplitAccount({ isPayAccount: true, isSaver: false }, true)).toBe(false)
+  })
+
+  it('splits only to savers until a pay account is designated', () => {
+    expect(isRecommendedSplitAccount({ isPayAccount: false, isSaver: true }, false)).toBe(true)
+    expect(isRecommendedSplitAccount({ isPayAccount: false, isSaver: false }, false)).toBe(false)
   })
 })

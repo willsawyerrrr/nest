@@ -587,6 +587,7 @@ export type Database = {
           invite_code: string | null
           invite_code_expires_at: string | null
           name: string
+          pay_account_id: string | null
           timezone: string
           updated_at: string
         }
@@ -596,6 +597,7 @@ export type Database = {
           invite_code?: string | null
           invite_code_expires_at?: string | null
           name: string
+          pay_account_id?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -605,10 +607,19 @@ export type Database = {
           invite_code?: string | null
           invite_code_expires_at?: string | null
           name?: string
+          pay_account_id?: string | null
           timezone?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'households_pay_account_id_fkey'
+            columns: ['pay_account_id', 'id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
       }
       inflows: {
         Row: {
@@ -1149,6 +1160,10 @@ export type Database = {
         Returns: string
       }
       revoke_invite_code: { Args: never; Returns: undefined }
+      set_household_pay_account: {
+        Args: { p_account_id: string | null }
+        Returns: undefined
+      }
       store_up_token: {
         Args: { p_member_id: string; p_token: string }
         Returns: undefined

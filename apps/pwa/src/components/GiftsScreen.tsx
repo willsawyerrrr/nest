@@ -458,6 +458,7 @@ export function GiftsScreen({
           recipients={recipients}
           occasions={occasions}
           members={members}
+          currentMemberId={currentMemberId}
           onCreateRecipient={onCreateRecipient}
           onUpdateRecipient={onUpdateRecipient}
           onDeleteRecipient={onDeleteRecipient}

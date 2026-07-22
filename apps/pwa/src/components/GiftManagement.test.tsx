@@ -31,6 +31,7 @@ function renderManagement(overrides: Partial<Parameters<typeof GiftManagement>[0
       recipients={[]}
       occasions={[]}
       members={[]}
+      currentMemberId={null}
       onCreateRecipient={vi.fn()}
       onUpdateRecipient={vi.fn()}
       onDeleteRecipient={vi.fn()}
@@ -57,13 +58,18 @@ describe('GiftManagement', () => {
     expect(screen.getByText('Birthday')).toBeInTheDocument()
   })
 
-  it('adds a recipient, with submit disabled until a name is entered', async () => {
+  it('adds an external recipient, with submit disabled until a name is entered', async () => {
     const user = userEvent.setup()
     const onCreateRecipient = vi.fn()
-    renderManagement({ onCreateRecipient })
+    renderManagement({ members: [will], onCreateRecipient })
 
     await user.click(screen.getByRole('button', { name: 'Add recipient' }))
     const add = screen.getByRole('button', { name: 'Add' })
+    expect(add).toBeDisabled()
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Who is this for?' }))
+    await user.click(await screen.findByRole('option', { name: 'Someone else…' }))
     expect(add).toBeDisabled()
 
     await user.type(screen.getByLabelText('Name'), 'Carol')
@@ -104,15 +110,15 @@ describe('GiftManagement', () => {
     )
   })
 
-  it('links a recipient to a household member and writes member_id', async () => {
+  it('links a recipient to a household member, hiding the name field and storing the member name', async () => {
     const user = userEvent.setup()
     const onCreateRecipient = vi.fn()
     renderManagement({ members: [will], onCreateRecipient })
 
     await user.click(screen.getByRole('button', { name: 'Add recipient' }))
-    await user.type(screen.getByLabelText('Name'), 'Will')
-    await user.click(screen.getByRole('combobox', { name: 'Household member' }))
+    await user.click(screen.getByRole('combobox', { name: 'Who is this for?' }))
     await user.click(await screen.findByRole('option', { name: 'Will' }))
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Add' }))
 
     await waitFor(() =>
@@ -120,16 +126,17 @@ describe('GiftManagement', () => {
     )
   })
 
-  it('shows the linked member on a recipient and preselects it when editing', async () => {
+  it('shows the linked member as the label and preselects it when editing', async () => {
     const user = userEvent.setup()
     const linked: GiftRecipient = { ...alice, name: 'Will', member_id: 'm1' }
     const onUpdateRecipient = vi.fn()
     renderManagement({ recipients: [linked], members: [will], onUpdateRecipient })
 
-    expect(screen.getByText(/Will — purchases hidden from them/i)).toBeInTheDocument()
+    expect(screen.getByText('Will')).toBeInTheDocument()
+    expect(screen.getByText('Purchases hidden from them')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Edit Will' }))
-    expect(screen.getByRole('combobox', { name: 'Household member' })).toHaveValue('Will')
+    expect(screen.getByRole('combobox', { name: 'Who is this for?' })).toHaveValue('Will')
 
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
@@ -137,11 +144,40 @@ describe('GiftManagement', () => {
     )
   })
 
-  it('falls back to a generic label when a linked member is not in the list', () => {
+  it('derives a member recipient label from the live member name, not the stored copy', () => {
+    const linked: GiftRecipient = { ...alice, name: 'Old name', member_id: 'm1' }
+    renderManagement({ recipients: [linked], members: [makeMember({ id: 'm1', name: 'Willow' })] })
+
+    expect(screen.getByText('Willow')).toBeInTheDocument()
+    expect(screen.queryByText('Old name')).not.toBeInTheDocument()
+  })
+
+  it('says purchases are hidden from you when the recipient is the current member', () => {
+    const linked: GiftRecipient = { ...alice, name: 'Will', member_id: 'm1' }
+    renderManagement({ recipients: [linked], members: [will], currentMemberId: 'm1' })
+
+    expect(screen.getByText('Purchases hidden from you')).toBeInTheDocument()
+    expect(screen.queryByText('Purchases hidden from them')).not.toBeInTheDocument()
+  })
+
+  it('falls back to the stored name when a linked member is not in the list', () => {
     const linked: GiftRecipient = { ...alice, name: 'Ghost', member_id: 'gone' }
     renderManagement({ recipients: [linked], members: [will] })
 
-    expect(screen.getByText(/A member — purchases hidden from them/i)).toBeInTheDocument()
+    expect(screen.getByText('Ghost')).toBeInTheDocument()
+    expect(screen.getByText('Purchases hidden from them')).toBeInTheDocument()
+  })
+
+  it('keeps the name field for an external recipient and stores no member', async () => {
+    const user = userEvent.setup()
+    renderManagement({ recipients: [alice], members: [will] })
+
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.queryByText(/purchases hidden/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit Alice' }))
+    expect(screen.getByLabelText('Name')).toHaveValue('Alice')
+    expect(screen.getByRole('combobox', { name: 'Who is this for?' })).toHaveValue('Someone else…')
   })
 
   it('edits an occasion, keeping its date', async () => {
@@ -207,7 +243,7 @@ describe('GiftManagement', () => {
     renderManagement({ onCreateRecipient })
 
     await user.click(screen.getByRole('button', { name: 'Add recipient' }))
-    const form = screen.getByLabelText('Name').closest('form') as HTMLElement
+    const form = screen.getByRole('button', { name: 'Add' }).closest('form') as HTMLElement
     fireEvent.submit(form)
 
     expect(onCreateRecipient).not.toHaveBeenCalled()
@@ -241,9 +277,11 @@ describe('GiftManagement', () => {
   it('shows an error when saving fails', async () => {
     const user = userEvent.setup()
     const onCreateRecipient = vi.fn().mockRejectedValue(new Error('boom'))
-    renderManagement({ onCreateRecipient })
+    renderManagement({ members: [will], onCreateRecipient })
 
     await user.click(screen.getByRole('button', { name: 'Add recipient' }))
+    await user.click(screen.getByRole('combobox', { name: 'Who is this for?' }))
+    await user.click(await screen.findByRole('option', { name: 'Someone else…' }))
     await user.type(screen.getByLabelText('Name'), 'Carol')
     await user.click(screen.getByRole('button', { name: 'Add' }))
 

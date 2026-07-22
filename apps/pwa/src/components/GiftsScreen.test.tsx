@@ -8,6 +8,7 @@ import { GiftsScreen } from './GiftsScreen'
 const alice: GiftRecipient = {
   id: 'r1',
   name: 'Alice',
+  member_id: null,
   household_id: 'h',
   created_at: '',
   updated_at: '',
@@ -41,6 +42,8 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
         occasions={[xmas]}
         budgets={[budget]}
         purchases={[]}
+        members={[]}
+        currentMemberId={null}
         onCreateRecipient={vi.fn()}
         onUpdateRecipient={vi.fn()}
         onDeleteRecipient={vi.fn()}
@@ -280,6 +283,57 @@ async function expandRow(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /Christmas/ }))
   await user.click(screen.getByRole('button', { name: /Alice/ }))
 }
+
+describe('GiftsScreen private gifts for the current member', () => {
+  beforeEach(() => localStorage.clear())
+
+  const meRecipient: GiftRecipient = { ...alice, id: 'r9', name: 'Me', member_id: 'me' }
+  const myGift: GiftBudget = { ...budget, id: 'b9', recipient_id: 'r9' }
+  const myPurchase: GiftPurchase = {
+    id: 'p9',
+    gift_budget_id: 'b9',
+    amount_cents: 40_00,
+    description: 'Secret',
+    purchased_on: '2026-12-02',
+    household_id: 'h',
+    created_at: '',
+    updated_at: '',
+  }
+
+  it('hides spend and the purchase log for a gift whose recipient is the current member', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      recipients: [meRecipient],
+      budgets: [myGift],
+      purchases: [myPurchase],
+      currentMemberId: 'me',
+    })
+
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+
+    // The gift shows only its agreed budget plus a note, with no expandable
+    // purchase log, add-purchase control, or "Secret" purchase.
+    expect(screen.getByText(/purchases hidden — this is a gift for you/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Me/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Secret')).not.toBeInTheDocument()
+  })
+
+  it('shows spend and purchases for a gift whose recipient is not the current member', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      recipients: [meRecipient],
+      budgets: [myGift],
+      purchases: [myPurchase],
+      currentMemberId: 'someone-else',
+    })
+
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+    await user.click(screen.getByRole('button', { name: /^Me/ }))
+
+    expect(screen.queryByText(/purchases hidden — this is a gift for you/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Secret')).toBeInTheDocument()
+  })
+})
 
 describe('GiftsScreen purchases', () => {
   beforeEach(() => localStorage.clear())

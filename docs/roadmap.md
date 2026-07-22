@@ -203,6 +203,13 @@ the editor. The household's real gift budgets are loaded in production. See
       drift.
 - [x] Sole mechanism: `budget_line.breakdown_id` is the only derived-line marker —
       there is no separate derived-source enum or column.
+- [x] Private / surprise gifts: a gift's agreed budget is shared (it still feeds
+      the derived line and pay splits), but its purchases and the spent/remaining
+      they derive are hidden from the recipient. `gift_recipient.member_id` links a
+      recipient to a household member; RLS on `gift_purchase`
+      (`hidden_gift_budget_ids_for_current_member`) stops that member reading or
+      logging a purchase for their own gift, and the Gifts screen shows them only
+      the budgeted amount plus a note. The buyer sees everything.
 
 ### Pay splits (complete)
 
@@ -265,12 +272,6 @@ Uncommitted work, roughly ordered by likelihood of being picked up.
   see Done.)
 - **Breakdowns follow-ups** (the feature itself is shipped — see Done). See
   [`breakdowns.md`](breakdowns.md).
-  - **Private / surprise gifts** (deferred). Hiding a gift one partner buys for the
-    other needs per-record member visibility on gift breakdowns — a finer-grained
-    carve-out than the per-account balance privacy, which hides a whole owned
-    account rather than individual rows within otherwise-shared data. It would
-    require member-scoped policies and UI on the gift tables, so it is out of scope
-    for now.
   - **Up-tagged gift purchases.** Once Up ingestion lands, an Up transaction can be
     tagged to a gifting event instead of hand-entering the purchase.
 - Reconcile projected income against actual deposits; joint-income ownership

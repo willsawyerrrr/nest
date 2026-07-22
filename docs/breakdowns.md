@@ -34,6 +34,16 @@ normalised to fortnightly and annual exactly as a budget line is.
 - **Gifts is a breakdown.** The gift planner uses its own UX and its
   `gift_recipient` / `gift_occasion` / `gift_budget` / `gift_purchase` tables; it is
   reached as a `kind = 'gift'` breakdown, not a standalone tab.
+- **A gift's budget is shared; its purchases are private from the recipient.**
+  The two partners set a gift's agreed amount together, so `gift_budget` stays
+  fully shared and continues to feed the derived line and pay splits unchanged.
+  What must stay hidden — so the surprise is not spoiled — is the purchases and the
+  spent/remaining they derive. A `gift_recipient` can be linked to a household
+  member (`gift_recipient.member_id`): when it is, that member is the recipient,
+  and their gift's purchases and progress are hidden from them (in the database via
+  RLS on `gift_purchase`, and in the Gifts screen, which shows only the agreed
+  budgeted amount plus a note). Any other member — the buyer — sees them normally.
+  An unlinked recipient is an external person, fully shared.
 - **Medications is a generic breakdown.** There is no bespoke Health tab or
   medication schema; the household creates a generic breakdown and lists its
   medications as items.

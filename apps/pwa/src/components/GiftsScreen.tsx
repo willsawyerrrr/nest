@@ -1,19 +1,17 @@
 import { useState } from 'react'
 import {
-  ActionIcon,
   Box,
   Button,
   Card,
   Collapse,
   Group,
-  Progress,
   Stack,
   Text,
   Title,
   UnstyledButton,
 } from '@mantine/core'
 import { useDisclosure, useLocalStorage } from '@mantine/hooks'
-import { IconChevronDown, IconChevronRight, IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type {
   GiftBudget,
@@ -25,6 +23,7 @@ import type {
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
+import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import {
   groupGifts,
@@ -33,15 +32,15 @@ import {
   type GiftGroup,
   type GiftGroupBy,
   type GiftRow,
-  type GiftTotals,
 } from '../lib/gifts'
-import { formatCents, moneyColor } from '../lib/money'
+import { formatCents } from '../lib/money'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import { EmptyState } from './EmptyState'
 import { EnumSegmentedControl } from './EnumSelect'
 import { GiftBudgetForm } from './GiftBudgetForm'
 import { GiftManagement } from './GiftManagement'
 import { GiftPurchaseForm } from './GiftPurchaseForm'
+import { GiftMoneyBar, PurchaseRow } from './GiftRowParts'
 
 interface GiftsScreenProps {
   /** Where the back link returns to. */
@@ -52,6 +51,9 @@ interface GiftsScreenProps {
   occasions: GiftOccasion[]
   budgets: GiftBudget[]
   purchases: GiftPurchase[]
+  members: Member[]
+  /** The signed-in member's id, or null while unresolved / for a user with no member row. */
+  currentMemberId: string | null
   onCreateRecipient: (input: GiftRecipientInput) => Promise<void>
   onUpdateRecipient: (id: string, input: GiftRecipientInput) => Promise<void>
   onDeleteRecipient: (id: string) => Promise<void>
@@ -68,80 +70,6 @@ interface GiftsScreenProps {
 
 const GROUP_BY_STORAGE_KEY = 'gift-group-by'
 
-/** The spend progress percentage and its bar colour (red once over budget). */
-function progress(totals: GiftTotals): { percent: number; color: string } {
-  const color = totals.remainingCents < 0 ? 'red' : 'teal'
-  if (totals.budgetedCents <= 0) {
-    return { percent: totals.spentCents > 0 ? 100 : 0, color }
-  }
-  return { percent: Math.min(100, (totals.spentCents / totals.budgetedCents) * 100), color }
-}
-
-/** A budgeted / spent / remaining readout with a spend progress bar. */
-function GiftMoneyBar({ totals, label }: { totals: GiftTotals; label: string }) {
-  const { percent, color } = progress(totals)
-  return (
-    <Stack gap={4}>
-      <Group gap="md" wrap="wrap">
-        <Text size="xs" c="dimmed">
-          Budget {formatCents(totals.budgetedCents)}
-        </Text>
-        <Text size="xs" c="dimmed">
-          Spent {formatCents(totals.spentCents)}
-        </Text>
-        <Text size="xs" fw={600} c={moneyColor(totals.remainingCents)}>
-          Left {formatCents(totals.remainingCents)}
-        </Text>
-      </Group>
-      <Progress value={percent} color={color} size="sm" aria-label={`${label} spend`} />
-    </Stack>
-  )
-}
-
-/** One purchase line with edit/delete controls. */
-function PurchaseRow({
-  purchase,
-  onEdit,
-  onDelete,
-}: {
-  purchase: GiftPurchase
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  return (
-    <Group justify="space-between" wrap="nowrap" gap="sm">
-      <Stack gap={0} style={{ minWidth: 0 }}>
-        <Text size="sm" truncate>
-          {purchase.description || 'Purchase'}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {formatIsoDate(purchase.purchased_on)}
-        </Text>
-      </Stack>
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-        <Text size="sm" fw={600}>
-          {formatCents(purchase.amount_cents)}
-        </Text>
-        <ActionIcon
-          variant="subtle"
-          aria-label={`Edit ${purchase.description || 'purchase'}`}
-          onClick={onEdit}
-        >
-          <IconPencil size={16} />
-        </ActionIcon>
-        <ActionIcon
-          variant="subtle"
-          color="red"
-          aria-label={`Delete ${purchase.description || 'purchase'}`}
-          onClick={onDelete}
-        >
-          <IconTrash size={16} />
-        </ActionIcon>
-      </Group>
-    </Group>
-  )
-}
-
 /** One pairing row: its money, expandable to its purchases with add/edit/delete and budget edit. */
 function GiftRowCard({
   row,
@@ -150,6 +78,7 @@ function GiftRowCard({
   recipients,
   occasions,
   takenPairs,
+  hidden,
   onUpdateBudget,
   onDeleteBudget,
   onCreatePurchase,
@@ -162,6 +91,8 @@ function GiftRowCard({
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
   takenPairs: Set<string>
+  /** The gift is for the signed-in member: hide its spend and purchases from them. */
+  hidden: boolean
   onUpdateBudget: (id: string, input: GiftBudgetInput) => Promise<void>
   onDeleteBudget: (id: string) => Promise<void>
   onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
@@ -175,6 +106,35 @@ function GiftRowCard({
   const { confirm, modal } = useConfirmDelete()
 
   const rowPurchases = purchases.filter((purchase) => purchase.gift_budget_id === row.budgetId)
+
+  // A gift for the signed-in member shows only its agreed (shared) budget: its
+  // spend, remaining, and purchase log stay hidden so the surprise is not spoiled.
+  if (hidden) {
+    return (
+      <Card withBorder radius="md" p="xs">
+        <Stack gap={4}>
+          <Group justify="space-between" wrap="nowrap" gap="sm">
+            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+              <Text fw={600} size="sm" truncate>
+                {row.label}
+              </Text>
+              {row.date && (
+                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                  {formatIsoDate(row.date)}
+                </Text>
+              )}
+            </Group>
+            <Text size="sm" fw={600} style={{ flexShrink: 0 }}>
+              {formatCents(row.budgetedCents)}
+            </Text>
+          </Group>
+          <Text size="xs" c="dimmed">
+            Purchases hidden — this is a gift for you.
+          </Text>
+        </Stack>
+      </Card>
+    )
+  }
 
   return (
     <Card withBorder radius="md" p="xs">
@@ -312,6 +272,7 @@ function GiftGroupCard({
   recipients,
   occasions,
   takenPairs,
+  hiddenBudgetIds,
   onCreateBudget,
   onUpdateBudget,
   onDeleteBudget,
@@ -326,6 +287,8 @@ function GiftGroupCard({
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
   takenPairs: Set<string>
+  /** Budget ids whose gift is for the signed-in member (spend hidden from them). */
+  hiddenBudgetIds: Set<string>
   onCreateBudget: (input: GiftBudgetInput) => Promise<void>
   onUpdateBudget: (id: string, input: GiftBudgetInput) => Promise<void>
   onDeleteBudget: (id: string) => Promise<void>
@@ -381,6 +344,7 @@ function GiftGroupCard({
                   recipients={recipients}
                   occasions={occasions}
                   takenPairs={takenPairs}
+                  hidden={hiddenBudgetIds.has(row.budgetId)}
                   onUpdateBudget={onUpdateBudget}
                   onDeleteBudget={onDeleteBudget}
                   onCreatePurchase={onCreatePurchase}
@@ -423,6 +387,8 @@ export function GiftsScreen({
   occasions,
   budgets,
   purchases,
+  members,
+  currentMemberId,
   onCreateRecipient,
   onUpdateRecipient,
   onDeleteRecipient,
@@ -448,6 +414,20 @@ export function GiftsScreen({
   const budgetsById = new Map(budgets.map((budget) => [budget.id, budget]))
   const takenPairs = new Set(
     budgets.map((budget) => pairKey(budget.recipient_id, budget.occasion_id)),
+  )
+  // Gifts for the signed-in member: their recipient is linked to that member, so
+  // their spend and purchases are hidden from them (the surprise is preserved).
+  const recipientsForMember = new Set(
+    currentMemberId === null
+      ? []
+      : recipients
+          .filter((recipient) => recipient.member_id === currentMemberId)
+          .map((recipient) => recipient.id),
+  )
+  const hiddenBudgetIds = new Set(
+    budgets
+      .filter((budget) => recipientsForMember.has(budget.recipient_id))
+      .map((budget) => budget.id),
   )
   const noEntities = recipients.length === 0 && occasions.length === 0
 
@@ -477,6 +457,7 @@ export function GiftsScreen({
         <GiftManagement
           recipients={recipients}
           occasions={occasions}
+          members={members}
           onCreateRecipient={onCreateRecipient}
           onUpdateRecipient={onUpdateRecipient}
           onDeleteRecipient={onDeleteRecipient}
@@ -519,6 +500,7 @@ export function GiftsScreen({
             recipients={recipients}
             occasions={occasions}
             takenPairs={takenPairs}
+            hiddenBudgetIds={hiddenBudgetIds}
             onCreateBudget={onCreateBudget}
             onUpdateBudget={onUpdateBudget}
             onDeleteBudget={onDeleteBudget}

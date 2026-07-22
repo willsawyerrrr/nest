@@ -637,6 +637,100 @@ begin
     'Bob should see his 4 balance-visible accounts: shared, own spending, own saver, own super';
 end $$;
 
+-- ── Private gift purchases within a household ────────────────────────────────
+--
+-- A gift's agreed budget is shared, but its purchases are hidden from the
+-- recipient when the recipient is a household member. Alice budgets a gift for
+-- Bob and logs a purchase: Bob sees the shared recipient/occasion/budget and its
+-- budgeted amount, but never the purchase, and cannot log one for his own gift;
+-- Alice (the buyer) sees the purchase. Symmetric for a gift Bob buys for Alice.
+
+-- Alice creates a recipient linked to Bob, an occasion, a budget, and a purchase.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+insert into public.gift_recipient (household_id, member_id, name)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 'Bob')
+  returning id as priv_bob_recipient \gset
+select set_config('test.priv_bob_recipient', :'priv_bob_recipient', false);
+
+insert into public.gift_occasion (household_id, name)
+  values (current_setting('test.priv_hid')::uuid, 'Bob Birthday')
+  returning id as priv_bob_occasion \gset
+select set_config('test.priv_bob_occasion', :'priv_bob_occasion', false);
+
+insert into public.gift_budget (household_id, recipient_id, occasion_id, budgeted_amount_cents)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_recipient')::uuid, current_setting('test.priv_bob_occasion')::uuid, 200_00)
+  returning id as priv_bob_gift \gset
+select set_config('test.priv_bob_gift', :'priv_bob_gift', false);
+
+insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_gift')::uuid, 120_00, 'Watch', '2027-02-01');
+
+-- Alice, the buyer, sees the purchase she logged for Bob's gift.
+do $$ begin
+  assert (select count(*) from public.gift_purchase where gift_budget_id = current_setting('test.priv_bob_gift')::uuid) = 1,
+    'Alice (the buyer) should see the purchase for Bob''s gift';
+end $$;
+
+-- Bob, the recipient, sees the shared recipient/occasion/budget and its agreed
+-- amount, but not the purchase.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert exists (select 1 from public.gift_recipient where id = current_setting('test.priv_bob_recipient')::uuid),
+    'Bob should see the shared gift recipient linked to him';
+  assert exists (select 1 from public.gift_occasion where id = current_setting('test.priv_bob_occasion')::uuid),
+    'Bob should see the shared gift occasion';
+  assert (select budgeted_amount_cents from public.gift_budget where id = current_setting('test.priv_bob_gift')::uuid) = 200_00,
+    'Bob should see the shared agreed budget amount for his own gift';
+  assert (select count(*) from public.gift_purchase where gift_budget_id = current_setting('test.priv_bob_gift')::uuid) = 0,
+    'Bob must not see purchases logged against his own gift';
+end $$;
+
+-- Bob cannot log a purchase for his own gift (the surprise stays hidden).
+do $$ begin
+  insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, purchased_on)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_gift')::uuid, 10_00, '2027-02-02');
+  raise exception 'FAIL: Bob logged a purchase for his own gift';
+exception when insufficient_privilege then
+  raise notice 'PASS: Bob cannot log a purchase for his own gift';
+end $$;
+
+-- Symmetry: Bob budgets a gift for Alice and logs a purchase against it.
+insert into public.gift_recipient (household_id, member_id, name)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid, 'Alice')
+  returning id as priv_alice_recipient \gset
+select set_config('test.priv_alice_recipient', :'priv_alice_recipient', false);
+
+insert into public.gift_occasion (household_id, name)
+  values (current_setting('test.priv_hid')::uuid, 'Alice Birthday')
+  returning id as priv_alice_occasion \gset
+select set_config('test.priv_alice_occasion', :'priv_alice_occasion', false);
+
+insert into public.gift_budget (household_id, recipient_id, occasion_id, budgeted_amount_cents)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_recipient')::uuid, current_setting('test.priv_alice_occasion')::uuid, 90_00)
+  returning id as priv_alice_gift \gset
+select set_config('test.priv_alice_gift', :'priv_alice_gift', false);
+
+insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_gift')::uuid, 45_00, 'Perfume', '2027-03-01');
+
+-- Bob, the buyer, sees the purchase for Alice's gift.
+do $$ begin
+  assert (select count(*) from public.gift_purchase where gift_budget_id = current_setting('test.priv_alice_gift')::uuid) = 1,
+    'Bob (the buyer) should see the purchase for Alice''s gift';
+end $$;
+
+-- Alice sees her own gift's agreed budget but not its purchase, while still
+-- seeing purchases for Bob's gift (where she is not the recipient).
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$ begin
+  assert (select budgeted_amount_cents from public.gift_budget where id = current_setting('test.priv_alice_gift')::uuid) = 90_00,
+    'Alice should see the shared agreed budget amount for her own gift';
+  assert (select count(*) from public.gift_purchase where gift_budget_id = current_setting('test.priv_alice_gift')::uuid) = 0,
+    'Alice must not see purchases logged against her own gift';
+  assert (select count(*) from public.gift_purchase where gift_budget_id = current_setting('test.priv_bob_gift')::uuid) = 1,
+    'Alice should still see purchases for a gift where she is not the recipient';
+end $$;
+
 -- ── Household pay account: one household-level source, validated on write ─────
 --
 -- The pay account is set only through set_household_pay_account, which resolves

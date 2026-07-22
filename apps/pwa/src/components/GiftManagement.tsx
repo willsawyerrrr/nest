@@ -1,5 +1,15 @@
 import { useState, type FormEvent } from 'react'
-import { ActionIcon, Button, Card, Group, Stack, Text, TextInput, Title } from '@mantine/core'
+import {
+  ActionIcon,
+  Button,
+  Card,
+  Group,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
@@ -9,12 +19,14 @@ import type {
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
+import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { EmptyState } from './EmptyState'
 
 interface GiftManagementProps {
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
+  members: Member[]
   onCreateRecipient: (input: GiftRecipientInput) => Promise<void>
   onUpdateRecipient: (id: string, input: GiftRecipientInput) => Promise<void>
   onDeleteRecipient: (id: string) => Promise<void>
@@ -23,26 +35,41 @@ interface GiftManagementProps {
   onDeleteOccasion: (id: string) => Promise<void>
 }
 
+/** The values a recipient or occasion form submits; each editor reads the fields it uses. */
+interface GiftEntityValues {
+  name: string
+  date: string | null
+  memberId: string | null
+}
+
 /** The cascade warning shared by a recipient's and an occasion's delete confirmation. */
 const CASCADE_WARNING =
   'This also removes its gift budgets and every purchase recorded against them. This cannot be undone.'
 
-/** Add/edit form for a recipient (a name) or an occasion (a name and optional date). */
+/**
+ * Add/edit form for a recipient (a name, plus an optional household-member link)
+ * or an occasion (a name and optional date).
+ */
 function GiftEntityForm({
   kind,
+  members,
   initialName,
   initialDate,
+  initialMemberId,
   onSubmit,
   onCancel,
 }: {
   kind: 'recipient' | 'occasion'
+  members?: Member[]
   initialName?: string
   initialDate?: string | null
-  onSubmit: (name: string, date: string | null) => Promise<void>
+  initialMemberId?: string | null
+  onSubmit: (values: GiftEntityValues) => Promise<void>
   onCancel: () => void
 }) {
   const [name, setName] = useState(initialName ?? '')
   const [date, setDate] = useState<string | null>(initialDate ?? null)
+  const [memberId, setMemberId] = useState<string | null>(initialMemberId ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,7 +83,11 @@ function GiftEntityForm({
     setSubmitting(true)
     setError(null)
     try {
-      await onSubmit(name.trim(), kind === 'occasion' ? date : null)
+      await onSubmit({
+        name: name.trim(),
+        date: kind === 'occasion' ? date : null,
+        memberId: kind === 'recipient' ? memberId : null,
+      })
     } catch {
       setError('Could not save. Please try again.')
       setSubmitting(false)
@@ -72,6 +103,18 @@ function GiftEntityForm({
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
         />
+        {kind === 'recipient' && members && (
+          <Select
+            label="Household member"
+            size="sm"
+            description="Optional. If this recipient is a partner, their gift purchases and remaining budget stay hidden from them."
+            placeholder="External person"
+            clearable
+            data={members.map((member) => ({ value: member.id, label: member.name }))}
+            value={memberId}
+            onChange={setMemberId}
+          />
+        )}
         {kind === 'occasion' && (
           <DateInput
             label="Date"
@@ -152,6 +195,7 @@ function EntityRow({
 export function GiftManagement({
   recipients,
   occasions,
+  members,
   onCreateRecipient,
   onUpdateRecipient,
   onDeleteRecipient,
@@ -165,6 +209,8 @@ export function GiftManagement({
   const [addingOccasion, setAddingOccasion] = useState(false)
   const { confirm, modal } = useConfirmDelete()
 
+  const memberNameById = new Map(members.map((member) => [member.id, member.name]))
+
   return (
     <Stack gap="lg">
       <Stack gap="sm">
@@ -177,9 +223,11 @@ export function GiftManagement({
             <GiftEntityForm
               key={recipient.id}
               kind="recipient"
+              members={members}
               initialName={recipient.name}
-              onSubmit={async (name) => {
-                await onUpdateRecipient(recipient.id, { name })
+              initialMemberId={recipient.member_id}
+              onSubmit={async ({ name, memberId }) => {
+                await onUpdateRecipient(recipient.id, { name, member_id: memberId })
                 setEditingRecipientId(null)
               }}
               onCancel={() => setEditingRecipientId(null)}
@@ -188,6 +236,11 @@ export function GiftManagement({
             <EntityRow
               key={recipient.id}
               label={recipient.name}
+              meta={
+                recipient.member_id
+                  ? `${memberNameById.get(recipient.member_id) ?? 'A member'} — purchases hidden from them`
+                  : undefined
+              }
               onEdit={() => {
                 setAddingRecipient(false)
                 setEditingRecipientId(recipient.id)
@@ -206,8 +259,9 @@ export function GiftManagement({
         {addingRecipient ? (
           <GiftEntityForm
             kind="recipient"
-            onSubmit={async (name) => {
-              await onCreateRecipient({ name })
+            members={members}
+            onSubmit={async ({ name, memberId }) => {
+              await onCreateRecipient({ name, member_id: memberId })
               setAddingRecipient(false)
             }}
             onCancel={() => setAddingRecipient(false)}
@@ -238,7 +292,7 @@ export function GiftManagement({
               kind="occasion"
               initialName={occasion.name}
               initialDate={occasion.occasion_date}
-              onSubmit={async (name, date) => {
+              onSubmit={async ({ name, date }) => {
                 await onUpdateOccasion(occasion.id, { name, occasion_date: date })
                 setEditingOccasionId(null)
               }}
@@ -267,7 +321,7 @@ export function GiftManagement({
         {addingOccasion ? (
           <GiftEntityForm
             kind="occasion"
-            onSubmit={async (name, date) => {
+            onSubmit={async ({ name, date }) => {
               await onCreateOccasion({ name, occasion_date: date })
               setAddingOccasion(false)
             }}

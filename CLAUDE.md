@@ -76,6 +76,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   recipient × occasion planner + purchase log (reached from the Breakdowns tab, not
   a standalone Gifts tab); `generic` is a name + group with an item list (amount +
   frequency), which is how medications and any other itemised budget are modelled.
+  A gift's agreed budget is shared and keeps feeding the derived line and pay
+  splits, but its purchases and the spent/remaining they derive are private from
+  the recipient: a `gift_recipient` links to a household member via `member_id`,
+  and when it does, RLS on `gift_purchase`
+  (`hidden_gift_budget_ids_for_current_member`) hides that member's own-gift
+  purchases from them and blocks them logging one, while the Gifts screen shows
+  them only the budgeted amount — the buyer (any other member) sees everything.
   A line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
   goal's linked saver instead); the Splits tab sums each account's routed lines

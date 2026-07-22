@@ -34,10 +34,11 @@ describe('useChangelog', () => {
     expect(invoke).toHaveBeenCalledWith('changelog', { body: {} })
   })
 
-  it('loads the implemented and in-progress entries', async () => {
+  it('loads the available, implemented and in-progress entries', async () => {
     invoke.mockResolvedValue({
       data: {
         configured: true,
+        available: [{ type: 'feat', scope: null, description: 'z', date: 'd', sha: 'n' }],
         implemented: [{ type: 'feat', scope: null, description: 'x', date: 'd', sha: 's' }],
         inProgress: [{ type: 'fix', scope: 'a', description: 'y', number: 1, url: 'u' }],
       },
@@ -46,9 +47,21 @@ describe('useChangelog', () => {
     const { result } = renderHook(() => useChangelog())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.configured).toBe(true)
+    expect(result.current.available).toHaveLength(1)
+    expect(result.current.available[0]?.sha).toBe('n')
     expect(result.current.implemented).toHaveLength(1)
     expect(result.current.inProgress).toHaveLength(1)
     expect(result.current.error).toBeNull()
+  })
+
+  it('defaults available to an empty list when the response omits it', async () => {
+    invoke.mockResolvedValue({
+      data: { configured: true, implemented: [], inProgress: [] },
+      error: null,
+    })
+    const { result } = renderHook(() => useChangelog())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.available).toEqual([])
   })
 
   it('surfaces an error when the function fails', async () => {

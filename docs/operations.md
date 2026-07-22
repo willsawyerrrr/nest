@@ -83,17 +83,20 @@ fine-grained GitHub PAT scoped to the `nest` repo with **Contents: Read** and
 - **Prod:** `supabase secrets set GITHUB_CHANGELOG_TOKEN=<pat> --project-ref dgfeittjtxjtgbretdkj`.
 - **Local dev:** add `GITHUB_CHANGELOG_TOKEN=<pat>` to `supabase/functions/.env`.
 
-Until the secret is set the function returns `{ configured: false, implemented:
-[], inProgress: [] }` (a `200`) and the tab shows a "not configured yet" note, so
-it degrades gracefully.
+Until the secret is set the function returns `{ configured: false, available: [],
+implemented: [], inProgress: [] }` (a `200`) and the tab shows a "not configured
+yet" note, so it degrades gracefully.
 
 The client posts its build's `VITE_COMMIT_SHA` as the request body's `sha`. The
-function locates that commit in the raw newest-first commit list and drops
-everything newer (keeping that commit and older) before the feat/fix/perf parse,
-so a stale/cached PWA never advertises changes its build does not contain. The
-cutoff runs on the raw list because the deploy commit is often a filtered-out
-`chore`/`docs`/`refactor`. If the SHA is empty or not found, the list is left
-untouched (fail-open, never a blank page); in-progress open PRs are unaffected.
+function locates that commit in the raw newest-first commit list and splits
+there: that commit and older become `implemented` (so a stale/cached PWA never
+advertises changes its build does not contain), while the commits newer than it
+become `available` — the merged-and-deployed changes the build is missing, which
+the tab surfaces with a **Reload to update** button. Both halves run through the
+feat/fix/perf parse. The split runs on the raw list because the deploy commit is
+often a filtered-out `chore`/`docs`/`refactor`. If the SHA is empty or not found,
+`available` is empty and the full list is `implemented` (fail-open, never a blank
+page and never a false update prompt); in-progress open PRs are unaffected.
 
 ## Auth
 

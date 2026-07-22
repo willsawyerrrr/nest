@@ -1,9 +1,10 @@
 import { ChangelogScreen } from '../components/ChangelogScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useChangelog } from '../hooks/useChangelog'
+import { applyLatestVersion } from '../pwa'
 
 export function ChangelogSection() {
-  const { implemented, inProgress, configured, loading, error } = useChangelog()
+  const { available, implemented, inProgress, configured, loading, error } = useChangelog()
 
   if (loading) {
     return <LoadingScreen />
@@ -11,10 +12,12 @@ export function ChangelogSection() {
 
   return (
     <ChangelogScreen
+      available={available}
       implemented={implemented}
       inProgress={inProgress}
       configured={configured}
       error={error}
+      onUpdate={() => void applyLatestVersion()}
     />
   )
 }

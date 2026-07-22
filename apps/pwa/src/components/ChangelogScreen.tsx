@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
-import { Alert, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Alert, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 
 interface ChangelogScreenProps {
+  available: ImplementedEntry[]
   implemented: ImplementedEntry[]
   inProgress: InProgressEntry[]
   configured: boolean
   error: string | null
+  onUpdate: () => void
 }
 
 const TYPE_EMOJI: Record<string, { emoji: string; label: string }> = {
@@ -67,10 +69,12 @@ function Section({
 
 /** Presentational "What's new" changelog. Data loading lives in the caller. */
 export function ChangelogScreen({
+  available,
   implemented,
   inProgress,
   configured,
   error,
+  onUpdate,
 }: ChangelogScreenProps) {
   return (
     <Stack gap="lg">
@@ -92,6 +96,25 @@ export function ChangelogScreen({
 
       {!error && configured && (
         <>
+          {available.length > 0 && (
+            <Alert color="blue" variant="light" title="Update available">
+              <Stack gap="sm">
+                <Text size="sm">
+                  A newer version of the app is ready. Reload to get{' '}
+                  {available.length === 1 ? 'this change' : `these ${available.length} changes`}.
+                </Text>
+                <Stack gap="xs">
+                  {available.map((entry) => (
+                    <Entry key={entry.sha} type={entry.type} description={entry.description} />
+                  ))}
+                </Stack>
+                <Button onClick={onUpdate} variant="filled" style={{ alignSelf: 'flex-start' }}>
+                  Reload to update
+                </Button>
+              </Stack>
+            </Alert>
+          )}
+
           <Section
             title="In progress"
             count={inProgress.length}

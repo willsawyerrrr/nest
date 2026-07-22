@@ -34,6 +34,7 @@ export interface InProgressEntry extends ParsedSubject {
 
 export interface ChangelogResult {
   configured: boolean
+  available: ImplementedEntry[]
   implemented: ImplementedEntry[]
   inProgress: InProgressEntry[]
 }
@@ -88,21 +89,25 @@ export function parseChangelogSubject(subject: string): ParsedSubject | null {
 }
 
 /**
- * Cuts the raw newest-first commit list at the running build's commit, dropping
- * every commit newer than it so the changelog never advertises a change the
- * loaded build does not contain. The match accepts a prefix (`startsWith`) to
- * tolerate short SHAs. Fails open: an empty `buildSha`, or one not present in
- * the list, returns the list unchanged rather than blanking the page.
+ * Splits the raw newest-first commit list at the running build's commit into the
+ * commits newer than the build (`newer`) and that commit and everything older
+ * (`current`). The match accepts a prefix (`startsWith`) to tolerate short SHAs.
+ * Fails open: an empty `buildSha`, or one not present in the list, yields no
+ * `newer` commits and the whole list as `current` — we cannot tell what the
+ * build is missing, so we claim nothing rather than blanking or misreporting.
  */
-export function cutoffCommitsAtSha<T extends { sha: string }>(
+export function splitCommitsAtSha<T extends { sha: string }>(
   commits: T[],
   buildSha: string | undefined,
-): T[] {
+): { newer: T[]; current: T[] } {
   if (!buildSha) {
-    return commits
+    return { newer: [], current: commits }
   }
   const index = commits.findIndex((commit) => commit.sha.startsWith(buildSha))
-  return index === -1 ? commits : commits.slice(index)
+  if (index === -1) {
+    return { newer: [], current: commits }
+  }
+  return { newer: commits.slice(0, index), current: commits.slice(index) }
 }
 
 /**
@@ -111,9 +116,11 @@ export function cutoffCommitsAtSha<T extends { sha: string }>(
  * so the UI can show a "not configured yet" note rather than an error. A GitHub
  * failure surfaces as a `502` so the client can show an error state.
  *
- * `buildSha` is the running build's commit: the raw commit list is cut at it
- * (that commit and older kept) before parsing, so the implemented list never
- * includes changes newer than the loaded build.
+ * `buildSha` is the running build's commit: the raw commit list is split at it
+ * so `implemented` (that commit and older) never includes changes newer than the
+ * loaded build, and `available` reports the merged-and-deployed changes the build
+ * is missing (newer than it). When `buildSha` is absent or unknown, `available`
+ * is empty and `implemented` is the full list.
  */
 export async function runChangelog(
   token: string | undefined,
@@ -121,7 +128,10 @@ export async function runChangelog(
   fetchImpl: typeof fetch = fetch,
 ): Promise<FlowResult> {
   if (!token) {
-    return { status: 200, body: { configured: false, implemented: [], inProgress: [] } }
+    return {
+      status: 200,
+      body: { configured: false, available: [], implemented: [], inProgress: [] },
+    }
   }
 
   const headers = {
@@ -142,16 +152,12 @@ export async function runChangelog(
   const rawCommits = (await commitsRes.json()) as GitHubCommit[]
   const pulls = (await pullsRes.json()) as GitHubPull[]
 
-  // GitHub returns commits newest-first, so cutting at the build's commit drops
-  // everything newer; the implemented list is then already ordered.
-  const commits = cutoffCommitsAtSha(rawCommits, buildSha)
-  const implemented: ImplementedEntry[] = []
-  for (const commit of commits) {
-    const parsed = parseChangelogSubject(commit.commit.message.split('\n')[0])
-    if (parsed) {
-      implemented.push({ ...parsed, date: commit.commit.committer.date, sha: commit.sha })
-    }
-  }
+  // GitHub returns commits newest-first, so splitting at the build's commit gives
+  // the deployed-but-newer changes (`available`) and that-commit-and-older
+  // (`implemented`); both stay newest-first.
+  const { newer, current } = splitCommitsAtSha(rawCommits, buildSha)
+  const available = parseCommits(newer)
+  const implemented = parseCommits(current)
 
   const inProgress: InProgressEntry[] = []
   for (const pull of pulls) {
@@ -161,5 +167,17 @@ export async function runChangelog(
     }
   }
 
-  return { status: 200, body: { configured: true, implemented, inProgress } }
+  return { status: 200, body: { configured: true, available, implemented, inProgress } }
+}
+
+/** Parses commit subjects into user-facing entries, preserving order. */
+function parseCommits(commits: GitHubCommit[]): ImplementedEntry[] {
+  const entries: ImplementedEntry[] = []
+  for (const commit of commits) {
+    const parsed = parseChangelogSubject(commit.commit.message.split('\n')[0])
+    if (parsed) {
+      entries.push({ ...parsed, date: commit.commit.committer.date, sha: commit.sha })
+    }
+  }
+  return entries
 }

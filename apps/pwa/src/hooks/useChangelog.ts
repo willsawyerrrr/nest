@@ -18,6 +18,7 @@ export interface InProgressEntry {
 }
 
 export interface UseChangelogResult {
+  available: ImplementedEntry[]
   implemented: ImplementedEntry[]
   inProgress: InProgressEntry[]
   configured: boolean
@@ -27,6 +28,7 @@ export interface UseChangelogResult {
 
 interface ChangelogResponse {
   configured: boolean
+  available: ImplementedEntry[]
   implemented: ImplementedEntry[]
   inProgress: InProgressEntry[]
 }
@@ -38,6 +40,7 @@ interface ChangelogResponse {
  * no GitHub token it replies `configured: false` with empty lists.
  */
 export function useChangelog(): UseChangelogResult {
+  const [available, setAvailable] = useState<ImplementedEntry[]>([])
   const [implemented, setImplemented] = useState<ImplementedEntry[]>([])
   const [inProgress, setInProgress] = useState<InProgressEntry[]>([])
   const [configured, setConfigured] = useState(true)
@@ -63,6 +66,7 @@ export function useChangelog(): UseChangelogResult {
           return
         }
         setConfigured(data.configured)
+        setAvailable(data.available ?? [])
         setImplemented(data.implemented)
         setInProgress(data.inProgress)
       })
@@ -76,5 +80,5 @@ export function useChangelog(): UseChangelogResult {
     }
   }, [])
 
-  return { implemented, inProgress, configured, loading, error }
+  return { available, implemented, inProgress, configured, loading, error }
 }

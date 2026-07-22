@@ -1,9 +1,9 @@
 import { assertEquals } from '@std/assert'
 import {
   type ChangelogResult,
-  cutoffCommitsAtSha,
   parseChangelogSubject,
   runChangelog,
+  splitCommitsAtSha,
 } from './changelog.ts'
 
 Deno.test('parseChangelogSubject keeps feat/fix/perf and parses the scope', () => {
@@ -126,6 +126,9 @@ Deno.test('runChangelog shapes commits and pulls, keeping only user-facing entri
     const body = result.body as ChangelogResult
     assertEquals(body.configured, true)
 
+    // No build SHA, so nothing is claimed as newer than the build.
+    assertEquals(body.available, [])
+
     // chore and the ci-scoped perf are dropped; feat and fix are kept,
     // newest-first, PR suffix stripped.
     assertEquals(body.implemented, [
@@ -169,36 +172,49 @@ Deno.test('runChangelog returns configured:false with empty lists when the token
   const result = await runChangelog(undefined)
   assertEquals(result, {
     status: 200,
-    body: { configured: false, implemented: [], inProgress: [] },
+    body: { configured: false, available: [], implemented: [], inProgress: [] },
   })
 })
 
-Deno.test('cutoffCommitsAtSha drops commits newer than the build, keeping that commit and older', () => {
+Deno.test('splitCommitsAtSha splits into commits newer than the build and that commit and older', () => {
   // The build is at ccc333 (the fix), so the newer feat (aaa111) and chore
-  // (bbb222) are excluded.
+  // (bbb222) are the newer half and ccc333 onward is the current half.
+  const { newer, current } = splitCommitsAtSha(sampleCommits, 'ccc333')
   assertEquals(
-    cutoffCommitsAtSha(sampleCommits, 'ccc333').map((commit) => commit.sha),
+    newer.map((commit) => commit.sha),
+    ['aaa111', 'bbb222'],
+  )
+  assertEquals(
+    current.map((commit) => commit.sha),
     ['ccc333', 'ddd444'],
   )
 })
 
-Deno.test('cutoffCommitsAtSha fails open when the build SHA is not in the list', () => {
-  assertEquals(cutoffCommitsAtSha(sampleCommits, 'zzz999'), sampleCommits)
+Deno.test('splitCommitsAtSha fails open when the build SHA is not in the list', () => {
+  assertEquals(splitCommitsAtSha(sampleCommits, 'zzz999'), {
+    newer: [],
+    current: sampleCommits,
+  })
 })
 
-Deno.test('cutoffCommitsAtSha keeps the full list when no build SHA is given', () => {
-  assertEquals(cutoffCommitsAtSha(sampleCommits, undefined), sampleCommits)
-  assertEquals(cutoffCommitsAtSha(sampleCommits, ''), sampleCommits)
+Deno.test('splitCommitsAtSha claims nothing newer when no build SHA is given', () => {
+  assertEquals(splitCommitsAtSha(sampleCommits, undefined), { newer: [], current: sampleCommits })
+  assertEquals(splitCommitsAtSha(sampleCommits, ''), { newer: [], current: sampleCommits })
 })
 
-Deno.test('cutoffCommitsAtSha matches a short SHA prefix', () => {
+Deno.test('splitCommitsAtSha matches a short SHA prefix', () => {
+  const { newer, current } = splitCommitsAtSha(sampleCommits, 'ccc')
   assertEquals(
-    cutoffCommitsAtSha(sampleCommits, 'ccc').map((commit) => commit.sha),
+    newer.map((commit) => commit.sha),
+    ['aaa111', 'bbb222'],
+  )
+  assertEquals(
+    current.map((commit) => commit.sha),
     ['ccc333', 'ddd444'],
   )
 })
 
-Deno.test('runChangelog cuts implemented entries newer than the build SHA', async () => {
+Deno.test('runChangelog reports newer entries as available and older as implemented', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = ((input: string | URL | Request) => {
     const url = input.toString()
@@ -209,15 +225,47 @@ Deno.test('runChangelog cuts implemented entries newer than the build SHA', asyn
   }) as typeof fetch
 
   try {
-    // Build is at ccc333, so the newer feat (aaa111) is hidden and only the fix survives.
+    // Build is at ccc333: the newer feat (aaa111) is available (chore bbb222 is
+    // dropped as non-user-facing) and only the fix (ccc333) is implemented — no
+    // sha appears in both lists.
     const result = await runChangelog('a-token', 'ccc333')
     const body = result.body as ChangelogResult
+    assertEquals(
+      body.available.map((entry) => entry.sha),
+      ['aaa111'],
+    )
     assertEquals(
       body.implemented.map((entry) => entry.sha),
       ['ccc333'],
     )
-    // In-progress (open PRs) is untouched by the cutoff.
+    const overlap = body.available.some((a) => body.implemented.some((i) => i.sha === a.sha))
+    assertEquals(overlap, false)
+    // In-progress (open PRs) is untouched by the split.
     assertEquals(body.inProgress.length, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+Deno.test('runChangelog claims nothing available for an unknown build SHA', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = input.toString()
+    if (url.includes('/commits')) {
+      return Promise.resolve(githubResponse(sampleCommits))
+    }
+    return Promise.resolve(githubResponse(samplePulls))
+  }) as typeof fetch
+
+  try {
+    const result = await runChangelog('a-token', 'zzz999')
+    const body = result.body as ChangelogResult
+    assertEquals(body.available, [])
+    // The full parsed list is implemented (feat + fix; chore and ci-scoped dropped).
+    assertEquals(
+      body.implemented.map((entry) => entry.sha),
+      ['aaa111', 'ccc333'],
+    )
   } finally {
     globalThis.fetch = originalFetch
   }

@@ -98,9 +98,15 @@ items live in `gift_budget`).
   breakdown's name. The one exception to removal: an emptied breakdown whose line
   carries a `destination_account_id` keeps its line so its Splits routing is not
   silently lost — the line stays in place (rolling up to $0) until the breakdown has
-  items again or the line is re-routed. The reconcile runs where the budget lines
-  load, computing the creates, updates, and removes needed to bring each
-  breakdown's line into step, and is a no-op once they already match.
+  items again or the line is re-routed. The reconcile runs app-wide from a headless
+  component mounted under the authenticated shell (not on any one route), so a
+  breakdown edit made anywhere rewrites the owned line: it computes the creates,
+  updates, and removes needed to bring each breakdown's line into step, and is a
+  no-op once they already match. Every collection write invalidates its table's
+  whole `[table, householdId]` cache prefix, so a breakdown-item edit refreshes both
+  the scoped item query and the unscoped roll-up, the reconcile sees the fresh
+  totals, and the derived amount propagates live to the Budget, Splits, and Summary
+  tabs with no reload.
 - **System-managed amount.** A derived line is not created via the budget form and
   is not manually deletable, and its amount is not hand-editable — it is rolled up
   from the breakdown's items. Deleting the breakdown cascade-deletes its line (via

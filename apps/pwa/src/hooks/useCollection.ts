@@ -95,8 +95,10 @@ function collectionKey(
  * filters, and create, update, and remove rows. Reads are cached household-
  * scoped and revalidated in the background, so a revisit renders the cached
  * rows immediately while `loading` reports only the first, uncached load. Each
- * write invalidates the collection's cache key so its rows refresh. `household_id`
- * is injected on every insert.
+ * write invalidates every cache entry under the `[table, householdId]` prefix, so
+ * both this scope and any other scope reading the same table refresh — a match-
+ * scoped detail query and the unscoped roll-up of the same table stay in step.
+ * `household_id` is injected on every insert.
  */
 export function useHouseholdCollection<
   T extends HouseholdTable,
@@ -130,8 +132,8 @@ export function useHouseholdCollection<
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey })
-  }, [queryClient, queryKey])
+    await queryClient.invalidateQueries({ queryKey: [table, householdId] })
+  }, [queryClient, table, householdId])
 
   const create = useCallback(
     async (input: CreateInput) => {
@@ -221,8 +223,8 @@ export function useHouseholdUpsertCollection<T extends HouseholdTable, UpsertInp
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey })
-  }, [queryClient, queryKey])
+    await queryClient.invalidateQueries({ queryKey: [table, householdId] })
+  }, [queryClient, table, householdId])
 
   const upsert = useCallback(
     async (input: UpsertInput) => {

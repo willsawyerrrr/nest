@@ -6,6 +6,7 @@ import type { BudgetGroup, Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
+import { MoneyInput } from './MoneyInput'
 
 interface BudgetLineFormProps {
   initial?: BudgetLine
@@ -136,13 +137,9 @@ export function BudgetLineForm({
           />
         )}
 
-        <NumberInput
+        <MoneyInput
           label="Amount"
           size="sm"
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
           min={0}
           hideControls
           value={amount}

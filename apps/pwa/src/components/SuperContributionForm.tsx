@@ -12,6 +12,7 @@ import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
 import { EnumSegmentedControl, EnumSelect } from './EnumSelect'
+import { MoneyInput } from './MoneyInput'
 
 interface SuperContributionFormProps {
   member: Member
@@ -133,13 +134,9 @@ export function SuperContributionForm({
             onChange={setPercent}
           />
         ) : (
-          <NumberInput
+          <MoneyInput
             label="Contribution amount"
             size="sm"
-            prefix="$"
-            thousandSeparator
-            decimalScale={2}
-            fixedDecimalScale
             min={0}
             hideControls
             value={amount}

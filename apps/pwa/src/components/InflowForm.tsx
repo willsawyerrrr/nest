@@ -16,6 +16,7 @@ import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
+import { MoneyInput } from './MoneyInput'
 
 interface InflowFormProps {
   members: Member[]
@@ -191,14 +192,10 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
         {isWage ? (
           <>
-            <NumberInput
+            <MoneyInput
               label="Hourly rate"
               size="sm"
               description="Your gross (before tax) hourly pay rate."
-              prefix="$"
-              thousandSeparator
-              decimalScale={2}
-              fixedDecimalScale
               min={0}
               hideControls
               value={hourlyRate}
@@ -216,7 +213,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
             />
           </>
         ) : (
-          <NumberInput
+          <MoneyInput
             label={`Amount per ${PERIOD_NOUN[schedule]}`}
             size="sm"
             description={
@@ -224,10 +221,6 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
                 ? 'Gross pay (before tax) for one period.'
                 : 'Amount received each period; excluded from tax.'
             }
-            prefix="$"
-            thousandSeparator
-            decimalScale={2}
-            fixedDecimalScale
             min={0}
             hideControls
             value={amount}

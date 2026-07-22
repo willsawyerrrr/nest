@@ -92,6 +92,46 @@ describe('useHouseholdCollection', () => {
     })
   })
 
+  it('invalidates every same-table query on the table+household prefix', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+
+    // A scoped detail query and the unscoped roll-up of the same table, as the
+    // breakdown-item and breakdown hooks mount them side by side.
+    const { result } = renderHook(
+      () => ({
+        scoped: useHouseholdCollection('h1', {
+          table: 'breakdown_item',
+          orderBy: 'name',
+          match: { breakdown_id: 'bd1' },
+          insertDefaults: { breakdown_id: 'bd1' },
+        }),
+        unscoped: useHouseholdCollection('h1', { table: 'breakdown_item', orderBy: 'name' }),
+      }),
+      { wrapper },
+    )
+    await waitFor(() => {
+      expect(result.current.scoped.loading).toBe(false)
+      expect(result.current.unscoped.loading).toBe(false)
+    })
+
+    invalidateSpy.mockClear()
+    const unscopedKey = ['breakdown_item', 'h1', '{}', 'name']
+    const before = client.getQueryState(unscopedKey)?.dataUpdatedAt ?? 0
+    await act(async () => {
+      await result.current.scoped.create({ name: 'x' } as never)
+    })
+
+    // A mutation on the scoped query invalidates by the [table, householdId]
+    // prefix, so the unscoped roll-up refetches too — not only the scoped key.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['breakdown_item', 'h1'] })
+    await waitFor(() =>
+      expect(client.getQueryState(unscopedKey)?.dataUpdatedAt ?? 0).toBeGreaterThan(before),
+    )
+  })
+
   it('loads without an order or match', async () => {
     const { result } = renderHook(() => useHouseholdCollection('h1', { table: 'inflows' }), {
       wrapper: makeWrapper(),

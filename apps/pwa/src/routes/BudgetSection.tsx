@@ -7,10 +7,9 @@ import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useDerivedLineEditor } from '../hooks/useDerivedLineEditor'
 import { useGifts } from '../hooks/useGifts'
 import { useGoals } from '../hooks/useGoals'
-import { useReconcileBreakdownLines } from '../hooks/useReconcileBreakdownLines'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
-import { breakdownAnnualTotals, breakdownItemCounts } from '../lib/breakdowns'
+import { breakdownAnnualTotals } from '../lib/breakdowns'
 import { applyBreakdownAmounts } from '../lib/derivedBudget'
 import { giftBudgetTotalCents } from '../lib/gifts'
 import { superAccountIds } from '../lib/super'
@@ -31,21 +30,6 @@ export function BudgetSection({ householdId }: { householdId: string }) {
     () => breakdownAnnualTotals(breakdownRows, breakdownItems, giftBudgetTotalCents(giftBudgets)),
     [breakdownRows, breakdownItems, giftBudgets],
   )
-  const counts = useMemo(
-    () => breakdownItemCounts(breakdownRows, breakdownItems, giftBudgets.length),
-    [breakdownRows, breakdownItems, giftBudgets.length],
-  )
-
-  useReconcileBreakdownLines({
-    lines: budgetLines.lines,
-    dataLoaded: !budgetLines.loading && !breakdowns.loading && !gifts.loading,
-    breakdowns: breakdownRows,
-    totals,
-    counts,
-    createLine: budgetLines.create,
-    updateLine: budgetLines.update,
-    removeLine: budgetLines.remove,
-  })
 
   const handleUpdateDerivedLine = useDerivedLineEditor({
     lines: budgetLines.lines,

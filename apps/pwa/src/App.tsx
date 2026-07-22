@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
+import { BreakdownLineReconciler } from './components/BreakdownLineReconciler'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { SignInScreen } from './components/SignInScreen'
@@ -117,6 +118,7 @@ function HouseholdApp({
 }) {
   return (
     <div className="app-shell">
+      <BreakdownLineReconciler householdId={household.id} />
       <main className="page">
         <Routes>
           <Route path="/summary" element={<SummarySection householdId={household.id} />} />

@@ -61,7 +61,10 @@ is CRUD over RLS.
   deep-linkable and reload-safe (`apps/pwa/vercel.json` supplies the SPA fallback).
   Server state flows through TanStack Query — a household-scoped shared cache built
   on the `useHouseholdCollection` factory (`hooks/useCollection.ts`), so tab
-  switches render cached data and background-revalidate.
+  switches render cached data and background-revalidate. A write invalidates its
+  table's whole `[table, householdId]` cache prefix, so both a match-scoped detail
+  query and the unscoped roll-up of the same table refetch together — a derived
+  value edited on one tab propagates live to every tab that reads it.
 - **Tax engine** — pure, versioned TypeScript package (`@nest/tax`). The PWA
   imports it for the instant client-side estimate. Designed to be reused
   unchanged by a future authoritative edge function, so there is no duplication

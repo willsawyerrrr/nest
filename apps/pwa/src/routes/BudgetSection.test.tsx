@@ -26,7 +26,6 @@ vi.mock('../hooks/useAccountDirectory', () => ({
   useAccountDirectory: hooks.useAccountDirectory,
 }))
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
-vi.mock('../hooks/useReconcileBreakdownLines', () => ({ useReconcileBreakdownLines: vi.fn() }))
 vi.mock('../hooks/useDerivedLineEditor', () => ({
   useDerivedLineEditor: () => hooks.derivedEditor,
 }))

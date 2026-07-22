@@ -132,6 +132,41 @@ describe('reconcileBreakdownLines', () => {
     expect(ops.remove).toHaveLength(0)
   })
 
+  it('updates the line when only a rolled-up item amount changes', () => {
+    // Guards the propagation path: an item edit shifts the breakdown's total, so
+    // the roll-up must be seen fresh for reconcile to rewrite the derived line's
+    // amount. A no-op here would leave Budget and Splits stale until a reload.
+    const b = breakdown({ id: 'g', name: 'Medications', line_group: 'needs' })
+    const existing = line({
+      id: 'l1',
+      breakdown_id: 'g',
+      name: 'Medications',
+      line_group: 'needs',
+      amount_cents: 120_00,
+      frequency: 'annual',
+    })
+    const ops = reconcileBreakdownLines([b], new Map([['g', 180_00]]), new Map([['g', 2]]), [
+      existing,
+    ])
+    expect(ops.update).toEqual([
+      {
+        id: 'l1',
+        input: {
+          line_group: 'needs',
+          name: 'Medications',
+          amount_cents: 180_00,
+          frequency: 'annual',
+          interval_count: null,
+          goal_id: null,
+          breakdown_id: 'g',
+          destination_account_id: null,
+        },
+      },
+    ])
+    expect(ops.create).toHaveLength(0)
+    expect(ops.remove).toHaveLength(0)
+  })
+
   it('is a no-op when the line already matches its breakdown', () => {
     const b = breakdown({ id: 'g', name: 'Medications', line_group: 'needs' })
     const existing = line({

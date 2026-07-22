@@ -1,10 +1,10 @@
 # Roadmap & ideas
 
 The single backlog for this project — there are no GitHub issues, so everything
-lives here. Commitment decreases down the page: **Done** is shipped, **Now** is
-what is actively being built, and everything below it — **Later**, then the
-**Ideas backlog** — is a ranked wish-list of varying likelihood, not a
-commitment. All future work is phased so each phase is independently useful.
+lives here. Commitment decreases down the page: **Done** is shipped, and
+everything below it — **Later**, then the **Ideas backlog** — is a ranked,
+uncommitted wish-list of varying likelihood. All future work is phased so each
+phase is independently useful.
 
 ## Product decisions
 
@@ -244,22 +244,9 @@ way, sourced at runtime from GitHub for the private repo.
       (merged-commit subjects on `main`), each entry a type badge — Feature / Fix
       / Improvement — with the scope as a dimmed tag.
 
-## Now — Up ledger + reconciliation
-
-Pulling actual Up transactions to reconcile spend and tax against the plan — the
-heaviest phase, and the current focus now that the plan-only app, Up savers, super,
-and gifts are shipped. See [`up-ledger-sync.md`](up-ledger-sync.md) for the full
-design (staged sync foundation, ledger UI, and the two reconciliation layers).
-
-- [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
-- [ ] Ledger UI (accounts + transactions) over synced data.
-- [ ] Reconcile actual spend against the budget.
-- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
-
 ## Later
 
-Near-term, more-likely work — the items most plausibly picked up next, but not
-committed.
+Uncommitted work, roughly ordered by likelihood of being picked up.
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
   a wishlist of per-member aspirational purchases. Small and low-risk; good HDD
@@ -278,6 +265,18 @@ committed.
 - Reconcile projected income against actual deposits; joint-income ownership
   split; recurring bills and forecasting; non-resident and part-year tax.
 
+### Up ledger + reconciliation
+
+A large, deprioritised phase that pulls actual Up transactions to reconcile spend
+and tax against the plan. See [`up-ledger-sync.md`](up-ledger-sync.md) for the
+full design (staged sync foundation, ledger UI, and the two reconciliation
+layers).
+
+- [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
+- [ ] Ledger UI (accounts + transactions) over synced data.
+- [ ] Reconcile actual spend against the budget.
+- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
+
 ## Ideas backlog
 
 A brainstorm of integrations and native features that would extend this app
@@ -291,7 +290,7 @@ Recurring shorthand:
 
 - **Vault** = a secret stored in Supabase Vault, fetched only by an edge
   function — the exact pattern already specced for Up personal-access tokens.
-- **Ingestion** = the **Now** phase above (Up ledger + reconciliation): per-member
+- **Ingestion** = the Up ledger + reconciliation phase in **Later**: per-member
   Up token, webhook + scheduled poll, dedupe on `external_id`, transactions mapped
   into the shared ledger. Several ideas are blocked on it.
 - Money is always integer cents; every domain row carries `household_id` for
@@ -341,7 +340,7 @@ Recurring shorthand:
 #### 2. Payslip / PAYG ingestion (actual withheld vs the estimate)
 
 Design: [`payslips.md`](payslips.md). The income-side complement to the Up
-ledger's spend-side actual-tax-paid tracking in **Now**.
+ledger's spend-side actual-tax-paid tracking in **Later**.
 
 - **What / value.** The tax engine already has a slot for `paye_withheld_cents`
   and computes a balance (owing vs refund) against it, but nothing populates it.

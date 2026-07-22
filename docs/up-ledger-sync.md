@@ -1,9 +1,9 @@
 # Up ledger + reconciliation
 
-The roadmap's current **Now** phase: pull actual Up transactions to reconcile
-spend and tax against the plan. This is the heaviest phase, layered on top of the
-plan-only app, Up savers, super, and gifts. It breaks into four ROADMAP
-checkboxes:
+An uncommitted, deprioritised roadmap phase (in **Later**): pull actual Up
+transactions to reconcile spend and tax against the plan. This is a large phase,
+layered on top of the plan-only app, Up savers, super, and gifts. It breaks into
+four ROADMAP checkboxes:
 
 - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.

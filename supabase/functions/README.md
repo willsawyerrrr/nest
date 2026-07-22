@@ -127,23 +127,26 @@ Because `willsawyerrrr/nest` is private, the GitHub token stays server-side and
 the function proxies the API.
 
 - **`changelog`** — JWT-verified, so only signed-in users can call it. Fetches
-  merged-commit subjects on `main` (implemented) and open PR titles (in
-  progress) from the GitHub REST API, keeps only user-facing Conventional Commit
-  types (feat / fix / perf) while excluding `ci`-scoped entries (CI/plumbing,
-  not user-facing), and returns the shaped lists. It takes an optional `sha` in
-  the request body — the client's build commit — and cuts the raw newest-first
-  commit list at that commit (keeping it and older, prefix-matched, fail-open)
-  before parsing, so a stale/cached PWA never shows implemented entries newer
-  than its build; open PRs are unaffected. The parsing, cutoff, and filtering are
-  the pure `parseChangelogSubject` / `cutoffCommitsAtSha` / `runChangelog` in
-  `changelog/changelog.ts` (HTTP injected), unit-tested against a stubbed
-  `fetch`. A GitHub failure surfaces as a `502`.
+  merged-commit subjects on `main` and open PR titles (in progress) from the
+  GitHub REST API, keeps only user-facing Conventional Commit types (feat / fix /
+  perf) while excluding `ci`-scoped entries (CI/plumbing, not user-facing), and
+  returns the shaped lists. It takes an optional `sha` in the request body — the
+  client's build commit — and splits the raw newest-first commit list at that
+  commit (prefix-matched, fail-open): that commit and older are `implemented` (so
+  a stale/cached PWA never shows entries newer than its build), the commits newer
+  than it are `available` (the deployed changes the running build is missing, so
+  the tab can offer a reload to the latest version); open PRs are unaffected. The
+  parsing, split, and filtering are the pure `parseChangelogSubject` /
+  `splitCommitsAtSha` / `runChangelog` in `changelog/changelog.ts` (HTTP
+  injected), unit-tested against a stubbed `fetch`. A GitHub failure surfaces as a
+  `502`.
 
 ### Secret
 
 - **`GITHUB_CHANGELOG_TOKEN`** — a fine-grained GitHub PAT scoped to the `nest`
   repo with **Contents: Read** and **Pull requests: Read**. When it is unset the
-  function returns `{ configured: false, implemented: [], inProgress: [] }` so
-  the UI shows a "not configured yet" note instead of an error. Set it locally in
+  function returns `{ configured: false, available: [], implemented: [],
+  inProgress: [] }` so the UI shows a "not configured yet" note instead of an
+  error. Set it locally in
   `supabase/functions/.env` and in prod with
   `supabase secrets set GITHUB_CHANGELOG_TOKEN=<pat>`.

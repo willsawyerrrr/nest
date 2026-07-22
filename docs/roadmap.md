@@ -245,10 +245,15 @@ way, sourced at runtime from GitHub for the private repo.
 - [x] **What's new** tab: **In progress** (open PRs) and **Implemented**
       (merged-commit subjects on `main`), each entry a type badge — Feature / Fix
       / Improvement — with the scope as a dimmed tag.
-- [x] Build-SHA cutoff: the build's commit is stamped into the app
+- [x] Build-SHA split: the build's commit is stamped into the app
       (`VITE_COMMIT_SHA` from `VERCEL_GIT_COMMIT_SHA`) and sent to the function,
-      which cuts the raw commit list at that commit (fail-open) so a stale/cached
+      which splits the raw commit list at that commit (fail-open) so a stale/cached
       PWA never shows implemented entries newer than the build it is running.
+- [x] **Update available**: the changes newer than the running build (merged and
+      deployed but missing from the loaded bundle) are returned as `available` and
+      shown in a top section with a **Reload to update** button that force-updates
+      the PWA to the latest deployed version (activates a waiting service worker,
+      then clears caches, unregisters, and hard-reloads as an iOS-safe fallback).
 
 ## Later
 

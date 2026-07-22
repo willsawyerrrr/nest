@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 import { render, screen } from '../test/render'
 import { ChangelogScreen } from './ChangelogScreen'
@@ -18,9 +19,27 @@ const implemented: ImplementedEntry[] = [
   },
 ]
 
+const available: ImplementedEntry[] = [
+  {
+    type: 'feat',
+    scope: 'goals',
+    description: 'Add a savings goal ring',
+    date: '2026-07-11T00:00:00Z',
+    sha: 'eee555',
+  },
+]
+
 function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> = {}) {
   return render(
-    <ChangelogScreen implemented={[]} inProgress={[]} configured error={null} {...overrides} />,
+    <ChangelogScreen
+      available={[]}
+      implemented={[]}
+      inProgress={[]}
+      configured
+      error={null}
+      onUpdate={() => {}}
+      {...overrides}
+    />,
   )
 }
 
@@ -41,6 +60,23 @@ describe('ChangelogScreen', () => {
     // Fix entry: emoji labelled "Fix", then description.
     expect(screen.getByText('Correct a rounding error')).toBeInTheDocument()
     expect(screen.getByTitle('Fix')).toBeInTheDocument()
+  })
+
+  it('shows the update-available section and reloads on click when a newer build exists', async () => {
+    const onUpdate = vi.fn()
+    renderScreen({ available, onUpdate })
+
+    expect(screen.getByText('Update available')).toBeInTheDocument()
+    expect(screen.getByText('Add a savings goal ring')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /reload to update/i }))
+    expect(onUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides the update-available section when nothing newer exists', () => {
+    renderScreen({ available: [], implemented })
+    expect(screen.queryByText('Update available')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /reload to update/i })).not.toBeInTheDocument()
   })
 
   it('shows a hint for an empty section', () => {

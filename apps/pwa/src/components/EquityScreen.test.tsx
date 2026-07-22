@@ -69,7 +69,7 @@ describe('EquityScreen', () => {
     expect(within(card).queryByText(/Counts as/)).not.toBeInTheDocument()
   })
 
-  it('breaks an option grant into gross, exercise cost, and net', () => {
+  it('spells out an option grant as vested value and exercise cost', () => {
     // 12 vested × $1.00 = $12.00 gross; × $0.40 strike = $4.80 exercise cost;
     // net $7.20 counts toward net worth.
     renderScreen({
@@ -82,9 +82,12 @@ describe('EquityScreen', () => {
       ],
     })
     const card = screen.getByText('2024 options').closest('.mantine-Card-root') as HTMLElement
+    // The dimmed detail line shows only gross vested value and exercise cost;
+    // the net is the bold headline, not repeated here.
     expect(
-      within(card).getByText(/Vested value \$12\.00 · Exercise cost \$4\.80 · Counts as \$7\.20/),
+      within(card).getByText(/Vested value \$12\.00 · Exercise cost \$4\.80/),
     ).toBeInTheDocument()
+    expect(within(card).queryByText(/Counts as/)).not.toBeInTheDocument()
     // The bold headline figure is the net that counts toward net worth.
     expect(within(card).getByText('$7.20')).toBeInTheDocument()
   })

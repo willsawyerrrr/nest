@@ -147,6 +147,17 @@ do $$ begin
     = 10000, 'Alice''s equity quantity should round-trip';
 end $$;
 
+-- Alice's tax deduction: a deductible expense tagged to her member and FY.
+insert into public.deduction
+  (household_id, member_id, description, amount_cents, deduction_date, financial_year)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'Home office', 1_200_00, '2026-08-01', 2027);
+
+do $$ begin
+  assert (select count(*) from public.deduction) = 1, 'Alice should see her deduction';
+  assert (select amount_cents from public.deduction where member_id = current_setting('test.mid')::uuid)
+    = 1_200_00, 'Alice''s deduction amount should round-trip';
+end $$;
+
 -- Alice's gift tracker: a recipient and an occasion, a gift budget linking the
 -- two, and a purchase against it. The composite FKs on (id, household_id) accept
 -- same-household links. She also owns a gift breakdown whose derived Gifts budget
@@ -407,6 +418,7 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 0, 'Bob must not see Alice''s super contributions';
   assert (select count(*) from public.help_debt) = 0, 'Bob must not see Alice''s HELP debts';
   assert (select count(*) from public.equity_grant) = 0, 'Bob must not see Alice''s equity grants';
+  assert (select count(*) from public.deduction) = 0, 'Bob must not see Alice''s deductions';
   assert (select count(*) from public.gift_recipient) = 0, 'Bob must not see Alice''s gift recipients';
   assert (select count(*) from public.gift_occasion) = 0, 'Bob must not see Alice''s gift occasions';
   assert (select count(*) from public.gift_budget) = 0, 'Bob must not see Alice''s gift budgets';
@@ -494,6 +506,7 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
   assert (select count(*) from public.help_debt) = 1, 'Carol should see Alice''s HELP debt';
   assert (select count(*) from public.equity_grant) = 1, 'Carol should see Alice''s equity grant';
+  assert (select count(*) from public.deduction) = 1, 'Carol should see Alice''s deduction';
   assert (select count(*) from public.gift_recipient) = 3,
     'Carol should see Alice''s external recipient plus both members'' auto-created recipients';
   assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';

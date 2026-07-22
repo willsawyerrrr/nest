@@ -58,8 +58,8 @@ starting cold.
 - **`service_role` grants** — surgical: `select` on `members`,
   `select`/`insert`/`update` on `accounts`. Transaction sync needs new grants
   (`insert`/`update`/`delete` on `transactions`; `select`/`insert` on
-  `categories` if we mirror Up categories) — see the grant-policy open item in
-  HANDOFF.
+  `categories` if we mirror Up categories) — added deliberately per the surgical
+  grant policy ([`operations.md`](operations.md#service_role-grants)).
 
 ## Up API facts that shape the design
 
@@ -301,8 +301,8 @@ Tax is **estimate-only** today (`@nest/tax`, per person, per FY). This layer
 derives *actual* PAYG withheld from real data to compare against the estimate,
 feeding a projected refund/bill.
 
-Two possible sources (cross-reference — a separate **payslip** doc may be added,
-and would be the more accurate source):
+Two possible sources (the **payslip** source, [`payslips.md`](payslips.md), is
+the more accurate one):
 
 - **Salary-credit transactions.** A salary deposit lands as an `income`
   transaction on a member's account. But Up sees only the **net** pay credited —
@@ -314,7 +314,7 @@ and would be the more accurate source):
   assumption), and for detecting pay-cadence/amount drift, but not for actual
   withheld tax.
 - **Payslips (more accurate).** A payslip states gross, PAYG withheld, and super
-  per pay period directly. If payslip capture is built (its own doc/phase),
+  per pay period directly. If payslip capture is built ([`payslips.md`](payslips.md)),
   summing withheld across the FY gives true actual PAYG, and the refund/bill =
   actual withheld − estimated liability. This is the real source for the ROADMAP
   checkbox; the transaction path only corroborates net.
@@ -346,8 +346,8 @@ inferring it circularly from the estimate.
   by both tokens on poll; the upsert collapses to one row; `member_id` is null
   (mirrors the account). This is the same dedupe the account sync already proves.
 - **`service_role` grants.** Sync needs new surgical grants (`transactions`, and
-  `categories` if mirrored) — per the HANDOFF grant-policy stance, added
-  deliberately.
+  `categories` if mirrored) — added deliberately per the surgical grant policy
+  ([`operations.md`](operations.md#service_role-grants)).
 
 ## Open questions (for the user to resolve later — not blocking)
 

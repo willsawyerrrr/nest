@@ -4,8 +4,11 @@ Relational, stack-agnostic. Amounts are integer minor units (cents), stored in
 `bigint` columns. Financial years are AU FYs (1 Jul – 30 Jun), labelled by their
 ending year. Row-Level Security is the isolation boundary: every table is scoped
 to a `household_id`, and a member sees or changes only rows in a household they
-belong to. Cross-household references are additionally blocked by composite
-foreign keys on `(id, household_id)`.
+belong to. On top of membership, `accounts` and `transactions` add per-account
+balance privacy — a co-member's own-account balance rows are not visible (see the
+security model in [`ARCHITECTURE.md`](ARCHITECTURE.md#security)). Cross-household
+references are additionally blocked by composite foreign keys on
+`(id, household_id)`.
 
 > The planning tables (inflows, budget lines, temporary items, savings goals)
 > are described from the user's perspective in
@@ -53,7 +56,9 @@ foreign keys on `(id, household_id)`.
     `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`,
     `every_n_months`. For `every_n_weeks` and `every_n_months`, `interval_count`
     holds N (≥ 1) — the unit (weeks or months) read from the schedule; it is null
-    for every fixed schedule.
+    for every fixed schedule. Periods-per-year and fortnightly/annual
+    normalisation are canonical in
+    [`budget-and-savings.md`](budget-and-savings.md#schedules--normalization).
   - Amount shape by `type`: `wage` carries `hourly_rate_cents` ×
     `hours_per_period` (and null `amount_cents`); every other type carries a
     flat `amount_cents` per period.

@@ -124,11 +124,37 @@ is CRUD over RLS.
 - Migrations auto-deploy to prod via the GitHub → Supabase integration on merge;
   edge functions auto-deploy via `.github/workflows/deploy-functions.yml` on any
   push to `main` touching `supabase/functions/**` or `supabase/config.toml`.
-- CI runs parallel jobs (`check`, `test`, `rls`, `functions`), aggregated by a
-  `ci-status` job that is the single required `CI Status` check. The tax
-  and plan packages are unit-tested under Vitest; the edge functions have their own
-  Deno harness. The `test` job runs the suite sharded across six runners with V8
-  coverage, then merges the shards' blob reports to gate the suite — `@nest/plan`
-  and `@nest/tax` at 100% on every metric, `apps/pwa` at 100%
-  statements/functions/lines with a branch floor (currently 93). See
-  [`HANDOFF.md`](HANDOFF.md) for the operational detail.
+## CI
+
+Parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own runner
+so overall wall-clock is the slowest single job, not the sum:
+
+- **check** — lint / format / typecheck / build. The long pole (~50–59s); it is
+  what keeps overall CI near the one-minute budget, so profile it first if CI
+  creeps up.
+- **test** — the Vitest workspace, sharded across six parallel runners with V8
+  coverage. A `test-shard` matrix job runs
+  `vitest run --shard=N/6 --coverage --reporter=blob` on six runners (each
+  covering a sixth of the files, the union running every test) and uploads its
+  blob report; a `test` job downloads all six and merges them with
+  `vitest run --merge-reports --coverage`, failing if a package drops below its
+  threshold: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at
+  100% statements / functions / lines with a branch floor (currently 93). The
+  thresholds evaluate over the merged coverage of the whole suite; a shard sets
+  `VITEST_SKIP_COVERAGE_THRESHOLDS` so its partial coverage does not fail the
+  check. The `test` job `needs` the shards, so the required-check name stays green
+  only when all six pass.
+- **rls** — Postgres service; applies the auth shim, every migration in order,
+  then the `supabase/tests/rls/` isolation assertions.
+- **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
+  `supabase/functions` (the edge functions live outside the pnpm workspace, with
+  their own Deno harness).
+
+A `ci-status` job `needs` all four and is the single required `CI Status` check
+(squash-only, no bypass). The next lever if `test` creeps up is a seventh shard.
+
+Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports
+via `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint
+`max-lines` cap of 500 (`.oxlintrc.json`, off for tests and generated types)
+guards file size; and the edge functions pin every dependency through
+`supabase/functions/deno.lock`.

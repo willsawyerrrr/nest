@@ -3,6 +3,9 @@
 .env.*
 *.local
 
+# Local, untracked operational handoff (machine-specific notes)
+HANDOFF.local.md
+
 # Dependencies
 node_modules/
 .venv/

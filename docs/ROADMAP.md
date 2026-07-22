@@ -8,57 +8,12 @@ commitment. All future work is phased so each phase is independently useful.
 
 ## Product decisions
 
-- **Single shared household; money fully pooled.** No per-person budgets, no
-  splitting, no "who owes whom".
-- **All household members manage the shared planning data** — RLS gates it on
-  household membership; member attribution on a record is a tax/reporting tag, not
-  a permission.
-- **Per-account balance privacy.** On top of membership, an individual account's
-  balance and transactions are private to its owner: a member sees an account's
-  full row (balance included) and its transactions only for shared/joint accounts
-  (`owner_member_id` null), their own accounts, and household superannuation
-  accounts (retirement/net-worth planning stays mutually visible). A co-member's
-  spending account is still visible by name only via the identity-only
-  `account_directory` view (no balance) so it can be a budget-line funding
-  destination and summed into the pay split; a co-member's savers are not visible
-  at all, and a member's net-worth view sums only balances they can see.
-- **Money-in is modelled as inflows.** The household owns many projection-based
-  inflows, each on a schedule — weekly, fortnightly, monthly, quarterly,
-  biannual, annual, or an arbitrary "every N weeks" cadence — split by
-  taxability:
-  - **Taxable income** — a salary (annual gross), a wage (rate × standard hours),
-    or other regular income, each tagged to a member and feeding the tax estimate
-    (AU tax is assessed per person).
-  - **Non-taxable inflows** — money in excluded from tax (reimbursement, hobby
-    income, gift, or other) that adds directly to available cash; no member tag
-    required, and the type is a reporting label only.
-
-  Inflows are projections, not reconciled against actual deposits. Future
-  enhancement: assign an inflow to a budget category to net against that spend.
-- **Tax is estimate-only.** Per-person estimated liability and take-home from
-  projected income; models HELP repayment and private-hospital cover. Target
-  financial year: FY2027. Tracking actual tax paid arrives with ingestion.
-- **Superannuation is modelled in full.** Per-person super: current balance,
-  employer SG (12% from FY2026), and salary-sacrifice / personal contributions.
-  Concessional contributions reduce taxable income and are taxed at 15% within
-  the fund, with Division 293 for high earners; concessional and non-concessional
-  caps (with carry-forward / bring-forward) and the government co-contribution are
-  modelled. Balances are tracked as assets, seeding a net-worth view, and project
-  to retirement under user-editable return assumptions. Each balance is a dated
-  baseline that auto-accrues the member's modelled contributions between manual
-  true-ups, so it stays current under payday super with no external integration.
-  All caps and thresholds live in the versioned per-FY config alongside the tax
-  config.
-- **Budgeting is plan-only and fortnightly.** The household allocates projected
-  after-tax income across grouped categories — Needs, Wants, Discretionary,
-  Temporary, Savings, Investments — each line an amount + frequency normalised to
-  a fortnight, with a live remaining buffer (granular, not strictly zero-based).
-  Needs = regular essentials; Wants = regular quality-of-life; Discretionary =
-  non-regular discretionary purchases; Temporary = short-term/one-off items that
-  expire.
-- **Ingestion is the reconciliation layer.** Both partners bank with Up; pulling
-  actual transactions reconciles spend and goal progress against the plan, and
-  reconciles actual tax paid against the estimate.
+The locked product/scope decisions are canonical in
+[`CLAUDE.md`](../CLAUDE.md#fixed-scope-decisions) — single shared household with
+money fully pooled, projection-based inflows split by taxability, estimate-only
+AU tax, full super modelling, a plan-only fortnightly budget, and Up ingestion as
+the reconciliation layer. This roadmap phases the delivery of those decisions; it
+does not restate them.
 
 ## Done
 
@@ -70,12 +25,9 @@ commitment. All future work is phased so each phase is independently useful.
   household-scoped TanStack Query cache built on one `useHouseholdCollection`
   factory, so tab switches render cached data and background-revalidate.
 - CI split into parallel `check` / `test` / `rls` / `functions` jobs behind a
-  `ci-status` aggregate (the single required `CI Status` check; under a minute).
-  The `test` job shards the suite across six runners with V8 coverage and merges
-  the shards' blob reports to gate coverage — `@nest/plan` and `@nest/tax` at 100%
-  on every metric, `apps/pwa` at 100% statements/functions/lines with a branch
-  floor (currently 93). Prettier sorts imports and an oxlint `max-lines` cap (500)
-  guards file size.
+  `ci-status` aggregate (the single required `CI Status` check; under a minute),
+  with sharded coverage gating and static import-sort / file-size gates — see
+  [`ARCHITECTURE.md`](ARCHITECTURE.md#ci).
 - Household, members, and RLS isolation (schema + automated CI tests).
 - Onboarding + first-run gating; Google OAuth; partner join via a temporary,
   opt-in, single-use invite code (`create_invite_code` / `join_household` /
@@ -170,7 +122,8 @@ connection is the foundation; transaction ingestion stays deferred behind it.
   from a member's by the bearer JWT's `role` claim. The schedule migration is
   guarded on pg_cron + pg_net and reads the invocation URL/key from Vault, so it
   is a clean no-op where those extensions are absent (CI, plain Postgres) and
-  takes deploy-time config in prod (see HANDOFF).
+  takes deploy-time config in prod (see
+  [`operations.md`](operations.md#up-sync-hourly-cron-prod-only)).
 
 ### Superannuation & net worth (complete)
 

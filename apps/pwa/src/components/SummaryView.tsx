@@ -16,7 +16,8 @@ import { formatCents, moneyColor } from '../lib/money'
 
 /**
  * The basis the allocation donut divides against: take-home (post-tax) available
- * cash, or gross (pre-tax) income with the tax and net-super slices prepended.
+ * cash, or gross (pre-tax) income with the tax and salary-sacrifice slices
+ * prepended.
  */
 type IncomeBasis = 'take-home' | 'gross'
 
@@ -85,8 +86,8 @@ const BUFFER_COLOR = 'var(--mantine-color-gray-5)'
 /** The colour of the gross-basis Tax slice. */
 const TAX_COLOR = 'var(--mantine-color-red-7)'
 
-/** The colour of the gross-basis salary-sacrifice-super slice. */
-const SUPER_COLOR = 'var(--mantine-color-green-8)'
+/** The colour of the gross-basis salary-sacrifice slice. */
+const SACRIFICE_COLOR = 'var(--mantine-color-green-8)'
 
 /** A donut segment: an allocation slice with its label, amount, colour, and share. */
 interface Segment {
@@ -97,17 +98,17 @@ interface Segment {
 }
 
 /**
- * The gross income basis: take-home available cash plus the tax and net
- * salary-sacrifice-super slices that precede it.
+ * The gross income basis: take-home available cash plus the tax and salary-
+ * sacrifice slices that precede it.
  */
 function grossAmounts(summary: BudgetSummary): Amounts {
   return {
     fortnightlyCents:
       summary.available.fortnightlyCents +
       summary.tax.fortnightlyCents +
-      summary.superSaved.fortnightlyCents,
+      summary.salarySacrifice.fortnightlyCents,
     annualCents:
-      summary.available.annualCents + summary.tax.annualCents + summary.superSaved.annualCents,
+      summary.available.annualCents + summary.tax.annualCents + summary.salarySacrifice.annualCents,
   }
 }
 
@@ -125,8 +126,8 @@ function basisCents(summary: BudgetSummary, mode: IncomeBasis): number {
  * The allocation segments for the donut, as shares of the mode's basis. In both
  * modes: each non-empty group by its fortnightly amount, then a Buffer slice for
  * a positive After Saving remainder. In `gross` mode a Tax slice and a
- * salary-sacrifice-super slice are prepended (each when positive), so the donut
- * sums to gross income. Empty slices and a non-positive buffer are omitted.
+ * salary-sacrifice slice are prepended (each when positive), so the donut sums
+ * to gross income. Empty slices and a non-positive buffer are omitted.
  */
 function allocationSegments(summary: BudgetSummary, mode: IncomeBasis): Segment[] {
   const basis = basisCents(summary, mode)
@@ -140,7 +141,7 @@ function allocationSegments(summary: BudgetSummary, mode: IncomeBasis): Segment[
   const segments: Segment[] = []
   if (mode === 'gross') {
     add(segments, 'Tax', summary.tax.fortnightlyCents, TAX_COLOR)
-    add(segments, 'Salary-sacrifice super', summary.superSaved.fortnightlyCents, SUPER_COLOR)
+    add(segments, 'Salary sacrifice', summary.salarySacrifice.fortnightlyCents, SACRIFICE_COLOR)
   }
   for (const { key, label, color } of GROUP_ORDER) {
     add(segments, label, summary.groups[key].fortnightlyCents, color)
@@ -176,8 +177,8 @@ function TotalTile({
 
 /**
  * The stat tiles beneath the donut. Both modes show income, outgoing, and the
- * remaining buffer; gross prepends the gross basis, tax, and net super saved, so
- * gross renders six tiles across two rows.
+ * remaining buffer; gross prepends the gross basis, tax, and salary sacrifice,
+ * so gross renders six tiles across two rows.
  */
 function DonutTiles({ summary, mode }: { summary: BudgetSummary; mode: IncomeBasis }) {
   return (
@@ -186,7 +187,7 @@ function DonutTiles({ summary, mode }: { summary: BudgetSummary; mode: IncomeBas
         <>
           <TotalTile label="Gross" cents={grossBasisCents(summary)} />
           <TotalTile label="Tax" cents={summary.tax.fortnightlyCents} />
-          <TotalTile label="Super" cents={summary.superSaved.fortnightlyCents} />
+          <TotalTile label="Salary sacrifice" cents={summary.salarySacrifice.fortnightlyCents} />
         </>
       )}
       <TotalTile label="Income" cents={summary.available.fortnightlyCents} />
@@ -356,8 +357,9 @@ function GroupTableRow({ row, portion }: { row: LedgerRow; portion: number }) {
 
 /**
  * The reconciliation ledger rows in order: on the gross basis, a Gross running
- * subtotal then Tax and net-super deductions precede Available; then Available,
- * the outgoing groups, After Outgoing, the saving groups, and After Saving.
+ * subtotal then Tax and salary-sacrifice deductions precede Available; then
+ * Available, the outgoing groups, After Outgoing, the saving groups, and After
+ * Saving.
  */
 function ledgerRows(summary: BudgetSummary, mode: IncomeBasis): LedgerRow[] {
   const groupRows = (keys: (keyof BudgetSummary['groups'])[]): LedgerRow[] =>
@@ -373,7 +375,7 @@ function ledgerRows(summary: BudgetSummary, mode: IncomeBasis): LedgerRow[] {
       ? [
           { label: 'Gross', amounts: grossAmounts(summary), running: true },
           { label: 'Tax', amounts: summary.tax, running: false },
-          { label: 'Salary-sacrifice super', amounts: summary.superSaved, running: false },
+          { label: 'Salary sacrifice', amounts: summary.salarySacrifice, running: false },
         ]
       : []),
     { label: 'Available', amounts: summary.available, running: true },
@@ -388,7 +390,7 @@ function ledgerRows(summary: BudgetSummary, mode: IncomeBasis): LedgerRow[] {
  * Presentational Summary reconciliation, mirroring the household's spreadsheet:
  * Available, each group's fortnightly/annual/portion, and the running After
  * Outgoing and After Saving (remaining buffer) figures. On the gross basis a
- * Gross subtotal and the Tax and net-super deductions lead the ledger. A compact
+ * Gross subtotal and the Tax and salary-sacrifice deductions lead the ledger. A compact
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  */
 export function SummaryView({ summary }: SummaryViewProps) {

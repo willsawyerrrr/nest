@@ -30,10 +30,10 @@ export interface SummaryInput {
    */
   readonly taxAnnualCents?: Money
   /**
-   * The annual concessional super landing in the fund after the 15%
-   * contributions tax, for the gross-basis view. Absent ⇒ nil.
+   * The household's total annual salary sacrifice — the pre-tax amounts
+   * sacrificed from pay — for the gross-basis view. Absent ⇒ nil.
    */
-  readonly netConcessionalSuperAnnualCents?: Money
+  readonly salarySacrificeAnnualCents?: Money
 }
 
 /**
@@ -42,9 +42,11 @@ export interface SummaryInput {
  * temporary items only); `outgoings` is Needs + Wants + Discretionary +
  * Temporary; `savingsBlock` is Savings + Investments; `afterOutgoing` and
  * `afterSaving` are the running remainders, the latter being the buffer.
- * `tax` and `superSaved` are the gross-basis-only slices — income tax and
- * levies, and net salary-sacrifice super — that with `available` sum to the
- * gross income basis; both nil unless the corresponding inputs are supplied.
+ * `tax` and `salarySacrifice` are the gross-basis-only slices — income tax and
+ * levies, and the household's total salary sacrifice (pre-tax amounts sacrificed
+ * from pay) — that with `available` sum to the gross income basis
+ * (`gross = available + tax + salarySacrifice`); both nil unless the
+ * corresponding inputs are supplied.
  */
 export interface BudgetSummary {
   readonly available: Amounts
@@ -54,7 +56,7 @@ export interface BudgetSummary {
   readonly afterOutgoing: Amounts
   readonly afterSaving: Amounts
   readonly tax: Amounts
-  readonly superSaved: Amounts
+  readonly salarySacrifice: Amounts
 }
 
 /**
@@ -158,7 +160,16 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
     annualCents: annual,
   })
   const tax = annualToAmounts(input.taxAnnualCents ?? 0)
-  const superSaved = annualToAmounts(input.netConcessionalSuperAnnualCents ?? 0)
+  const salarySacrifice = annualToAmounts(input.salarySacrificeAnnualCents ?? 0)
 
-  return { available, groups, outgoings, savingsBlock, afterOutgoing, afterSaving, tax, superSaved }
+  return {
+    available,
+    groups,
+    outgoings,
+    savingsBlock,
+    afterOutgoing,
+    afterSaving,
+    tax,
+    salarySacrifice,
+  }
 }

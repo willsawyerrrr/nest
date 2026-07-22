@@ -37,7 +37,7 @@ const summary: BudgetSummary = {
   afterOutgoing: { fortnightlyCents: 125_000, annualCents: 3_250_000 },
   afterSaving: { fortnightlyCents: 25_000, annualCents: 650_000 },
   tax: { fortnightlyCents: 150_000, annualCents: 3_900_000 },
-  superSaved: { fortnightlyCents: 50_000, annualCents: 1_300_000 },
+  salarySacrifice: { fortnightlyCents: 50_000, annualCents: 1_300_000 },
 }
 
 describe('SummaryView', () => {
@@ -80,22 +80,21 @@ describe('SummaryView', () => {
     expect(within(donut).getByText('40.0%')).toBeInTheDocument()
   })
 
-  it('omits the tax and super slices and the gross ledger rows on take-home', () => {
+  it('omits the tax and salary-sacrifice slices and the gross ledger rows on take-home', () => {
     render(<SummaryView summary={summary} />)
 
     const donut = within(screen.getByRole('region', { name: 'Allocation' }))
     expect(donut.queryByText('Tax')).not.toBeInTheDocument()
-    expect(donut.queryByText('Salary-sacrifice super')).not.toBeInTheDocument()
-    // The three take-home tiles show, not the gross basis/tax/super trio.
+    expect(donut.queryByText('Salary sacrifice')).not.toBeInTheDocument()
+    // The three take-home tiles show, not the gross basis/tax/salary-sacrifice trio.
     expect(donut.getByText('Income')).toBeInTheDocument()
-    expect(donut.queryByText('Super')).not.toBeInTheDocument()
-    // The ledger starts at Available with no Gross/Tax/Super breakdown.
+    // The ledger starts at Available with no Gross/Tax/Salary-sacrifice breakdown.
     expect(screen.queryByRole('region', { name: 'Gross' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Tax' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Salary-sacrifice super' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Salary sacrifice' })).not.toBeInTheDocument()
   })
 
-  it('adds the tax and super slices and keeps both tile sets on the gross basis', async () => {
+  it('adds the tax and salary-sacrifice slices and keeps both tile sets on the gross basis', async () => {
     const user = userEvent.setup()
     render(<SummaryView summary={summary} />)
 
@@ -104,22 +103,22 @@ describe('SummaryView', () => {
     const donut = within(screen.getByRole('region', { name: 'Allocation' }))
     // The prepended pre-tax slices appear (Tax as both a legend row and a tile).
     expect(donut.getAllByText('Tax').length).toBeGreaterThanOrEqual(1)
-    expect(donut.getByText('Salary-sacrifice super')).toBeInTheDocument()
+    // Salary sacrifice shows as both a legend row and a tile.
+    expect(donut.getAllByText('Salary sacrifice').length).toBeGreaterThanOrEqual(1)
     // The gross trio is added while the take-home tiles remain.
-    expect(donut.getByText('Super')).toBeInTheDocument()
     expect(donut.getAllByText('Gross').length).toBeGreaterThanOrEqual(1)
     expect(donut.getByText('Income')).toBeInTheDocument()
     expect(donut.getByText('Outgoing')).toBeInTheDocument()
     expect(donut.getByText('Remaining')).toBeInTheDocument()
   })
 
-  it('leads the ledger with a Gross subtotal and tax and super deductions on the gross basis', async () => {
+  it('leads the ledger with a Gross subtotal and tax and salary-sacrifice deductions on the gross basis', async () => {
     const user = userEvent.setup()
     render(<SummaryView summary={summary} />)
 
     await user.click(screen.getByRole('radio', { name: 'Gross' }))
 
-    // Gross basis = available 500_000 + tax 150_000 + super 50_000 = 700_000/fn.
+    // Gross basis = available 500_000 + tax 150_000 + salary sacrifice 50_000 = 700_000/fn.
     const gross = screen.getByRole('region', { name: 'Gross' })
     expect(within(gross).getByText('$7,000.00')).toBeInTheDocument()
     expect(within(gross).getByText('100.0%')).toBeInTheDocument()
@@ -129,8 +128,8 @@ describe('SummaryView', () => {
     // Tax is 150_000 / 700_000 of gross.
     expect(within(tax).getByText('21.4%')).toBeInTheDocument()
 
-    const superRow = screen.getByRole('region', { name: 'Salary-sacrifice super' })
-    expect(within(superRow).getByText('$500.00')).toBeInTheDocument()
+    const sacrificeRow = screen.getByRole('region', { name: 'Salary sacrifice' })
+    expect(within(sacrificeRow).getByText('$500.00')).toBeInTheDocument()
 
     // The ledger still runs from Available downward, now read as after-tax cash.
     const available = screen.getByRole('region', { name: 'Available' })
@@ -210,7 +209,7 @@ describe('SummaryView', () => {
       afterOutgoing: { fortnightlyCents: 500_000, annualCents: 13_000_000 },
       afterSaving: zero,
       tax: zero,
-      superSaved: zero,
+      salarySacrifice: zero,
     }
     render(<SummaryView summary={noAllocation} />)
 
@@ -239,7 +238,7 @@ describe('SummaryView', () => {
       afterOutgoing: negative,
       afterSaving: negative,
       tax: zero,
-      superSaved: zero,
+      salarySacrifice: zero,
     }
     render(<SummaryView summary={noAvailable} />)
 
@@ -264,7 +263,7 @@ describe('SummaryView', () => {
       afterOutgoing: zero,
       afterSaving: zero,
       tax: zero,
-      superSaved: zero,
+      salarySacrifice: zero,
     }
     render(<SummaryView summary={empty} />)
 

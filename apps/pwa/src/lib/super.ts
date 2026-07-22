@@ -86,17 +86,26 @@ export function accountsWithEffectiveSuperBalances(
   })
 }
 
+/** A named liability that reduces net worth, e.g. a member's HELP debt. */
+export interface Liability {
+  label: string
+  balanceCents: number
+}
+
 /**
- * Net worth split into super vs other accounts, each with a subtotal and a grand
- * total, alongside the accounts the household has excluded from net-worth
- * tracking (surfaced so they can be toggled back, never counted in the totals).
+ * Net worth split into super vs other accounts and liabilities, each with a
+ * subtotal and a grand total, alongside the accounts the household has excluded
+ * from net-worth tracking (surfaced so they can be toggled back, never counted
+ * in the totals). The grand total is assets less liabilities.
  */
 export interface NetWorthBreakdown {
   superAccounts: Account[]
   otherAccounts: Account[]
   excludedAccounts: Account[]
+  liabilities: Liability[]
   superTotalCents: number
   otherTotalCents: number
+  liabilitiesTotalCents: number
   totalCents: number
 }
 
@@ -107,13 +116,15 @@ function sumBalances(accounts: readonly Account[]): number {
 
 /**
  * Splits the included accounts into super accounts (those whose id is a
- * `super_account_id`) and everything else, with per-group subtotals and the
- * assets-only grand total. Accounts flagged `exclude_from_net_worth` are
- * collected separately and left out of every subtotal and the total.
+ * `super_account_id`) and everything else, with per-group subtotals. Accounts
+ * flagged `exclude_from_net_worth` are collected separately and left out of every
+ * subtotal and the total. The grand total is assets (super + other) less the
+ * supplied `liabilities` (e.g. each member's HELP debt).
  */
 export function netWorthBreakdown(
   accounts: readonly Account[],
   superIds: ReadonlySet<string>,
+  liabilities: readonly Liability[] = [],
 ): NetWorthBreakdown {
   const excludedAccounts = accounts.filter((account) => account.exclude_from_net_worth)
   const includedAccounts = accounts.filter((account) => !account.exclude_from_net_worth)
@@ -121,12 +132,18 @@ export function netWorthBreakdown(
   const otherAccounts = includedAccounts.filter((account) => !superIds.has(account.id))
   const superTotalCents = sumBalances(superAccounts)
   const otherTotalCents = sumBalances(otherAccounts)
+  const liabilitiesTotalCents = liabilities.reduce(
+    (total, liability) => total + liability.balanceCents,
+    0,
+  )
   return {
     superAccounts,
     otherAccounts,
     excludedAccounts,
+    liabilities: [...liabilities],
     superTotalCents,
     otherTotalCents,
-    totalCents: superTotalCents + otherTotalCents,
+    liabilitiesTotalCents,
+    totalCents: superTotalCents + otherTotalCents - liabilitiesTotalCents,
   }
 }

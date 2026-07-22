@@ -27,6 +27,8 @@ interface GiftManagementProps {
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
   members: Member[]
+  /** The signed-in member's id, or null while unresolved / for a user with no member row. */
+  currentMemberId: string | null
   onCreateRecipient: (input: GiftRecipientInput) => Promise<void>
   onUpdateRecipient: (id: string, input: GiftRecipientInput) => Promise<void>
   onDeleteRecipient: (id: string) => Promise<void>
@@ -46,9 +48,13 @@ interface GiftEntityValues {
 const CASCADE_WARNING =
   'This also removes its gift budgets and every purchase recorded against them. This cannot be undone.'
 
+/** The "Who is this for?" option that marks a recipient as an external, non-member person. */
+const EXTERNAL_VALUE = '__external__'
+
 /**
- * Add/edit form for a recipient (a name, plus an optional household-member link)
- * or an occasion (a name and optional date).
+ * Add/edit form for a recipient (a household member or an external person) or an
+ * occasion (a name and optional date). A member-linked recipient takes the
+ * member's name automatically; an external recipient supplies its own name.
  */
 function GiftEntityForm({
   kind,
@@ -69,11 +75,22 @@ function GiftEntityForm({
 }) {
   const [name, setName] = useState(initialName ?? '')
   const [date, setDate] = useState<string | null>(initialDate ?? null)
-  const [memberId, setMemberId] = useState<string | null>(initialMemberId ?? null)
+  // Who the recipient is: a member id, EXTERNAL_VALUE for someone else, or null
+  // until a choice is made. Editing an existing external recipient (a name but no
+  // member) starts on EXTERNAL_VALUE; adding starts unset.
+  const [who, setWho] = useState<string | null>(
+    initialMemberId ?? (initialName !== undefined ? EXTERNAL_VALUE : null),
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canSubmit = name.trim() !== '' && !submitting
+  const isExternal = who === EXTERNAL_VALUE
+  const isMember = who !== null && !isExternal
+  const showName = kind === 'occasion' || isExternal
+
+  const canSubmit =
+    !submitting &&
+    (kind === 'recipient' ? isMember || (isExternal && name.trim() !== '') : name.trim() !== '')
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -82,11 +99,12 @@ function GiftEntityForm({
     }
     setSubmitting(true)
     setError(null)
+    const selectedMember = isMember ? members?.find((member) => member.id === who) : undefined
     try {
       await onSubmit({
-        name: name.trim(),
+        name: selectedMember ? selectedMember.name : name.trim(),
         date: kind === 'occasion' ? date : null,
-        memberId: kind === 'recipient' ? memberId : null,
+        memberId: kind === 'recipient' && isMember ? who : null,
       })
     } catch {
       setError('Could not save. Please try again.')
@@ -97,22 +115,26 @@ function GiftEntityForm({
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
-        <TextInput
-          label="Name"
-          size="sm"
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-        />
         {kind === 'recipient' && members && (
           <Select
-            label="Household member"
+            label="Who is this for?"
             size="sm"
-            description="Optional. If this recipient is a partner, their gift purchases and remaining budget stay hidden from them."
-            placeholder="External person"
-            clearable
-            data={members.map((member) => ({ value: member.id, label: member.name }))}
-            value={memberId}
-            onChange={setMemberId}
+            description="A household member's gift purchases and remaining budget stay hidden from them."
+            placeholder="Choose a person"
+            data={[
+              ...members.map((member) => ({ value: member.id, label: member.name })),
+              { value: EXTERNAL_VALUE, label: 'Someone else…' },
+            ]}
+            value={who}
+            onChange={setWho}
+          />
+        )}
+        {showName && (
+          <TextInput
+            label="Name"
+            size="sm"
+            value={name}
+            onChange={(event) => setName(event.currentTarget.value)}
           />
         )}
         {kind === 'occasion' && (
@@ -196,6 +218,7 @@ export function GiftManagement({
   recipients,
   occasions,
   members,
+  currentMemberId,
   onCreateRecipient,
   onUpdateRecipient,
   onDeleteRecipient,
@@ -235,10 +258,16 @@ export function GiftManagement({
           ) : (
             <EntityRow
               key={recipient.id}
-              label={recipient.name}
+              label={
+                recipient.member_id
+                  ? (memberNameById.get(recipient.member_id) ?? recipient.name)
+                  : recipient.name
+              }
               meta={
                 recipient.member_id
-                  ? `${memberNameById.get(recipient.member_id) ?? 'A member'} — purchases hidden from them`
+                  ? recipient.member_id === currentMemberId
+                    ? 'Purchases hidden from you'
+                    : 'Purchases hidden from them'
                   : undefined
               }
               onEdit={() => {

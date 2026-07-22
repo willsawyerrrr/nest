@@ -48,14 +48,24 @@ persisted in localStorage, not stored in the database.
 
 ## Net worth tab
 
-The Net worth tab sums the `balance_cents` of every account the member can see
-(assets only; liabilities not modelled yet), split into Super vs Other accounts.
-A co-member's private spending / saver balances are excluded, so each member's
-total covers only balances they can see (the per-account balance-privacy model —
-see [`architecture.md`](architecture.md#security)).
+The Net worth tab totals assets less liabilities. Assets are the `balance_cents`
+of every account the member can see, split into Super vs Other accounts; each
+member's outstanding HELP debt (from the `help_debt` table — see the Help debt
+tab) is a liability, shown as a negative figure in a Liabilities group and
+subtracted from the grand total. A co-member's private spending / saver balances
+are excluded, so each member's total covers only balances they can see (the
+per-account balance-privacy model — see
+[`architecture.md`](architecture.md#security)).
 
 Any account can be toggled out of the totals via its `exclude_from_net_worth`
 flag — a shared, household-wide setting (both partners' views drop it) that
 surfaces the account in a muted "Excluded from net worth" group. The exclusion
 affects net-worth totals only: it leaves the retirement projection and budgeting
 untouched.
+
+## Help debt tab
+
+The Help debt tab edits each member's single standing HELP/HECS balance (one
+`help_debt` row per member, not financial-year-scoped). The balance drives the
+compulsory HELP repayment on the Tax tab and counts as a liability on the Net
+worth tab.

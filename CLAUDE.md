@@ -41,14 +41,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the type is a reporting label, excluded from tax and added to available cash).
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
-  private-hospital cover; target financial year FY2027.
+  private-hospital cover; target financial year FY2027. Each member's HELP/HECS
+  balance is a single standing figure (the `help_debt` table, not FY-scoped),
+  edited on its own Help debt tab, that feeds the tax estimate and counts as a
+  net-worth liability.
 - Superannuation: modelled in full per person. Concessional contributions reduce
   taxable income and are taxed at 15% in the fund, with Division 293 for high
   earners; contribution caps (with manual carry-forward) and the government
   co-contribution are modelled, all from the versioned per-FY config alongside the
   tax config. Each member's balance is a dated baseline that auto-accrues modelled
-  contributions between manual true-ups, seeds a net-worth view (assets only,
-  from which any account can be excluded via a shared household-wide flag that
+  contributions between manual true-ups, seeds a net-worth view (assets less
+  liabilities: account balances split into super and other, less each member's
+  HELP debt; any account can be excluded via a shared household-wide flag that
   drops it from net-worth totals alone — not retirement projection or
   budgeting), and projects to retirement under client-side (localStorage)
   return/age assumptions.

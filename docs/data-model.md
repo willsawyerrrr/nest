@@ -68,9 +68,16 @@ references are additionally blocked by composite foreign keys on
 - **tax_profile** — per member, per financial year; drives the tax engine.
   - `id`, `household_id`, `member_id`, `financial_year` (int, ending year),
     `residency` (`resident` | `foreign_resident`),
-    `has_private_hospital_cover` (Medicare levy surcharge),
-    `help_debt_cents` (HELP/HECS balance), `created_at`, `updated_at`.
+    `has_private_hospital_cover` (Medicare levy surcharge), `created_at`,
+    `updated_at`.
   - Unique on `(member_id, financial_year)`.
+- **help_debt** — per member; one standing HELP/HECS balance, not
+  financial-year-scoped.
+  - `id`, `household_id`, `member_id`, `balance_cents` (bigint, `>= 0`),
+    `created_at`, `updated_at`.
+  - Unique on `(member_id)`; composite FK on `(member_id, household_id)` →
+    `members`. Feeds the tax engine's marginal HELP repayment and the Net worth
+    tab as a liability. Edited on the Help debt tab.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`tax.md`](tax.md).
 
@@ -328,7 +335,7 @@ Vault:
 - Savings-goal progress and required contribution rate: `current_balance_cents`
   against `target_amount_cents` and `target_date`, projected from the summed
   contributions of the budget lines funding it.
-- Tax estimate: the tax engine over each member's `tax_profile` and taxable
-  inflows for a financial year.
+- Tax estimate: the tax engine over each member's `tax_profile`, `help_debt`, and
+  taxable inflows for a financial year.
 - Actual spend vs plan (reconciliation over the ledger tables) is a future
   phase, pending transaction ingestion.

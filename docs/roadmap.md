@@ -48,7 +48,8 @@ does not restate them.
   Each member card shows a full component breakdown — income tax, Low Income Tax
   Offset, Medicare levy, surcharge, HELP/HECS repayment, and Division 293 tax
   building up to the total, with a footnote that capital gains tax is out of scope
-  and not modelled. Tax profiles are edited on the Household tab.
+  and not modelled. Tax profiles are edited on the Household tab; each member's
+  HELP/HECS balance is edited on the Help debt tab.
 - Budget, savings-goal, and temporary-item schema (RLS, tests, types).
 - `@nest/plan` pure math package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry.
@@ -68,15 +69,15 @@ does not restate them.
 - Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
   'teal'` with green/red money semantics and a recoloured Summary donut.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/breakdowns`
-  `/household`; `/` and unknown routes redirect to `/summary`), so tabs are
-  deep-linkable and reload-safe. Summary is the landing tab; order Summary · Net
-  worth · Inflows · Budget · Splits · Goals · Tax · Super · Breakdowns · Household.
-  The gift planner is reached from the Breakdowns list (`/breakdowns/:id` for the
-  gift breakdown), not a standalone tab. One `NAV_ITEMS` table
-  drives a responsive top app-bar + hamburger `Drawer` on mobile and a persistent
-  left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to the first nine
-  tabs, ⌘/Ctrl+Shift+←/→ cycle.
+  `/inflows` `/budget` `/splits` `/goals` `/tax` `/super` `/help-debt`
+  `/breakdowns` `/household`; `/` and unknown routes redirect to `/summary`), so
+  tabs are deep-linkable and reload-safe. Summary is the landing tab; order
+  Summary · Net worth · Inflows · Budget · Splits · Goals · Tax · Super · Help
+  debt · Breakdowns · Household. The gift planner is reached from the Breakdowns
+  list (`/breakdowns/:id` for the gift breakdown), not a standalone tab. One
+  `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
+  and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to
+  the first nine tabs, ⌘/Ctrl+Shift+←/→ cycle.
 - Desktop layout: content capped at a 50rem max-width; budget lines and inflows
   render as dense single rows on desktop while mobile keeps cards.
 - Non-taxable inflow types: `inflow_type` carries `reimbursement`, `hobby`,
@@ -516,14 +517,16 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
 
 #### 10. Net worth (assets + liabilities)
 
-- **What / value.** A first-cut net-worth view is shipped — it totals the account
-  balances a member can see (assets only), split into Super vs Other, with super
-  balances auto-accruing from modelled contributions. The remaining scope is
-  **liabilities** (Up `HOME_LOAN` balance, credit cards, other loans) and **trend
-  over time**, so the one number that ties the whole household picture together
-  also captures debt and history, not just current assets.
+- **What / value.** The net-worth view totals assets less liabilities — account
+  balances a member can see, split into Super vs Other (super balances
+  auto-accruing from modelled contributions), less each member's HELP debt as a
+  first liability. The remaining scope is **more liabilities** (Up `HOME_LOAN`
+  balance, credit cards, other loans) and **trend over time**, so the one number
+  that ties the whole household picture together also captures those debts and
+  history.
 - **Effort.** M for the remaining liabilities + trend work (given balances arrive
-  from ingestion + manual entry per idea 6).
+  from ingestion + manual entry per idea 6). The HELP-debt liability is a shipped
+  down-payment on this.
 - **Touches.** Schema: an `asset`/`liability` model (or generalise the existing
   `Account` model, which already has `type` including `credit`/`offset` and a
   nullable `owner_member_id` for joint) + periodic balance snapshots for a

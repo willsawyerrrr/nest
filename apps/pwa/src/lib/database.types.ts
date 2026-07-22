@@ -469,6 +469,48 @@ export type Database = {
           },
         ]
       }
+      help_debt: {
+        Row: {
+          balance_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          member_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance_cents?: number
+          created_at?: string
+          household_id: string
+          id?: string
+          member_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'help_debt_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'help_debt_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       households: {
         Row: {
           created_at: string
@@ -841,7 +883,6 @@ export type Database = {
           created_at: string
           financial_year: number
           has_private_hospital_cover: boolean
-          help_debt_cents: number
           household_id: string
           id: string
           member_id: string
@@ -852,7 +893,6 @@ export type Database = {
           created_at?: string
           financial_year: number
           has_private_hospital_cover?: boolean
-          help_debt_cents?: number
           household_id: string
           id?: string
           member_id: string
@@ -863,7 +903,6 @@ export type Database = {
           created_at?: string
           financial_year?: number
           has_private_hospital_cover?: boolean
-          help_debt_cents?: number
           household_id?: string
           id?: string
           member_id?: string

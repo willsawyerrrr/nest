@@ -126,6 +126,16 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 2, 'Alice should see both her super contributions';
 end $$;
 
+-- Alice's HELP debt: one standing balance for her member.
+insert into public.help_debt (household_id, member_id, balance_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 30000_00);
+
+do $$ begin
+  assert (select count(*) from public.help_debt) = 1, 'Alice should see her HELP debt';
+  assert (select balance_cents from public.help_debt where member_id = current_setting('test.mid')::uuid)
+    = 30000_00, 'Alice''s HELP balance should round-trip';
+end $$;
+
 -- Alice's gift tracker: a recipient and an occasion, a gift budget linking the
 -- two, and a purchase against it. The composite FKs on (id, household_id) accept
 -- same-household links. She also owns a gift breakdown whose derived Gifts budget
@@ -334,6 +344,7 @@ do $$ begin
   assert (select count(*) from public.temporary_item) = 0, 'Bob must not see Alice''s temporary items';
   assert (select count(*) from public.super_profile) = 0, 'Bob must not see Alice''s super profiles';
   assert (select count(*) from public.super_contribution) = 0, 'Bob must not see Alice''s super contributions';
+  assert (select count(*) from public.help_debt) = 0, 'Bob must not see Alice''s HELP debts';
   assert (select count(*) from public.gift_recipient) = 0, 'Bob must not see Alice''s gift recipients';
   assert (select count(*) from public.gift_occasion) = 0, 'Bob must not see Alice''s gift occasions';
   assert (select count(*) from public.gift_budget) = 0, 'Bob must not see Alice''s gift budgets';
@@ -419,6 +430,7 @@ do $$ begin
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
   assert (select count(*) from public.super_profile) = 1, 'Carol should see Alice''s super profile';
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
+  assert (select count(*) from public.help_debt) = 1, 'Carol should see Alice''s HELP debt';
   assert (select count(*) from public.gift_recipient) = 1, 'Carol should see Alice''s gift recipient';
   assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';

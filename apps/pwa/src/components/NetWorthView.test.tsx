@@ -32,6 +32,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={accounts}
         superIds={new Set(['a1', 'a2'])}
+        liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
     )
@@ -52,8 +53,52 @@ describe('NetWorthView', () => {
     expect(within(total).getByText('$202,000.00')).toBeInTheDocument()
   })
 
+  it('lists liabilities as negative figures and subtracts them from the total', () => {
+    render(
+      <NetWorthView
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        superIds={new Set()}
+        liabilities={[
+          { label: 'Will HELP debt', balanceCents: 3000000 },
+          { label: 'Sam HELP debt', balanceCents: 1000000 },
+        ]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+
+    const liabilities = screen.getByRole('region', { name: 'Liabilities' })
+    expect(within(liabilities).getByText('Will HELP debt')).toBeInTheDocument()
+    expect(within(liabilities).getByText('-$30,000.00')).toBeInTheDocument()
+    expect(within(liabilities).getByText('-$10,000.00')).toBeInTheDocument()
+    // Subtotal: -($30,000 + $10,000) = -$40,000.
+    expect(within(liabilities).getByText('-$40,000.00')).toBeInTheDocument()
+
+    // Grand total: $5,000 assets − $40,000 liabilities = −$35,000.
+    const total = screen.getByRole('region', { name: 'Total net worth' })
+    expect(within(total).getByText('-$35,000.00')).toBeInTheDocument()
+  })
+
+  it('omits the liabilities group when there are none', () => {
+    render(
+      <NetWorthView
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        superIds={new Set()}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('region', { name: 'Liabilities' })).not.toBeInTheDocument()
+  })
+
   it('shows an empty state per group when no accounts qualify', () => {
-    render(<NetWorthView accounts={[]} superIds={new Set()} onToggleExclude={vi.fn()} />)
+    render(
+      <NetWorthView
+        accounts={[]}
+        superIds={new Set()}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
 
     expect(screen.getByText(/no super accounts yet/i)).toBeInTheDocument()
     expect(screen.getByText(/no other accounts yet/i)).toBeInTheDocument()
@@ -71,7 +116,12 @@ describe('NetWorthView', () => {
       account({ id: 'a4', name: 'Rainy day', balance_cents: 500000, exclude_from_net_worth: true }),
     ]
     render(
-      <NetWorthView accounts={withExcluded} superIds={new Set(['a1'])} onToggleExclude={vi.fn()} />,
+      <NetWorthView
+        accounts={withExcluded}
+        superIds={new Set(['a1'])}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
     )
 
     const excluded = screen.getByRole('region', { name: 'Excluded from net worth' })
@@ -98,6 +148,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={withExcluded}
         superIds={new Set()}
+        liabilities={[]}
         onToggleExclude={onToggleExclude}
       />,
     )
@@ -126,6 +177,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={withSuperAndOther}
         superIds={new Set(['a1'])}
+        liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
     )
@@ -156,6 +208,7 @@ describe('NetWorthView', () => {
       <NetWorthView
         accounts={[account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 })]}
         superIds={new Set(['a1'])}
+        liabilities={[]}
         onToggleExclude={vi.fn()}
       />,
     )

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
+import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
@@ -8,6 +9,7 @@ import {
   concessionalByMember,
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
+  helpDebtCentsByMember,
   netAnnualSuperContributionByMember,
   netAnnualSuperContributionFromRows,
   nonConcessionalByMember,
@@ -38,7 +40,6 @@ const profile: TaxProfile = {
   financial_year: 2027,
   residency: 'resident',
   has_private_hospital_cover: false,
-  help_debt_cents: 0,
   created_at: '',
   updated_at: '',
 }
@@ -168,6 +169,54 @@ describe('estimateHouseholdTaxFromRows', () => {
     expect(estimate.annualGrossCents).toBe(100_000_00)
   })
 
+  const highSalary: Inflow = {
+    ...baseInflow,
+    schedule: 'annual',
+    interval_count: null,
+    amount_cents: 100_000_00,
+  }
+
+  it('threads a member HELP balance from the help-debt rows into the estimate', () => {
+    const helpDebt: HelpDebt = {
+      id: 'hd1',
+      household_id: 'h1',
+      member_id: 'm1',
+      balance_cents: 30_000_00,
+      created_at: '',
+      updated_at: '',
+    }
+    const withHelp = estimateHouseholdTaxFromRows([highSalary], [profile], [], [helpDebt])
+    const withoutHelp = estimateHouseholdTaxFromRows([highSalary], [profile], [], [])
+    expect(withHelp.members[0]!.breakdown.helpRepaymentCents).toBeGreaterThan(0)
+    expect(withoutHelp.members[0]!.breakdown.helpRepaymentCents).toBe(0)
+  })
+
+  it('assesses a HELP balance for a member with no tax profile', () => {
+    const helpDebt: HelpDebt = {
+      id: 'hd1',
+      household_id: 'h1',
+      member_id: 'm1',
+      balance_cents: 30_000_00,
+      created_at: '',
+      updated_at: '',
+    }
+    const estimate = estimateHouseholdTaxFromRows([highSalary], [], [], [helpDebt])
+    expect(estimate.members[0]!.breakdown.helpRepaymentCents).toBeGreaterThan(0)
+  })
+
+  it('ignores a zero HELP balance for a member with no tax profile', () => {
+    const zeroDebt: HelpDebt = {
+      id: 'hd2',
+      household_id: 'h1',
+      member_id: 'm1',
+      balance_cents: 0,
+      created_at: '',
+      updated_at: '',
+    }
+    const estimate = estimateHouseholdTaxFromRows([highSalary], [], [], [zeroDebt])
+    expect(estimate.members[0]!.breakdown.helpRepaymentCents).toBe(0)
+  })
+
   it('annualises an every-N-weeks taxable inflow via the shared normalization', () => {
     // $300 every 4 weeks → round(300_00 × 52 / 4) = 3_900_00/yr.
     const estimate = estimateHouseholdTaxFromRows([baseInflow], [profile])
@@ -185,6 +234,32 @@ describe('estimateHouseholdTaxFromRows', () => {
     )
     expect(everyTwoWeeks.annualGrossCents).toBe(fortnightly.annualGrossCents)
     expect(everyTwoWeeks.annualTaxCents).toBe(fortnightly.annualTaxCents)
+  })
+})
+
+describe('helpDebtCentsByMember', () => {
+  it('keys each member HELP balance by member id', () => {
+    const debts: HelpDebt[] = [
+      {
+        id: 'hd1',
+        household_id: 'h1',
+        member_id: 'm1',
+        balance_cents: 30_000_00,
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'hd2',
+        household_id: 'h1',
+        member_id: 'm2',
+        balance_cents: 5_000_00,
+        created_at: '',
+        updated_at: '',
+      },
+    ]
+    const result = helpDebtCentsByMember(debts)
+    expect(result.get('m1')).toBe(30_000_00)
+    expect(result.get('m2')).toBe(5_000_00)
   })
 })
 

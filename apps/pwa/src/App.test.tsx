@@ -65,6 +65,7 @@ vi.mock('./routes/SplitsSection', () => ({ SplitsSection: () => <div>SplitsSecti
 vi.mock('./routes/GoalsSection', () => ({ GoalsSection: () => <div>GoalsSection</div> }))
 vi.mock('./routes/TaxSection', () => ({ TaxSection: () => <div>TaxSection</div> }))
 vi.mock('./routes/SuperSection', () => ({ SuperSection: () => <div>SuperSection</div> }))
+vi.mock('./routes/HelpDebtSection', () => ({ HelpDebtSection: () => <div>HelpDebtSection</div> }))
 vi.mock('./routes/BreakdownsSection', () => ({
   BreakdownsSection: () => <div>BreakdownsSection</div>,
 }))
@@ -183,5 +184,11 @@ describe('App', () => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp(['/household'])
     expect(await screen.findByText('HomeSection')).toBeInTheDocument()
+  })
+
+  it('routes to the help-debt section', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp(['/help-debt'])
+    expect(await screen.findByText('HelpDebtSection')).toBeInTheDocument()
   })
 })

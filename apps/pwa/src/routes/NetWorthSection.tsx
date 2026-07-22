@@ -1,10 +1,12 @@
 import { LoadingScreen } from '../components/LoadingScreen'
 import { NetWorthView } from '../components/NetWorthView'
 import { useAccounts } from '../hooks/useAccounts'
+import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
+import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
-import { accountsWithEffectiveSuperBalances, superAccountIds } from '../lib/super'
+import { accountsWithEffectiveSuperBalances, superAccountIds, type Liability } from '../lib/super'
 import { netAnnualSuperContributionFromRows } from '../lib/tax'
 
 export function NetWorthSection({ householdId }: { householdId: string }) {
@@ -12,8 +14,18 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const superProfiles = useSuperProfiles(householdId)
   const contributions = useSuperContributions(householdId)
   const inflows = useInflows(householdId)
+  const helpDebts = useHelpDebts(householdId)
+  const { members, loading: membersLoading } = useMembers()
 
-  if (accounts.loading || superProfiles.loading || contributions.loading || inflows.loading) {
+  if (
+    accounts.loading ||
+    superProfiles.loading ||
+    contributions.loading ||
+    inflows.loading ||
+    helpDebts.loading ||
+    membersLoading ||
+    !members
+  ) {
     return <LoadingScreen />
   }
 
@@ -22,6 +34,14 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     inflows.inflows ?? [],
     contributions.contributions ?? [],
   )
+
+  const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
+  const liabilities: Liability[] = (helpDebts.helpDebts ?? [])
+    .filter((debt) => debt.balance_cents > 0)
+    .map((debt) => ({
+      label: `${memberName(debt.member_id)} HELP debt`,
+      balanceCents: debt.balance_cents,
+    }))
 
   return (
     <NetWorthView
@@ -32,6 +52,7 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
         new Date(),
       )}
       superIds={superAccountIds(profileRows)}
+      liabilities={liabilities}
       onToggleExclude={(id, exclude) => {
         void accounts.update(id, { exclude_from_net_worth: exclude })
       }}

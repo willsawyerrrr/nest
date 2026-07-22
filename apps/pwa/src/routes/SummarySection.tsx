@@ -4,6 +4,7 @@ import { SummaryView } from '../components/SummaryView'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGifts } from '../hooks/useGifts'
+import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -21,6 +22,7 @@ export function SummarySection({ householdId }: { householdId: string }) {
   const contributions = useSuperContributions(householdId)
   const gifts = useGifts(householdId)
   const breakdowns = useBreakdowns(householdId)
+  const helpDebts = useHelpDebts(householdId)
 
   if (
     inflows.loading ||
@@ -29,7 +31,8 @@ export function SummarySection({ householdId }: { householdId: string }) {
     temporaryItems.loading ||
     contributions.loading ||
     gifts.loading ||
-    breakdowns.loading
+    breakdowns.loading ||
+    helpDebts.loading
   ) {
     return <LoadingScreen />
   }
@@ -44,6 +47,7 @@ export function SummarySection({ householdId }: { householdId: string }) {
     inflows.inflows ?? [],
     taxProfiles.profiles ?? [],
     contributions.contributions ?? [],
+    helpDebts.helpDebts ?? [],
   )
   const summary = summarise(
     toSummaryInput({

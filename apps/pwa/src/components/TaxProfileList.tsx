@@ -3,7 +3,6 @@ import { ActionIcon, Badge, Card, Group, Stack, Text } from '@mantine/core'
 import { IconPencil } from '@tabler/icons-react'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
-import { formatCents } from '../lib/money'
 import { TaxProfileForm } from './TaxProfileForm'
 
 interface TaxProfileListProps {
@@ -12,7 +11,7 @@ interface TaxProfileListProps {
   onUpsert: (input: TaxProfileInput) => Promise<void>
 }
 
-/** One member's tax profile as a compact read-only row: residency, cover, and HELP debt. */
+/** One member's tax profile as a compact read-only row: residency and cover. */
 function TaxProfileCard({
   member,
   profile,
@@ -38,11 +37,6 @@ function TaxProfileCard({
               <Badge size="xs" color="teal">
                 Hospital cover
               </Badge>
-            )}
-            {profile && profile.help_debt_cents > 0 && (
-              <Text size="xs" c="dimmed">
-                HELP {formatCents(profile.help_debt_cents)}
-              </Text>
             )}
           </Group>
         </Stack>

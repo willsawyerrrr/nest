@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Checkbox, Group, NumberInput, Stack, Text } from '@mantine/core'
+import { Button, Card, Checkbox, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput, TaxResidency } from '../hooks/useTaxProfiles'
-import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
 
 interface TaxProfileFormProps {
@@ -21,9 +20,6 @@ const RESIDENCIES: { value: TaxResidency; label: string }[] = [
 export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfileFormProps) {
   const [residency, setResidency] = useState<TaxResidency>(initial?.residency ?? 'resident')
   const [hasCover, setHasCover] = useState(initial?.has_private_hospital_cover ?? false)
-  const [helpDebt, setHelpDebt] = useState<number | string>(
-    centsToDollars(initial?.help_debt_cents),
-  )
   const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +34,6 @@ export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfi
         member_id: member.id,
         residency,
         has_private_hospital_cover: hasCover,
-        help_debt_cents: dollarsToCents(helpDebt) ?? 0,
       })
       setSaved(true)
     } catch {
@@ -66,19 +61,6 @@ export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfi
           label="Private hospital cover"
           checked={hasCover}
           onChange={(event) => setHasCover(event.currentTarget.checked)}
-        />
-
-        <NumberInput
-          label="HELP debt"
-          size="sm"
-          prefix="$"
-          thousandSeparator
-          decimalScale={2}
-          fixedDecimalScale
-          min={0}
-          hideControls
-          value={helpDebt}
-          onChange={setHelpDebt}
         />
 
         {error && (

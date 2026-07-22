@@ -7,6 +7,7 @@ const hooks = vi.hoisted(() => ({
   useInflows: vi.fn(),
   useTaxProfiles: vi.fn(),
   useSuperContributions: vi.fn(),
+  useHelpDebts: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -19,6 +20,7 @@ vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles
 vi.mock('../hooks/useSuperContributions', () => ({
   useSuperContributions: hooks.useSuperContributions,
 }))
+vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../components/TaxEstimateView', () => ({
   TaxEstimateView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -32,6 +34,7 @@ describe('TaxSection', () => {
     hooks.useInflows.mockReturnValue({ loading: false })
     hooks.useTaxProfiles.mockReturnValue({ loading: false })
     hooks.useSuperContributions.mockReturnValue({ loading: false })
+    hooks.useHelpDebts.mockReturnValue({ loading: false })
     render(<TaxSection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -41,6 +44,7 @@ describe('TaxSection', () => {
     hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
     hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
     hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     render(<TaxSection householdId="h1" />)
     expect(screen.getByTestId('tax-view')).toBeInTheDocument()
 

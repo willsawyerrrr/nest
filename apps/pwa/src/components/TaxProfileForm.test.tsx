@@ -8,7 +8,7 @@ import { TaxProfileForm } from './TaxProfileForm'
 const member = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 
 describe('TaxProfileForm', () => {
-  it('submits residency, cover, and HELP debt converted to cents', async () => {
+  it('submits residency and cover', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<TaxProfileForm member={member} onSubmit={onSubmit} />)
@@ -16,7 +16,6 @@ describe('TaxProfileForm', () => {
     await user.click(screen.getByRole('combobox', { name: /residency/i }))
     await user.click(await screen.findByRole('option', { name: 'Foreign resident' }))
     await user.click(screen.getByLabelText(/private hospital cover/i))
-    await user.type(screen.getByLabelText(/help debt/i), '25000')
     await user.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() =>
@@ -24,7 +23,6 @@ describe('TaxProfileForm', () => {
         member_id: 'm1',
         residency: 'foreign_resident',
         has_private_hospital_cover: true,
-        help_debt_cents: 2500000,
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
@@ -38,7 +36,6 @@ describe('TaxProfileForm', () => {
       financial_year: 2027,
       residency: 'resident',
       has_private_hospital_cover: true,
-      help_debt_cents: 1000000,
       created_at: '',
       updated_at: '',
     }
@@ -46,7 +43,6 @@ describe('TaxProfileForm', () => {
 
     expect(screen.getByRole('combobox', { name: /residency/i })).toHaveValue('Resident')
     expect(screen.getByLabelText(/private hospital cover/i)).toBeChecked()
-    expect(screen.getByLabelText(/help debt/i)).toHaveValue('$10,000.00')
   })
 
   it('shows an error when saving fails', async () => {

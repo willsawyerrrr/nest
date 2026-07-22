@@ -356,6 +356,40 @@ describe('GiftsScreen private gifts for the current member', () => {
     expect(screen.queryByText(/purchases hidden — this is a gift for you/i)).not.toBeInTheDocument()
     expect(screen.getByText('Secret')).toBeInTheDocument()
   })
+
+  it('shows only the budgeted amount, hiding spend and the progress bar, for a fully-yours group and total', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      recipients: [meRecipient],
+      budgets: [myGift],
+      purchases: [myPurchase],
+      currentMemberId: 'me',
+    })
+
+    await user.click(screen.getByRole('radio', { name: 'By person' }))
+
+    // Both the "Me" group and the overall total show the budgeted amount alone.
+    expect(screen.getAllByText('Budget $100.00').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/^Spent /)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Left /)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Me spend')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Total gift spend')).not.toBeInTheDocument()
+  })
+
+  it('keeps spend and the progress bar for a mixed group that also has gifts for others', () => {
+    renderScreen({
+      recipients: [meRecipient, alice],
+      budgets: [myGift, budget],
+      purchases: [myPurchase],
+      currentMemberId: 'me',
+    })
+
+    // Christmas holds both my gift and Alice's, so the group and total keep their
+    // spend rollup and progress bar.
+    expect(screen.getByLabelText('Christmas spend')).toBeInTheDocument()
+    expect(screen.getByLabelText('Total gift spend')).toBeInTheDocument()
+    expect(screen.getAllByText(/^Spent /).length).toBeGreaterThan(0)
+  })
 })
 
 describe('GiftsScreen purchases', () => {

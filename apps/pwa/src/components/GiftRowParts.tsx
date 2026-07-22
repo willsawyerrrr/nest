@@ -14,8 +14,29 @@ function progress(totals: GiftTotals): { percent: number; color: string } {
   return { percent: Math.min(100, (totals.spentCents / totals.budgetedCents) * 100), color }
 }
 
-/** A budgeted / spent / remaining readout with a spend progress bar. */
-export function GiftMoneyBar({ totals, label }: { totals: GiftTotals; label: string }) {
+/**
+ * A budgeted / spent / remaining readout with a spend progress bar.
+ *
+ * When `budgetOnly` is set, only the budgeted amount shows — spend, remaining,
+ * and the progress bar are hidden, so a gift for the signed-in member does not
+ * spoil the surprise.
+ */
+export function GiftMoneyBar({
+  totals,
+  label,
+  budgetOnly = false,
+}: {
+  totals: GiftTotals
+  label: string
+  budgetOnly?: boolean
+}) {
+  if (budgetOnly) {
+    return (
+      <Text size="xs" c="dimmed">
+        Budget {formatCents(totals.budgetedCents)}
+      </Text>
+    )
+  }
   const { percent, color } = progress(totals)
   return (
     <Stack gap={4}>

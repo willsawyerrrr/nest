@@ -299,6 +299,12 @@ function GiftGroupCard({
   const [opened, { toggle }] = useDisclosure(false)
   const [addingBudget, setAddingBudget] = useState(false)
 
+  // A group made up entirely of gifts for the signed-in member shows only its
+  // budgeted amount: its spend, remaining, and progress bar stay hidden. A
+  // mixed group (some gifts for others) keeps showing its full spend rollup.
+  const hiddenGroup =
+    group.rows.length > 0 && group.rows.every((row) => hiddenBudgetIds.has(row.budgetId))
+
   return (
     <Card withBorder radius="md" p="sm">
       <Stack gap="sm">
@@ -317,7 +323,7 @@ function GiftGroupCard({
                 )}
               </Group>
             </Group>
-            <GiftMoneyBar totals={group} label={group.label} />
+            <GiftMoneyBar totals={group} label={group.label} budgetOnly={hiddenGroup} />
           </Stack>
         </UnstyledButton>
 
@@ -429,6 +435,9 @@ export function GiftsScreen({
       .filter((budget) => recipientsForMember.has(budget.recipient_id))
       .map((budget) => budget.id),
   )
+  // Every gift is for the signed-in member: the overall total shows only its
+  // budgeted amount, with no spend, remaining, or progress bar to spoil.
+  const allHidden = budgets.length > 0 && budgets.every((budget) => hiddenBudgetIds.has(budget.id))
   const noEntities = recipients.length === 0 && occasions.length === 0
 
   return (
@@ -448,7 +457,7 @@ export function GiftsScreen({
             <Title order={3} size="h5">
               Total
             </Title>
-            <GiftMoneyBar totals={overall} label="Total gift" />
+            <GiftMoneyBar totals={overall} label="Total gift" budgetOnly={allHidden} />
           </Stack>
         </Card>
       )}

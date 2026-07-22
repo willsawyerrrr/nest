@@ -43,7 +43,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
   balance is a single standing figure (the `help_debt` table, not FY-scoped),
-  edited on its own Help debt tab, that feeds the tax estimate and counts as a
+  edited on its own HELP debt tab, that feeds the tax estimate and counts as a
   net-worth liability.
 - Superannuation: modelled in full per person. Concessional contributions reduce
   taxable income and are taxed at 15% in the fund, with Division 293 for high

@@ -15,7 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/goals', label: 'Goals' },
   { path: '/tax', label: 'Tax' },
   { path: '/super', label: 'Super' },
-  { path: '/help-debt', label: 'Help debt' },
+  { path: '/help-debt', label: 'HELP debt' },
   { path: '/breakdowns', label: 'Breakdowns' },
   { path: '/household', label: 'Household' },
   { path: '/whats-new', label: "What's new" },

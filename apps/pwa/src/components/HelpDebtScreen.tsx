@@ -83,7 +83,7 @@ export function HelpDebtScreen({ members, helpDebts, onSave }: HelpDebtScreenPro
   return (
     <Stack gap="sm">
       <Title order={2} visibleFrom="sm">
-        Help debt
+        HELP debt
       </Title>
       <Text c="dimmed" size="sm">
         Each member&rsquo;s outstanding HELP/HECS balance. It drives the compulsory repayment on the

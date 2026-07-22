@@ -20,6 +20,7 @@ const will: MemberTaxEstimate = {
   memberId: 'm1',
   annualGrossCents: 10_000_000,
   annualConcessionalContributionsCents: 0,
+  annualNetConcessionalSuperCents: 0,
   annualTaxCents: 2_500_000,
   annualAfterTaxCents: 7_500_000,
   fortnightlyGrossCents: 384_615,
@@ -32,6 +33,7 @@ const sam: MemberTaxEstimate = {
   memberId: 'm2',
   annualGrossCents: 6_000_000,
   annualConcessionalContributionsCents: 0,
+  annualNetConcessionalSuperCents: 0,
   annualTaxCents: 1_000_000,
   annualAfterTaxCents: 5_000_000,
   fortnightlyGrossCents: 230_769,
@@ -43,6 +45,8 @@ const sam: MemberTaxEstimate = {
 const estimate: HouseholdTaxEstimate = {
   members: [will, sam],
   annualGrossCents: 16_000_000,
+  annualConcessionalContributionsCents: 0,
+  annualNetConcessionalSuperCents: 0,
   annualTaxCents: 3_500_000,
   annualAfterTaxCents: 12_500_000,
   fortnightlyGrossCents: 615_384,
@@ -245,6 +249,8 @@ describe('TaxEstimateView', () => {
     const empty: HouseholdTaxEstimate = {
       members: [],
       annualGrossCents: 0,
+      annualConcessionalContributionsCents: 0,
+      annualNetConcessionalSuperCents: 0,
       annualTaxCents: 0,
       annualAfterTaxCents: 0,
       fortnightlyGrossCents: 0,

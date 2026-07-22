@@ -23,6 +23,11 @@ references are additionally blocked by composite foreign keys on
   - `invite_code` (nullable, unique) and `invite_code_expires_at` (nullable) —
     a single-use, opt-in code a partner redeems to join. Both are null unless a
     member has generated one; it expires after 7 days and is consumed on join.
+  - `pay_account_id` (nullable) — the single spending account the household's pay
+    lands in, the source for the Splits tab. A composite FK `(pay_account_id, id)
+    → accounts (id, household_id)` `on delete set null` keeps it within the
+    household and clears it if the account is removed. Written only through the
+    `set_household_pay_account` RPC (see RPCs), not a broad households update.
 - **members** — a person in a household, linked to an auth user.
   - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
     (nullable), `up_connected_at` (nullable), `created_at`, `updated_at`.
@@ -321,6 +326,10 @@ not-yet-member can act past RLS in the narrow ways allowed:
 - `create_invite_code()` — generate a single-use code (7-day expiry) for the
   caller's household.
 - `revoke_invite_code()` — clear the caller's household's invite code.
+- `set_household_pay_account(account_id)` — set (or, with null, clear) the
+  caller's household `pay_account_id`. Rejects anything that is not a
+  `type = 'transaction'` account in the caller's household, so households writes
+  stay controlled without opening a broad column update.
 - `household_ids_for_current_user()` — the households the caller belongs to;
   the basis for every RLS policy.
 - `current_member_ids()`, `household_super_account_ids()`, and

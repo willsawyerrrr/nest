@@ -1,11 +1,14 @@
 # Pay splits
 
 Keeping the household's Up pay splits aligned with the budget. Each budget line
-is routed to the Up account or saver that funds it; the app then recommends, per
-saver, the fortnightly amount to configure as that saver's Up pay split. The
-household sets those splits in Up by hand and **confirms** the amount it set, so
-the app can flag when the recommendation later drifts from the confirmed amount
-and prompt a re-confirm.
+is routed to the account or saver that funds it; the household designates the one
+spending account its **pay lands in** (the source), and the app then recommends,
+per other account, the fortnightly amount to configure as that account's Up pay
+split. Pay stays in the pay account, so every other routed account — the other
+spending accounts and the savers — is a recommended split. The household sets
+those splits in Up by hand and **confirms** the amount it set, so the app can
+flag when the recommendation later drifts from the confirmed amount and prompt a
+re-confirm.
 
 Amounts are integer minor units (cents). The fortnight is the primary period, as
 everywhere in the plan-only app.
@@ -30,6 +33,13 @@ drift, offering a Confirm to record the new amount and clear the alert.
   household has confirmed as set in Up (one `pay_split` row per account),
   compares it to the recommendation to surface drift, and offers a Confirm to
   record the new amount. The confirmation is app-side — it is not read from Up.
+- **One household pay account.** The household designates a single spending
+  (`type = 'transaction'`) account as the source pay lands in
+  (`households.pay_account_id`). It affects the Splits view only — pay stays
+  there, and every other routed account becomes a recommended split. The pay
+  account stays selectable as a budget-line destination everywhere else. Until a
+  pay account is chosen, only savers are recommended and spending accounts are
+  shown as staying put.
 - **One destination per line.** A line points at exactly one account (nullable).
   Splitting a cost across savers means two lines — no per-line fan-out, no join
   table.
@@ -71,8 +81,17 @@ One `pay_split` row per account holds the confirmed split:
   like the rest of the ledger. It is the source-agnostic "configured split" the
   Splits tab compares against.
 
-An Up saver is an `accounts` row with `source = 'up'`, `type = 'savings'`; the
-main spending account is `type = 'transaction'`. Both are valid destinations.
+The pay account lives on the household:
+
+- `households.pay_account_id uuid` — nullable composite FK
+  `(pay_account_id, id) → accounts (id, household_id)`, `on delete set null`. The
+  single spending account the household's pay lands in. Written only through the
+  `set_household_pay_account(account_id)` SECURITY DEFINER RPC, which rejects any
+  account that is not a `type = 'transaction'` account in the caller's household,
+  so households writes stay controlled rather than exposing a broad column update.
+
+An Up saver is an `accounts` row with `source = 'up'`, `type = 'savings'`; a
+spending account is `type = 'transaction'`. Both are valid destinations.
 
 ## Pure logic (`@nest/plan`)
 
@@ -84,6 +103,10 @@ main spending account is `type = 'transaction'`. Both are valid destinations.
   `unassignedFortnightlyCents` bucket for unrouted lines.
 - `roundCentsUpToStep(amountCents, stepCents)` — round up to the next multiple of
   a step, never below the amount (used with `5_00`).
+- `isRecommendedSplitAccount({ isPayAccount, isSaver }, hasPayAccount)` — whether
+  a routed account belongs in the recommended splits (a transfer destination)
+  rather than the "stays" section (the pay account, where pay lands). With a pay
+  account designated, every account but it is a split; until then, only savers.
 - `paySplitNeedsUpdate(recommendedCents, configuredCents)` — whether the rounded
   recommendation differs from the configured split (`null` = never confirmed →
   always needs update). Source-agnostic: it does not care where the configured
@@ -105,18 +128,25 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   icon is the account/saver's own icon — its Up emoji when its name carries one,
   otherwise a shared default — and its name shows with that emoji stripped.
   Unrouted lines show none.
-- **Splits tab** — for each Up saver with lines routed to it, the recommended
-  fortnightly pay split (rounded up to the nearest $5); the remainder that stays in the
-  transaction account; and an "Unassigned" nudge totalling lines not yet routed.
-  Each row shows the same account/saver icon and emoji-stripped name as the budget
-  list, and rows can be sorted by title or amount with a direction toggle (the
-  preference persists). Each saver row compares its recommendation against the
-  confirmed split (`configuredByAccount`, passed in as a plain map — the screen
-  never reads `pay_split` directly): a matching row reads "✓ up to date"; a
-  drifted or never-confirmed row is flagged (a yellow left border and an "Update"
-  badge), shows the change ("was $350 → $400 / fn", or "Not set in Up yet"), and
-  offers a Confirm button that records the rounded recommendation. A "N to update"
-  badge by the heading summarises how many savers need a re-confirm.
+- **Splits tab** — a "Paid into" selector at the top designates the household's
+  pay account (a clearable Select of the household's spending accounts from
+  `account_directory`); changing it calls `set_household_pay_account`. With a pay
+  account set, every other routed account — the other spending accounts and the
+  savers — is a **recommended pay split** (rounded up to the nearest $5), while
+  the pay account sits under "Stays in your pay account" ("Pay lands here — no
+  transfer needed"); an "Unassigned" nudge totals lines not yet routed. Until a
+  pay account is chosen, a callout prompts the household to pick one, and the page
+  falls back to recommending savers only with spending accounts shown as "Stays
+  in your spending account". Each row shows the same account/saver icon and
+  emoji-stripped name as the budget list, and rows can be sorted by title or
+  amount with a direction toggle (the preference persists). Each recommended row
+  compares its recommendation against the confirmed split (`configuredByAccount`,
+  passed in as a plain map — the screen never reads `pay_split` directly): a
+  matching row renders plainly; a drifted or never-confirmed row is flagged (a
+  yellow left border and an "Update" badge), shows the change ("was $350 → $400 /
+  fn", or "Not set in Up yet"), and offers a Confirm button that records the
+  rounded recommendation. A "N to update" badge by the heading summarises how many
+  accounts need a re-confirm.
 
 ## Out of scope / future
 
@@ -134,12 +164,14 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 
 Built and deployed. `budget_line.destination_account_id` (the nullable composite
 FK plus the `budget_line_destination_group` check) carries a line's destination;
-`pay_split` (one row per account, `unique (household_id, account_id)`) holds the
-household's confirmed fortnightly split; `@nest/plan` exposes the pure
-`resolveDestinationAccountId`, `assignmentsByAccount`, `roundCentsUpToStep`, and
+`households.pay_account_id` (the nullable composite FK, written through
+`set_household_pay_account`) names the account pay lands in; `pay_split` (one row
+per account, `unique (household_id, account_id)`) holds the household's confirmed
+fortnightly split; `@nest/plan` exposes the pure `resolveDestinationAccountId`,
+`assignmentsByAccount`, `isRecommendedSplitAccount`, `roundCentsUpToStep`, and
 `paySplitNeedsUpdate`; the budget-line form offers a "Funded from" picker on
 non-Savings/Investments lines (Savings/Investments show the goal-derived route);
-and the Splits tab (between Budget and Goals) lists each account's recommended
-fortnightly split rounded up to the nearest $5, flags savers whose confirmed
-split has drifted (or is unset) with a Confirm to record the new amount, and
-shows an Unassigned nudge.
+and the Splits tab (between Budget and Goals) designates the pay account, lists
+every other routed account's recommended fortnightly split rounded up to the
+nearest $5, flags accounts whose confirmed split has drifted (or is unset) with a
+Confirm to record the new amount, and shows an Unassigned nudge.

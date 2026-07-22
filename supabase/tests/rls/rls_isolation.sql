@@ -637,4 +637,63 @@ begin
     'Bob should see his 4 balance-visible accounts: shared, own spending, own saver, own super';
 end $$;
 
+-- ── Household pay account: one household-level source, validated on write ─────
+--
+-- The pay account is set only through set_household_pay_account, which resolves
+-- the caller's own household, rejects anything that is not a transaction account
+-- in it, and writes households.pay_account_id (readable, household-scoped, by
+-- either member). It never exposes a balance.
+
+-- Alice designates her own spending account; both members read it.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+select public.set_household_pay_account(current_setting('test.priv_alice_spending')::uuid);
+do $$ begin
+  assert (select pay_account_id from public.households where id = current_setting('test.priv_hid')::uuid)
+    = current_setting('test.priv_alice_spending')::uuid,
+    'Alice should set the household pay account to her spending account';
+end $$;
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert (select pay_account_id from public.households where id = current_setting('test.priv_hid')::uuid)
+    = current_setting('test.priv_alice_spending')::uuid,
+    'Bob should read the shared household pay account';
+end $$;
+
+-- The pay account is household-level: Alice can point it at Bob's spending account.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+select public.set_household_pay_account(current_setting('test.priv_bob_spending')::uuid);
+do $$ begin
+  assert (select pay_account_id from public.households where id = current_setting('test.priv_hid')::uuid)
+    = current_setting('test.priv_bob_spending')::uuid,
+    'Alice should set the pay account to a co-member''s spending account (household-level)';
+end $$;
+
+-- A non-transaction account (Bob's super, a savings account) is rejected.
+do $$ begin
+  perform public.set_household_pay_account(current_setting('test.priv_bob_super')::uuid);
+  raise exception 'FAIL: a non-transaction account was accepted as the pay account';
+exception when others then
+  if sqlerrm = 'pay account must be a transaction account in the caller''s household' then
+    raise notice 'PASS: non-transaction pay account rejected';
+  else raise; end if;
+end $$;
+
+-- An account from another household is rejected (test.aid belongs to Alice's
+-- first household, not the privacy household).
+do $$ begin
+  perform public.set_household_pay_account(current_setting('test.aid')::uuid);
+  raise exception 'FAIL: a foreign account was accepted as the pay account';
+exception when others then
+  if sqlerrm = 'pay account must be a transaction account in the caller''s household' then
+    raise notice 'PASS: foreign pay account rejected';
+  else raise; end if;
+end $$;
+
+-- Passing null clears the designation.
+select public.set_household_pay_account(null);
+do $$ begin
+  assert (select pay_account_id from public.households where id = current_setting('test.priv_hid')::uuid) is null,
+    'a null argument should clear the household pay account';
+end $$;
+
 rollback;

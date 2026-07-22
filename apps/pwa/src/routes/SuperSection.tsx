@@ -25,6 +25,7 @@ export function SuperSection({ householdId }: { householdId: string }) {
     profiles: profileRows,
     insertAccount: accounts.insert,
     updateAccount: accounts.update,
+    upsertBalance: accounts.upsertBalance,
     upsertProfile: superProfiles.upsert,
   })
 

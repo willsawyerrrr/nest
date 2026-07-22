@@ -28,9 +28,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   balance-privacy boundary on top — a member sees balances and transactions only
   for shared/joint, own, and household-super accounts, a co-member's spending
   account is visible by NAME ONLY (for routing) and their savers not at all, so a
-  net-worth view sums only visible balances. The helper-function and
-  view mechanics behind this live in architecture.md (Security) and data-model.md
-  (the ledger tables and `account_directory`). A partner joins via a temporary, opt-in, single-use
+  net-worth view sums only visible balances. Balances live in `account_balance`,
+  split out of the identity `accounts` table so both account surfaces —
+  `account_directory` (identity only) and `accounts_with_balance` (identity plus
+  balance) — are plain invoker views needing no SECURITY DEFINER; the
+  helper-function and view mechanics behind this live in architecture.md
+  (Security) and data-model.md (the ledger tables, `account_directory`, and
+  `accounts_with_balance`). A partner joins via a temporary, opt-in, single-use
   invite code (`create_invite_code` mints one, `join_household` redeems and
   consumes it, `revoke_invite_code` clears it); no email infrastructure.
 - Inflows: the household owns many projection-based inflows, split by taxability
@@ -101,8 +105,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   Confirm to re-record it.
 - Ingestion: both partners bank with Up. The account-balance slice is built and
   deployed — members connect an Up personal-access token (held in Vault), and
-  `up-sync` polls every Up account (savers and spending alike) into `accounts`,
-  so a goal linked to a saver tracks its real balance and every account the
+  `up-sync` polls every Up account (savers and spending alike) into `accounts`
+  and `account_balance` via the `upsert_up_accounts` RPC (identity and balance in
+  one transaction), so a goal linked to a saver tracks its real balance and every account the
   member can see — plus any member's spending account by name via
   `account_directory` — is available as a budget-line funding destination (a
   co-member's savers stay private). Deduped on (source,

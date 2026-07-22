@@ -87,6 +87,14 @@ Until the secret is set the function returns `{ configured: false, implemented:
 [], inProgress: [] }` (a `200`) and the tab shows a "not configured yet" note, so
 it degrades gracefully.
 
+The client posts its build's `VITE_COMMIT_SHA` as the request body's `sha`. The
+function locates that commit in the raw newest-first commit list and drops
+everything newer (keeping that commit and older) before the feat/fix/perf parse,
+so a stale/cached PWA never advertises changes its build does not contain. The
+cutoff runs on the raw list because the deploy commit is often a filtered-out
+`chore`/`docs`/`refactor`. If the SHA is empty or not found, the list is left
+untouched (fail-open, never a blank page); in-progress open PRs are unaffected.
+
 ## Auth
 
 Supabase Google OAuth (consent screen published). The site URL and redirect
@@ -99,4 +107,8 @@ Vercel project `nest` on the Pro plan, Root Directory `apps/pwa` (Vite preset).
 Prod deploys via the GitHub integration on merge to `main`; each PR gets a
 preview deployment. Custom domain `nest.willsawyerrrr.dev`.
 `apps/pwa/vercel.json` supplies the SPA fallback rewrite. Env vars:
-`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. The build stamps the deploy's
+commit into the app: `apps/pwa/vite.config.ts` reads Vercel's
+`VERCEL_GIT_COMMIT_SHA` (falling back to the local `git rev-parse HEAD`) and
+exposes it via `define` as `import.meta.env.VITE_COMMIT_SHA`. The changelog uses
+it as a cutoff — see below.

@@ -88,13 +88,36 @@ export function parseChangelogSubject(subject: string): ParsedSubject | null {
 }
 
 /**
+ * Cuts the raw newest-first commit list at the running build's commit, dropping
+ * every commit newer than it so the changelog never advertises a change the
+ * loaded build does not contain. The match accepts a prefix (`startsWith`) to
+ * tolerate short SHAs. Fails open: an empty `buildSha`, or one not present in
+ * the list, returns the list unchanged rather than blanking the page.
+ */
+export function cutoffCommitsAtSha<T extends { sha: string }>(
+  commits: T[],
+  buildSha: string | undefined,
+): T[] {
+  if (!buildSha) {
+    return commits
+  }
+  const index = commits.findIndex((commit) => commit.sha.startsWith(buildSha))
+  return index === -1 ? commits : commits.slice(index)
+}
+
+/**
  * Builds the changelog from GitHub. When the token is missing the function
  * degrades gracefully — a `200` marked `configured: false` with empty lists —
  * so the UI can show a "not configured yet" note rather than an error. A GitHub
  * failure surfaces as a `502` so the client can show an error state.
+ *
+ * `buildSha` is the running build's commit: the raw commit list is cut at it
+ * (that commit and older kept) before parsing, so the implemented list never
+ * includes changes newer than the loaded build.
  */
 export async function runChangelog(
   token: string | undefined,
+  buildSha?: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<FlowResult> {
   if (!token) {
@@ -116,10 +139,12 @@ export async function runChangelog(
     return { status: 502, body: { error: 'Could not reach GitHub.' } }
   }
 
-  const commits = (await commitsRes.json()) as GitHubCommit[]
+  const rawCommits = (await commitsRes.json()) as GitHubCommit[]
   const pulls = (await pullsRes.json()) as GitHubPull[]
 
-  // GitHub returns commits newest-first, so the implemented list is already ordered.
+  // GitHub returns commits newest-first, so cutting at the build's commit drops
+  // everything newer; the implemented list is then already ordered.
+  const commits = cutoffCommitsAtSha(rawCommits, buildSha)
   const implemented: ImplementedEntry[] = []
   for (const commit of commits) {
     const parsed = parseChangelogSubject(commit.commit.message.split('\n')[0])

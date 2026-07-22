@@ -1,10 +1,31 @@
+import { execSync } from 'node:child_process'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
 const underTest = Boolean(process.env.VITEST)
 
+/**
+ * The git commit the build was produced from. Vercel injects
+ * `VERCEL_GIT_COMMIT_SHA`; falling back to the local `HEAD` covers manual and
+ * dev builds. Stamped into the app so the changelog can hide entries newer than
+ * the running build.
+ */
+function commitSha(): string {
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    return process.env.VERCEL_GIT_COMMIT_SHA
+  }
+  try {
+    return execSync('git rev-parse HEAD').toString().trim()
+  } catch {
+    return ''
+  }
+}
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_COMMIT_SHA': JSON.stringify(commitSha()),
+  },
   plugins: [
     react(),
     ...(underTest

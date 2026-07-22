@@ -14,6 +14,11 @@ Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
   if (preflight) return preflight
 
-  const result = await runChangelog(Deno.env.get('GITHUB_CHANGELOG_TOKEN'))
+  // The client sends its build's commit SHA so entries newer than the running
+  // build are cut; the body is read defensively so a missing/malformed one is fine.
+  const body = (await request.json().catch(() => ({}))) as { sha?: unknown }
+  const buildSha = typeof body.sha === 'string' ? body.sha : undefined
+
+  const result = await runChangelog(Deno.env.get('GITHUB_CHANGELOG_TOKEN'), buildSha)
   return json(result.body, result.status)
 })

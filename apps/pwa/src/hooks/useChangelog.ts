@@ -48,8 +48,12 @@ export function useChangelog(): UseChangelogResult {
     let active = true
     setLoading(true)
     setError(null)
+    // Pass the build's commit SHA so the function drops any merged-commit entry
+    // newer than the running build; an empty SHA (local/dev) fails open server-side.
+    const sha = import.meta.env.VITE_COMMIT_SHA
+    const body = sha ? { sha } : {}
     supabase.functions
-      .invoke<ChangelogResponse>('changelog', { body: {} })
+      .invoke<ChangelogResponse>('changelog', { body })
       .then(({ data, error: invokeError }) => {
         if (!active) {
           return

@@ -245,6 +245,10 @@ way, sourced at runtime from GitHub for the private repo.
 - [x] **What's new** tab: **In progress** (open PRs) and **Implemented**
       (merged-commit subjects on `main`), each entry a type badge — Feature / Fix
       / Improvement — with the scope as a dimmed tag.
+- [x] Build-SHA cutoff: the build's commit is stamped into the app
+      (`VITE_COMMIT_SHA` from `VERCEL_GIT_COMMIT_SHA`) and sent to the function,
+      which cuts the raw commit list at that commit (fail-open) so a stale/cached
+      PWA never shows implemented entries newer than the build it is running.
 
 ## Later
 

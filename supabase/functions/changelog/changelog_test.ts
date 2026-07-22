@@ -1,5 +1,10 @@
 import { assertEquals } from '@std/assert'
-import { type ChangelogResult, parseChangelogSubject, runChangelog } from './changelog.ts'
+import {
+  type ChangelogResult,
+  cutoffCommitsAtSha,
+  parseChangelogSubject,
+  runChangelog,
+} from './changelog.ts'
 
 Deno.test('parseChangelogSubject keeps feat/fix/perf and parses the scope', () => {
   assertEquals(parseChangelogSubject('feat(budget): Add every-N-weeks lines'), {
@@ -166,6 +171,56 @@ Deno.test('runChangelog returns configured:false with empty lists when the token
     status: 200,
     body: { configured: false, implemented: [], inProgress: [] },
   })
+})
+
+Deno.test('cutoffCommitsAtSha drops commits newer than the build, keeping that commit and older', () => {
+  // The build is at ccc333 (the fix), so the newer feat (aaa111) and chore
+  // (bbb222) are excluded.
+  assertEquals(
+    cutoffCommitsAtSha(sampleCommits, 'ccc333').map((commit) => commit.sha),
+    ['ccc333', 'ddd444'],
+  )
+})
+
+Deno.test('cutoffCommitsAtSha fails open when the build SHA is not in the list', () => {
+  assertEquals(cutoffCommitsAtSha(sampleCommits, 'zzz999'), sampleCommits)
+})
+
+Deno.test('cutoffCommitsAtSha keeps the full list when no build SHA is given', () => {
+  assertEquals(cutoffCommitsAtSha(sampleCommits, undefined), sampleCommits)
+  assertEquals(cutoffCommitsAtSha(sampleCommits, ''), sampleCommits)
+})
+
+Deno.test('cutoffCommitsAtSha matches a short SHA prefix', () => {
+  assertEquals(
+    cutoffCommitsAtSha(sampleCommits, 'ccc').map((commit) => commit.sha),
+    ['ccc333', 'ddd444'],
+  )
+})
+
+Deno.test('runChangelog cuts implemented entries newer than the build SHA', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = input.toString()
+    if (url.includes('/commits')) {
+      return Promise.resolve(githubResponse(sampleCommits))
+    }
+    return Promise.resolve(githubResponse(samplePulls))
+  }) as typeof fetch
+
+  try {
+    // Build is at ccc333, so the newer feat (aaa111) is hidden and only the fix survives.
+    const result = await runChangelog('a-token', 'ccc333')
+    const body = result.body as ChangelogResult
+    assertEquals(
+      body.implemented.map((entry) => entry.sha),
+      ['ccc333'],
+    )
+    // In-progress (open PRs) is untouched by the cutoff.
+    assertEquals(body.inProgress.length, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 Deno.test('runChangelog surfaces a GitHub failure as a 502 error', async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { applyLatestVersion } from '../pwa'
 import { render, screen } from '../test/render'
 import { ChangelogSection } from './ChangelogSection'
 
@@ -43,5 +44,12 @@ describe('ChangelogSection', () => {
       configured: true,
       error: null,
     })
+  })
+
+  it('forces the app to the latest version when the screen requests an update', () => {
+    hooks.useChangelog.mockReturnValue({ loading: false })
+    render(<ChangelogSection />)
+    ;(hooks.screenProps as { onUpdate: () => void }).onUpdate()
+    expect(applyLatestVersion).toHaveBeenCalledOnce()
   })
 })

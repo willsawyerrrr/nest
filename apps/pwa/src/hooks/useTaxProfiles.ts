@@ -10,7 +10,6 @@ export interface TaxProfileInput {
   member_id: string
   residency: TaxResidency
   has_private_hospital_cover: boolean
-  help_debt_cents: number
 }
 
 export interface UseTaxProfilesResult {

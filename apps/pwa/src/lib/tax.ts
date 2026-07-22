@@ -12,6 +12,7 @@ import {
   type TaxProfileInput,
   type TaxYearConfig,
 } from '@nest/tax'
+import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
@@ -39,16 +40,25 @@ export function toIncomeInput(inflow: Inflow): IncomeInput {
   }
 }
 
-/** Maps a `tax_profile` row to the tax engine's `TaxProfileInput`. */
-function toTaxProfileInput(profile: TaxProfile): TaxProfileInput {
+/**
+ * Maps a `tax_profile` row to the tax engine's `TaxProfileInput`. The member's
+ * HELP balance lives in a separate `help_debt` row, threaded in as
+ * `helpDebtCents`.
+ */
+function toTaxProfileInput(profile: TaxProfile, helpDebtCents: number): TaxProfileInput {
   const residency: Residency =
     profile.residency === 'foreign_resident' ? 'foreignResident' : 'resident'
   return {
     memberId: profile.member_id,
     residency,
     privateHospitalCover: profile.has_private_hospital_cover,
-    helpDebtCents: profile.help_debt_cents,
+    helpDebtCents,
   }
+}
+
+/** Each member's HELP balance in cents, keyed by member id. */
+export function helpDebtCentsByMember(helpDebts: readonly HelpDebt[]): Map<string, number> {
+  return new Map(helpDebts.map((debt) => [debt.member_id, debt.balance_cents]))
 }
 
 /** The contribution kinds that reduce taxable income (concessional super). */
@@ -268,23 +278,46 @@ export function netAnnualSuperContributionFromRows(
 }
 
 /**
- * Estimates the household's tax for the current financial year from raw inflow
- * and tax-profile rows, using the config for the year (falling back to FY2027).
- * Only taxable inflows feed the estimate. Concessional super contributions, when
- * supplied, reduce each member's taxable income and after-tax cash.
+ * Estimates the household's tax for the current financial year from raw inflow,
+ * tax-profile, and HELP-debt rows, using the config for the year (falling back
+ * to FY2027). Only taxable inflows feed the estimate. Each member's HELP balance
+ * is threaded in from `helpDebts`; a member with a HELP balance but no tax
+ * profile still contributes a resident, cover-less profile so their repayment is
+ * assessed. Concessional super contributions, when supplied, reduce each
+ * member's taxable income and after-tax cash.
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly Inflow[],
   profiles: readonly TaxProfile[],
   contributions: readonly SuperContribution[] = [],
+  helpDebts: readonly HelpDebt[] = [],
 ): HouseholdTaxEstimate {
   const config = currentTaxConfig()
   const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
   // Per-member annual gross salary, the base for percent-of-salary contributions.
   const grossByMember = grossByMemberFromInflows(inflows)
+  const helpByMember = helpDebtCentsByMember(helpDebts)
+  const profileInputByMember = new Map(
+    profiles.map((profile) => [
+      profile.member_id,
+      toTaxProfileInput(profile, helpByMember.get(profile.member_id) ?? 0),
+    ]),
+  )
+  // A member with a HELP balance but no tax profile still needs their repayment
+  // assessed, so synthesise a default profile carrying that balance.
+  for (const [memberId, helpDebtCents] of helpByMember) {
+    if (helpDebtCents > 0 && !profileInputByMember.has(memberId)) {
+      profileInputByMember.set(memberId, {
+        memberId,
+        residency: 'resident',
+        privateHospitalCover: false,
+        helpDebtCents,
+      })
+    }
+  }
   return estimateHouseholdTax(
     incomes,
-    profiles.map(toTaxProfileInput),
+    [...profileInputByMember.values()],
     config,
     concessionalByMember(contributions, grossByMember),
   )

@@ -17,7 +17,6 @@ const samProfile: TaxProfile = {
   financial_year: 2027,
   residency: 'foreign_resident',
   has_private_hospital_cover: true,
-  help_debt_cents: 1000000,
   created_at: '',
   updated_at: '',
 }
@@ -34,7 +33,6 @@ describe('TaxProfileList', () => {
     const sam = card('Sam')
     expect(within(sam).getByText('Foreign resident')).toBeInTheDocument()
     expect(within(sam).getByText('Hospital cover')).toBeInTheDocument()
-    expect(within(sam).getByText(/HELP \$10,000\.00/)).toBeInTheDocument()
   })
 
   it('reveals the edit form and returns to the row after saving', async () => {

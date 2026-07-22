@@ -103,15 +103,15 @@ describe('NetWorthView', () => {
         superIds={new Set()}
         equity={[]}
         liabilities={[
-          { label: 'Will HELP debt', balanceCents: 3000000 },
-          { label: 'Sam HELP debt', balanceCents: 1000000 },
+          { label: "Will's HELP debt", balanceCents: 3000000 },
+          { label: "Sam's HELP debt", balanceCents: 1000000 },
         ]}
         onToggleExclude={vi.fn()}
       />,
     )
 
     const liabilities = screen.getByRole('region', { name: 'Liabilities' })
-    expect(within(liabilities).getByText('Will HELP debt')).toBeInTheDocument()
+    expect(within(liabilities).getByText("Will's HELP debt")).toBeInTheDocument()
     expect(within(liabilities).getByText('-$30,000.00')).toBeInTheDocument()
     expect(within(liabilities).getByText('-$10,000.00')).toBeInTheDocument()
     // Subtotal: -($30,000 + $10,000) = -$40,000.

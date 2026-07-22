@@ -49,7 +49,7 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const liabilities: Liability[] = (helpDebts.helpDebts ?? [])
     .filter((debt) => debt.balance_cents > 0)
     .map((debt) => ({
-      label: `${memberName(debt.member_id)} HELP debt`,
+      label: `${memberName(debt.member_id)}'s HELP debt`,
       balanceCents: debt.balance_cents,
     }))
 

@@ -113,8 +113,8 @@ describe('NetWorthSection', () => {
 
     // The zero-balance debt is dropped; an unknown member falls back to "Unknown".
     expect(hooks.screenProps?.liabilities).toEqual([
-      { label: 'Alex HELP debt', balanceCents: 30_000_00 },
-      { label: 'Unknown HELP debt', balanceCents: 5_000_00 },
+      { label: "Alex's HELP debt", balanceCents: 30_000_00 },
+      { label: "Unknown's HELP debt", balanceCents: 5_000_00 },
     ])
   })
 

@@ -178,7 +178,7 @@ income tables.
     Savings/Investments lines that fund a goal),
     `breakdown_id` (nullable; a derived line owned by a breakdown — see above),
     `destination_account_id` (nullable; the Up account funding the line, for the
-    Splits tab).
+    Pay splits tab).
   - Temporary is a Summary group derived from the `temporary_item` table, not a
     `budget_group` value: a budget line is never authored as temporary.
 - **SavingsGoal** — a persistent target.

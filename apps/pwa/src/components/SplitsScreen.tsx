@@ -261,7 +261,7 @@ export function SplitsScreen({
   return (
     <Stack gap="md">
       <Title order={2} visibleFrom="sm">
-        Splits
+        Pay splits
       </Title>
 
       <Text size="sm" c="dimmed">

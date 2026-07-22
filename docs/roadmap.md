@@ -73,7 +73,7 @@ does not restate them.
   `/equity` `/breakdowns` `/household`; `/` and unknown routes redirect to
   `/summary`), so
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
-  Summary · Net worth · Inflows · Budget · Splits · Goals · Tax · Super · Help
+  Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Super · Help
   debt · Breakdowns · Household. The gift planner is reached from the Breakdowns
   list (`/breakdowns/:id` for the gift breakdown), not a standalone tab. One
   `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
@@ -198,7 +198,7 @@ the editor. The household's real gift budgets are loaded in production. See
 - [x] Derived-line lifecycle (`reconcileBreakdownLines`): the line exists iff the
       breakdown has items, its amount is the summed-annualised roll-up
       (`applyBreakdownAmounts`), and its group and name track the breakdown. A
-      routed line survives an empty breakdown so its Splits routing is not lost.
+      routed line survives an empty breakdown so its pay-split routing is not lost.
       The Budget tab and Summary read the derived amount, so line and detail never
       drift.
 - [x] Sole mechanism: `budget_line.breakdown_id` is the only derived-line marker —
@@ -233,7 +233,7 @@ read-only API keeps the confirmed split app-side).
 - [x] Budget-line form: a "Funded from" account picker on
       non-Savings/Investments lines; Savings/Investments show the goal-derived
       route instead.
-- [x] Splits tab (between Budget and Goals): per-account recommended fortnightly
+- [x] Pay splits tab (between Budget and Goals): per-account recommended fortnightly
       split rounded up to the nearest $5, an Unassigned nudge for unrouted lines,
       and per-saver drift against the confirmed split — a flagged row shows the
       change and a Confirm that records the new amount.

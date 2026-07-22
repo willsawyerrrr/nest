@@ -24,7 +24,7 @@ references are additionally blocked by composite foreign keys on
     a single-use, opt-in code a partner redeems to join. Both are null unless a
     member has generated one; it expires after 7 days and is consumed on join.
   - `pay_account_id` (nullable) — the single spending account the household's pay
-    lands in, the source for the Splits tab. A composite FK `(pay_account_id, id)
+    lands in, the source for the Pay splits tab. A composite FK `(pay_account_id, id)
     → accounts (id, household_id)` `on delete set null` keeps it within the
     household and clears it if the account is removed. Written only through the
     `set_household_pay_account` RPC (see RPCs), not a broad households update.
@@ -170,7 +170,7 @@ no per-member scoping; each line stands alone under the household.
     Null is an ordinary manual line. Composite FK `(breakdown_id, household_id)` →
     `breakdown` `on delete cascade`.
   - `destination_account_id` routes the line to the Up account that funds it for
-    the Splits tab — see [Pay splits](#pay-splits). Nullable composite FK
+    the Pay splits tab — see [Pay splits](#pay-splits). Nullable composite FK
     `(destination_account_id, household_id)` → `accounts`, `on delete set null`.
     A CHECK (`budget_line_destination_group`) bars it on `savings`/`investments`
     lines, which route via their goal's linked saver instead.
@@ -216,7 +216,7 @@ each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design
 The derived line's amount is the summed-annualised roll-up of the breakdown's
 items and is read-only in every budget surface. The line exists only while the
 breakdown has items (a routed line — one carrying a `destination_account_id` —
-survives an empty breakdown so its Splits routing is not lost).
+survives an empty breakdown so its pay-split routing is not lost).
 `budget_line.breakdown_id` is the sole derived-line mechanism: a non-null
 `breakdown_id` marks the line as derived and owned by that breakdown, its amount
 rolled up from the breakdown's items; a null `breakdown_id` is an ordinary
@@ -351,7 +351,7 @@ populated; spending-plan reconciliation against them is a later phase.
 ## Pay splits
 
 Each budget line routes to the Up account that funds it via
-`budget_line.destination_account_id`; the Splits tab sums those into a recommended
+`budget_line.destination_account_id`; the Pay splits tab sums those into a recommended
 fortnightly pay split per account. Up exposes no pay-split API, so the household
 sets the split in Up by hand and confirms the amount app-side. See
 [`pay-splits.md`](pay-splits.md).
@@ -361,7 +361,7 @@ sets the split in Up by hand and confirms the amount app-side. See
   - `id`, `household_id`, `account_id`, `confirmed_fortnightly_cents`,
     `confirmed_at`, `created_at`, `updated_at`.
   - `unique (household_id, account_id)` keeps it one-per-account; composite FK
-    `(account_id, household_id)` → `accounts` `on delete cascade`. The Splits tab
+    `(account_id, household_id)` → `accounts` `on delete cascade`. The Pay splits tab
     compares the recommendation against this to surface drift and offer a Confirm.
 
 ## RPCs

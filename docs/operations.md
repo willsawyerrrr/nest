@@ -2,8 +2,8 @@
 
 The concrete runbook for the deployed project: where it runs, what deploys it,
 and the one-off setup each moving part needs. For the conceptual pipeline see
-[`ARCHITECTURE.md`](ARCHITECTURE.md); for the RPC contracts and schema see
-[`DATA_MODEL.md`](DATA_MODEL.md).
+[`architecture.md`](architecture.md); for the RPC contracts and schema see
+[`data-model.md`](data-model.md).
 
 ## Environments
 
@@ -48,7 +48,7 @@ Vault holds every secret that must never reach a client:
 | `GITHUB_CHANGELOG_TOKEN`   | the `changelog` function's GitHub PAT (see below)   |
 
 Up tokens are written/read/cleared only by the service-role-only SECURITY
-DEFINER RPCs (see [`DATA_MODEL.md`](DATA_MODEL.md#rpcs)).
+DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)).
 
 ## up-sync hourly cron (prod only)
 

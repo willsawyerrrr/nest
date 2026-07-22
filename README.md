@@ -30,7 +30,7 @@ A pitch-level summary; the full locked list is canonical in
 - **Backend:** [Supabase](https://supabase.com/) (Sydney region, Pro) — managed
   Postgres, Auth, PostgREST, Edge Functions, Vault. Clients use direct PostgREST
   with Row-Level Security for CRUD; edge functions handle the tax engine and Up
-  sync. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+  sync. See [`docs/architecture.md`](docs/architecture.md).
 - **Language:** TypeScript across the PWA and edge functions; the tax engine is a
   shared package used by both.
 - **Transaction sources:** [Up Bank API](https://developer.up.com.au/) feeds +
@@ -39,12 +39,12 @@ A pitch-level summary; the full locked list is canonical in
 
 ## Documentation
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system shape, integrations,
+- [`docs/architecture.md`](docs/architecture.md) — system shape, integrations,
   security model, and CI.
-- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — entities, relationships, and RPCs.
+- [`docs/data-model.md`](docs/data-model.md) — entities, relationships, and RPCs.
 - [`docs/operations.md`](docs/operations.md) — runbook: where it runs, what
   deploys it, and per-service setup.
-- [`docs/TAX.md`](docs/TAX.md) — AU tax modelling design.
+- [`docs/tax.md`](docs/tax.md) — AU tax modelling design.
 - [`docs/budget-and-savings.md`](docs/budget-and-savings.md) — plan-only budget,
   savings, and Summary math.
 - [`docs/super-and-net-worth.md`](docs/super-and-net-worth.md) — super modelling
@@ -58,7 +58,7 @@ A pitch-level summary; the full locked list is canonical in
   payslips.
 - [`docs/spreadsheet-parity.md`](docs/spreadsheet-parity.md) — feature-parity audit
   against the household's spreadsheet.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased delivery plan and idea backlog.
+- [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan and idea backlog.
 
 ## Repository layout
 
@@ -104,5 +104,5 @@ The Up savers → savings-goals layer is also live: members connect an Up token 
 link a goal to a synced Up saver, so goal progress tracks the real balance (synced
 on demand and hourly). Up transaction ingestion + reconciliation (ledger UI, actual
 spend vs budget, actual tax paid) is the next phase. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md) for the plan and
+[`docs/roadmap.md`](docs/roadmap.md) for the plan and
 [`docs/operations.md`](docs/operations.md) for what is deployed and how.

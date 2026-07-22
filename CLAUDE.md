@@ -29,7 +29,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   for shared/joint, own, and household-super accounts, a co-member's spending
   account is visible by NAME ONLY (for routing) and their savers not at all, so a
   net-worth view sums only visible balances. The helper-function and
-  view mechanics behind this live in ARCHITECTURE.md (Security) and DATA_MODEL.md
+  view mechanics behind this live in architecture.md (Security) and data-model.md
   (the ledger tables and `account_directory`). A partner joins via a temporary, opt-in, single-use
   invite code (`create_invite_code` mints one, `join_household` redeems and
   consumes it, `revoke_invite_code` clears it); no email infrastructure.
@@ -148,7 +148,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   jobs (`check`, `test`, `rls`, `functions`) aggregated by a `ci-status` job that
   is the single required `CI Status` check, so overall wall-clock is the slowest
   single job, not the sum; the job/coverage/shard specifics are canonical in
-  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#ci). Steps WITHIN a job stay
+  [`docs/architecture.md`](docs/architecture.md#ci). Steps WITHIN a job stay
   sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
   causes contention and inflates each one without improving wall-clock time.
   Splitting into separate jobs avoids that by giving each its own runner.

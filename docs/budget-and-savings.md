@@ -80,7 +80,7 @@ substitutes the breakdown's rolled-up amount for the typed `amount_cents`. Gifts
 are the first breakdown (`kind = 'gift'`); medications and any other itemised
 budget are `generic` breakdowns the household creates. See
 [`breakdowns.md`](breakdowns.md) and
-[`DATA_MODEL.md`](DATA_MODEL.md#breakdowns).
+[`data-model.md`](data-model.md#breakdowns).
 
 ## Targets — goals & temporary items
 

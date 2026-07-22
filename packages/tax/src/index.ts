@@ -268,7 +268,7 @@ export function medicareLevy(taxableIncomeCents: Money, config: TaxYearConfig): 
  * Computes the Medicare levy surcharge. Exempt when private hospital cover is
  * held. The caller passes income for surcharge purposes — taxable income plus
  * reportable (concessional) super contributions; reportable fringe benefits and
- * net investment losses are still not modelled (see docs/TAX.md).
+ * net investment losses are still not modelled (see docs/tax.md).
  */
 export function medicareLevySurcharge(
   incomeForSurchargeCents: Money,
@@ -289,7 +289,7 @@ export function medicareLevySurcharge(
  * Marginal across `marginalBands`, then limited to `maxRepaymentRate` of the
  * whole repayment income; nil at or below the first band's floor. The caller
  * passes repayment income — taxable income plus reportable (concessional) super
- * contributions; net investment losses are still not modelled (see docs/TAX.md).
+ * contributions; net investment losses are still not modelled (see docs/tax.md).
  */
 export function helpRepayment(
   repaymentIncomeCents: Money,
@@ -317,7 +317,7 @@ export function helpRepayment(
  * (taxable income + concessional contributions) exceeds the threshold. Nil below
  * the threshold or with no concessional contributions. Simplification: Division
  * 293 income is approximated as taxable income + concessional contributions,
- * omitting reportable fringe benefits and net investment losses (see docs/TAX.md).
+ * omitting reportable fringe benefits and net investment losses (see docs/tax.md).
  */
 export function division293(
   taxableIncomeCents: Money,

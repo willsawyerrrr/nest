@@ -63,7 +63,7 @@ is CRUD over RLS.
 - **Tax engine** — pure, versioned TypeScript package (`@nest/tax`). The PWA
   imports it for the instant client-side estimate. Designed to be reused
   unchanged by a future authoritative edge function, so there is no duplication
-  or divergence. See [`TAX.md`](TAX.md).
+  or divergence. See [`tax.md`](tax.md).
 - **Plan engine** — pure `@nest/plan` package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry, and the `Frequency` type.
 - **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.

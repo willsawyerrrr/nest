@@ -97,7 +97,7 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   non-Savings/Investments lines, sourced from the identity-only `account_directory`
   view (so a co-member's spending account is selectable by name without exposing
   its balance — see
-  [`DATA_MODEL.md`](DATA_MODEL.md#ledger)), excluding super-fund balance accounts,
+  [`data-model.md`](data-model.md#ledger)), excluding super-fund balance accounts,
   which are not spendable. Savings / Investments lines show the goal-derived route
   instead of a picker.
 - **Budget list** — each line shows a small badge naming its route: the linked

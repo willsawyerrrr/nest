@@ -217,6 +217,7 @@ export type Database = {
           created_at: string
           destination_account_id: string | null
           frequency: Database['public']['Enums']['frequency']
+          gift_recipient_member_id: string | null
           goal_id: string | null
           household_id: string
           id: string
@@ -231,6 +232,7 @@ export type Database = {
           created_at?: string
           destination_account_id?: string | null
           frequency: Database['public']['Enums']['frequency']
+          gift_recipient_member_id?: string | null
           goal_id?: string | null
           household_id: string
           id?: string
@@ -245,6 +247,7 @@ export type Database = {
           created_at?: string
           destination_account_id?: string | null
           frequency?: Database['public']['Enums']['frequency']
+          gift_recipient_member_id?: string | null
           goal_id?: string | null
           household_id?: string
           id?: string
@@ -266,6 +269,13 @@ export type Database = {
             columns: ['destination_account_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'budget_line_gift_recipient_member_id_household_id_fkey'
+            columns: ['gift_recipient_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
             referencedColumns: ['id', 'household_id']
           },
           {

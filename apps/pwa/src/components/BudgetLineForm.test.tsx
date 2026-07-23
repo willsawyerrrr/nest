@@ -34,6 +34,7 @@ describe('BudgetLineForm', () => {
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
+        gift_recipient_member_id: null,
       }),
     )
   })
@@ -59,6 +60,7 @@ describe('BudgetLineForm', () => {
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
+        gift_recipient_member_id: null,
       }),
     )
   })
@@ -84,6 +86,7 @@ describe('BudgetLineForm', () => {
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
+        gift_recipient_member_id: null,
       }),
     )
   })
@@ -109,6 +112,7 @@ describe('BudgetLineForm', () => {
         goal_id: null,
         breakdown_id: null,
         destination_account_id: null,
+        gift_recipient_member_id: null,
       }),
     )
   })

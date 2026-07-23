@@ -1,8 +1,18 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { DerivedAmountContext } from '../lib/breakdowns'
 import { makeBudgetLine } from '../test/fixtures'
 import type { Breakdown } from './useBreakdowns'
 import { useReconcileBreakdownLines } from './useReconcileBreakdownLines'
+
+function context(overrides: Partial<DerivedAmountContext> = {}): DerivedAmountContext {
+  return {
+    genericTotalsByBreakdownId: new Map(),
+    giftBreakdownId: null,
+    giftTotalsByMember: new Map(),
+    ...overrides,
+  }
+}
 
 function makeBreakdown(overrides: Partial<Breakdown> = {}): Breakdown {
   return {
@@ -22,8 +32,9 @@ function params(overrides: Partial<Parameters<typeof useReconcileBreakdownLines>
     lines: [] as ReturnType<typeof makeBudgetLine>[] | null,
     dataLoaded: true,
     breakdowns: [] as Breakdown[],
-    totals: new Map<string, number>(),
+    context: context(),
     counts: new Map<string, number>(),
+    memberNames: new Map<string, string>(),
     createLine: vi.fn().mockResolvedValue(undefined),
     updateLine: vi.fn().mockResolvedValue(undefined),
     removeLine: vi.fn().mockResolvedValue(undefined),
@@ -39,10 +50,12 @@ describe('useReconcileBreakdownLines', () => {
         makeBreakdown({ id: 'B', name: 'B' }),
         makeBreakdown({ id: 'C', name: 'C' }),
       ],
-      totals: new Map([
-        ['A', 100],
-        ['B', 500],
-      ]),
+      context: context({
+        genericTotalsByBreakdownId: new Map([
+          ['A', 100],
+          ['B', 500],
+        ]),
+      }),
       counts: new Map([
         ['A', 1],
         ['B', 1],

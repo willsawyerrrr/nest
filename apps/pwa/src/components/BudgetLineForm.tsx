@@ -85,6 +85,7 @@ export function BudgetLineForm({
       goal_id: showGoalPicker ? goalId : null,
       breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
+      gift_recipient_member_id: null,
     }
     try {
       await onSubmit(input)

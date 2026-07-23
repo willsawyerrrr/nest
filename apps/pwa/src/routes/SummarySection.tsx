@@ -10,8 +10,7 @@ import { useInflows } from '../hooks/useInflows'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
-import { breakdownAnnualTotals } from '../lib/breakdowns'
-import { giftBudgetTotalCents } from '../lib/gifts'
+import { derivedAmountContext } from '../lib/breakdowns'
 import { toSummaryInput } from '../lib/summary'
 import { estimateHouseholdTaxFromRows } from '../lib/tax'
 
@@ -40,10 +39,11 @@ export function SummarySection({ householdId }: { householdId: string }) {
     return <LoadingScreen />
   }
 
-  const totals = breakdownAnnualTotals(
+  const context = derivedAmountContext(
     breakdowns.breakdowns ?? [],
     breakdowns.items ?? [],
-    giftBudgetTotalCents(gifts.budgets ?? []),
+    gifts.budgets ?? [],
+    gifts.recipients ?? [],
   )
 
   const estimate = estimateHouseholdTaxFromRows(
@@ -58,7 +58,7 @@ export function SummarySection({ householdId }: { householdId: string }) {
       afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents,
       inflows: inflows.inflows ?? [],
       budgetLines: budgetLines.lines ?? [],
-      breakdownTotals: totals,
+      derivedAmounts: context,
       temporaryItems: temporaryItems.items ?? [],
       // The salary-sacrifice total is currently just the net concessional
       // super, and is the bucket other pre-tax sacrifices (e.g. a novated

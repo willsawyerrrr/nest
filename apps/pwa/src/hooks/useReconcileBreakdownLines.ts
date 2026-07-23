@@ -1,19 +1,21 @@
 import { useEffect, useRef } from 'react'
-import { reconcileBreakdownLines } from '../lib/breakdowns'
+import { reconcileBreakdownLines, type DerivedAmountContext } from '../lib/breakdowns'
 import type { Breakdown } from './useBreakdowns'
 import type { BudgetLine, UseBudgetLinesResult } from './useBudgetLines'
 
 interface UseReconcileBreakdownLinesParams {
   /** The household's budget lines, or `null` while loading. */
   lines: BudgetLine[] | null
-  /** Whether every source the reconcile reads (lines, breakdowns, gifts) has loaded. */
+  /** Whether every source the reconcile reads (lines, breakdowns, gifts, members) has loaded. */
   dataLoaded: boolean
-  /** The household's breakdowns, each of which may own a derived line. */
+  /** The household's breakdowns, each of which may own one or more derived lines. */
   breakdowns: Breakdown[]
-  /** Each breakdown's rolled-up annual total, keyed by breakdown id. */
-  totals: Map<string, number>
-  /** Each breakdown's item count, keyed by breakdown id, driving line existence. */
+  /** The rolled-up amounts each derived line reads (generic totals and gift partitions). */
+  context: DerivedAmountContext
+  /** Each generic breakdown's item count, keyed by breakdown id, driving its line's existence. */
   counts: Map<string, number>
+  /** Household member names keyed by member id, naming each gift partition's line. */
+  memberNames: Map<string, string>
   createLine: UseBudgetLinesResult['create']
   updateLine: UseBudgetLinesResult['update']
   removeLine: UseBudgetLinesResult['remove']
@@ -29,8 +31,9 @@ export function useReconcileBreakdownLines({
   lines,
   dataLoaded,
   breakdowns,
-  totals,
+  context,
   counts,
+  memberNames,
   createLine,
   updateLine,
   removeLine,
@@ -40,7 +43,7 @@ export function useReconcileBreakdownLines({
     if (!lines || !dataLoaded || reconcilingRef.current) {
       return
     }
-    const ops = reconcileBreakdownLines(breakdowns, totals, counts, lines)
+    const ops = reconcileBreakdownLines(breakdowns, context, counts, lines, memberNames)
     if (ops.create.length === 0 && ops.update.length === 0 && ops.remove.length === 0) {
       return
     }
@@ -60,5 +63,15 @@ export function useReconcileBreakdownLines({
         reconcilingRef.current = false
       }
     })()
-  }, [lines, dataLoaded, breakdowns, totals, counts, createLine, updateLine, removeLine])
+  }, [
+    lines,
+    dataLoaded,
+    breakdowns,
+    context,
+    counts,
+    memberNames,
+    createLine,
+    updateLine,
+    removeLine,
+  ])
 }

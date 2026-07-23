@@ -105,6 +105,7 @@ export function makeBudgetLine(overrides: Partial<BudgetLine> = {}): BudgetLine 
     goal_id: null,
     destination_account_id: null,
     breakdown_id: null,
+    gift_recipient_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

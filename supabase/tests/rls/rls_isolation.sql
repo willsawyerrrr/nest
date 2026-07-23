@@ -188,6 +188,12 @@ select set_config('test.gbdid', :'gbdid', false);
 insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, breakdown_id, destination_account_id)
   values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', current_setting('test.gbdid')::uuid, current_setting('test.aid')::uuid);
 
+-- A per-recipient gift line: gifts for Alice's own member, discriminated by
+-- gift_recipient_member_id. The composite FK on (gift_recipient_member_id,
+-- household_id) accepts a same-household member.
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, breakdown_id, gift_recipient_member_id)
+  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts for Alice', 0, 'annual', current_setting('test.gbdid')::uuid, current_setting('test.mid')::uuid);
+
 do $$ begin
   assert (select count(*) from public.gift_recipient) = 2,
     'Alice should see her gift recipient plus her own auto-created member recipient';
@@ -201,11 +207,16 @@ do $$ begin
   assert (select count(*) from public.gift_purchase
     where gift_budget_id = current_setting('test.gbid')::uuid) = 1,
     'Alice''s gift purchase should link to her gift budget';
-  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid) = 1,
-    'Alice should see her gift-derived budget line';
-  assert (select destination_account_id from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid)
+  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid) = 2,
+    'Alice should see her two gift-derived budget lines (external plus her member partition)';
+  assert (select destination_account_id from public.budget_line
+    where breakdown_id = current_setting('test.gbdid')::uuid and gift_recipient_member_id is null)
     = current_setting('test.aid')::uuid,
-    'Alice''s gift budget line should route to her own account';
+    'Alice''s external gift budget line should route to her own account';
+  assert (select count(*) from public.budget_line
+    where breakdown_id = current_setting('test.gbdid')::uuid
+      and gift_recipient_member_id = current_setting('test.mid')::uuid) = 1,
+    'Alice should see the gift line funding her own member''s gifts';
 end $$;
 
 -- Household members are permanent gift recipients. The AFTER INSERT trigger on
@@ -498,9 +509,9 @@ do $$ begin
   assert (select count(*) from public.inflows) = 2, 'Carol should see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
-  assert (select count(*) from public.budget_line) = 3, 'Carol should see all three of Alice''s budget lines';
-  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid) = 1,
-    'Carol should see Alice''s gift-derived budget line';
+  assert (select count(*) from public.budget_line) = 4, 'Carol should see all four of Alice''s budget lines';
+  assert (select count(*) from public.budget_line where breakdown_id = current_setting('test.gbdid')::uuid) = 2,
+    'Carol should see both of Alice''s gift-derived budget lines';
   assert (select count(*) from public.temporary_item) = 1, 'Carol should see Alice''s temporary item';
   assert (select count(*) from public.super_profile) = 1, 'Carol should see Alice''s super profile';
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';

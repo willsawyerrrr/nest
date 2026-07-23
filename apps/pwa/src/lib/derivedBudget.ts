@@ -1,27 +1,34 @@
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { DerivedAmountContext } from './breakdowns'
+
+/** The effective annual amount of a single derived line, resolved from the context. */
+function derivedAmountCents(line: BudgetLine, context: DerivedAmountContext): number {
+  if (context.giftBreakdownId !== null && line.breakdown_id === context.giftBreakdownId) {
+    return context.giftTotalsByMember.get(line.gift_recipient_member_id ?? null) ?? 0
+  }
+  return context.genericTotalsByBreakdownId.get(line.breakdown_id ?? '') ?? 0
+}
 
 /**
  * Overrides the effective amount of every breakdown-derived budget line with its
- * breakdown's rolled-up annual total, keyed by `breakdown_id`, treated as an
- * annual figure — so the budget and each breakdown stay one source of truth and
- * never drift. A line with no `breakdown_id` is an ordinary manual line and
- * passes through untouched; with no derived line present the input is returned
- * as-is. A derived line missing from the map falls back to zero.
+ * rolled-up annual total, treated as an annual figure — so the budget and each
+ * breakdown stay one source of truth and never drift. A generic line takes its
+ * breakdown's item total; a gift-breakdown line takes its recipient partition's
+ * share (keyed by `gift_recipient_member_id`, `null` for the external line). A
+ * line with no `breakdown_id` is an ordinary manual line and passes through
+ * untouched; with no derived line present the input is returned as-is. A derived
+ * line missing from the context falls back to zero.
  */
 export function applyBreakdownAmounts(
   lines: BudgetLine[],
-  totalsByBreakdownId: Map<string, number>,
+  context: DerivedAmountContext,
 ): BudgetLine[] {
   if (!lines.some((line) => line.breakdown_id !== null)) {
     return lines
   }
   return lines.map((line) =>
     line.breakdown_id !== null
-      ? {
-          ...line,
-          amount_cents: totalsByBreakdownId.get(line.breakdown_id) ?? 0,
-          frequency: 'annual',
-        }
+      ? { ...line, amount_cents: derivedAmountCents(line, context), frequency: 'annual' }
       : line,
   )
 }

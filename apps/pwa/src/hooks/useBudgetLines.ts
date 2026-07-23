@@ -17,6 +17,8 @@ export interface BudgetLineInput {
   breakdown_id: string | null
   /** Account funding this line's pay split; only non-Savings/Investments lines may set it. */
   destination_account_id: string | null
+  /** On a gift-breakdown line, the member whose gifts it funds; null for the external line, generic lines, and manual lines. */
+  gift_recipient_member_id: string | null
 }
 
 export interface UseBudgetLinesResult {

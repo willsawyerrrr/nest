@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Inflow } from '../hooks/useInflows'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import type { DerivedAmountContext } from './breakdowns'
 import { toSummaryInput } from './summary'
+
+function context(overrides: Partial<DerivedAmountContext> = {}): DerivedAmountContext {
+  return {
+    genericTotalsByBreakdownId: new Map(),
+    giftBreakdownId: null,
+    giftTotalsByMember: new Map(),
+    ...overrides,
+  }
+}
 
 function inflow(overrides: Partial<Inflow> = {}): Inflow {
   return {
@@ -37,6 +47,7 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     goal_id: null,
     destination_account_id: null,
     breakdown_id: null,
+    gift_recipient_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -62,7 +73,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 80_000_00,
       inflows: [],
       budgetLines: [],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [],
     })
     expect(result.afterTaxIncomeAnnualCents).toBe(80_000_00)
@@ -73,7 +84,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [],
       taxAnnualCents: 39_000_00,
       salarySacrificeAnnualCents: 13_000_00,
@@ -87,7 +98,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [],
     })
     expect(result.taxAnnualCents).toBe(0)
@@ -108,7 +119,7 @@ describe('toSummaryInput', () => {
         }),
       ],
       budgetLines: [],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [],
     })
     expect(result.nonTaxableInflows).toEqual([
@@ -121,7 +132,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 0,
       inflows: [inflow({ taxable: false, amount_cents: null, interval_count: null })],
       budgetLines: [],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [],
     })
     expect(result.nonTaxableInflows[0]).toEqual({
@@ -136,7 +147,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [line({ id: 'd', breakdown_id: 'b1', amount_cents: 0, frequency: 'monthly' })],
-      breakdownTotals: new Map([['b1', 150_00]]),
+      derivedAmounts: context({ genericTotalsByBreakdownId: new Map([['b1', 150_00]]) }),
       temporaryItems: [],
     })
     expect(result.budgetLines).toEqual([
@@ -149,7 +160,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [line({ line_group: 'needs', amount_cents: 42_00, frequency: 'weekly' })],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [],
     })
     expect(result.budgetLines).toEqual([
@@ -162,7 +173,7 @@ describe('toSummaryInput', () => {
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [],
-      breakdownTotals: new Map(),
+      derivedAmounts: context(),
       temporaryItems: [temporaryItem({ contribution_cents: 25_00, target_date: '2031-06-30' })],
     })
     expect(result.temporaryItems).toEqual([{ contributionCents: 25_00, targetDate: '2031-06-30' }])

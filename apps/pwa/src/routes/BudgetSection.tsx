@@ -9,9 +9,8 @@ import { useGifts } from '../hooks/useGifts'
 import { useGoals } from '../hooks/useGoals'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
-import { breakdownAnnualTotals } from '../lib/breakdowns'
+import { derivedAmountContext } from '../lib/breakdowns'
 import { applyBreakdownAmounts } from '../lib/derivedBudget'
-import { giftBudgetTotalCents } from '../lib/gifts'
 import { superAccountIds } from '../lib/super'
 
 export function BudgetSection({ householdId }: { householdId: string }) {
@@ -24,15 +23,17 @@ export function BudgetSection({ householdId }: { householdId: string }) {
   const superProfiles = useSuperProfiles(householdId)
 
   const giftBudgets = useMemo(() => gifts.budgets ?? [], [gifts.budgets])
+  const giftRecipients = useMemo(() => gifts.recipients ?? [], [gifts.recipients])
   const breakdownRows = useMemo(() => breakdowns.breakdowns ?? [], [breakdowns.breakdowns])
   const breakdownItems = useMemo(() => breakdowns.items ?? [], [breakdowns.items])
-  const totals = useMemo(
-    () => breakdownAnnualTotals(breakdownRows, breakdownItems, giftBudgetTotalCents(giftBudgets)),
-    [breakdownRows, breakdownItems, giftBudgets],
+  const context = useMemo(
+    () => derivedAmountContext(breakdownRows, breakdownItems, giftBudgets, giftRecipients),
+    [breakdownRows, breakdownItems, giftBudgets, giftRecipients],
   )
 
   const handleUpdateDerivedLine = useDerivedLineEditor({
     lines: budgetLines.lines,
+    breakdowns: breakdownRows,
     updateBreakdown: breakdowns.update,
     updateLine: budgetLines.update,
   })
@@ -53,7 +54,7 @@ export function BudgetSection({ householdId }: { householdId: string }) {
   const superIds = superAccountIds(superProfiles.profiles ?? [])
   return (
     <BudgetScreen
-      lines={applyBreakdownAmounts(budgetLines.lines ?? [], totals)}
+      lines={applyBreakdownAmounts(budgetLines.lines ?? [], context)}
       goals={(goals.goals ?? []).map((g) => ({
         id: g.id,
         name: g.name,
@@ -66,6 +67,7 @@ export function BudgetSection({ householdId }: { householdId: string }) {
         id: breakdown.id,
         name: breakdown.name,
         line_group: breakdown.line_group,
+        kind: breakdown.kind,
       }))}
       temporaryItems={temporaryItems.items ?? []}
       onCreateLine={budgetLines.create}

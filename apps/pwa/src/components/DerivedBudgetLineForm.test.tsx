@@ -92,6 +92,25 @@ describe('DerivedBudgetLineForm', () => {
     expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
   })
 
+  it('shows the name read-only and still saves when name editing is off', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    renderForm({ initial: { ...initial, name: 'Gifts for Sam' }, nameEditable: false, onSave })
+
+    // No editable name field; the partition name shows as static text.
+    expect(screen.queryByRole('textbox', { name: /name/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Gifts for Sam')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({
+        name: 'Gifts for Sam',
+        line_group: 'wants',
+        destination_account_id: null,
+      }),
+    )
+  })
+
   it('calls onCancel', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()

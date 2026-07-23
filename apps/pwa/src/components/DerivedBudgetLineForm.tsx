@@ -32,6 +32,12 @@ interface DerivedBudgetLineFormProps {
   }
   /** The household's accounts, offered as the funding destination. */
   accounts?: { id: string; name: string }[]
+  /**
+   * Whether the name is editable. A generic line's name is its breakdown's own
+   * name and edits freely; a gift line's name is partition-derived
+   * ("Gifts for <member>"), so it shows read-only. Defaults to editable.
+   */
+  nameEditable?: boolean
   onSave: (values: DerivedLineValues) => void | Promise<void>
   onCancel?: () => void
 }
@@ -54,6 +60,7 @@ const ACCOUNT_FUNDED_GROUPS = BUDGET_GROUPS.filter(
 export function DerivedBudgetLineForm({
   initial,
   accounts = [],
+  nameEditable = true,
   onSave,
   onCancel,
 }: DerivedBudgetLineFormProps) {
@@ -70,7 +77,7 @@ export function DerivedBudgetLineForm({
     initial.frequency,
     initial.interval_count ?? undefined,
   )
-  const canSubmit = name.trim() !== '' && !submitting
+  const canSubmit = (!nameEditable || name.trim() !== '') && !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -103,12 +110,21 @@ export function DerivedBudgetLineForm({
           allowDeselect={false}
         />
 
-        <TextInput
-          label="Name"
-          size="sm"
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-        />
+        {nameEditable ? (
+          <TextInput
+            label="Name"
+            size="sm"
+            value={name}
+            onChange={(event) => setName(event.currentTarget.value)}
+          />
+        ) : (
+          <Stack gap={4}>
+            <Text component="span" size="sm" fw={500}>
+              Name
+            </Text>
+            <Text size="sm">{name}</Text>
+          </Stack>
+        )}
 
         <Select
           label="Funded from"

@@ -5,7 +5,7 @@ import type { BreakdownItem } from './useBreakdownItems'
 import { useHouseholdCollection } from './useCollection'
 
 export type Breakdown = Tables<'breakdown'>
-type BreakdownKind = Enums<'breakdown_kind'>
+export type BreakdownKind = Enums<'breakdown_kind'>
 
 /** The fields creating a breakdown supplies; identifiers and household are set by the hook. */
 export interface BreakdownInput {

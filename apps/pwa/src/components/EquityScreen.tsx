@@ -85,10 +85,14 @@ function GrantRow({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
         <Text fw={600} size="sm" truncate>
           {grant.label}
         </Text>
-        <Badge size="xs" variant="light">
+        <Badge
+          size="xs"
+          variant="light"
+          color={grant.instrument_type === 'option' ? 'violet' : 'cyan'}
+        >
           {instrumentLabel(grant.instrument_type)}
         </Badge>
-        <Badge size="xs" variant="light">
+        <Badge size="xs" variant="light" color="gray">
           {frequencyLabel(grant.vesting_frequency)}
         </Badge>
       </Group>
@@ -125,10 +129,14 @@ function GrantCard({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
             {grant.label}
           </Text>
           <Group gap={6} wrap="wrap">
-            <Badge size="xs" variant="light">
+            <Badge
+              size="xs"
+              variant="light"
+              color={grant.instrument_type === 'option' ? 'violet' : 'cyan'}
+            >
               {instrumentLabel(grant.instrument_type)}
             </Badge>
-            <Badge size="xs" variant="light">
+            <Badge size="xs" variant="light" color="gray">
               {frequencyLabel(grant.vesting_frequency)}
             </Badge>
             <Text size="xs" c="dimmed">

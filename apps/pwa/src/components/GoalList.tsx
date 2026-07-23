@@ -74,12 +74,14 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
   let status: { label: string; color: string }
   let eta: string
   if (projection.alreadyMet) {
-    status = { label: 'Reached', color: 'teal' }
+    status = { label: 'Reached', color: 'positive' }
     eta = 'Goal reached.'
   } else if (goal.target_date !== null) {
     const required = projection.requiredFortnightlyContributionCents ?? 0
     const onTrack = contributionCents >= required
-    status = onTrack ? { label: 'On track', color: 'teal' } : { label: 'Behind', color: 'orange' }
+    status = onTrack
+      ? { label: 'On track', color: 'positive' }
+      : { label: 'Behind', color: 'warning' }
     eta = `By ${formatIsoDate(goal.target_date)} needs ${formatPerFortnight(required)}${
       onTrack ? '' : ` (contributing ${formatPerFortnight(contributionCents)})`
     }`
@@ -87,7 +89,7 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
     projection.fortnightsToTarget !== null &&
     projection.projectedCompletionDate !== null
   ) {
-    status = { label: 'On track', color: 'teal' }
+    status = { label: 'On track', color: 'positive' }
     eta = `${pluraliseFortnights(projection.fortnightsToTarget)} — ${formatIsoDate(
       projection.projectedCompletionDate,
     )}`

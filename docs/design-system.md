@@ -72,6 +72,18 @@ CSS-variable colour refs; `chartPalette` is the ordered categorical palette
 (budget-group order) a multi-series chart cycles through. Charts reference these
 tokens, never inline hex.
 
+The six budget groups span six distinct hues so a chart or category chip reads as
+a varied spectrum, not a single family: Needs → indigo, Wants → violet,
+Discretionary → pink, Temporary → orange, Savings → teal, Investments → cyan. The
+buffer is neutral grey, tax reuses the `negative` (cost) family, and salary
+sacrifice takes the brand lime. Each key resolves to a `light-dark()` pair — a
+deeper shade on the light surface, a vivid one on the near-black dark base — so
+every hue stays legible and mutually distinguishable in both schemes.
+`chartColorName` exposes the same mapping as Mantine base-colour names, for a
+`Badge` or `ThemeIcon` `color` that derives its own scheme-aware shade — so a
+category chip (a budget-group badge) or a net-worth section glyph stays in step
+with its chart hue.
+
 ## Shared primitives
 
 In `apps/pwa/src/components/`. Each collapses a repeated pattern onto one control
@@ -112,8 +124,11 @@ so the rule it enforces holds app-wide.
 - **List layout.** Long or variable-length lists use the dense `ListRow` on
   desktop with a mobile card; short per-member or per-section surfaces use
   `AppCard`.
-- **Badges.** Frequency labels and positive flags use `variant="light"`
-  `size="xs"` (the Badge default variant); status badges add a semantic `color`.
+- **Badges.** All use `variant="light"` `size="xs"`. A frequency label is neutral
+  (`color="gray"`); a badge that encodes a category — a budget group, inflow type,
+  or equity instrument — takes a distinct hue from the categorical palette
+  (`chartColorName` for budget groups); a status badge takes a semantic `color`
+  (on-track `positive`, behind `warning`).
 - **Add / edit.** Exactly one add affordance (`AddButton`) and one edit pencil
   (`EditAction` / `EditDeleteActions`) across the app.
 - **Page scaffolding.** Every screen wraps its body in `PageSection` — one title,

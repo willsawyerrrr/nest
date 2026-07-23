@@ -8,6 +8,7 @@ import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatPerYear } from '../lib/money'
+import { chartColorName } from '../lib/tokens'
 import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
 import { EmptyState } from './EmptyState'
@@ -108,7 +109,7 @@ function BreakdownRow({ breakdown, annualCents }: BreakdownItemProps) {
           <Text fw={600} size="sm" truncate>
             {breakdown.name}
           </Text>
-          <Badge size="xs" variant="light">
+          <Badge size="xs" variant="light" color={chartColorName[breakdown.line_group]}>
             {groupLabel(breakdown.line_group)}
           </Badge>
         </Group>
@@ -137,7 +138,7 @@ function BreakdownCard({ breakdown, annualCents }: BreakdownItemProps) {
             <Text fw={600} size="sm" truncate>
               {breakdown.name}
             </Text>
-            <Badge size="xs" variant="light">
+            <Badge size="xs" variant="light" color={chartColorName[breakdown.line_group]}>
               {groupLabel(breakdown.line_group)}
             </Badge>
           </Stack>

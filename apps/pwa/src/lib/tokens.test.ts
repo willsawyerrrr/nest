@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { budgetGroupChartOrder, chartColors, chartPalette, semanticColors } from './tokens'
+import {
+  budgetGroupChartOrder,
+  chartColorName,
+  chartColors,
+  chartPalette,
+  semanticColors,
+} from './tokens'
 
 describe('semanticColors', () => {
   it('names the non-brand semantic tokens', () => {
@@ -28,8 +34,40 @@ describe('chartColors', () => {
     ])
   })
 
-  it('refers to theme colours by CSS variable', () => {
-    expect(chartColors.needs).toBe('var(--mantine-color-brand-5)')
+  it('resolves each hue to a scheme-aware light-dark pair', () => {
+    expect(chartColors.needs).toBe(
+      'light-dark(var(--mantine-color-indigo-6), var(--mantine-color-indigo-5))',
+    )
+    expect(chartColors.tax).toBe(
+      'light-dark(var(--mantine-color-negative-6), var(--mantine-color-negative-6))',
+    )
+  })
+
+  it('spans distinct hues across the six budget groups', () => {
+    expect(budgetGroupChartOrder.map((key) => chartColorName[key])).toEqual([
+      'indigo',
+      'violet',
+      'pink',
+      'orange',
+      'teal',
+      'cyan',
+    ])
+  })
+})
+
+describe('chartColorName', () => {
+  it('names the Mantine base colour for each categorical key', () => {
+    expect(chartColorName).toEqual({
+      needs: 'indigo',
+      wants: 'violet',
+      discretionary: 'pink',
+      temporary: 'orange',
+      savings: 'teal',
+      investments: 'cyan',
+      buffer: 'gray',
+      tax: 'negative',
+      sacrifice: 'brand',
+    })
   })
 })
 

@@ -1,12 +1,27 @@
-import { ActionIcon, Button, Card, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import type { ReactNode } from 'react'
+import {
+  ActionIcon,
+  Button,
+  Card,
+  Group,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+  UnstyledButton,
+} from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
+  IconBuildingBank,
+  IconChartPie,
   IconCheck,
   IconChevronDown,
   IconChevronRight,
   IconEye,
   IconEyeOff,
   IconPencil,
+  IconReceipt2,
+  IconWallet,
 } from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
@@ -24,6 +39,33 @@ interface NetWorthViewProps {
 }
 
 /**
+ * A section header's category glyph: a small tinted icon that gives each net-
+ * worth section a distinct hue, so the sections read as separate categories
+ * without recolouring their balances. Muted alongside an excluded group.
+ */
+function SectionAccent({
+  color,
+  icon,
+  dimmed = false,
+}: {
+  color: string
+  icon: ReactNode
+  dimmed?: boolean
+}) {
+  return (
+    <ThemeIcon
+      size="sm"
+      radius="sm"
+      variant="light"
+      color={dimmed ? 'gray' : color}
+      style={{ flexShrink: 0 }}
+    >
+      {icon}
+    </ThemeIcon>
+  )
+}
+
+/**
  * A labelled group of accounts with per-account balances and, when
  * `subtotalCents` is given, a subtotal. When `togglable` and `editing` are both
  * set, each row carries a control to include or exclude the account from net
@@ -38,6 +80,8 @@ function AccountGroup({
   excluded,
   editing,
   togglable,
+  accentColor,
+  accentIcon,
   collapsible = false,
   onToggleExclude,
 }: {
@@ -48,6 +92,8 @@ function AccountGroup({
   excluded: boolean
   editing: boolean
   togglable: boolean
+  accentColor: string
+  accentIcon: ReactNode
   collapsible?: boolean
   onToggleExclude: (accountId: string, exclude: boolean) => void
 }) {
@@ -57,6 +103,7 @@ function AccountGroup({
     <Group justify="space-between" wrap="nowrap">
       <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
         {collapsible && (opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />)}
+        <SectionAccent color={accentColor} icon={accentIcon} dimmed={excluded} />
         <Title order={3} size="h5" c={excluded ? 'dimmed' : undefined}>
           {title}
         </Title>
@@ -144,9 +191,12 @@ function LiabilityGroup({
     <Card component="section" aria-label="Liabilities" withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
-          <Title order={3} size="h5">
-            Liabilities
-          </Title>
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            <SectionAccent color="negative" icon={<IconReceipt2 size={14} />} />
+            <Title order={3} size="h5">
+              Liabilities
+            </Title>
+          </Group>
           <MoneyText cents={-subtotalCents} colored fw={700} />
         </Group>
         <Stack gap={0}>
@@ -187,9 +237,12 @@ function EquityGroup({
     <Card component="section" aria-label="Equity" withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
-          <Title order={3} size="h5">
-            Equity
-          </Title>
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            <SectionAccent color="grape" icon={<IconChartPie size={14} />} />
+            <Title order={3} size="h5">
+              Equity
+            </Title>
+          </Group>
           <MoneyText cents={subtotalCents} fw={700} />
         </Group>
         <Stack gap={0}>
@@ -269,6 +322,8 @@ export function NetWorthView({
         excluded={false}
         editing={editing}
         togglable={false}
+        accentColor="teal"
+        accentIcon={<IconBuildingBank size={14} />}
         onToggleExclude={onToggleExclude}
       />
       <AccountGroup
@@ -279,6 +334,8 @@ export function NetWorthView({
         excluded={false}
         editing={editing}
         togglable
+        accentColor="indigo"
+        accentIcon={<IconWallet size={14} />}
         onToggleExclude={onToggleExclude}
       />
       {breakdown.equityHoldings.length > 0 && (
@@ -302,6 +359,8 @@ export function NetWorthView({
           editing={editing}
           togglable
           collapsible
+          accentColor="gray"
+          accentIcon={<IconEyeOff size={14} />}
           onToggleExclude={onToggleExclude}
         />
       )}

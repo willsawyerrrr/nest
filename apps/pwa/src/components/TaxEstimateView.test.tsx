@@ -91,20 +91,23 @@ const estimate: HouseholdTaxEstimate = {
 
 const memberName = (id: string) => ({ m1: 'Will', m2: 'Sam' })[id] ?? 'Unknown'
 
-/** The gross/tax/after-tax summary table within a named card. */
-function summaryTable(name: string) {
-  return within(screen.getByRole('region', { name })).getByRole('table', {
-    name: 'Income and tax summary',
-  })
+/** A named member/household card region. */
+function card(name: string) {
+  return screen.getByRole('region', { name })
 }
 
-/** The gross-to-taxable-income build-up table within a named card. */
+/** Expands the collapsed "Show breakdown" accordion within a named card. */
+async function showBreakdown(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(card(name)).getByRole('button', { name: /show breakdown/i }))
+}
+
+/** The gross-to-taxable-income build-up table within a named card (expanded first). */
 function incomeTable(name: string) {
-  return within(screen.getByRole('region', { name })).getByRole('table', { name: 'Taxable income' })
+  return within(card(name)).getByRole('table', { name: 'Taxable income' })
 }
 
 describe('TaxEstimateView', () => {
-  it('renders per-member annual and fortnightly figures by name', () => {
+  it('leads each member card with their take-home headline in both cadences', () => {
     render(
       <TaxEstimateView
         estimate={estimate}
@@ -114,20 +117,45 @@ describe('TaxEstimateView', () => {
       />,
     )
 
-    const willSummary = summaryTable('Will')
-    expect(within(willSummary).getByText('$100,000.00')).toBeInTheDocument()
-    expect(within(willSummary).getByText('$25,000.00')).toBeInTheDocument()
-    expect(within(willSummary).getByText('$75,000.00')).toBeInTheDocument()
-    expect(within(willSummary).getByText('$3,846.15')).toBeInTheDocument()
-    expect(within(willSummary).getByText('$961.54')).toBeInTheDocument()
-    expect(within(willSummary).getByText('$2,884.61')).toBeInTheDocument()
+    const willCard = card('Will')
+    // Take-home leads the card, fortnightly and annual (both unique to the hero).
+    expect(within(willCard).getByText('Take-home')).toBeInTheDocument()
+    expect(within(willCard).getByText('$2,884.61')).toBeInTheDocument()
+    expect(within(willCard).getByText('$75,000.00')).toBeInTheDocument()
+    // Gross is a supporting figure alongside the headline.
+    expect(within(willCard).getByText('Gross')).toBeInTheDocument()
 
-    const samSummary = summaryTable('Sam')
-    expect(within(samSummary).getByText('$60,000.00')).toBeInTheDocument()
-    expect(within(samSummary).getByText('$50,000.00')).toBeInTheDocument()
+    const samCard = card('Sam')
+    expect(within(samCard).getByText('$1,923.07')).toBeInTheDocument()
+    expect(within(samCard).getByText('$50,000.00')).toBeInTheDocument()
   })
 
-  it('lays out each card as an annual/fortnightly table with gross/tax/after-tax columns', () => {
+  it('shows a nil take-home-versus-tax split for a member with no gross income', () => {
+    const zero: MemberTaxEstimate = {
+      ...will,
+      annualGrossCents: 0,
+      annualTaxCents: 0,
+      annualAfterTaxCents: 0,
+      fortnightlyGrossCents: 0,
+      fortnightlyTaxCents: 0,
+      fortnightlyAfterTaxCents: 0,
+    }
+    const withZero: HouseholdTaxEstimate = { ...estimate, members: [zero, sam] }
+    render(
+      <TaxEstimateView
+        estimate={withZero}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    const willCard = card('Will')
+    expect(within(willCard).getByText(/Take-home 0%/)).toBeInTheDocument()
+    expect(within(willCard).getByText(/Tax 0%/)).toBeInTheDocument()
+  })
+
+  it('shows a take-home-versus-tax bar with the split as percentages', () => {
     render(
       <TaxEstimateView
         estimate={estimate}
@@ -137,12 +165,12 @@ describe('TaxEstimateView', () => {
       />,
     )
 
-    const willCard = screen.getByRole('region', { name: 'Will' })
-    expect(within(willCard).getByRole('columnheader', { name: 'Gross' })).toBeInTheDocument()
-    expect(within(willCard).getByRole('columnheader', { name: 'Tax' })).toBeInTheDocument()
-    expect(within(willCard).getByRole('columnheader', { name: 'After tax' })).toBeInTheDocument()
-    expect(within(willCard).getByRole('rowheader', { name: 'Annual' })).toBeInTheDocument()
-    expect(within(willCard).getByRole('rowheader', { name: 'Fortnightly' })).toBeInTheDocument()
+    const willCard = card('Will')
+    // Will keeps 75% of gross as take-home, 25% goes to tax.
+    expect(within(willCard).getByText(/Take-home 75%/)).toBeInTheDocument()
+    expect(within(willCard).getByText(/Tax 25%/)).toBeInTheDocument()
+    // The detailed build-up sits behind a collapsed disclosure.
+    expect(within(willCard).getByRole('button', { name: /show breakdown/i })).toBeInTheDocument()
   })
 
   it('renders the household totals', () => {
@@ -210,7 +238,8 @@ describe('TaxEstimateView', () => {
     expect(screen.getByRole('heading', { name: /FY2027/ })).toBeInTheDocument()
   })
 
-  it('builds up taxable income from gross less concessional super', () => {
+  it('builds up taxable income from gross less concessional super', async () => {
+    const user = userEvent.setup()
     const willWithSuper: MemberTaxEstimate = {
       ...will,
       annualConcessionalContributionsCents: 26_000_00,
@@ -226,6 +255,7 @@ describe('TaxEstimateView', () => {
       />,
     )
 
+    await showBreakdown(user, 'Will')
     const willIncome = incomeTable('Will')
     expect(within(willIncome).getByRole('row', { name: /Gross income/ })).toHaveTextContent(
       '$100,000.00',
@@ -239,7 +269,8 @@ describe('TaxEstimateView', () => {
     )
   })
 
-  it('shows gross and taxable income with no deduction row when there is no concessional super', () => {
+  it('shows gross and taxable income with no deduction row when there is no concessional super', async () => {
+    const user = userEvent.setup()
     const noSuper: MemberTaxEstimate = {
       ...will,
       breakdown: { ...breakdown, taxableIncomeCents: 100_000_00 },
@@ -254,6 +285,7 @@ describe('TaxEstimateView', () => {
       />,
     )
 
+    await showBreakdown(user, 'Will')
     const willIncome = incomeTable('Will')
     expect(within(willIncome).getByRole('row', { name: /Gross income/ })).toHaveTextContent(
       '$100,000.00',
@@ -264,7 +296,8 @@ describe('TaxEstimateView', () => {
     expect(within(willIncome).queryByRole('row', { name: /Concessional super/ })).toBeNull()
   })
 
-  it('shows a Deductions row for a member with deductions, absent otherwise', () => {
+  it('shows a Deductions row for a member with deductions, absent otherwise', async () => {
+    const user = userEvent.setup()
     const willWithDeductions: MemberTaxEstimate = {
       ...will,
       annualDeductionsCents: 5_000_00,
@@ -280,17 +313,20 @@ describe('TaxEstimateView', () => {
       />,
     )
 
+    await showBreakdown(user, 'Will')
     const willIncome = incomeTable('Will')
     const deductions = within(willIncome).getByRole('row', { name: /Deductions/ })
     // The deduction reads as a subtraction from gross toward taxable income.
     expect(deductions).toHaveTextContent('-$5,000.00')
 
     // Sam has no deductions, so the Deductions row is absent.
+    await showBreakdown(user, 'Sam')
     const samIncome = incomeTable('Sam')
     expect(within(samIncome).queryByRole('row', { name: /Deductions/ })).toBeNull()
   })
 
-  it('shows a Division 293 line for a member with contributions, absent otherwise', () => {
+  it('shows a Division 293 line for a member with contributions, absent otherwise', async () => {
+    const user = userEvent.setup()
     const willWithSuper: MemberTaxEstimate = {
       ...will,
       annualConcessionalContributionsCents: 26_000_00,
@@ -306,18 +342,21 @@ describe('TaxEstimateView', () => {
       />,
     )
 
-    const willCard = screen.getByRole('region', { name: 'Will' })
+    await showBreakdown(user, 'Will')
+    const willCard = card('Will')
     expect(within(willCard).getByRole('row', { name: /Division 293 tax/ })).toHaveTextContent(
       '$1,500.00',
     )
 
     // Sam has no contributions, so the concessional line and Division 293 row are absent.
-    const samCard = screen.getByRole('region', { name: 'Sam' })
+    await showBreakdown(user, 'Sam')
+    const samCard = card('Sam')
     expect(within(samCard).queryByRole('row', { name: /Concessional super/ })).toBeNull()
     expect(within(samCard).queryByRole('row', { name: /Division 293 tax/ })).toBeNull()
   })
 
-  it('builds up total tax from its components for a member', () => {
+  it('builds up total tax from its components for a member', async () => {
+    const user = userEvent.setup()
     const willFull: MemberTaxEstimate = {
       ...will,
       breakdown: {
@@ -345,7 +384,8 @@ describe('TaxEstimateView', () => {
       />,
     )
 
-    const willTax = within(screen.getByRole('region', { name: 'Will' })).getByRole('table', {
+    await showBreakdown(user, 'Will')
+    const willTax = within(card('Will')).getByRole('table', {
       name: 'Tax breakdown',
     })
     expect(within(willTax).getByRole('row', { name: /Income tax/ })).toHaveTextContent('$24,000.00')
@@ -360,7 +400,8 @@ describe('TaxEstimateView', () => {
     expect(within(willTax).getByRole('row', { name: /Total tax/ })).toHaveTextContent('$30,800.00')
   })
 
-  it('always shows income tax, Medicare levy, and total tax even at zero', () => {
+  it('always shows income tax, Medicare levy, and total tax even at zero', async () => {
+    const user = userEvent.setup()
     render(
       <TaxEstimateView
         estimate={estimate}
@@ -371,7 +412,8 @@ describe('TaxEstimateView', () => {
     )
 
     // Sam's breakdown is all zero, yet the core rows are still present.
-    const samTax = within(screen.getByRole('region', { name: 'Sam' })).getByRole('table', {
+    await showBreakdown(user, 'Sam')
+    const samTax = within(card('Sam')).getByRole('table', {
       name: 'Tax breakdown',
     })
     expect(within(samTax).getByRole('row', { name: /Income tax/ })).toBeInTheDocument()
@@ -379,7 +421,7 @@ describe('TaxEstimateView', () => {
     expect(within(samTax).getByRole('row', { name: /Total tax/ })).toBeInTheDocument()
     // Non-applicable components are named rather than shown as noisy $0 rows.
     expect(within(samTax).queryByRole('row', { name: /Medicare levy surcharge/ })).toBeNull()
-    const samCard = screen.getByRole('region', { name: 'Sam' })
+    const samCard = card('Sam')
     expect(within(samCard).getByText(/Not applicable this year/)).toHaveTextContent(
       'Medicare levy surcharge',
     )

@@ -76,6 +76,17 @@ describe('RetirementProjection', () => {
     expect(screen.getByLabelText(/contribution growth/i)).toHaveValue('4%')
   })
 
+  it('projects a nil balance without dividing by zero when there is nothing to grow', async () => {
+    const user = userEvent.setup()
+    const emptyEntry = { member, currentBalanceCents: 0, netAnnualContributionCents: 0 }
+    render(<RetirementProjection entries={[emptyEntry]} preservationAge={60} />)
+
+    await user.type(screen.getByLabelText(/will current age/i), '40')
+
+    // Nominal and today's-dollars both project to $0.00; the growth bar stays empty.
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
+  })
+
   it('shows both real and nominal projected balances', async () => {
     const user = userEvent.setup()
     render(<RetirementProjection entries={[entry]} preservationAge={60} />)
@@ -85,6 +96,6 @@ describe('RetirementProjection', () => {
     // One year of growth keeps the figures close but distinct (real < nominal).
     const nominal = screen.getByText('Nominal').closest('div')!
     expect(within(nominal).getByText(/\$/)).toBeInTheDocument()
-    expect(screen.getByText(/today's dollars/i)).toBeInTheDocument()
+    expect(screen.getByText(/today.s dollars/i)).toBeInTheDocument()
   })
 })

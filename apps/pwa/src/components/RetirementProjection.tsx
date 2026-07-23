@@ -1,5 +1,15 @@
 import { useState } from 'react'
-import { Card, Group, NumberInput, Stack, Text } from '@mantine/core'
+import {
+  Box,
+  Card,
+  Group,
+  NumberInput,
+  Progress,
+  rem,
+  SimpleGrid,
+  Stack,
+  Text,
+} from '@mantine/core'
 import { projectSuperBalance } from '@nest/plan'
 import type { Member } from '../hooks/useMembers'
 import { formatCents, formatPerYear } from '../lib/money'
@@ -27,17 +37,83 @@ interface RetirementProjectionProps {
   preservationAge: number
 }
 
-/** A labelled figure stacked label-over-value, for the projection summary rows. */
-function Figure({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
+/** A labelled figure stacked label-over-value, for the projection's supporting rows. */
+function Figure({ label, value }: { label: string; value: string }) {
   return (
     <Stack gap={0} style={{ minWidth: 0 }}>
-      <Text size="xs" c="dimmed">
+      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
         {label}
       </Text>
-      <Text fw={emphasis ? 700 : 600} size={emphasis ? 'lg' : 'sm'}>
+      <Text fw={600} size="sm">
         {value}
       </Text>
     </Stack>
+  )
+}
+
+/** The whole-percentage split of the projected nominal balance into its current and grown shares. */
+function growthShare(
+  currentBalanceCents: number,
+  nominalCents: number,
+): {
+  currentPct: number
+  growthPct: number
+} {
+  if (nominalCents <= 0) {
+    return { currentPct: 0, growthPct: 0 }
+  }
+  const currentPct = Math.min(100, Math.round((currentBalanceCents / nominalCents) * 100))
+  return { currentPct, growthPct: 100 - currentPct }
+}
+
+/**
+ * The growth bar: the current balance (brand) and its projected growth (positive
+ * tone) as shares of the nominal balance at retirement, captioned "now" at the
+ * balance today and "at <retirement age>" at the projected balance, so the growth
+ * over time reads at a glance.
+ */
+function GrowthBar({
+  memberName,
+  currentBalanceCents,
+  nominalCents,
+  retirementAge,
+}: {
+  memberName: string
+  currentBalanceCents: number
+  nominalCents: number
+  retirementAge: number
+}) {
+  const { currentPct, growthPct } = growthShare(currentBalanceCents, nominalCents)
+  return (
+    <Stack gap={6}>
+      <Progress.Root size="lg" radius="sm" aria-label={`${memberName} balance growth`}>
+        <Progress.Section value={currentPct} color="brand" />
+        <Progress.Section value={growthPct} color="positive" />
+      </Progress.Root>
+      <Group justify="space-between" wrap="nowrap">
+        <Stack gap={0}>
+          <Text size="xs" c="dimmed">
+            Now
+          </Text>
+          <MoneyLine cents={currentBalanceCents} />
+        </Stack>
+        <Stack gap={0} align="flex-end">
+          <Text size="xs" c="dimmed">
+            At {retirementAge}
+          </Text>
+          <MoneyLine cents={nominalCents} />
+        </Stack>
+      </Group>
+    </Stack>
+  )
+}
+
+/** A tabular-figure money line for the growth-bar captions. */
+function MoneyLine({ cents }: { cents: number }) {
+  return (
+    <Text size="sm" fw={600} style={{ fontVariantNumeric: 'tabular-nums lining-nums' }}>
+      {formatCents(cents)}
+    </Text>
   )
 }
 
@@ -62,8 +138,8 @@ function MemberProjectionCard({
         )
 
   return (
-    <Card withBorder radius="md" p="sm">
-      <Stack gap="xs">
+    <Card withBorder radius="md" p="md">
+      <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Text fw={600}>{member.name}</Text>
           <NumberInput
@@ -85,29 +161,77 @@ function MemberProjectionCard({
           </Text>
         ) : (
           <>
-            <Group gap="lg" wrap="wrap">
+            <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
+              <Stack gap={0} style={{ minWidth: 0 }}>
+                <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+                  Projected at retirement
+                </Text>
+                <Text
+                  fw={700}
+                  lh={1.1}
+                  fz={rem(30)}
+                  style={{
+                    fontFamily: 'var(--mantine-font-family-headings)',
+                    fontVariantNumeric: 'tabular-nums lining-nums',
+                  }}
+                >
+                  {formatCents(projection.realCents)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  in today&rsquo;s dollars
+                </Text>
+              </Stack>
+              <Figure label="Nominal" value={formatCents(projection.nominalCents)} />
+            </Group>
+
+            <GrowthBar
+              memberName={member.name}
+              currentBalanceCents={currentBalanceCents}
+              nominalCents={projection.nominalCents}
+              retirementAge={assumptions.retirementAge}
+            />
+
+            <SimpleGrid cols={2} spacing="md" verticalSpacing="xs">
               <Figure
                 label="Years to retirement"
                 value={String(yearsToRetirement(age!, assumptions.retirementAge))}
               />
-              <Figure label="Current balance" value={formatCents(currentBalanceCents)} />
               <Figure
                 label="Est. net contribution"
                 value={formatPerYear(netAnnualContributionCents)}
               />
-            </Group>
-            <Group gap="lg" wrap="wrap" align="flex-end">
-              <Figure
-                label="Projected at retirement (today's dollars)"
-                value={formatCents(projection.realCents)}
-                emphasis
-              />
-              <Figure label="Nominal" value={formatCents(projection.nominalCents)} />
-            </Group>
+            </SimpleGrid>
           </>
         )}
       </Stack>
     </Card>
+  )
+}
+
+/** One assumption input, a compact percentage or age `NumberInput` in the cluster. */
+function AssumptionInput({
+  label,
+  value,
+  suffix,
+  onChange,
+}: {
+  label: string
+  value: number
+  suffix?: string
+  onChange: (value: number | string) => void
+}) {
+  return (
+    <NumberInput
+      label={label}
+      size="xs"
+      suffix={suffix}
+      min={0}
+      max={suffix ? undefined : 120}
+      decimalScale={suffix ? 2 : undefined}
+      hideControls
+      value={value}
+      onChange={onChange}
+    />
   )
 }
 
@@ -148,52 +272,51 @@ export function RetirementProjection({ entries, preservationAge }: RetirementPro
         device; each member&rsquo;s age is entered on their card.
       </Text>
 
-      <Card withBorder radius="md" p="sm">
+      <Card
+        withBorder
+        radius="md"
+        p="sm"
+        style={{ borderLeft: '3px solid var(--mantine-color-brand-5)' }}
+      >
         <Stack gap="xs">
-          <Text fw={600} size="sm">
-            Assumptions
-          </Text>
-          <Group gap="sm" grow wrap="wrap">
-            <NumberInput
+          <Group gap="xs" wrap="nowrap">
+            <Box
+              w={8}
+              h={8}
+              style={{
+                borderRadius: '50%',
+                backgroundColor: 'var(--mantine-color-brand-5)',
+              }}
+            />
+            <Text fw={600} size="sm">
+              Assumptions
+            </Text>
+          </Group>
+          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
+            <AssumptionInput
               label="Retirement age"
-              size="xs"
-              min={0}
-              max={120}
-              hideControls
               value={assumptions.retirementAge}
               onChange={(value) => updateAssumption('retirementAge', value)}
             />
-            <NumberInput
+            <AssumptionInput
               label="Expected return"
-              size="xs"
               suffix="%"
-              min={0}
-              decimalScale={2}
-              hideControls
               value={assumptions.expectedReturnPct}
               onChange={(value) => updateAssumption('expectedReturnPct', value)}
             />
-            <NumberInput
+            <AssumptionInput
               label="Inflation"
-              size="xs"
               suffix="%"
-              min={0}
-              decimalScale={2}
-              hideControls
               value={assumptions.inflationPct}
               onChange={(value) => updateAssumption('inflationPct', value)}
             />
-            <NumberInput
+            <AssumptionInput
               label="Contribution growth"
-              size="xs"
               suffix="%"
-              min={0}
-              decimalScale={2}
-              hideControls
               value={assumptions.contributionGrowthPct}
               onChange={(value) => updateAssumption('contributionGrowthPct', value)}
             />
-          </Group>
+          </SimpleGrid>
         </Stack>
       </Card>
 

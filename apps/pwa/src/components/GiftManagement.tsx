@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ActionIcon, Badge, Button, Group, Stack, Text, TextInput, Title } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
+import { useMediaQuery } from '@mantine/hooks'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type {
@@ -14,6 +15,7 @@ import { formatIsoDate } from '../lib/dates'
 import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
 import { EmptyState } from './EmptyState'
+import { ListRow } from './ListRow'
 
 interface GiftManagementProps {
   recipients: GiftRecipient[]
@@ -117,59 +119,92 @@ function GiftEntityForm({
   )
 }
 
-/**
- * One recipient or occasion row. Edit and delete controls appear only when an
- * `actions` pair is supplied; a member recipient is fixed and passes none.
- */
-function EntityRow({
-  label,
-  meta,
-  tag,
-  actions,
-}: {
+interface EntityRowProps {
   label: string
   meta?: string
   tag?: string
   actions?: { onEdit: () => void; onDelete: () => void }
+}
+
+/** The label with its optional tag badge, growing to fill the row. */
+function EntityLabel({ label, tag }: { label: string; tag?: string }) {
+  return (
+    <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+      <Text fw={600} size="sm" truncate>
+        {label}
+      </Text>
+      {tag && (
+        <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+          {tag}
+        </Badge>
+      )}
+    </Group>
+  )
+}
+
+/** An entity's edit and delete controls, labelled by the entity so each row's pair stays distinct. */
+function EntityActions({
+  label,
+  actions,
+}: {
+  label: string
+  actions: { onEdit: () => void; onDelete: () => void }
 }) {
+  return (
+    <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <ActionIcon variant="subtle" aria-label={`Edit ${label}`} onClick={actions.onEdit}>
+        <IconPencil size={16} />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        color="red"
+        aria-label={`Delete ${label}`}
+        onClick={actions.onDelete}
+      >
+        <IconTrash size={16} />
+      </ActionIcon>
+    </Group>
+  )
+}
+
+/** One recipient or occasion as a dense table-like row for desktop, its meta on the caption line. */
+function EntityRow({ label, meta, tag, actions }: EntityRowProps) {
+  return (
+    <ListRow caption={meta}>
+      <EntityLabel label={label} tag={tag} />
+      {actions && <EntityActions label={label} actions={actions} />}
+    </ListRow>
+  )
+}
+
+/** One recipient or occasion as a compact bordered card for mobile: label stacked over its meta. */
+function EntityCard({ label, meta, tag, actions }: EntityRowProps) {
   return (
     <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
-          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <Text fw={600} size="sm" truncate>
-              {label}
-            </Text>
-            {tag && (
-              <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
-                {tag}
-              </Badge>
-            )}
-          </Group>
+          <EntityLabel label={label} tag={tag} />
           {meta && (
             <Text size="xs" c="dimmed">
               {meta}
             </Text>
           )}
         </Stack>
-        {actions && (
-          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-            <ActionIcon variant="subtle" aria-label={`Edit ${label}`} onClick={actions.onEdit}>
-              <IconPencil size={16} />
-            </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              color="red"
-              aria-label={`Delete ${label}`}
-              onClick={actions.onDelete}
-            >
-              <IconTrash size={16} />
-            </ActionIcon>
-          </Group>
-        )}
+        {actions && <EntityActions label={label} actions={actions} />}
       </Group>
     </AppCard>
   )
+}
+
+/**
+ * One recipient or occasion, rendered as a dense table-like row from the `sm`
+ * breakpoint up and as a compact bordered card below it. Edit and delete controls
+ * appear only when an `actions` pair is supplied; a member recipient is fixed and
+ * passes none.
+ */
+function EntityItem(props: EntityRowProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <EntityRow {...props} /> : <EntityCard {...props} />
 }
 
 /**
@@ -209,7 +244,7 @@ export function GiftManagement({
         </Title>
         {recipients.length === 0 && !addingRecipient && <EmptyState>No recipients yet.</EmptyState>}
         {memberRecipients.map((recipient) => (
-          <EntityRow
+          <EntityItem
             key={recipient.id}
             label={memberNameById.get(recipient.member_id as string) ?? recipient.name}
             tag="Household member"
@@ -233,7 +268,7 @@ export function GiftManagement({
               onCancel={() => setEditingRecipientId(null)}
             />
           ) : (
-            <EntityRow
+            <EntityItem
               key={recipient.id}
               label={recipient.name}
               actions={{
@@ -291,7 +326,7 @@ export function GiftManagement({
               onCancel={() => setEditingOccasionId(null)}
             />
           ) : (
-            <EntityRow
+            <EntityItem
               key={occasion.id}
               label={occasion.name}
               meta={occasion.occasion_date ? formatIsoDate(occasion.occasion_date) : undefined}

@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { GiftOccasion, GiftRecipient } from '../hooks/useGifts'
 import { makeMember } from '../test/fixtures'
-import { fireEvent, render, screen, waitFor, within } from '../test/render'
+import { fireEvent, render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { GiftManagement } from './GiftManagement'
 
 const alice: GiftRecipient = {
@@ -58,6 +58,23 @@ describe('GiftManagement', () => {
     expect(screen.getByText('Christmas')).toBeInTheDocument()
     expect(screen.getByText('25 Dec 2026')).toBeInTheDocument()
     expect(screen.getByText('Birthday')).toBeInTheDocument()
+  })
+
+  it('renders recipients and occasions as dense desktop rows outside cards', () => {
+    setWideViewport()
+    renderManagement({ recipients: [willRecipient, alice], members: [will], occasions: [xmas] })
+
+    // The external recipient is a dense row keeping its edit/delete controls.
+    expect(screen.getByText('Alice').closest('.mantine-Card-root')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Edit Alice' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Alice' })).toBeInTheDocument()
+
+    // The fixed member recipient keeps its tag and has no controls.
+    expect(screen.getByText('Household member')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit Will' })).not.toBeInTheDocument()
+
+    // The occasion's date shows on the row's caption line.
+    expect(screen.getByText('25 Dec 2026')).toBeInTheDocument()
   })
 
   it('renders a member recipient as a fixed row with no edit or delete controls', () => {

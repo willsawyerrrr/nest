@@ -164,7 +164,7 @@ export const theme = createTheme({
           fontWeight: 600,
           boxShadow:
             props.color == null && (props.variant == null || props.variant === 'filled')
-              ? '0 6px 22px color-mix(in srgb, var(--mantine-color-brand-5) 34%, transparent)'
+              ? '0 4px 16px color-mix(in srgb, var(--mantine-color-brand-5) 19%, transparent)'
               : undefined,
         },
       }),

@@ -11,6 +11,7 @@ import {
 import type { Account } from '../hooks/useAccounts'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
 import { EmptyState } from './EmptyState'
+import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
@@ -68,30 +69,34 @@ function AccountGroup({
     accounts.length === 0 ? (
       <EmptyState>{emptyLabel}</EmptyState>
     ) : (
-      <Stack gap="xs">
+      <Stack gap={0}>
         {accounts.map((account) => (
-          <Group key={account.id} justify="space-between" wrap="nowrap" gap="sm">
-            <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+          <ListRow key={account.id} gap="sm">
+            <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
               {account.name}
             </Text>
-            <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-              <MoneyText cents={account.balance_cents} size="md" ta="right" />
-              {editing && togglable && (
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={
-                    excluded
-                      ? `Include ${account.name} in net worth`
-                      : `Exclude ${account.name} from net worth`
-                  }
-                  onClick={() => onToggleExclude(account.id, !excluded)}
-                >
-                  {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-                </ActionIcon>
-              )}
-            </Group>
-          </Group>
+            <MoneyText
+              cents={account.balance_cents}
+              size="sm"
+              ta="right"
+              style={{ flexShrink: 0 }}
+            />
+            {editing && togglable && (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                style={{ flexShrink: 0 }}
+                aria-label={
+                  excluded
+                    ? `Include ${account.name} in net worth`
+                    : `Exclude ${account.name} from net worth`
+                }
+                onClick={() => onToggleExclude(account.id, !excluded)}
+              >
+                {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+              </ActionIcon>
+            )}
+          </ListRow>
         ))}
       </Stack>
     )
@@ -144,14 +149,20 @@ function LiabilityGroup({
           </Title>
           <MoneyText cents={-subtotalCents} colored fw={700} />
         </Group>
-        <Stack gap="xs">
+        <Stack gap={0}>
           {liabilities.map((liability) => (
-            <Group key={liability.label} justify="space-between" wrap="nowrap" gap="sm">
-              <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+            <ListRow key={liability.label} gap="sm">
+              <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
                 {liability.label}
               </Text>
-              <MoneyText cents={-liability.balanceCents} colored size="md" ta="right" />
-            </Group>
+              <MoneyText
+                cents={-liability.balanceCents}
+                colored
+                size="sm"
+                ta="right"
+                style={{ flexShrink: 0 }}
+              />
+            </ListRow>
           ))}
         </Stack>
       </Stack>
@@ -181,14 +192,19 @@ function EquityGroup({
           </Title>
           <MoneyText cents={subtotalCents} fw={700} />
         </Group>
-        <Stack gap="xs">
+        <Stack gap={0}>
           {holdings.map((holding) => (
-            <Group key={holding.label} justify="space-between" wrap="nowrap" gap="sm">
-              <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+            <ListRow key={holding.label} gap="sm">
+              <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
                 {holding.label}
               </Text>
-              <MoneyText cents={holding.valueCents} size="md" ta="right" />
-            </Group>
+              <MoneyText
+                cents={holding.valueCents}
+                size="sm"
+                ta="right"
+                style={{ flexShrink: 0 }}
+              />
+            </ListRow>
           ))}
         </Stack>
         <Text size="xs" c="dimmed">

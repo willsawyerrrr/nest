@@ -35,7 +35,7 @@ export function BreakdownPageLayout({
         </Group>
       </Anchor>
 
-      <Group justify="space-between" align="center" wrap="wrap">
+      <Group justify="space-between" align="center" wrap="wrap" pt={{ base: 0, sm: 'md' }}>
         <Title order={1} style={{ letterSpacing: '-0.02em' }}>
           {title}
         </Title>

@@ -76,10 +76,14 @@ function memberOrTaxability(inflow: Inflow, memberName: (id: string) => string):
   return inflow.member_id ? memberName(inflow.member_id) : 'Taxable'
 }
 
+/** The inflow type as a natural-case label, e.g. "Salary". */
+function inflowTypeLabel(inflow: Inflow): string {
+  return inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
+}
+
 /** The dimmed row subtitle: member/taxability and the capitalised type, e.g. "Will · Salary". */
 function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): string {
-  const type = inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
-  return `${memberOrTaxability(inflow, memberName)} · ${type}`
+  return `${memberOrTaxability(inflow, memberName)} · ${inflowTypeLabel(inflow)}`
 }
 
 /**
@@ -176,8 +180,8 @@ function InflowCard({
             <Badge size="xs" variant="light" color={inflow.taxable ? 'teal' : 'gray'}>
               {inflow.taxable ? 'Taxable' : 'Non-taxable'}
             </Badge>
-            <Badge size="xs" variant="light" color="grape" tt="capitalize">
-              {inflow.type}
+            <Badge size="xs" variant="light" color="grape">
+              {inflowTypeLabel(inflow)}
             </Badge>
             <Badge size="xs" variant="default">
               {formatFrequency(inflow.schedule, inflow.interval_count)}

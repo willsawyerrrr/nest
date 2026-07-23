@@ -21,13 +21,15 @@ describe('formatPerYear', () => {
 })
 
 describe('moneyColor', () => {
-  it('is green for a positive amount', () => {
-    expect(moneyColor(1)).toBe('light-dark(#1f7a3d, var(--mantine-color-green-4))')
+  it('is the positive token for a positive amount', () => {
+    expect(moneyColor(1)).toBe(
+      'light-dark(var(--mantine-color-positive-7), var(--mantine-color-positive-4))',
+    )
   })
 
-  it('is red for a negative amount', () => {
+  it('is the negative token for a negative amount', () => {
     expect(moneyColor(-1)).toBe(
-      'light-dark(var(--mantine-color-red-9), var(--mantine-color-red-4))',
+      'light-dark(var(--mantine-color-negative-7), var(--mantine-color-negative-4))',
     )
   })
 

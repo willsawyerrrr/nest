@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Alert, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
+import { PageSection } from './PageSection'
 
 interface ChangelogScreenProps {
   available: ImplementedEntry[]
@@ -77,11 +78,7 @@ export function ChangelogScreen({
   onUpdate,
 }: ChangelogScreenProps) {
   return (
-    <Stack gap="lg">
-      <Title order={2} visibleFrom="sm">
-        What&apos;s new
-      </Title>
-
+    <PageSection title="What's new">
       {error && (
         <Alert color="red" variant="light">
           {error}
@@ -136,6 +133,6 @@ export function ChangelogScreen({
           </Section>
         </>
       )}
-    </Stack>
+    </PageSection>
   )
 }

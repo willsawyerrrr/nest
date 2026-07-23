@@ -17,4 +17,24 @@ export function render(ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'
   return rtlRender(ui, { wrapper: Providers, ...options })
 }
 
+/**
+ * Opts the current test into the wide (desktop) layout by making `min-width`
+ * media queries match, so components that split on `useMediaQuery('(min-width:
+ * 48em)')` render their dense-row variant. The test setup restores the narrow
+ * default after each test.
+ */
+export function setWideViewport() {
+  window.matchMedia = ((query: string) =>
+    ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList) as typeof window.matchMedia
+}
+
 export { screen, within, waitFor, fireEvent, act } from '@testing-library/react'

@@ -1,5 +1,5 @@
 import { Group, Text, type GroupProps } from '@mantine/core'
-import { formatCents } from '../lib/money'
+import { MoneyText } from './MoneyText'
 
 interface FortnightlyAmountProps extends GroupProps {
   /** The fortnightly figure, in integer cents. */
@@ -14,9 +14,7 @@ interface FortnightlyAmountProps extends GroupProps {
 export function FortnightlyAmount({ cents, ...groupProps }: FortnightlyAmountProps) {
   return (
     <Group gap={2} wrap="nowrap" align="baseline" {...groupProps}>
-      <Text fw={700} size="sm">
-        {formatCents(cents)}
-      </Text>
+      <MoneyText cents={cents} fw={700} size="sm" />
       <Text size="xs" c="dimmed">
         / fn
       </Text>

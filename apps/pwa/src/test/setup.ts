@@ -23,9 +23,11 @@ if (!window.localStorage) {
 }
 
 // happy-dom resolves media queries against its default viewport, which would
-// select the wide layout. Pin matchMedia so components render deterministically.
-window.matchMedia = (query: string) =>
-  ({
+// select the wide layout. Pin matchMedia to the narrow default so components
+// render deterministically, and restore it after each test in case one opted
+// into the wide layout via `setWideViewport`.
+function narrowMatchMedia(query: string): MediaQueryList {
+  return {
     matches: false,
     media: query,
     onchange: null,
@@ -34,4 +36,10 @@ window.matchMedia = (query: string) =>
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as MediaQueryList
+  } as unknown as MediaQueryList
+}
+
+window.matchMedia = narrowMatchMedia
+afterEach(() => {
+  window.matchMedia = narrowMatchMedia
+})

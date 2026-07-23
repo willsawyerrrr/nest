@@ -1,4 +1,5 @@
-import { Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Badge, Group, Stack, Text } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import {
   exerciseCostCents,
   grantValueCents,
@@ -11,9 +12,14 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import { EQUITY_INSTRUMENT_TYPES, equityGrantToPlan, VESTING_FREQUENCIES } from '../lib/equity'
 import { formatCents } from '../lib/money'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { EquityGrantForm } from './EquityGrantForm'
+import { ListRow } from './ListRow'
+import { MoneyText } from './MoneyText'
+import { PageSection } from './PageSection'
 
 interface EquityScreenProps {
   members: Member[]
@@ -35,44 +41,102 @@ function frequencyLabel(frequency: string): string {
   return VESTING_FREQUENCIES.find((entry) => entry.value === frequency)?.label ?? frequency
 }
 
-/**
- * One grant's display card, showing its schedule, vested quantity, and value.
- * The net "counts toward net worth" value is shown for every grant; an option
- * grant additionally breaks out its gross vested value and exercise cost, since
- * these differ from the net once the strike is paid.
- */
-function GrantCard({
-  grant,
-  asOf,
-  onEdit,
-  onDelete,
-}: {
+interface GrantItemProps {
   grant: EquityGrantRow
   asOf: Date
   onEdit: () => void
   onDelete: () => void
-}) {
+}
+
+/** A grant's derived facts: its vested quantity, net value, and option breakdown. */
+function grantFacts(grant: EquityGrantRow, asOf: Date) {
   const planGrant = equityGrantToPlan(grant)
-  const vested = vestedQuantity(planGrant, asOf)
-  const grossCents = grossVestedValueCents(planGrant, asOf)
-  const exerciseCents = exerciseCostCents(planGrant, asOf)
-  const netCents = grantValueCents(planGrant, asOf)
   // Options carry a strike, so gross vested value and exercise cost both differ
   // from the net headline and are worth spelling out; a share grant's gross
   // equals its net, so a single value is clearer.
   const hasStrike = grant.instrument_type === 'option'
+  return {
+    vested: vestedQuantity(planGrant, asOf),
+    grossCents: grossVestedValueCents(planGrant, asOf),
+    exerciseCents: exerciseCostCents(planGrant, asOf),
+    netCents: grantValueCents(planGrant, asOf),
+    hasStrike,
+  }
+}
+
+/**
+ * One grant as a dense table-like row for desktop: the label grows with its
+ * instrument and vesting-frequency badges beside it, the vested quantity and net
+ * value right-aligned in fixed columns, the controls at the end, and an option
+ * grant's gross value and exercise cost on the caption line beneath.
+ */
+function GrantRow({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
+  const { vested, grossCents, exerciseCents, netCents, hasStrike } = grantFacts(grant, asOf)
   return (
-    <Card withBorder radius="md" p="xs">
+    <ListRow
+      gap="sm"
+      caption={
+        hasStrike
+          ? `Vested value ${formatCents(grossCents)} · Exercise cost ${formatCents(exerciseCents)}`
+          : undefined
+      }
+    >
+      <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate>
+          {grant.label}
+        </Text>
+        <Badge
+          size="xs"
+          variant="light"
+          color={grant.instrument_type === 'option' ? 'violet' : 'cyan'}
+        >
+          {instrumentLabel(grant.instrument_type)}
+        </Badge>
+        <Badge size="xs" variant="light" color="gray">
+          {frequencyLabel(grant.vesting_frequency)}
+        </Badge>
+      </Group>
+      <Text size="xs" c="dimmed" ta="right" style={{ width: '9rem', flexShrink: 0 }}>
+        {vested.toLocaleString()} / {grant.quantity.toLocaleString()} vested
+      </Text>
+      <MoneyText
+        cents={netCents}
+        fw={700}
+        size="sm"
+        ta="right"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
+  )
+}
+
+/**
+ * One grant as a compact bordered card for mobile, showing its schedule, vested
+ * quantity, and value. The net "counts toward net worth" value is shown for every
+ * grant; an option grant additionally breaks out its gross vested value and
+ * exercise cost, since these differ from the net once the strike is paid.
+ */
+function GrantCard({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
+  const { vested, grossCents, exerciseCents, netCents, hasStrike } = grantFacts(grant, asOf)
+  return (
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
             {grant.label}
           </Text>
           <Group gap={6} wrap="wrap">
-            <Badge size="xs" variant="outline">
+            <Badge
+              size="xs"
+              variant="light"
+              color={grant.instrument_type === 'option' ? 'violet' : 'cyan'}
+            >
               {instrumentLabel(grant.instrument_type)}
             </Badge>
-            <Badge size="xs" variant="light">
+            <Badge size="xs" variant="light" color="gray">
               {frequencyLabel(grant.vesting_frequency)}
             </Badge>
             <Text size="xs" c="dimmed">
@@ -87,14 +151,21 @@ function GrantCard({
           )}
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Text fw={700} size="sm">
-            {formatCents(netCents)}
-          </Text>
+          <MoneyText cents={netCents} fw={700} size="sm" />
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
+}
+
+/**
+ * A single grant, rendered as a dense table-like row from the `sm` breakpoint up
+ * and as a compact bordered card below it.
+ */
+function GrantItem(props: GrantItemProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <GrantRow {...props} /> : <GrantCard {...props} />
 }
 
 /** A member's equity grants with an add affordance and inline add/edit forms. */
@@ -135,7 +206,7 @@ function MemberEquityGrants({
             onCancel={closeForms}
           />
         ) : (
-          <GrantCard
+          <GrantItem
             key={grant.id}
             grant={grant}
             asOf={asOf}
@@ -161,9 +232,7 @@ function MemberEquityGrants({
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" size="xs" fullWidth onClick={() => startAdding(true)}>
-          Add grant
-        </Button>
+        <AddButton label="Add grant" onClick={() => startAdding(true)} />
       )}
 
       {modal}
@@ -186,15 +255,10 @@ export function EquityScreen({
   onDelete,
 }: EquityScreenProps) {
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Equity
-      </Title>
-      <Text c="dimmed" size="sm">
-        Each member&rsquo;s startup equity grants, vesting after a cliff. The vested value — options
-        at their gain over the strike, shares at the price per share — counts toward household net
-        worth. Keep the price per share current yourself.
-      </Text>
+    <PageSection
+      title="Equity"
+      intro="Each member’s startup equity grants, vesting after a cliff. The vested value — options at their gain over the strike, shares at the price per share — counts toward household net worth. Keep the price per share current yourself."
+    >
       {members.map((member) => (
         <MemberEquityGrants
           key={member.id}
@@ -206,6 +270,6 @@ export function EquityScreen({
           onDelete={onDelete}
         />
       ))}
-    </Stack>
+    </PageSection>
   )
 }

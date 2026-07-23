@@ -1,13 +1,17 @@
-import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { Badge, Group, Stack, Text } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { isTemporaryActive } from '@nest/plan'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
-import { formatCents } from '../lib/money'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { GroupSection } from './GroupSection'
+import { ListRow } from './ListRow'
+import { MoneyText } from './MoneyText'
 import { TemporaryItemForm } from './TemporaryItemForm'
 
 interface TemporaryItemListProps {
@@ -19,21 +23,49 @@ interface TemporaryItemListProps {
   onDelete: (id: string) => void
 }
 
-/** One temporary item's display card, with its active/expired state and controls. */
-function TemporaryItemCard({
-  item,
-  now,
-  onEdit,
-  onDelete,
-}: {
+interface TemporaryItemItemProps {
   item: TemporaryItem
   now: Date
   onEdit: () => void
   onDelete: () => void
-}) {
+}
+
+/**
+ * One temporary item as a dense table-like row for desktop: the name grows with
+ * its active/expired flag beside it, its contribution right-aligned in a fixed
+ * column, the controls at the end, and its end date on the caption line beneath.
+ */
+function TemporaryItemRow({ item, now, onEdit, onDelete }: TemporaryItemItemProps) {
   const active = isTemporaryActive({ contributionCents: 0, targetDate: item.target_date }, now)
   return (
-    <Card withBorder radius="md" p="xs">
+    <ListRow gap="sm" caption={`until ${formatIsoDate(item.target_date)}`}>
+      <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate>
+          {item.name}
+        </Text>
+        <Badge size="xs" variant="light" color={active ? 'teal' : 'gray'}>
+          {active ? 'Active' : 'Expired'}
+        </Badge>
+      </Group>
+      <MoneyText
+        cents={item.contribution_cents}
+        fw={700}
+        size="sm"
+        ta="right"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
+  )
+}
+
+/** One temporary item as a compact bordered card for mobile, with its active/expired state. */
+function TemporaryItemCard({ item, now, onEdit, onDelete }: TemporaryItemItemProps) {
+  const active = isTemporaryActive({ contributionCents: 0, targetDate: item.target_date }, now)
+  return (
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
@@ -49,14 +81,21 @@ function TemporaryItemCard({
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Text fw={700} size="sm">
-            {formatCents(item.contribution_cents)}
-          </Text>
+          <MoneyText cents={item.contribution_cents} fw={700} size="sm" />
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
+}
+
+/**
+ * A single temporary item, rendered as a dense table-like row from the `sm`
+ * breakpoint up and as a compact bordered card below it.
+ */
+function TemporaryItemItem(props: TemporaryItemItemProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <TemporaryItemRow {...props} /> : <TemporaryItemCard {...props} />
 }
 
 /** The household's temporary items with an add affordance and inline add/edit forms. */
@@ -80,7 +119,7 @@ export function TemporaryItemList({
 
   return (
     <GroupSection title="Temporary" subtotalCents={activeSubtotal}>
-      {items.length === 0 && !adding && <EmptyState>No temporary lines yet.</EmptyState>}
+      {items.length === 0 && !adding && <EmptyState>No temporary items yet.</EmptyState>}
 
       {items.map((item) =>
         editingId === item.id ? (
@@ -94,14 +133,14 @@ export function TemporaryItemList({
             onCancel={closeForms}
           />
         ) : (
-          <TemporaryItemCard
+          <TemporaryItemItem
             key={item.id}
             item={item}
             now={now}
             onEdit={() => startEditing(item.id)}
             onDelete={() =>
               confirm({
-                title: 'Delete temporary line?',
+                title: 'Delete temporary item?',
                 itemLabel: item.name,
                 onConfirm: () => onDelete(item.id),
               })
@@ -119,9 +158,7 @@ export function TemporaryItemList({
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-          Add Temporary line
-        </Button>
+        <AddButton label="Add temporary item" onClick={() => startAdding(true)} />
       )}
 
       {modal}

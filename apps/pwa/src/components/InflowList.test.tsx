@@ -1,8 +1,9 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Inflow } from '../hooks/useInflows'
+import { formatIsoDate, todayIso } from '../lib/dates'
 import { makeInflow, makeMember } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { InflowList } from './InflowList'
 
 const members = [makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })]
@@ -42,7 +43,7 @@ const datedSalary = makeInflow({
   id: 'i5',
   name: 'Old salary',
   starts_on: '2026-07-01',
-  ends_on: '2026-09-14',
+  ends_on: '2099-09-14',
 })
 
 function renderList(inflows: Inflow[]) {
@@ -91,7 +92,7 @@ describe('InflowList', () => {
 
   it('captions an inflow with both effective dates as a date range', () => {
     renderList([datedSalary])
-    expect(screen.getByText('1 July 2026 – 14 Sept 2026')).toBeInTheDocument()
+    expect(screen.getByText('1 July 2026 – 14 Sept 2099')).toBeInTheDocument()
   })
 
   it('captions an open-ended effective start as a from-date', () => {
@@ -100,8 +101,8 @@ describe('InflowList', () => {
   })
 
   it('captions an open-ended effective end as an until-date', () => {
-    renderList([makeInflow({ id: 'i7', name: 'Winding down', ends_on: '2027-06-30' })])
-    expect(screen.getByText('until 30 June 2027')).toBeInTheDocument()
+    renderList([makeInflow({ id: 'i7', name: 'Winding down', ends_on: '2099-06-30' })])
+    expect(screen.getByText('until 30 June 2099')).toBeInTheDocument()
   })
 
   it('shows no effective-date caption for an all-year inflow', () => {
@@ -128,10 +129,38 @@ describe('InflowList', () => {
       // alongside the name, so it renders in the same row as the inflow.
       const row = screen.getByText('Old salary').closest('div')?.parentElement
         ?.parentElement as HTMLElement
-      expect(within(row).getByText('1 July 2026 – 14 Sept 2026')).toBeInTheDocument()
+      expect(within(row).getByText('1 July 2026 – 14 Sept 2099')).toBeInTheDocument()
     } finally {
       window.matchMedia = original
     }
+  })
+
+  it('marks an inflow whose end date has passed with an Inactive pill and no date caption', () => {
+    renderList([makeInflow({ id: 'i8', name: 'Lapsed gig', ends_on: '2000-01-01' })])
+    expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.queryByText('until 1 Jan 2000')).not.toBeInTheDocument()
+  })
+
+  it('treats an inflow ending today as still active: its caption shows and no pill', () => {
+    const today = todayIso()
+    renderList([makeInflow({ id: 'i9', name: 'Last day', ends_on: today })])
+    expect(screen.getByText(`until ${formatIsoDate(today)}`)).toBeInTheDocument()
+    expect(screen.queryByText('Inactive')).not.toBeInTheDocument()
+  })
+
+  it('keeps a future-dated inflow active, with its caption and no Inactive pill', () => {
+    renderList([datedSalary])
+    expect(screen.getByText('1 July 2026 – 14 Sept 2099')).toBeInTheDocument()
+    expect(screen.queryByText('Inactive')).not.toBeInTheDocument()
+  })
+
+  it('marks an ended inflow with an Inactive pill in the dense desktop row', () => {
+    setWideViewport()
+    renderList([makeInflow({ id: 'i10', name: 'Lapsed gig', ends_on: '2000-01-01' })])
+    const row = screen.getByText('Lapsed gig').closest('div')?.parentElement
+      ?.parentElement as HTMLElement
+    expect(within(row).getByText('Inactive')).toBeInTheDocument()
+    expect(within(row).queryByText('until 1 Jan 2000')).not.toBeInTheDocument()
   })
 
   it('renders an every-N-weeks schedule as a friendly label, not the raw enum', () => {

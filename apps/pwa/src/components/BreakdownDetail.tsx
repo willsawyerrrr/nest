@@ -2,8 +2,8 @@ import { useState } from 'react'
 import {
   ActionIcon,
   Badge,
+  Box,
   Button,
-  Card,
   Collapse,
   Group,
   Stack,
@@ -11,7 +11,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core'
-import { useDisclosure } from '@mantine/hooks'
+import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { annualCents, fortnightlyCents } from '@nest/plan'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
@@ -21,12 +21,16 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
-import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
+import { formatPerFortnight, formatPerYear } from '../lib/money'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { BreakdownItemForm } from './BreakdownItemForm'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { ListRow } from './ListRow'
+import { MoneyText } from './MoneyText'
 
 interface BreakdownDetailProps {
   breakdown: Breakdown
@@ -70,7 +74,7 @@ function BreakdownSettings({
   }
 
   return (
-    <Card withBorder radius="md" p="sm">
+    <AppCard withBorder padding="sm">
       <Stack gap="xs">
         <TextInput
           label="Name"
@@ -97,7 +101,8 @@ function BreakdownSettings({
               confirm({
                 title: 'Delete breakdown?',
                 itemLabel: breakdown.name,
-                description: 'This removes its items and its budget line. This cannot be undone.',
+                description:
+                  'This removes its items and the budget item they roll up into. This cannot be undone.',
                 onConfirm: onDelete,
               })
             }
@@ -108,58 +113,117 @@ function BreakdownSettings({
       </Stack>
 
       {modal}
-    </Card>
+    </AppCard>
   )
 }
 
-/** One item row with its normalised fortnightly figure and edit/delete controls. */
-function ItemRow({
-  item,
-  onEdit,
-  onDelete,
-}: {
+interface ItemRowProps {
   item: BreakdownItem
   onEdit: () => void
   onDelete: () => void
-}) {
+}
+
+/**
+ * An item's edit and delete controls. The labels name the item so they stay
+ * distinct from the breakdown's own Edit toggle in the page header.
+ */
+function ItemActions({ item, onEdit, onDelete }: ItemRowProps) {
+  return (
+    <>
+      <ActionIcon variant="subtle" aria-label={`Edit ${item.name}`} onClick={onEdit}>
+        <IconPencil size={16} />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        color="red"
+        aria-label={`Delete ${item.name}`}
+        onClick={onDelete}
+      >
+        <IconTrash size={16} />
+      </ActionIcon>
+    </>
+  )
+}
+
+/**
+ * One breakdown item as a dense table-like row for desktop: the name grows to
+ * fill, with the amount, frequency, and fortnightly figure right-aligned in fixed
+ * columns and the controls at the end, exactly as a budget item's row.
+ */
+function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
   const fortnightly = fortnightlyCents(
     item.amount_cents,
     item.frequency,
     item.interval_count ?? undefined,
   )
   return (
-    <Card withBorder radius="md" p="xs">
+    <ListRow>
+      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate>
+          {item.name}
+        </Text>
+      </Group>
+      <MoneyText
+        cents={item.amount_cents}
+        size="sm"
+        c="dimmed"
+        ta="right"
+        style={{ width: '6rem', flexShrink: 0 }}
+      />
+      <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
+        <Badge size="xs" variant="light" color="gray">
+          {formatFrequency(item.frequency, item.interval_count)}
+        </Badge>
+      </Box>
+      <FortnightlyAmount
+        cents={fortnightly}
+        justify="flex-end"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
+        <ItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
+  )
+}
+
+/** One breakdown item as a compact bordered card for mobile: name stacked over its facts. */
+function ItemCard({ item, onEdit, onDelete }: ItemRowProps) {
+  const fortnightly = fortnightlyCents(
+    item.amount_cents,
+    item.frequency,
+    item.interval_count ?? undefined,
+  )
+  return (
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
             {item.name}
           </Text>
           <Group gap={6} wrap="nowrap">
-            <Text size="xs" c="dimmed">
-              {formatCents(item.amount_cents)}
-            </Text>
-            <Badge size="xs" variant="light">
+            <MoneyText cents={item.amount_cents} size="xs" c="dimmed" />
+            <Badge size="xs" variant="light" color="gray">
               {formatFrequency(item.frequency, item.interval_count)}
             </Badge>
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightly} />
-          <ActionIcon variant="subtle" aria-label={`Edit ${item.name}`} onClick={onEdit}>
-            <IconPencil size={16} />
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={`Delete ${item.name}`}
-            onClick={onDelete}
-          >
-            <IconTrash size={16} />
-          </ActionIcon>
+          <ItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
+}
+
+/**
+ * A single breakdown item, rendered as a dense table-like row from the `sm`
+ * breakpoint up and as a compact bordered card below it.
+ */
+function ItemDisplay(props: ItemRowProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <ItemRow {...props} /> : <ItemCard {...props} />
 }
 
 /** Presentational editor for a generic breakdown: its settings and its item list. */
@@ -231,7 +295,7 @@ export function BreakdownDetail({
               onCancel={closeForms}
             />
           ) : (
-            <ItemRow
+            <ItemDisplay
               key={item.id}
               item={item}
               onEdit={() => startEditing(item.id)}
@@ -255,9 +319,7 @@ export function BreakdownDetail({
             onCancel={closeForms}
           />
         ) : (
-          <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-            Add item
-          </Button>
+          <AddButton label="Add item" onClick={() => startAdding(true)} />
         )}
       </Stack>
 

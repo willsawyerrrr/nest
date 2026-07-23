@@ -1,4 +1,5 @@
-import { Button, Center, Stack, Text, Title } from '@mantine/core'
+import { Button, Center, Stack, Text } from '@mantine/core'
+import { Logo } from './Logo'
 
 interface SignInScreenProps {
   onSignIn: () => void
@@ -9,9 +10,7 @@ export function SignInScreen({ onSignIn }: SignInScreenProps) {
   return (
     <Center component="main" className="full-screen">
       <Stack align="center" gap="lg" maw={360} w="100%">
-        <Title order={1} ta="center">
-          Nest
-        </Title>
+        <Logo variant="lockup" size={56} />
         <Text c="dimmed" ta="center">
           Track income, tax, spending, and savings for your household.
         </Text>

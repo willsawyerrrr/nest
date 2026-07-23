@@ -41,6 +41,8 @@
   bottom: 0;
   left: 0;
   z-index: 200;
+  display: flex;
+  flex-direction: column;
   width: 15rem;
   overflow-y: auto;
   background: var(--mantine-color-body);
@@ -49,6 +51,11 @@
   padding-right: 12px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   padding-left: max(12px, env(safe-area-inset-left));
+}
+
+/* The sidebar footer holds the color-scheme toggle, ruled off from the nav. */
+.sidebar__footer {
+  border-top: 1px solid var(--mantine-color-default-border);
 }
 
 @media (min-width: 48em) {
@@ -78,7 +85,12 @@
 .drawer-nav__link {
   display: block;
   padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-md);
   text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
   /*
    * Inherit the surrounding text colour for every link state. Without this the
    * anchor falls back to the user-agent link colours — notably the default
@@ -86,6 +98,23 @@
    * still sets the primary colour for the active item.
    */
   color: inherit;
+}
+
+/* Lift the nav item on hover/focus with a subtle elevated surface fill. */
+.drawer-nav__link:hover,
+.drawer-nav__link:focus-visible {
+  background-color: var(--mantine-color-default-hover);
+}
+
+/*
+ * The active item sits on a brand wash with a solid lime bar down its leading
+ * edge, so the current tab asserts itself at a glance. The label colour is set
+ * on the inner Text and adapts by scheme for legibility; the wash and bar stay
+ * lime in both.
+ */
+.drawer-nav__link--active {
+  background-color: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent);
+  box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
 }
 
 /*

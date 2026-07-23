@@ -1,7 +1,7 @@
-import { Stack, Title } from '@mantine/core'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import { InflowList } from './InflowList'
+import { PageSection } from './PageSection'
 
 interface InflowScreenProps {
   members: Member[]
@@ -20,10 +20,7 @@ export function InflowScreen({
   onDeleteInflow,
 }: InflowScreenProps) {
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Inflows
-      </Title>
+    <PageSection title="Inflows">
       <InflowList
         inflows={inflows}
         members={members}
@@ -31,6 +28,6 @@ export function InflowScreen({
         onUpdate={onUpdateInflow}
         onDelete={(id) => void onDeleteInflow(id)}
       />
-    </Stack>
+    </PageSection>
   )
 }

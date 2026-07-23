@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeTemporaryItem } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { TemporaryItemList } from './TemporaryItemList'
 
 const items = [
@@ -68,7 +68,7 @@ describe('TemporaryItemList', () => {
     render(
       <TemporaryItemList items={[]} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
-    expect(screen.getByText(/no temporary lines yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no temporary items yet/i)).toBeInTheDocument()
   })
 
   it('edits an item in place', async () => {
@@ -136,7 +136,7 @@ describe('TemporaryItemList', () => {
       <TemporaryItemList items={[]} onCreate={onCreate} onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
 
-    await user.click(screen.getByRole('button', { name: /add temporary line/i }))
+    await user.click(screen.getByRole('button', { name: /add temporary item/i }))
     await user.type(screen.getByLabelText(/name/i), 'New couch')
     await user.type(screen.getByLabelText(/contribution/i), '75')
     await user.click(screen.getByRole('button', { name: /add item/i }))
@@ -146,5 +146,27 @@ describe('TemporaryItemList', () => {
         expect.objectContaining({ name: 'New couch', contribution_cents: 7500 }),
       ),
     )
+  })
+
+  describe('on desktop', () => {
+    it('renders each item as a dense row with its active/expired flag', () => {
+      setWideViewport()
+      render(
+        <TemporaryItemList
+          items={items}
+          now={now}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      // No bordered card wraps a row.
+      expect(screen.getByText('Holiday').closest('.mantine-Card-root')).toBeNull()
+      expect(screen.getByText('$120.00')).toBeInTheDocument()
+      expect(screen.getByText('Active')).toBeInTheDocument()
+      expect(screen.getByText('Expired')).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(2)
+    })
   })
 })

@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeGoal as goal, makeBudgetLine as line, makeSaver as saver } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { GoalList } from './GoalList'
 
 function card(name: string): HTMLElement {
@@ -160,7 +160,7 @@ describe('GoalList', () => {
 
     const someday = card('Someday')
     expect(within(someday).getByText('No ETA')).toBeInTheDocument()
-    expect(within(someday).getByText(/link a savings line/i)).toBeInTheDocument()
+    expect(within(someday).getByText(/link a savings item/i)).toBeInTheDocument()
     expect(within(someday).queryByText(/linked contribution/i)).toBeNull()
   })
 
@@ -364,5 +364,33 @@ describe('GoalList', () => {
     expect(within(manual).getByText('$2,500.00 of $10,000.00')).toBeInTheDocument()
     expect(within(manual).getByText('25%')).toBeInTheDocument()
     expect(within(manual).queryByText(/from up saver/i)).toBeNull()
+  })
+
+  describe('on desktop', () => {
+    it('renders each goal as a dense row with its status, percent, and ETA', () => {
+      setWideViewport()
+      const goals = [
+        goal({ id: 'g1', name: 'Car', target_amount_cents: 1_000_000, linked_account_id: 'a1' }),
+        goal({ id: 'g2', name: 'Trip', target_amount_cents: 1_000_000 }),
+      ]
+      const lines = [line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]
+      render(
+        <GoalList
+          goals={goals}
+          lines={lines}
+          savers={[saver({ id: 'a1', name: 'Up Car', balance_cents: 500_000 })]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      // No bordered card wraps a row.
+      expect(screen.getByText('Car').closest('.mantine-Card-root')).toBeNull()
+      // The saver-linked goal shows its saver in the caption; the plain goal does not.
+      expect(screen.getByText(/From Up saver Up Car/)).toBeInTheDocument()
+      expect(screen.getByText('50%')).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(2)
+    })
   })
 })

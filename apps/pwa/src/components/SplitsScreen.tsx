@@ -2,14 +2,15 @@ import {
   ActionIcon,
   Alert,
   Badge,
+  Box,
   Button,
-  Card,
   Group,
   Select,
   Stack,
   Text,
   Title,
 } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import {
   assignmentsByAccount,
   isRecommendedSplitAccount,
@@ -24,7 +25,10 @@ import { accountLabel } from '../lib/accountName'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { sortBy, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
+import { AppCard } from './AppCard'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { ListRow } from './ListRow'
+import { PageSection } from './PageSection'
 
 /** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
 const ROUND_STEP_CENTS = 5_00
@@ -91,7 +95,31 @@ function isSpending(account: AccountDirectoryEntry): boolean {
   return account.type === 'transaction'
 }
 
-/** One routed account that stays put: its name and the fortnightly amount that stays. */
+/** An account's identity column: its icon and displayed (emoji-stripped) name, growing to fill. */
+function AccountName({ name }: { name: string }) {
+  return (
+    <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+      <AccountIcon name={name} size={16} />
+      <Text fw={600} size="sm" truncate>
+        {accountLabel(name)}
+      </Text>
+    </Group>
+  )
+}
+
+/** The exact (pre-rounding) fortnightly figure, shown only when rounding changed it. */
+function ExactNote({ exactCents, roundedCents }: { exactCents: number; roundedCents: number }) {
+  if (roundedCents === exactCents) {
+    return null
+  }
+  return (
+    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+      {formatCents(exactCents)} exact
+    </Text>
+  )
+}
+
+/** One routed account that stays put as a dense table-like row for desktop. */
 function StaysRow({
   account,
   fortnightlyCents,
@@ -101,24 +129,164 @@ function StaysRow({
 }) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   return (
-    <Card withBorder radius="md" p="sm">
+    <ListRow gap="sm">
+      <AccountName name={account.name} />
+      <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
+      <FortnightlyAmount
+        cents={rounded}
+        justify="flex-end"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+    </ListRow>
+  )
+}
+
+/** One routed account that stays put as a compact bordered card for mobile. */
+function StaysCard({
+  account,
+  fortnightlyCents,
+}: {
+  account: AccountDirectoryEntry
+  fortnightlyCents: number
+}) {
+  const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
+  return (
+    <AppCard withBorder padding="sm">
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-          <AccountIcon name={account.name} size={16} />
-          <Text fw={600} size="sm" truncate>
-            {accountLabel(account.name)}
-          </Text>
-        </Group>
+        <AccountName name={account.name} />
         <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
-          {rounded !== fortnightlyCents && (
-            <Text size="xs" c="dimmed">
-              {formatCents(fortnightlyCents)} exact
-            </Text>
-          )}
+          <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
           <FortnightlyAmount cents={rounded} />
         </Group>
       </Group>
-    </Card>
+    </AppCard>
+  )
+}
+
+/**
+ * One routed account that stays put, rendered as a dense table-like row from the
+ * `sm` breakpoint up and as a compact bordered card below it.
+ */
+function StaysItem(props: { account: AccountDirectoryEntry; fortnightlyCents: number }) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <StaysRow {...props} /> : <StaysCard {...props} />
+}
+
+interface RecommendedSplitProps {
+  account: AccountDirectoryEntry
+  fortnightlyCents: number
+  configuredCents: number | null
+  onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
+}
+
+/** A recommended row's drift line: the change from the configured amount and a Confirm control. */
+function DriftNote({
+  account,
+  configuredCents,
+  roundedCents,
+  onConfirm,
+}: {
+  account: AccountDirectoryEntry
+  configuredCents: number | null
+  roundedCents: number
+  onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
+}) {
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="sm">
+      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Badge size="xs" variant="light" color="yellow" style={{ flexShrink: 0 }}>
+          Update
+        </Badge>
+        <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
+          {configuredCents === null
+            ? 'Not set in Up yet'
+            : `was ${formatCents(configuredCents)} → ${formatPerFortnight(roundedCents)}`}
+        </Text>
+      </Group>
+      <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, roundedCents)}>
+        {configuredCents === null ? 'Mark as set' : 'Confirm'}
+      </Button>
+    </Group>
+  )
+}
+
+/** A recommended account's split as a dense table-like row for desktop, drift note on the caption line. */
+function RecommendedSplitRow({
+  account,
+  fortnightlyCents,
+  configuredCents,
+  onConfirm,
+}: RecommendedSplitProps) {
+  const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
+  const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
+  const row = (
+    <ListRow
+      gap="sm"
+      caption={
+        needsUpdate ? (
+          <DriftNote
+            account={account}
+            configuredCents={configuredCents}
+            roundedCents={rounded}
+            onConfirm={onConfirm}
+          />
+        ) : undefined
+      }
+    >
+      <AccountName name={account.name} />
+      <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
+      <FortnightlyAmount
+        cents={rounded}
+        justify="flex-end"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+    </ListRow>
+  )
+  return needsUpdate ? (
+    <Box pl="xs" style={{ borderLeft: '3px solid var(--mantine-color-yellow-6)' }}>
+      {row}
+    </Box>
+  ) : (
+    row
+  )
+}
+
+/**
+ * A recommended account's split as a compact bordered card for mobile, flagged
+ * with a left stripe and a Confirm control when it drifts from the configured amount.
+ */
+function RecommendedSplitCard({
+  account,
+  fortnightlyCents,
+  configuredCents,
+  onConfirm,
+}: RecommendedSplitProps) {
+  const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
+  const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
+  return (
+    <AppCard
+      withBorder
+      padding="sm"
+      style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-yellow-6)' } : undefined}
+    >
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <AccountName name={account.name} />
+        <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
+          <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
+          <FortnightlyAmount cents={rounded} />
+        </Group>
+      </Group>
+      {needsUpdate && (
+        <Box mt={6}>
+          <DriftNote
+            account={account}
+            configuredCents={configuredCents}
+            roundedCents={rounded}
+            onConfirm={onConfirm}
+          />
+        </Box>
+      )}
+    </AppCard>
   )
 }
 
@@ -127,64 +295,13 @@ function StaysRow({
  * currently configured. When the rounded recommendation differs from the
  * configured amount (or it has never been confirmed), the row is flagged, shows
  * the change, and offers a Confirm to record the new amount; otherwise it renders
- * plainly, with no status indicator. The configured amount is source-agnostic —
- * see `SplitsScreenProps`.
+ * plainly, with no status indicator. Rendered as a dense table-like row from the
+ * `sm` breakpoint up and as a compact bordered card below it. The configured
+ * amount is source-agnostic — see `SplitsScreenProps`.
  */
-function RecommendedSplitRow({
-  account,
-  fortnightlyCents,
-  configuredCents,
-  onConfirm,
-}: {
-  account: AccountDirectoryEntry
-  fortnightlyCents: number
-  configuredCents: number | null
-  onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
-}) {
-  const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
-  const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
-  return (
-    <Card
-      withBorder
-      radius="md"
-      p="sm"
-      style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-yellow-6)' } : undefined}
-    >
-      <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-          <AccountIcon name={account.name} size={16} />
-          <Text fw={600} size="sm" truncate>
-            {accountLabel(account.name)}
-          </Text>
-          {needsUpdate && (
-            <Badge size="xs" variant="light" color="yellow">
-              Update
-            </Badge>
-          )}
-        </Group>
-        <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
-          {rounded !== fortnightlyCents && (
-            <Text size="xs" c="dimmed">
-              {formatCents(fortnightlyCents)} exact
-            </Text>
-          )}
-          <FortnightlyAmount cents={rounded} />
-        </Group>
-      </Group>
-      {needsUpdate && (
-        <Group justify="space-between" wrap="nowrap" gap="sm" mt={6}>
-          <Text size="xs" c="dimmed">
-            {configuredCents === null
-              ? 'Not set in Up yet'
-              : `was ${formatCents(configuredCents)} → ${formatPerFortnight(rounded)}`}
-          </Text>
-          <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, rounded)}>
-            {configuredCents === null ? 'Mark as set' : 'Confirm'}
-          </Button>
-        </Group>
-      )}
-    </Card>
-  )
+function RecommendedSplitItem(props: RecommendedSplitProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <RecommendedSplitRow {...props} /> : <RecommendedSplitCard {...props} />
 }
 
 /**
@@ -259,17 +376,10 @@ export function SplitsScreen({
   ).length
 
   return (
-    <Stack gap="md">
-      <Title order={2} visibleFrom="sm">
-        Pay splits
-      </Title>
-
-      <Text size="sm" c="dimmed">
-        Up can’t read or set pay splits, so these are recommendations: set each account’s pay split
-        in Up to match. Amounts are the fortnightly total of the budget lines routed to each
-        account, rounded up to the nearest $5.
-      </Text>
-
+    <PageSection
+      title="Pay splits"
+      intro="Up can’t read or set pay splits, so these are recommendations: set each account’s pay split in Up to match. Amounts are the fortnightly total of the budget items routed to each account, rounded up to the nearest $5."
+    >
       {spendingAccounts.length > 0 && (
         <Select
           label="Paid into"
@@ -294,7 +404,7 @@ export function SplitsScreen({
 
       {nothingRouted && (
         <Text c="dimmed" size="sm">
-          Route budget lines to an account — set “Funded from” on a line, or link a Savings goal to
+          Route budget items to an account — set “Funded from” on an item, or link a Savings goal to
           an Up saver — to see recommended splits here.
         </Text>
       )}
@@ -326,13 +436,13 @@ export function SplitsScreen({
               Recommended pay splits
             </Title>
             {rowsToUpdate > 0 && (
-              <Badge size="sm" variant="light" color="yellow">
+              <Badge size="xs" variant="light" color="yellow">
                 {rowsToUpdate} to update
               </Badge>
             )}
           </Group>
           {recommendedRows.map((row) => (
-            <RecommendedSplitRow
+            <RecommendedSplitItem
               key={row.account.id}
               account={row.account}
               fortnightlyCents={row.fortnightlyCents}
@@ -354,7 +464,7 @@ export function SplitsScreen({
             </Text>
           )}
           {staysRows.map((row) => (
-            <StaysRow
+            <StaysItem
               key={row.account.id}
               account={row.account}
               fortnightlyCents={row.fortnightlyCents}
@@ -365,11 +475,11 @@ export function SplitsScreen({
 
       {unassignedFortnightlyCents > 0 && (
         <Alert color="yellow" variant="light" title="Unassigned">
-          {formatPerFortnight(unassignedFortnightlyCents)} comes from budget lines not yet routed to
-          an account. Set a “Funded from” account on those lines, or link their Savings goal to an
+          {formatPerFortnight(unassignedFortnightlyCents)} comes from budget items not yet routed to
+          an account. Set a “Funded from” account on those items, or link their Savings goal to an
           Up saver, to fold them into a split.
         </Alert>
       )}
-    </Stack>
+    </PageSection>
   )
 }

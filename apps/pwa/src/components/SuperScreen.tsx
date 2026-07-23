@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { ActionIcon, Card, Group, Stack, Text, Title } from '@mantine/core'
-import { IconPencil } from '@tabler/icons-react'
+import { Group, Stack, Text, Title } from '@mantine/core'
 import type { Account } from '../hooks/useAccounts'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
@@ -9,6 +8,10 @@ import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
 import { accruedBalanceCents } from '../lib/super'
 import type { SuperCapSummary } from '../lib/tax'
+import { AppCard } from './AppCard'
+import { EditAction } from './EditAction'
+import { MoneyText } from './MoneyText'
+import { PageSection } from './PageSection'
 import { RetirementProjection } from './RetirementProjection'
 import { SuperCapsSummary } from './SuperCapsSummary'
 import { SuperContributionList } from './SuperContributionList'
@@ -38,7 +41,7 @@ function SuperProfileCard({
   const accruedCents = effectiveCents - baselineCents
   const trimmedFundName = fundName?.trim()
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
@@ -56,9 +59,7 @@ function SuperProfileCard({
           <Text size="xs" c="dimmed">
             {isTrueUp ? 'Estimated balance today' : 'Current balance'}
           </Text>
-          <Text fw={700} fz="lg">
-            {formatCents(effectiveCents)}
-          </Text>
+          <MoneyText cents={effectiveCents} fw={700} fz="lg" />
           {isTrueUp && accruedCents !== 0 && (
             <Text size="xs" c="dimmed">
               {formatCents(baselineCents)} confirmed on {formatIsoDate(balanceAsOf)} +{' '}
@@ -66,11 +67,9 @@ function SuperProfileCard({
             </Text>
           )}
         </Stack>
-        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit} style={{ flexShrink: 0 }}>
-          <IconPencil size={16} />
-        </ActionIcon>
+        <EditAction onClick={onEdit} style={{ flexShrink: 0 }} />
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -113,15 +112,10 @@ export function SuperScreen({
 }: SuperScreenProps) {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Super (FY{financialYear})
-      </Title>
-      <Text c="dimmed" size="sm">
-        Each member&rsquo;s balance is held as an account and counts toward net worth. Concessional
-        contributions reduce their taxable income on the Tax tab.
-      </Text>
-
+    <PageSection
+      title={`Super (FY${financialYear})`}
+      intro="Each member’s balance is held as an account and counts toward net worth. Concessional contributions reduce their taxable income on the Tax tab."
+    >
       {members.map((member) => {
         const profile = profiles.find((candidate) => candidate.member_id === member.id)
         const account = accounts.find((candidate) => candidate.id === profile?.linked_account_id)
@@ -197,6 +191,6 @@ export function SuperScreen({
           }
         })}
       />
-    </Stack>
+    </PageSection>
   )
 }

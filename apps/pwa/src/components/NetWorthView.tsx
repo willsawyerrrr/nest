@@ -1,16 +1,34 @@
-import { ActionIcon, Button, Card, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import type { ReactNode } from 'react'
+import {
+  ActionIcon,
+  Button,
+  Card,
+  Group,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+  UnstyledButton,
+} from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
+  IconBuildingBank,
+  IconChartPie,
   IconCheck,
   IconChevronDown,
   IconChevronRight,
   IconEye,
   IconEyeOff,
   IconPencil,
+  IconReceipt2,
+  IconWallet,
 } from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
-import { formatCents, moneyColor } from '../lib/money'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
+import { EmptyState } from './EmptyState'
+import { ListRow } from './ListRow'
+import { MoneyText } from './MoneyText'
+import { PageSection } from './PageSection'
 
 interface NetWorthViewProps {
   accounts: Account[]
@@ -18,6 +36,33 @@ interface NetWorthViewProps {
   equity: EquityHolding[]
   liabilities: Liability[]
   onToggleExclude: (accountId: string, exclude: boolean) => void
+}
+
+/**
+ * A section header's category glyph: a small tinted icon that gives each net-
+ * worth section a distinct hue, so the sections read as separate categories
+ * without recolouring their balances. Muted alongside an excluded group.
+ */
+function SectionAccent({
+  color,
+  icon,
+  dimmed = false,
+}: {
+  color: string
+  icon: ReactNode
+  dimmed?: boolean
+}) {
+  return (
+    <ThemeIcon
+      size="sm"
+      radius="sm"
+      variant="light"
+      color={dimmed ? 'gray' : color}
+      style={{ flexShrink: 0 }}
+    >
+      {icon}
+    </ThemeIcon>
+  )
 }
 
 /**
@@ -35,6 +80,8 @@ function AccountGroup({
   excluded,
   editing,
   togglable,
+  accentColor,
+  accentIcon,
   collapsible = false,
   onToggleExclude,
 }: {
@@ -45,6 +92,8 @@ function AccountGroup({
   excluded: boolean
   editing: boolean
   togglable: boolean
+  accentColor: string
+  accentIcon: ReactNode
   collapsible?: boolean
   onToggleExclude: (accountId: string, exclude: boolean) => void
 }) {
@@ -54,46 +103,47 @@ function AccountGroup({
     <Group justify="space-between" wrap="nowrap">
       <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
         {collapsible && (opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />)}
+        <SectionAccent color={accentColor} icon={accentIcon} dimmed={excluded} />
         <Title order={3} size="h5" c={excluded ? 'dimmed' : undefined}>
           {title}
         </Title>
       </Group>
-      {subtotalCents !== undefined && <Text fw={700}>{formatCents(subtotalCents)}</Text>}
+      {subtotalCents !== undefined && <MoneyText cents={subtotalCents} fw={700} />}
     </Group>
   )
 
   const body =
     accounts.length === 0 ? (
-      <Text c="dimmed" size="sm">
-        {emptyLabel}
-      </Text>
+      <EmptyState>{emptyLabel}</EmptyState>
     ) : (
-      <Stack gap="xs">
+      <Stack gap={0}>
         {accounts.map((account) => (
-          <Group key={account.id} justify="space-between" wrap="nowrap" gap="sm">
-            <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+          <ListRow key={account.id} gap="sm">
+            <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
               {account.name}
             </Text>
-            <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-              <Text size="md" ta="right">
-                {formatCents(account.balance_cents)}
-              </Text>
-              {editing && togglable && (
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={
-                    excluded
-                      ? `Include ${account.name} in net worth`
-                      : `Exclude ${account.name} from net worth`
-                  }
-                  onClick={() => onToggleExclude(account.id, !excluded)}
-                >
-                  {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-                </ActionIcon>
-              )}
-            </Group>
-          </Group>
+            <MoneyText
+              cents={account.balance_cents}
+              size="sm"
+              ta="right"
+              style={{ flexShrink: 0 }}
+            />
+            {editing && togglable && (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                style={{ flexShrink: 0 }}
+                aria-label={
+                  excluded
+                    ? `Include ${account.name} in net worth`
+                    : `Exclude ${account.name} from net worth`
+                }
+                onClick={() => onToggleExclude(account.id, !excluded)}
+              >
+                {excluded ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+              </ActionIcon>
+            )}
+          </ListRow>
         ))}
       </Stack>
     )
@@ -141,23 +191,28 @@ function LiabilityGroup({
     <Card component="section" aria-label="Liabilities" withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
-          <Title order={3} size="h5">
-            Liabilities
-          </Title>
-          <Text fw={700} c={moneyColor(-subtotalCents)}>
-            {formatCents(-subtotalCents)}
-          </Text>
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            <SectionAccent color="negative" icon={<IconReceipt2 size={14} />} />
+            <Title order={3} size="h5">
+              Liabilities
+            </Title>
+          </Group>
+          <MoneyText cents={-subtotalCents} colored fw={700} />
         </Group>
-        <Stack gap="xs">
+        <Stack gap={0}>
           {liabilities.map((liability) => (
-            <Group key={liability.label} justify="space-between" wrap="nowrap" gap="sm">
-              <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+            <ListRow key={liability.label} gap="sm">
+              <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
                 {liability.label}
               </Text>
-              <Text size="md" ta="right" c={moneyColor(-liability.balanceCents)}>
-                {formatCents(-liability.balanceCents)}
-              </Text>
-            </Group>
+              <MoneyText
+                cents={-liability.balanceCents}
+                colored
+                size="sm"
+                ta="right"
+                style={{ flexShrink: 0 }}
+              />
+            </ListRow>
           ))}
         </Stack>
       </Stack>
@@ -182,21 +237,27 @@ function EquityGroup({
     <Card component="section" aria-label="Equity" withBorder radius="md" p="sm">
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
-          <Title order={3} size="h5">
-            Equity
-          </Title>
-          <Text fw={700}>{formatCents(subtotalCents)}</Text>
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            <SectionAccent color="grape" icon={<IconChartPie size={14} />} />
+            <Title order={3} size="h5">
+              Equity
+            </Title>
+          </Group>
+          <MoneyText cents={subtotalCents} fw={700} />
         </Group>
-        <Stack gap="xs">
+        <Stack gap={0}>
           {holdings.map((holding) => (
-            <Group key={holding.label} justify="space-between" wrap="nowrap" gap="sm">
-              <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+            <ListRow key={holding.label} gap="sm">
+              <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
                 {holding.label}
               </Text>
-              <Text size="md" ta="right">
-                {formatCents(holding.valueCents)}
-              </Text>
-            </Group>
+              <MoneyText
+                cents={holding.valueCents}
+                size="sm"
+                ta="right"
+                style={{ flexShrink: 0 }}
+              />
+            </ListRow>
           ))}
         </Stack>
         <Text size="xs" c="dimmed">
@@ -230,12 +291,9 @@ export function NetWorthView({
   const hasTogglable = breakdown.otherAccounts.length > 0 || breakdown.excludedAccounts.length > 0
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <Title order={2} visibleFrom="sm">
-          Net worth
-        </Title>
-        {hasTogglable && (
+    <PageSection title="Net worth">
+      {hasTogglable && (
+        <Group justify="flex-end">
           <Button
             variant={editing ? 'filled' : 'light'}
             size="xs"
@@ -244,17 +302,15 @@ export function NetWorthView({
           >
             {editing ? 'Done' : 'Edit'}
           </Button>
-        )}
-      </Group>
+        </Group>
+      )}
 
       <Card component="section" aria-label="Total net worth" withBorder radius="md" p="md">
         <Stack gap={0} align="center">
           <Text size="xs" c="dimmed">
             Total net worth
           </Text>
-          <Text fw={700} fz="xl" c={moneyColor(breakdown.totalCents)}>
-            {formatCents(breakdown.totalCents)}
-          </Text>
+          <MoneyText cents={breakdown.totalCents} colored fw={700} fz="xl" />
         </Stack>
       </Card>
 
@@ -266,6 +322,8 @@ export function NetWorthView({
         excluded={false}
         editing={editing}
         togglable={false}
+        accentColor="teal"
+        accentIcon={<IconBuildingBank size={14} />}
         onToggleExclude={onToggleExclude}
       />
       <AccountGroup
@@ -276,6 +334,8 @@ export function NetWorthView({
         excluded={false}
         editing={editing}
         togglable
+        accentColor="indigo"
+        accentIcon={<IconWallet size={14} />}
         onToggleExclude={onToggleExclude}
       />
       {breakdown.equityHoldings.length > 0 && (
@@ -299,9 +359,11 @@ export function NetWorthView({
           editing={editing}
           togglable
           collapsible
+          accentColor="gray"
+          accentIcon={<IconEyeOff size={14} />}
           onToggleExclude={onToggleExclude}
         />
       )}
-    </Stack>
+    </PageSection>
   )
 }

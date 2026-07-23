@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeSaver as account, makeGoal as goal, makeBudgetLine as line } from '../test/fixtures'
-import { render, screen, within } from '../test/render'
+import { render, screen, setWideViewport, within } from '../test/render'
 import { SplitsScreen } from './SplitsScreen'
 
 function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {}) {
@@ -182,12 +182,12 @@ describe('SplitsScreen', () => {
     })
 
     expect(screen.getByText('Unassigned')).toBeInTheDocument()
-    expect(screen.getByText(/\$50\.00 \/ fn comes from budget lines/)).toBeInTheDocument()
+    expect(screen.getByText(/\$50\.00 \/ fn comes from budget items/)).toBeInTheDocument()
   })
 
   it('shows an empty state when nothing is routed', () => {
     renderScreen()
-    expect(screen.getByText(/route budget lines to an account/i)).toBeInTheDocument()
+    expect(screen.getByText(/route budget items to an account/i)).toBeInTheDocument()
   })
 
   it('flags a saver whose configured split differs and confirms the rounded amount', async () => {
@@ -222,6 +222,42 @@ describe('SplitsScreen', () => {
 
     expect(screen.getByText('Not set in Up yet')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /mark as set/i })).toBeInTheDocument()
+  })
+
+  it('renders the split rows as dense desktop rows outside cards', () => {
+    setWideViewport()
+    const pay = account({ id: 't1', name: 'Pay', type: 'transaction' })
+    const bills = account({ id: 't2', name: 'Bills', type: 'transaction' })
+    const saver = account({ id: 's1', name: 'Emergency', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [pay, bills, saver],
+      payAccountId: 't1',
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [
+        line({ id: 'l1', line_group: 'needs', amount_cents: 200_00, destination_account_id: 't1' }),
+        line({ id: 'l2', line_group: 'needs', amount_cents: 150_00, destination_account_id: 't2' }),
+        line({ id: 'l3', line_group: 'savings', amount_cents: 300_00, goal_id: 'g1' }),
+      ],
+      // Bills drifts from its configured split; the saver matches, so it renders plainly.
+      configuredByAccount: new Map([
+        ['t2', 100_00],
+        ['s1', 300_00],
+      ]),
+    })
+
+    // The drifting recommended row is a dense row, not a bordered card, and still
+    // flags its drift with an Update badge, a change note, and a Confirm control.
+    const confirm = screen.getByRole('button', { name: /confirm/i })
+    expect(confirm.closest('.mantine-Card-root')).toBeNull()
+    expect(screen.getByText('Update')).toBeInTheDocument()
+    expect(screen.getByText('was $100.00 → $150.00 / fn')).toBeInTheDocument()
+
+    // No split row anywhere renders inside a bordered card on desktop.
+    const label = (name: string) =>
+      screen.getAllByText(name).find((node) => node.tagName === 'P') as HTMLElement
+    expect(label('Bills').closest('.mantine-Card-root')).toBeNull()
+    expect(label('Emergency').closest('.mantine-Card-root')).toBeNull()
+    expect(label('Pay').closest('.mantine-Card-root')).toBeNull()
   })
 
   it('shows no status indicator when the configured split matches the recommendation', () => {

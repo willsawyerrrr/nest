@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { Badge, Box, Group, Stack, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
@@ -6,14 +6,17 @@ import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
-import { formatIsoDate } from '../lib/dates'
+import { formatIsoDate, todayIso } from '../lib/dates'
 import { formatFrequency } from '../lib/frequency'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { InflowForm } from './InflowForm'
+import { ListRow } from './ListRow'
 
 interface InflowListProps {
   inflows: Inflow[]
@@ -56,6 +59,15 @@ function effectiveDatesCaption(inflow: Inflow): string | null {
   return null
 }
 
+/**
+ * Whether an inflow's effective window has closed: it has an `ends_on` date that
+ * fell strictly before today. Compared date-only (both are `YYYY-MM-DD`), so an
+ * inflow ending today still counts as active on its last day.
+ */
+function isInflowEnded(inflow: Inflow, now: Date = new Date()): boolean {
+  return inflow.ends_on !== null && inflow.ends_on < todayIso(now)
+}
+
 /** The member tag for a taxable inflow, or a non-taxable indicator otherwise. */
 function memberOrTaxability(inflow: Inflow, memberName: (id: string) => string): string {
   if (!inflow.taxable) {
@@ -89,40 +101,39 @@ function InflowRow({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const ended = isInflowEnded(inflow)
   return (
-    <Stack gap={0} py={6} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-      <Group wrap="nowrap" gap="sm">
-        <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
-            {inflow.name}
-          </Text>
-          <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
-            {inflowSubtitle(inflow, memberName)}
-          </Text>
-        </Group>
-        <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
-          {describeAmount(inflow)}
+    <ListRow gap="sm" caption={ended ? undefined : (effectiveDatesCaption(inflow) ?? undefined)}>
+      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+          {inflow.name}
         </Text>
-        <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-          <Badge size="sm" variant="light">
-            {formatFrequency(inflow.schedule, inflow.interval_count)}
+        {ended && (
+          <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+            Inactive
           </Badge>
-        </Box>
-        <FortnightlyAmount
-          cents={fortnightlyOf(inflow)}
-          justify="flex-end"
-          style={{ width: '7rem', flexShrink: 0 }}
-        />
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-        </Group>
-      </Group>
-      {effectiveDatesCaption(inflow) && (
-        <Text size="xs" c="dimmed" truncate>
-          {effectiveDatesCaption(inflow)}
+        )}
+        <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
+          {inflowSubtitle(inflow, memberName)}
         </Text>
-      )}
-    </Stack>
+      </Group>
+      <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
+        {describeAmount(inflow)}
+      </Text>
+      <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
+        <Badge size="xs" variant="light" color="gray">
+          {formatFrequency(inflow.schedule, inflow.interval_count)}
+        </Badge>
+      </Box>
+      <FortnightlyAmount
+        cents={fortnightlyOf(inflow)}
+        justify="flex-end"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
   )
 }
 
@@ -138,13 +149,21 @@ function InflowCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const ended = isInflowEnded(inflow)
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate>
-            {inflow.name}
-          </Text>
+          <Group gap={6} wrap="nowrap">
+            <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
+              {inflow.name}
+            </Text>
+            {ended && (
+              <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+                Inactive
+              </Badge>
+            )}
+          </Group>
           <Group gap={6} wrap="wrap">
             {inflow.member_id && (
               <Text size="xs" c="dimmed">
@@ -157,14 +176,14 @@ function InflowCard({
             <Badge size="xs" variant="light" color={inflow.taxable ? 'teal' : 'gray'}>
               {inflow.taxable ? 'Taxable' : 'Non-taxable'}
             </Badge>
-            <Badge size="xs" variant="light" tt="capitalize">
+            <Badge size="xs" variant="light" color="grape" tt="capitalize">
               {inflow.type}
             </Badge>
-            <Badge size="xs" variant="outline">
+            <Badge size="xs" variant="light" color="gray">
               {formatFrequency(inflow.schedule, inflow.interval_count)}
             </Badge>
           </Group>
-          {effectiveDatesCaption(inflow) && (
+          {!ended && effectiveDatesCaption(inflow) && (
             <Text size="xs" c="dimmed">
               {effectiveDatesCaption(inflow)}
             </Text>
@@ -175,7 +194,7 @@ function InflowCard({
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -244,9 +263,7 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-          Add inflow
-        </Button>
+        <AddButton label="Add inflow" onClick={() => startAdding(true)} />
       )}
 
       {modal}

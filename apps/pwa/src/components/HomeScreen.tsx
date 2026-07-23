@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Badge,
   Button,
-  Card,
   Code,
   CopyButton,
   Group,
@@ -13,6 +12,8 @@ import {
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
+import { AppCard } from './AppCard'
+import { PageSection } from './PageSection'
 import { TaxProfileList } from './TaxProfileList'
 
 interface HomeScreenProps {
@@ -49,7 +50,7 @@ function ConnectUpCard({
   const connected = me?.up_connected_at != null
 
   return (
-    <Card withBorder shadow="sm" radius="md" p="lg">
+    <AppCard>
       <Stack gap="md">
         <Title order={3} size="h5">
           Connect Up
@@ -57,7 +58,7 @@ function ConnectUpCard({
 
         {connected ? (
           <Group justify="space-between">
-            <Badge color="green" variant="light">
+            <Badge size="sm" color="green" variant="light">
               Connected
             </Badge>
             <Button
@@ -111,7 +112,7 @@ function ConnectUpCard({
           ))}
         </Stack>
       </Stack>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -149,8 +150,8 @@ export function HomeScreen({
     new Date(inviteCodeExpiresAt).getTime() > Date.now()
 
   return (
-    <Stack gap="lg" mt="lg">
-      <Card withBorder shadow="sm" radius="md" p="lg">
+    <PageSection title="Household">
+      <AppCard>
         <Stack align="center" gap="md">
           <Title order={1} ta="center">
             {householdName}
@@ -160,10 +161,12 @@ export function HomeScreen({
             Sign out
           </Button>
         </Stack>
-      </Card>
+      </AppCard>
 
       <Stack gap="sm">
-        <Title order={2}>Tax profiles (FY{financialYear})</Title>
+        <Title order={3} size="h5">
+          Tax profiles (FY{financialYear})
+        </Title>
         <TaxProfileList members={members} profiles={taxProfiles} onUpsert={onUpsertTaxProfile} />
       </Stack>
 
@@ -175,7 +178,7 @@ export function HomeScreen({
         upBusy={upBusy}
       />
 
-      <Card withBorder shadow="sm" radius="md" p="lg">
+      <AppCard>
         <Stack gap="md">
           <Title order={3} size="h5">
             Invite someone
@@ -223,7 +226,7 @@ export function HomeScreen({
             </Stack>
           )}
         </Stack>
-      </Card>
-    </Stack>
+      </AppCard>
+    </PageSection>
   )
 }

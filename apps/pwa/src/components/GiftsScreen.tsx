@@ -1,15 +1,5 @@
 import { useState } from 'react'
-import {
-  Box,
-  Button,
-  Card,
-  Collapse,
-  Group,
-  Stack,
-  Text,
-  Title,
-  UnstyledButton,
-} from '@mantine/core'
+import { Box, Button, Collapse, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure, useLocalStorage } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
@@ -34,6 +24,8 @@ import {
   type GiftRow,
 } from '../lib/gifts'
 import { formatCents } from '../lib/money'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import { EmptyState } from './EmptyState'
 import { EnumSegmentedControl } from './EnumSelect'
@@ -128,7 +120,7 @@ function GiftRowCard({
   // surprise is not spoiled.
   if (hidden) {
     return (
-      <Card withBorder radius="md" p="xs">
+      <AppCard withBorder padding="xs">
         <Stack gap={4}>
           <Group justify="space-between" wrap="nowrap" gap="sm">
             <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -158,12 +150,12 @@ function GiftRowCard({
             </Group>
           )}
         </Stack>
-      </Card>
+      </AppCard>
     )
   }
 
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Stack gap="xs">
         <UnstyledButton onClick={toggle} aria-expanded={opened}>
           <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -275,7 +267,7 @@ function GiftRowCard({
       </Stack>
 
       {modal}
-    </Card>
+    </AppCard>
   )
 }
 
@@ -322,7 +314,7 @@ function GiftGroupCard({
     group.rows.length > 0 && group.rows.every((row) => hiddenBudgetIds.has(row.budgetId))
 
   return (
-    <Card withBorder radius="md" p="sm">
+    <AppCard withBorder padding="sm">
       <Stack gap="sm">
         <UnstyledButton onClick={toggle} aria-expanded={opened}>
           <Stack gap={4}>
@@ -390,14 +382,12 @@ function GiftGroupCard({
                 onCancel={() => setAddingBudget(false)}
               />
             ) : (
-              <Button variant="light" fullWidth onClick={() => setAddingBudget(true)}>
-                Add gift budget
-              </Button>
+              <AddButton label="Add gift budget" onClick={() => setAddingBudget(true)} />
             )}
           </Stack>
         </Collapse>
       </Stack>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -468,14 +458,14 @@ export function GiftsScreen({
       }
     >
       {budgets.length > 0 && (
-        <Card withBorder radius="md" p="sm">
+        <AppCard withBorder padding="sm">
           <Stack gap={4}>
             <Title order={3} size="h5">
               Total
             </Title>
             <GiftMoneyBar totals={overall} label="Total gift" budgetOnly={allHidden} />
           </Stack>
-        </Card>
+        </AppCard>
       )}
 
       <Collapse expanded={managing}>

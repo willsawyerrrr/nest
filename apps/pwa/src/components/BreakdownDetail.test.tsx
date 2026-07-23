@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { BreakdownItem } from '../hooks/useBreakdownItems'
 import type { Breakdown } from '../hooks/useBreakdowns'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { BreakdownDetail } from './BreakdownDetail'
 
 function breakdown(overrides: Partial<Breakdown> = {}): Breakdown {
@@ -63,6 +63,19 @@ describe('BreakdownDetail', () => {
     // $10/month → $120/year → $4.62/fn.
     expect(screen.getByLabelText('Breakdown fortnightly total')).toHaveTextContent('$4.62 / fn')
     expect(screen.getByText(/rolls up to \$120\.00 \/ year/i)).toBeInTheDocument()
+  })
+
+  it('renders each item as a dense desktop row outside a card', () => {
+    setWideViewport()
+    renderDetail()
+
+    const name = screen.getByText('Vitamin D')
+    expect(name.closest('.mantine-Card-root')).toBeNull()
+    const row = name.closest('div')?.parentElement as HTMLElement
+    expect(within(row).getByText('$10.00')).toBeInTheDocument()
+    expect(within(row).getByText('Monthly')).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /edit vitamin d/i })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: /delete vitamin d/i })).toBeInTheDocument()
   })
 
   it('renders the back link to the given destination and label', () => {

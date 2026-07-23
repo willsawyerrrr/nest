@@ -1,7 +1,8 @@
 # Breakdowns
 
 A **breakdown** is a user-created, household-scoped itemised list whose items roll
-up into a derived budget line. The household creates arbitrary breakdowns; a
+up into a derived budget line (labelled a **budget item** in the UI; "line"
+persists in the `budget_line` schema only). The household creates arbitrary breakdowns; a
 generic breakdown owns one real budget line whose amount is the sum of its items,
 while the gift breakdown owns one line per recipient partition (one per household
 member with gift budgets, plus one for all external recipients), so the lines and

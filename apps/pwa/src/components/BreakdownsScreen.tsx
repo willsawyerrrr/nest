@@ -1,25 +1,21 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Badge,
-  Button,
-  Card,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-  UnstyledButton,
-} from '@mantine/core'
+import { Badge, Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatPerYear } from '../lib/money'
+import { chartColorName } from '../lib/tokens'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { ListRow } from './ListRow'
+import { PageSection } from './PageSection'
 
 interface BreakdownsScreenProps {
   breakdowns: Breakdown[]
@@ -59,7 +55,7 @@ function NewBreakdownForm({
   }
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+    <AppCard withBorder padding="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
         <TextInput
           label="Name"
@@ -70,7 +66,7 @@ function NewBreakdownForm({
         <EnumSelect
           label="Group"
           size="sm"
-          description="The budget group the rolled-up line belongs to."
+          description="The budget group the rolled-up item belongs to."
           data={BUDGET_GROUPS}
           value={group}
           onChange={(value) => value && setGroup(value)}
@@ -90,22 +86,59 @@ function NewBreakdownForm({
           </Button>
         </Group>
       </Stack>
-    </Card>
+    </AppCard>
   )
 }
 
-/** One breakdown row: its name, group, and rolled-up totals, linking to its editor. */
-function BreakdownRow({ breakdown, annualCents }: { breakdown: Breakdown; annualCents: number }) {
+interface BreakdownItemProps {
+  breakdown: Breakdown
+  annualCents: number
+}
+
+/**
+ * One breakdown as a dense table-like row for desktop: the name grows with its
+ * group badge beside it, then its fortnightly and annual rollups right-aligned in
+ * fixed columns and a chevron, the whole row linking to its editor.
+ */
+function BreakdownRow({ breakdown, annualCents }: BreakdownItemProps) {
+  const fortnightly = fortnightlyCents(annualCents, 'annual')
+  return (
+    <UnstyledButton component={Link} to={`/breakdowns/${breakdown.id}`} display="block">
+      <ListRow gap="sm">
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {breakdown.name}
+          </Text>
+          <Badge size="xs" variant="light" color={chartColorName[breakdown.line_group]}>
+            {groupLabel(breakdown.line_group)}
+          </Badge>
+        </Group>
+        <FortnightlyAmount
+          cents={fortnightly}
+          justify="flex-end"
+          style={{ width: '7rem', flexShrink: 0 }}
+        />
+        <Text size="xs" c="dimmed" ta="right" style={{ width: '8rem', flexShrink: 0 }}>
+          {formatPerYear(annualCents)}
+        </Text>
+        <IconChevronRight size={16} />
+      </ListRow>
+    </UnstyledButton>
+  )
+}
+
+/** One breakdown as a compact bordered card for mobile, linking to its editor. */
+function BreakdownCard({ breakdown, annualCents }: BreakdownItemProps) {
   const fortnightly = fortnightlyCents(annualCents, 'annual')
   return (
     <UnstyledButton component={Link} to={`/breakdowns/${breakdown.id}`}>
-      <Card withBorder radius="md" p="sm">
+      <AppCard withBorder padding="sm">
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Stack gap={4} style={{ minWidth: 0 }}>
             <Text fw={600} size="sm" truncate>
               {breakdown.name}
             </Text>
-            <Badge size="xs" variant="light">
+            <Badge size="xs" variant="light" color={chartColorName[breakdown.line_group]}>
               {groupLabel(breakdown.line_group)}
             </Badge>
           </Stack>
@@ -119,9 +152,18 @@ function BreakdownRow({ breakdown, annualCents }: { breakdown: Breakdown; annual
             <IconChevronRight size={16} />
           </Group>
         </Group>
-      </Card>
+      </AppCard>
     </UnstyledButton>
   )
+}
+
+/**
+ * A single breakdown, rendered as a dense table-like row from the `sm` breakpoint
+ * up and as a compact bordered card below it.
+ */
+function BreakdownItem(props: BreakdownItemProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <BreakdownRow {...props} /> : <BreakdownCard {...props} />
 }
 
 /** Presentational list of the household's breakdowns with a new-breakdown affordance. */
@@ -133,19 +175,11 @@ export function BreakdownsScreen({
   const [adding, setAdding] = useState(false)
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={2} visibleFrom="sm">
-          Breakdowns
-        </Title>
-        {!adding && <Button onClick={() => setAdding(true)}>Add breakdown</Button>}
-      </Group>
-
-      <Text c="dimmed" size="sm">
-        A breakdown is an itemised list whose items roll up into a single budget line.
-      </Text>
-
-      {adding && (
+    <PageSection
+      title="Breakdowns"
+      intro="A breakdown is an itemised list whose items roll up into a single budget item."
+    >
+      {adding ? (
         <NewBreakdownForm
           onSubmit={async (input) => {
             await onCreate(input)
@@ -153,19 +187,21 @@ export function BreakdownsScreen({
           }}
           onCancel={() => setAdding(false)}
         />
+      ) : (
+        <AddButton label="Add breakdown" onClick={() => setAdding(true)} />
       )}
 
       {breakdowns.length === 0 && !adding ? (
         <EmptyState>No breakdowns yet.</EmptyState>
       ) : (
         breakdowns.map((breakdown) => (
-          <BreakdownRow
+          <BreakdownItem
             key={breakdown.id}
             breakdown={breakdown}
             annualCents={totalsByBreakdownId.get(breakdown.id) ?? 0}
           />
         ))
       )}
-    </Stack>
+    </PageSection>
   )
 }

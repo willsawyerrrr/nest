@@ -49,9 +49,9 @@ export const FY2027_CONFIG: TaxYearConfig = {
   },
 
   // Medicare levy surcharge tiers for 2026-27 (published). Single floors and the
-  // family floors carried alongside them; +$1,500 per dependent child after the
-  // first. Compute uses single floors; family data is carried for future
-  // household modelling.
+  // family floors alongside them; +$1,500 per dependent child after the first. The
+  // per-person surcharge uses the single floors; the household MLS what-if uses the
+  // family floors plus the dependent-child increment.
   //   https://www.ato.gov.au/individuals-and-families/medicare-and-private-health-insurance/medicare-levy-surcharge/medicare-levy-surcharge-income-thresholds-and-rates
   medicareLevySurcharge: {
     tiers: [
@@ -87,6 +87,7 @@ export const FY2027_CONFIG: TaxYearConfig = {
       { incomeOverCents: 129_717_00, rate: 0.17 }, // over $129,717
     ],
     maxRepaymentRate: 0.1,
+    indexationRate: 0.035, // provisional — HELP indexation (1 June) is min(CPI, WPI); final FY2027 figure set by the ATO in mid-2027
   },
 
   // Superannuation parameters for 2026-27. Concessional contributions reduce

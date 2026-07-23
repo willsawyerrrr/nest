@@ -405,3 +405,65 @@ describe('estimateHouseholdTax', () => {
     expect(household.annualGrossCents).toBe(expected)
   })
 })
+
+describe('estimateHouseholdTax family Medicare levy surcharge', () => {
+  // Combined surcharge income $270,000 sits in the family 1.25% tier ($246k–$328k).
+  const coupleIncomes: IncomeInput[] = [
+    { memberId: 'alex', type: 'salary', schedule: 'annual', amountCents: 150_000_00 },
+    { memberId: 'sam', type: 'salary', schedule: 'annual', amountCents: 120_000_00 },
+  ]
+  const profile = (memberId: string, privateHospitalCover: boolean): TaxProfileInput => ({
+    memberId,
+    residency: 'resident',
+    privateHospitalCover,
+    helpDebtCents: 0,
+  })
+  const surchargeOf = (household: ReturnType<typeof estimateHouseholdTax>, memberId: string) =>
+    household.members.find((m) => m.memberId === memberId)!.breakdown.medicareLevySurchargeCents
+
+  it('charges only the uncovered member, at the family rate on their own income', () => {
+    const household = estimateHouseholdTax(
+      coupleIncomes,
+      [profile('alex', false), profile('sam', true)],
+      FY2027_CONFIG,
+    )
+    // Alex (no cover) pays 1.25% × $150,000; Sam (cover) is exempt.
+    expect(surchargeOf(household, 'alex')).toBe(1_875_00)
+    expect(surchargeOf(household, 'sam')).toBe(0)
+  })
+
+  it('charges both members when neither holds cover', () => {
+    const household = estimateHouseholdTax(
+      coupleIncomes,
+      [profile('alex', false), profile('sam', false)],
+      FY2027_CONFIG,
+    )
+    expect(surchargeOf(household, 'alex')).toBe(1_875_00) // 1.25% × $150,000
+    expect(surchargeOf(household, 'sam')).toBe(1_500_00) // 1.25% × $120,000
+  })
+
+  it('exempts both members when both hold cover', () => {
+    const household = estimateHouseholdTax(
+      coupleIncomes,
+      [profile('alex', true), profile('sam', true)],
+      FY2027_CONFIG,
+    )
+    expect(surchargeOf(household, 'alex')).toBe(0)
+    expect(surchargeOf(household, 'sam')).toBe(0)
+  })
+
+  it('charges nothing when combined income is below the family floor, even above a single floor', () => {
+    // $120,000 + $85,000 = $205,000 < the $210,000 family floor, though Alex alone
+    // exceeds the $105,000 single floor — the assessment is on combined income.
+    const household = estimateHouseholdTax(
+      [
+        { memberId: 'alex', type: 'salary', schedule: 'annual', amountCents: 120_000_00 },
+        { memberId: 'sam', type: 'salary', schedule: 'annual', amountCents: 85_000_00 },
+      ],
+      [profile('alex', false), profile('sam', false)],
+      FY2027_CONFIG,
+    )
+    expect(surchargeOf(household, 'alex')).toBe(0)
+    expect(surchargeOf(household, 'sam')).toBe(0)
+  })
+})

@@ -7,7 +7,12 @@ import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
-import { currentTaxConfig, estimateHouseholdTaxFromRows, superCapSummaryFromRows } from '../lib/tax'
+import {
+  currentTaxConfig,
+  estimateHouseholdTaxFromRows,
+  helpPayoffByMember,
+  superCapSummaryFromRows,
+} from '../lib/tax'
 
 export function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
@@ -46,6 +51,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
   const concessionalCapCentsByMember = new Map(
     [...capSummaries].map(([memberId, summary]) => [memberId, summary.concessionalCapCents]),
   )
+  const helpPayoff = helpPayoffByMember(estimate, helpDebts.helpDebts ?? [])
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   return (
@@ -55,6 +61,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
       memberName={memberName}
       config={currentTaxConfig()}
       concessionalCapCentsByMember={concessionalCapCentsByMember}
+      helpPayoff={helpPayoff}
     />
   )
 }

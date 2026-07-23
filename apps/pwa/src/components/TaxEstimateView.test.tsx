@@ -2,6 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import {
   FY2027_CONFIG,
+  type HelpPayoffProjection,
   type HouseholdTaxEstimate,
   type MemberTaxEstimate,
   type TaxBreakdown,
@@ -14,6 +15,7 @@ const config = FY2027_CONFIG
 
 const breakdown: TaxBreakdown = {
   taxableIncomeCents: 0,
+  incomeForSurchargeCents: 0,
   incomeTaxCents: 0,
   litoOffsetCents: 0,
   medicareLevyCents: 0,
@@ -23,6 +25,7 @@ const breakdown: TaxBreakdown = {
   totalLiabilityCents: 0,
   paygWithheldCents: 0,
   balanceCents: 0,
+  repaymentIncomeCents: 0,
 }
 
 /** A `TaxInput` for a resident on `salaryCents` with no other attributes. */
@@ -187,7 +190,12 @@ describe('TaxEstimateView', () => {
 
     const [first, ...rest] = screen.getAllByRole('region')
     expect(first).toHaveAccessibleName('Household')
-    expect(rest.map((region) => region.getAttribute('aria-label'))).toEqual(['Will', 'Sam'])
+    // The MLS what-if follows the household card, before the per-member cards.
+    expect(rest.map((region) => region.getAttribute('aria-label'))).toEqual([
+      'Private hospital cover',
+      'Will',
+      'Sam',
+    ])
   })
 
   it('shows the financial year in the heading', () => {
@@ -314,6 +322,7 @@ describe('TaxEstimateView', () => {
       ...will,
       breakdown: {
         taxableIncomeCents: 100_000_00,
+        incomeForSurchargeCents: 100_000_00,
         incomeTaxCents: 24_000_00,
         litoOffsetCents: 700_00,
         medicareLevyCents: 2_000_00,
@@ -323,6 +332,7 @@ describe('TaxEstimateView', () => {
         totalLiabilityCents: 30_800_00,
         paygWithheldCents: 0,
         balanceCents: 30_800_00,
+        repaymentIncomeCents: 100_000_00,
       },
     }
     const withFull: HouseholdTaxEstimate = { ...estimate, members: [willFull, sam] }
@@ -375,6 +385,55 @@ describe('TaxEstimateView', () => {
     )
   })
 
+  it('shows a projected payoff year for a member with a clearing HELP debt', () => {
+    const paidOff: HelpPayoffProjection = {
+      paidOffFinancialYear: 2032,
+      yearsToPayOff: 6,
+      schedule: [],
+    }
+    const helpPayoff = new Map([['m1', paidOff]])
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+        helpPayoff={helpPayoff}
+      />,
+    )
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(
+      within(willCard).getByText(/projected paid off in FY2032 \(6 years\)/),
+    ).toBeInTheDocument()
+    // Sam has no HELP debt, so no payoff line appears on their card.
+    const samCard = screen.getByRole('region', { name: 'Sam' })
+    expect(within(samCard).queryByText(/HELP debt/)).toBeNull()
+  })
+
+  it('notes when a HELP debt does not clear within the projection horizon', () => {
+    const neverClears: HelpPayoffProjection = {
+      paidOffFinancialYear: null,
+      yearsToPayOff: null,
+      schedule: [],
+    }
+    const helpPayoff = new Map([['m1', neverClears]])
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+        helpPayoff={helpPayoff}
+      />,
+    )
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(
+      within(willCard).getByText(/not cleared within 40 years at current income/),
+    ).toBeInTheDocument()
+  })
+
   it('notes that capital gains tax is excluded', () => {
     render(
       <TaxEstimateView
@@ -385,6 +444,94 @@ describe('TaxEstimateView', () => {
       />,
     )
     expect(screen.getByText(/excludes capital gains tax/i)).toBeInTheDocument()
+  })
+
+  // Combined surcharge income $270,000 sits in the FY2027 family 1.25% tier.
+  const surchargeEstimate: HouseholdTaxEstimate = {
+    ...estimate,
+    members: [
+      { ...will, breakdown: { ...breakdown, incomeForSurchargeCents: 150_000_00 } },
+      { ...sam, breakdown: { ...breakdown, incomeForSurchargeCents: 120_000_00 } },
+    ],
+  }
+  const whatIf = () => screen.getByRole('region', { name: 'Private hospital cover' })
+
+  it('renders the MLS what-if with its dependents and premium inputs', () => {
+    render(
+      <TaxEstimateView
+        estimate={surchargeEstimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+    const panel = whatIf()
+    expect(within(panel).getByLabelText(/dependent children/i)).toBeInTheDocument()
+    expect(within(panel).getByLabelText(/hospital cover premium/i)).toBeInTheDocument()
+    // Without cover, combined income lands in the 1.25% tier = $3,375.00/yr.
+    expect(within(panel).getByText(/\$270,000\.00/)).toBeInTheDocument()
+    expect(within(panel).getByText(/1\.25% MLS tier/)).toBeInTheDocument()
+    expect(within(panel).getByText(/\$3,375\.00\/yr/)).toBeInTheDocument()
+  })
+
+  it('shows cover saving money when the premium is below the surcharge', async () => {
+    const user = userEvent.setup()
+    render(
+      <TaxEstimateView
+        estimate={surchargeEstimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+    const premium = within(whatIf()).getByLabelText(/hospital cover premium/i)
+    await user.clear(premium)
+    await user.type(premium, '2000')
+    // $3,375 surcharge − $2,000 premium = $1,375 saved by holding cover.
+    expect(within(whatIf()).getByText(/saves \$1,375\.00\/yr/)).toBeInTheDocument()
+  })
+
+  it('shows cover costing more when the premium exceeds the surcharge', async () => {
+    const user = userEvent.setup()
+    render(
+      <TaxEstimateView
+        estimate={surchargeEstimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+    const premium = within(whatIf()).getByLabelText(/hospital cover premium/i)
+    await user.clear(premium)
+    await user.type(premium, '5000')
+    // $5,000 premium − $3,375 surcharge = $1,625 more than the surcharge avoided.
+    expect(within(whatIf()).getByText(/costs \$1,625\.00\/yr more/)).toBeInTheDocument()
+  })
+
+  it('recomputes below the family threshold as dependent children rise', async () => {
+    const user = userEvent.setup()
+    // Combined surcharge income $211,000 — just over the $210,000 family floor.
+    const justOver: HouseholdTaxEstimate = {
+      ...estimate,
+      members: [
+        { ...will, breakdown: { ...breakdown, incomeForSurchargeCents: 110_000_00 } },
+        { ...sam, breakdown: { ...breakdown, incomeForSurchargeCents: 101_000_00 } },
+      ],
+    }
+    render(
+      <TaxEstimateView
+        estimate={justOver}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+    expect(within(whatIf()).getByText(/1% MLS tier/)).toBeInTheDocument()
+    // Two children raise the family floor by $1,500 to $211,500, above $211,000.
+    const children = within(whatIf()).getByLabelText(/dependent children/i)
+    await user.clear(children)
+    await user.type(children, '2')
+    expect(within(whatIf()).getByText(/Below the family MLS threshold/)).toBeInTheDocument()
   })
 
   it('shows an empty state prompting to add income when gross is zero', () => {

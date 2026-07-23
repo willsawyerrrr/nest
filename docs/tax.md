@@ -46,9 +46,21 @@ which apply to the current rate rather than the part-year figure.
 3. **Offsets** — subtract e.g. Low Income Tax Offset (LITO). Offsets reduce tax
    payable but not below zero.
 4. **Medicare levy** — base rate (2%) with low-income reduction thresholds.
-5. **Medicare levy surcharge** — income-tested; applies only without private
-   hospital cover and above the surcharge threshold. Surcharge income adds the
-   concessional super contributions back to taxable income.
+5. **Medicare levy surcharge** — assessed on the household's **combined** income,
+   not per person. The tier rate is chosen by summed surcharge income against the
+   **family** thresholds (each tier's family floor raised by
+   `family_dependent_child_increment_cents` for every dependent child after the
+   first); a member then pays that rate on their **own** surcharge income, and is
+   exempt only if they themselves hold private hospital cover — so both partners
+   must be covered to avoid it entirely. A single-member household falls back to
+   the single-person thresholds. Surcharge income adds the concessional super
+   contributions back to taxable income. The engine assesses this in two passes at
+   the household layer (`estimateHouseholdTax`): a first pass computes each
+   member's surcharge income, the family assessment (`familyMedicareLevySurcharge`)
+   picks the rate, and a second pass injects each member's surcharge via
+   `computeTax`'s `medicareLevySurchargeCentsOverride`. The live estimate assumes
+   **no dependent children** (there is no persisted field); the Tax tab's what-if
+   panel lets the household explore other counts.
 6. **HELP/HECS repayment** — income-tested compulsory repayment on repayment
    income (which likewise adds concessional super contributions back). From
    1 July 2025 (FY2026 onward) it is **marginal**: a rate applies to repayment
@@ -109,6 +121,37 @@ cents; `years` is passed in for determinism.
 > in localStorage — they are not persisted to the database. The retirement age
 > defaults to the config's `preservation_age`.
 
+## HELP/HECS indexation and payoff projection
+
+A HELP/HECS balance is indexed once a year, on 1 June, by
+`help_repayment.indexation_rate` — the minimum of the CPI and WPI movements,
+sourced from the versioned per-FY config (never hardcoded). `computeTax` assesses
+a balance already indexed, so indexation matters only when projecting a debt
+forward.
+
+`projectHelpPayoff(balanceCents, repaymentIncomeCents, config, startFinancialYear,
+maxYears = 40)` (in `@nest/tax`) estimates the financial year a debt clears. Each
+year follows the ATO order of operations: the opening balance is **indexed on
+1 June before** that year's compulsory repayment is credited, the repayment is
+computed against the indexed balance and subtracted (floored at zero), and the
+year is recorded in the returned `schedule`. It stops when the balance clears
+(reporting `paidOffFinancialYear` and `yearsToPayOff`) or when a year's closing
+balance no longer falls below its opening balance — indexation outpacing
+repayment, so the debt never clears — and runs at most `maxYears` (40) years. A
+non-positive balance returns an empty schedule.
+
+The PWA's Tax tab renders a per-member payoff line beneath the HELP/HECS row for
+each member with a positive HELP balance (`helpPayoffByMember` /
+`helpPayoffForBreakdown` in `lib/tax`), reading the member's repayment income from
+their tax breakdown.
+
+> **Payoff-projection simplifications.** Repayment income is held constant across
+> every projected year at the member's current estimate — real income (and so the
+> repayment) varies year to year. The current financial year's `config` is reused
+> for all future years, since `configsByYear` holds only FY2027, so future
+> indexation and repayment thresholds are assumed unchanged. Voluntary repayments,
+> new borrowings, and any interaction with super or investment growth are excluded.
+
 ## `TaxYearConfig` shape (versioned)
 
 ```
@@ -125,13 +168,15 @@ medicare_levy:
   low_income_threshold_cents: ...
   phase_in_rate: 0.10
 medicare_levy_surcharge:
-  tiers: [ { income_over_cents, rate } ]
+  tiers: [ { income_over_cents, family_income_over_cents, rate } ]
+  family_dependent_child_increment_cents: ...   # +per dependent child after the first
 lito:
   max_offset_cents: ...
   taper_rules: [ ... ]
 help_repayment:
   marginal_bands: [ { income_over_cents, rate } ]  # marginal, ordered by floor
   max_repayment_rate: 0.10                          # cap on whole repayment income
+  indexation_rate: 0.035                            # annual indexation (1 June), for the payoff projection
 super:
   guarantee_rate: 0.12
   concessional_cap_cents: ...
@@ -155,8 +200,9 @@ super:
   config with real ATO figures for 2026-27, including the Budget top-up cut that
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
   carries its `ato.gov.au` source in a comment; figures the ATO has not yet
-  published for 2026-27 (the Medicare levy low-income thresholds) reuse the
-  2025-26 values and are flagged provisional. It also carries the verified 2026-27
+  published for 2026-27 (the Medicare levy low-income thresholds and the HELP
+  indexation rate) reuse the latest known values and are flagged provisional. It
+  also carries the verified 2026-27
   super figures (concessional cap $32,500, non-concessional cap $130,000, the
   $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the
   co-contribution income test, and preservation age 60). See
@@ -180,8 +226,21 @@ surcharge, the HELP/HECS repayment, and Division 293 tax — culminating in the
 total tax, then the gross → less super → less tax → take-home framing. Income
 tax, the Medicare levy, and the total always show; the optional components appear
 only when they apply, with any nil components named beneath so a reader knows
-they were considered. A footnote reiterates that the estimate excludes capital
-gains tax.
+they were considered. Because the surcharge is a household assessment, each
+member's surcharge line already reflects the combined-income family tier. A
+footnote reiterates that the estimate excludes capital gains tax.
+
+Below the household card sits a **private hospital cover what-if**. It assesses
+the family Medicare levy surcharge as if **neither** member held cover — the "what
+if we drop cover" scenario — over the members' surcharge incomes: it reports the
+combined income, the family tier rate it selects, and the resulting annual
+household surcharge. Against an entered annual policy premium it reports whether
+cover saves money (surcharge avoided exceeds the premium) or costs more than the
+surcharge it avoids, and it shows "below the family MLS threshold" when combined
+income is under the floor (so cover is not justified by the surcharge alone). Its
+two inputs — a dependent-children count (raising the family floor per child after
+the first) and the annual premium — are **ephemeral** local UI state, never
+persisted.
 
 ## Salary-sacrifice what-if
 

@@ -76,7 +76,7 @@ export interface MedicareLevySurchargeConfig {
 export interface MedicareLevySurchargeTier {
   /** Single income floor above which this tier's `rate` applies. */
   readonly incomeOverCents: Money
-  /** Family income floor for the same tier; carried for household modelling. */
+  /** Family income floor for the same tier, used by the family MLS assessment. */
   readonly familyIncomeOverCents: Money
   readonly rate: number
 }
@@ -91,6 +91,12 @@ export interface MedicareLevySurchargeTier {
 export interface HelpRepaymentConfig {
   readonly marginalBands: readonly HelpRepaymentBand[]
   readonly maxRepaymentRate: number
+  /**
+   * Annual HELP/HECS indexation rate applied to the outstanding balance on 1 June
+   * (the minimum of the CPI and WPI movements). Drives the payoff projection; not
+   * used by a single-year `computeTax`, which assesses a balance already indexed.
+   */
+  readonly indexationRate: number
 }
 
 /** One marginal HELP/HECS band: `rate` on repayment income above `incomeOverCents`. */
@@ -174,6 +180,13 @@ export interface TaxInput {
    * is treated as nil.
    */
   readonly concessionalContributionsCents?: Money
+  /**
+   * A pre-computed Medicare levy surcharge to use for this member instead of the
+   * per-person assessment. The household layer sets it so the surcharge line and
+   * total reflect the family-income assessment (see `familyMedicareLevySurcharge`);
+   * absent, `computeTax` assesses the surcharge per person from this input.
+   */
+  readonly medicareLevySurchargeCentsOverride?: Money
 }
 
 /**
@@ -186,6 +199,12 @@ export interface TaxInput {
  */
 export interface TaxBreakdown {
   readonly taxableIncomeCents: Money
+  /**
+   * Income for Medicare levy surcharge purposes — taxable income plus reportable
+   * (concessional) super contributions. The per-person surcharge is assessed on
+   * it, and it is the base a household-level MLS what-if sums across members.
+   */
+  readonly incomeForSurchargeCents: Money
   readonly incomeTaxCents: Money
   readonly litoOffsetCents: Money
   readonly medicareLevyCents: Money
@@ -195,6 +214,12 @@ export interface TaxBreakdown {
   readonly totalLiabilityCents: Money
   readonly paygWithheldCents: Money
   readonly balanceCents: Money
+  /**
+   * Repayment income the HELP/HECS repayment is assessed on — taxable income plus
+   * reportable concessional super contributions. Surfaced so the payoff projection
+   * can hold it constant across future years.
+   */
+  readonly repaymentIncomeCents: Money
 }
 
 /** Returns the AU financial year (ending-year label) that `date` falls in. */
@@ -340,6 +365,77 @@ export function medicareLevySurcharge(
   return roundCents(incomeForSurchargeCents * rate)
 }
 
+/** One member's inputs to the family Medicare levy surcharge assessment. */
+export interface FamilyMlsMember {
+  readonly incomeForSurchargeCents: Money
+  readonly hasPrivateHospitalCover: boolean
+}
+
+/**
+ * The outcome of a family Medicare levy surcharge assessment. `tierRate` is the
+ * single rate the combined family income selects; `thresholdCents` is the family
+ * floor it was compared against (the selected tier's, or the lowest tier's when no
+ * surcharge applies). `perMemberSurchargeCents` is aligned to the input order, nil
+ * for a member who holds cover; `totalSurchargeCents` sums it.
+ */
+export interface FamilyMlsResult {
+  readonly combinedIncomeForSurchargeCents: Money
+  readonly tierRate: number
+  readonly thresholdCents: Money
+  readonly perMemberSurchargeCents: readonly Money[]
+  readonly totalSurchargeCents: Money
+}
+
+/**
+ * Assesses the Medicare levy surcharge across a household. The tier RATE is chosen
+ * by the members' COMBINED surcharge income against the FAMILY thresholds, each
+ * tier's effective family floor being `familyIncomeOverCents` plus
+ * `familyDependentChildIncrementCents` for every dependent child after the first.
+ * A member is liable only when they lack cover; when liable, their surcharge is
+ * their OWN income at the family-selected rate (a per-person base, family-selected
+ * rate), rounded to whole cents. A single-member household with no dependent
+ * children falls back to the single-person floors, so the helper is correct for
+ * both shapes. Nil rate and nil total when combined income is at or below the
+ * lowest applicable floor.
+ */
+export function familyMedicareLevySurcharge(
+  members: readonly FamilyMlsMember[],
+  dependentChildren: number,
+  config: TaxYearConfig,
+): FamilyMlsResult {
+  const { tiers, familyDependentChildIncrementCents } = config.medicareLevySurcharge
+  const useSingleFloors = members.length === 1 && dependentChildren === 0
+  const increment = Math.max(0, dependentChildren - 1) * familyDependentChildIncrementCents
+  const floorOf = (tier: MedicareLevySurchargeTier): Money =>
+    useSingleFloors ? tier.incomeOverCents : tier.familyIncomeOverCents + increment
+
+  const combinedIncomeForSurchargeCents = members.reduce(
+    (total, member) => total + member.incomeForSurchargeCents,
+    0,
+  )
+
+  let tierRate = 0
+  let thresholdCents = tiers.length > 0 ? floorOf(tiers[0]!) : 0
+  for (const tier of tiers) {
+    if (combinedIncomeForSurchargeCents <= floorOf(tier)) break
+    tierRate = tier.rate
+    thresholdCents = floorOf(tier)
+  }
+
+  const perMemberSurchargeCents = members.map((member) =>
+    member.hasPrivateHospitalCover ? 0 : roundCents(member.incomeForSurchargeCents * tierRate),
+  )
+  const totalSurchargeCents = perMemberSurchargeCents.reduce((total, cents) => total + cents, 0)
+
+  return {
+    combinedIncomeForSurchargeCents,
+    tierRate,
+    thresholdCents,
+    perMemberSurchargeCents,
+    totalSurchargeCents,
+  }
+}
+
 /**
  * Computes the compulsory HELP/HECS repayment, capped at the outstanding debt.
  * Marginal across `marginalBands`, then limited to `maxRepaymentRate` of the
@@ -426,7 +522,10 @@ export function superCoContribution(
  * Offsets reduce tax payable but not below zero, and never reduce the levies.
  * Concessional super contributions reduce taxable income (so they lower income
  * tax, LITO, and the Medicare levy) but are added back for the surcharge and HELP
- * repayment income, and may attract Division 293.
+ * repayment income, and may attract Division 293. When
+ * `medicareLevySurchargeCentsOverride` is set, that surcharge is used in the line
+ * and total in place of the per-person assessment, letting the household layer
+ * assess the surcharge on combined family income.
  */
 export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown {
   const concessionalCents = input.concessionalContributionsCents ?? 0
@@ -438,11 +537,11 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
   // Reportable concessional contributions are added back for the surcharge and
   // HELP repayment income (they add back reportable super contributions).
   const incomeWithSuperCents = taxableIncomeCents + concessionalCents
-  const medicareLevySurchargeCents = medicareLevySurcharge(
-    incomeWithSuperCents,
-    input.privateHospitalCover,
-    config,
-  )
+  // The household layer may inject a family-income-assessed surcharge; otherwise
+  // the surcharge is assessed per person from this member's income and cover.
+  const medicareLevySurchargeCents =
+    input.medicareLevySurchargeCentsOverride ??
+    medicareLevySurcharge(incomeWithSuperCents, input.privateHospitalCover, config)
   const helpRepaymentCents = helpRepayment(incomeWithSuperCents, input.helpDebtCents, config)
   const division293Cents = division293(taxableIncomeCents, concessionalCents, config)
   const totalLiabilityCents =
@@ -454,6 +553,7 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
   const balanceCents = totalLiabilityCents - input.paygWithheldCents
   return {
     taxableIncomeCents,
+    incomeForSurchargeCents: incomeWithSuperCents,
     incomeTaxCents,
     litoOffsetCents,
     medicareLevyCents,
@@ -463,6 +563,7 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
     totalLiabilityCents,
     paygWithheldCents: input.paygWithheldCents,
     balanceCents,
+    repaymentIncomeCents: incomeWithSuperCents,
   }
 }
 
@@ -525,4 +626,78 @@ export function salarySacrificeWhatIf(
     takeHomeChangeCents: taxSavedCents - additionalConcessionalCents,
     division293DeltaCents: modified.division293Cents - baseline.division293Cents,
   }
+}
+
+/** One financial year in a HELP/HECS payoff projection. */
+export interface HelpPayoffYear {
+  readonly financialYear: FinancialYear
+  readonly openingBalanceCents: Money
+  readonly indexationCents: Money
+  readonly repaymentCents: Money
+  readonly closingBalanceCents: Money
+}
+
+/**
+ * A projection of when a HELP/HECS debt clears. `paidOffFinancialYear` and
+ * `yearsToPayOff` are null when the debt is not cleared within the horizon — either
+ * because the repayment never outpaces indexation, or because `maxYears` is reached
+ * first. `schedule` lists each modelled year in order.
+ */
+export interface HelpPayoffProjection {
+  readonly paidOffFinancialYear: FinancialYear | null
+  readonly yearsToPayOff: number | null
+  readonly schedule: readonly HelpPayoffYear[]
+}
+
+/**
+ * Projects when a HELP/HECS debt is paid off, holding `repaymentIncomeCents`
+ * constant (an estimate — real repayment income varies year to year). Each year
+ * follows the ATO order of operations: the balance is indexed on 1 June (at
+ * `config.helpRepayment.indexationRate`) BEFORE that year's compulsory repayment
+ * is credited. `config` is reused for every future year, since only the current
+ * financial year's config is published.
+ *
+ * A balance at or below zero returns an empty schedule with zero years. Otherwise,
+ * for each year from `startFinancialYear`, the opening balance is indexed, the
+ * repayment is computed against the indexed balance and subtracted (floored at
+ * zero), and the year is recorded. The projection stops when the balance clears
+ * (paid off that year) or when a year's closing balance does not fall below its
+ * opening balance (indexation outpaces repayment, so it never clears), and runs
+ * for at most `maxYears`.
+ */
+export function projectHelpPayoff(
+  balanceCents: Money,
+  repaymentIncomeCents: Money,
+  config: TaxYearConfig,
+  startFinancialYear: FinancialYear,
+  maxYears = 40,
+): HelpPayoffProjection {
+  if (balanceCents <= 0) {
+    return { paidOffFinancialYear: null, yearsToPayOff: 0, schedule: [] }
+  }
+  const schedule: HelpPayoffYear[] = []
+  let balance = balanceCents
+  for (let i = 0; i < maxYears; i++) {
+    const financialYear = startFinancialYear + i
+    const openingBalanceCents = balance
+    const indexationCents = roundCents(openingBalanceCents * config.helpRepayment.indexationRate)
+    const indexedCents = openingBalanceCents + indexationCents
+    const repaymentCents = helpRepayment(repaymentIncomeCents, indexedCents, config)
+    const closingBalanceCents = Math.max(0, indexedCents - repaymentCents)
+    schedule.push({
+      financialYear,
+      openingBalanceCents,
+      indexationCents,
+      repaymentCents,
+      closingBalanceCents,
+    })
+    if (closingBalanceCents <= 0) {
+      return { paidOffFinancialYear: financialYear, yearsToPayOff: i + 1, schedule }
+    }
+    if (closingBalanceCents >= openingBalanceCents) {
+      return { paidOffFinancialYear: null, yearsToPayOff: null, schedule }
+    }
+    balance = closingBalanceCents
+  }
+  return { paidOffFinancialYear: null, yearsToPayOff: null, schedule }
 }

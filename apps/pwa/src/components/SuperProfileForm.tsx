@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
-import { formatIsoDate } from '../lib/dates'
-import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
+import { centsToDollars, dollarsToCents } from '../lib/money'
 import { accruedBalanceCents } from '../lib/super'
 import { MoneyInput } from './MoneyInput'
 
@@ -24,13 +23,15 @@ interface SuperProfileFormProps {
   /** Injectable clock for a deterministic effective balance; defaults to now. */
   today?: Date
   onSubmit: (values: SuperFormValues) => void | Promise<void>
+  onCancel?: () => void
 }
 
 /**
  * Presentational super editor for one member: fund name and balance. The stored
- * balance is a baseline confirmed on a date; this shows the effective balance
- * today (baseline plus modelled contributions accrued since) and treats a save
- * as a true-up that re-confirms the actual balance. Persistence lives in the caller.
+ * balance is a baseline confirmed on a date; the input prefills with the effective
+ * balance today (baseline plus modelled contributions accrued since) and treats a
+ * save as a true-up that re-confirms the actual balance. Persistence lives in the
+ * caller.
  */
 export function SuperProfileForm({
   member,
@@ -40,6 +41,7 @@ export function SuperProfileForm({
   netAnnualContributionCents = 0,
   today = new Date(),
   onSubmit,
+  onCancel,
 }: SuperProfileFormProps) {
   const baselineCents = initialBalanceCents ?? 0
   const effectiveCents = accruedBalanceCents(
@@ -48,7 +50,6 @@ export function SuperProfileForm({
     netAnnualContributionCents,
     today,
   )
-  const accruedCents = effectiveCents - baselineCents
 
   const [fundName, setFundName] = useState(initialFundName ?? '')
   const [balance, setBalance] = useState<number | string>(
@@ -77,7 +78,6 @@ export function SuperProfileForm({
   }
 
   const isTrueUp = balanceAsOf !== null
-  const showAccrual = isTrueUp && accruedCents !== 0
 
   return (
     <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
@@ -85,24 +85,10 @@ export function SuperProfileForm({
         <Text fw={600}>{member.name}</Text>
 
         {isTrueUp && (
-          <Stack gap={2}>
-            <Text size="sm" c="dimmed">
-              Estimated balance today
-            </Text>
-            <Text fw={700} fz="lg">
-              {formatCents(effectiveCents)}
-            </Text>
-            {showAccrual && (
-              <Text size="xs" c="dimmed">
-                {formatCents(baselineCents)} confirmed on {formatIsoDate(balanceAsOf)} +{' '}
-                {formatCents(accruedCents)} accrued from contributions
-              </Text>
-            )}
-            <Text size="xs" c="dimmed">
-              Between true-ups this is estimated from your modelled contributions. Enter your
-              fund&rsquo;s actual balance to true it up.
-            </Text>
-          </Stack>
+          <Text size="xs" c="dimmed">
+            Between true-ups the balance is estimated from your modelled contributions. Enter your
+            fund&rsquo;s actual balance to true it up.
+          </Text>
         )}
 
         <TextInput
@@ -133,9 +119,20 @@ export function SuperProfileForm({
           </Text>
         )}
 
-        <Button type="submit" fullWidth disabled={submitting}>
-          {submitting ? 'Saving…' : isTrueUp ? 'Update actual balance' : 'Save'}
-        </Button>
+        {onCancel ? (
+          <Group grow>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : isTrueUp ? 'Update actual balance' : 'Save'}
+            </Button>
+            <Button type="button" variant="default" onClick={onCancel}>
+              Cancel
+            </Button>
+          </Group>
+        ) : (
+          <Button type="submit" fullWidth disabled={submitting}>
+            {submitting ? 'Saving…' : isTrueUp ? 'Update actual balance' : 'Save'}
+          </Button>
+        )}
       </Stack>
     </Card>
   )

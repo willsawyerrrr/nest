@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Card, Stack, Text, Title } from '@mantine/core'
+import { ActionIcon, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { IconPencil } from '@tabler/icons-react'
 import type { HelpDebt, HelpDebtInput } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
-import { centsToDollars, dollarsToCents } from '../lib/money'
+import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
 
 interface HelpDebtScreenProps {
@@ -11,15 +12,46 @@ interface HelpDebtScreenProps {
   onSave: (input: HelpDebtInput) => Promise<void>
 }
 
+/** One member's HELP balance as a compact read-only row with an Edit affordance. */
+function HelpDebtCard({
+  member,
+  debt,
+  onEdit,
+}: {
+  member: Member
+  debt?: HelpDebt
+  onEdit: () => void
+}) {
+  return (
+    <Card withBorder radius="md" p="xs">
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {member.name}
+          </Text>
+          <Text size="sm" c="dimmed">
+            {formatCents(debt?.balance_cents ?? 0)}
+          </Text>
+        </Stack>
+        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit} style={{ flexShrink: 0 }}>
+          <IconPencil size={16} />
+        </ActionIcon>
+      </Group>
+    </Card>
+  )
+}
+
 /** One member's HELP balance editor: a dollar input that upserts on save. */
 function MemberHelpDebtForm({
   member,
   initial,
   onSave,
+  onCancel,
 }: {
   member: Member
   initial?: HelpDebt
   onSave: (input: HelpDebtInput) => Promise<void>
+  onCancel: () => void
 }) {
   const [balance, setBalance] = useState<number | string>(centsToDollars(initial?.balance_cents))
   const [submitting, setSubmitting] = useState(false)
@@ -63,20 +95,29 @@ function MemberHelpDebtForm({
             Saved
           </Text>
         )}
-        <Button type="submit" fullWidth disabled={submitting}>
-          {submitting ? 'Saving…' : 'Save'}
-        </Button>
+        <Group grow>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? 'Saving…' : 'Save'}
+          </Button>
+          <Button type="button" variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+        </Group>
       </Stack>
     </Card>
   )
 }
 
 /**
- * Presentational HELP-debt manager: one balance editor per household member.
- * Each member's outstanding HELP debt feeds the tax estimate and counts as a
- * liability on the Net worth tab. Persistence lives in the caller.
+ * Presentational HELP-debt manager: one balance per household member, shown as a
+ * read-only row that expands into an inline edit form. Each member's outstanding
+ * HELP debt feeds the tax estimate and counts as a liability on the Net worth tab.
+ * Persistence lives in the caller.
  */
 export function HelpDebtScreen({ members, helpDebts, onSave }: HelpDebtScreenProps) {
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
+  const debtForMember = (memberId: string) => helpDebts.find((debt) => debt.member_id === memberId)
+
   return (
     <Stack gap="sm">
       <Title order={2} visibleFrom="sm">
@@ -86,14 +127,27 @@ export function HelpDebtScreen({ members, helpDebts, onSave }: HelpDebtScreenPro
         Each member&rsquo;s outstanding HELP/HECS balance. It drives the compulsory repayment on the
         Tax tab and counts against household net worth as a liability.
       </Text>
-      {members.map((member) => (
-        <MemberHelpDebtForm
-          key={member.id}
-          member={member}
-          initial={helpDebts.find((debt) => debt.member_id === member.id)}
-          onSave={onSave}
-        />
-      ))}
+      {members.map((member) =>
+        editingMemberId === member.id ? (
+          <MemberHelpDebtForm
+            key={member.id}
+            member={member}
+            initial={debtForMember(member.id)}
+            onSave={async (input) => {
+              await onSave(input)
+              setEditingMemberId(null)
+            }}
+            onCancel={() => setEditingMemberId(null)}
+          />
+        ) : (
+          <HelpDebtCard
+            key={member.id}
+            member={member}
+            debt={debtForMember(member.id)}
+            onEdit={() => setEditingMemberId(member.id)}
+          />
+        ),
+      )}
     </Stack>
   )
 }

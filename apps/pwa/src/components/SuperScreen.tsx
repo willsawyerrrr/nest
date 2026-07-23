@@ -1,14 +1,78 @@
-import { Stack, Text, Title } from '@mantine/core'
+import { useState } from 'react'
+import { ActionIcon, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { IconPencil } from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
+import { formatIsoDate } from '../lib/dates'
+import { formatCents } from '../lib/money'
 import { accruedBalanceCents } from '../lib/super'
 import type { SuperCapSummary } from '../lib/tax'
 import { RetirementProjection } from './RetirementProjection'
 import { SuperCapsSummary } from './SuperCapsSummary'
 import { SuperContributionList } from './SuperContributionList'
 import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
+
+/**
+ * One member's super profile as a compact read-only row: fund name and the
+ * effective balance today. For a dated baseline this reads as an estimate, with
+ * the accrual breakdown, since it grows by modelled contributions between true-ups.
+ */
+function SuperProfileCard({
+  member,
+  fundName,
+  baselineCents,
+  balanceAsOf,
+  effectiveCents,
+  onEdit,
+}: {
+  member: Member
+  fundName?: string | null
+  baselineCents: number
+  balanceAsOf: string | null
+  effectiveCents: number
+  onEdit: () => void
+}) {
+  const isTrueUp = balanceAsOf !== null
+  const accruedCents = effectiveCents - baselineCents
+  const trimmedFundName = fundName?.trim()
+  return (
+    <Card withBorder radius="md" p="xs">
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {member.name}
+          </Text>
+          {trimmedFundName ? (
+            <Text size="sm" c="dimmed" truncate>
+              {trimmedFundName}
+            </Text>
+          ) : (
+            <Text size="sm" c="dimmed" fs="italic">
+              No fund set
+            </Text>
+          )}
+          <Text size="xs" c="dimmed">
+            {isTrueUp ? 'Estimated balance today' : 'Current balance'}
+          </Text>
+          <Text fw={700} fz="lg">
+            {formatCents(effectiveCents)}
+          </Text>
+          {isTrueUp && accruedCents !== 0 && (
+            <Text size="xs" c="dimmed">
+              {formatCents(baselineCents)} confirmed on {formatIsoDate(balanceAsOf)} +{' '}
+              {formatCents(accruedCents)} accrued from contributions
+            </Text>
+          )}
+        </Stack>
+        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit} style={{ flexShrink: 0 }}>
+          <IconPencil size={16} />
+        </ActionIcon>
+      </Group>
+    </Card>
+  )
+}
 
 interface SuperScreenProps {
   members: Member[]
@@ -47,6 +111,7 @@ export function SuperScreen({
   onUpdateContribution,
   onDeleteContribution,
 }: SuperScreenProps) {
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   return (
     <Stack gap="sm">
       <Title order={2} visibleFrom="sm">
@@ -64,16 +129,40 @@ export function SuperScreen({
           (contribution) => contribution.member_id === member.id,
         )
         const capSummary = capSummaries.get(member.id)
+        const netAnnualContributionCents = netContributionByMember.get(member.id) ?? 0
+        const balanceAsOf = profile?.balance_as_of ?? null
+        const baselineCents = account?.balance_cents ?? 0
+        const effectiveCents = accruedBalanceCents(
+          baselineCents,
+          balanceAsOf,
+          netAnnualContributionCents,
+          new Date(),
+        )
         return (
           <Stack key={member.id} gap="xs">
-            <SuperProfileForm
-              member={member}
-              initialFundName={profile?.fund_name}
-              initialBalanceCents={account?.balance_cents}
-              balanceAsOf={profile?.balance_as_of ?? null}
-              netAnnualContributionCents={netContributionByMember.get(member.id) ?? 0}
-              onSubmit={(values) => onSave(member, values)}
-            />
+            {editingMemberId === member.id ? (
+              <SuperProfileForm
+                member={member}
+                initialFundName={profile?.fund_name}
+                initialBalanceCents={account?.balance_cents}
+                balanceAsOf={balanceAsOf}
+                netAnnualContributionCents={netAnnualContributionCents}
+                onSubmit={async (values) => {
+                  await onSave(member, values)
+                  setEditingMemberId(null)
+                }}
+                onCancel={() => setEditingMemberId(null)}
+              />
+            ) : (
+              <SuperProfileCard
+                member={member}
+                fundName={profile?.fund_name}
+                baselineCents={baselineCents}
+                balanceAsOf={balanceAsOf}
+                effectiveCents={effectiveCents}
+                onEdit={() => setEditingMemberId(member.id)}
+              />
+            )}
             {capSummary && <SuperCapsSummary summary={capSummary} />}
             <Title order={3} size="h5">
               Contributions

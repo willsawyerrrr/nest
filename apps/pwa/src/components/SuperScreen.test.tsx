@@ -89,9 +89,15 @@ describe('SuperScreen', () => {
     )
 
     expect(screen.getByText(/super \(fy2027\)/i)).toBeInTheDocument()
-    // Both members get an editor (and each also appears on the projection card).
+    // Both members get a read row (and each also appears on the projection card).
     expect(screen.getAllByText('Will').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Sam').length).toBeGreaterThan(0)
+    // Will's read row shows his fund and reads as a dated-baseline estimate; Sam,
+    // with no profile, reads as a plain current balance. The edit input is hidden.
+    expect(screen.getByText('AustralianSuper')).toBeInTheDocument()
+    expect(screen.getByText('Estimated balance today')).toBeInTheDocument()
+    expect(screen.getByText('Current balance')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/fund name/i)).not.toBeInTheDocument()
     expect(screen.getByText(/bring-forward may allow/i)).toBeInTheDocument()
     expect(screen.getAllByText('Contributions').length).toBeGreaterThan(0)
     expect(screen.getByText('Salary sacrifice')).toBeInTheDocument()
@@ -121,13 +127,45 @@ describe('SuperScreen', () => {
       />,
     )
 
-    // With no profile or cap summary the member still renders an editor that
-    // saves through to the caller, tagged with the member.
+    // With no profile or cap summary the member still has a read row whose Edit
+    // pencil reveals a form that saves through to the caller, tagged with the member.
+    await user.click(screen.getByRole('button', { name: /edit/i }))
     await user.type(screen.getByLabelText(/fund name/i), 'Hostplus')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(will, expect.objectContaining({ fundName: 'Hostplus' })),
     )
+    // Saving returns the member to the read row.
+    await waitFor(() => expect(screen.queryByLabelText(/fund name/i)).not.toBeInTheDocument())
+  })
+
+  it('returns to the read row on Cancel without saving', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <SuperScreen
+        members={[will]}
+        profiles={[]}
+        accounts={[]}
+        contributions={[]}
+        capSummaries={new Map()}
+        netContributionByMember={new Map()}
+        preservationAge={67}
+        financialYear={2027}
+        onSave={onSave}
+        onCreateContribution={vi.fn()}
+        onUpdateContribution={vi.fn()}
+        onDeleteContribution={vi.fn()}
+      />,
+    )
+
+    // Opening the editor then cancelling drops back to the read row untouched.
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+    expect(screen.getByLabelText(/fund name/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByLabelText(/fund name/i)).not.toBeInTheDocument()
+    expect(onSave).not.toHaveBeenCalled()
   })
 })

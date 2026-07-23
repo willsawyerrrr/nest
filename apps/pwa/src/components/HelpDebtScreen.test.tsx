@@ -24,21 +24,47 @@ function card(name: string): HTMLElement {
 }
 
 describe('HelpDebtScreen', () => {
-  it('prefills each member from their HELP balance and saves as cents', async () => {
+  it('shows each member’s balance, defaulting to $0.00 without a debt', () => {
+    render(<HelpDebtScreen members={members} helpDebts={[samDebt]} onSave={vi.fn()} />)
+
+    expect(within(card('Sam')).getByText('$10,000.00')).toBeInTheDocument()
+    expect(within(card('Will')).getByText('$0.00')).toBeInTheDocument()
+    // The input is hidden until the user clicks Edit.
+    expect(screen.queryByLabelText(/help debt/i)).not.toBeInTheDocument()
+  })
+
+  it('reveals the edit form prefilled and saves as cents', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)
     render(<HelpDebtScreen members={members} helpDebts={[samDebt]} onSave={onSave} />)
 
+    await user.click(within(card('Sam')).getByRole('button', { name: /edit/i }))
     expect(within(card('Sam')).getByLabelText(/help debt/i)).toHaveValue('$10,000.00')
 
     const will = card('Will')
-    await user.type(within(will).getByLabelText(/help debt/i), '25000')
-    await user.click(within(will).getByRole('button', { name: /save/i }))
+    await user.click(within(will).getByRole('button', { name: /edit/i }))
+    await user.type(within(card('Will')).getByLabelText(/help debt/i), '25000')
+    await user.click(within(card('Will')).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith({ member_id: 'm1', balance_cents: 2500000 }),
     )
-    expect(await within(will).findByRole('status')).toHaveTextContent(/saved/i)
+    // Saving returns Will to the read row.
+    await waitFor(() =>
+      expect(within(card('Will')).getByRole('button', { name: /edit/i })).toBeInTheDocument(),
+    )
+  })
+
+  it('closes the form on cancel without saving', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(<HelpDebtScreen members={members} helpDebts={[samDebt]} onSave={onSave} />)
+
+    await user.click(within(card('Will')).getByRole('button', { name: /edit/i }))
+    await user.click(within(card('Will')).getByRole('button', { name: /cancel/i }))
+
+    expect(within(card('Will')).getByRole('button', { name: /edit/i })).toBeInTheDocument()
+    expect(onSave).not.toHaveBeenCalled()
   })
 
   it('shows an error when saving fails', async () => {
@@ -46,9 +72,9 @@ describe('HelpDebtScreen', () => {
     const onSave = vi.fn().mockRejectedValue(new Error('boom'))
     render(<HelpDebtScreen members={members} helpDebts={[]} onSave={onSave} />)
 
-    const will = card('Will')
-    await user.click(within(will).getByRole('button', { name: /save/i }))
+    await user.click(within(card('Will')).getByRole('button', { name: /edit/i }))
+    await user.click(within(card('Will')).getByRole('button', { name: /^save$/i }))
 
-    expect(await within(will).findByRole('alert')).toBeInTheDocument()
+    expect(await within(card('Will')).findByRole('alert')).toBeInTheDocument()
   })
 })

@@ -60,7 +60,9 @@ The theme restyles Mantine components app-wide:
 - **Button** — `radius: 'md'`, weight 600. The primary action (default/`filled`,
   brand-coloured) carries a subtle electric-lime glow; a coloured or non-filled
   button (red delete, ghost cancel) stays flat.
-- **Badge** — `variant: 'light'`, `radius: 'sm'`.
+- **Badge** — `variant: 'light'`, `radius: 'sm'`, `textTransform: 'none'` so every
+  pill renders its label in natural case as written (e.g. "Fortnightly", "Every 7
+  weeks", "Needs", "On track", "Salary"), overriding Mantine's default uppercasing.
 - **ActionIcon** — `variant: 'subtle'`.
 - Inputs (**TextInput**, **NumberInput**, **Select**, **SegmentedControl**,
   **Switch**, **Checkbox**) — `size: 'sm'` with `radius: 'md'` (Checkbox `sm`).
@@ -129,7 +131,9 @@ so the rule it enforces holds app-wide.
   body-color text that reads clearly in both schemes); a badge that encodes a
   category — a budget group, inflow type, or equity instrument — takes a distinct
   hue from the categorical palette (`chartColorName` for budget groups); a status
-  badge takes a semantic `color` (on-track `positive`, behind `warning`).
+  badge takes a semantic `color` (on-track `positive`, behind `warning`). Every
+  badge renders its label in natural case (set globally in the theme); source
+  labels are written that way, so no per-badge `tt` override is needed.
 - **Add / edit.** Exactly one add affordance (`AddButton`) and one edit pencil
   (`EditAction` / `EditDeleteActions`) across the app.
 - **Page scaffolding.** Every screen wraps its body in `PageSection` — one title,

@@ -171,6 +171,9 @@ export const theme = createTheme({
     },
     Badge: {
       defaultProps: { variant: 'light', radius: 'sm' },
+      // Render every pill's label in natural case as written, overriding
+      // Mantine's default uppercasing, so casing is consistent across the app.
+      styles: { root: { textTransform: 'none' } },
     },
     ActionIcon: {
       defaultProps: { variant: 'subtle' },

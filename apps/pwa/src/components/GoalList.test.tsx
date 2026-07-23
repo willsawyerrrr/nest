@@ -164,6 +164,47 @@ describe('GoalList', () => {
     expect(within(someday).queryByText(/linked contribution/i)).toBeNull()
   })
 
+  it('reveals a projection chart when a funded goal is expanded', async () => {
+    const user = userEvent.setup()
+    const goals = [goal({ id: 'g1', name: 'Car', target_amount_cents: 1_000_000 })]
+    const lines = [line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={lines}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const car = card('Car')
+    expect(within(car).queryByRole('region', { name: /car projection/i })).toBeNull()
+    await user.click(within(car).getByRole('button', { name: /show projection/i }))
+    expect(within(car).getByRole('region', { name: /car projection/i })).toBeInTheDocument()
+  })
+
+  it('shows a clean note instead of a chart when an unfunded goal is expanded', async () => {
+    const user = userEvent.setup()
+    const goals = [goal({ id: 'g1', name: 'Someday', target_amount_cents: 1_000_000 })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={[]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const someday = card('Someday')
+    await user.click(within(someday).getByRole('button', { name: /show projection/i }))
+    const projection = within(someday).getByRole('region', { name: /someday projection/i })
+    expect(within(projection).getByText(/project this goal to its target/i)).toBeInTheDocument()
+  })
+
   it('sums many linked lines into one goal contribution', () => {
     const goals = [goal({ id: 'g1', name: 'Deposit', target_amount_cents: 2_000_000 })]
     const lines = [

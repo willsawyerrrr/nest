@@ -18,8 +18,8 @@ export {
 export { isTemporaryActive, summarise } from './summary'
 export type { Amounts, BudgetSummary, GroupSummary, SummaryInput } from './summary'
 
-export { projectGoal } from './goal'
-export type { GoalProjection } from './goal'
+export { goalProjectionSeries, projectGoal } from './goal'
+export type { GoalProjection, GoalProjectionPoint } from './goal'
 
 export { projectSuperBalance } from './retirement'
 export type { SuperProjection, SuperProjectionInput } from './retirement'

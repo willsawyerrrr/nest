@@ -24,6 +24,21 @@ export interface GoalProjection {
   readonly requiredFortnightlyContributionCents: Money | null
 }
 
+/**
+ * One sampled point on a goal's projected balance climb: `fortnight` is the
+ * number of whole fortnights from the projection's `now`, `date` its ISO date,
+ * and `balanceCents` the balance reached by then — the current balance plus that
+ * many contributions, clamped to the target on the final point.
+ */
+export interface GoalProjectionPoint {
+  readonly fortnight: number
+  readonly date: string
+  readonly balanceCents: Money
+}
+
+/** The most points {@link goalProjectionSeries} samples, so a chart stays light. */
+const MAX_PROJECTION_POINTS = 24
+
 /** Formats a Date as its ISO date part (YYYY-MM-DD). */
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10)
@@ -78,4 +93,43 @@ export function projectGoal(
     projectedCompletionDate,
     requiredFortnightlyContributionCents,
   }
+}
+
+/**
+ * Samples a goal's projected balance climbing from its current balance to its
+ * target, one point every `step` fortnights plus an exact final point at the
+ * target, for plotting. `step` is chosen so the series holds at most `maxPoints`
+ * evenly-spaced points before the endpoint. Each point's balance is the current
+ * balance plus that many contributions, clamped to the target. Returns an empty
+ * series when the goal is already met or a non-positive contribution can never
+ * reach the target — i.e. there is no climb to plot. `now` is a parameter for
+ * deterministic results.
+ */
+export function goalProjectionSeries(
+  goal: SavingsGoal,
+  fortnightlyContributionCents: Money,
+  now: Date,
+  maxPoints: number = MAX_PROJECTION_POINTS,
+): GoalProjectionPoint[] {
+  const { alreadyMet, fortnightsToTarget } = projectGoal(goal, fortnightlyContributionCents, now)
+  if (alreadyMet || fortnightsToTarget === null) {
+    return []
+  }
+
+  const point = (fortnight: number): GoalProjectionPoint => ({
+    fortnight,
+    date: isoDate(new Date(now.getTime() + fortnight * FORTNIGHT_MS)),
+    balanceCents: Math.min(
+      goal.targetAmountCents,
+      goal.currentBalanceCents + fortnight * fortnightlyContributionCents,
+    ),
+  })
+
+  const step = Math.max(1, Math.ceil(fortnightsToTarget / maxPoints))
+  const points: GoalProjectionPoint[] = []
+  for (let fortnight = 0; fortnight < fortnightsToTarget; fortnight += step) {
+    points.push(point(fortnight))
+  }
+  points.push(point(fortnightsToTarget))
+  return points
 }

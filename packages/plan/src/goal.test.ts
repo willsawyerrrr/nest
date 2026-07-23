@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { projectGoal } from './index'
+import { goalProjectionSeries, projectGoal } from './index'
 
 const NOW = new Date('2026-07-19T00:00:00Z')
 
@@ -66,5 +66,62 @@ describe('projectGoal', () => {
       NOW,
     )
     expect(projection.requiredFortnightlyContributionCents).toBe(8_000_00)
+  })
+})
+
+describe('goalProjectionSeries', () => {
+  it('climbs from the current balance to the target, one point per fortnight', () => {
+    // Remaining $2,000 at $500/fn → 4 fortnights → points at 0..4.
+    const series = goalProjectionSeries(
+      { targetAmountCents: 10_000_00, currentBalanceCents: 8_000_00 },
+      500_00,
+      NOW,
+    )
+    expect(series.map((point) => point.fortnight)).toEqual([0, 1, 2, 3, 4])
+    expect(series.map((point) => point.balanceCents)).toEqual([
+      8_000_00, 8_500_00, 9_000_00, 9_500_00, 10_000_00,
+    ])
+    expect(series.at(0)?.date).toBe('2026-07-19')
+    expect(series.at(-1)?.date).toBe('2026-09-13')
+  })
+
+  it('clamps the final point to the target when the last contribution overshoots', () => {
+    // Remaining $850 at $500/fn → 2 fortnights; the raw climb would reach $1,000.
+    const series = goalProjectionSeries(
+      { targetAmountCents: 850_00, currentBalanceCents: 0 },
+      500_00,
+      NOW,
+    )
+    expect(series.at(-1)?.balanceCents).toBe(850_00)
+  })
+
+  it('samples at most maxPoints points before the endpoint on a long climb', () => {
+    // Remaining $10,000 at $100/fn → 100 fortnights; step ceil(100/24)=5 → 0,5,…,95,100.
+    const series = goalProjectionSeries(
+      { targetAmountCents: 10_000_00, currentBalanceCents: 0 },
+      100_00,
+      NOW,
+    )
+    expect(series.length).toBe(21)
+    expect(series.at(0)?.fortnight).toBe(0)
+    expect(series.at(1)?.fortnight).toBe(5)
+    expect(series.at(-1)?.fortnight).toBe(100)
+    expect(series.at(-1)?.balanceCents).toBe(10_000_00)
+  })
+
+  it('is empty for an already-met goal', () => {
+    expect(
+      goalProjectionSeries(
+        { targetAmountCents: 5_000_00, currentBalanceCents: 6_000_00 },
+        500_00,
+        NOW,
+      ),
+    ).toEqual([])
+  })
+
+  it('is empty when a non-positive contribution can never reach the target', () => {
+    expect(
+      goalProjectionSeries({ targetAmountCents: 10_000_00, currentBalanceCents: 0 }, 0, NOW),
+    ).toEqual([])
   })
 })

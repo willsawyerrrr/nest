@@ -102,6 +102,13 @@ math).
   goal's fortnightly contribution is the sum of its linked lines. Only the
   contribution is entered, never derived.
 - Progress and ETA are projected from `current + contribution × fortnights`.
+- Each goal shows its progress visually: a bar and a percentage of the current
+  balance against the target, coloured by status (on track, behind, reached). A
+  per-goal expand reveals a compact area chart projecting the balance climbing
+  fortnight by fortnight to a target reference line, using the goal's summed
+  fortnightly contribution (`goalProjectionSeries` in `@nest/plan`). An unfunded
+  or already-met goal — one with no climb to plot — shows a short note in place
+  of the chart.
 
 ### Temporary item (date-driven)
 
@@ -209,7 +216,8 @@ database access. It handles:
 - **Summary reconciliation** — Available, Outgoings, Savings block, remaining
   buffer, and per-group portions.
 - **Goal projection** — progress and ETA from current balance, summed
-  contribution, and target.
+  contribution, and target, plus a sampled balance-over-fortnights series
+  (`goalProjectionSeries`) for the projection chart.
 - **Temporary expiry** — determine whether a temporary item is still an active
   fortnightly outflow from its target date.
 
@@ -222,8 +230,8 @@ reload-safe; keyboard shortcuts jump between them.
   search, and sort (Default / Name / Amount + direction, persisted to
   localStorage).
 - **Summary screen** — the reconciliation dashboard, led by an allocation donut.
-- **Goals screen** — targets, dates, current balance, progress + ETA; link
-  Savings lines to a goal.
+- **Goals screen** — targets, dates, current balance, a progress bar + ETA, and
+  a per-goal expandable projection chart; link Savings lines to a goal.
 
 ## Build slices
 

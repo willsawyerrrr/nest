@@ -1,13 +1,16 @@
-import { Badge, Group, Progress, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
-import { fortnightlyCents, projectGoal } from '@nest/plan'
+import { AreaChart } from '@mantine/charts'
+import { ActionIcon, Badge, Box, Collapse, Group, Progress, Stack, Text } from '@mantine/core'
+import { useDisclosure, useMediaQuery } from '@mantine/hooks'
+import { IconChartLine } from '@tabler/icons-react'
+import { fortnightlyCents, goalProjectionSeries, projectGoal } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Saver } from '../hooks/useSavers'
-import { formatIsoDate } from '../lib/dates'
+import { formatIsoDate, formatIsoMonth } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
+import { chartColors } from '../lib/tokens'
 import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
@@ -101,6 +104,79 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
   return { currentBalanceCents, percent, status, eta }
 }
 
+/** A chevron control that expands or collapses a goal's projection chart. */
+function ProjectionToggle({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  return (
+    <ActionIcon
+      variant="subtle"
+      color="gray"
+      aria-label={expanded ? 'Hide projection' : 'Show projection'}
+      aria-expanded={expanded}
+      onClick={onToggle}
+    >
+      <IconChartLine size={16} />
+    </ActionIcon>
+  )
+}
+
+/**
+ * A goal's balance climbing to its target over the fortnights its contribution
+ * takes to reach it, as a compact area chart with a target reference line. An
+ * unfunded or already-met goal has no climb to plot and shows a short note
+ * instead.
+ */
+function GoalProjectionChart({
+  goal,
+  currentBalanceCents,
+  contributionCents,
+}: {
+  goal: Goal
+  currentBalanceCents: number
+  contributionCents: number
+}) {
+  const series = goalProjectionSeries(
+    {
+      targetAmountCents: goal.target_amount_cents,
+      currentBalanceCents,
+      targetDate: goal.target_date ?? undefined,
+    },
+    contributionCents,
+    new Date(),
+  )
+
+  return (
+    <Box component="section" aria-label={`${goal.name} projection`} pt="sm">
+      {series.length === 0 ? (
+        <Text size="xs" c="dimmed">
+          {currentBalanceCents >= goal.target_amount_cents
+            ? 'Already funded to its target — nothing left to project.'
+            : 'Link a savings item with a contribution to project this goal to its target.'}
+        </Text>
+      ) : (
+        <AreaChart
+          h={150}
+          data={series.map((point) => ({
+            month: formatIsoMonth(point.date),
+            balance: point.balanceCents,
+          }))}
+          dataKey="month"
+          series={[{ name: 'balance', label: 'Projected balance', color: chartColors.savings }]}
+          valueFormatter={formatCents}
+          referenceLines={[
+            { y: goal.target_amount_cents, label: 'Target', color: chartColors.buffer },
+          ]}
+          curveType="linear"
+          withDots={false}
+          withYAxis={false}
+          gridAxis="y"
+          tickLine="none"
+          xAxisProps={{ interval: 'preserveStartEnd', minTickGap: 24 }}
+        />
+      )}
+    </Box>
+  )
+}
+
 interface GoalItemProps {
   goal: Goal
   saver: Saver | undefined
@@ -116,43 +192,55 @@ interface GoalItemProps {
  * dimmed caption line.
  */
 function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
-  const { percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+  const { currentBalanceCents, percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+  const [expanded, { toggle }] = useDisclosure(false)
   const caption = saver ? `${eta} · From Up saver ${saver.name}` : eta
   return (
-    <ListRow caption={caption}>
-      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <Text fw={600} size="sm" truncate>
-          {goal.name}
+    <Stack gap={0}>
+      <ListRow caption={caption}>
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {goal.name}
+          </Text>
+          <Badge size="xs" variant="light" color={status.color}>
+            {status.label}
+          </Badge>
+        </Group>
+        <Text size="sm" fw={600} ta="right" style={{ width: '3rem', flexShrink: 0 }}>
+          {Math.round(percent)}%
         </Text>
-        <Badge size="xs" variant="light" color={status.color}>
-          {status.label}
-        </Badge>
-      </Group>
-      <Text size="sm" fw={600} ta="right" style={{ width: '3rem', flexShrink: 0 }}>
-        {Math.round(percent)}%
-      </Text>
-      <Progress
-        value={percent}
-        color={status.color}
-        size="sm"
-        aria-label={`${goal.name} progress`}
-        style={{ width: '6rem', flexShrink: 0 }}
-      />
-      <FortnightlyAmount
-        cents={contributionCents}
-        justify="flex-end"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-      </Group>
-    </ListRow>
+        <Progress
+          value={percent}
+          color={status.color}
+          size="sm"
+          aria-label={`${goal.name} progress`}
+          style={{ width: '6rem', flexShrink: 0 }}
+        />
+        <FortnightlyAmount
+          cents={contributionCents}
+          justify="flex-end"
+          style={{ width: '7rem', flexShrink: 0 }}
+        />
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <ProjectionToggle expanded={expanded} onToggle={toggle} />
+          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+        </Group>
+      </ListRow>
+      <Collapse expanded={expanded} keepMounted={false}>
+        <GoalProjectionChart
+          goal={goal}
+          currentBalanceCents={currentBalanceCents}
+          contributionCents={contributionCents}
+        />
+      </Collapse>
+    </Stack>
   )
 }
 
 /** One goal as a compact bordered card for mobile: progress toward its target and its ETA. */
 function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
   const { currentBalanceCents, percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+  const [expanded, { toggle }] = useDisclosure(false)
   return (
     <AppCard withBorder padding="sm">
       <Stack gap="xs">
@@ -164,6 +252,7 @@ function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItem
             <Badge size="xs" variant="light" color={status.color}>
               {status.label}
             </Badge>
+            <ProjectionToggle expanded={expanded} onToggle={toggle} />
             <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           </Group>
         </Group>
@@ -195,6 +284,14 @@ function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItem
             Linked contribution {formatPerFortnight(contributionCents)}
           </Text>
         )}
+
+        <Collapse expanded={expanded} keepMounted={false}>
+          <GoalProjectionChart
+            goal={goal}
+            currentBalanceCents={currentBalanceCents}
+            contributionCents={contributionCents}
+          />
+        </Collapse>
       </Stack>
     </AppCard>
   )

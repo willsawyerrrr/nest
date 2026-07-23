@@ -121,7 +121,7 @@ function InflowRow({
         {describeAmount(inflow)}
       </Text>
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-        <Badge size="xs" variant="light" color="gray">
+        <Badge size="xs" variant="default">
           {formatFrequency(inflow.schedule, inflow.interval_count)}
         </Badge>
       </Box>
@@ -179,7 +179,7 @@ function InflowCard({
             <Badge size="xs" variant="light" color="grape" tt="capitalize">
               {inflow.type}
             </Badge>
-            <Badge size="xs" variant="light" color="gray">
+            <Badge size="xs" variant="default">
               {formatFrequency(inflow.schedule, inflow.interval_count)}
             </Badge>
           </Group>

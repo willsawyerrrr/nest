@@ -92,7 +92,7 @@ function GrantRow({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
         >
           {instrumentLabel(grant.instrument_type)}
         </Badge>
-        <Badge size="xs" variant="light" color="gray">
+        <Badge size="xs" variant="default">
           {frequencyLabel(grant.vesting_frequency)}
         </Badge>
       </Group>
@@ -136,7 +136,7 @@ function GrantCard({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
             >
               {instrumentLabel(grant.instrument_type)}
             </Badge>
-            <Badge size="xs" variant="light" color="gray">
+            <Badge size="xs" variant="default">
               {frequencyLabel(grant.vesting_frequency)}
             </Badge>
             <Text size="xs" c="dimmed">

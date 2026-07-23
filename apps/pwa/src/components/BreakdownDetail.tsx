@@ -171,7 +171,7 @@ function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
         style={{ width: '6rem', flexShrink: 0 }}
       />
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-        <Badge size="xs" variant="light" color="gray">
+        <Badge size="xs" variant="default">
           {formatFrequency(item.frequency, item.interval_count)}
         </Badge>
       </Box>
@@ -203,7 +203,7 @@ function ItemCard({ item, onEdit, onDelete }: ItemRowProps) {
           </Text>
           <Group gap={6} wrap="nowrap">
             <MoneyText cents={item.amount_cents} size="xs" c="dimmed" />
-            <Badge size="xs" variant="light" color="gray">
+            <Badge size="xs" variant="default">
               {formatFrequency(item.frequency, item.interval_count)}
             </Badge>
           </Group>

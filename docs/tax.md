@@ -121,6 +121,37 @@ cents; `years` is passed in for determinism.
 > in localStorage — they are not persisted to the database. The retirement age
 > defaults to the config's `preservation_age`.
 
+## HELP/HECS indexation and payoff projection
+
+A HELP/HECS balance is indexed once a year, on 1 June, by
+`help_repayment.indexation_rate` — the minimum of the CPI and WPI movements,
+sourced from the versioned per-FY config (never hardcoded). `computeTax` assesses
+a balance already indexed, so indexation matters only when projecting a debt
+forward.
+
+`projectHelpPayoff(balanceCents, repaymentIncomeCents, config, startFinancialYear,
+maxYears = 40)` (in `@nest/tax`) estimates the financial year a debt clears. Each
+year follows the ATO order of operations: the opening balance is **indexed on
+1 June before** that year's compulsory repayment is credited, the repayment is
+computed against the indexed balance and subtracted (floored at zero), and the
+year is recorded in the returned `schedule`. It stops when the balance clears
+(reporting `paidOffFinancialYear` and `yearsToPayOff`) or when a year's closing
+balance no longer falls below its opening balance — indexation outpacing
+repayment, so the debt never clears — and runs at most `maxYears` (40) years. A
+non-positive balance returns an empty schedule.
+
+The PWA's Tax tab renders a per-member payoff line beneath the HELP/HECS row for
+each member with a positive HELP balance (`helpPayoffByMember` /
+`helpPayoffForBreakdown` in `lib/tax`), reading the member's repayment income from
+their tax breakdown.
+
+> **Payoff-projection simplifications.** Repayment income is held constant across
+> every projected year at the member's current estimate — real income (and so the
+> repayment) varies year to year. The current financial year's `config` is reused
+> for all future years, since `configsByYear` holds only FY2027, so future
+> indexation and repayment thresholds are assumed unchanged. Voluntary repayments,
+> new borrowings, and any interaction with super or investment growth are excluded.
+
 ## `TaxYearConfig` shape (versioned)
 
 ```
@@ -145,6 +176,7 @@ lito:
 help_repayment:
   marginal_bands: [ { income_over_cents, rate } ]  # marginal, ordered by floor
   max_repayment_rate: 0.10                          # cap on whole repayment income
+  indexation_rate: 0.035                            # annual indexation (1 June), for the payoff projection
 super:
   guarantee_rate: 0.12
   concessional_cap_cents: ...
@@ -168,8 +200,9 @@ super:
   config with real ATO figures for 2026-27, including the Budget top-up cut that
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
   carries its `ato.gov.au` source in a comment; figures the ATO has not yet
-  published for 2026-27 (the Medicare levy low-income thresholds) reuse the
-  2025-26 values and are flagged provisional. It also carries the verified 2026-27
+  published for 2026-27 (the Medicare levy low-income thresholds and the HELP
+  indexation rate) reuse the latest known values and are flagged provisional. It
+  also carries the verified 2026-27
   super figures (concessional cap $32,500, non-concessional cap $130,000, the
   $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the
   co-contribution income test, and preservation age 60). See

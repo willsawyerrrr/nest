@@ -91,6 +91,12 @@ export interface MedicareLevySurchargeTier {
 export interface HelpRepaymentConfig {
   readonly marginalBands: readonly HelpRepaymentBand[]
   readonly maxRepaymentRate: number
+  /**
+   * Annual HELP/HECS indexation rate applied to the outstanding balance on 1 June
+   * (the minimum of the CPI and WPI movements). Drives the payoff projection; not
+   * used by a single-year `computeTax`, which assesses a balance already indexed.
+   */
+  readonly indexationRate: number
 }
 
 /** One marginal HELP/HECS band: `rate` on repayment income above `incomeOverCents`. */
@@ -208,6 +214,12 @@ export interface TaxBreakdown {
   readonly totalLiabilityCents: Money
   readonly paygWithheldCents: Money
   readonly balanceCents: Money
+  /**
+   * Repayment income the HELP/HECS repayment is assessed on — taxable income plus
+   * reportable concessional super contributions. Surfaced so the payoff projection
+   * can hold it constant across future years.
+   */
+  readonly repaymentIncomeCents: Money
 }
 
 /** Returns the AU financial year (ending-year label) that `date` falls in. */
@@ -551,5 +563,80 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
     totalLiabilityCents,
     paygWithheldCents: input.paygWithheldCents,
     balanceCents,
+    repaymentIncomeCents: incomeWithSuperCents,
   }
+}
+
+/** One financial year in a HELP/HECS payoff projection. */
+export interface HelpPayoffYear {
+  readonly financialYear: FinancialYear
+  readonly openingBalanceCents: Money
+  readonly indexationCents: Money
+  readonly repaymentCents: Money
+  readonly closingBalanceCents: Money
+}
+
+/**
+ * A projection of when a HELP/HECS debt clears. `paidOffFinancialYear` and
+ * `yearsToPayOff` are null when the debt is not cleared within the horizon — either
+ * because the repayment never outpaces indexation, or because `maxYears` is reached
+ * first. `schedule` lists each modelled year in order.
+ */
+export interface HelpPayoffProjection {
+  readonly paidOffFinancialYear: FinancialYear | null
+  readonly yearsToPayOff: number | null
+  readonly schedule: readonly HelpPayoffYear[]
+}
+
+/**
+ * Projects when a HELP/HECS debt is paid off, holding `repaymentIncomeCents`
+ * constant (an estimate — real repayment income varies year to year). Each year
+ * follows the ATO order of operations: the balance is indexed on 1 June (at
+ * `config.helpRepayment.indexationRate`) BEFORE that year's compulsory repayment
+ * is credited. `config` is reused for every future year, since only the current
+ * financial year's config is published.
+ *
+ * A balance at or below zero returns an empty schedule with zero years. Otherwise,
+ * for each year from `startFinancialYear`, the opening balance is indexed, the
+ * repayment is computed against the indexed balance and subtracted (floored at
+ * zero), and the year is recorded. The projection stops when the balance clears
+ * (paid off that year) or when a year's closing balance does not fall below its
+ * opening balance (indexation outpaces repayment, so it never clears), and runs
+ * for at most `maxYears`.
+ */
+export function projectHelpPayoff(
+  balanceCents: Money,
+  repaymentIncomeCents: Money,
+  config: TaxYearConfig,
+  startFinancialYear: FinancialYear,
+  maxYears = 40,
+): HelpPayoffProjection {
+  if (balanceCents <= 0) {
+    return { paidOffFinancialYear: null, yearsToPayOff: 0, schedule: [] }
+  }
+  const schedule: HelpPayoffYear[] = []
+  let balance = balanceCents
+  for (let i = 0; i < maxYears; i++) {
+    const financialYear = startFinancialYear + i
+    const openingBalanceCents = balance
+    const indexationCents = roundCents(openingBalanceCents * config.helpRepayment.indexationRate)
+    const indexedCents = openingBalanceCents + indexationCents
+    const repaymentCents = helpRepayment(repaymentIncomeCents, indexedCents, config)
+    const closingBalanceCents = Math.max(0, indexedCents - repaymentCents)
+    schedule.push({
+      financialYear,
+      openingBalanceCents,
+      indexationCents,
+      repaymentCents,
+      closingBalanceCents,
+    })
+    if (closingBalanceCents <= 0) {
+      return { paidOffFinancialYear: financialYear, yearsToPayOff: i + 1, schedule }
+    }
+    if (closingBalanceCents >= openingBalanceCents) {
+      return { paidOffFinancialYear: null, yearsToPayOff: null, schedule }
+    }
+    balance = closingBalanceCents
+  }
+  return { paidOffFinancialYear: null, yearsToPayOff: null, schedule }
 }

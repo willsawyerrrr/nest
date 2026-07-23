@@ -6,7 +6,7 @@ import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
-import { currentTaxConfig, estimateHouseholdTaxFromRows } from '../lib/tax'
+import { currentTaxConfig, estimateHouseholdTaxFromRows, helpPayoffByMember } from '../lib/tax'
 
 export function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
@@ -35,6 +35,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
     helpDebts.helpDebts ?? [],
     deductions.deductions ?? [],
   )
+  const helpPayoff = helpPayoffByMember(estimate, helpDebts.helpDebts ?? [])
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   return (
@@ -43,6 +44,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
       financialYear={taxProfiles.financialYear}
       memberName={memberName}
       config={currentTaxConfig()}
+      helpPayoff={helpPayoff}
     />
   )
 }

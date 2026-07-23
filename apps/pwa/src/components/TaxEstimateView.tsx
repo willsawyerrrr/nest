@@ -2,18 +2,22 @@ import { useState } from 'react'
 import { Card, Group, NumberInput, Stack, Table, Text, Title } from '@mantine/core'
 import {
   familyMedicareLevySurcharge,
+  type HelpPayoffProjection,
   type HouseholdTaxEstimate,
   type MemberTaxEstimate,
   type TaxBreakdown,
   type TaxYearConfig,
 } from '@nest/tax'
 import { dollarsToCents, formatCents, moneyColor } from '../lib/money'
+import { helpPayoffSummary } from '../lib/tax'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
   financialYear: number
   memberName: (memberId: string) => string
   config: TaxYearConfig
+  /** Each member's HELP/HECS payoff projection, keyed by member id (positive debts only). */
+  helpPayoff?: ReadonlyMap<string, HelpPayoffProjection>
 }
 
 interface Row {
@@ -178,12 +182,14 @@ function FiguresCard({
   breakdown,
   concessionalCents = 0,
   deductionsCents = 0,
+  helpPayoff,
 }: {
   name: string
   row: Row
   breakdown?: TaxBreakdown
   concessionalCents?: number
   deductionsCents?: number
+  helpPayoff?: HelpPayoffProjection
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
@@ -196,6 +202,11 @@ function FiguresCard({
             concessionalCents={concessionalCents}
             deductionsCents={deductionsCents}
           />
+        )}
+        {helpPayoff && (
+          <Text size="xs" c="dimmed">
+            {helpPayoffSummary(helpPayoff)}
+          </Text>
         )}
         <Table.ScrollContainer minWidth={0}>
           <Table
@@ -335,6 +346,7 @@ export function TaxEstimateView({
   financialYear,
   memberName,
   config,
+  helpPayoff,
 }: TaxEstimateViewProps) {
   return (
     <Stack gap="md">
@@ -358,6 +370,7 @@ export function TaxEstimateView({
               breakdown={member.breakdown}
               concessionalCents={member.annualConcessionalContributionsCents}
               deductionsCents={member.annualDeductionsCents}
+              helpPayoff={helpPayoff?.get(member.memberId)}
             />
           ))}
           <Text size="xs" c="dimmed">

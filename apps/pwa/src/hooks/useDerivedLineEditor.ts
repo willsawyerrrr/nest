@@ -18,8 +18,10 @@ interface UseDerivedLineEditorParams {
  * owning breakdown (reconcile copies them back onto the line), its funding account
  * to the line itself. A gift-breakdown line's name is partition-derived
  * ("Gifts for <member>"), so only its group flows to the breakdown while its name
- * and recipient partition stay untouched; its funding account is set on the line.
- * The amount stays owned by the breakdown in every case.
+ * and recipient partition stay untouched. A gift member line's funding account is
+ * auto-derived (the buyer's spending account) and stays reconcile-owned, so the
+ * save leaves it at its current value; every other line's funding account is set
+ * from the edit. The amount stays owned by the breakdown in every case.
  */
 export function useDerivedLineEditor({
   lines,
@@ -35,6 +37,9 @@ export function useDerivedLineEditor({
       }
       const breakdown = breakdowns.find((candidate) => candidate.id === line.breakdown_id)
       const isGift = breakdown?.kind === 'gift'
+      // A gift member line's funding account is auto-derived, so the edit never
+      // sets it — the line keeps its reconcile-owned value.
+      const fundingLocked = line.gift_recipient_member_id !== null
       await updateBreakdown(line.breakdown_id, {
         // A gift line's name is partition-derived, so leave the breakdown's name as
         // is; a generic line's name is the breakdown's own name.
@@ -49,7 +54,9 @@ export function useDerivedLineEditor({
         interval_count: line.interval_count,
         goal_id: line.goal_id,
         breakdown_id: line.breakdown_id,
-        destination_account_id: values.destination_account_id,
+        destination_account_id: fundingLocked
+          ? line.destination_account_id
+          : values.destination_account_id,
         gift_recipient_member_id: line.gift_recipient_member_id,
       })
     },

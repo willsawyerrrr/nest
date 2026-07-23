@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DerivedAmountContext } from '../lib/breakdowns'
+import type { DirectoryAccount } from '../lib/gifts'
 import { makeBudgetLine } from '../test/fixtures'
 import type { Breakdown } from './useBreakdowns'
 import { useReconcileBreakdownLines } from './useReconcileBreakdownLines'
@@ -35,6 +36,8 @@ function params(overrides: Partial<Parameters<typeof useReconcileBreakdownLines>
     context: context(),
     counts: new Map<string, number>(),
     memberNames: new Map<string, string>(),
+    members: [] as { id: string }[],
+    directory: [] as DirectoryAccount[],
     createLine: vi.fn().mockResolvedValue(undefined),
     updateLine: vi.fn().mockResolvedValue(undefined),
     removeLine: vi.fn().mockResolvedValue(undefined),
@@ -72,6 +75,29 @@ describe('useReconcileBreakdownLines', () => {
       expect(p.updateLine).toHaveBeenCalledWith('lineB', expect.anything())
       expect(p.removeLine).toHaveBeenCalledWith('lineC')
     })
+  })
+
+  it('funds a gift member line from the buyer’s account, threading members and directory', async () => {
+    const p = params({
+      breakdowns: [makeBreakdown({ id: 'gift', name: 'Gifts', kind: 'gift', line_group: 'wants' })],
+      context: context({
+        giftBreakdownId: 'gift',
+        giftTotalsByMember: new Map([['m-sam', 120_00]]),
+      }),
+      memberNames: new Map([['m-sam', 'Sam']]),
+      members: [{ id: 'm-sam' }, { id: 'm-will' }],
+      directory: [{ id: 'will-txn', owner_member_id: 'm-will', type: 'transaction' }],
+      lines: [],
+    })
+    renderHook(() => useReconcileBreakdownLines(p))
+    await waitFor(() =>
+      expect(p.createLine).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gift_recipient_member_id: 'm-sam',
+          destination_account_id: 'will-txn',
+        }),
+      ),
+    )
   })
 
   it('does nothing while lines are null, data is unloaded, or there are no ops', () => {

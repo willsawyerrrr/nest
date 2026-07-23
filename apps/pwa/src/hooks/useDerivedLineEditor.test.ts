@@ -47,7 +47,7 @@ describe('useDerivedLineEditor', () => {
     )
   })
 
-  it('leaves a gift line’s name and breakdown name untouched, flowing only group and account', async () => {
+  it('leaves a gift member line’s name and auto-funded account untouched, flowing only group', async () => {
     const updateBreakdown = vi.fn().mockResolvedValue(undefined)
     const updateLine = vi.fn().mockResolvedValue(undefined)
     const line = makeBudgetLine({
@@ -55,6 +55,7 @@ describe('useDerivedLineEditor', () => {
       breakdown_id: 'gift',
       name: 'Gifts for Sam',
       gift_recipient_member_id: 'm-sam',
+      destination_account_id: 'will-txn',
     })
     const { result } = renderHook(() =>
       useDerivedLineEditor({
@@ -78,12 +79,14 @@ describe('useDerivedLineEditor', () => {
       name: 'Gifts',
       line_group: 'discretionary',
     })
+    // The funding account is auto-derived, so the edit's 'acc2' is ignored and the
+    // line keeps its reconcile-owned account.
     expect(updateLine).toHaveBeenCalledWith(
       'l1',
       expect.objectContaining({
         name: 'Gifts for Sam',
         line_group: 'discretionary',
-        destination_account_id: 'acc2',
+        destination_account_id: 'will-txn',
         gift_recipient_member_id: 'm-sam',
       }),
     )

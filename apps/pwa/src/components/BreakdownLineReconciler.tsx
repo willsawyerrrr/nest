@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGifts } from '../hooks/useGifts'
@@ -17,6 +18,7 @@ export function BreakdownLineReconciler({ householdId }: { householdId: string }
   const breakdowns = useBreakdowns(householdId)
   const gifts = useGifts(householdId)
   const members = useMembers()
+  const directory = useAccountDirectory()
 
   const giftBudgets = useMemo(() => gifts.budgets ?? [], [gifts.budgets])
   const giftRecipients = useMemo(() => gifts.recipients ?? [], [gifts.recipients])
@@ -34,14 +36,23 @@ export function BreakdownLineReconciler({ householdId }: { householdId: string }
     () => new Map((members.members ?? []).map((member) => [member.id, member.name])),
     [members.members],
   )
+  const memberList = useMemo(() => members.members ?? [], [members.members])
+  const directoryEntries = useMemo(() => directory.accounts ?? [], [directory.accounts])
 
   useReconcileBreakdownLines({
     lines: budgetLines.lines,
-    dataLoaded: !budgetLines.loading && !breakdowns.loading && !gifts.loading && !members.loading,
+    dataLoaded:
+      !budgetLines.loading &&
+      !breakdowns.loading &&
+      !gifts.loading &&
+      !members.loading &&
+      !directory.loading,
     breakdowns: breakdownRows,
     context,
     counts,
     memberNames,
+    members: memberList,
+    directory: directoryEntries,
     createLine: budgetLines.create,
     updateLine: budgetLines.update,
     removeLine: budgetLines.remove,

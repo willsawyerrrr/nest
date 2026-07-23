@@ -410,6 +410,7 @@ export function BudgetLineList({
                       amount_cents: line.amount_cents,
                       frequency: line.frequency,
                       interval_count: line.interval_count,
+                      gift_recipient_member_id: line.gift_recipient_member_id,
                     }}
                     accounts={accounts}
                     nameEditable={!isGift}

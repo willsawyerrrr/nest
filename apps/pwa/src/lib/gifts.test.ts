@@ -1,17 +1,46 @@
 import { describe, expect, it } from 'vitest'
 import {
   budgetTotals,
+  buyerSpendingAccountId,
   giftBudgetTotalCents,
   giftTotalsByMember,
   groupGifts,
   overallGiftTotals,
   pairKey,
   spentCents,
+  type DirectoryAccount,
   type GiftBudget,
   type GiftOccasion,
   type GiftPurchase,
   type GiftRecipient,
 } from './gifts'
+
+describe('buyerSpendingAccountId', () => {
+  const members = [{ id: 'm-sam' }, { id: 'm-will' }]
+  const directory: DirectoryAccount[] = [
+    { id: 'sam-txn', owner_member_id: 'm-sam', type: 'transaction' },
+    { id: 'will-txn', owner_member_id: 'm-will', type: 'transaction' },
+    { id: 'joint', owner_member_id: null, type: 'transaction' },
+    { id: 'will-saver', owner_member_id: 'm-will', type: 'savings' },
+  ]
+
+  it('resolves the other member’s transaction account, never the joint or a saver', () => {
+    expect(buyerSpendingAccountId('m-sam', members, directory)).toBe('will-txn')
+    expect(buyerSpendingAccountId('m-will', members, directory)).toBe('sam-txn')
+  })
+
+  it('returns null when the buyer has no transaction account', () => {
+    expect(
+      buyerSpendingAccountId('m-sam', members, [
+        { id: 'will-saver', owner_member_id: 'm-will', type: 'savings' },
+      ]),
+    ).toBeNull()
+  })
+
+  it('returns null when there is no other member', () => {
+    expect(buyerSpendingAccountId('m-sam', [{ id: 'm-sam' }], directory)).toBeNull()
+  })
+})
 
 describe('pairKey', () => {
   it('joins the recipient and occasion ids', () => {

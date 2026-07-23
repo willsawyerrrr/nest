@@ -13,6 +13,7 @@ const initial = {
   amount_cents: 120_00,
   frequency: 'annual' as const,
   interval_count: null,
+  gift_recipient_member_id: null,
 }
 
 function renderForm(overrides: Partial<Parameters<typeof DerivedBudgetLineForm>[0]> = {}) {
@@ -107,6 +108,35 @@ describe('DerivedBudgetLineForm', () => {
         name: 'Gifts for Sam',
         line_group: 'wants',
         destination_account_id: null,
+      }),
+    )
+  })
+
+  it('locks the funding picker for a gift member line, showing a read-only note', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    renderForm({
+      initial: {
+        ...initial,
+        name: 'Gifts for Sam',
+        gift_recipient_member_id: 'm-sam',
+        destination_account_id: 'will-txn',
+      },
+      accounts: [{ id: 'will-txn', name: 'Will’s Spending' }],
+      nameEditable: false,
+      onSave,
+    })
+
+    // No editable funding Select; a read-only note explains the auto-routing.
+    expect(screen.queryByRole('combobox', { name: /funded from/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/automatically from the buyer's spending account/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({
+        name: 'Gifts for Sam',
+        line_group: 'wants',
+        destination_account_id: 'will-txn',
       }),
     )
   })

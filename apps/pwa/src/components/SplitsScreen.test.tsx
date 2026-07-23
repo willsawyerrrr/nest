@@ -149,6 +149,33 @@ describe('SplitsScreen', () => {
     expect(screen.queryByText(/everyday/i)).not.toBeInTheDocument()
   })
 
+  it('attributes a gift member line to the buyer’s spending account', () => {
+    // A "Gifts for Sam" line auto-routed to Will's spending account joins the
+    // recommended splits under that account.
+    const pay = account({ id: 't1', name: 'Pay', type: 'transaction' })
+    const buyer = account({ id: 'will-txn', name: 'Will’s Spending', type: 'transaction' })
+    renderScreen({
+      accounts: [pay, buyer],
+      payAccountId: 't1',
+      lines: [
+        line({
+          id: 'l1',
+          line_group: 'wants',
+          name: 'Gifts for Sam',
+          amount_cents: 260_00,
+          frequency: 'annual',
+          destination_account_id: 'will-txn',
+        }),
+      ],
+    })
+
+    const confirmButton = screen.getByRole('button', { name: /mark as set/i })
+    const recommendedCard = confirmButton.closest('.mantine-Card-root') as HTMLElement
+    expect(within(recommendedCard).getByText('Will’s Spending')).toBeInTheDocument()
+    // $260/year normalises to $10/fn.
+    expect(within(recommendedCard).getByText('$10.00')).toBeInTheDocument()
+  })
+
   it('nudges about budget lines not yet routed to an account', () => {
     renderScreen({
       lines: [line({ id: 'l1', line_group: 'wants', amount_cents: 50_00 })],

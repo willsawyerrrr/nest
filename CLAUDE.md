@@ -94,9 +94,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   frequency), which is how medications and any other itemised budget are modelled.
   A gift breakdown funds each recipient separately: it derives one budget line per
   household member who has gift budgets (named "Gifts for &lt;member&gt;", keyed by
-  `budget_line.gift_recipient_member_id`) plus one line for all external recipients,
-  so each can route to its own account and pay split; the gift planner stays a
-  single unified screen. A gift's agreed budget is shared and keeps feeding those
+  `budget_line.gift_recipient_member_id`) plus one line for all external recipients;
+  the gift planner stays a single unified screen. A "Gifts for &lt;member&gt;" line
+  is funded automatically from the **buyer's** — the other partner's — spending
+  account (the other member's `type='transaction'` account, never the joint one),
+  set by the reconcile each pass and NOT user-configurable (its "Funded from" picker
+  is a read-only note; null when Up is unsynced), and its line is removed as soon as
+  its budgets are gone. The external ("others") line and every generic derived line
+  keep a user-set, editable funding account and route to their own pay split. A gift's agreed budget is shared and keeps feeding those
   derived lines and pay splits, but its purchases and the spent/remaining they
   derive are private from
   the recipient: a `gift_recipient` links to a household member via `member_id`,

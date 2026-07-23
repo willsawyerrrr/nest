@@ -2,6 +2,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Box, Burger, Drawer, Group, Stack, Text } from '@mantine/core'
 import { useDisclosure, useHotkeys, type HotkeyItem } from '@mantine/hooks'
+import { Logo } from './Logo'
 
 export type NavItem = { path: string; label: string }
 
@@ -45,10 +46,17 @@ function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => v
   return (
     <Stack gap={4} component="nav" aria-label="Primary">
       {items.map((item) => (
-        <NavLink key={item.path} to={item.path} onClick={onNavigate} className="drawer-nav__link">
+        <NavLink
+          key={item.path}
+          to={item.path}
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            isActive ? 'drawer-nav__link drawer-nav__link--active' : 'drawer-nav__link'
+          }
+        >
           {({ isActive }) => (
             <Text
-              size="lg"
+              size="md"
               fw={isActive ? 700 : 500}
               c={isActive ? 'var(--mantine-primary-color-filled)' : undefined}
             >
@@ -98,7 +106,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
       <Box component="header" className="top-bar" hiddenFrom="sm">
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <img src="/icon.svg" alt="Nest" width={28} height={28} />
+            <Logo variant="mark" size={28} />
             {activeLabel ? (
               <Text fw={700} fz="1.5rem" truncate>
                 {activeLabel}
@@ -122,7 +130,7 @@ export function TabBar({ items }: { items: NavItem[] }) {
         onClose={drawer.close}
         position="left"
         size="xs"
-        title={<img src="/icon.svg" alt="Nest" width={28} height={28} />}
+        title={<Logo variant="mark" size={28} />}
         hiddenFrom="sm"
         classNames={{ header: 'drawer-nav__header', body: 'drawer-nav__body' }}
       >
@@ -130,8 +138,8 @@ export function TabBar({ items }: { items: NavItem[] }) {
       </Drawer>
 
       <Box component="aside" className="sidebar" visibleFrom="sm">
-        <Box mb="md" px="xs">
-          <img src="/icon.svg" alt="Nest" width={32} height={32} />
+        <Box mb="lg" px="xs">
+          <Logo variant="lockup" size={32} />
         </Box>
         <NavList items={items} />
       </Box>

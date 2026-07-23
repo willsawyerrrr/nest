@@ -44,7 +44,7 @@ describe('TabBar', () => {
     }
   })
 
-  it('renders the desktop sidebar as a labelled nav landmark headed by the app icon', () => {
+  it('renders the desktop sidebar as a labelled nav landmark headed by the brand lockup', () => {
     render(
       <MemoryRouter initialEntries={['/summary']}>
         <TabBar items={NAV_ITEMS} />
@@ -52,7 +52,7 @@ describe('TabBar', () => {
     )
 
     const sidebar = screen.getByRole('complementary')
-    expect(within(sidebar).getByAltText('Nest')).toBeInTheDocument()
+    expect(within(sidebar).getByRole('img', { name: 'nest' })).toBeInTheDocument()
 
     const nav = within(sidebar).getByRole('navigation', { name: 'Primary' })
     for (const item of NAV_ITEMS) {
@@ -122,19 +122,19 @@ describe('TabBar mobile drawer', () => {
   beforeEach(() => setViewportWidth(375))
   afterEach(() => setViewportWidth(1024))
 
-  it('shows the app icon and active page title in the top bar', () => {
+  it('shows the brand mark and active page title in the top bar', () => {
     renderTabBar('/budget')
 
     const header = screen.getByRole('banner')
-    expect(within(header).getByAltText('Nest')).toBeInTheDocument()
+    expect(within(header).getByRole('img', { name: 'nest' })).toBeInTheDocument()
     expect(within(header).getByText('Budget')).toBeInTheDocument()
   })
 
-  it('shows only the app icon, no page title, when no tab matches the route', () => {
+  it('shows only the brand mark, no page title, when no tab matches the route', () => {
     renderTabBar('/nowhere')
 
     const header = screen.getByRole('banner')
-    expect(within(header).getByAltText('Nest')).toBeInTheDocument()
+    expect(within(header).getByRole('img', { name: 'nest' })).toBeInTheDocument()
     // No nav item matches, so there is no active label and the title is omitted.
     expect(header).toHaveTextContent('')
   })
@@ -150,7 +150,7 @@ describe('TabBar mobile drawer', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
 
     const drawer = screen.getByRole('dialog')
-    expect(within(drawer).getByAltText('Nest')).toBeInTheDocument()
+    expect(within(drawer).getByRole('img', { name: 'nest' })).toBeInTheDocument()
     expect(within(drawer).getByRole('link', { name: 'Summary' })).toHaveAttribute(
       'aria-current',
       'page',

@@ -78,7 +78,12 @@
 .drawer-nav__link {
   display: block;
   padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-md);
   text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
   /*
    * Inherit the surrounding text colour for every link state. Without this the
    * anchor falls back to the user-agent link colours — notably the default
@@ -86,6 +91,20 @@
    * still sets the primary colour for the active item.
    */
   color: inherit;
+}
+
+/* Lift the nav item on hover/focus with a subtle elevated surface fill. */
+.drawer-nav__link:hover,
+.drawer-nav__link:focus-visible {
+  background-color: var(--mantine-color-default-hover);
+}
+
+/*
+ * The active item reads in the brand lime (set on the inner Text) over a faint
+ * brand wash, so the current tab is legible at a glance in the dark chrome.
+ */
+.drawer-nav__link--active {
+  background-color: color-mix(in srgb, var(--mantine-primary-color-filled) 12%, transparent);
 }
 
 /*

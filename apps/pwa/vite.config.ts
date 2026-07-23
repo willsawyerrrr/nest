@@ -34,10 +34,10 @@ export default defineConfig({
           VitePWA({
             registerType: 'autoUpdate',
             injectRegister: false,
-            includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+            includeAssets: ['icon.svg', 'favicon-32.png', 'apple-touch-icon.png'],
             manifest: {
-              name: 'Nest',
-              short_name: 'Nest',
+              name: 'nest',
+              short_name: 'nest',
               description: 'Household income, tax, spending, and savings',
               theme_color: '#0b0f14',
               background_color: '#0b0f14',

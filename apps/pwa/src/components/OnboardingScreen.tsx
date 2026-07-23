@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Card, Center, Stack, Text, TextInput, Title } from '@mantine/core'
 import { EnumSegmentedControl } from './EnumSelect'
+import { Logo } from './Logo'
 
 interface OnboardingScreenProps {
   onCreate: (name: string, memberName: string) => void | Promise<void>
@@ -53,6 +54,7 @@ export function OnboardingScreen({ onCreate, onJoin }: OnboardingScreenProps) {
     <Center component="main" className="full-screen">
       <Card withBorder shadow="sm" radius="md" p="lg" maw={400} w="100%">
         <Stack gap="md">
+          <Logo variant="lockup" size={40} />
           <Title order={2}>
             {mode === 'create' ? 'Create your household' : 'Join a household'}
           </Title>

@@ -52,7 +52,17 @@ vi.mock('../hooks/useGifts', () => ({
 
 vi.mock('../hooks/useMembers', () => ({
   useMembers: () => ({
-    members: [{ id: 'm-sam', household_id: 'h1', name: 'Sam' }],
+    members: [
+      { id: 'm-sam', household_id: 'h1', name: 'Sam' },
+      { id: 'm-will', household_id: 'h1', name: 'Will' },
+    ],
+    loading: false,
+  }),
+}))
+
+vi.mock('../hooks/useAccountDirectory', () => ({
+  useAccountDirectory: () => ({
+    accounts: [{ id: 'will-txn', owner_member_id: 'm-will', type: 'transaction' }],
     loading: false,
   }),
 }))
@@ -63,7 +73,7 @@ vi.mock('../hooks/useReconcileBreakdownLines', () => ({
 }))
 
 describe('BreakdownLineReconciler', () => {
-  it('runs the reconcile with the derived-amount context, counts, and member names', () => {
+  it('runs the reconcile with the derived-amount context, counts, members, and directory', () => {
     const { container } = render(<BreakdownLineReconciler householdId="h1" />)
 
     expect(container).toBeEmptyDOMElement()
@@ -73,12 +83,16 @@ describe('BreakdownLineReconciler', () => {
       context: { genericTotalsByBreakdownId: Map<string, number> }
       counts: Map<string, number>
       memberNames: Map<string, string>
+      members: { id: string }[]
+      directory: { id: string }[]
       createLine: unknown
     }
     expect(params.dataLoaded).toBe(true)
     expect(params.context.genericTotalsByBreakdownId.get('bd1')).toBe(10_00)
     expect(params.counts.get('bd1')).toBe(1)
     expect(params.memberNames.get('m-sam')).toBe('Sam')
+    expect(params.members.map((member) => member.id)).toEqual(['m-sam', 'm-will'])
+    expect(params.directory.map((account) => account.id)).toEqual(['will-txn'])
     expect(params.createLine).toBe(createLine)
   })
 })

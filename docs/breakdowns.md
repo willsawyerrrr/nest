@@ -26,10 +26,11 @@ normalised to fortnightly and annual exactly as a budget line is.
   household member who has gift budgets — named "Gifts for &lt;member&gt;" and
   discriminated by `budget_line.gift_recipient_member_id` — plus one line keeping the
   breakdown's own name for all external (non-member) recipients (the null
-  discriminator). Each gift line carries its own recipient partition's total and
-  routes to its own funding account, so gifts for each partner can be funded from
-  different accounts and pay splits. A line's amount is read-only and system-managed
-  in every case.
+  discriminator). Each gift line carries its own recipient partition's total. A
+  "Gifts for &lt;member&gt;" line is funded automatically from the **buyer's** — the
+  other partner's — spending account, not user-configurable; the external line and
+  every generic line keep a user-set funding account. A line's amount is read-only
+  and system-managed in every case.
 - **The line exists only when there is something to roll up.** A generic breakdown
   with no items has no budget line, and a gift recipient partition with no gift
   budgets has no line. A line is created when the first item/budget in its partition
@@ -139,10 +140,13 @@ items live in `gift_budget`).
   items/budgets updates its amount; removing the last removes the line. A generic
   line's `line_group` and `name` follow the breakdown; a gift line's group follows
   the breakdown while its name is partition-derived ("Gifts for &lt;member&gt;", or
-  the breakdown's name for the external line). The one exception to removal: an
-  emptied partition whose line carries a `destination_account_id` keeps its line so
-  its pay-split routing is not silently lost — the line stays in place (rolling up to
-  $0) until its partition has budgets again or the line is re-routed. The reconcile
+  the breakdown's name for the external line). The one exception to removal: a
+  generic line or the gift external ("others") line whose emptied partition still
+  carries a user-set `destination_account_id` keeps its line so its pay-split routing
+  is not silently lost — it stays in place (rolling up to $0) until its partition has
+  budgets again or is re-routed. A gift member line is exempt from this: its routing
+  is auto-derived (see below) rather than user-set, so an emptied member partition
+  always removes its line rather than pinning it at $0. The reconcile
   runs app-wide from a headless component mounted under the authenticated shell (not
   on any one route), so a breakdown or gift edit made anywhere rewrites the owned
   lines: it computes the creates, updates, and removes needed to bring each
@@ -160,9 +164,18 @@ items live in `gift_budget`).
   owning `breakdown` (the reconcile pass copies them back onto the line); a gift
   line's name is partition-derived and shows read-only, so only its group flows to
   the breakdown (shared across all its gift lines) while its name is left untouched.
-  The funding account is set on the line's own `destination_account_id`. The group
-  choices exclude Savings/Investments, which route via a goal rather than a funding
-  account.
+  The group choices exclude Savings/Investments, which route via a goal rather than a
+  funding account.
+- **Funding account.** A generic line and the gift external ("others") line carry a
+  user-set `destination_account_id`, edited from a "Funded from" picker. A gift
+  member line's funding account is **not** user-configurable: it is auto-derived
+  each reconcile as the **buyer's** spending account — the _other_ household member's
+  `type = 'transaction'` account in `account_directory` (never the joint account,
+  whose `owner_member_id` is null), since with the household's two members fixed the
+  buyer of a member's gifts is always the other member. It resolves to null (the line
+  shows unassigned) when Up is not synced or the buyer has no spending account. The
+  reconcile always overwrites this field for a gift member line, so the editor omits
+  the picker (showing a read-only note) and never writes it.
 - **Routable.** A derived line is an ordinary `budget_line` in every other respect:
   it carries a `destination_account_id` and feeds the Pay splits tab's per-account
   recommendation like any line.
@@ -185,8 +198,10 @@ items live in `gift_budget`).
   and funding account (and name, for a generic line — a gift line's name shows
   read-only). Its amount shows read-only there, with a link to the breakdown page to
   change the itemised total. A gift breakdown renders as several rows — "Gifts for
-  &lt;member&gt;" per member with gift budgets, plus "Gifts" for external recipients
-  — each with its own funding account.
+  &lt;member&gt;" per member with gift budgets, plus "Gifts" for external recipients.
+  The external line offers an editable "Funded from" picker; a "Gifts for
+  &lt;member&gt;" line replaces it with a read-only note ("Funded automatically from
+  the buyer's spending account"), since its account is auto-derived, not chosen.
 - **Absent surfaces** — there is no standalone Gifts tab (gifts is reached from the
   Breakdowns list) and no budget-line-form Amount source picker. There is no Health
   tab; medications is a generic breakdown the household creates.

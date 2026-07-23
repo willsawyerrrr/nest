@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { reconcileBreakdownLines, type DerivedAmountContext } from '../lib/breakdowns'
+import type { DirectoryAccount } from '../lib/gifts'
 import type { Breakdown } from './useBreakdowns'
 import type { BudgetLine, UseBudgetLinesResult } from './useBudgetLines'
 
@@ -16,6 +17,10 @@ interface UseReconcileBreakdownLinesParams {
   counts: Map<string, number>
   /** Household member names keyed by member id, naming each gift partition's line. */
   memberNames: Map<string, string>
+  /** The household's members, resolving the buyer whose account funds each gift member line. */
+  members: { id: string }[]
+  /** The account directory, supplying each buyer's spending account for gift member lines. */
+  directory: DirectoryAccount[]
   createLine: UseBudgetLinesResult['create']
   updateLine: UseBudgetLinesResult['update']
   removeLine: UseBudgetLinesResult['remove']
@@ -34,6 +39,8 @@ export function useReconcileBreakdownLines({
   context,
   counts,
   memberNames,
+  members,
+  directory,
   createLine,
   updateLine,
   removeLine,
@@ -43,7 +50,15 @@ export function useReconcileBreakdownLines({
     if (!lines || !dataLoaded || reconcilingRef.current) {
       return
     }
-    const ops = reconcileBreakdownLines(breakdowns, context, counts, lines, memberNames)
+    const ops = reconcileBreakdownLines(
+      breakdowns,
+      context,
+      counts,
+      lines,
+      memberNames,
+      members,
+      directory,
+    )
     if (ops.create.length === 0 && ops.update.length === 0 && ops.remove.length === 0) {
       return
     }
@@ -70,6 +85,8 @@ export function useReconcileBreakdownLines({
     context,
     counts,
     memberNames,
+    members,
+    directory,
     createLine,
     updateLine,
     removeLine,

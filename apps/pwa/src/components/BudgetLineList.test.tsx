@@ -674,6 +674,40 @@ describe('BudgetLineList', () => {
     })
   })
 
+  it('locks the funding picker when editing a gift member line', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[
+            line({
+              id: 'g',
+              line_group: 'wants',
+              name: 'Gifts for Sam',
+              breakdown_id: 'b1',
+              gift_recipient_member_id: 'm-sam',
+              destination_account_id: 'will-txn',
+            }),
+          ]}
+          goals={[]}
+          accounts={[{ id: 'will-txn', name: 'Will’s Spending' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'gift' }]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onUpdateDerivedLine={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+
+    // The partition name shows read-only and the funding picker is replaced by a note.
+    expect(screen.queryByRole('textbox', { name: /name/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /funded from/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/automatically from the buyer's spending account/i)).toBeInTheDocument()
+  })
+
   it('renders each line as a dense borderless row on desktop', () => {
     // From `sm` up the line drops the bordered card for a single table-like row.
     const original = window.matchMedia

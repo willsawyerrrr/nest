@@ -122,7 +122,11 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   its balance — see
   [`data-model.md`](data-model.md#ledger)), excluding super-fund balance accounts,
   which are not spendable. Savings / Investments lines show the goal-derived route
-  instead of a picker.
+  instead of a picker. A "Gifts for &lt;member&gt;" derived line is an exception: its
+  funding account is auto-derived (the buyer's — the other partner's — spending
+  account) and not user-configurable, so its editor replaces the picker with a
+  read-only note. The gift external ("others") line and every generic derived line
+  keep the editable picker. See [`breakdowns.md`](breakdowns.md).
 - **Budget list** — each line shows a small badge naming its route: the linked
   goal for a Savings/Investments line, the funding account otherwise. The badge's
   icon is the account/saver's own icon — its Up emoji when its name carries one,

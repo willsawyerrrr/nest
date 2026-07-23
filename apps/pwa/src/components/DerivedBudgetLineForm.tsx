@@ -29,6 +29,12 @@ interface DerivedBudgetLineFormProps {
     amount_cents: number
     frequency: Frequency
     interval_count: number | null
+    /**
+     * The member whose gifts a gift line funds, or null for the external, generic,
+     * and manual lines. When set, the funding account is auto-derived (the buyer's
+     * spending account), so the "Funded from" picker locks to a read-only note.
+     */
+    gift_recipient_member_id: string | null
   }
   /** The household's accounts, offered as the funding destination. */
   accounts?: { id: string; name: string }[]
@@ -71,6 +77,10 @@ export function DerivedBudgetLineForm({
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // A gift member line funds from the buyer's spending account, set by the
+  // reconcile pass rather than the user, so its funding picker locks.
+  const fundingLocked = initial.gift_recipient_member_id !== null
 
   const fortnightly = fortnightlyCents(
     initial.amount_cents,
@@ -126,18 +136,27 @@ export function DerivedBudgetLineForm({
           </Stack>
         )}
 
-        <Select
-          label="Funded from"
-          size="sm"
-          description="Optional. The account or Up saver whose pay split funds this line."
-          placeholder="Not routed"
-          data={accounts.map((account) => ({ value: account.id, label: account.name }))}
-          value={destinationAccountId}
-          onChange={setDestinationAccountId}
-          clearable
-          searchable
-          nothingFoundMessage="No matching accounts"
-        />
+        {fundingLocked ? (
+          <Stack gap={4}>
+            <Text component="span" size="sm" fw={500}>
+              Funded from
+            </Text>
+            <Text size="sm">Automatically from the buyer's spending account.</Text>
+          </Stack>
+        ) : (
+          <Select
+            label="Funded from"
+            size="sm"
+            description="Optional. The account or Up saver whose pay split funds this line."
+            placeholder="Not routed"
+            data={accounts.map((account) => ({ value: account.id, label: account.name }))}
+            value={destinationAccountId}
+            onChange={setDestinationAccountId}
+            clearable
+            searchable
+            nothingFoundMessage="No matching accounts"
+          />
+        )}
 
         <Stack gap={4}>
           <Text component="span" size="sm" fw={500}>

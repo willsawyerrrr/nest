@@ -90,14 +90,9 @@ function InflowRow({
   onDelete: () => void
 }) {
   return (
-    <Group
-      wrap="nowrap"
-      gap="sm"
-      py={6}
-      style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-    >
-      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-        <Group gap={6} wrap="nowrap" align="baseline">
+    <Stack gap={0} py={6} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+      <Group wrap="nowrap" gap="sm">
+        <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
           <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
             {inflow.name}
           </Text>
@@ -105,29 +100,29 @@ function InflowRow({
             {inflowSubtitle(inflow, memberName)}
           </Text>
         </Group>
-        {effectiveDatesCaption(inflow) && (
-          <Text size="xs" c="dimmed" truncate>
-            {effectiveDatesCaption(inflow)}
-          </Text>
-        )}
-      </Stack>
-      <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
-        {describeAmount(inflow)}
-      </Text>
-      <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-        <Badge size="sm" variant="light">
-          {formatFrequency(inflow.schedule, inflow.interval_count)}
-        </Badge>
-      </Box>
-      <FortnightlyAmount
-        cents={fortnightlyOf(inflow)}
-        justify="flex-end"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+        <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
+          {describeAmount(inflow)}
+        </Text>
+        <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
+          <Badge size="sm" variant="light">
+            {formatFrequency(inflow.schedule, inflow.interval_count)}
+          </Badge>
+        </Box>
+        <FortnightlyAmount
+          cents={fortnightlyOf(inflow)}
+          justify="flex-end"
+          style={{ width: '7rem', flexShrink: 0 }}
+        />
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+        </Group>
       </Group>
-    </Group>
+      {effectiveDatesCaption(inflow) && (
+        <Text size="xs" c="dimmed" truncate>
+          {effectiveDatesCaption(inflow)}
+        </Text>
+      )}
+    </Stack>
   )
 }
 

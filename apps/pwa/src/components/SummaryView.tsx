@@ -14,6 +14,7 @@ import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
 import { formatCents } from '../lib/money'
 import { chartColors } from '../lib/tokens'
+import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
@@ -330,14 +331,18 @@ function RunningRow({
 }) {
   return (
     <Table.Tr bg="var(--mantine-primary-color-light)">
-      <Table.Th scope="row">{label}</Table.Th>
-      <Table.Td fw={700}>
+      <Table.Th scope="row" fw={700}>
+        {label}
+      </Table.Th>
+      <Table.Td ta="right" fw={700}>
         <MoneyText span cents={amounts.fortnightlyCents} colored={signed} />
       </Table.Td>
-      <Table.Td fw={700}>
+      <Table.Td ta="right" fw={700}>
         <MoneyText span cents={amounts.annualCents} />
       </Table.Td>
-      <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
+      <Table.Td ta="right" fw={700}>
+        {formatPortion(portion)}
+      </Table.Td>
     </Table.Tr>
   )
 }
@@ -346,14 +351,16 @@ function RunningRow({
 function GroupTableRow({ row, portion }: { row: LedgerRow; portion: number }) {
   return (
     <Table.Tr>
-      <Table.Th scope="row">{row.label}</Table.Th>
-      <Table.Td>
+      <Table.Th scope="row" c="dimmed">
+        {row.label}
+      </Table.Th>
+      <Table.Td ta="right">
         <MoneyText span cents={row.amounts.fortnightlyCents} />
       </Table.Td>
-      <Table.Td>
+      <Table.Td ta="right">
         <MoneyText span cents={row.amounts.annualCents} />
       </Table.Td>
-      <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
+      <Table.Td ta="right">{formatPortion(portion)}</Table.Td>
     </Table.Tr>
   )
 }
@@ -424,33 +431,37 @@ export function SummaryView({ summary }: SummaryViewProps) {
         <>
           <AllocationDonut summary={summary} mode={mode} setMode={setMode} />
           {wide ? (
-            <Table.ScrollContainer minWidth={0}>
-              <Table striped withTableBorder>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Line</Table.Th>
-                    <Table.Th>Fortnightly</Table.Th>
-                    <Table.Th>Annual</Table.Th>
-                    <Table.Th>Portion</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {rows.map((row) =>
-                    row.running ? (
-                      <RunningRow
-                        key={row.label}
-                        label={row.label}
-                        amounts={row.amounts}
-                        portion={portionOf(row.amounts)}
-                        signed={row.signed}
-                      />
-                    ) : (
-                      <GroupTableRow key={row.label} row={row} portion={portionOf(row.amounts)} />
-                    ),
-                  )}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
+            <DataTable label="Reconciliation">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th />
+                  <Table.Th scope="col" ta="right">
+                    Fortnightly
+                  </Table.Th>
+                  <Table.Th scope="col" ta="right">
+                    Annual
+                  </Table.Th>
+                  <Table.Th scope="col" ta="right">
+                    Portion
+                  </Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.map((row) =>
+                  row.running ? (
+                    <RunningRow
+                      key={row.label}
+                      label={row.label}
+                      amounts={row.amounts}
+                      portion={portionOf(row.amounts)}
+                      signed={row.signed}
+                    />
+                  ) : (
+                    <GroupTableRow key={row.label} row={row} portion={portionOf(row.amounts)} />
+                  ),
+                )}
+              </Table.Tbody>
+            </DataTable>
           ) : (
             <Card withBorder radius="md" p="xs">
               <Stack gap={2}>

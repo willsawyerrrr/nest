@@ -71,6 +71,13 @@ describe('GiftsScreen back link', () => {
     const link = screen.getByRole('link', { name: /budget/i })
     expect(link).toHaveAttribute('href', '/budget')
   })
+
+  it('omits the back link when no destination is given', () => {
+    renderScreen({ backTo: undefined, backLabel: undefined })
+
+    expect(screen.queryByRole('link', { name: /breakdowns/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Gifts' })).toBeInTheDocument()
+  })
 })
 
 describe('GiftsScreen grouping toggle', () => {

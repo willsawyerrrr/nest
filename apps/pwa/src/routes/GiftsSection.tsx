@@ -10,8 +10,10 @@ export function GiftsSection({
   backLabel,
 }: {
   householdId: string
-  backTo: string
-  backLabel: string
+  /** Where the back link returns to; omit when rendered as a top-level tab. */
+  backTo?: string
+  /** The back link's label, naming its destination. */
+  backLabel?: string
 }) {
   const gifts = useGifts(householdId)
   const { members, loading: membersLoading } = useMembers()

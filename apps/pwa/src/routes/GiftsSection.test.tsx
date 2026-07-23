@@ -75,4 +75,14 @@ describe('GiftsSection', () => {
       currentMemberId: 'm1',
     })
   })
+
+  it('renders as a top-level tab with no back link when no destination is given', () => {
+    hooks.useGifts.mockReturnValue(loadedGifts)
+    hooks.useMembers.mockReturnValue({ members: [will], loading: false })
+    hooks.useCurrentMember.mockReturnValue({ member: will, loading: false })
+    render(<GiftsSection householdId="h1" />)
+    expect(screen.getByTestId('gifts-screen')).toBeInTheDocument()
+    expect(hooks.screenProps?.backTo).toBeUndefined()
+    expect(hooks.screenProps?.backLabel).toBeUndefined()
+  })
 })

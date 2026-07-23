@@ -82,13 +82,14 @@ does not restate them.
   formatting with lime brand distinct from green/red money semantics.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
   `/inflows` `/budget` `/splits` `/goals` `/tax` `/deductions` `/super`
-  `/help-debt` `/equity` `/breakdowns` `/household`; `/` and unknown routes
+  `/help-debt` `/equity` `/breakdowns` `/gifts` `/household`; `/` and unknown routes
   redirect to
   `/summary`), so
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
   Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
-  deductions · Super · Help debt · Breakdowns · Household. The gift planner is reached from the Breakdowns
-  list (`/breakdowns/:id` for the gift breakdown), not a standalone tab. One
+  deductions · Super · Help debt · Breakdowns · Gifts · Household. The gift planner is
+  a first-class tab (`/gifts`) and the editor a gift breakdown opens
+  (`/breakdowns/:id`). One
   `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
   and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to
   the first nine tabs, ⌘/Ctrl+Shift+←/→ cycle.
@@ -210,6 +211,8 @@ the editor. The household's real gift budgets are loaded in production. See
 - [x] Breakdowns tab (`/breakdowns`): lists every breakdown with its group and
       fortnightly + annual total, and a New breakdown action. `/breakdowns/:id` is
       the editor, chosen by `kind` — a generic item editor, or the gift planner.
+- [x] Gifts tab (`/gifts`): the unified gift planner as a first-class tab, the same
+      household-scoped screen a gift breakdown opens, without the back link.
 - [x] Gift planner (`kind = 'gift'`): plan a spend per **recipient × occasion**,
       then record purchases against it. Two-way collapsible grouping (by occasion
       or by person, default collapsed), each group rolling up budgeted / spent /

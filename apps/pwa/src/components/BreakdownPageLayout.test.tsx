@@ -34,4 +34,11 @@ describe('BreakdownPageLayout', () => {
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
     expect(screen.getByText('Body content')).toBeInTheDocument()
   })
+
+  it('omits the back link when no destination is given', () => {
+    renderLayout({ backTo: undefined, backLabel: undefined })
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Medications' })).toBeInTheDocument()
+  })
 })

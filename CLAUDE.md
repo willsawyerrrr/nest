@@ -91,8 +91,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   line's amount can be **derived** — rolled up from a user-created **breakdown**
   (an itemised list) that owns the line via `budget_line.breakdown_id` rather than
   typed. A breakdown's `breakdown_kind` selects the editor: `gift` is the
-  recipient × occasion planner + purchase log (reached from the Breakdowns tab, not
-  a standalone Gifts tab); `generic` is a name + group with an item list (amount +
+  recipient × occasion planner + purchase log (a first-class Gifts tab at `/gifts`,
+  and the editor a gift breakdown opens); `generic` is a name + group with an item list (amount +
   frequency), which is how medications and any other itemised budget are modelled.
   A gift breakdown funds each recipient separately: it derives one budget line per
   household member who has gift budgets (named "Gifts for &lt;member&gt;", keyed by

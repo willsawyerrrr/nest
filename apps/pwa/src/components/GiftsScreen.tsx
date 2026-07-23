@@ -35,10 +35,10 @@ import { GiftPurchaseForm } from './GiftPurchaseForm'
 import { GiftMoneyBar, PurchaseRow } from './GiftRowParts'
 
 interface GiftsScreenProps {
-  /** Where the back link returns to. */
-  backTo: string
+  /** Where the back link returns to; omit when rendered as a top-level tab. */
+  backTo?: string
   /** The back link's label, naming its destination. */
-  backLabel: string
+  backLabel?: string
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
   budgets: GiftBudget[]

@@ -1,11 +1,14 @@
 import { Card, Stack, Table, Text, Title } from '@mantine/core'
-import type { HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
+import type { HelpPayoffProjection, HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
 import { formatCents } from '../lib/money'
+import { helpPayoffSummary } from '../lib/tax'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
   financialYear: number
   memberName: (memberId: string) => string
+  /** Each member's HELP/HECS payoff projection, keyed by member id (positive debts only). */
+  helpPayoff?: ReadonlyMap<string, HelpPayoffProjection>
 }
 
 interface Row {
@@ -170,12 +173,14 @@ function FiguresCard({
   breakdown,
   concessionalCents = 0,
   deductionsCents = 0,
+  helpPayoff,
 }: {
   name: string
   row: Row
   breakdown?: TaxBreakdown
   concessionalCents?: number
   deductionsCents?: number
+  helpPayoff?: HelpPayoffProjection
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
@@ -188,6 +193,11 @@ function FiguresCard({
             concessionalCents={concessionalCents}
             deductionsCents={deductionsCents}
           />
+        )}
+        {helpPayoff && (
+          <Text size="xs" c="dimmed">
+            {helpPayoffSummary(helpPayoff)}
+          </Text>
         )}
         <Table.ScrollContainer minWidth={0}>
           <Table
@@ -232,7 +242,12 @@ function FiguresCard({
 }
 
 /** Presentational household tax estimate: household and per-member annual/fortnightly figures. */
-export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEstimateViewProps) {
+export function TaxEstimateView({
+  estimate,
+  financialYear,
+  memberName,
+  helpPayoff,
+}: TaxEstimateViewProps) {
   return (
     <Stack gap="md">
       <Title order={2} visibleFrom="sm">
@@ -254,6 +269,7 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
               breakdown={member.breakdown}
               concessionalCents={member.annualConcessionalContributionsCents}
               deductionsCents={member.annualDeductionsCents}
+              helpPayoff={helpPayoff?.get(member.memberId)}
             />
           ))}
           <Text size="xs" c="dimmed">

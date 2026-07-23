@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown } from '@nest/tax'
+import type {
+  HelpPayoffProjection,
+  HouseholdTaxEstimate,
+  MemberTaxEstimate,
+  TaxBreakdown,
+} from '@nest/tax'
 import { render, screen, within } from '../test/render'
 import { TaxEstimateView } from './TaxEstimateView'
 
@@ -14,6 +19,7 @@ const breakdown: TaxBreakdown = {
   totalLiabilityCents: 0,
   paygWithheldCents: 0,
   balanceCents: 0,
+  repaymentIncomeCents: 0,
 }
 
 const will: MemberTaxEstimate = {
@@ -226,6 +232,7 @@ describe('TaxEstimateView', () => {
         totalLiabilityCents: 30_800_00,
         paygWithheldCents: 0,
         balanceCents: 30_800_00,
+        repaymentIncomeCents: 100_000_00,
       },
     }
     const withFull: HouseholdTaxEstimate = { ...estimate, members: [willFull, sam] }
@@ -262,6 +269,53 @@ describe('TaxEstimateView', () => {
     expect(within(samCard).getByText(/Not applicable this year/)).toHaveTextContent(
       'Medicare levy surcharge',
     )
+  })
+
+  it('shows a projected payoff year for a member with a clearing HELP debt', () => {
+    const paidOff: HelpPayoffProjection = {
+      paidOffFinancialYear: 2032,
+      yearsToPayOff: 6,
+      schedule: [],
+    }
+    const helpPayoff = new Map([['m1', paidOff]])
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        helpPayoff={helpPayoff}
+      />,
+    )
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(
+      within(willCard).getByText(/projected paid off in FY2032 \(6 years\)/),
+    ).toBeInTheDocument()
+    // Sam has no HELP debt, so no payoff line appears on their card.
+    const samCard = screen.getByRole('region', { name: 'Sam' })
+    expect(within(samCard).queryByText(/HELP debt/)).toBeNull()
+  })
+
+  it('notes when a HELP debt does not clear within the projection horizon', () => {
+    const neverClears: HelpPayoffProjection = {
+      paidOffFinancialYear: null,
+      yearsToPayOff: null,
+      schedule: [],
+    }
+    const helpPayoff = new Map([['m1', neverClears]])
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        helpPayoff={helpPayoff}
+      />,
+    )
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    expect(
+      within(willCard).getByText(/not cleared within 40 years at current income/),
+    ).toBeInTheDocument()
   })
 
   it('notes that capital gains tax is excluded', () => {

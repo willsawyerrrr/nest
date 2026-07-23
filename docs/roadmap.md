@@ -267,6 +267,25 @@ way, sourced at runtime from GitHub for the private repo.
       the PWA to the latest deployed version (activates a waiting service worker,
       then clears caches, unregisters, and hard-reloads as an iOS-safe fallback).
 
+### HELP indexation & payoff (complete)
+
+Projects when each member's HELP/HECS debt will be paid off, extending the
+already-shipped marginal HELP model.
+
+- [x] `help_repayment.indexation_rate` added to `TaxYearConfig` (versioned,
+      never hardcoded); FY2027 carries a provisional 3.5% until the ATO sets the
+      final figure in mid-2027.
+- [x] Pure `projectHelpPayoff` in `@nest/tax`: for each year it indexes the
+      balance on 1 June **before** crediting that year's compulsory repayment
+      (ATO order of operations), returning the payoff financial year, years to
+      go, and a per-year schedule — or a not-cleared result when indexation
+      outpaces repayment or the 40-year horizon is reached.
+- [x] `computeTax` exposes `repayment_income_cents` so the projection can hold a
+      member's repayment income constant across future years.
+- [x] Tax tab shows a per-member payoff line beneath the HELP/HECS row for each
+      member with a positive HELP balance ("paid off in FY20XX" or "not cleared
+      within 40 years at current income").
+
 ## Later
 
 Uncommitted work, roughly ordered by likelihood of being picked up.
@@ -492,9 +511,9 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
 - **Feasibility / risks.** **Largely a non-starter for automation** — the ATO
   has no open consumer API; MyGov is not programmatically accessible to
   third parties. Realistic version: a well-designed _manual_ "update from your
-  MyGov statement" flow (enter HELP balance + indexation %, YTD PAYG), plus in-
-  app HELP indexation modelling (idea 11). Listed mainly to record that the
-  automated version was considered and rejected.
+  MyGov statement" flow (enter HELP balance + indexation %, YTD PAYG), feeding
+  the shipped in-app HELP indexation and payoff modelling. Listed mainly to record
+  that the automated version was considered and rejected.
 
 ### Native features
 
@@ -557,24 +576,6 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
   the mortgage liability is genuinely automatable via the existing Up token —
   the most valuable near-term slice. Snapshotting balances over time needs a
   scheduled job. Valuation of illiquid assets (property) stays manual.
-
-#### 11. HELP/HECS indexation & repayment refinements
-
-- **What / value.** The tax engine already models marginal HELP repayment. Add
-  **annual indexation** (HELP debt grows by an indexation rate each 1 June) so
-  the projected debt balance and repayment are right across multiple years, and
-  optionally show "debt paid off in FY20XX". Very relevant given the marginal
-  HELP model is already a first-class part of the tax config.
-- **Effort.** S — extend `TaxYearConfig` with an indexation rate and add a
-  multi-year projection in the pure `@nest/tax` package.
-- **Touches.** Config + pure package math only — no external API, no schema
-  change beyond a config field. Frontend: surface the multi-year payoff on the
-  Tax tab.
-- **Dependencies.** None — pure extension of shipped tax code.
-- **Feasibility / risks.** Indexation rate is published by the ATO annually and
-  fits the existing "versioned config, never hardcoded" convention. Timing
-  subtlety: indexation applies to the balance _before_ the year's compulsory
-  repayment is credited — order of operations must match the ATO's.
 
 #### 12. Salary sacrifice & super optimisation
 
@@ -716,9 +717,9 @@ Ranked for value-to-effort against this specific household's setup:
    directly useful to this user. Provider-abstract it (PagerDuty/Opsgenie).
 3. **Payslip / PAYG manual entry (2)** — unlocks actual-tax-paid tracking with
    _no_ external dependency, filling an input the tax engine already consumes.
-4. **HELP indexation + salary-sacrifice/MLS tax refinements (11, 12, 13)** —
-   cheap, pure-package extensions of already-shipped tax code with high dollar
-   relevance to a dual-income AU household with HELP debt.
+4. **Salary-sacrifice/MLS tax refinements (12, 13)** — cheap, pure-package
+   extensions of already-shipped tax code with high dollar relevance to a
+   dual-income AU household.
 5. **Push notifications (8)** — makes the installed PWA proactive (negative
    buffer, goal slippage, deposit landed); most of its triggers work on today's
    data, the rest arrive with ingestion.

@@ -332,6 +332,22 @@ describe('familyMedicareLevySurcharge', () => {
     expect(result.thresholdCents).toBe(90_000_00)
     expect(result.totalSurchargeCents).toBe(1_000_00)
   })
+
+  it('reports a nil threshold and charges nothing when the config has no tiers', () => {
+    const noTiers: TaxYearConfig = {
+      ...FIXTURE_CONFIG,
+      medicareLevySurcharge: { ...FIXTURE_CONFIG.medicareLevySurcharge, tiers: [] },
+    }
+    const result = familyMedicareLevySurcharge(
+      [noCover(200_000_00), noCover(200_000_00)],
+      0,
+      noTiers,
+    )
+    expect(result.tierRate).toBe(0)
+    expect(result.thresholdCents).toBe(0)
+    expect(result.perMemberSurchargeCents).toEqual([0, 0])
+    expect(result.totalSurchargeCents).toBe(0)
+  })
 })
 
 describe('helpRepayment', () => {

@@ -12,8 +12,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
 - Frontend: React PWA (TypeScript); one frontend for iOS + web.
-- UI framework: Mantine (React components + theming; system light/dark). The app
-  is designed mobile-first — the primary device is an installed iPhone PWA.
+- UI framework: Mantine (React components + theming) under a dark-first design
+  system (custom brand/semantic colour scales, shared primitives, tokenised
+  charts — see [`docs/design-system.md`](docs/design-system.md)). The app is
+  designed mobile-first — the primary device is an installed iPhone PWA.
 - Frontend hosting: Vercel (Root Directory `apps/pwa`, Vite preset); auto-deploy
   on merge to `main`, preview deploys per PR.
 - Auth: Supabase Auth via Google OAuth (consent screen published).

@@ -99,20 +99,11 @@ export function TabBar({ items }: { items: NavItem[] }) {
   ]
   useHotkeys(hotkeys)
 
-  const activeLabel = items[currentIndex]?.label
-
   return (
     <>
       <Box component="header" className="top-bar" hiddenFrom="sm">
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <Logo variant="mark" size={28} />
-            {activeLabel ? (
-              <Text fw={700} fz="1.5rem" truncate>
-                {activeLabel}
-              </Text>
-            ) : null}
-          </Group>
+          <Logo variant="mark" size={28} />
           <Burger
             opened={drawerOpened}
             onClick={drawer.toggle}

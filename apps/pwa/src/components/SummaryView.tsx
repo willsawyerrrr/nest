@@ -13,6 +13,8 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
 import { formatCents, moneyColor } from '../lib/money'
+import { EmptyState } from './EmptyState'
+import { PageSection } from './PageSection'
 
 /**
  * The basis the allocation donut divides against: take-home (post-tax) available
@@ -412,15 +414,11 @@ export function SummaryView({ summary }: SummaryViewProps) {
     summary.savingsBlock.annualCents !== 0
 
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Summary
-      </Title>
-
+    <PageSection title="Summary">
       {!hasData ? (
-        <Text c="dimmed">
+        <EmptyState>
           Nothing to reconcile yet. Add inflows and budget lines to see how your money is allocated.
-        </Text>
+        </EmptyState>
       ) : (
         <>
           <AllocationDonut summary={summary} mode={mode} setMode={setMode} />
@@ -470,6 +468,6 @@ export function SummaryView({ summary }: SummaryViewProps) {
           )}
         </>
       )}
-    </Stack>
+    </PageSection>
   )
 }

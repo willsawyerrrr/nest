@@ -1,9 +1,10 @@
-import { Alert, Button, Group, Stack, Title } from '@mantine/core'
+import { Alert, Button, Group } from '@mantine/core'
 import { IconRefresh } from '@tabler/icons-react'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
 import { GoalList } from './GoalList'
+import { PageSection } from './PageSection'
 
 interface GoalScreenProps {
   goals: Goal[]
@@ -30,11 +31,8 @@ export function GoalScreen({
   refreshError,
 }: GoalScreenProps) {
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <Title order={2} visibleFrom="sm">
-          Goals
-        </Title>
+    <PageSection title="Goals">
+      <Group justify="flex-end">
         <Button
           variant="light"
           size="xs"
@@ -58,6 +56,6 @@ export function GoalScreen({
         onUpdate={onUpdateGoal}
         onDelete={(id) => void onDeleteGoal(id)}
       />
-    </Stack>
+    </PageSection>
   )
 }

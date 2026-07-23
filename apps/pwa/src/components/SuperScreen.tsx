@@ -9,6 +9,7 @@ import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
 import { accruedBalanceCents } from '../lib/super'
 import type { SuperCapSummary } from '../lib/tax'
+import { PageSection } from './PageSection'
 import { RetirementProjection } from './RetirementProjection'
 import { SuperCapsSummary } from './SuperCapsSummary'
 import { SuperContributionList } from './SuperContributionList'
@@ -113,15 +114,10 @@ export function SuperScreen({
 }: SuperScreenProps) {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Super (FY{financialYear})
-      </Title>
-      <Text c="dimmed" size="sm">
-        Each member&rsquo;s balance is held as an account and counts toward net worth. Concessional
-        contributions reduce their taxable income on the Tax tab.
-      </Text>
-
+    <PageSection
+      title={`Super (FY${financialYear})`}
+      intro="Each member’s balance is held as an account and counts toward net worth. Concessional contributions reduce their taxable income on the Tax tab."
+    >
       {members.map((member) => {
         const profile = profiles.find((candidate) => candidate.member_id === member.id)
         const account = accounts.find((candidate) => candidate.id === profile?.linked_account_id)
@@ -197,6 +193,6 @@ export function SuperScreen({
           }
         })}
       />
-    </Stack>
+    </PageSection>
   )
 }

@@ -1,10 +1,11 @@
-import { Badge, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { Badge, Card, Group, Stack, Text } from '@mantine/core'
 import { isTemporaryActive } from '@nest/plan'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
+import { AddButton } from './AddButton'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { GroupSection } from './GroupSection'
@@ -119,9 +120,7 @@ export function TemporaryItemList({
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-          Add Temporary line
-        </Button>
+        <AddButton label="Add temporary line" onClick={() => startAdding(true)} />
       )}
 
       {modal}

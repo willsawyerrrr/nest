@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { ActionIcon, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { ActionIcon, Button, Card, Group, Stack, Text } from '@mantine/core'
 import { IconPencil } from '@tabler/icons-react'
 import type { HelpDebt, HelpDebtInput } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
 import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
+import { PageSection } from './PageSection'
 
 interface HelpDebtScreenProps {
   members: Member[]
@@ -119,14 +120,10 @@ export function HelpDebtScreen({ members, helpDebts, onSave }: HelpDebtScreenPro
   const debtForMember = (memberId: string) => helpDebts.find((debt) => debt.member_id === memberId)
 
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        HELP debt
-      </Title>
-      <Text c="dimmed" size="sm">
-        Each member&rsquo;s outstanding HELP/HECS balance. It drives the compulsory repayment on the
-        Tax tab and counts against household net worth as a liability.
-      </Text>
+    <PageSection
+      title="HELP debt"
+      intro="Each member’s outstanding HELP/HECS balance. It drives the compulsory repayment on the Tax tab and counts against household net worth as a liability."
+    >
       {members.map((member) =>
         editingMemberId === member.id ? (
           <MemberHelpDebtForm
@@ -148,6 +145,6 @@ export function HelpDebtScreen({ members, helpDebts, onSave }: HelpDebtScreenPro
           />
         ),
       )}
-    </Stack>
+    </PageSection>
   )
 }

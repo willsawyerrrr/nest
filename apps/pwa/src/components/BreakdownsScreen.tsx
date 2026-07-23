@@ -1,25 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Badge,
-  Button,
-  Card,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-  UnstyledButton,
-} from '@mantine/core'
+import { Badge, Button, Card, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatPerYear } from '../lib/money'
+import { AddButton } from './AddButton'
 import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { PageSection } from './PageSection'
 
 interface BreakdownsScreenProps {
   breakdowns: Breakdown[]
@@ -133,19 +125,11 @@ export function BreakdownsScreen({
   const [adding, setAdding] = useState(false)
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Title order={2} visibleFrom="sm">
-          Breakdowns
-        </Title>
-        {!adding && <Button onClick={() => setAdding(true)}>Add breakdown</Button>}
-      </Group>
-
-      <Text c="dimmed" size="sm">
-        A breakdown is an itemised list whose items roll up into a single budget line.
-      </Text>
-
-      {adding && (
+    <PageSection
+      title="Breakdowns"
+      intro="A breakdown is an itemised list whose items roll up into a single budget line."
+    >
+      {adding ? (
         <NewBreakdownForm
           onSubmit={async (input) => {
             await onCreate(input)
@@ -153,6 +137,8 @@ export function BreakdownsScreen({
           }}
           onCancel={() => setAdding(false)}
         />
+      ) : (
+        <AddButton label="Add breakdown" onClick={() => setAdding(true)} />
       )}
 
       {breakdowns.length === 0 && !adding ? (
@@ -166,6 +152,6 @@ export function BreakdownsScreen({
           />
         ))
       )}
-    </Stack>
+    </PageSection>
   )
 }

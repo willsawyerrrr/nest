@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, Card, Divider, Group, NumberInput, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Card, Divider, Group, NumberInput, Stack, Table, Text } from '@mantine/core'
 import {
   familyMedicareLevySurcharge,
   salarySacrificeWhatIf,
@@ -12,7 +12,9 @@ import {
 } from '@nest/tax'
 import { dollarsToCents, formatCents, formatPerYear, moneyColor } from '../lib/money'
 import { helpPayoffSummary } from '../lib/tax'
+import { EmptyState } from './EmptyState'
 import { MoneyInput } from './MoneyInput'
+import { PageSection } from './PageSection'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
@@ -447,15 +449,11 @@ export function TaxEstimateView({
   helpPayoff,
 }: TaxEstimateViewProps) {
   return (
-    <Stack gap="md">
-      <Title order={2} visibleFrom="sm">
-        Tax estimate (FY{financialYear})
-      </Title>
-
+    <PageSection title={`Tax estimate (FY${financialYear})`}>
       {estimate.annualGrossCents === 0 ? (
-        <Text c="dimmed">
+        <EmptyState>
           No income to estimate yet. Add a taxable inflow on the Inflows tab to see a tax estimate.
-        </Text>
+        </EmptyState>
       ) : (
         <Stack gap="sm">
           <FiguresCard name="Household" row={estimate} />
@@ -479,6 +477,6 @@ export function TaxEstimateView({
           </Text>
         </Stack>
       )}
-    </Stack>
+    </PageSection>
   )
 }

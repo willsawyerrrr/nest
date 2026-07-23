@@ -19,7 +19,7 @@ interface PageSectionProps extends Omit<StackProps, 'title'> {
 export function PageSection({
   title,
   intro,
-  gap = 'lg',
+  gap = 'md',
   children,
   ...stackProps
 }: PageSectionProps) {

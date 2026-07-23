@@ -122,20 +122,13 @@ describe('TabBar mobile drawer', () => {
   beforeEach(() => setViewportWidth(375))
   afterEach(() => setViewportWidth(1024))
 
-  it('shows the brand mark and active page title in the top bar', () => {
+  it('shows only the brand mark in the top bar, not the active page title', () => {
     renderTabBar('/budget')
 
     const header = screen.getByRole('banner')
     expect(within(header).getByRole('img', { name: 'nest' })).toBeInTheDocument()
-    expect(within(header).getByText('Budget')).toBeInTheDocument()
-  })
-
-  it('shows only the brand mark, no page title, when no tab matches the route', () => {
-    renderTabBar('/nowhere')
-
-    const header = screen.getByRole('banner')
-    expect(within(header).getByRole('img', { name: 'nest' })).toBeInTheDocument()
-    // No nav item matches, so there is no active label and the title is omitted.
+    // The page title lives in-body via PageSection, so the top bar never labels it.
+    expect(within(header).queryByText('Budget')).not.toBeInTheDocument()
     expect(header).toHaveTextContent('')
   })
 

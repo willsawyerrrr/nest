@@ -1,10 +1,10 @@
-import { Stack, Title } from '@mantine/core'
 import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import type { BudgetGroup } from '../lib/domain'
 import { BudgetLineList } from './BudgetLineList'
 import type { DerivedLineValues } from './DerivedBudgetLineForm'
+import { PageSection } from './PageSection'
 import { TemporaryItemList } from './TemporaryItemList'
 
 interface BudgetScreenProps {
@@ -40,29 +40,23 @@ export function BudgetScreen({
   onDeleteItem,
 }: BudgetScreenProps) {
   return (
-    <Stack gap="xl">
-      <Stack gap="md">
-        <Title order={2} visibleFrom="sm">
-          Budget
-        </Title>
-        <BudgetLineList
-          lines={lines}
-          goals={goals}
-          accounts={accounts}
-          breakdowns={breakdowns}
-          onCreate={onCreateLine}
-          onUpdate={onUpdateLine}
-          onUpdateDerivedLine={onUpdateDerivedLine}
-          onDelete={(id) => void onDeleteLine(id)}
-        />
-      </Stack>
-
+    <PageSection title="Budget">
+      <BudgetLineList
+        lines={lines}
+        goals={goals}
+        accounts={accounts}
+        breakdowns={breakdowns}
+        onCreate={onCreateLine}
+        onUpdate={onUpdateLine}
+        onUpdateDerivedLine={onUpdateDerivedLine}
+        onDelete={(id) => void onDeleteLine(id)}
+      />
       <TemporaryItemList
         items={temporaryItems}
         onCreate={onCreateItem}
         onUpdate={onUpdateItem}
         onDelete={(id) => void onDeleteItem(id)}
       />
-    </Stack>
+    </PageSection>
   )
 }

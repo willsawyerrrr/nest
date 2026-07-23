@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Badge, Card, Group, Stack, Text } from '@mantine/core'
 import {
   exerciseCostCents,
   grantValueCents,
@@ -11,9 +11,11 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import { EQUITY_INSTRUMENT_TYPES, equityGrantToPlan, VESTING_FREQUENCIES } from '../lib/equity'
 import { formatCents } from '../lib/money'
+import { AddButton } from './AddButton'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { EquityGrantForm } from './EquityGrantForm'
+import { PageSection } from './PageSection'
 
 interface EquityScreenProps {
   members: Member[]
@@ -161,9 +163,7 @@ function MemberEquityGrants({
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" size="xs" fullWidth onClick={() => startAdding(true)}>
-          Add grant
-        </Button>
+        <AddButton label="Add grant" onClick={() => startAdding(true)} />
       )}
 
       {modal}
@@ -186,15 +186,10 @@ export function EquityScreen({
   onDelete,
 }: EquityScreenProps) {
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Equity
-      </Title>
-      <Text c="dimmed" size="sm">
-        Each member&rsquo;s startup equity grants, vesting after a cliff. The vested value — options
-        at their gain over the strike, shares at the price per share — counts toward household net
-        worth. Keep the price per share current yourself.
-      </Text>
+    <PageSection
+      title="Equity"
+      intro="Each member’s startup equity grants, vesting after a cliff. The vested value — options at their gain over the strike, shares at the price per share — counts toward household net worth. Keep the price per share current yourself."
+    >
       {members.map((member) => (
         <MemberEquityGrants
           key={member.id}
@@ -206,6 +201,6 @@ export function EquityScreen({
           onDelete={onDelete}
         />
       ))}
-    </Stack>
+    </PageSection>
   )
 }

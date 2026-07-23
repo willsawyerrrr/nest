@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Group, Stack, Text } from '@mantine/core'
+import { Badge, Box, Card, Group, Stack, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
@@ -10,6 +10,7 @@ import { formatIsoDate } from '../lib/dates'
 import { formatFrequency } from '../lib/frequency'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
+import { AddButton } from './AddButton'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
@@ -244,9 +245,7 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-          Add inflow
-        </Button>
+        <AddButton label="Add inflow" onClick={() => startAdding(true)} />
       )}
 
       {modal}

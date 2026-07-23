@@ -11,6 +11,8 @@ import {
 import type { Account } from '../hooks/useAccounts'
 import { formatCents, moneyColor } from '../lib/money'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
+import { EmptyState } from './EmptyState'
+import { PageSection } from './PageSection'
 
 interface NetWorthViewProps {
   accounts: Account[]
@@ -64,9 +66,7 @@ function AccountGroup({
 
   const body =
     accounts.length === 0 ? (
-      <Text c="dimmed" size="sm">
-        {emptyLabel}
-      </Text>
+      <EmptyState>{emptyLabel}</EmptyState>
     ) : (
       <Stack gap="xs">
         {accounts.map((account) => (
@@ -230,12 +230,9 @@ export function NetWorthView({
   const hasTogglable = breakdown.otherAccounts.length > 0 || breakdown.excludedAccounts.length > 0
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <Title order={2} visibleFrom="sm">
-          Net worth
-        </Title>
-        {hasTogglable && (
+    <PageSection title="Net worth">
+      {hasTogglable && (
+        <Group justify="flex-end">
           <Button
             variant={editing ? 'filled' : 'light'}
             size="xs"
@@ -244,8 +241,8 @@ export function NetWorthView({
           >
             {editing ? 'Done' : 'Edit'}
           </Button>
-        )}
-      </Group>
+        </Group>
+      )}
 
       <Card component="section" aria-label="Total net worth" withBorder radius="md" p="md">
         <Stack gap={0} align="center">
@@ -302,6 +299,6 @@ export function NetWorthView({
           onToggleExclude={onToggleExclude}
         />
       )}
-    </Stack>
+    </PageSection>
   )
 }

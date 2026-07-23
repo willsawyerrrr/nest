@@ -25,6 +25,7 @@ import { formatCents, formatPerFortnight } from '../lib/money'
 import { sortBy, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { PageSection } from './PageSection'
 
 /** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
 const ROUND_STEP_CENTS = 5_00
@@ -259,17 +260,10 @@ export function SplitsScreen({
   ).length
 
   return (
-    <Stack gap="md">
-      <Title order={2} visibleFrom="sm">
-        Pay splits
-      </Title>
-
-      <Text size="sm" c="dimmed">
-        Up can’t read or set pay splits, so these are recommendations: set each account’s pay split
-        in Up to match. Amounts are the fortnightly total of the budget lines routed to each
-        account, rounded up to the nearest $5.
-      </Text>
-
+    <PageSection
+      title="Pay splits"
+      intro="Up can’t read or set pay splits, so these are recommendations: set each account’s pay split in Up to match. Amounts are the fortnightly total of the budget lines routed to each account, rounded up to the nearest $5."
+    >
       {spendingAccounts.length > 0 && (
         <Select
           label="Paid into"
@@ -370,6 +364,6 @@ export function SplitsScreen({
           Up saver, to fold them into a split.
         </Alert>
       )}
-    </Stack>
+    </PageSection>
   )
 }

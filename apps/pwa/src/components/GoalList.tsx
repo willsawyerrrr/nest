@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core'
+import { Badge, Card, Group, Progress, Stack, Text } from '@mantine/core'
 import { fortnightlyCents, projectGoal } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
@@ -7,6 +7,7 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
+import { AddButton } from './AddButton'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { GoalForm } from './GoalForm'
@@ -196,9 +197,7 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-          Add goal
-        </Button>
+        <AddButton label="Add goal" onClick={() => startAdding(true)} />
       )}
 
       {modal}

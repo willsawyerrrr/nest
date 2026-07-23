@@ -1,14 +1,4 @@
-import {
-  ActionIcon,
-  Anchor,
-  Button,
-  Card,
-  FileInput,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core'
+import { ActionIcon, Anchor, Card, FileInput, Group, Stack, Text } from '@mantine/core'
 import { IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
@@ -16,9 +6,11 @@ import type { DeductionInput, DeductionRow } from '../hooks/useDeductions'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
+import { AddButton } from './AddButton'
 import { DeductionForm } from './DeductionForm'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
+import { PageSection } from './PageSection'
 
 interface DeductionsScreenProps {
   members: Member[]
@@ -231,9 +223,7 @@ function MemberDeductions({
           onCancel={closeForms}
         />
       ) : (
-        <Button variant="light" size="xs" fullWidth onClick={() => startAdding(true)}>
-          Add deduction
-        </Button>
+        <AddButton label="Add deduction" onClick={() => startAdding(true)} />
       )}
 
       {modal}
@@ -259,15 +249,10 @@ export function DeductionsScreen({
   signedUrl,
 }: DeductionsScreenProps) {
   return (
-    <Stack gap="sm">
-      <Title order={2} visibleFrom="sm">
-        Tax deductions (FY{financialYear})
-      </Title>
-      <Text c="dimmed" size="sm">
-        Each member&rsquo;s deductible expenses for the financial year, with receipts stored
-        privately. A member&rsquo;s deductions reduce their taxable income on the Tax tab, lowering
-        their estimated tax and lifting take-home on the Summary.
-      </Text>
+    <PageSection
+      title={`Tax deductions (FY${financialYear})`}
+      intro="Each member’s deductible expenses for the financial year, with receipts stored privately. A member’s deductions reduce their taxable income on the Tax tab, lowering their estimated tax and lifting take-home on the Summary."
+    >
       {members.map((member) => (
         <MemberDeductions
           key={member.id}
@@ -282,6 +267,6 @@ export function DeductionsScreen({
           signedUrl={signedUrl}
         />
       ))}
-    </Stack>
+    </PageSection>
   )
 }

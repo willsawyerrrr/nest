@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
+import { DateInput } from '@mantine/dates'
 import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { Frequency } from '../lib/domain'
@@ -66,6 +67,8 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     centsToDollars(initial?.hourly_rate_cents),
   )
   const [hours, setHours] = useState<number | string>(initial?.hours_per_period ?? '')
+  const [startsOn, setStartsOn] = useState<string | null>(initial?.starts_on ?? null)
+  const [endsOn, setEndsOn] = useState<string | null>(initial?.ends_on ?? null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -108,6 +111,8 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
+      starts_on: taxable ? startsOn : null,
+      ends_on: taxable ? endsOn : null,
     }
     try {
       await onSubmit(input)
@@ -226,6 +231,28 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
             value={amount}
             onChange={setAmount}
           />
+        )}
+
+        {taxable && (
+          <Group grow align="flex-start">
+            <DateInput
+              label="Effective from"
+              size="sm"
+              description="Leave blank if this income applies all year. To model a pay rise, set an end date and add a second inflow starting the next day."
+              valueFormat="D MMM YYYY"
+              clearable
+              value={startsOn}
+              onChange={setStartsOn}
+            />
+            <DateInput
+              label="Effective until"
+              size="sm"
+              valueFormat="D MMM YYYY"
+              clearable
+              value={endsOn}
+              onChange={setEndsOn}
+            />
+          </Group>
         )}
 
         {error && (

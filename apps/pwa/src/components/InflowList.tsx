@@ -6,6 +6,7 @@ import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
+import { formatIsoDate } from '../lib/dates'
 import { formatFrequency } from '../lib/frequency'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
@@ -34,6 +35,25 @@ function describeAmount(inflow: Inflow): string {
 /** The inflow's fortnightly-normalised gross, via its annualised gross. */
 function fortnightlyOf(inflow: Inflow): number {
   return fortnightlyCents(annualGrossCents(toIncomeInput(inflow)), 'annual')
+}
+
+/**
+ * A dimmed caption describing an inflow's effective window (e.g.
+ * "1 Jul 2026 – 14 Sep 2026", "from 15 Sep 2026", "until 30 Jun 2027"), or null
+ * when it applies all year. This is a per-inflow annotation only; the FY-prorated
+ * gross it implies is a Tax-tab concept, not the displayed steady-rate figure.
+ */
+function effectiveDatesCaption(inflow: Inflow): string | null {
+  if (inflow.starts_on && inflow.ends_on) {
+    return `${formatIsoDate(inflow.starts_on)} – ${formatIsoDate(inflow.ends_on)}`
+  }
+  if (inflow.starts_on) {
+    return `from ${formatIsoDate(inflow.starts_on)}`
+  }
+  if (inflow.ends_on) {
+    return `until ${formatIsoDate(inflow.ends_on)}`
+  }
+  return null
 }
 
 /** The member tag for a taxable inflow, or a non-taxable indicator otherwise. */
@@ -76,14 +96,21 @@ function InflowRow({
       py={6}
       style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
     >
-      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
-        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
-          {inflow.name}
-        </Text>
-        <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
-          {inflowSubtitle(inflow, memberName)}
-        </Text>
-      </Group>
+      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+        <Group gap={6} wrap="nowrap" align="baseline">
+          <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+            {inflow.name}
+          </Text>
+          <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
+            {inflowSubtitle(inflow, memberName)}
+          </Text>
+        </Group>
+        {effectiveDatesCaption(inflow) && (
+          <Text size="xs" c="dimmed" truncate>
+            {effectiveDatesCaption(inflow)}
+          </Text>
+        )}
+      </Stack>
       <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
         {describeAmount(inflow)}
       </Text>
@@ -142,6 +169,11 @@ function InflowCard({
               {formatFrequency(inflow.schedule, inflow.interval_count)}
             </Badge>
           </Group>
+          {effectiveDatesCaption(inflow) && (
+            <Text size="xs" c="dimmed">
+              {effectiveDatesCaption(inflow)}
+            </Text>
+          )}
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightlyOf(inflow)} />

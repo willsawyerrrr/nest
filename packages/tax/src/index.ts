@@ -205,6 +205,62 @@ export function financialYearForDate(date: Date): FinancialYear {
 }
 
 /**
+ * The inclusive UTC bounds of a financial year: `start` is 1 July of the year
+ * before the label, `end` is 30 June of the label year (e.g. FY2027 →
+ * 1 Jul 2026 – 30 Jun 2027). UTC to match `financialYearForDate`.
+ */
+export function financialYearBounds(financialYear: FinancialYear): {
+  readonly start: Date
+  readonly end: Date
+} {
+  return {
+    start: new Date(Date.UTC(financialYear - 1, 6, 1)),
+    end: new Date(Date.UTC(financialYear, 5, 30)),
+  }
+}
+
+/** Milliseconds in a day, for inclusive calendar-day arithmetic. */
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/** The inclusive count of calendar days from `start` to `end` (both UTC midnights). */
+function inclusiveDayCount(start: Date, end: Date): number {
+  return Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1
+}
+
+/** Parses an ISO date (`YYYY-MM-DD`) as a UTC midnight, matching the FY bounds. */
+function isoDateToUtc(iso: string): Date {
+  return new Date(`${iso}T00:00:00Z`)
+}
+
+/**
+ * The fraction of financial year `financialYear` for which an inflow is active,
+ * counted in inclusive calendar days. The inflow's window is
+ * `[startsOn ?? fyStart, endsOn ?? fyEnd]`; its overlap with the financial year,
+ * measured inclusively, is divided by the FY's inclusive day count (365 or 366).
+ *
+ * Returns 1 when both dates are absent (applies all year), 0 when the window does
+ * not intersect the financial year, and is otherwise clamped to `[0, 1]`. Because
+ * the day count is inclusive, adjacent windows (an old inflow's `endsOn` being the
+ * day before a new inflow's `startsOn`) sum to exactly the whole financial year.
+ */
+export function activeFractionOfFinancialYear(
+  startsOn: string | undefined,
+  endsOn: string | undefined,
+  financialYear: FinancialYear,
+): number {
+  const { start: fyStart, end: fyEnd } = financialYearBounds(financialYear)
+  const windowStart = startsOn ? isoDateToUtc(startsOn) : fyStart
+  const windowEnd = endsOn ? isoDateToUtc(endsOn) : fyEnd
+  const overlapStart = windowStart > fyStart ? windowStart : fyStart
+  const overlapEnd = windowEnd < fyEnd ? windowEnd : fyEnd
+  if (overlapEnd < overlapStart) {
+    return 0
+  }
+  const fraction = inclusiveDayCount(overlapStart, overlapEnd) / inclusiveDayCount(fyStart, fyEnd)
+  return Math.min(1, Math.max(0, fraction))
+}
+
+/**
  * Rounds a fractional-cent amount to the nearest whole cent, halves rounded up.
  * Every component of the breakdown is rounded independently so that all reported
  * fields are integers; the total is the arithmetic of those integer fields.

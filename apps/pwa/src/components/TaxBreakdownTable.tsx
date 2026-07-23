@@ -46,14 +46,14 @@ function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
 /** A labelled table of build-up lines with annual and fortnightly columns. */
 function ComponentTable({ label, lines }: { label: string; lines: ComponentLine[] }) {
   return (
-    <DataTable label={label}>
+    <DataTable label={label} layout="fixed">
       <Table.Thead>
         <Table.Tr>
           <Table.Th />
-          <Table.Th scope="col" ta="right">
+          <Table.Th scope="col" ta="right" w="30%">
             Annual
           </Table.Th>
-          <Table.Th scope="col" ta="right">
+          <Table.Th scope="col" ta="right" w="30%">
             Fortnightly
           </Table.Th>
         </Table.Tr>

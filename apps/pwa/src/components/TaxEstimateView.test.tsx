@@ -101,6 +101,21 @@ async function showBreakdown(user: ReturnType<typeof userEvent.setup>, name: str
   await user.click(within(card(name)).getByRole('button', { name: /show breakdown/i }))
 }
 
+/** Expands the collapsed "Salary sacrifice what-if" toggle within a named card. */
+async function showSalarySacrifice(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(card(name)).getByRole('button', { name: /salary sacrifice what-if/i }))
+}
+
+/** The MLS what-if landmark region. */
+const mlsWhatIf = () => screen.getByRole('region', { name: 'Private hospital cover' })
+
+/** Expands the collapsed "Private hospital cover what-if" toggle. */
+async function showMls(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    within(mlsWhatIf()).getByRole('button', { name: /private hospital cover what-if/i }),
+  )
+}
+
 /** The gross-to-taxable-income build-up table within a named card (expanded first). */
 function incomeTable(name: string) {
   return within(card(name)).getByRole('table', { name: 'Taxable income' })
@@ -496,9 +511,8 @@ describe('TaxEstimateView', () => {
       { ...sam, breakdown: { ...breakdown, incomeForSurchargeCents: 120_000_00 } },
     ],
   }
-  const whatIf = () => screen.getByRole('region', { name: 'Private hospital cover' })
-
-  it('renders the MLS what-if with its dependents and premium inputs', () => {
+  it('keeps the MLS what-if collapsed until its toggle is opened', async () => {
+    const user = userEvent.setup()
     render(
       <TaxEstimateView
         estimate={surchargeEstimate}
@@ -507,7 +521,24 @@ describe('TaxEstimateView', () => {
         config={config}
       />,
     )
-    const panel = whatIf()
+    // The region is present but its inputs stay hidden until opened.
+    expect(within(mlsWhatIf()).getByLabelText(/dependent children/i)).not.toBeVisible()
+    await showMls(user)
+    expect(within(mlsWhatIf()).getByLabelText(/dependent children/i)).toBeVisible()
+  })
+
+  it('renders the MLS what-if with its dependents and premium inputs', async () => {
+    const user = userEvent.setup()
+    render(
+      <TaxEstimateView
+        estimate={surchargeEstimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+    await showMls(user)
+    const panel = mlsWhatIf()
     expect(within(panel).getByLabelText(/dependent children/i)).toBeInTheDocument()
     expect(within(panel).getByLabelText(/hospital cover premium/i)).toBeInTheDocument()
     // Without cover, combined income lands in the 1.25% tier = $3,375.00/yr.
@@ -526,11 +557,12 @@ describe('TaxEstimateView', () => {
         config={config}
       />,
     )
-    const premium = within(whatIf()).getByLabelText(/hospital cover premium/i)
+    await showMls(user)
+    const premium = within(mlsWhatIf()).getByLabelText(/hospital cover premium/i)
     await user.clear(premium)
     await user.type(premium, '2000')
     // $3,375 surcharge − $2,000 premium = $1,375 saved by holding cover.
-    expect(whatIf()).toHaveTextContent('saves $1,375.00/yr over paying the surcharge.')
+    expect(mlsWhatIf()).toHaveTextContent('saves $1,375.00/yr over paying the surcharge.')
   })
 
   it('shows cover costing more when the premium exceeds the surcharge', async () => {
@@ -543,11 +575,12 @@ describe('TaxEstimateView', () => {
         config={config}
       />,
     )
-    const premium = within(whatIf()).getByLabelText(/hospital cover premium/i)
+    await showMls(user)
+    const premium = within(mlsWhatIf()).getByLabelText(/hospital cover premium/i)
     await user.clear(premium)
     await user.type(premium, '5000')
     // $5,000 premium − $3,375 surcharge = $1,625 more than the surcharge avoided.
-    expect(whatIf()).toHaveTextContent('costs $1,625.00/yr more than the surcharge.')
+    expect(mlsWhatIf()).toHaveTextContent('costs $1,625.00/yr more than the surcharge.')
   })
 
   it('recomputes below the family threshold as dependent children rise', async () => {
@@ -568,12 +601,13 @@ describe('TaxEstimateView', () => {
         config={config}
       />,
     )
-    expect(within(whatIf()).getByText(/1% MLS tier/)).toBeInTheDocument()
+    await showMls(user)
+    expect(within(mlsWhatIf()).getByText(/1% MLS tier/)).toBeInTheDocument()
     // Two children raise the family floor by $1,500 to $211,500, above $211,000.
-    const children = within(whatIf()).getByLabelText(/dependent children/i)
+    const children = within(mlsWhatIf()).getByLabelText(/dependent children/i)
     await user.clear(children)
     await user.type(children, '2')
-    expect(within(whatIf()).getByText(/Below the family MLS threshold/)).toBeInTheDocument()
+    expect(within(mlsWhatIf()).getByText(/Below the family MLS threshold/)).toBeInTheDocument()
   })
 
   it('shows an empty state prompting to add income when gross is zero', () => {
@@ -614,8 +648,11 @@ describe('TaxEstimateView', () => {
     )
 
     const willCard = screen.getByRole('region', { name: 'Will' })
-    // The what-if is per member, on each member card.
+    // The what-if is per member, collapsed (hidden) until its toggle is opened.
+    expect(within(willCard).getByLabelText(/extra salary sacrifice per year/i)).not.toBeVisible()
+    await showSalarySacrifice(user, 'Will')
     const input = within(willCard).getByLabelText(/extra salary sacrifice per year/i)
+    expect(input).toBeVisible()
     // No readout until an amount is entered.
     expect(within(willCard).queryByText(/tax saved/i)).toBeNull()
 
@@ -646,6 +683,7 @@ describe('TaxEstimateView', () => {
     )
 
     const willCard = screen.getByRole('region', { name: 'Will' })
+    await showSalarySacrifice(user, 'Will')
     const input = within(willCard).getByLabelText(/extra salary sacrifice per year/i)
 
     await user.type(input, '20000')

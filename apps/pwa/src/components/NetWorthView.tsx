@@ -9,9 +9,9 @@ import {
   IconPencil,
 } from '@tabler/icons-react'
 import type { Account } from '../hooks/useAccounts'
-import { formatCents, moneyColor } from '../lib/money'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
 import { EmptyState } from './EmptyState'
+import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
 interface NetWorthViewProps {
@@ -60,7 +60,7 @@ function AccountGroup({
           {title}
         </Title>
       </Group>
-      {subtotalCents !== undefined && <Text fw={700}>{formatCents(subtotalCents)}</Text>}
+      {subtotalCents !== undefined && <MoneyText cents={subtotalCents} fw={700} />}
     </Group>
   )
 
@@ -75,9 +75,7 @@ function AccountGroup({
               {account.name}
             </Text>
             <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-              <Text size="md" ta="right">
-                {formatCents(account.balance_cents)}
-              </Text>
+              <MoneyText cents={account.balance_cents} size="md" ta="right" />
               {editing && togglable && (
                 <ActionIcon
                   variant="subtle"
@@ -144,9 +142,7 @@ function LiabilityGroup({
           <Title order={3} size="h5">
             Liabilities
           </Title>
-          <Text fw={700} c={moneyColor(-subtotalCents)}>
-            {formatCents(-subtotalCents)}
-          </Text>
+          <MoneyText cents={-subtotalCents} colored fw={700} />
         </Group>
         <Stack gap="xs">
           {liabilities.map((liability) => (
@@ -154,9 +150,7 @@ function LiabilityGroup({
               <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
                 {liability.label}
               </Text>
-              <Text size="md" ta="right" c={moneyColor(-liability.balanceCents)}>
-                {formatCents(-liability.balanceCents)}
-              </Text>
+              <MoneyText cents={-liability.balanceCents} colored size="md" ta="right" />
             </Group>
           ))}
         </Stack>
@@ -185,7 +179,7 @@ function EquityGroup({
           <Title order={3} size="h5">
             Equity
           </Title>
-          <Text fw={700}>{formatCents(subtotalCents)}</Text>
+          <MoneyText cents={subtotalCents} fw={700} />
         </Group>
         <Stack gap="xs">
           {holdings.map((holding) => (
@@ -193,9 +187,7 @@ function EquityGroup({
               <Text size="md" truncate style={{ flex: 1, minWidth: 0 }}>
                 {holding.label}
               </Text>
-              <Text size="md" ta="right">
-                {formatCents(holding.valueCents)}
-              </Text>
+              <MoneyText cents={holding.valueCents} size="md" ta="right" />
             </Group>
           ))}
         </Stack>
@@ -249,9 +241,7 @@ export function NetWorthView({
           <Text size="xs" c="dimmed">
             Total net worth
           </Text>
-          <Text fw={700} fz="xl" c={moneyColor(breakdown.totalCents)}>
-            {formatCents(breakdown.totalCents)}
-          </Text>
+          <MoneyText cents={breakdown.totalCents} colored fw={700} fz="xl" />
         </Stack>
       </Card>
 

@@ -471,7 +471,7 @@ describe('TaxEstimateView', () => {
     // Without cover, combined income lands in the 1.25% tier = $3,375.00/yr.
     expect(within(panel).getByText(/\$270,000\.00/)).toBeInTheDocument()
     expect(within(panel).getByText(/1\.25% MLS tier/)).toBeInTheDocument()
-    expect(within(panel).getByText(/\$3,375\.00\/yr/)).toBeInTheDocument()
+    expect(panel).toHaveTextContent('$3,375.00/yr surcharge')
   })
 
   it('shows cover saving money when the premium is below the surcharge', async () => {
@@ -488,7 +488,7 @@ describe('TaxEstimateView', () => {
     await user.clear(premium)
     await user.type(premium, '2000')
     // $3,375 surcharge − $2,000 premium = $1,375 saved by holding cover.
-    expect(within(whatIf()).getByText(/saves \$1,375\.00\/yr/)).toBeInTheDocument()
+    expect(whatIf()).toHaveTextContent('saves $1,375.00/yr over paying the surcharge.')
   })
 
   it('shows cover costing more when the premium exceeds the surcharge', async () => {
@@ -505,7 +505,7 @@ describe('TaxEstimateView', () => {
     await user.clear(premium)
     await user.type(premium, '5000')
     // $5,000 premium − $3,375 surcharge = $1,625 more than the surcharge avoided.
-    expect(within(whatIf()).getByText(/costs \$1,625\.00\/yr more/)).toBeInTheDocument()
+    expect(whatIf()).toHaveTextContent('costs $1,625.00/yr more than the surcharge.')
   })
 
   it('recomputes below the family threshold as dependent children rise', async () => {

@@ -10,10 +10,11 @@ import {
   type TaxInput,
   type TaxYearConfig,
 } from '@nest/tax'
-import { dollarsToCents, formatCents, formatPerYear, moneyColor } from '../lib/money'
+import { dollarsToCents, moneyColor } from '../lib/money'
 import { helpPayoffSummary } from '../lib/tax'
 import { EmptyState } from './EmptyState'
 import { MoneyInput } from './MoneyInput'
+import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
 interface TaxEstimateViewProps {
@@ -57,9 +58,15 @@ function PeriodRow({
       <Table.Th scope="row" c="dimmed">
         {period}
       </Table.Th>
-      <Table.Td ta="right">{formatCents(grossCents)}</Table.Td>
-      <Table.Td ta="right">{formatCents(taxCents)}</Table.Td>
-      <Table.Td ta="right">{formatCents(afterTaxCents)}</Table.Td>
+      <Table.Td ta="right">
+        <MoneyText span cents={grossCents} />
+      </Table.Td>
+      <Table.Td ta="right">
+        <MoneyText span cents={taxCents} />
+      </Table.Td>
+      <Table.Td ta="right">
+        <MoneyText span cents={afterTaxCents} />
+      </Table.Td>
     </Table.Tr>
   )
 }
@@ -92,10 +99,10 @@ function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
         {label}
       </Table.Th>
       <Table.Td ta="right" fw={fw}>
-        {formatCents(annual)}
+        <MoneyText span cents={annual} />
       </Table.Td>
       <Table.Td ta="right" fw={fw}>
-        {formatCents(Math.round(annual / FORTNIGHTS_PER_YEAR))}
+        <MoneyText span cents={Math.round(annual / FORTNIGHTS_PER_YEAR)} />
       </Table.Td>
     </Table.Tr>
   )
@@ -222,29 +229,30 @@ function SalarySacrificePanel({
       />
       {extraCents > 0 && (
         <Stack gap={2}>
-          <Text size="sm" c={moneyColor(result.taxSavedCents)}>
-            Tax saved: {formatPerYear(result.taxSavedCents)}
+          <Text size="sm">
+            Tax saved: <MoneyText span colored cents={result.taxSavedCents} /> / year
           </Text>
           <Text size="sm">
-            Into super: {formatPerYear(result.netToSuperCents)}{' '}
+            Into super: <MoneyText span cents={result.netToSuperCents} /> / year{' '}
             <Text span c="dimmed">
               (net of 15% contributions tax)
             </Text>
           </Text>
-          <Text size="sm" c={moneyColor(result.takeHomeChangeCents)}>
-            Take-home: {formatPerYear(result.takeHomeChangeCents)}
+          <Text size="sm">
+            Take-home: <MoneyText span colored cents={result.takeHomeChangeCents} /> / year
           </Text>
           {result.division293DeltaCents > 0 && (
             <Text size="xs" c="dimmed">
-              Includes {formatCents(result.division293DeltaCents)} extra Division 293 tax.
+              Includes <MoneyText span cents={result.division293DeltaCents} /> extra Division 293
+              tax.
             </Text>
           )}
           {overCap && (
             <Alert color="red" variant="light" p="xs">
               <Text size="xs">
                 This pushes concessional contributions past the cap (
-                {formatCents(concessionalCapCents)}). The excess is taxed at your marginal rate, not
-                15%.
+                <MoneyText span cents={concessionalCapCents} />
+                ). The excess is taxed at your marginal rate, not 15%.
               </Text>
             </Alert>
           )}
@@ -392,6 +400,7 @@ function MlsWhatIf({
         <Group grow align="flex-start">
           <NumberInput
             label="Dependent children"
+            size="sm"
             min={0}
             step={1}
             allowDecimal={false}
@@ -399,13 +408,11 @@ function MlsWhatIf({
             value={dependentChildren}
             onChange={(value) => setDependentChildren(typeof value === 'number' ? value : 0)}
           />
-          <NumberInput
+          <MoneyInput
             label="Hospital cover premium ($/yr)"
+            size="sm"
             min={0}
-            step={100}
-            prefix="$"
-            thousandSeparator=","
-            allowNegative={false}
+            hideControls
             value={premiumDollars}
             onChange={setPremiumDollars}
           />
@@ -418,18 +425,24 @@ function MlsWhatIf({
           <Stack gap={4}>
             <Text size="sm">
               Without hospital cover: combined income{' '}
-              {formatCents(result.combinedIncomeForSurchargeCents)} is in the{' '}
+              <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}
               {formatPercent(result.tierRate)} MLS tier ={' '}
-              <Text span fw={600}>
-                {formatCents(surchargeCents)}/yr
-              </Text>{' '}
-              surcharge.
+              <MoneyText span fw={600} cents={surchargeCents} />
+              /yr surcharge.
             </Text>
             {premiumCents > 0 && (
               <Text size="sm" c={moneyColor(savingCents)}>
-                {savingCents > 0
-                  ? `Hospital cover saves ${formatCents(savingCents)}/yr over paying the surcharge.`
-                  : `Hospital cover costs ${formatCents(-savingCents)}/yr more than the surcharge.`}
+                {savingCents > 0 ? (
+                  <>
+                    Hospital cover saves <MoneyText span cents={savingCents} />
+                    /yr over paying the surcharge.
+                  </>
+                ) : (
+                  <>
+                    Hospital cover costs <MoneyText span cents={-savingCents} />
+                    /yr more than the surcharge.
+                  </>
+                )}
               </Text>
             )}
           </Stack>

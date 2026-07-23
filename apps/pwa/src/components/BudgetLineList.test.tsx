@@ -2,7 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBudgetLine as line } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { BudgetLineList } from './BudgetLineList'
 
 const lines = [
@@ -79,7 +79,8 @@ describe('BudgetLineList', () => {
     expect(screen.getByText(/no investments items yet/i)).toBeInTheDocument()
   })
 
-  it('identifies each line’s route: the funding account, and the goal for savings', () => {
+  it('identifies each line’s route on desktop: the funding account, and the goal for savings', () => {
+    setWideViewport()
     render(
       <BudgetLineList
         lines={[
@@ -94,14 +95,14 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
-    expect(within(rent).getByText('Everyday')).toBeInTheDocument()
-
-    const deposit = screen.getByText('Deposit saver').closest('.mantine-Card-root') as HTMLElement
-    expect(within(deposit).getByText('House deposit')).toBeInTheDocument()
+    // The route badge is a desktop-only affordance; on mobile the funding account is
+    // shown only in the edit form.
+    expect(screen.getByText('Everyday')).toBeInTheDocument()
+    expect(screen.getByText('House deposit')).toBeInTheDocument()
   })
 
-  it('uses an account/goal emoji as the route icon and strips it from the label', () => {
+  it('uses an account/goal emoji as the route icon and strips it from the label on desktop', () => {
+    setWideViewport()
     render(
       <BudgetLineList
         lines={[
@@ -116,13 +117,10 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
-    expect(within(rent).getByText('Holiday')).toBeInTheDocument()
-    expect(within(rent).queryByText('🏖️ Holiday')).not.toBeInTheDocument()
-
-    const deposit = screen.getByText('Deposit saver').closest('.mantine-Card-root') as HTMLElement
-    expect(within(deposit).getByText('House deposit')).toBeInTheDocument()
-    expect(within(deposit).queryByText('🏦 House deposit')).not.toBeInTheDocument()
+    expect(screen.getByText('Holiday')).toBeInTheDocument()
+    expect(screen.queryByText('🏖️ Holiday')).not.toBeInTheDocument()
+    expect(screen.getByText('House deposit')).toBeInTheDocument()
+    expect(screen.queryByText('🏦 House deposit')).not.toBeInTheDocument()
   })
 
   it('shows no route badge for an unrouted line', () => {
@@ -365,7 +363,8 @@ describe('BudgetLineList', () => {
     expect(within(card).queryByText('House deposit')).not.toBeInTheDocument()
   })
 
-  it('icons a savings line’s route from the goal’s linked saver', () => {
+  it('icons a savings line’s route from the goal’s linked saver on desktop', () => {
+    setWideViewport()
     render(
       <BudgetLineList
         lines={[line({ id: 's', line_group: 'savings', name: 'Deposit', goal_id: 'g1' })]}
@@ -377,8 +376,7 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    const deposit = screen.getByText('Deposit').closest('.mantine-Card-root') as HTMLElement
-    expect(within(deposit).getByText('House')).toBeInTheDocument()
+    expect(screen.getByText('House')).toBeInTheDocument()
   })
 
   it('sorts the lines within a group by name', async () => {

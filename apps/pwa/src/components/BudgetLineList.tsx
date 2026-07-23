@@ -201,7 +201,6 @@ function BudgetLineRow({
  */
 function BudgetLineCard({
   line,
-  route,
   breakdown,
   onEdit,
   onDelete,
@@ -229,7 +228,6 @@ function BudgetLineCard({
             <Badge size="xs" variant="default">
               {formatFrequency(line.frequency, line.interval_count)}
             </Badge>
-            {route && <RouteBadge route={route} />}
           </Group>
         </Stack>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>

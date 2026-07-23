@@ -50,7 +50,10 @@ describe('TaxSection', () => {
     hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
     hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
     hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
-    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useSuperProfiles.mockReturnValue({
+      loading: false,
+      profiles: [{ member_id: 'm1', carry_forward_cap_cents: 0 }],
+    })
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     render(<TaxSection householdId="h1" />)
@@ -60,5 +63,11 @@ describe('TaxSection', () => {
     expect(memberName('m1')).toBe('Alex')
     expect(memberName('nope')).toBe('Unknown')
     expect(hooks.screenProps?.financialYear).toBe(2027)
+
+    const concessionalCapCentsByMember = hooks.screenProps?.concessionalCapCentsByMember as Map<
+      string,
+      number
+    >
+    expect(concessionalCapCentsByMember.get('m1')).toBeGreaterThan(0)
   })
 })

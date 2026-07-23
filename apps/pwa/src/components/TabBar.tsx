@@ -59,7 +59,15 @@ function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => v
             <Text
               size="md"
               fw={isActive ? 700 : 500}
-              c={isActive ? 'var(--mantine-primary-color-filled)' : undefined}
+              // The active label adapts by scheme: a deep brand shade that clears
+              // WCAG AA on the pale light wash, and the vivid lime on the dark
+              // canvas where it already reads. The lime left-edge bar and wash
+              // stay lime in both schemes.
+              c={
+                isActive
+                  ? 'light-dark(var(--mantine-color-brand-9), var(--mantine-color-brand-5))'
+                  : undefined
+              }
             >
               {item.label}
             </Text>

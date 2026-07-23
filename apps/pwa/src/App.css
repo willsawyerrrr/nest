@@ -107,9 +107,10 @@
 }
 
 /*
- * The active item reads in the brand lime (set on the inner Text) over a brand
- * wash, with a solid lime bar down its leading edge, so the current tab asserts
- * itself at a glance in the dark chrome.
+ * The active item sits on a brand wash with a solid lime bar down its leading
+ * edge, so the current tab asserts itself at a glance. The label colour is set
+ * on the inner Text and adapts by scheme for legibility; the wash and bar stay
+ * lime in both.
  */
 .drawer-nav__link--active {
   background-color: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent);

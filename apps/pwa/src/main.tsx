@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ColorSchemeScript, MantineProvider } from '@mantine/core'
+import { ColorSchemeScript, MantineProvider, type CSSVariablesResolver } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/space-grotesk'
@@ -20,10 +20,23 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000 } },
 })
 
+// The bright brand lime reads as a link colour only on the dark canvas. Light
+// mode drops the anchor colour to a deep brand shade that clears WCAG AA on
+// paper; dark mode keeps Mantine's vivid lime default.
+const cssVariablesResolver: CSSVariablesResolver = () => ({
+  variables: {},
+  light: { '--mantine-color-anchor': 'var(--mantine-color-brand-9)' },
+  dark: {},
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ColorSchemeScript defaultColorScheme="dark" />
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme="dark"
+      cssVariablesResolver={cssVariablesResolver}
+    >
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <App />

@@ -1,4 +1,4 @@
-import { Badge, Box, Card, Group, Stack, Text } from '@mantine/core'
+import { Badge, Box, Group, Stack, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
@@ -11,10 +11,12 @@ import { formatFrequency } from '../lib/frequency'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
 import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { InflowForm } from './InflowForm'
+import { ListRow } from './ListRow'
 
 interface InflowListProps {
   inflows: Inflow[]
@@ -91,39 +93,32 @@ function InflowRow({
   onDelete: () => void
 }) {
   return (
-    <Stack gap={0} py={6} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-      <Group wrap="nowrap" gap="sm">
-        <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
-            {inflow.name}
-          </Text>
-          <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
-            {inflowSubtitle(inflow, memberName)}
-          </Text>
-        </Group>
-        <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
-          {describeAmount(inflow)}
+    <ListRow gap="sm" caption={effectiveDatesCaption(inflow) ?? undefined}>
+      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+          {inflow.name}
         </Text>
-        <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-          <Badge size="sm" variant="light">
-            {formatFrequency(inflow.schedule, inflow.interval_count)}
-          </Badge>
-        </Box>
-        <FortnightlyAmount
-          cents={fortnightlyOf(inflow)}
-          justify="flex-end"
-          style={{ width: '7rem', flexShrink: 0 }}
-        />
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-        </Group>
+        <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0, maxWidth: '12rem' }}>
+          {inflowSubtitle(inflow, memberName)}
+        </Text>
       </Group>
-      {effectiveDatesCaption(inflow) && (
-        <Text size="xs" c="dimmed" truncate>
-          {effectiveDatesCaption(inflow)}
-        </Text>
-      )}
-    </Stack>
+      <Text size="sm" c="dimmed" ta="right" truncate style={{ width: '7rem', flexShrink: 0 }}>
+        {describeAmount(inflow)}
+      </Text>
+      <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
+        <Badge size="xs" variant="light">
+          {formatFrequency(inflow.schedule, inflow.interval_count)}
+        </Badge>
+      </Box>
+      <FortnightlyAmount
+        cents={fortnightlyOf(inflow)}
+        justify="flex-end"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
   )
 }
 
@@ -140,7 +135,7 @@ function InflowCard({
   onDelete: () => void
 }) {
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
@@ -161,7 +156,7 @@ function InflowCard({
             <Badge size="xs" variant="light" tt="capitalize">
               {inflow.type}
             </Badge>
-            <Badge size="xs" variant="outline">
+            <Badge size="xs" variant="light">
               {formatFrequency(inflow.schedule, inflow.interval_count)}
             </Badge>
           </Group>
@@ -176,7 +171,7 @@ function InflowCard({
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 

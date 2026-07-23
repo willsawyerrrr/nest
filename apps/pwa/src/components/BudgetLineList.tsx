@@ -4,8 +4,6 @@ import {
   ActionIcon,
   Badge,
   Box,
-  Button,
-  Card,
   CloseButton,
   Flex,
   Group,
@@ -15,7 +13,7 @@ import {
   TextInput,
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
-import { IconChevronRight, IconPencil } from '@tabler/icons-react'
+import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
@@ -26,15 +24,19 @@ import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { resolveRoute, type LineRoute } from '../lib/budgetLineRoute'
 import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
-import { formatCents } from '../lib/money'
 import { sortBy, type SortDirection, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { BudgetLineForm } from './BudgetLineForm'
 import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
+import { EditAction } from './EditAction'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { GroupSection } from './GroupSection'
+import { ListRow } from './ListRow'
+import { MoneyText } from './MoneyText'
 
 interface BudgetLineListProps {
   lines: BudgetLine[]
@@ -109,11 +111,7 @@ function DerivedLineControls({
 }) {
   return (
     <>
-      {onEdit && (
-        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit}>
-          <IconPencil size={16} />
-        </ActionIcon>
-      )}
+      {onEdit && <EditAction onClick={onEdit} />}
       <BreakdownLink id={breakdownId} />
     </>
   )
@@ -161,23 +159,22 @@ function BudgetLineRow({
     line.interval_count ?? undefined,
   )
   return (
-    <Group
-      wrap="nowrap"
-      gap="md"
-      py={6}
-      style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-    >
+    <ListRow>
       <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
         <Text fw={600} size="sm" truncate>
           {line.name}
         </Text>
         {route && <RouteBadge route={route} />}
       </Group>
-      <Text size="sm" c="dimmed" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
-        {formatCents(line.amount_cents)}
-      </Text>
+      <MoneyText
+        cents={line.amount_cents}
+        size="sm"
+        c="dimmed"
+        ta="right"
+        style={{ width: '6rem', flexShrink: 0 }}
+      />
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-        <Badge size="sm" variant="light">
+        <Badge size="xs" variant="light">
           {formatFrequency(line.frequency, line.interval_count)}
         </Badge>
       </Box>
@@ -193,7 +190,7 @@ function BudgetLineRow({
           onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         )}
       </Group>
-    </Group>
+    </ListRow>
   )
 }
 
@@ -221,16 +218,14 @@ function BudgetLineCard({
     line.interval_count ?? undefined,
   )
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
             {line.name}
           </Text>
           <Group gap={6} wrap="nowrap">
-            <Text size="xs" c="dimmed">
-              {formatCents(line.amount_cents)}
-            </Text>
+            <MoneyText cents={line.amount_cents} size="xs" c="dimmed" />
             <Badge size="xs" variant="light">
               {formatFrequency(line.frequency, line.interval_count)}
             </Badge>
@@ -246,7 +241,7 @@ function BudgetLineCard({
           )}
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -312,15 +307,13 @@ export function BudgetLineList({
 
   return (
     <Stack gap="lg">
+      <AddButton label="Add line" onClick={startAddingItem} />
       <Flex
         direction={{ base: 'column', sm: 'row' }}
         gap="sm"
         align={{ sm: 'flex-end' }}
         wrap="wrap"
       >
-        <Button onClick={startAddingItem} style={{ flexShrink: 0 }}>
-          Add line
-        </Button>
         <TextInput
           aria-label="Search budget lines"
           placeholder="Search budget lines"
@@ -473,9 +466,7 @@ export function BudgetLineList({
                   onCancel={closeForms}
                 />
               ) : (
-                <Button variant="light" fullWidth onClick={() => startAdding(group)}>
-                  Add {label} line
-                </Button>
+                <AddButton label={`Add ${label} line`} onClick={() => startAdding(group)} />
               ))}
           </GroupSection>
         )

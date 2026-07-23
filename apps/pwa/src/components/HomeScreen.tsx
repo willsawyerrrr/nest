@@ -58,7 +58,7 @@ function ConnectUpCard({
 
         {connected ? (
           <Group justify="space-between">
-            <Badge color="green" variant="light">
+            <Badge size="sm" color="green" variant="light">
               Connected
             </Badge>
             <Button

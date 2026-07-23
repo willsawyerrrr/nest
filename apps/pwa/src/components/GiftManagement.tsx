@@ -1,15 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Card,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core'
+import { ActionIcon, Badge, Button, Group, Stack, Text, TextInput, Title } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
@@ -21,6 +11,8 @@ import type {
 } from '../hooks/useGifts'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EmptyState } from './EmptyState'
 
 interface GiftManagementProps {
@@ -88,7 +80,7 @@ function GiftEntityForm({
   }
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+    <AppCard withBorder padding="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
         <TextInput
           label="Name"
@@ -121,7 +113,7 @@ function GiftEntityForm({
           </Button>
         </Group>
       </Stack>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -141,7 +133,7 @@ function EntityRow({
   actions?: { onEdit: () => void; onDelete: () => void }
 }) {
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
@@ -176,7 +168,7 @@ function EntityRow({
           </Group>
         )}
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -270,16 +262,13 @@ export function GiftManagement({
             onCancel={() => setAddingRecipient(false)}
           />
         ) : (
-          <Button
-            variant="light"
-            fullWidth
+          <AddButton
+            label="Add recipient"
             onClick={() => {
               setEditingRecipientId(null)
               setAddingRecipient(true)
             }}
-          >
-            Add recipient
-          </Button>
+          />
         )}
       </Stack>
 
@@ -332,16 +321,13 @@ export function GiftManagement({
             onCancel={() => setAddingOccasion(false)}
           />
         ) : (
-          <Button
-            variant="light"
-            fullWidth
+          <AddButton
+            label="Add occasion"
             onClick={() => {
               setEditingOccasionId(null)
               setAddingOccasion(true)
             }}
-          >
-            Add occasion
-          </Button>
+          />
         )}
       </Stack>
 

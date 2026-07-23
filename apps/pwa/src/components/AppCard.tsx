@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { FormEventHandler, ReactNode } from 'react'
 import { Card, type CardProps } from '@mantine/core'
 
 interface AppCardProps extends CardProps {
@@ -8,6 +8,10 @@ interface AppCardProps extends CardProps {
    */
   density?: 'comfortable' | 'compact'
   children?: ReactNode
+  /** Renders the card as a `form` element, for an inline editor. */
+  component?: 'form'
+  /** Submit handler when the card is rendered as a `form`. */
+  onSubmit?: FormEventHandler<HTMLFormElement>
 }
 
 /**

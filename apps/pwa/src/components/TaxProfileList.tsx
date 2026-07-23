@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ActionIcon, Badge, Card, Group, Stack, Text } from '@mantine/core'
-import { IconPencil } from '@tabler/icons-react'
+import { Badge, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
+import { AppCard } from './AppCard'
+import { EditAction } from './EditAction'
 import { TaxProfileForm } from './TaxProfileForm'
 
 interface TaxProfileListProps {
@@ -23,7 +24,7 @@ function TaxProfileCard({
 }) {
   const foreign = profile?.residency === 'foreign_resident'
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
@@ -34,17 +35,15 @@ function TaxProfileCard({
               {foreign ? 'Foreign resident' : 'Resident'}
             </Badge>
             {profile?.has_private_hospital_cover && (
-              <Badge size="xs" color="teal">
+              <Badge size="xs" variant="light" color="teal">
                 Hospital cover
               </Badge>
             )}
           </Group>
         </Stack>
-        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit} style={{ flexShrink: 0 }}>
-          <IconPencil size={16} />
-        </ActionIcon>
+        <EditAction onClick={onEdit} style={{ flexShrink: 0 }} />
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 

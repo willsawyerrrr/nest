@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { ActionIcon, Button, Card, Group, Stack, Text } from '@mantine/core'
-import { IconPencil } from '@tabler/icons-react'
+import { Button, Group, Stack, Text } from '@mantine/core'
 import type { HelpDebt, HelpDebtInput } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
-import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
+import { centsToDollars, dollarsToCents } from '../lib/money'
+import { AppCard } from './AppCard'
+import { EditAction } from './EditAction'
 import { MoneyInput } from './MoneyInput'
+import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
 interface HelpDebtScreenProps {
@@ -24,21 +26,17 @@ function HelpDebtCard({
   onEdit: () => void
 }) {
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
             {member.name}
           </Text>
-          <Text size="sm" c="dimmed">
-            {formatCents(debt?.balance_cents ?? 0)}
-          </Text>
+          <MoneyText cents={debt?.balance_cents ?? 0} size="sm" c="dimmed" />
         </Stack>
-        <ActionIcon variant="subtle" aria-label="Edit" onClick={onEdit} style={{ flexShrink: 0 }}>
-          <IconPencil size={16} />
-        </ActionIcon>
+        <EditAction onClick={onEdit} style={{ flexShrink: 0 }} />
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -75,7 +73,7 @@ function MemberHelpDebtForm({
   }
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+    <AppCard withBorder padding="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
         <Text fw={600}>{member.name}</Text>
         <MoneyInput
@@ -105,7 +103,7 @@ function MemberHelpDebtForm({
           </Button>
         </Group>
       </Stack>
-    </Card>
+    </AppCard>
   )
 }
 

@@ -320,7 +320,7 @@ export function SplitsScreen({
               Recommended pay splits
             </Title>
             {rowsToUpdate > 0 && (
-              <Badge size="sm" variant="light" color="yellow">
+              <Badge size="xs" variant="light" color="yellow">
                 {rowsToUpdate} to update
               </Badge>
             )}

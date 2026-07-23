@@ -335,6 +335,16 @@ describe('projectHelpPayoff', () => {
     expect(projection.yearsToPayOff).toBeNull()
     expect(projection.schedule).toHaveLength(1)
   })
+
+  it('reports no payoff when the debt shrinks but does not clear within the horizon', () => {
+    // The balance falls each year (repayment outpaces indexation) but two years is
+    // too short to clear it, so the projection stops at the maxYears horizon.
+    const projection = projectHelpPayoff(10_000_00, 60_000_00, FIXTURE_CONFIG, 2027, 2)
+    expect(projection.paidOffFinancialYear).toBeNull()
+    expect(projection.yearsToPayOff).toBeNull()
+    expect(projection.schedule).toHaveLength(2)
+    expect(projection.schedule.at(-1)?.closingBalanceCents).toBeGreaterThan(0)
+  })
 })
 
 describe('computeTax', () => {

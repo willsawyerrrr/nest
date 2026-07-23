@@ -291,6 +291,9 @@ describe('estimateHouseholdTax', () => {
     const alexBase = baseline.members.find((m) => m.memberId === 'alex')!
 
     expect(alex.annualConcessionalContributionsCents).toBe(20_000_00)
+    // The engine input is exposed for re-running what-ifs, carrying the concessional total.
+    expect(alex.input.concessionalContributionsCents).toBe(20_000_00)
+    expect(alex.input.assessableIncome.salaryOrWagesCents).toBe(alex.annualGrossCents)
     // Taxable income drops by the contribution, so tax is lower than the baseline.
     expect(alex.breakdown.taxableIncomeCents).toBe(
       alexBase.breakdown.taxableIncomeCents - 20_000_00,

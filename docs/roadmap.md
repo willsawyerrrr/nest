@@ -177,6 +177,13 @@ the FY2027 tax config was.
       contributions. Age (per member) and the shared return/inflation/growth and
       retirement-age assumptions are client-side inputs persisted in localStorage
       — not stored in the database.
+- [x] Salary-sacrifice what-if: each Tax-tab member card carries an interactive
+      panel (`salarySacrificeWhatIf` in `@nest/tax`, re-run on the member's own
+      `TaxInput`) that turns an extra annual pre-tax contribution into the tax
+      saved (net of any extra Division 293), the amount landing in super after the
+      15% contributions tax, and the signed drop in take-home cash, with a warning
+      when the sacrifice pushes the member past their concessional cap. The entered
+      amount is ephemeral (local state, not persisted).
 
 ### Breakdowns — derived budget lines (complete)
 
@@ -419,7 +426,7 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
   hard; start with manual entry (few fields, entered fortnightly) and treat
   parsing as a later nicety. Payslip data is sensitive → strict RLS, member
   attribution. Actual super contributions captured here also feed idea 10 (net
-  worth) and 12 (salary sacrifice).
+  worth).
 
 #### 3. Recurring bill / subscription detection from Up transactions
 
@@ -596,26 +603,6 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
   the most valuable near-term slice. Snapshotting balances over time needs a
   scheduled job. Valuation of illiquid assets (property) stays manual.
 
-#### 12. Salary sacrifice & super optimisation
-
-- **What / value.** Show the take-home vs tax trade-off of pre-tax super
-  contributions: "sacrifice $X → save $Y in tax, take-home drops $Z". The
-  underlying modelling — salary sacrifice / personal deductible reducing taxable
-  income, 15% contributions tax, Division 293, and the concessional cap — is
-  shipped (see Done: Superannuation & net worth); the remainder is a what-if
-  comparison panel on the Tax tab. Directly relevant to a dual-income AU
-  household optimising tax.
-- **Effort.** M — a small "what-if" comparison on the Tax tab over the existing
-  tax inputs.
-- **Touches.** Tax engine input + `TaxProfile`/`Payslip` fields; pure package
-  math; a frontend what-if panel. No external API.
-- **Dependencies.** Builds on the tax engine (done); richer with payslip
-  ingestion (idea 2).
-- **Feasibility / risks.** Must respect the concessional contributions cap and
-  the 15% contributions tax to compute the real benefit — otherwise the "tax
-  saved" figure overstates. Div 293 for high earners is an edge case worth
-  flagging in the comparison.
-
 #### 14. Inflow → budget-category netting
 
 - **What / value.** Already named as a deferred enhancement in the Product
@@ -717,10 +704,7 @@ Ranked for value-to-effort against this specific household's setup:
    directly useful to this user. Provider-abstract it (PagerDuty/Opsgenie).
 3. **Payslip / PAYG manual entry (2)** — unlocks actual-tax-paid tracking with
    _no_ external dependency, filling an input the tax engine already consumes.
-4. **Salary-sacrifice tax refinements (12)** — a cheap, pure-package extension of
-   already-shipped tax code with high dollar relevance to a dual-income AU
-   household.
-5. **Push notifications (8)** — makes the installed PWA proactive (negative
+4. **Push notifications (8)** — makes the installed PWA proactive (negative
    buffer, goal slippage, deposit landed); most of its triggers work on today's
    data, the rest arrive with ingestion.
 

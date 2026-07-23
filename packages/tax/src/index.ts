@@ -567,6 +567,67 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
   }
 }
 
+/**
+ * The trade-off of directing `additionalConcessionalCents` more of a member's
+ * pre-tax income into super, over their current position. Salary sacrifice cuts
+ * taxable income — saving marginal tax plus any Division 293 the extra
+ * contribution itself attracts — but the diverted cash is taxed 15% in the fund
+ * and no longer lands as take-home, so the net cash change is the tax saved less
+ * the whole amount sacrificed. Every field is an integer cent amount.
+ */
+export interface SalarySacrificeWhatIf {
+  readonly additionalConcessionalCents: Money
+  /** Baseline total liability less the modified total liability; includes any Division 293 rise. */
+  readonly taxSavedCents: Money
+  /** The 15% contributions tax the extra sacrifice attracts inside the fund. */
+  readonly contributionsTaxCents: Money
+  /** What of the extra sacrifice lands in the fund, net of the 15% contributions tax. */
+  readonly netToSuperCents: Money
+  /**
+   * Signed change in take-home cash: tax saved less the amount sacrificed.
+   * Negative when the cash forgone now exceeds the tax saved.
+   */
+  readonly takeHomeChangeCents: Money
+  /** Extra Division 293 the additional contribution attracts: modified less baseline, never below zero. */
+  readonly division293DeltaCents: Money
+}
+
+/**
+ * Compares a member's `input` against the same input with
+ * `additionalConcessionalCents` more concessional super, diffing the total
+ * liability and Division 293 tax. Pure and integer-cent: `contributionsTaxCents`
+ * is the additional amount at `config.super.contributionsTaxRate`,
+ * `netToSuperCents` the remainder, `takeHomeChangeCents` the tax saved less the
+ * amount sacrificed.
+ */
+export function salarySacrificeWhatIf(
+  input: TaxInput,
+  additionalConcessionalCents: Money,
+  config: TaxYearConfig,
+): SalarySacrificeWhatIf {
+  const baseline = computeTax(input, config)
+  const modified = computeTax(
+    {
+      ...input,
+      concessionalContributionsCents:
+        (input.concessionalContributionsCents ?? 0) + additionalConcessionalCents,
+    },
+    config,
+  )
+  const taxSavedCents = baseline.totalLiabilityCents - modified.totalLiabilityCents
+  const contributionsTaxCents = roundCents(
+    additionalConcessionalCents * config.super.contributionsTaxRate,
+  )
+  return {
+    additionalConcessionalCents,
+    taxSavedCents,
+    contributionsTaxCents,
+    netToSuperCents: additionalConcessionalCents - contributionsTaxCents,
+    takeHomeChangeCents: taxSavedCents - additionalConcessionalCents,
+    division293DeltaCents: modified.division293Cents - baseline.division293Cents,
+  }
+}
+
 /** One financial year in a HELP/HECS payoff projection. */
 export interface HelpPayoffYear {
   readonly financialYear: FinancialYear

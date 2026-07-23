@@ -95,6 +95,8 @@ export interface MemberTaxEstimate {
   readonly fortnightlyTaxCents: Money
   readonly fortnightlyAfterTaxCents: Money
   readonly breakdown: TaxBreakdown
+  /** The engine input the breakdown was computed from, for re-running what-ifs (e.g. salary sacrifice). */
+  readonly input: TaxInput
 }
 
 /** The household total, with each field the sum of its members' fields. */
@@ -329,6 +331,7 @@ export function estimateHouseholdTax(
       fortnightlyTaxCents: fortnightlyOf(annualTax),
       fortnightlyAfterTaxCents: fortnightlyOf(annualAfterTax),
       breakdown,
+      input,
     } satisfies MemberTaxEstimate
   })
 

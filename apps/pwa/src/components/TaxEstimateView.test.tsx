@@ -6,6 +6,7 @@ import {
   type HouseholdTaxEstimate,
   type MemberTaxEstimate,
   type TaxBreakdown,
+  type TaxInput,
 } from '@nest/tax'
 import { render, screen, within } from '../test/render'
 import { TaxEstimateView } from './TaxEstimateView'
@@ -27,6 +28,24 @@ const breakdown: TaxBreakdown = {
   repaymentIncomeCents: 0,
 }
 
+/** A `TaxInput` for a resident on `salaryCents` with no other attributes. */
+function inputFor(salaryCents: number): TaxInput {
+  return {
+    assessableIncome: {
+      salaryOrWagesCents: salaryCents,
+      businessCents: 0,
+      investmentCents: 0,
+      otherCents: 0,
+    },
+    deductionsCents: 0,
+    residency: 'resident',
+    privateHospitalCover: false,
+    helpDebtCents: 0,
+    paygWithheldCents: 0,
+    concessionalContributionsCents: 0,
+  }
+}
+
 const will: MemberTaxEstimate = {
   memberId: 'm1',
   annualGrossCents: 10_000_000,
@@ -39,6 +58,7 @@ const will: MemberTaxEstimate = {
   fortnightlyTaxCents: 96_154,
   fortnightlyAfterTaxCents: 288_461,
   breakdown,
+  input: inputFor(10_000_000),
 }
 
 const sam: MemberTaxEstimate = {
@@ -53,6 +73,7 @@ const sam: MemberTaxEstimate = {
   fortnightlyTaxCents: 38_462,
   fortnightlyAfterTaxCents: 192_307,
   breakdown,
+  input: inputFor(6_000_000),
 }
 
 const estimate: HouseholdTaxEstimate = {
@@ -537,5 +558,59 @@ describe('TaxEstimateView', () => {
 
     expect(screen.getByText(/add a taxable inflow on the inflows tab/i)).toBeInTheDocument()
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('shows the salary-sacrifice readout only after an amount is entered, and updates it live', async () => {
+    const user = userEvent.setup()
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    // The what-if is per member, on each member card.
+    const input = within(willCard).getByLabelText(/extra salary sacrifice per year/i)
+    // No readout until an amount is entered.
+    expect(within(willCard).queryByText(/tax saved/i)).toBeNull()
+
+    await user.type(input, '10000')
+
+    expect(within(willCard).getByText(/tax saved/i)).toBeInTheDocument()
+    // $10,000 sacrifice lands 85% ($8,500) in super after the 15% contributions tax.
+    expect(within(willCard).getByText(/into super:/i)).toHaveTextContent('$8,500.00')
+    expect(within(willCard).getByText(/take-home:/i)).toBeInTheDocument()
+
+    // Changing the amount updates the net-to-super readout live (85% of $20,000).
+    await user.clear(input)
+    await user.type(input, '20000')
+    expect(within(willCard).getByText(/into super:/i)).toHaveTextContent('$17,000.00')
+  })
+
+  it('warns when the extra sacrifice pushes a member past their concessional cap', async () => {
+    const user = userEvent.setup()
+    const caps = new Map([['m1', 30_000_00]])
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+        concessionalCapCentsByMember={caps}
+      />,
+    )
+
+    const willCard = screen.getByRole('region', { name: 'Will' })
+    const input = within(willCard).getByLabelText(/extra salary sacrifice per year/i)
+
+    await user.type(input, '20000')
+    expect(within(willCard).queryByText(/past the cap/i)).toBeNull()
+
+    await user.clear(input)
+    await user.type(input, '40000') // over the $30,000 cap
+    expect(within(willCard).getByText(/past the cap/i)).toBeInTheDocument()
   })
 })

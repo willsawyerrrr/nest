@@ -540,6 +540,7 @@ describe('netAnnualSuperContributionFromRows', () => {
 
 const breakdownWithRepaymentIncome = (repaymentIncomeCents: number): TaxBreakdown => ({
   taxableIncomeCents: repaymentIncomeCents,
+  incomeForSurchargeCents: repaymentIncomeCents,
   incomeTaxCents: 0,
   litoOffsetCents: 0,
   medicareLevyCents: 0,

@@ -49,9 +49,9 @@ export const FY2027_CONFIG: TaxYearConfig = {
   },
 
   // Medicare levy surcharge tiers for 2026-27 (published). Single floors and the
-  // family floors carried alongside them; +$1,500 per dependent child after the
-  // first. Compute uses single floors; family data is carried for future
-  // household modelling.
+  // family floors alongside them; +$1,500 per dependent child after the first. The
+  // per-person surcharge uses the single floors; the household MLS what-if uses the
+  // family floors plus the dependent-child increment.
   //   https://www.ato.gov.au/individuals-and-families/medicare-and-private-health-insurance/medicare-levy-surcharge/medicare-levy-surcharge-income-thresholds-and-rates
   medicareLevySurcharge: {
     tiers: [

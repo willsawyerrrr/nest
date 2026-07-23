@@ -12,6 +12,7 @@
 import {
   activeFractionOfFinancialYear,
   computeTax,
+  familyMedicareLevySurcharge,
   type Money,
   type Residency,
   type TaxBreakdown,
@@ -195,6 +196,13 @@ interface MemberIncome {
  * `deductionsByMember`, when supplied, gives each member's annual work-related
  * deductions — reducing taxable income only, so tax falls and after-tax cash
  * rises; the diverted cash of a concessional contribution has no counterpart here.
+ *
+ * The Medicare levy surcharge is assessed across the household, not per person: a
+ * first pass computes each member's surcharge income, the family assessment picks
+ * the tier rate from combined income against the family thresholds, and a second
+ * pass injects each member's own-income-at-that-rate surcharge (nil for a member
+ * holding cover) so the surcharge line and total liability reflect it. The live
+ * estimate assumes no dependent children.
  */
 export function estimateHouseholdTax(
   incomes: readonly IncomeInput[],
@@ -240,7 +248,9 @@ export function estimateHouseholdTax(
   const profileByMember = new Map(profiles.map((profile) => [profile.memberId, profile]))
   for (const profile of profiles) note(profile.memberId)
 
-  const members = memberOrder.map((memberId) => {
+  // Pass 1: build each member's input and a first-pass breakdown, so every
+  // member's surcharge income is known before the household surcharge is assessed.
+  const contexts = memberOrder.map((memberId) => {
     // Every id in `memberOrder` was appended by `note()`, which always writes an
     // `incomeByMember` bucket in the same call, so the fallback is unreachable.
     /* v8 ignore next */
@@ -262,7 +272,42 @@ export function estimateHouseholdTax(
       paygWithheldCents: 0,
       concessionalContributionsCents: concessionalCents,
     }
-    const breakdown = computeTax(input, config)
+    return {
+      memberId,
+      bucket,
+      profile,
+      concessionalCents,
+      deductionsCents,
+      input,
+      firstPass: computeTax(input, config),
+    }
+  })
+
+  // The Medicare levy surcharge is a household assessment: the tier rate is chosen
+  // by combined surcharge income against the family thresholds, and each member
+  // pays their own income at that rate unless they hold private hospital cover. The
+  // live estimate assumes no dependent children (there is no persisted field); the
+  // Tax tab's what-if panel explores other counts.
+  const familySurcharge = familyMedicareLevySurcharge(
+    contexts.map((context) => ({
+      incomeForSurchargeCents: context.firstPass.incomeForSurchargeCents,
+      hasPrivateHospitalCover: context.profile.privateHospitalCover,
+    })),
+    0,
+    config,
+  )
+
+  // Pass 2: re-run each member with the family-assessed surcharge injected, so the
+  // surcharge line and total liability reflect the combined-income assessment.
+  const members = contexts.map((context, index) => {
+    const { memberId, bucket, concessionalCents, deductionsCents, input } = context
+    const breakdown = computeTax(
+      {
+        ...input,
+        medicareLevySurchargeCentsOverride: familySurcharge.perMemberSurchargeCents[index],
+      },
+      config,
+    )
     const annualGross = bucket.salaryOrWagesCents + bucket.otherCents
     const annualTax = breakdown.totalLiabilityCents
     // After-tax cash excludes concessional super (diverted from cash to the fund).

@@ -1,11 +1,23 @@
-import { Card, Stack, Table, Text, Title } from '@mantine/core'
-import type { HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
-import { formatCents } from '../lib/money'
+import { useState } from 'react'
+import { Alert, Card, Divider, Stack, Table, Text, Title } from '@mantine/core'
+import {
+  salarySacrificeWhatIf,
+  type HouseholdTaxEstimate,
+  type TaxBreakdown,
+  type TaxInput,
+  type TaxYearConfig,
+} from '@nest/tax'
+import { dollarsToCents, formatCents, formatPerYear, moneyColor } from '../lib/money'
+import { MoneyInput } from './MoneyInput'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
   financialYear: number
   memberName: (memberId: string) => string
+  /** The tax + super config the estimate was computed with; drives the salary-sacrifice what-if. */
+  config: TaxYearConfig
+  /** Each member's concessional cap (config cap plus carry-forward), keyed by member id, for the what-if headroom warning. */
+  concessionalCapCentsByMember?: ReadonlyMap<string, number>
 }
 
 interface Row {
@@ -159,10 +171,87 @@ function BreakdownTable({
 }
 
 /**
+ * An interactive salary-sacrifice what-if for one member: enter an extra annual
+ * pre-tax super contribution and see the tax saved, the amount landing in super
+ * (net of the 15% contributions tax), and the drop in take-home cash — the tax
+ * saved less the whole amount sacrificed. Re-runs the pure engine on the member's
+ * own `input` on every keystroke; the entered amount is ephemeral (local state,
+ * never persisted). Warns when the extra sacrifice pushes the member past their
+ * concessional cap, and notes any extra Division 293 tax the contribution attracts.
+ */
+function SalarySacrificePanel({
+  input,
+  config,
+  currentConcessionalCents,
+  concessionalCapCents,
+}: {
+  input: TaxInput
+  config: TaxYearConfig
+  currentConcessionalCents: number
+  concessionalCapCents?: number
+}) {
+  const [extra, setExtra] = useState<number | string>('')
+  const extraCents = dollarsToCents(extra) ?? 0
+  const result = salarySacrificeWhatIf(input, extraCents, config)
+  const overCap =
+    concessionalCapCents !== undefined &&
+    extraCents > 0 &&
+    currentConcessionalCents + extraCents > concessionalCapCents
+
+  return (
+    <Stack gap="xs">
+      <Divider />
+      <Text fw={600} size="sm">
+        Salary sacrifice what-if
+      </Text>
+      <MoneyInput
+        label="Extra salary sacrifice per year"
+        size="sm"
+        min={0}
+        hideControls
+        value={extra}
+        onChange={setExtra}
+      />
+      {extraCents > 0 && (
+        <Stack gap={2}>
+          <Text size="sm" c={moneyColor(result.taxSavedCents)}>
+            Tax saved: {formatPerYear(result.taxSavedCents)}
+          </Text>
+          <Text size="sm">
+            Into super: {formatPerYear(result.netToSuperCents)}{' '}
+            <Text span c="dimmed">
+              (net of 15% contributions tax)
+            </Text>
+          </Text>
+          <Text size="sm" c={moneyColor(result.takeHomeChangeCents)}>
+            Take-home: {formatPerYear(result.takeHomeChangeCents)}
+          </Text>
+          {result.division293DeltaCents > 0 && (
+            <Text size="xs" c="dimmed">
+              Includes {formatCents(result.division293DeltaCents)} extra Division 293 tax.
+            </Text>
+          )}
+          {overCap && (
+            <Alert color="red" variant="light" p="xs">
+              <Text size="xs">
+                This pushes concessional contributions past the cap (
+                {formatCents(concessionalCapCents)}). The excess is taxed at your marginal rate, not
+                15%.
+              </Text>
+            </Alert>
+          )}
+        </Stack>
+      )}
+    </Stack>
+  )
+}
+
+/**
  * One row's annual and fortnightly gross/tax/after-tax figures as a compact table.
  * When `breakdown` is given, the income build-up down to taxable income and the
  * component-by-component build-up of the tax are shown above it; `grossCents` and
- * `concessionalCents` feed that income build-up.
+ * `concessionalCents` feed that income build-up. When `input` and `config` are
+ * given, an interactive salary-sacrifice what-if follows the summary.
  */
 function FiguresCard({
   name,
@@ -170,12 +259,18 @@ function FiguresCard({
   breakdown,
   concessionalCents = 0,
   deductionsCents = 0,
+  input,
+  config,
+  concessionalCapCents,
 }: {
   name: string
   row: Row
   breakdown?: TaxBreakdown
   concessionalCents?: number
   deductionsCents?: number
+  input?: TaxInput
+  config?: TaxYearConfig
+  concessionalCapCents?: number
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="sm">
@@ -226,13 +321,27 @@ function FiguresCard({
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
+        {input && config && (
+          <SalarySacrificePanel
+            input={input}
+            config={config}
+            currentConcessionalCents={concessionalCents}
+            concessionalCapCents={concessionalCapCents}
+          />
+        )}
       </Stack>
     </Card>
   )
 }
 
 /** Presentational household tax estimate: household and per-member annual/fortnightly figures. */
-export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEstimateViewProps) {
+export function TaxEstimateView({
+  estimate,
+  financialYear,
+  memberName,
+  config,
+  concessionalCapCentsByMember,
+}: TaxEstimateViewProps) {
   return (
     <Stack gap="md">
       <Title order={2} visibleFrom="sm">
@@ -254,6 +363,9 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
               breakdown={member.breakdown}
               concessionalCents={member.annualConcessionalContributionsCents}
               deductionsCents={member.annualDeductionsCents}
+              input={member.input}
+              config={config}
+              concessionalCapCents={concessionalCapCentsByMember?.get(member.memberId)}
             />
           ))}
           <Text size="xs" c="dimmed">

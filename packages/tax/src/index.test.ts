@@ -12,6 +12,7 @@ import {
   lowIncomeTaxOffset,
   medicareLevy,
   medicareLevySurcharge,
+  salarySacrificeWhatIf,
   superCoContribution,
   taxableIncome,
   type AssessableIncome,
@@ -520,5 +521,61 @@ describe('FY2027_CONFIG', () => {
     expect(result.taxableIncomeCents).toBe(270_000_00)
     // income + concessional = 300,000; 15% × min(30,000, 300,000 − 250,000).
     expect(result.division293Cents).toBe(4_500_00)
+  })
+})
+
+describe('salarySacrificeWhatIf', () => {
+  it('saves marginal tax for a mid-bracket earner sacrificing more', () => {
+    // $100,000 salary, no existing concessional, private cover (no surcharge),
+    // no HELP debt. An extra $10,000 sacrifice sits wholly in the 30% bracket, so
+    // it saves 30% income tax + 2% Medicare = $3,200; neither run attracts LITO,
+    // the surcharge, HELP, or Division 293.
+    const result = salarySacrificeWhatIf(
+      inputForSalary(100_000_00, { privateHospitalCover: true }),
+      10_000_00,
+      FIXTURE_CONFIG,
+    )
+    expect(result.taxSavedCents).toBe(3_200_00)
+    expect(result.division293DeltaCents).toBe(0)
+  })
+
+  it('lands 85% of the extra sacrifice in super after the 15% contributions tax', () => {
+    const result = salarySacrificeWhatIf(inputForSalary(100_000_00), 10_000_00, FIXTURE_CONFIG)
+    expect(result.contributionsTaxCents).toBe(1_500_00)
+    expect(result.netToSuperCents).toBe(8_500_00)
+    expect(result.netToSuperCents).toBe(Math.round(10_000_00 * 0.85))
+  })
+
+  it('reduces take-home by the amount sacrificed less the tax saved', () => {
+    // $3,200 saved against $10,000 sacrificed → take-home falls $6,800.
+    const result = salarySacrificeWhatIf(
+      inputForSalary(100_000_00, { privateHospitalCover: true }),
+      10_000_00,
+      FIXTURE_CONFIG,
+    )
+    expect(result.takeHomeChangeCents).toBe(result.taxSavedCents - 10_000_00)
+    expect(result.takeHomeChangeCents).toBe(-6_800_00)
+  })
+
+  it('reports the extra Division 293 a high earner triggers', () => {
+    // $200,000 salary, no existing concessional (so baseline Division 293 is nil).
+    // An extra $20,000 sacrifice drops taxable to $180,000; Division 293 income is
+    // $200,000, so 15% × min($20,000, $200,000 − $150,000) = $3,000.
+    const result = salarySacrificeWhatIf(inputForSalary(200_000_00), 20_000_00, FIXTURE_CONFIG)
+    expect(result.division293DeltaCents).toBe(3_000_00)
+    // The Division 293 rise nets against the marginal tax saved.
+    expect(result.taxSavedCents).toBeGreaterThan(0)
+  })
+
+  it('yields all-zero deltas for no additional sacrifice', () => {
+    const result = salarySacrificeWhatIf(inputForSalary(100_000_00), 0, FIXTURE_CONFIG)
+    expect(result).toEqual({
+      additionalConcessionalCents: 0,
+      taxSavedCents: 0,
+      contributionsTaxCents: 0,
+      netToSuperCents: 0,
+      takeHomeChangeCents: 0,
+      division293DeltaCents: 0,
+    })
   })
 })

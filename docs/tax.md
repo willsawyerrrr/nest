@@ -183,6 +183,33 @@ only when they apply, with any nil components named beneath so a reader knows
 they were considered. A footnote reiterates that the estimate excludes capital
 gains tax.
 
+## Salary-sacrifice what-if
+
+Each member card carries an interactive what-if: enter an extra annual pre-tax
+super contribution and see the trade-off, recomputed live on the pure engine
+(`salarySacrificeWhatIf` in `@nest/tax`) over that member's own `TaxInput`.
+
+- **Tax saved** = baseline total liability − the liability with the extra
+  concessional contribution. It captures the marginal income tax, Medicare levy,
+  and LITO effects, and is net of any extra Division 293 the contribution itself
+  triggers.
+- **Into super** = the extra sacrifice less the 15% contributions tax taken in
+  the fund (`additional × (1 − contributionsTaxRate)`) — the beneficial amount
+  actually saved, framed against the marginal tax saved above.
+- **Take-home** = tax saved − the whole amount sacrificed. Signed and normally
+  negative: sacrificing gives up more take-home now than it saves in tax, in
+  exchange for the after-tax amount landing in super.
+- **Division 293** — when the extra contribution pushes the member over the
+  $250,000 threshold, a note shows the additional Division 293 tax; it is already
+  included in the tax-saved figure.
+- **Cap headroom** — a warning appears when the current concessional
+  contributions plus the extra sacrifice exceed the member's concessional cap
+  (the config cap plus their manual carry-forward, as shown on the Super tab),
+  since the excess is taxed at the marginal rate rather than 15%.
+
+The entered amount is **ephemeral** — held in local component state only, never
+persisted to the database.
+
 ## Out of scope (initially)
 
 - Capital gains tax, franking credits, negative gearing schedules, PAYG

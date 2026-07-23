@@ -5,14 +5,16 @@ import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
+import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
-import { estimateHouseholdTaxFromRows } from '../lib/tax'
+import { currentTaxConfig, estimateHouseholdTaxFromRows, superCapSummaryFromRows } from '../lib/tax'
 
 export function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
   const taxProfiles = useTaxProfiles(householdId)
   const contributions = useSuperContributions(householdId)
+  const superProfiles = useSuperProfiles(householdId)
   const helpDebts = useHelpDebts(householdId)
   const deductions = useDeductions(householdId)
 
@@ -21,6 +23,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
     inflows.loading ||
     taxProfiles.loading ||
     contributions.loading ||
+    superProfiles.loading ||
     helpDebts.loading ||
     deductions.loading ||
     !members
@@ -35,6 +38,14 @@ export function TaxSection({ householdId }: { householdId: string }) {
     helpDebts.helpDebts ?? [],
     deductions.deductions ?? [],
   )
+  const capSummaries = superCapSummaryFromRows(
+    inflows.inflows ?? [],
+    superProfiles.profiles ?? [],
+    contributions.contributions ?? [],
+  )
+  const concessionalCapCentsByMember = new Map(
+    [...capSummaries].map(([memberId, summary]) => [memberId, summary.concessionalCapCents]),
+  )
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
 
   return (
@@ -42,6 +53,8 @@ export function TaxSection({ householdId }: { householdId: string }) {
       estimate={estimate}
       financialYear={taxProfiles.financialYear}
       memberName={memberName}
+      config={currentTaxConfig()}
+      concessionalCapCentsByMember={concessionalCapCentsByMember}
     />
   )
 }

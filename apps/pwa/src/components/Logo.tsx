@@ -14,7 +14,18 @@ interface LogoProps {
  * flow straight through to every surface. The wordmark is live text in the
  * theme heading font (Space Grotesk), so it tracks headings exactly rather than
  * baking in a rasterized image.
+ *
+ * The goose was drawn for the near-black canvas, so its off-white body would
+ * vanish on light surfaces. `markStyle` restores its canvas as a rounded tile
+ * behind the mark in light mode only via `light-dark(...)`, keeping dark mode on
+ * transparency exactly as before.
  */
+const markStyle = {
+  display: 'block',
+  flexShrink: 0,
+  background: 'light-dark(var(--mantine-color-dark-6), transparent)',
+} as const
+
 export function Logo({ variant = 'lockup', size = 32, className }: LogoProps) {
   if (variant === 'mark') {
     return (
@@ -24,7 +35,7 @@ export function Logo({ variant = 'lockup', size = 32, className }: LogoProps) {
         width={size}
         height={size}
         className={className}
-        style={{ display: 'block', borderRadius: rem(size * 0.22), flexShrink: 0 }}
+        style={{ ...markStyle, borderRadius: rem(size * 0.22) }}
       />
     )
   }
@@ -42,7 +53,7 @@ export function Logo({ variant = 'lockup', size = 32, className }: LogoProps) {
         alt=""
         width={size}
         height={size}
-        style={{ display: 'block', borderRadius: rem(size * 0.22), flexShrink: 0 }}
+        style={{ ...markStyle, borderRadius: rem(size * 0.22) }}
       />
       <span
         aria-hidden

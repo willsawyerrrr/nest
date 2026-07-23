@@ -2,6 +2,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Box, Burger, Drawer, Group, Stack, Text } from '@mantine/core'
 import { useDisclosure, useHotkeys, type HotkeyItem } from '@mantine/hooks'
+import { ColorSchemeToggle } from './ColorSchemeToggle'
 import { Logo } from './Logo'
 
 export type NavItem = { path: string; label: string }
@@ -104,14 +105,17 @@ export function TabBar({ items }: { items: NavItem[] }) {
       <Box component="header" className="top-bar" hiddenFrom="sm">
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Logo variant="mark" size={28} />
-          <Burger
-            opened={drawerOpened}
-            onClick={drawer.toggle}
-            size="sm"
-            aria-label="Toggle navigation menu"
-            aria-expanded={drawerOpened}
-            aria-controls={DRAWER_ID}
-          />
+          <Group gap="xs" wrap="nowrap">
+            <ColorSchemeToggle />
+            <Burger
+              opened={drawerOpened}
+              onClick={drawer.toggle}
+              size="sm"
+              aria-label="Toggle navigation menu"
+              aria-expanded={drawerOpened}
+              aria-controls={DRAWER_ID}
+            />
+          </Group>
         </Group>
       </Box>
 
@@ -132,7 +136,12 @@ export function TabBar({ items }: { items: NavItem[] }) {
         <Box mb="lg" px="xs">
           <Logo variant="lockup" size={32} />
         </Box>
-        <NavList items={items} />
+        <Box style={{ flex: 1 }}>
+          <NavList items={items} />
+        </Box>
+        <Group className="sidebar__footer" justify="flex-end" px="xs" pt="sm">
+          <ColorSchemeToggle />
+        </Group>
       </Box>
     </>
   )

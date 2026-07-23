@@ -29,6 +29,9 @@ Custom `MantineColorsTuple` scales (base shade = index 5):
 `defaultColorScheme="dark"` is set on both `ColorSchemeScript` and
 `MantineProvider` (`apps/pwa/src/main.tsx`); `autoContrast` is on. `index.html`
 carries `theme-color`/PWA `background_color` `#0b0f14` to match the dark canvas.
+Dark stays the default; the in-app `ColorSchemeToggle` flips to the light paper
+counterpart, and `ColorSchemeScript` persists the choice. As `primaryColor` is
+`brand`, focus rings render in lime automatically.
 
 `semanticColors` names the non-neutral scales; sign colouring resolves per scheme
 via `light-dark(...)` in `moneyColor` (`apps/pwa/src/lib/money.ts`) so figures
@@ -37,9 +40,10 @@ clear WCAG AA in both.
 ### Type
 
 Fonts load from `@fontsource-variable`: **Space Grotesk** for headings, **Inter**
-for body (`main.tsx`). Headings are weight 700 (h1 `rem(32)` down to h6
-`rem(14)`). Money renders with `tabular-nums lining-nums` so figures align in
-columns.
+for body (`main.tsx`). Headings are weight 700, stepping sharply from a display
+h1 (`rem(38)`, tight `1.05` line-height) down to h6 (`rem(14)`) so a page title
+reads as a bold display line and section headings sit clearly below it. Money
+renders with `tabular-nums lining-nums` so figures align in columns.
 
 ### Radius & spacing
 
@@ -50,9 +54,12 @@ sub-`xs` step `xxs: rem(4)` so tight rows use a token, not a raw `gap={4}`.
 
 The theme restyles Mantine components app-wide:
 
-- **Card** — `withBorder`, `radius: 'md'`, `padding: 'lg'`, plus a drop shadow and
-  a dark-mode inset top-edge highlight.
-- **Button** — `radius: 'md'`, weight 600.
+- **Card** — `withBorder`, `radius: 'md'`, `padding: 'lg'`, plus a soft drop
+  shadow and a dark-mode inset top-edge highlight, so an elevated surface steps
+  clearly off the near-black page base.
+- **Button** — `radius: 'md'`, weight 600. The primary action (default/`filled`,
+  brand-coloured) carries a subtle electric-lime glow; a coloured or non-filled
+  button (red delete, ghost cancel) stays flat.
 - **Badge** — `variant: 'light'`, `radius: 'sm'`.
 - **ActionIcon** — `variant: 'subtle'`.
 - Inputs (**TextInput**, **NumberInput**, **Select**, **SegmentedControl**,
@@ -74,11 +81,15 @@ so the rule it enforces holds app-wide.
   border/radius/shadow. `density` (`comfortable` = `lg` padding, `compact` = `sm`)
   picks padding; `component="form"` + `onSubmit` render it as an inline editor.
   Replaces bespoke `<Card withBorder radius=… p=…>`.
-- **`PageSection`** — the page scaffold: a root `Stack`, one `Title` (order 2,
-  identical on mobile and desktop), optional dimmed `intro`, and `gap` for
-  vertical rhythm. Every tab wraps its body in this.
-- **`AddButton`** — the one "Add …" affordance: full-width, `variant="light"`,
-  leading plus icon. Takes `label`; settles variant/size for every add action.
+- **`PageSection`** — the page scaffold: a root `Stack`, one display `Title`
+  (order 1, tight tracking, identical on mobile and desktop), optional dimmed
+  `intro`, and `gap` for vertical rhythm. Every tab wraps its body in this.
+- **`AddButton`** — the one "Add …" affordance: full-width, solid electric-lime
+  (the default `filled` brand button with the theme glow), leading plus icon.
+  Takes `label`; settles the primary-action treatment for every add action.
+- **`ColorSchemeToggle`** — a sun/moon `ActionIcon` flipping between the light and
+  dark schemes; dark stays the default. Rendered in the desktop sidebar footer
+  and the mobile top bar.
 - **`MoneyText`** — the app's one money renderer. Formats `cents` via
   `formatCents` with tabular figures; `colored` tints by sign via `moneyColor`.
 - **`EditAction`** — the one edit affordance: a subtle pencil `ActionIcon`
@@ -114,10 +125,13 @@ so the rule it enforces holds app-wide.
 
 ## Logo
 
-The brand mark is the goose-in-nest `apps/pwa/public/icon.svg`, drawn on the
-theme-dark canvas (`#0b0f14`). The `Logo` component consumes it live by URL —
+The brand mark is the goose-in-nest `apps/pwa/public/icon.svg`, drawn for the
+near-black canvas (`#0b0f14`). The `Logo` component consumes it live by URL —
 `variant="mark"` renders the icon alone, `variant="lockup"` pairs it with the
 "nest" wordmark set in live Space Grotesk heading text — so edits to the single
-SVG flow through to every surface. The favicon, apple-touch, and PWA PNG icons
+SVG flow through to every surface. The goose's off-white body would vanish on
+light paper, so the mark restores its dark canvas as a rounded tile behind it in
+light mode only, via `light-dark(var(--mantine-color-dark-6), transparent)` — dark
+mode stays on transparency, unchanged. The favicon, apple-touch, and PWA PNG icons
 (`favicon-32.png`, `apple-touch-icon.png`, `pwa-192.png`, `pwa-512.png`,
 `pwa-maskable-512.png`) are derived from the same SVG.

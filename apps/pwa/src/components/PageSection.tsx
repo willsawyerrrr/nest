@@ -26,7 +26,9 @@ export function PageSection({
   return (
     <Stack gap={gap} {...stackProps}>
       <Stack gap="xxs">
-        <Title order={2}>{title}</Title>
+        <Title order={1} style={{ letterSpacing: '-0.02em' }}>
+          {title}
+        </Title>
         {intro != null && (
           <Text c="dimmed" size="sm">
             {intro}

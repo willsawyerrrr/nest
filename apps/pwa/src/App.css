@@ -41,6 +41,8 @@
   bottom: 0;
   left: 0;
   z-index: 200;
+  display: flex;
+  flex-direction: column;
   width: 15rem;
   overflow-y: auto;
   background: var(--mantine-color-body);
@@ -49,6 +51,11 @@
   padding-right: 12px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   padding-left: max(12px, env(safe-area-inset-left));
+}
+
+/* The sidebar footer holds the color-scheme toggle, ruled off from the nav. */
+.sidebar__footer {
+  border-top: 1px solid var(--mantine-color-default-border);
 }
 
 @media (min-width: 48em) {
@@ -100,11 +107,13 @@
 }
 
 /*
- * The active item reads in the brand lime (set on the inner Text) over a faint
- * brand wash, so the current tab is legible at a glance in the dark chrome.
+ * The active item reads in the brand lime (set on the inner Text) over a brand
+ * wash, with a solid lime bar down its leading edge, so the current tab asserts
+ * itself at a glance in the dark chrome.
  */
 .drawer-nav__link--active {
-  background-color: color-mix(in srgb, var(--mantine-primary-color-filled) 12%, transparent);
+  background-color: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent);
+  box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
 }
 
 /*

@@ -9,12 +9,13 @@ interface AddButtonProps extends ButtonProps {
 }
 
 /**
- * The one "Add …" affordance: a full-width light-variant button with a leading
- * plus icon, settling the variant and size for every add action in the app.
+ * The one "Add …" affordance: a full-width, solid electric-lime button with a
+ * leading plus icon and the theme's lime glow, settling the variant and size for
+ * every add action in the app as the assertive primary action.
  */
 export function AddButton({ label, ...buttonProps }: AddButtonProps) {
   return (
-    <Button variant="light" fullWidth leftSection={<IconPlus size={16} />} {...buttonProps}>
+    <Button fullWidth leftSection={<IconPlus size={16} />} {...buttonProps}>
       {label}
     </Button>
   )

@@ -1,4 +1,4 @@
-import { createTheme, rem, type MantineColorsTuple } from '@mantine/core'
+import { createTheme, rem, type MantineColorsTuple, type MantineTheme } from '@mantine/core'
 
 /*
  * Bold, dark-first design system. Dark is the primary scheme; light mode is a
@@ -127,9 +127,12 @@ export const theme = createTheme({
   headings: {
     fontFamily: headingFontFamily,
     fontWeight: '700',
+    // Display-scale, tightly-tracked h1 for page titles, stepping down sharply to
+    // clearly-subordinate section headings. h1 carries a negative letter-spacing
+    // so the heavy Space Grotesk reads as a bold display line.
     sizes: {
-      h1: { fontSize: rem(32), lineHeight: '1.2', fontWeight: '700' },
-      h2: { fontSize: rem(26), lineHeight: '1.25', fontWeight: '700' },
+      h1: { fontSize: rem(38), lineHeight: '1.05', fontWeight: '700' },
+      h2: { fontSize: rem(28), lineHeight: '1.15', fontWeight: '700' },
       h3: { fontSize: rem(21), lineHeight: '1.3', fontWeight: '600' },
       h4: { fontSize: rem(18), lineHeight: '1.35', fontWeight: '600' },
       h5: { fontSize: rem(16), lineHeight: '1.4', fontWeight: '600' },
@@ -141,17 +144,30 @@ export const theme = createTheme({
     Card: {
       defaultProps: { withBorder: true, radius: 'md', padding: 'lg' },
       styles: {
-        // A tasteful drop shadow in both schemes, plus a hairline inset
-        // top-edge highlight in dark to lift the elevated surface.
+        // A clear step above the page base: a soft drop shadow in both schemes,
+        // plus a brighter hairline inset top-edge highlight in dark to lift the
+        // elevated surface off the near-black canvas.
         root: {
           boxShadow:
-            'light-dark(var(--mantine-shadow-xs), 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.5))',
+            'light-dark(var(--mantine-shadow-sm), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 10px 30px rgba(0, 0, 0, 0.5))',
         },
       },
     },
     Button: {
       defaultProps: { radius: 'md' },
-      styles: { root: { fontWeight: 600 } },
+      // The primary action (default/`filled`, brand-coloured) carries a subtle
+      // electric-lime glow so it reads as the assertive CTA from the mockup; a
+      // coloured or non-filled button (e.g. a red delete, a ghost cancel) keeps a
+      // flat surface.
+      styles: (_theme: MantineTheme, props: { variant?: string; color?: string }) => ({
+        root: {
+          fontWeight: 600,
+          boxShadow:
+            props.color == null && (props.variant == null || props.variant === 'filled')
+              ? '0 6px 22px color-mix(in srgb, var(--mantine-color-brand-5) 34%, transparent)'
+              : undefined,
+        },
+      }),
     },
     Badge: {
       defaultProps: { variant: 'light', radius: 'sm' },

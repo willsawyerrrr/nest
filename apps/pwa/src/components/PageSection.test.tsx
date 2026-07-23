@@ -3,9 +3,9 @@ import { render, screen } from '../test/render'
 import { PageSection } from './PageSection'
 
 describe('PageSection', () => {
-  it('renders the title as a level-2 heading and its children', () => {
+  it('renders the title as the level-1 display heading and its children', () => {
     render(<PageSection title="Inflows">Body</PageSection>)
-    expect(screen.getByRole('heading', { level: 2, name: 'Inflows' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Inflows' })).toBeInTheDocument()
     expect(screen.getByText('Body')).toBeInTheDocument()
   })
 

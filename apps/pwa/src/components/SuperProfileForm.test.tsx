@@ -39,7 +39,7 @@ describe('SuperProfileForm', () => {
     expect(screen.getByLabelText(/current balance/i)).toHaveValue('$50,000.00')
   })
 
-  it('shows the effective balance and accrual breakdown for a dated baseline', () => {
+  it('prefills a dated baseline as a true-up with the effective balance', () => {
     render(
       <SuperProfileForm
         member={member}
@@ -52,13 +52,17 @@ describe('SuperProfileForm', () => {
     )
 
     // Baseline $10,000 + a full year of $12,000 contributions = $22,000 today.
-    expect(screen.getByText('Estimated balance today')).toBeInTheDocument()
-    expect(screen.getByText('$22,000.00')).toBeInTheDocument()
-    expect(
-      screen.getByText(/\$10,000\.00 confirmed on .* \$12,000\.00 accrued/),
-    ).toBeInTheDocument()
     expect(screen.getByLabelText(/actual balance today/i)).toHaveValue('$22,000.00')
     expect(screen.getByRole('button', { name: /update actual balance/i })).toBeInTheDocument()
+  })
+
+  it('renders Save and Cancel when onCancel is provided', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(<SuperProfileForm member={member} onCancel={onCancel} onSubmit={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(onCancel).toHaveBeenCalledOnce()
   })
 
   it('shows an error when saving fails', async () => {

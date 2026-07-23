@@ -11,10 +11,15 @@ primary periods, as everywhere in the app.
 
 ## Super tab
 
-The Super tab edits each member's fund name and current balance for the financial
-year. The balance is held as a manual account linked from
+The Super tab shows each member as a read-only row — fund name and the effective
+balance today — with a pencil Edit affordance that swaps the row for an inline
+fund-name and balance form with Save and Cancel, matching the tax profiles and the
+rest of the app. The balance is held as a manual account linked from
 `super_profile.linked_account_id` — the same balance-source pattern savings goals
-use — not a column.
+use — not a column. For a dated baseline the row reads as an estimate, with the
+accrual breakdown, since it grows by modelled contributions between true-ups;
+saving re-confirms the actual balance. The caps summary, contributions list, and
+retirement projection sit below the row unchanged.
 
 Each member's `super_contribution` rows are managed here (add / edit / delete),
 each carrying a kind, an amount or percent-of-salary, a frequency, an FHSS flag,
@@ -68,8 +73,10 @@ untouched.
 
 ## HELP debt tab
 
-The HELP debt tab edits each member's single standing HELP/HECS balance (one
-`help_debt` row per member, not financial-year-scoped). The balance drives the
+The HELP debt tab shows each member's single standing HELP/HECS balance (one
+`help_debt` row per member, not financial-year-scoped) as a read-only row with a
+pencil Edit affordance that swaps it for an inline balance form with Save and
+Cancel, matching the tax profiles and the rest of the app. The balance drives the
 compulsory HELP repayment on the Tax tab and counts as a liability on the Net
 worth tab.
 

@@ -12,6 +12,7 @@ import {
 } from '@nest/tax'
 import { dollarsToCents, moneyColor } from '../lib/money'
 import { helpPayoffSummary } from '../lib/tax'
+import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
 import { MoneyInput } from './MoneyInput'
 import { MoneyText } from './MoneyText'
@@ -111,26 +112,24 @@ function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
 /** A labelled table of build-up lines with annual and fortnightly columns. */
 function ComponentTable({ label, lines }: { label: string; lines: ComponentLine[] }) {
   return (
-    <Table.ScrollContainer minWidth={0}>
-      <Table fz="sm" verticalSpacing={4} horizontalSpacing="xs" aria-label={label}>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th />
-            <Table.Th scope="col" ta="right">
-              Annual
-            </Table.Th>
-            <Table.Th scope="col" ta="right">
-              Fortnightly
-            </Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {lines.map((line) => (
-            <ComponentRow key={line.label} {...line} />
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable label={label}>
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th />
+          <Table.Th scope="col" ta="right">
+            Annual
+          </Table.Th>
+          <Table.Th scope="col" ta="right">
+            Fortnightly
+          </Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {lines.map((line) => (
+          <ComponentRow key={line.label} {...line} />
+        ))}
+      </Table.Tbody>
+    </DataTable>
   )
 }
 
@@ -307,43 +306,36 @@ function FiguresCard({
             {helpPayoffSummary(helpPayoff)}
           </Text>
         )}
-        <Table.ScrollContainer minWidth={0}>
-          <Table
-            fz="sm"
-            verticalSpacing={4}
-            horizontalSpacing="xs"
-            aria-label="Income and tax summary"
-          >
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th />
-                <Table.Th scope="col" ta="right">
-                  Gross
-                </Table.Th>
-                <Table.Th scope="col" ta="right">
-                  Tax
-                </Table.Th>
-                <Table.Th scope="col" ta="right">
-                  After tax
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              <PeriodRow
-                period="Annual"
-                grossCents={row.annualGrossCents}
-                taxCents={row.annualTaxCents}
-                afterTaxCents={row.annualAfterTaxCents}
-              />
-              <PeriodRow
-                period="Fortnightly"
-                grossCents={row.fortnightlyGrossCents}
-                taxCents={row.fortnightlyTaxCents}
-                afterTaxCents={row.fortnightlyAfterTaxCents}
-              />
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <DataTable label="Income and tax summary">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th />
+              <Table.Th scope="col" ta="right">
+                Gross
+              </Table.Th>
+              <Table.Th scope="col" ta="right">
+                Tax
+              </Table.Th>
+              <Table.Th scope="col" ta="right">
+                After tax
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            <PeriodRow
+              period="Annual"
+              grossCents={row.annualGrossCents}
+              taxCents={row.annualTaxCents}
+              afterTaxCents={row.annualAfterTaxCents}
+            />
+            <PeriodRow
+              period="Fortnightly"
+              grossCents={row.fortnightlyGrossCents}
+              taxCents={row.fortnightlyTaxCents}
+              afterTaxCents={row.fortnightlyAfterTaxCents}
+            />
+          </Table.Tbody>
+        </DataTable>
         {input && config && (
           <SalarySacrificePanel
             input={input}

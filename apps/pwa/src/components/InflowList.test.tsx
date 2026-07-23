@@ -124,7 +124,11 @@ describe('InflowList', () => {
       }) as unknown as MediaQueryList) as typeof window.matchMedia
     try {
       renderList([datedSalary])
-      expect(screen.getByText('1 July 2026 – 14 Sept 2026')).toBeInTheDocument()
+      // The caption hangs below the main line as a sub-line within the row Stack,
+      // alongside the name, so it renders in the same row as the inflow.
+      const row = screen.getByText('Old salary').closest('div')?.parentElement
+        ?.parentElement as HTMLElement
+      expect(within(row).getByText('1 July 2026 – 14 Sept 2026')).toBeInTheDocument()
     } finally {
       window.matchMedia = original
     }
@@ -156,8 +160,9 @@ describe('InflowList', () => {
 
       const name = screen.getByText('Shifts')
       expect(name.closest('.mantine-Card-root')).toBeNull()
-      // The name sits in a Stack (name row + optional effective-date caption)
-      // inside the dense row, so the row is two ancestors up from the name group.
+      // The name group sits in the main line Group, which sits in the row Stack
+      // (main line + optional effective-date caption), so the row is two
+      // ancestors up from the name group.
       const row = name.closest('div')?.parentElement?.parentElement as HTMLElement
       expect(within(row).getByText('$45.00 × 38 hrs')).toBeInTheDocument()
       expect(within(row).getByText('Weekly')).toBeInTheDocument()

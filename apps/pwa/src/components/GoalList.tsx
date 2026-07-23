@@ -1,4 +1,5 @@
-import { Badge, Card, Group, Progress, Stack, Text } from '@mantine/core'
+import { Badge, Group, Progress, Stack, Text } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { fortnightlyCents, projectGoal } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
@@ -8,9 +9,12 @@ import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
+import { FortnightlyAmount } from './FortnightlyAmount'
 import { GoalForm } from './GoalForm'
+import { ListRow } from './ListRow'
 
 interface GoalListProps {
   goals: Goal[]
@@ -39,20 +43,16 @@ function pluraliseFortnights(count: number): string {
   return `${count} ${count === 1 ? 'fortnight' : 'fortnights'}`
 }
 
-/** One goal's display card: progress toward its target and the ETA to reach it. */
-function GoalCard({
-  goal,
-  saver,
-  contributionCents,
-  onEdit,
-  onDelete,
-}: {
-  goal: Goal
-  saver: Saver | undefined
-  contributionCents: number
-  onEdit: () => void
-  onDelete: () => void
-}) {
+/** A goal's derived display: its effective balance, progress, status flag, and ETA text. */
+interface GoalDisplay {
+  currentBalanceCents: number
+  percent: number
+  status: { label: string; color: string }
+  eta: string
+}
+
+/** Derives a goal's progress, status flag, and ETA from its target and contribution. */
+function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: number): GoalDisplay {
   // A linked saver's synced balance overrides the manually entered one.
   const currentBalanceCents = saver ? saver.balance_cents : goal.current_balance_cents
 
@@ -96,8 +96,63 @@ function GoalCard({
     eta = 'Link a savings line to project an ETA.'
   }
 
+  return { currentBalanceCents, percent, status, eta }
+}
+
+interface GoalItemProps {
+  goal: Goal
+  saver: Saver | undefined
+  contributionCents: number
+  onEdit: () => void
+  onDelete: () => void
+}
+
+/**
+ * One goal as a dense table-like row for desktop: the name grows with its status
+ * flag beside it, then percent, a progress bar, and the fortnightly contribution
+ * right-aligned in fixed columns, the controls at the end, and the ETA on a
+ * dimmed caption line.
+ */
+function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
+  const { percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+  const caption = saver ? `${eta} · From Up saver ${saver.name}` : eta
   return (
-    <Card withBorder radius="md" p="sm">
+    <ListRow caption={caption}>
+      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate>
+          {goal.name}
+        </Text>
+        <Badge size="xs" variant="light" color={status.color}>
+          {status.label}
+        </Badge>
+      </Group>
+      <Text size="sm" fw={600} ta="right" style={{ width: '3rem', flexShrink: 0 }}>
+        {Math.round(percent)}%
+      </Text>
+      <Progress
+        value={percent}
+        color={status.color}
+        size="sm"
+        aria-label={`${goal.name} progress`}
+        style={{ width: '6rem', flexShrink: 0 }}
+      />
+      <FortnightlyAmount
+        cents={contributionCents}
+        justify="flex-end"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
+  )
+}
+
+/** One goal as a compact bordered card for mobile: progress toward its target and its ETA. */
+function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
+  const { currentBalanceCents, percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+  return (
+    <AppCard withBorder padding="sm">
       <Stack gap="xs">
         <Group justify="space-between" align="center" wrap="nowrap" gap="sm">
           <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
@@ -139,8 +194,17 @@ function GoalCard({
           </Text>
         )}
       </Stack>
-    </Card>
+    </AppCard>
   )
+}
+
+/**
+ * A single goal, rendered as a dense table-like row from the `sm` breakpoint up
+ * and as a compact bordered card below it.
+ */
+function GoalItem(props: GoalItemProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <GoalRow {...props} /> : <GoalCard {...props} />
 }
 
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
@@ -170,7 +234,7 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
             onCancel={closeForms}
           />
         ) : (
-          <GoalCard
+          <GoalItem
             key={goal.id}
             goal={goal}
             saver={linkedSaver(goal, savers)}

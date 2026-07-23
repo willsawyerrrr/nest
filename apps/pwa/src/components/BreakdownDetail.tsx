@@ -3,7 +3,6 @@ import {
   ActionIcon,
   Badge,
   Button,
-  Card,
   Collapse,
   Group,
   Stack,
@@ -21,12 +20,15 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
-import { formatCents, formatPerFortnight, formatPerYear } from '../lib/money'
+import { formatPerFortnight, formatPerYear } from '../lib/money'
+import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { BreakdownItemForm } from './BreakdownItemForm'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { MoneyText } from './MoneyText'
 
 interface BreakdownDetailProps {
   breakdown: Breakdown
@@ -70,7 +72,7 @@ function BreakdownSettings({
   }
 
   return (
-    <Card withBorder radius="md" p="sm">
+    <AppCard withBorder padding="sm">
       <Stack gap="xs">
         <TextInput
           label="Name"
@@ -108,7 +110,7 @@ function BreakdownSettings({
       </Stack>
 
       {modal}
-    </Card>
+    </AppCard>
   )
 }
 
@@ -128,16 +130,14 @@ function ItemRow({
     item.interval_count ?? undefined,
   )
   return (
-    <Card withBorder radius="md" p="xs">
+    <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Text fw={600} size="sm" truncate>
             {item.name}
           </Text>
           <Group gap={6} wrap="nowrap">
-            <Text size="xs" c="dimmed">
-              {formatCents(item.amount_cents)}
-            </Text>
+            <MoneyText cents={item.amount_cents} size="xs" c="dimmed" />
             <Badge size="xs" variant="light">
               {formatFrequency(item.frequency, item.interval_count)}
             </Badge>
@@ -158,7 +158,7 @@ function ItemRow({
           </ActionIcon>
         </Group>
       </Group>
-    </Card>
+    </AppCard>
   )
 }
 
@@ -255,9 +255,7 @@ export function BreakdownDetail({
             onCancel={closeForms}
           />
         ) : (
-          <Button variant="light" fullWidth onClick={() => startAdding(true)}>
-            Add item
-          </Button>
+          <AddButton label="Add item" onClick={() => startAdding(true)} />
         )}
       </Stack>
 

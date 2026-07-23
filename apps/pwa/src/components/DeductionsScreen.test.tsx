@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { DeductionsScreen } from './DeductionsScreen'
 
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
@@ -159,5 +159,21 @@ describe('DeductionsScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: /delete/i }))
 
     expect(onRemoveReceipt).toHaveBeenCalledWith(makeReceipt())
+  })
+
+  describe('on desktop', () => {
+    it('renders each deduction as a dense row with its receipts on the caption line', () => {
+      setWideViewport()
+      renderScreen({ members: [will], receipts: [makeReceipt()] })
+
+      // No bordered card wraps a row.
+      expect(screen.getByText('Home office').closest('.mantine-Card-root')).toBeNull()
+      // The row amount plus the per-member total, both $1,200.00.
+      expect(screen.getAllByText('$1,200.00')).toHaveLength(2)
+      expect(screen.getByText(/1 Aug 2026/)).toBeInTheDocument()
+      // The receipt and its upload control still show beneath the row.
+      expect(screen.getByRole('button', { name: 'receipt.pdf' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+    })
   })
 })

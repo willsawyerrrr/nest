@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge, Button, Card, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
+import { Badge, Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
@@ -8,9 +9,11 @@ import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatPerYear } from '../lib/money'
 import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { EmptyState } from './EmptyState'
 import { EnumSelect } from './EnumSelect'
 import { FortnightlyAmount } from './FortnightlyAmount'
+import { ListRow } from './ListRow'
 import { PageSection } from './PageSection'
 
 interface BreakdownsScreenProps {
@@ -51,7 +54,7 @@ function NewBreakdownForm({
   }
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
+    <AppCard withBorder padding="sm" component="form" onSubmit={handleSubmit}>
       <Stack gap="xs">
         <TextInput
           label="Name"
@@ -82,16 +85,53 @@ function NewBreakdownForm({
           </Button>
         </Group>
       </Stack>
-    </Card>
+    </AppCard>
   )
 }
 
-/** One breakdown row: its name, group, and rolled-up totals, linking to its editor. */
-function BreakdownRow({ breakdown, annualCents }: { breakdown: Breakdown; annualCents: number }) {
+interface BreakdownItemProps {
+  breakdown: Breakdown
+  annualCents: number
+}
+
+/**
+ * One breakdown as a dense table-like row for desktop: the name grows with its
+ * group badge beside it, then its fortnightly and annual rollups right-aligned in
+ * fixed columns and a chevron, the whole row linking to its editor.
+ */
+function BreakdownRow({ breakdown, annualCents }: BreakdownItemProps) {
+  const fortnightly = fortnightlyCents(annualCents, 'annual')
+  return (
+    <UnstyledButton component={Link} to={`/breakdowns/${breakdown.id}`} display="block">
+      <ListRow gap="sm">
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Text fw={600} size="sm" truncate>
+            {breakdown.name}
+          </Text>
+          <Badge size="xs" variant="light">
+            {groupLabel(breakdown.line_group)}
+          </Badge>
+        </Group>
+        <FortnightlyAmount
+          cents={fortnightly}
+          justify="flex-end"
+          style={{ width: '7rem', flexShrink: 0 }}
+        />
+        <Text size="xs" c="dimmed" ta="right" style={{ width: '8rem', flexShrink: 0 }}>
+          {formatPerYear(annualCents)}
+        </Text>
+        <IconChevronRight size={16} />
+      </ListRow>
+    </UnstyledButton>
+  )
+}
+
+/** One breakdown as a compact bordered card for mobile, linking to its editor. */
+function BreakdownCard({ breakdown, annualCents }: BreakdownItemProps) {
   const fortnightly = fortnightlyCents(annualCents, 'annual')
   return (
     <UnstyledButton component={Link} to={`/breakdowns/${breakdown.id}`}>
-      <Card withBorder radius="md" p="sm">
+      <AppCard withBorder padding="sm">
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Stack gap={4} style={{ minWidth: 0 }}>
             <Text fw={600} size="sm" truncate>
@@ -111,9 +151,18 @@ function BreakdownRow({ breakdown, annualCents }: { breakdown: Breakdown; annual
             <IconChevronRight size={16} />
           </Group>
         </Group>
-      </Card>
+      </AppCard>
     </UnstyledButton>
   )
+}
+
+/**
+ * A single breakdown, rendered as a dense table-like row from the `sm` breakpoint
+ * up and as a compact bordered card below it.
+ */
+function BreakdownItem(props: BreakdownItemProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <BreakdownRow {...props} /> : <BreakdownCard {...props} />
 }
 
 /** Presentational list of the household's breakdowns with a new-breakdown affordance. */
@@ -145,7 +194,7 @@ export function BreakdownsScreen({
         <EmptyState>No breakdowns yet.</EmptyState>
       ) : (
         breakdowns.map((breakdown) => (
-          <BreakdownRow
+          <BreakdownItem
             key={breakdown.id}
             breakdown={breakdown}
             annualCents={totalsByBreakdownId.get(breakdown.id) ?? 0}

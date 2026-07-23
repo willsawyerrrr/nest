@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { SuperContributionList } from './SuperContributionList'
 
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
@@ -110,5 +110,21 @@ describe('SuperContributionList', () => {
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ amount_cents: 25000 })),
     )
+  })
+
+  describe('on desktop', () => {
+    it('renders each contribution as a dense row, noting the contributor', () => {
+      setWideViewport()
+      renderList()
+
+      // No bordered card wraps a row.
+      expect(screen.getByText('Salary sacrifice').closest('.mantine-Card-root')).toBeNull()
+      expect(screen.getByText('$500.00')).toBeInTheDocument()
+      expect(screen.getByText('5.5% of salary')).toBeInTheDocument()
+      expect(screen.getByText('FHSS')).toBeInTheDocument()
+      // The percent contribution carries its contributor caption; the flat one has none.
+      expect(screen.getByText(/by Sam/)).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(2)
+    })
   })
 })

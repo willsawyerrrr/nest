@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { EquityGrantRow } from '../hooks/useEquityGrants'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { EquityScreen } from './EquityScreen'
 
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
@@ -140,5 +140,31 @@ describe('EquityScreen', () => {
         }),
       ),
     )
+  })
+
+  describe('on desktop', () => {
+    it('renders each grant as a dense row, breaking out an option grant', () => {
+      setWideViewport()
+      renderScreen({
+        members: [will],
+        grants: [
+          makeGrant(),
+          makeGrant({
+            id: 'eg2',
+            label: '2024 options',
+            instrument_type: 'option',
+            strike_price_cents: 50,
+          }),
+        ],
+      })
+
+      // No bordered card wraps a row.
+      expect(screen.getByText('2024 shares').closest('.mantine-Card-root')).toBeNull()
+      // Both grants share the sample's 12-of-48 vested position.
+      expect(screen.getAllByText(/12 \/ 48 vested/)).toHaveLength(2)
+      // Only the option grant carries the gross-value / exercise-cost caption.
+      expect(screen.getByText(/Vested value .+ Exercise cost/)).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(2)
+    })
   })
 })

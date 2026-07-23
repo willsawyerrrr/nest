@@ -1,4 +1,5 @@
-import { ActionIcon, Anchor, Card, FileInput, Group, Stack, Text } from '@mantine/core'
+import { ActionIcon, Anchor, FileInput, Group, Stack, Text } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
@@ -7,9 +8,12 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
 import { AddButton } from './AddButton'
+import { AppCard } from './AppCard'
 import { DeductionForm } from './DeductionForm'
 import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
+import { ListRow } from './ListRow'
+import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
 interface DeductionsScreenProps {
@@ -65,16 +69,7 @@ function ReceiptItem({
   )
 }
 
-/** One deduction's card: its description, amount, date, receipts, and an upload. */
-function DeductionCard({
-  deduction,
-  receipts,
-  onEdit,
-  onDelete,
-  onUploadReceipt,
-  onRemoveReceipt,
-  signedUrl,
-}: {
+interface DeductionItemProps {
   deduction: DeductionRow
   receipts: DeductionReceiptRow[]
   onEdit: () => void
@@ -82,7 +77,16 @@ function DeductionCard({
   onUploadReceipt: (file: File) => Promise<void>
   onRemoveReceipt: (receipt: DeductionReceiptRow) => void
   signedUrl: (path: string) => Promise<string | null>
-}) {
+}
+
+/** A deduction's stored receipts and its upload control, shared by its row and card. */
+function DeductionReceipts({
+  deduction,
+  receipts,
+  onUploadReceipt,
+  onRemoveReceipt,
+  signedUrl,
+}: Omit<DeductionItemProps, 'onEdit' | 'onDelete'>) {
   const viewReceipt = async (receipt: DeductionReceiptRow) => {
     const url = await signedUrl(receipt.storage_path)
     if (url) {
@@ -91,7 +95,67 @@ function DeductionCard({
   }
 
   return (
-    <Card withBorder radius="md" p="xs">
+    <Stack gap={6}>
+      {receipts.map((receipt) => (
+        <ReceiptItem
+          key={receipt.id}
+          receipt={receipt}
+          onView={() => void viewReceipt(receipt)}
+          onDelete={() => onRemoveReceipt(receipt)}
+        />
+      ))}
+
+      <FileInput
+        size="xs"
+        variant="light"
+        placeholder="Add receipt"
+        accept="image/*,application/pdf"
+        aria-label={`Add receipt for ${deduction.description}`}
+        value={null}
+        onChange={(file) => {
+          if (file) {
+            void onUploadReceipt(file)
+          }
+        }}
+      />
+    </Stack>
+  )
+}
+
+/**
+ * One deduction as a dense table-like row for desktop: the description grows with
+ * its date as a dimmed suffix, its amount right-aligned in a fixed column, the
+ * controls at the end, and its receipts and upload on the caption line beneath.
+ */
+function DeductionRow({ deduction, onEdit, onDelete, ...receiptProps }: DeductionItemProps) {
+  return (
+    <ListRow caption={<DeductionReceipts deduction={deduction} {...receiptProps} />}>
+      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+          {deduction.description}
+        </Text>
+        <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+          {formatIsoDate(deduction.deduction_date)}
+        </Text>
+      </Group>
+      <MoneyText
+        cents={deduction.amount_cents}
+        fw={700}
+        size="sm"
+        ta="right"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+      </Group>
+    </ListRow>
+  )
+}
+
+/** One deduction as a compact bordered card for mobile: description over its facts and receipts. */
+function DeductionCard({ deduction, onEdit, onDelete, ...receiptProps }: DeductionItemProps) {
+  return (
+    <AppCard withBorder padding="xs">
       <Stack gap={6}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Stack gap={2} style={{ minWidth: 0 }}>
@@ -103,38 +167,24 @@ function DeductionCard({
             </Text>
           </Stack>
           <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-            <Text fw={700} size="sm">
-              {formatCents(deduction.amount_cents)}
-            </Text>
+            <MoneyText cents={deduction.amount_cents} fw={700} size="sm" />
             <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           </Group>
         </Group>
 
-        {receipts.map((receipt) => (
-          <ReceiptItem
-            key={receipt.id}
-            receipt={receipt}
-            onView={() => void viewReceipt(receipt)}
-            onDelete={() => onRemoveReceipt(receipt)}
-          />
-        ))}
-
-        <FileInput
-          size="xs"
-          variant="light"
-          placeholder="Add receipt"
-          accept="image/*,application/pdf"
-          aria-label={`Add receipt for ${deduction.description}`}
-          value={null}
-          onChange={(file) => {
-            if (file) {
-              void onUploadReceipt(file)
-            }
-          }}
-        />
+        <DeductionReceipts deduction={deduction} {...receiptProps} />
       </Stack>
-    </Card>
+    </AppCard>
   )
+}
+
+/**
+ * A single deduction, rendered as a dense table-like row from the `sm` breakpoint
+ * up and as a compact bordered card below it.
+ */
+function DeductionItem(props: DeductionItemProps) {
+  const wide = useMediaQuery('(min-width: 48em)')
+  return wide ? <DeductionRow {...props} /> : <DeductionCard {...props} />
 }
 
 /** A member's deductions with a running total, an add affordance, and inline forms. */
@@ -188,7 +238,7 @@ function MemberDeductions({
             onCancel={closeForms}
           />
         ) : (
-          <DeductionCard
+          <DeductionItem
             key={deduction.id}
             deduction={deduction}
             receipts={receipts.filter((receipt) => receipt.deduction_id === deduction.id)}

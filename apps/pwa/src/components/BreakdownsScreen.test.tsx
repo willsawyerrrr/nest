@@ -2,7 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Breakdown } from '../hooks/useBreakdowns'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { BreakdownsScreen } from './BreakdownsScreen'
 
 function breakdown(overrides: Partial<Breakdown> = {}): Breakdown {
@@ -104,5 +104,20 @@ describe('BreakdownsScreen', () => {
     await user.click(screen.getByRole('button', { name: /add breakdown/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not create this breakdown/i)
+  })
+
+  it('renders each breakdown as a dense row on desktop, still linking to its editor', () => {
+    setWideViewport()
+    renderScreen()
+
+    // No bordered card wraps a row.
+    expect(screen.getByText('Medications').closest('.mantine-Card-root')).toBeNull()
+    expect(screen.getByText('Needs')).toBeInTheDocument()
+    expect(screen.getByText('$10.00')).toBeInTheDocument()
+    expect(screen.getByText('$260.00 / year')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Medications/ })).toHaveAttribute(
+      'href',
+      '/breakdowns/b1',
+    )
   })
 })

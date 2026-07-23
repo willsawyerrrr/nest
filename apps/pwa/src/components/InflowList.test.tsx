@@ -69,17 +69,30 @@ describe('InflowList', () => {
     expect(screen.getByRole('button', { name: /add inflow/i })).toBeInTheDocument()
   })
 
-  it('renders amounts and a taxable/non-taxable indicator per inflow', () => {
+  it('marks only non-taxable inflows, taxable being the default', () => {
     renderList([salary, wage, reimbursement])
 
     // The entered amount shows per inflow, with a wage as its rate × hours.
     expect(screen.getAllByText('$5,000.00').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('$45.00 × 38 hrs')).toBeInTheDocument()
     expect(screen.getByText('$80.00')).toBeInTheDocument()
-    expect(screen.getAllByText('Taxable')).toHaveLength(2)
+    // Taxable is the expected default and is not labelled; only non-taxable is marked.
+    expect(screen.queryByText('Taxable')).not.toBeInTheDocument()
     expect(screen.getByText('Non-taxable')).toBeInTheDocument()
-    // The non-taxable inflow has no member tag, so only the taxable ones show a member.
+    // The two taxable inflows show their member; the non-taxable one has no member tag.
     expect(screen.getAllByText('Will')).toHaveLength(2)
+  })
+
+  it('sinks inactive (ended) inflows to the bottom regardless of input order', () => {
+    const active = makeInflow({ id: 'act', name: 'Current pay' })
+    const ended = makeInflow({ id: 'old', name: 'Old pay', ends_on: '2000-01-01' })
+    renderList([ended, active])
+    const activeEl = screen.getByText('Current pay')
+    const endedEl = screen.getByText('Old pay')
+    // The active inflow precedes the ended one in the DOM even though it was passed last.
+    expect(
+      activeEl.compareDocumentPosition(endedEl) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('shows each inflow normalized to a fortnightly figure', () => {

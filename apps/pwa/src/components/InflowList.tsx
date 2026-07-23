@@ -68,22 +68,23 @@ function isInflowEnded(inflow: Inflow, now: Date = new Date()): boolean {
   return inflow.ends_on !== null && inflow.ends_on < todayIso(now)
 }
 
-/** The member tag for a taxable inflow, or a non-taxable indicator otherwise. */
-function memberOrTaxability(inflow: Inflow, memberName: (id: string) => string): string {
-  if (!inflow.taxable) {
-    return 'Non-taxable'
-  }
-  return inflow.member_id ? memberName(inflow.member_id) : 'Taxable'
-}
-
 /** The inflow type as a natural-case label, e.g. "Salary". */
 function inflowTypeLabel(inflow: Inflow): string {
   return inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
 }
 
-/** The dimmed row subtitle: member/taxability and the capitalised type, e.g. "Will · Salary". */
+/**
+ * The dimmed row subtitle: the capitalised type, prefixed by the member (for a
+ * member-tagged taxable inflow) or a "Non-taxable" marker. Taxable is the expected
+ * default and is not labelled, so a taxable inflow with no member shows just the
+ * type.
+ */
 function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): string {
-  return `${memberOrTaxability(inflow, memberName)} · ${inflowTypeLabel(inflow)}`
+  const type = inflowTypeLabel(inflow)
+  if (!inflow.taxable) {
+    return `Non-taxable · ${type}`
+  }
+  return inflow.member_id ? `${memberName(inflow.member_id)} · ${type}` : type
 }
 
 /**
@@ -107,7 +108,11 @@ function InflowRow({
 }) {
   const ended = isInflowEnded(inflow)
   return (
-    <ListRow gap="sm" caption={ended ? undefined : (effectiveDatesCaption(inflow) ?? undefined)}>
+    <ListRow
+      gap="sm"
+      dimmed={ended}
+      caption={ended ? undefined : (effectiveDatesCaption(inflow) ?? undefined)}
+    >
       <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
         <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
           {inflow.name}
@@ -155,7 +160,7 @@ function InflowCard({
 }) {
   const ended = isInflowEnded(inflow)
   return (
-    <AppCard withBorder padding="xs">
+    <AppCard withBorder padding="xs" style={ended ? { opacity: 0.55 } : undefined}>
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
           <Group gap={6} wrap="nowrap">
@@ -177,9 +182,11 @@ function InflowCard({
             <Text size="xs" c="dimmed">
               {describeAmount(inflow)}
             </Text>
-            <Badge size="xs" variant="light" color={inflow.taxable ? 'teal' : 'gray'}>
-              {inflow.taxable ? 'Taxable' : 'Non-taxable'}
-            </Badge>
+            {!inflow.taxable && (
+              <Badge size="xs" variant="light" color="gray">
+                Non-taxable
+              </Badge>
+            )}
             <Badge size="xs" variant="light" color="grape">
               {inflowTypeLabel(inflow)}
             </Badge>
@@ -221,13 +228,16 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const { confirm, modal } = useConfirmDelete()
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
+  // Inactive (ended) inflows sink to the bottom; the sort is stable, so the order
+  // within the active and inactive groups is otherwise preserved.
+  const ordered = [...inflows].sort((a, b) => Number(isInflowEnded(a)) - Number(isInflowEnded(b)))
 
   return (
     <Stack gap="sm">
       {inflows.length === 0 && !adding ? (
         <EmptyState>No inflows yet. Add one to get started.</EmptyState>
       ) : (
-        inflows.map((inflow) =>
+        ordered.map((inflow) =>
           editingId === inflow.id ? (
             <InflowForm
               key={inflow.id}

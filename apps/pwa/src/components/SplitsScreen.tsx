@@ -193,11 +193,16 @@ function DriftNote({
 }) {
   return (
     <Group justify="space-between" wrap="nowrap" gap="sm">
-      <Text size="xs" c="dimmed">
-        {configuredCents === null
-          ? 'Not set in Up yet'
-          : `was ${formatCents(configuredCents)} → ${formatPerFortnight(roundedCents)}`}
-      </Text>
+      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Badge size="xs" variant="light" color="yellow" style={{ flexShrink: 0 }}>
+          Update
+        </Badge>
+        <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
+          {configuredCents === null
+            ? 'Not set in Up yet'
+            : `was ${formatCents(configuredCents)} → ${formatPerFortnight(roundedCents)}`}
+        </Text>
+      </Group>
       <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, roundedCents)}>
         {configuredCents === null ? 'Mark as set' : 'Confirm'}
       </Button>
@@ -228,14 +233,7 @@ function RecommendedSplitRow({
         ) : undefined
       }
     >
-      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <AccountName name={account.name} />
-        {needsUpdate && (
-          <Badge size="xs" variant="light" color="yellow" style={{ flexShrink: 0 }}>
-            Update
-          </Badge>
-        )}
-      </Group>
+      <AccountName name={account.name} />
       <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
       <FortnightlyAmount
         cents={rounded}
@@ -272,14 +270,7 @@ function RecommendedSplitCard({
       style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-yellow-6)' } : undefined}
     >
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-          <AccountName name={account.name} />
-          {needsUpdate && (
-            <Badge size="xs" variant="light" color="yellow" style={{ flexShrink: 0 }}>
-              Update
-            </Badge>
-          )}
-        </Group>
+        <AccountName name={account.name} />
         <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
           <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
           <FortnightlyAmount cents={rounded} />

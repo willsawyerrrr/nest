@@ -29,6 +29,7 @@ import { MoneyInput } from './MoneyInput'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { BreakdownTable } from './TaxBreakdownTable'
+import { TaxWaterfall } from './TaxWaterfall'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
@@ -356,12 +357,20 @@ function FiguresCard({
         )}
         {breakdown && (
           <Disclosure label="Show breakdown">
-            <BreakdownTable
-              breakdown={breakdown}
-              grossCents={row.annualGrossCents}
-              concessionalCents={concessionalCents}
-              deductionsCents={deductionsCents}
-            />
+            <Stack gap="md">
+              <TaxWaterfall
+                grossCents={row.annualGrossCents}
+                concessionalCents={concessionalCents}
+                breakdown={breakdown}
+                afterTaxCents={row.annualAfterTaxCents}
+              />
+              <BreakdownTable
+                breakdown={breakdown}
+                grossCents={row.annualGrossCents}
+                concessionalCents={concessionalCents}
+                deductionsCents={deductionsCents}
+              />
+            </Stack>
           </Disclosure>
         )}
         {input && config && (

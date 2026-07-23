@@ -230,6 +230,18 @@ they were considered. Because the surcharge is a household assessment, each
 member's surcharge line already reflects the combined-income family tier. A
 footnote reiterates that the estimate excludes capital gains tax.
 
+Above the build-up tables, the breakdown opens with a **waterfall** of the same
+figures (`taxWaterfallSteps` / `TaxWaterfall`): gross income at full width, each
+concessional-super and tax reduction stepping down as a floating bar, and
+take-home as the remaining bar. Income sits in the positive tone, the
+concessional-super diversion in the salary-sacrifice brand, and every tax
+reduction in the tax (negative) family, all from the shared chart tokens. Income
+tax is drawn net of the Low Income Tax Offset and each nil component is omitted,
+so the reductions sum exactly to take-home. Deductions are not a step — they cut
+taxable income, not cash — so they surface only as a smaller income-tax bar. The
+gross and take-home endpoints are the card's headline figures, so only the
+reductions between them carry a printed amount.
+
 Below the household card sits a **private hospital cover what-if**. It assesses
 the family Medicare levy surcharge as if **neither** member held cover — the "what
 if we drop cover" scenario — over the members' surcharge incomes: it reports the

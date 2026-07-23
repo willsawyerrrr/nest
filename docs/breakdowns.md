@@ -26,7 +26,11 @@ normalised to fortnightly and annual exactly as a budget line is.
   household member who has gift budgets — named "Gifts for &lt;member&gt;" and
   discriminated by `budget_line.gift_recipient_member_id` — plus one line keeping the
   breakdown's own name for all external (non-member) recipients (the null
-  discriminator). Each gift line carries its own recipient partition's total. A
+  discriminator). Each gift line carries its own recipient partition's total and its
+  own budget group: a gift line's group is set per line and preserved across
+  reconcile (the breakdown's group only seeds a brand-new gift line), so
+  "Gifts (others)" can sit in Discretionary while "Gifts for &lt;member&gt;" lines are
+  Wants. A generic line's group instead follows its breakdown. A
   "Gifts for &lt;member&gt;" line is funded automatically from the **buyer's** — the
   other partner's — spending account, not user-configurable; the external line and
   every generic line keep a user-set funding account. A line's amount is read-only
@@ -138,9 +142,10 @@ items live in `gift_budget`).
   recipient partition's line exists iff that partition has ≥ 1 gift budget. Adding
   the first item/budget in a partition creates its line; adding or editing
   items/budgets updates its amount; removing the last removes the line. A generic
-  line's `line_group` and `name` follow the breakdown; a gift line's group follows
-  the breakdown while its name is partition-derived ("Gifts for &lt;member&gt;", or
-  the breakdown's name for the external line). The one exception to removal: a
+  line's `line_group` and `name` follow the breakdown; a gift line's group is
+  per-line and preserved across reconcile (the breakdown's group only seeds a
+  brand-new gift line), while its name is partition-derived ("Gifts for &lt;member&gt;",
+  or the breakdown's name for the external line). The one exception to removal: a
   generic line or the gift external ("others") line whose emptied partition still
   carries a user-set `destination_account_id` keeps its line so its pay-split routing
   is not silently lost — it stays in place (rolling up to $0) until its partition has
@@ -162,10 +167,11 @@ items live in `gift_budget`).
 - **Editable inline.** A derived line's group and funding account edit inline from
   the budget list like a manual line: a generic line's name and group write to the
   owning `breakdown` (the reconcile pass copies them back onto the line); a gift
-  line's name is partition-derived and shows read-only, so only its group flows to
-  the breakdown (shared across all its gift lines) while its name is left untouched.
-  The group choices exclude Savings/Investments, which route via a goal rather than a
-  funding account.
+  line's name is partition-derived and shows read-only, and its group is per-line, so
+  a gift-line edit writes the group straight onto the line and never touches the
+  breakdown — each gift line's group is independent, and changing one leaves the
+  others alone. The group choices exclude Savings/Investments, which route via a goal
+  rather than a funding account.
 - **Funding account.** A generic line and the gift external ("others") line carry a
   user-set `destination_account_id`, edited from a "Funded from" picker. A gift
   member line's funding account is **not** user-configurable: it is auto-derived

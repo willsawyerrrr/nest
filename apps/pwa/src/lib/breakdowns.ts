@@ -116,9 +116,10 @@ function groupRoutesViaGoal(group: Breakdown['line_group']): boolean {
   return group === 'savings' || group === 'investments'
 }
 
-/** The derived-line fields a breakdown drives, at the given routing and any goal link. */
+/** The derived-line fields a breakdown drives, at the given effective group, routing, and any goal link. */
 function derivedInput(
   breakdown: Breakdown,
+  group: Breakdown['line_group'],
   totalCents: number,
   name: string,
   giftRecipientMemberId: string | null,
@@ -126,7 +127,7 @@ function derivedInput(
   line?: BudgetLine,
 ): BudgetLineInput {
   return {
-    line_group: breakdown.line_group,
+    line_group: group,
     name,
     amount_cents: totalCents,
     frequency: 'annual',
@@ -138,10 +139,10 @@ function derivedInput(
   }
 }
 
-/** Whether a derived line has drifted from the name, group, amount, partition, or routing it should carry. */
+/** Whether a derived line has drifted from the name, effective group, amount, partition, or routing it should carry. */
 function lineDrifted(
   line: BudgetLine,
-  breakdown: Breakdown,
+  group: Breakdown['line_group'],
   totalCents: number,
   name: string,
   giftRecipientMemberId: string | null,
@@ -150,7 +151,7 @@ function lineDrifted(
   return (
     line.amount_cents !== totalCents ||
     line.name !== name ||
-    line.line_group !== breakdown.line_group ||
+    line.line_group !== group ||
     line.frequency !== 'annual' ||
     line.interval_count !== null ||
     (line.gift_recipient_member_id ?? null) !== giftRecipientMemberId ||
@@ -160,16 +161,20 @@ function lineDrifted(
 
 /**
  * The funding account a user-routable derived line keeps: its own stored routing,
- * cleared to null under a goal-routed group (which carries no funding account, so
- * a lingering destination would break the DB CHECK).
+ * cleared to null under a goal-routed effective group (which carries no funding
+ * account, so a lingering destination would break the DB CHECK).
  */
-function preservedDestination(breakdown: Breakdown, line: BudgetLine | undefined): string | null {
-  return groupRoutesViaGoal(breakdown.line_group) ? null : (line?.destination_account_id ?? null)
+function preservedDestination(
+  group: Breakdown['line_group'],
+  line: BudgetLine | undefined,
+): string | null {
+  return groupRoutesViaGoal(group) ? null : (line?.destination_account_id ?? null)
 }
 
-/** Queues the create/update to bring one partition's line to the given amount, name, and routing. */
+/** Queues the create/update to bring one partition's line to the given amount, name, effective group, and routing. */
 function reconcilePartition(
   breakdown: Breakdown,
+  group: Breakdown['line_group'],
   totalCents: number,
   name: string,
   giftRecipientMemberId: string | null,
@@ -179,15 +184,16 @@ function reconcilePartition(
 ): void {
   if (!line) {
     ops.create.push(
-      derivedInput(breakdown, totalCents, name, giftRecipientMemberId, destinationAccountId),
+      derivedInput(breakdown, group, totalCents, name, giftRecipientMemberId, destinationAccountId),
     )
   } else if (
-    lineDrifted(line, breakdown, totalCents, name, giftRecipientMemberId, destinationAccountId)
+    lineDrifted(line, group, totalCents, name, giftRecipientMemberId, destinationAccountId)
   ) {
     ops.update.push({
       id: line.id,
       input: derivedInput(
         breakdown,
+        group,
         totalCents,
         name,
         giftRecipientMemberId,
@@ -212,7 +218,11 @@ function giftLineName(
   return memberName ? `Gifts for ${memberName}` : (line?.name ?? breakdown.name)
 }
 
-/** Reconciles a generic breakdown's single derived line against its item roll-up. */
+/**
+ * Reconciles a generic breakdown's single derived line against its item roll-up.
+ * Its effective group is the breakdown's own group, so the line always tracks the
+ * breakdown's group.
+ */
 function reconcileGenericBreakdown(
   breakdown: Breakdown,
   totalCents: number,
@@ -220,12 +230,13 @@ function reconcileGenericBreakdown(
   line: BudgetLine | undefined,
   ops: BreakdownLineOps,
 ): void {
-  const destination = preservedDestination(breakdown, line)
+  const group = breakdown.line_group
+  const destination = preservedDestination(group, line)
   if (itemCount >= 1) {
-    reconcilePartition(breakdown, totalCents, breakdown.name, null, destination, line, ops)
+    reconcilePartition(breakdown, group, totalCents, breakdown.name, null, destination, line, ops)
   } else if (line?.destination_account_id) {
     // No items left, but the line's routing must survive: keep it at $0.
-    reconcilePartition(breakdown, 0, breakdown.name, null, destination, line, ops)
+    reconcilePartition(breakdown, group, 0, breakdown.name, null, destination, line, ops)
   } else if (line) {
     ops.remove.push(line.id)
   }
@@ -234,22 +245,20 @@ function reconcileGenericBreakdown(
 /**
  * The funding account a gift partition's line carries: for a member partition, the
  * buyer's (the other member's) spending account, auto-derived and never user-set,
- * cleared to null under a goal-routed group; for the external ("others") partition,
- * the line's own user-set routing.
+ * cleared to null under a goal-routed effective group; for the external ("others")
+ * partition, the line's own user-set routing.
  */
 function giftPartitionDestination(
-  breakdown: Breakdown,
+  group: Breakdown['line_group'],
   memberKey: string | null,
   line: BudgetLine | undefined,
   members: { id: string }[],
   directory: DirectoryAccount[],
 ): string | null {
   if (memberKey === null) {
-    return preservedDestination(breakdown, line)
+    return preservedDestination(group, line)
   }
-  return groupRoutesViaGoal(breakdown.line_group)
-    ? null
-    : buyerSpendingAccountId(memberKey, members, directory)
+  return groupRoutesViaGoal(group) ? null : buyerSpendingAccountId(memberKey, members, directory)
 }
 
 /**
@@ -258,7 +267,9 @@ function giftPartitionDestination(
  * A member partition's line exists purely while it has budgets, funded
  * automatically from the buyer's spending account; the external partition's line
  * survives an empty partition at $0 while it carries user-set routing. Any other
- * empty partition's line is removed.
+ * empty partition's line is removed. Each partition's effective group is its own
+ * line's group (the breakdown's group only seeds a brand-new partition line), so a
+ * gift line's group is per-line and never overwritten by reconcile.
  */
 function reconcileGiftBreakdown(
   breakdown: Breakdown,
@@ -285,8 +296,10 @@ function reconcileGiftBreakdown(
     const line = lineByKey.get(key)
     const total = totalsByMember.get(key) ?? 0
     const name = giftLineName(breakdown, key, memberNames, line)
-    const destination = giftPartitionDestination(breakdown, key, line, members, directory)
-    reconcilePartition(breakdown, total, name, key, destination, line, ops)
+    // Preserve the line's own group; a brand-new partition line seeds from the breakdown.
+    const group = line?.line_group ?? breakdown.line_group
+    const destination = giftPartitionDestination(group, key, line, members, directory)
+    reconcilePartition(breakdown, group, total, name, key, destination, line, ops)
   }
 
   // Remove a member line once its budgets are gone, and the external line once it
@@ -310,11 +323,17 @@ function reconcileGiftBreakdown(
  * external-recipients line), each tracking its partition total and named
  * "Gifts for <member>" (the breakdown's own name for the external line).
  *
- * - A partition with budgets/items but no line yields a create.
+ * A generic line's group tracks its breakdown's group. A gift line's group is
+ * per-line and preserved across reconcile — the breakdown's group only seeds a
+ * brand-new gift partition line — so each gift line can sit in its own budget group.
+ *
+ * - A partition with budgets/items but no line yields a create (a new gift line
+ *   seeded with the breakdown's group).
  * - A line whose name, group, amount, partition, frequency, or routing has drifted
  *   yields an update, keeping a user-routable line's own routing and goal link (a
  *   goal-routed group clears its funding account) while forcing each gift member
- *   line's routing to the buyer's spending account.
+ *   line's routing to the buyer's spending account. A gift line's group is not
+ *   treated as drift, so changing one gift line's group never touches the others.
  * - A generic or external line with no budgets/items is removed unless it carries a
  *   `destination_account_id`, in which case its routing is preserved and it is kept
  *   at $0; a gift member line is removed as soon as its budgets are gone, since its

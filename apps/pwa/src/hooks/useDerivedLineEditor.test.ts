@@ -47,7 +47,7 @@ describe('useDerivedLineEditor', () => {
     )
   })
 
-  it('leaves a gift member line’s name and auto-funded account untouched, flowing only group', async () => {
+  it('writes a gift member line’s group to the line, leaving name and auto-funded account untouched', async () => {
     const updateBreakdown = vi.fn().mockResolvedValue(undefined)
     const updateLine = vi.fn().mockResolvedValue(undefined)
     const line = makeBudgetLine({
@@ -74,13 +74,10 @@ describe('useDerivedLineEditor', () => {
       })
     })
 
-    // The breakdown keeps its own name; only the group flows.
-    expect(updateBreakdown).toHaveBeenCalledWith('gift', {
-      name: 'Gifts',
-      line_group: 'discretionary',
-    })
-    // The funding account is auto-derived, so the edit's 'acc2' is ignored and the
-    // line keeps its reconcile-owned account.
+    // A gift line's group is per-line, so the breakdown is never touched.
+    expect(updateBreakdown).not.toHaveBeenCalled()
+    // The edited group is written onto the line; its name stays partition-derived
+    // and its auto-derived funding account is kept (the edit's 'acc2' is ignored).
     expect(updateLine).toHaveBeenCalledWith(
       'l1',
       expect.objectContaining({
@@ -88,6 +85,47 @@ describe('useDerivedLineEditor', () => {
         line_group: 'discretionary',
         destination_account_id: 'will-txn',
         gift_recipient_member_id: 'm-sam',
+      }),
+    )
+  })
+
+  it('writes a gift external line’s group to the line and sets its funding account from the edit', async () => {
+    const updateBreakdown = vi.fn().mockResolvedValue(undefined)
+    const updateLine = vi.fn().mockResolvedValue(undefined)
+    const line = makeBudgetLine({
+      id: 'l1',
+      breakdown_id: 'gift',
+      name: 'Gifts',
+      gift_recipient_member_id: null,
+      destination_account_id: 'joint',
+    })
+    const { result } = renderHook(() =>
+      useDerivedLineEditor({
+        lines: [line],
+        breakdowns: [makeBreakdown({ id: 'gift', name: 'Gifts', kind: 'gift' })],
+        updateBreakdown,
+        updateLine,
+      }),
+    )
+
+    await act(async () => {
+      await result.current('l1', {
+        name: 'Anything',
+        line_group: 'discretionary',
+        destination_account_id: 'acc2',
+      })
+    })
+
+    // The external line's group is still per-line (no breakdown write), and its
+    // user-set funding account flows from the edit since it is not auto-derived.
+    expect(updateBreakdown).not.toHaveBeenCalled()
+    expect(updateLine).toHaveBeenCalledWith(
+      'l1',
+      expect.objectContaining({
+        name: 'Gifts',
+        line_group: 'discretionary',
+        destination_account_id: 'acc2',
+        gift_recipient_member_id: null,
       }),
     )
   })

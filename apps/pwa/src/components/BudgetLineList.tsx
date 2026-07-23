@@ -405,7 +405,8 @@ export function BudgetLineList({
                       id: line.id,
                       breakdown_id: breakdown.id,
                       name: isGift ? line.name : breakdown.name,
-                      line_group: breakdown.line_group,
+                      // A gift line owns its own group; a generic line's group is the breakdown's.
+                      line_group: isGift ? line.line_group : breakdown.line_group,
                       destination_account_id: line.destination_account_id,
                       amount_cents: line.amount_cents,
                       frequency: line.frequency,

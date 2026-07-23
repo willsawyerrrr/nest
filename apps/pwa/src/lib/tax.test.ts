@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FY2027_CONFIG } from '@nest/tax'
+import { FY2027_CONFIG, type TaxBreakdown } from '@nest/tax'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
@@ -12,6 +12,9 @@ import {
   deductionsByMember,
   estimateHouseholdTaxFromRows,
   helpDebtCentsByMember,
+  helpPayoffByMember,
+  helpPayoffForBreakdown,
+  helpPayoffSummary,
   netAnnualSuperContributionByMember,
   netAnnualSuperContributionFromRows,
   nonConcessionalByMember,
@@ -532,5 +535,76 @@ describe('netAnnualSuperContributionFromRows', () => {
         'm1',
       ),
     )
+  })
+})
+
+const breakdownWithRepaymentIncome = (repaymentIncomeCents: number): TaxBreakdown => ({
+  taxableIncomeCents: repaymentIncomeCents,
+  incomeTaxCents: 0,
+  litoOffsetCents: 0,
+  medicareLevyCents: 0,
+  medicareLevySurchargeCents: 0,
+  helpRepaymentCents: 0,
+  division293Cents: 0,
+  totalLiabilityCents: 0,
+  paygWithheldCents: 0,
+  balanceCents: 0,
+  repaymentIncomeCents,
+})
+
+describe('helpPayoffForBreakdown', () => {
+  it('projects payoff from the financial year of `now`, holding repayment income constant', () => {
+    const projection = helpPayoffForBreakdown(
+      breakdownWithRepaymentIncome(90_000_00),
+      2_000_00,
+      FY2027_CONFIG,
+      new Date('2026-09-15T00:00:00Z'),
+    )
+    // FY2027: index $2,000 by 3.5% to $2,070, then a $3,070.80 repayment clears it.
+    expect(projection.paidOffFinancialYear).toBe(2027)
+    expect(projection.yearsToPayOff).toBe(1)
+  })
+})
+
+describe('helpPayoffSummary', () => {
+  it('summarises a clearing projection with its year and years-to-go', () => {
+    expect(helpPayoffSummary({ paidOffFinancialYear: 2032, yearsToPayOff: 6, schedule: [] })).toBe(
+      'HELP debt projected paid off in FY2032 (6 years)',
+    )
+    expect(helpPayoffSummary({ paidOffFinancialYear: 2027, yearsToPayOff: 1, schedule: [] })).toBe(
+      'HELP debt projected paid off in FY2027 (1 year)',
+    )
+  })
+
+  it('summarises a projection that does not clear within the horizon', () => {
+    expect(
+      helpPayoffSummary({ paidOffFinancialYear: null, yearsToPayOff: null, schedule: [] }),
+    ).toBe('HELP debt not cleared within 40 years at current income')
+  })
+})
+
+describe('helpPayoffByMember', () => {
+  it('projects only members with a positive HELP balance', () => {
+    const highSalary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 100_000_00,
+    }
+    const helpDebt: HelpDebt = {
+      id: 'hd1',
+      household_id: 'h1',
+      member_id: 'm1',
+      balance_cents: 30_000_00,
+      created_at: '',
+      updated_at: '',
+    }
+    const estimate = estimateHouseholdTaxFromRows([highSalary], [profile], [], [helpDebt])
+    const byMember = helpPayoffByMember(estimate, [helpDebt], FY2027_CONFIG)
+    expect(byMember.has('m1')).toBe(true)
+    expect(byMember.get('m1')?.schedule.length).toBeGreaterThan(0)
+
+    const noDebt = helpPayoffByMember(estimate, [], FY2027_CONFIG)
+    expect(noDebt.size).toBe(0)
   })
 })

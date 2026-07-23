@@ -12,6 +12,7 @@ import {
   lowIncomeTaxOffset,
   medicareLevy,
   medicareLevySurcharge,
+  projectHelpPayoff,
   superCoContribution,
   taxableIncome,
   type AssessableIncome,
@@ -61,6 +62,7 @@ const FIXTURE_CONFIG: TaxYearConfig = {
       { incomeOverCents: 80_000_00, rate: 0.3 },
     ],
     maxRepaymentRate: 0.15,
+    indexationRate: 0.04,
   },
   // Round, made-up super figures (a low $150,000 Division 293 threshold so the
   // fixture can exercise it without needing a huge income).
@@ -294,6 +296,47 @@ describe('helpRepayment', () => {
   })
 })
 
+describe('projectHelpPayoff', () => {
+  it('returns an empty, zero-year projection for a non-positive balance', () => {
+    expect(projectHelpPayoff(0, 60_000_00, FIXTURE_CONFIG, 2027)).toEqual({
+      paidOffFinancialYear: null,
+      yearsToPayOff: 0,
+      schedule: [],
+    })
+    expect(projectHelpPayoff(-1, 60_000_00, FIXTURE_CONFIG, 2027).schedule).toEqual([])
+  })
+
+  it('indexes before crediting the year, exposing both on the first year', () => {
+    const { schedule } = projectHelpPayoff(10_000_00, 60_000_00, FIXTURE_CONFIG, 2027)
+    // Year 1: index $10,000 by 4% = $400 → $10,400, then repay 10% × ($60,000 − $50,000)
+    // = $1,000 against the indexed balance, closing at $9,400.
+    expect(schedule[0]).toEqual({
+      financialYear: 2027,
+      openingBalanceCents: 10_000_00,
+      indexationCents: 400_00,
+      repaymentCents: 1_000_00,
+      closingBalanceCents: 9_400_00,
+    })
+  })
+
+  it('projects the financial year the debt clears', () => {
+    const projection = projectHelpPayoff(3_000_00, 60_000_00, FIXTURE_CONFIG, 2027)
+    expect(projection.paidOffFinancialYear).toBe(2030)
+    expect(projection.yearsToPayOff).toBe(4)
+    expect(projection.schedule).toHaveLength(4)
+    expect(projection.schedule.at(-1)?.closingBalanceCents).toBe(0)
+  })
+
+  it('reports no payoff when indexation outpaces repayment', () => {
+    // Income below the first repayment floor: nil repayment, so the balance only
+    // ever grows with indexation and never clears.
+    const projection = projectHelpPayoff(10_000_00, 40_000_00, FIXTURE_CONFIG, 2027)
+    expect(projection.paidOffFinancialYear).toBeNull()
+    expect(projection.yearsToPayOff).toBeNull()
+    expect(projection.schedule).toHaveLength(1)
+  })
+})
+
 describe('computeTax', () => {
   it('returns a zero liability and a refund below the tax-free threshold', () => {
     const result = computeTax(
@@ -311,6 +354,7 @@ describe('computeTax', () => {
       totalLiabilityCents: 0,
       paygWithheldCents: 1_000_00,
       balanceCents: -1_000_00,
+      repaymentIncomeCents: 15_000_00,
     })
   })
 
@@ -339,6 +383,7 @@ describe('computeTax', () => {
       totalLiabilityCents: 32_550_00,
       paygWithheldCents: 20_000_00,
       balanceCents: 12_550_00,
+      repaymentIncomeCents: 100_000_00,
     })
   })
 
@@ -358,6 +403,7 @@ describe('computeTax', () => {
       totalLiabilityCents: 3_500_00,
       paygWithheldCents: 7_000_00,
       balanceCents: -3_500_00,
+      repaymentIncomeCents: 40_000_00,
     })
   })
 })
@@ -505,6 +551,10 @@ describe('FY2027_CONFIG', () => {
   it('caps HELP at 10% of repayment income for very high earners', () => {
     // $250,000: marginal exceeds the 10% cap, so repayment = 10% × $250,000.
     expect(helpRepayment(250_000_00, 5_000_000_00, FY2027_CONFIG)).toBe(25_000_00)
+  })
+
+  it('carries a provisional HELP indexation rate for the payoff projection', () => {
+    expect(FY2027_CONFIG.helpRepayment.indexationRate).toBe(0.035)
   })
 
   it('gives the maximum LITO below the first taper threshold', () => {

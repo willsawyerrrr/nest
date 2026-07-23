@@ -87,6 +87,7 @@ export const FY2027_CONFIG: TaxYearConfig = {
       { incomeOverCents: 129_717_00, rate: 0.17 }, // over $129,717
     ],
     maxRepaymentRate: 0.1,
+    indexationRate: 0.035, // provisional — HELP indexation (1 June) is min(CPI, WPI); final FY2027 figure set by the ATO in mid-2027
   },
 
   // Superannuation parameters for 2026-27. Concessional contributions reduce

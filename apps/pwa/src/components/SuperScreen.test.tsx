@@ -139,4 +139,33 @@ describe('SuperScreen', () => {
     // Saving returns the member to the read row.
     await waitFor(() => expect(screen.queryByLabelText(/fund name/i)).not.toBeInTheDocument())
   })
+
+  it('returns to the read row on Cancel without saving', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <SuperScreen
+        members={[will]}
+        profiles={[]}
+        accounts={[]}
+        contributions={[]}
+        capSummaries={new Map()}
+        netContributionByMember={new Map()}
+        preservationAge={67}
+        financialYear={2027}
+        onSave={onSave}
+        onCreateContribution={vi.fn()}
+        onUpdateContribution={vi.fn()}
+        onDeleteContribution={vi.fn()}
+      />,
+    )
+
+    // Opening the editor then cancelling drops back to the read row untouched.
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+    expect(screen.getByLabelText(/fund name/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByLabelText(/fund name/i)).not.toBeInTheDocument()
+    expect(onSave).not.toHaveBeenCalled()
+  })
 })

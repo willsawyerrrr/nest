@@ -43,6 +43,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tagged to a member
   for tax) and non-taxable inflows (reimbursement, hobby income, gift, or other —
   the type is a reporting label, excluded from tax and added to available cash).
+  An inflow may carry optional effective-from/until dates (`starts_on` /
+  `ends_on`); the FY tax estimate prorates each rate by its active share of the
+  year (by calendar days), so income that changes mid-year — a pay rise modelled
+  as the old rate ending and a new dated inflow starting — is estimated correctly.
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS

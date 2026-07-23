@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  activeFractionOfFinancialYear,
   computeTax,
   configsByYear,
   division293,
+  financialYearBounds,
   financialYearForDate,
   FY2027_CONFIG,
   helpRepayment,
@@ -112,6 +114,45 @@ describe('financialYearForDate', () => {
   it('labels dates either side of the calendar new year', () => {
     expect(financialYearForDate(new Date('2026-12-31T00:00:00Z'))).toBe(2027)
     expect(financialYearForDate(new Date('2026-01-01T00:00:00Z'))).toBe(2026)
+  })
+})
+
+describe('financialYearBounds', () => {
+  it('spans 1 July of the prior year to 30 June of the label year, in UTC', () => {
+    const { start, end } = financialYearBounds(2027)
+    expect(start.toISOString()).toBe('2026-07-01T00:00:00.000Z')
+    expect(end.toISOString()).toBe('2027-06-30T00:00:00.000Z')
+  })
+})
+
+describe('activeFractionOfFinancialYear', () => {
+  it('returns 1 when both dates are absent (applies all year)', () => {
+    expect(activeFractionOfFinancialYear(undefined, undefined, 2027)).toBe(1)
+  })
+
+  it('returns 1 for a window covering the whole financial year', () => {
+    expect(activeFractionOfFinancialYear('2026-07-01', '2027-06-30', 2027)).toBe(1)
+  })
+
+  it('clamps a window overhanging the financial year on both sides to 1', () => {
+    expect(activeFractionOfFinancialYear('2025-01-01', '2030-01-01', 2027)).toBe(1)
+  })
+
+  it('returns exactly a half for the first half of a leap financial year', () => {
+    // FY2028 (1 Jul 2027 – 30 Jun 2028) is 366 days; 1 Jul–30 Dec 2027 is 183 days.
+    expect(activeFractionOfFinancialYear('2027-07-01', '2027-12-30', 2028)).toBe(0.5)
+  })
+
+  it('returns 0 when the window falls entirely outside the financial year', () => {
+    expect(activeFractionOfFinancialYear('2028-01-01', '2028-02-01', 2027)).toBe(0)
+  })
+
+  it('sums adjacent windows (a pay rise) to the whole financial year', () => {
+    const before = activeFractionOfFinancialYear(undefined, '2026-09-14', 2027)
+    const after = activeFractionOfFinancialYear('2026-09-15', undefined, 2027)
+    expect(before).toBeCloseTo(76 / 365, 12)
+    expect(after).toBeCloseTo(289 / 365, 12)
+    expect(before + after).toBeCloseTo(1, 12)
   })
 })
 

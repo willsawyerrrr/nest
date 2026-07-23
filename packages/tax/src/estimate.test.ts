@@ -350,4 +350,55 @@ describe('estimateHouseholdTax', () => {
       sumOf((m) => m.annualNetConcessionalSuperCents),
     )
   })
+
+  const soloProfile: TaxProfileInput[] = [
+    { memberId: 'm', residency: 'resident', privateHospitalCover: false, helpDebtCents: 0 },
+  ]
+
+  it('leaves undated income at its full annual gross', () => {
+    const household = estimateHouseholdTax(
+      [salary('annual', 100_000_00)],
+      soloProfile,
+      FY2027_CONFIG,
+    )
+    expect(household.annualGrossCents).toBe(100_000_00)
+  })
+
+  it('prorates a mid-year pay rise across two adjacent dated incomes', () => {
+    // FY2027 is 365 days. Old $90k active 1 Jul–14 Sep (76 days), new $100k active
+    // 15 Sep–30 Jun (289 days) — adjacent windows spanning the whole year.
+    const oldRate: IncomeInput = { ...salary('annual', 90_000_00), endsOn: '2026-09-14' }
+    const newRate: IncomeInput = { ...salary('annual', 100_000_00), startsOn: '2026-09-15' }
+    const expected = Math.round((90_000_00 * 76) / 365) + Math.round((100_000_00 * 289) / 365)
+    const household = estimateHouseholdTax([oldRate, newRate], soloProfile, FY2027_CONFIG)
+    expect(household.annualGrossCents).toBe(expected)
+    // The prorated gross lies strictly between the two flat annual rates.
+    expect(household.annualGrossCents).toBeGreaterThan(90_000_00)
+    expect(household.annualGrossCents).toBeLessThan(100_000_00)
+  })
+
+  it('excludes income whose effective window falls entirely outside the year', () => {
+    const stale: IncomeInput = {
+      ...salary('annual', 100_000_00),
+      startsOn: '2025-01-01',
+      endsOn: '2025-06-30',
+    }
+    const household = estimateHouseholdTax([stale], soloProfile, FY2027_CONFIG)
+    expect(household.annualGrossCents).toBe(0)
+  })
+
+  it('prorates "other" income by its effective window too', () => {
+    // Half-year "other" income routes through the otherCents bucket, still prorated.
+    const other: IncomeInput = {
+      memberId: 'm',
+      type: 'other',
+      schedule: 'annual',
+      amountCents: 40_000_00,
+      startsOn: '2027-01-01',
+    }
+    // 1 Jan–30 Jun 2027 is 181 days of the 365-day FY.
+    const expected = Math.round((40_000_00 * 181) / 365)
+    const household = estimateHouseholdTax([other], soloProfile, FY2027_CONFIG)
+    expect(household.annualGrossCents).toBe(expected)
+  })
 })

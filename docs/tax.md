@@ -11,6 +11,20 @@ versioned config per financial year, because AU rates and thresholds change year
   1 Jul 2026 – 30 Jun 2027).
 - Every computed value is scoped to a financial year.
 
+## Effective-dated income
+
+Each inflow may carry an optional effective start (`starts_on`) and/or end
+(`ends_on`) date; both null means it applies for the whole financial year. When
+estimating tax, `estimateHouseholdTax` prorates each income's annual gross by the
+fraction of the financial year its window is active, counted in **inclusive
+calendar days** (`activeFractionOfFinancialYear`). Income that changes partway
+through a year is therefore modelled correctly: a mid-year pay rise is two dated
+inflows — the old rate ending on its last day and the new rate starting the next
+day — and because days are counted inclusively, adjacent windows sum to exactly
+the whole year. The steady-rate `annualGrossCents` is unchanged; it remains the
+per-inflow display figure and the base for percent-of-salary super contributions,
+which apply to the current rate rather than the part-year figure.
+
 ## Inputs (per member, per FY)
 
 - Assessable income: salary/wages, business, investment, other.
@@ -153,7 +167,9 @@ super:
 - Golden-file tests: known taxable incomes → expected liability per FY config.
 - Cover bracket edges, LITO taper, Medicare low-income phase-in, surcharge tiers,
   and HELP thresholds.
-- Non-resident and part-year cases as follow-ups.
+- Effective-dated income: proration by inclusive calendar days, adjacent windows
+  summing to the whole year, and non-overlapping windows contributing nil.
+- Non-resident cases as a follow-up.
 
 ## Presentation
 

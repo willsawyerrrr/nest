@@ -38,6 +38,13 @@ const everyNWeeks = makeInflow({
   amount_cents: 20000,
 })
 
+const datedSalary = makeInflow({
+  id: 'i5',
+  name: 'Old salary',
+  starts_on: '2026-07-01',
+  ends_on: '2026-09-14',
+})
+
 function renderList(inflows: Inflow[]) {
   const onCreate = vi.fn().mockResolvedValue(undefined)
   const onUpdate = vi.fn().mockResolvedValue(undefined)
@@ -82,6 +89,47 @@ describe('InflowList', () => {
     expect(screen.getByText(/\/ fn/)).toBeInTheDocument()
   })
 
+  it('captions an inflow with both effective dates as a date range', () => {
+    renderList([datedSalary])
+    expect(screen.getByText('1 July 2026 – 14 Sept 2026')).toBeInTheDocument()
+  })
+
+  it('captions an open-ended effective start as a from-date', () => {
+    renderList([makeInflow({ id: 'i6', name: 'New salary', starts_on: '2026-09-15' })])
+    expect(screen.getByText('from 15 Sept 2026')).toBeInTheDocument()
+  })
+
+  it('captions an open-ended effective end as an until-date', () => {
+    renderList([makeInflow({ id: 'i7', name: 'Winding down', ends_on: '2027-06-30' })])
+    expect(screen.getByText('until 30 June 2027')).toBeInTheDocument()
+  })
+
+  it('shows no effective-date caption for an all-year inflow', () => {
+    renderList([salary])
+    expect(screen.queryByText(/–|from |until /)).not.toBeInTheDocument()
+  })
+
+  it('renders the effective-date caption in the dense desktop row', () => {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('48em'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+    try {
+      renderList([datedSalary])
+      expect(screen.getByText('1 July 2026 – 14 Sept 2026')).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('renders an every-N-weeks schedule as a friendly label, not the raw enum', () => {
     renderList([everyNWeeks])
 
@@ -108,7 +156,9 @@ describe('InflowList', () => {
 
       const name = screen.getByText('Shifts')
       expect(name.closest('.mantine-Card-root')).toBeNull()
-      const row = name.closest('div')?.parentElement as HTMLElement
+      // The name sits in a Stack (name row + optional effective-date caption)
+      // inside the dense row, so the row is two ancestors up from the name group.
+      const row = name.closest('div')?.parentElement?.parentElement as HTMLElement
       expect(within(row).getByText('$45.00 × 38 hrs')).toBeInTheDocument()
       expect(within(row).getByText('Weekly')).toBeInTheDocument()
       expect(within(row).getByText('Will · Wage')).toBeInTheDocument()

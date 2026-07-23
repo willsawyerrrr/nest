@@ -10,6 +10,7 @@
  */
 
 import {
+  activeFractionOfFinancialYear,
   computeTax,
   type Money,
   type Residency,
@@ -52,6 +53,16 @@ export interface IncomeInput {
    * `schedule`.
    */
   readonly interval?: number
+  /**
+   * First day the income is active (ISO `YYYY-MM-DD`); absent means from the
+   * start of the financial year. Prorates the assessable figure by calendar days.
+   */
+  readonly startsOn?: string
+  /**
+   * Last day the income is active (ISO `YYYY-MM-DD`); absent means through the
+   * end of the financial year. Prorates the assessable figure by calendar days.
+   */
+  readonly endsOn?: string
 }
 
 /** A member's tax attributes: residency, private hospital cover, and HELP debt. */
@@ -173,8 +184,10 @@ interface MemberIncome {
 /**
  * Estimates the household's tax. Incomes are grouped by member and annualised —
  * `salary` and `wage` feed the salary/wages assessable component, `other` the
- * "other" component — then run through the per-person engine with deductions and
- * PAYG withheld nil (estimate-only). A member with income but no profile is
+ * "other" component — each prorated by the fraction of `config.financialYear`
+ * its effective `startsOn`/`endsOn` window is active, then run through the
+ * per-person engine with deductions and PAYG withheld nil (estimate-only). A
+ * member with income but no profile is
  * treated as a cover-less resident with no HELP debt; a member with a profile but
  * no income yields a zero estimate. Household fields are the sum of members'.
  * `concessionalByMember`, when supplied, gives each member's annual concessional
@@ -208,7 +221,15 @@ export function estimateHouseholdTax(
 
   for (const income of incomes) {
     const bucket = note(income.memberId)
-    const annual = annualGrossCents(income)
+    // Prorate the steady-rate annual gross by the share of the financial year the
+    // income is active, so income that starts, ends, or changes mid-year (a pay
+    // rise modelled as two dated inflows) contributes only its part-year amount.
+    const activeFraction = activeFractionOfFinancialYear(
+      income.startsOn,
+      income.endsOn,
+      config.financialYear,
+    )
+    const annual = Math.round(annualGrossCents(income) * activeFraction)
     if (income.type === 'other') {
       bucket.otherCents += annual
     } else {

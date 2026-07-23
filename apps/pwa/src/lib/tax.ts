@@ -38,6 +38,8 @@ export function toIncomeInput(inflow: Inflow): IncomeInput {
     hourlyRateCents: inflow.hourly_rate_cents ?? undefined,
     hoursPerPeriod: inflow.hours_per_period ?? undefined,
     interval: inflow.interval_count ?? undefined,
+    startsOn: inflow.starts_on ?? undefined,
+    endsOn: inflow.ends_on ?? undefined,
   }
 }
 
@@ -139,7 +141,12 @@ export function currentTaxConfig(): TaxYearConfig {
   return configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
 }
 
-/** Per-member annual gross salary from the household's taxable inflows. */
+/**
+ * Per-member annual gross salary from the household's taxable inflows, at the
+ * steady rate (not FY-prorated by effective dates): percent-of-salary super
+ * contributions apply to the current salary rate, not a part-year figure, and
+ * this base also drives the co-contribution income test and employer SG.
+ */
 function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
   const grossByMember = new Map<string, number>()
   for (const inflow of inflows) {

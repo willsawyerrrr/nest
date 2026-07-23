@@ -31,6 +31,8 @@ const baseInflow: Inflow = {
   amount_cents: 300_00,
   hourly_rate_cents: null,
   hours_per_period: null,
+  starts_on: null,
+  ends_on: null,
   created_at: '',
   updated_at: '',
 }
@@ -236,6 +238,45 @@ describe('estimateHouseholdTaxFromRows', () => {
     )
     expect(everyTwoWeeks.annualGrossCents).toBe(fortnightly.annualGrossCents)
     expect(everyTwoWeeks.annualTaxCents).toBe(fortnightly.annualTaxCents)
+  })
+})
+
+describe('estimateHouseholdTaxFromRows effective dates', () => {
+  const oldRate: Inflow = {
+    ...baseInflow,
+    schedule: 'annual',
+    interval_count: null,
+    amount_cents: 90_000_00,
+    ends_on: '2026-09-14',
+  }
+  const newRate: Inflow = {
+    ...baseInflow,
+    id: 'i2',
+    schedule: 'annual',
+    interval_count: null,
+    amount_cents: 100_000_00,
+    starts_on: '2026-09-15',
+  }
+
+  it('prorates a mid-year pay rise across the two dated rates by calendar days', () => {
+    // FY2027 is 365 days: the old rate is active 1 Jul–14 Sep (76 days) and the
+    // new rate 15 Sep–30 Jun (289 days), adjacent windows covering the whole year.
+    const expected = Math.round((90_000_00 * 76) / 365) + Math.round((100_000_00 * 289) / 365)
+    const estimate = estimateHouseholdTaxFromRows([oldRate, newRate], [profile])
+    expect(estimate.annualGrossCents).toBe(expected)
+    // The prorated gross sits strictly between the two flat-rate annual figures.
+    expect(estimate.annualGrossCents).toBeGreaterThan(90_000_00)
+    expect(estimate.annualGrossCents).toBeLessThan(100_000_00)
+  })
+
+  it('leaves undated income at its full steady-rate gross', () => {
+    const undated: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 90_000_00,
+    }
+    expect(estimateHouseholdTaxFromRows([undated], [profile]).annualGrossCents).toBe(90_000_00)
   })
 })
 

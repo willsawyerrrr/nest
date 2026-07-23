@@ -42,7 +42,11 @@ does not restate them.
 - Inflows model: taxable / non-taxable split, member-tagged taxable income,
   schedules from weekly through annual plus an arbitrary "every N weeks" or
   "every N months" cadence (`interval_count`); only taxable inflows feed the tax
-  estimate.
+  estimate. Each inflow may carry optional effective-from/until dates
+  (`starts_on` / `ends_on`); the FY tax estimate prorates each rate by its active
+  share of the year (by calendar days), so income that changes mid-year — a pay
+  rise modelled as the old rate ending and a new dated inflow starting — is
+  estimated correctly.
 - Income + tax-estimate UI: inflow management and the tax view (per-person
   breakdown + household take-home, annual and fortnightly, as per-card tables).
   Each member card shows a full component breakdown — income tax, Low Income Tax

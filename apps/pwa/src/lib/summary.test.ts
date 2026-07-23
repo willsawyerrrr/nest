@@ -17,6 +17,8 @@ function inflow(overrides: Partial<Inflow> = {}): Inflow {
     amount_cents: 100_00,
     hourly_rate_cents: null,
     hours_per_period: null,
+    starts_on: null,
+    ends_on: null,
     created_at: '',
     updated_at: '',
     ...overrides,

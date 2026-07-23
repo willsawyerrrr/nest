@@ -761,6 +761,7 @@ export type Database = {
         Row: {
           amount_cents: number | null
           created_at: string
+          ends_on: string | null
           hourly_rate_cents: number | null
           hours_per_period: number | null
           household_id: string
@@ -769,6 +770,7 @@ export type Database = {
           member_id: string | null
           name: string
           schedule: Database['public']['Enums']['frequency']
+          starts_on: string | null
           taxable: boolean
           type: Database['public']['Enums']['inflow_type']
           updated_at: string
@@ -776,6 +778,7 @@ export type Database = {
         Insert: {
           amount_cents?: number | null
           created_at?: string
+          ends_on?: string | null
           hourly_rate_cents?: number | null
           hours_per_period?: number | null
           household_id: string
@@ -784,6 +787,7 @@ export type Database = {
           member_id?: string | null
           name: string
           schedule: Database['public']['Enums']['frequency']
+          starts_on?: string | null
           taxable?: boolean
           type: Database['public']['Enums']['inflow_type']
           updated_at?: string
@@ -791,6 +795,7 @@ export type Database = {
         Update: {
           amount_cents?: number | null
           created_at?: string
+          ends_on?: string | null
           hourly_rate_cents?: number | null
           hours_per_period?: number | null
           household_id?: string
@@ -799,6 +804,7 @@ export type Database = {
           member_id?: string | null
           name?: string
           schedule?: Database['public']['Enums']['frequency']
+          starts_on?: string | null
           taxable?: boolean
           type?: Database['public']['Enums']['inflow_type']
           updated_at?: string

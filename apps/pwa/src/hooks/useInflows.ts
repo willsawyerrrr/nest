@@ -16,6 +16,8 @@ export interface InflowInput {
   amount_cents: number | null
   hourly_rate_cents: number | null
   hours_per_period: number | null
+  starts_on: string | null
+  ends_on: string | null
 }
 
 export interface UseInflowsResult {

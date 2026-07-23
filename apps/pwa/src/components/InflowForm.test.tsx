@@ -40,6 +40,8 @@ describe('InflowForm', () => {
         amount_cents: 123456,
         hourly_rate_cents: null,
         hours_per_period: null,
+        starts_on: null,
+        ends_on: null,
       }),
     )
   })
@@ -66,6 +68,8 @@ describe('InflowForm', () => {
         amount_cents: null,
         hourly_rate_cents: 4500,
         hours_per_period: 38,
+        starts_on: null,
+        ends_on: null,
       }),
     )
   })
@@ -93,6 +97,8 @@ describe('InflowForm', () => {
         amount_cents: 8000,
         hourly_rate_cents: null,
         hours_per_period: null,
+        starts_on: null,
+        ends_on: null,
       }),
     )
   })
@@ -182,6 +188,8 @@ describe('InflowForm', () => {
         amount_cents: 30000,
         hourly_rate_cents: null,
         hours_per_period: null,
+        starts_on: null,
+        ends_on: null,
       }),
     )
   })
@@ -216,8 +224,36 @@ describe('InflowForm', () => {
         amount_cents: 90000,
         hourly_rate_cents: null,
         hours_per_period: null,
+        starts_on: null,
+        ends_on: null,
       }),
     )
+  })
+
+  it('prefills and carries effective dates through on submit as ISO strings', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const inflow = makeInflow({ starts_on: '2026-09-15', ends_on: '2027-06-30' })
+    render(<InflowForm members={members} initial={inflow} onSubmit={onSubmit} />)
+
+    expect(screen.getByLabelText(/effective from/i)).toHaveValue('15 Sep 2026')
+    expect(screen.getByLabelText(/effective until/i)).toHaveValue('30 Jun 2027')
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ starts_on: '2026-09-15', ends_on: '2027-06-30' }),
+      ),
+    )
+  })
+
+  it('hides the effective-date inputs on the non-taxable branch', async () => {
+    const user = userEvent.setup()
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+
+    expect(screen.getByLabelText(/effective from/i)).toBeInTheDocument()
+    await user.click(screen.getByText('Non-taxable inflow'))
+    expect(screen.queryByLabelText(/effective from/i)).not.toBeInTheDocument()
   })
 
   it('disables submit until required fields are filled', async () => {

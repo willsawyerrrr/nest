@@ -1,5 +1,17 @@
-import { useState } from 'react'
-import { Alert, Card, Divider, Group, NumberInput, Stack, Table, Text } from '@mantine/core'
+import { useState, type ReactNode } from 'react'
+import {
+  Accordion,
+  Alert,
+  Badge,
+  Box,
+  Card,
+  Group,
+  NumberInput,
+  Progress,
+  rem,
+  Stack,
+  Text,
+} from '@mantine/core'
 import {
   familyMedicareLevySurcharge,
   salarySacrificeWhatIf,
@@ -12,11 +24,11 @@ import {
 } from '@nest/tax'
 import { dollarsToCents, moneyColor } from '../lib/money'
 import { helpPayoffSummary } from '../lib/tax'
-import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
 import { MoneyInput } from './MoneyInput'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
+import { BreakdownTable } from './TaxBreakdownTable'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
@@ -39,147 +51,180 @@ interface Row {
   fortnightlyAfterTaxCents: number
 }
 
-/** Fortnights per financial year, for splitting an annual figure. */
-const FORTNIGHTS_PER_YEAR = 26
+/** The whole-percentage split of gross into take-home and tax, or 0/0 when gross is nil. */
+function takeHomeSplit(
+  afterTaxCents: number,
+  grossCents: number,
+): {
+  takeHomePct: number
+  taxPct: number
+} {
+  if (grossCents <= 0) {
+    return { takeHomePct: 0, taxPct: 0 }
+  }
+  const takeHomePct = Math.round((afterTaxCents / grossCents) * 100)
+  return { takeHomePct, taxPct: 100 - takeHomePct }
+}
 
-/** One period's gross/tax/after-tax figures as a table body row headed by the period name. */
-function PeriodRow({
-  period,
-  grossCents,
-  taxCents,
-  afterTaxCents,
-}: {
-  period: string
-  grossCents: number
-  taxCents: number
-  afterTaxCents: number
-}) {
+/** A colour swatch and its labelled share, for the tax-bite bar's mini legend. */
+function LegendItem({ color, label, pct }: { color: string; label: string; pct: number }) {
   return (
-    <Table.Tr>
-      <Table.Th scope="row" c="dimmed">
-        {period}
-      </Table.Th>
-      <Table.Td ta="right">
-        <MoneyText span cents={grossCents} />
-      </Table.Td>
-      <Table.Td ta="right">
-        <MoneyText span cents={taxCents} />
-      </Table.Td>
-      <Table.Td ta="right">
-        <MoneyText span cents={afterTaxCents} />
-      </Table.Td>
-    </Table.Tr>
-  )
-}
-
-/** A single build-up line: its annual amount and the matching fortnightly share. */
-interface ComponentLine {
-  /** Plain-language label, abbreviations spelled out. */
-  label: string
-  annualCents: number
-  /** Reduces the running figure (a deduction or offset): rendered as a negative. */
-  subtract?: boolean
-  /** A core line shown even at zero; others appear only when non-zero. */
-  alwaysShow?: boolean
-  /** The built-up subtotal or total, emphasised. */
-  total?: boolean
-}
-
-/** Whether a line appears: core lines and totals always, others only when non-zero. */
-function isVisible(line: ComponentLine): boolean {
-  return Boolean(line.alwaysShow || line.total || line.annualCents > 0)
-}
-
-/** One line's annual and fortnightly figures as a table body row headed by its label. */
-function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
-  const annual = subtract ? -annualCents : annualCents
-  const fw = total ? 700 : undefined
-  return (
-    <Table.Tr>
-      <Table.Th scope="row" fw={fw} c={total ? undefined : 'dimmed'}>
-        {label}
-      </Table.Th>
-      <Table.Td ta="right" fw={fw}>
-        <MoneyText span cents={annual} />
-      </Table.Td>
-      <Table.Td ta="right" fw={fw}>
-        <MoneyText span cents={Math.round(annual / FORTNIGHTS_PER_YEAR)} />
-      </Table.Td>
-    </Table.Tr>
-  )
-}
-
-/** A labelled table of build-up lines with annual and fortnightly columns. */
-function ComponentTable({ label, lines }: { label: string; lines: ComponentLine[] }) {
-  return (
-    <DataTable label={label}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th />
-          <Table.Th scope="col" ta="right">
-            Annual
-          </Table.Th>
-          <Table.Th scope="col" ta="right">
-            Fortnightly
-          </Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {lines.map((line) => (
-          <ComponentRow key={line.label} {...line} />
-        ))}
-      </Table.Tbody>
-    </DataTable>
+    <Group gap={6} wrap="nowrap">
+      <Box
+        w={10}
+        h={10}
+        style={{ borderRadius: 'var(--mantine-radius-xs)', backgroundColor: color }}
+      />
+      <Text size="xs" c="dimmed" fw={500}>
+        {`${label} ${pct}%`}
+      </Text>
+    </Group>
   )
 }
 
 /**
- * How a member's gross income becomes the taxable income it is taxed on, then how
- * that tax is built up — each figure annual with its fortnightly share. The first
- * table runs gross income down through any pre-tax deduction (concessional super)
- * to taxable income; the second builds the tax back up. Gross income, taxable
- * income, income tax, Medicare levy, and the total always show; the concessional
- * super deduction, Low Income Tax Offset, Medicare levy surcharge, HELP/HECS
- * repayment, and Division 293 tax appear only when they apply, with any omitted tax
- * components named below so a reader knows they were considered and are nil.
+ * A slim horizontal bar splitting gross income into its take-home and tax shares —
+ * take-home in the positive tone, tax in the negative tone — with a small legend
+ * naming each share as a percentage, so the key ratio reads at a glance.
  */
-function BreakdownTable({
-  breakdown,
+function TaxBiteBar({
+  label,
+  afterTaxCents,
   grossCents,
-  concessionalCents,
-  deductionsCents,
 }: {
-  breakdown: TaxBreakdown
+  label: string
+  afterTaxCents: number
   grossCents: number
-  concessionalCents: number
-  deductionsCents: number
 }) {
-  const incomeLines: ComponentLine[] = [
-    { label: 'Gross income', annualCents: grossCents, alwaysShow: true },
-    { label: 'Concessional super', annualCents: concessionalCents, subtract: true },
-    { label: 'Deductions', annualCents: deductionsCents, subtract: true },
-    { label: 'Taxable income', annualCents: breakdown.taxableIncomeCents, total: true },
-  ]
-  const taxLines: ComponentLine[] = [
-    { label: 'Income tax', annualCents: breakdown.incomeTaxCents, alwaysShow: true },
-    { label: 'Low Income Tax Offset', annualCents: breakdown.litoOffsetCents, subtract: true },
-    { label: 'Medicare levy', annualCents: breakdown.medicareLevyCents, alwaysShow: true },
-    { label: 'Medicare levy surcharge', annualCents: breakdown.medicareLevySurchargeCents },
-    { label: 'HELP/HECS repayment', annualCents: breakdown.helpRepaymentCents },
-    { label: 'Division 293 tax', annualCents: breakdown.division293Cents },
-    { label: 'Total tax', annualCents: breakdown.totalLiabilityCents, total: true },
-  ]
-  const omitted = taxLines.filter((line) => !isVisible(line))
-
+  const { takeHomePct, taxPct } = takeHomeSplit(afterTaxCents, grossCents)
   return (
-    <Stack gap="xs">
-      <ComponentTable label="Taxable income" lines={incomeLines.filter(isVisible)} />
-      <ComponentTable label="Tax breakdown" lines={taxLines.filter(isVisible)} />
-      {omitted.length > 0 && (
+    <Stack gap={6}>
+      <Progress.Root size="lg" radius="sm" aria-label={`${label} take-home versus tax`}>
+        <Progress.Section value={takeHomePct} color="positive" />
+        <Progress.Section value={taxPct} color="negative" />
+      </Progress.Root>
+      <Group gap="lg" wrap="nowrap">
+        <LegendItem
+          color="var(--mantine-color-positive-filled)"
+          label="Take-home"
+          pct={takeHomePct}
+        />
+        <LegendItem color="var(--mantine-color-negative-filled)" label="Tax" pct={taxPct} />
+      </Group>
+    </Stack>
+  )
+}
+
+/** A supporting figure: a dimmed label over its fortnightly amount, with the annual beneath. */
+function SupportFigure({
+  label,
+  fortnightlyCents,
+  annualCents,
+}: {
+  label: string
+  fortnightlyCents: number
+  annualCents: number
+}) {
+  return (
+    <Stack gap={0} style={{ minWidth: 0 }}>
+      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+        {label}
+      </Text>
+      <Group gap={4} align="baseline" wrap="nowrap">
+        <MoneyText cents={fortnightlyCents} fw={600} size="sm" />
         <Text size="xs" c="dimmed">
-          Not applicable this year: {omitted.map((line) => line.label).join(', ')}.
+          / fn
         </Text>
-      )}
+      </Group>
+      <Text size="xs" c="dimmed">
+        <MoneyText span cents={annualCents} /> / year
+      </Text>
+    </Stack>
+  )
+}
+
+/**
+ * The card's headline: the take-home pay led by the fortnightly figure (the app's
+ * primary cadence) in large display type, the annual beneath as a dimmed
+ * secondary, with gross and total tax as smaller supporting figures alongside.
+ */
+function HeroFigures({ row }: { row: Row }) {
+  return (
+    <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
+      <Stack gap={0} style={{ minWidth: 0 }}>
+        <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+          Take-home
+        </Text>
+        <Group gap={6} align="baseline" wrap="nowrap">
+          <MoneyText
+            cents={row.fortnightlyAfterTaxCents}
+            fw={700}
+            lh={1.1}
+            fz={rem(30)}
+            style={{ fontFamily: 'var(--mantine-font-family-headings)' }}
+          />
+          <Text size="sm" c="dimmed">
+            / fn
+          </Text>
+        </Group>
+        <Text size="sm" c="dimmed">
+          <MoneyText span cents={row.annualAfterTaxCents} /> / year
+        </Text>
+      </Stack>
+      <Group gap="xl" wrap="wrap">
+        <SupportFigure
+          label="Gross"
+          fortnightlyCents={row.fortnightlyGrossCents}
+          annualCents={row.annualGrossCents}
+        />
+        <SupportFigure
+          label="Total tax"
+          fortnightlyCents={row.fortnightlyTaxCents}
+          annualCents={row.annualTaxCents}
+        />
+      </Group>
+    </Group>
+  )
+}
+
+/**
+ * A subtly brand-accented panel that frames an interactive what-if tool, marking
+ * it off from the read-only figures around it. A "What-if" badge and the tool's
+ * title head the panel; `component` and `aria-label` let it stand as a landmark
+ * region when the tool is its own top-level card.
+ */
+function WhatIfPanel({
+  title,
+  component = 'div',
+  'aria-label': ariaLabel,
+  children,
+}: {
+  title: string
+  component?: 'div' | 'section'
+  'aria-label'?: string
+  children: ReactNode
+}) {
+  return (
+    <Stack
+      component={component}
+      aria-label={ariaLabel}
+      gap="xs"
+      p="sm"
+      style={{
+        borderRadius: 'var(--mantine-radius-md)',
+        borderLeft: '3px solid var(--mantine-color-brand-5)',
+        backgroundColor: 'var(--mantine-primary-color-light)',
+      }}
+    >
+      <Group gap="xs" wrap="nowrap">
+        <Badge color="brand" variant="light" size="xs">
+          What-if
+        </Badge>
+        <Text fw={600} size="sm">
+          {title}
+        </Text>
+      </Group>
+      {children}
     </Stack>
   )
 }
@@ -213,11 +258,7 @@ function SalarySacrificePanel({
     currentConcessionalCents + extraCents > concessionalCapCents
 
   return (
-    <Stack gap="xs">
-      <Divider />
-      <Text fw={600} size="sm">
-        Salary sacrifice what-if
-      </Text>
+    <WhatIfPanel title="Salary sacrifice">
       <MoneyInput
         label="Extra salary sacrifice per year"
         size="sm"
@@ -257,16 +298,17 @@ function SalarySacrificePanel({
           )}
         </Stack>
       )}
-    </Stack>
+    </WhatIfPanel>
   )
 }
 
 /**
- * One row's annual and fortnightly gross/tax/after-tax figures as a compact table.
- * When `breakdown` is given, the income build-up down to taxable income and the
- * component-by-component build-up of the tax are shown above it; `grossCents` and
- * `concessionalCents` feed that income build-up. When `input` and `config` are
- * given, an interactive salary-sacrifice what-if follows the summary.
+ * One member's (or the household's) tax estimate card, led by the take-home
+ * headline, gross and total tax supporting figures, and a take-home-versus-tax
+ * bar. When `breakdown` is given, the full income and tax build-up sits behind a
+ * collapsed "Show breakdown" accordion; `grossCents` and `concessionalCents` feed
+ * that build-up. When `input` and `config` are given, an interactive salary-
+ * sacrifice what-if follows.
  */
 function FiguresCard({
   name,
@@ -290,52 +332,39 @@ function FiguresCard({
   helpPayoff?: HelpPayoffProjection
 }) {
   return (
-    <Card component="section" aria-label={name} withBorder radius="md" p="sm">
-      <Stack gap="xs">
+    <Card component="section" aria-label={name} withBorder radius="md" p="md">
+      <Stack gap="sm">
         <Text fw={600}>{name}</Text>
-        {breakdown && (
-          <BreakdownTable
-            breakdown={breakdown}
-            grossCents={row.annualGrossCents}
-            concessionalCents={concessionalCents}
-            deductionsCents={deductionsCents}
-          />
-        )}
+        <HeroFigures row={row} />
+        <TaxBiteBar
+          label={name}
+          afterTaxCents={row.annualAfterTaxCents}
+          grossCents={row.annualGrossCents}
+        />
         {helpPayoff && (
           <Text size="xs" c="dimmed">
             {helpPayoffSummary(helpPayoff)}
           </Text>
         )}
-        <DataTable label="Income and tax summary">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th />
-              <Table.Th scope="col" ta="right">
-                Gross
-              </Table.Th>
-              <Table.Th scope="col" ta="right">
-                Tax
-              </Table.Th>
-              <Table.Th scope="col" ta="right">
-                After tax
-              </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            <PeriodRow
-              period="Annual"
-              grossCents={row.annualGrossCents}
-              taxCents={row.annualTaxCents}
-              afterTaxCents={row.annualAfterTaxCents}
-            />
-            <PeriodRow
-              period="Fortnightly"
-              grossCents={row.fortnightlyGrossCents}
-              taxCents={row.fortnightlyTaxCents}
-              afterTaxCents={row.fortnightlyAfterTaxCents}
-            />
-          </Table.Tbody>
-        </DataTable>
+        {breakdown && (
+          <Accordion chevronPosition="right" styles={{ content: { paddingInline: 0 } }}>
+            <Accordion.Item value="breakdown" style={{ border: 'none' }}>
+              <Accordion.Control px={0}>
+                <Text size="sm" fw={600}>
+                  Show breakdown
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <BreakdownTable
+                  breakdown={breakdown}
+                  grossCents={row.annualGrossCents}
+                  concessionalCents={concessionalCents}
+                  deductionsCents={deductionsCents}
+                />
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
+        )}
         {input && config && (
           <SalarySacrificePanel
             input={input}
@@ -386,61 +415,62 @@ function MlsWhatIf({
   const savingCents = surchargeCents - premiumCents
 
   return (
-    <Card component="section" aria-label="Private hospital cover" withBorder radius="md" p="sm">
-      <Stack gap="xs">
-        <Text fw={600}>Private hospital cover vs the Medicare levy surcharge</Text>
-        <Group grow align="flex-start">
-          <NumberInput
-            label="Dependent children"
-            size="sm"
-            min={0}
-            step={1}
-            allowDecimal={false}
-            allowNegative={false}
-            value={dependentChildren}
-            onChange={(value) => setDependentChildren(typeof value === 'number' ? value : 0)}
-          />
-          <MoneyInput
-            label="Hospital cover premium ($/yr)"
-            size="sm"
-            min={0}
-            hideControls
-            value={premiumDollars}
-            onChange={setPremiumDollars}
-          />
-        </Group>
-        {result.tierRate === 0 ? (
-          <Text size="sm" c="dimmed">
-            Below the family MLS threshold — no surcharge applies.
+    <WhatIfPanel
+      component="section"
+      aria-label="Private hospital cover"
+      title="Private hospital cover vs the Medicare levy surcharge"
+    >
+      <Group grow align="flex-start">
+        <NumberInput
+          label="Dependent children"
+          size="sm"
+          min={0}
+          step={1}
+          allowDecimal={false}
+          allowNegative={false}
+          value={dependentChildren}
+          onChange={(value) => setDependentChildren(typeof value === 'number' ? value : 0)}
+        />
+        <MoneyInput
+          label="Hospital cover premium ($/yr)"
+          size="sm"
+          min={0}
+          hideControls
+          value={premiumDollars}
+          onChange={setPremiumDollars}
+        />
+      </Group>
+      {result.tierRate === 0 ? (
+        <Text size="sm" c="dimmed">
+          Below the family MLS threshold — no surcharge applies.
+        </Text>
+      ) : (
+        <Stack gap={4}>
+          <Text size="sm">
+            Without hospital cover: combined income{' '}
+            <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}
+            {formatPercent(result.tierRate)} MLS tier ={' '}
+            <MoneyText span fw={600} cents={surchargeCents} />
+            /yr surcharge.
           </Text>
-        ) : (
-          <Stack gap={4}>
-            <Text size="sm">
-              Without hospital cover: combined income{' '}
-              <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}
-              {formatPercent(result.tierRate)} MLS tier ={' '}
-              <MoneyText span fw={600} cents={surchargeCents} />
-              /yr surcharge.
+          {premiumCents > 0 && (
+            <Text size="sm" c={moneyColor(savingCents)}>
+              {savingCents > 0 ? (
+                <>
+                  Hospital cover saves <MoneyText span cents={savingCents} />
+                  /yr over paying the surcharge.
+                </>
+              ) : (
+                <>
+                  Hospital cover costs <MoneyText span cents={-savingCents} />
+                  /yr more than the surcharge.
+                </>
+              )}
             </Text>
-            {premiumCents > 0 && (
-              <Text size="sm" c={moneyColor(savingCents)}>
-                {savingCents > 0 ? (
-                  <>
-                    Hospital cover saves <MoneyText span cents={savingCents} />
-                    /yr over paying the surcharge.
-                  </>
-                ) : (
-                  <>
-                    Hospital cover costs <MoneyText span cents={-savingCents} />
-                    /yr more than the surcharge.
-                  </>
-                )}
-              </Text>
-            )}
-          </Stack>
-        )}
-      </Stack>
-    </Card>
+          )}
+        </Stack>
+      )}
+    </WhatIfPanel>
   )
 }
 

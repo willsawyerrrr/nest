@@ -1,11 +1,19 @@
-import { Card, Stack, Table, Text, Title } from '@mantine/core'
-import type { HouseholdTaxEstimate, TaxBreakdown } from '@nest/tax'
-import { formatCents } from '../lib/money'
+import { useState } from 'react'
+import { Card, Group, NumberInput, Stack, Table, Text, Title } from '@mantine/core'
+import {
+  familyMedicareLevySurcharge,
+  type HouseholdTaxEstimate,
+  type MemberTaxEstimate,
+  type TaxBreakdown,
+  type TaxYearConfig,
+} from '@nest/tax'
+import { dollarsToCents, formatCents, moneyColor } from '../lib/money'
 
 interface TaxEstimateViewProps {
   estimate: HouseholdTaxEstimate
   financialYear: number
   memberName: (memberId: string) => string
+  config: TaxYearConfig
 }
 
 interface Row {
@@ -231,8 +239,103 @@ function FiguresCard({
   )
 }
 
+/** Formats a fractional rate as a trimmed percentage (0.0125 → `1.25%`, 0.01 → `1%`). */
+function formatPercent(rate: number): string {
+  return `${Number.parseFloat((rate * 100).toFixed(2))}%`
+}
+
+/**
+ * A household-level Medicare levy surcharge "what-if". It assesses the surcharge
+ * as if NEITHER member held private hospital cover — the "what if we drop cover"
+ * scenario — running each member's surcharge income through the family MLS math
+ * against the family thresholds (raised per dependent child). Against an entered
+ * annual policy premium it reports whether cover saves money or costs more than the
+ * surcharge it avoids. Dependent-children and premium inputs are ephemeral (local
+ * state only, never persisted).
+ */
+function MlsWhatIf({
+  members,
+  config,
+}: {
+  members: readonly MemberTaxEstimate[]
+  config: TaxYearConfig
+}) {
+  const [dependentChildren, setDependentChildren] = useState(0)
+  const [premiumDollars, setPremiumDollars] = useState<number | string>(0)
+
+  const result = familyMedicareLevySurcharge(
+    members.map((member) => ({
+      incomeForSurchargeCents: member.breakdown.incomeForSurchargeCents,
+      hasPrivateHospitalCover: false,
+    })),
+    dependentChildren,
+    config,
+  )
+  const premiumCents = dollarsToCents(premiumDollars) ?? 0
+  const surchargeCents = result.totalSurchargeCents
+  const savingCents = surchargeCents - premiumCents
+
+  return (
+    <Card component="section" aria-label="Private hospital cover" withBorder radius="md" p="sm">
+      <Stack gap="xs">
+        <Text fw={600}>Private hospital cover vs the Medicare levy surcharge</Text>
+        <Group grow align="flex-start">
+          <NumberInput
+            label="Dependent children"
+            min={0}
+            step={1}
+            allowDecimal={false}
+            allowNegative={false}
+            value={dependentChildren}
+            onChange={(value) => setDependentChildren(typeof value === 'number' ? value : 0)}
+          />
+          <NumberInput
+            label="Hospital cover premium ($/yr)"
+            min={0}
+            step={100}
+            prefix="$"
+            thousandSeparator=","
+            allowNegative={false}
+            value={premiumDollars}
+            onChange={setPremiumDollars}
+          />
+        </Group>
+        {result.tierRate === 0 ? (
+          <Text size="sm" c="dimmed">
+            Below the family MLS threshold — no surcharge applies.
+          </Text>
+        ) : (
+          <Stack gap={4}>
+            <Text size="sm">
+              Without hospital cover: combined income{' '}
+              {formatCents(result.combinedIncomeForSurchargeCents)} is in the{' '}
+              {formatPercent(result.tierRate)} MLS tier ={' '}
+              <Text span fw={600}>
+                {formatCents(surchargeCents)}/yr
+              </Text>{' '}
+              surcharge.
+            </Text>
+            {premiumCents > 0 && (
+              <Text size="sm" c={moneyColor(savingCents)}>
+                {savingCents > 0
+                  ? `Hospital cover saves ${formatCents(savingCents)}/yr over paying the surcharge.`
+                  : `Hospital cover costs ${formatCents(-savingCents)}/yr more than the surcharge.`}
+              </Text>
+            )}
+          </Stack>
+        )}
+      </Stack>
+    </Card>
+  )
+}
+
 /** Presentational household tax estimate: household and per-member annual/fortnightly figures. */
-export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEstimateViewProps) {
+export function TaxEstimateView({
+  estimate,
+  financialYear,
+  memberName,
+  config,
+}: TaxEstimateViewProps) {
   return (
     <Stack gap="md">
       <Title order={2} visibleFrom="sm">
@@ -246,6 +349,7 @@ export function TaxEstimateView({ estimate, financialYear, memberName }: TaxEsti
       ) : (
         <Stack gap="sm">
           <FiguresCard name="Household" row={estimate} />
+          <MlsWhatIf members={estimate.members} config={config} />
           {estimate.members.map((member) => (
             <FiguresCard
               key={member.memberId}

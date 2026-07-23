@@ -76,7 +76,7 @@ export interface MedicareLevySurchargeConfig {
 export interface MedicareLevySurchargeTier {
   /** Single income floor above which this tier's `rate` applies. */
   readonly incomeOverCents: Money
-  /** Family income floor for the same tier; carried for household modelling. */
+  /** Family income floor for the same tier, used by the family MLS assessment. */
   readonly familyIncomeOverCents: Money
   readonly rate: number
 }
@@ -174,6 +174,13 @@ export interface TaxInput {
    * is treated as nil.
    */
   readonly concessionalContributionsCents?: Money
+  /**
+   * A pre-computed Medicare levy surcharge to use for this member instead of the
+   * per-person assessment. The household layer sets it so the surcharge line and
+   * total reflect the family-income assessment (see `familyMedicareLevySurcharge`);
+   * absent, `computeTax` assesses the surcharge per person from this input.
+   */
+  readonly medicareLevySurchargeCentsOverride?: Money
 }
 
 /**
@@ -186,6 +193,12 @@ export interface TaxInput {
  */
 export interface TaxBreakdown {
   readonly taxableIncomeCents: Money
+  /**
+   * Income for Medicare levy surcharge purposes — taxable income plus reportable
+   * (concessional) super contributions. The per-person surcharge is assessed on
+   * it, and it is the base a household-level MLS what-if sums across members.
+   */
+  readonly incomeForSurchargeCents: Money
   readonly incomeTaxCents: Money
   readonly litoOffsetCents: Money
   readonly medicareLevyCents: Money
@@ -340,6 +353,77 @@ export function medicareLevySurcharge(
   return roundCents(incomeForSurchargeCents * rate)
 }
 
+/** One member's inputs to the family Medicare levy surcharge assessment. */
+export interface FamilyMlsMember {
+  readonly incomeForSurchargeCents: Money
+  readonly hasPrivateHospitalCover: boolean
+}
+
+/**
+ * The outcome of a family Medicare levy surcharge assessment. `tierRate` is the
+ * single rate the combined family income selects; `thresholdCents` is the family
+ * floor it was compared against (the selected tier's, or the lowest tier's when no
+ * surcharge applies). `perMemberSurchargeCents` is aligned to the input order, nil
+ * for a member who holds cover; `totalSurchargeCents` sums it.
+ */
+export interface FamilyMlsResult {
+  readonly combinedIncomeForSurchargeCents: Money
+  readonly tierRate: number
+  readonly thresholdCents: Money
+  readonly perMemberSurchargeCents: readonly Money[]
+  readonly totalSurchargeCents: Money
+}
+
+/**
+ * Assesses the Medicare levy surcharge across a household. The tier RATE is chosen
+ * by the members' COMBINED surcharge income against the FAMILY thresholds, each
+ * tier's effective family floor being `familyIncomeOverCents` plus
+ * `familyDependentChildIncrementCents` for every dependent child after the first.
+ * A member is liable only when they lack cover; when liable, their surcharge is
+ * their OWN income at the family-selected rate (a per-person base, family-selected
+ * rate), rounded to whole cents. A single-member household with no dependent
+ * children falls back to the single-person floors, so the helper is correct for
+ * both shapes. Nil rate and nil total when combined income is at or below the
+ * lowest applicable floor.
+ */
+export function familyMedicareLevySurcharge(
+  members: readonly FamilyMlsMember[],
+  dependentChildren: number,
+  config: TaxYearConfig,
+): FamilyMlsResult {
+  const { tiers, familyDependentChildIncrementCents } = config.medicareLevySurcharge
+  const useSingleFloors = members.length === 1 && dependentChildren === 0
+  const increment = Math.max(0, dependentChildren - 1) * familyDependentChildIncrementCents
+  const floorOf = (tier: MedicareLevySurchargeTier): Money =>
+    useSingleFloors ? tier.incomeOverCents : tier.familyIncomeOverCents + increment
+
+  const combinedIncomeForSurchargeCents = members.reduce(
+    (total, member) => total + member.incomeForSurchargeCents,
+    0,
+  )
+
+  let tierRate = 0
+  let thresholdCents = tiers.length > 0 ? floorOf(tiers[0]!) : 0
+  for (const tier of tiers) {
+    if (combinedIncomeForSurchargeCents <= floorOf(tier)) break
+    tierRate = tier.rate
+    thresholdCents = floorOf(tier)
+  }
+
+  const perMemberSurchargeCents = members.map((member) =>
+    member.hasPrivateHospitalCover ? 0 : roundCents(member.incomeForSurchargeCents * tierRate),
+  )
+  const totalSurchargeCents = perMemberSurchargeCents.reduce((total, cents) => total + cents, 0)
+
+  return {
+    combinedIncomeForSurchargeCents,
+    tierRate,
+    thresholdCents,
+    perMemberSurchargeCents,
+    totalSurchargeCents,
+  }
+}
+
 /**
  * Computes the compulsory HELP/HECS repayment, capped at the outstanding debt.
  * Marginal across `marginalBands`, then limited to `maxRepaymentRate` of the
@@ -426,7 +510,10 @@ export function superCoContribution(
  * Offsets reduce tax payable but not below zero, and never reduce the levies.
  * Concessional super contributions reduce taxable income (so they lower income
  * tax, LITO, and the Medicare levy) but are added back for the surcharge and HELP
- * repayment income, and may attract Division 293.
+ * repayment income, and may attract Division 293. When
+ * `medicareLevySurchargeCentsOverride` is set, that surcharge is used in the line
+ * and total in place of the per-person assessment, letting the household layer
+ * assess the surcharge on combined family income.
  */
 export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown {
   const concessionalCents = input.concessionalContributionsCents ?? 0
@@ -438,11 +525,11 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
   // Reportable concessional contributions are added back for the surcharge and
   // HELP repayment income (they add back reportable super contributions).
   const incomeWithSuperCents = taxableIncomeCents + concessionalCents
-  const medicareLevySurchargeCents = medicareLevySurcharge(
-    incomeWithSuperCents,
-    input.privateHospitalCover,
-    config,
-  )
+  // The household layer may inject a family-income-assessed surcharge; otherwise
+  // the surcharge is assessed per person from this member's income and cover.
+  const medicareLevySurchargeCents =
+    input.medicareLevySurchargeCentsOverride ??
+    medicareLevySurcharge(incomeWithSuperCents, input.privateHospitalCover, config)
   const helpRepaymentCents = helpRepayment(incomeWithSuperCents, input.helpDebtCents, config)
   const division293Cents = division293(taxableIncomeCents, concessionalCents, config)
   const totalLiabilityCents =
@@ -454,6 +541,7 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
   const balanceCents = totalLiabilityCents - input.paygWithheldCents
   return {
     taxableIncomeCents,
+    incomeForSurchargeCents: incomeWithSuperCents,
     incomeTaxCents,
     litoOffsetCents,
     medicareLevyCents,

@@ -46,9 +46,21 @@ which apply to the current rate rather than the part-year figure.
 3. **Offsets** — subtract e.g. Low Income Tax Offset (LITO). Offsets reduce tax
    payable but not below zero.
 4. **Medicare levy** — base rate (2%) with low-income reduction thresholds.
-5. **Medicare levy surcharge** — income-tested; applies only without private
-   hospital cover and above the surcharge threshold. Surcharge income adds the
-   concessional super contributions back to taxable income.
+5. **Medicare levy surcharge** — assessed on the household's **combined** income,
+   not per person. The tier rate is chosen by summed surcharge income against the
+   **family** thresholds (each tier's family floor raised by
+   `family_dependent_child_increment_cents` for every dependent child after the
+   first); a member then pays that rate on their **own** surcharge income, and is
+   exempt only if they themselves hold private hospital cover — so both partners
+   must be covered to avoid it entirely. A single-member household falls back to
+   the single-person thresholds. Surcharge income adds the concessional super
+   contributions back to taxable income. The engine assesses this in two passes at
+   the household layer (`estimateHouseholdTax`): a first pass computes each
+   member's surcharge income, the family assessment (`familyMedicareLevySurcharge`)
+   picks the rate, and a second pass injects each member's surcharge via
+   `computeTax`'s `medicareLevySurchargeCentsOverride`. The live estimate assumes
+   **no dependent children** (there is no persisted field); the Tax tab's what-if
+   panel lets the household explore other counts.
 6. **HELP/HECS repayment** — income-tested compulsory repayment on repayment
    income (which likewise adds concessional super contributions back). From
    1 July 2025 (FY2026 onward) it is **marginal**: a rate applies to repayment
@@ -125,7 +137,8 @@ medicare_levy:
   low_income_threshold_cents: ...
   phase_in_rate: 0.10
 medicare_levy_surcharge:
-  tiers: [ { income_over_cents, rate } ]
+  tiers: [ { income_over_cents, family_income_over_cents, rate } ]
+  family_dependent_child_increment_cents: ...   # +per dependent child after the first
 lito:
   max_offset_cents: ...
   taper_rules: [ ... ]
@@ -180,8 +193,21 @@ surcharge, the HELP/HECS repayment, and Division 293 tax — culminating in the
 total tax, then the gross → less super → less tax → take-home framing. Income
 tax, the Medicare levy, and the total always show; the optional components appear
 only when they apply, with any nil components named beneath so a reader knows
-they were considered. A footnote reiterates that the estimate excludes capital
-gains tax.
+they were considered. Because the surcharge is a household assessment, each
+member's surcharge line already reflects the combined-income family tier. A
+footnote reiterates that the estimate excludes capital gains tax.
+
+Below the household card sits a **private hospital cover what-if**. It assesses
+the family Medicare levy surcharge as if **neither** member held cover — the "what
+if we drop cover" scenario — over the members' surcharge incomes: it reports the
+combined income, the family tier rate it selects, and the resulting annual
+household surcharge. Against an entered annual policy premium it reports whether
+cover saves money (surcharge avoided exceeds the premium) or costs more than the
+surcharge it avoids, and it shows "below the family MLS threshold" when combined
+income is under the floor (so cover is not justified by the surcharge alone). Its
+two inputs — a dependent-children count (raising the family floor per child after
+the first) and the annual premium — are **ephemeral** local UI state, never
+persisted.
 
 ## Out of scope (initially)
 

@@ -6,7 +6,7 @@ import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
-import { estimateHouseholdTaxFromRows } from '../lib/tax'
+import { currentTaxConfig, estimateHouseholdTaxFromRows } from '../lib/tax'
 
 export function TaxSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
@@ -42,6 +42,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
       estimate={estimate}
       financialYear={taxProfiles.financialYear}
       memberName={memberName}
+      config={currentTaxConfig()}
     />
   )
 }

@@ -267,6 +267,25 @@ way, sourced at runtime from GitHub for the private repo.
       the PWA to the latest deployed version (activates a waiting service worker,
       then clears caches, unregisters, and hard-reloads as an iOS-safe fallback).
 
+### Medicare levy surcharge — family assessment & what-if (complete)
+
+The Medicare levy surcharge modelled as the household assessment it is, plus a
+what-if that weighs private hospital cover against the surcharge it avoids.
+
+- [x] Family-aware MLS math in `@nest/tax` (`familyMedicareLevySurcharge`): the
+      tier rate is chosen by combined surcharge income against the family
+      thresholds (each raised per dependent child after the first), and each member
+      pays their own income at that rate unless they hold cover; a single-member
+      household falls back to the single-person thresholds.
+- [x] Live estimate assessed family-based: `estimateHouseholdTax` runs a two-pass
+      assessment (per-member first pass, family surcharge, then a second pass
+      injecting it via `computeTax`'s `medicareLevySurchargeCentsOverride`), so
+      each member's surcharge line and total reflect combined income. The live
+      estimate assumes no dependent children (no persisted field).
+- [x] Tax-tab what-if panel under the household card: assesses the surcharge as if
+      neither member held cover, over ephemeral dependent-children and annual-premium
+      inputs, and reports whether cover saves money or costs more than the surcharge.
+
 ## Later
 
 Uncommitted work, roughly ordered by likelihood of being picked up.
@@ -596,25 +615,6 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
   saved" figure overstates. Div 293 for high earners is an edge case worth
   flagging in the comparison.
 
-#### 13. Medicare levy surcharge tiers & private-health what-if
-
-- **What / value.** The config already sketches MLS `tiers`. Add a what-if:
-  "without private hospital cover, your combined-income MLS tier is X% = $Y/yr —
-  compare to a $Z/yr policy premium" so the household can decide whether hospital
-  cover actually pays for itself. AU-specific, couple-specific (MLS uses combined
-  family income above the family threshold), and genuinely actionable.
-- **Effort.** S–M — the surcharge computation exists; add the family-income
-  threshold logic and a comparison UI.
-- **Touches.** Tax engine + config (family thresholds); pure package; a Tax-tab
-  panel. No external API.
-- **Dependencies.** Tax engine (done). The `has_private_health` flag already
-  exists on `TaxProfile`.
-- **Feasibility / risks.** MLS for a couple is tested on _combined_ family
-  income against a family threshold (raised per dependent child) — different
-  from the per-person assessment the rest of the engine uses; needs a
-  household-level pass over both members. Also interacts with the private-health
-  rebate (income-tested), which could be modelled together.
-
 #### 14. Inflow → budget-category netting
 
 - **What / value.** Already named as a deferred enhancement in the Product
@@ -716,9 +716,9 @@ Ranked for value-to-effort against this specific household's setup:
    directly useful to this user. Provider-abstract it (PagerDuty/Opsgenie).
 3. **Payslip / PAYG manual entry (2)** — unlocks actual-tax-paid tracking with
    _no_ external dependency, filling an input the tax engine already consumes.
-4. **HELP indexation + salary-sacrifice/MLS tax refinements (11, 12, 13)** —
-   cheap, pure-package extensions of already-shipped tax code with high dollar
-   relevance to a dual-income AU household with HELP debt.
+4. **HELP indexation + salary-sacrifice tax refinements (11, 12)** — cheap,
+   pure-package extensions of already-shipped tax code with high dollar relevance
+   to a dual-income AU household with HELP debt.
 5. **Push notifications (8)** — makes the installed PWA proactive (negative
    buffer, goal slippage, deposit landed); most of its triggers work on today's
    data, the rest arrive with ingestion.

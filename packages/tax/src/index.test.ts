@@ -4,6 +4,7 @@ import {
   computeTax,
   configsByYear,
   division293,
+  familyMedicareLevySurcharge,
   financialYearBounds,
   financialYearForDate,
   FY2027_CONFIG,
@@ -267,6 +268,72 @@ describe('medicareLevySurcharge', () => {
   })
 })
 
+describe('familyMedicareLevySurcharge', () => {
+  const cover = (incomeForSurchargeCents: number) => ({
+    incomeForSurchargeCents,
+    hasPrivateHospitalCover: true,
+  })
+  const noCover = (incomeForSurchargeCents: number) => ({
+    incomeForSurchargeCents,
+    hasPrivateHospitalCover: false,
+  })
+
+  it('charges nothing when combined income is at or below the lowest family floor', () => {
+    // 80,000 + 80,000 = 160,000 ≤ the 180,000 family floor.
+    const result = familyMedicareLevySurcharge(
+      [noCover(80_000_00), noCover(80_000_00)],
+      0,
+      FIXTURE_CONFIG,
+    )
+    expect(result.tierRate).toBe(0)
+    expect(result.totalSurchargeCents).toBe(0)
+    expect(result.combinedIncomeForSurchargeCents).toBe(160_000_00)
+  })
+
+  it('applies the family-selected rate to each member’s own income above a family floor', () => {
+    // 120,000 + 100,000 = 220,000 → over the 210,000 floor → 1.25% tier.
+    const result = familyMedicareLevySurcharge(
+      [noCover(120_000_00), noCover(100_000_00)],
+      0,
+      FIXTURE_CONFIG,
+    )
+    expect(result.tierRate).toBe(0.0125)
+    expect(result.thresholdCents).toBe(210_000_00)
+    expect(result.perMemberSurchargeCents).toEqual([1_500_00, 1_250_00])
+    expect(result.totalSurchargeCents).toBe(2_750_00)
+  })
+
+  it('raises the family floor per dependent child after the first', () => {
+    const members = [noCover(100_000_00), noCover(81_000_00)] // combined 181,000
+    // Just over the 180,000 floor with no children.
+    expect(familyMedicareLevySurcharge(members, 0, FIXTURE_CONFIG).tierRate).toBe(0.01)
+    // Two children add one increment (+1,500), lifting the floor to 181,500 > 181,000.
+    const withChildren = familyMedicareLevySurcharge(members, 2, FIXTURE_CONFIG)
+    expect(withChildren.tierRate).toBe(0)
+    expect(withChildren.totalSurchargeCents).toBe(0)
+  })
+
+  it('excludes a covered member but still charges the other at the family rate', () => {
+    // 150,000 + 120,000 = 270,000 → over the 210,000 floor → 1.25% tier.
+    const result = familyMedicareLevySurcharge(
+      [cover(150_000_00), noCover(120_000_00)],
+      0,
+      FIXTURE_CONFIG,
+    )
+    expect(result.tierRate).toBe(0.0125)
+    expect(result.perMemberSurchargeCents).toEqual([0, 1_500_00])
+    expect(result.totalSurchargeCents).toBe(1_500_00)
+  })
+
+  it('falls back to the single-person floors for a lone member with no children', () => {
+    // 100,000 is over the 90,000 single floor (1%) but under the 180,000 family floor.
+    const result = familyMedicareLevySurcharge([noCover(100_000_00)], 0, FIXTURE_CONFIG)
+    expect(result.tierRate).toBe(0.01)
+    expect(result.thresholdCents).toBe(90_000_00)
+    expect(result.totalSurchargeCents).toBe(1_000_00)
+  })
+})
+
 describe('helpRepayment', () => {
   it('charges nothing at or below the first band floor', () => {
     expect(helpRepayment(40_000_00, 50_000_00, FIXTURE_CONFIG)).toBe(0)
@@ -302,6 +369,7 @@ describe('computeTax', () => {
     )
     expect(result).toEqual({
       taxableIncomeCents: 15_000_00,
+      incomeForSurchargeCents: 15_000_00,
       incomeTaxCents: 0,
       litoOffsetCents: 700_00,
       medicareLevyCents: 0,
@@ -329,6 +397,7 @@ describe('computeTax', () => {
     )
     expect(result).toEqual({
       taxableIncomeCents: 100_000_00,
+      incomeForSurchargeCents: 100_000_00,
       incomeTaxCents: 20_550_00,
       litoOffsetCents: 0,
       medicareLevyCents: 2_000_00,
@@ -349,6 +418,7 @@ describe('computeTax', () => {
     )
     expect(result).toEqual({
       taxableIncomeCents: 40_000_00,
+      incomeForSurchargeCents: 40_000_00,
       incomeTaxCents: 3_300_00,
       litoOffsetCents: 600_00,
       medicareLevyCents: 800_00,

@@ -70,8 +70,16 @@ does not restate them.
 - Goals UI: target amounts and dates, manual current balance, projected progress
   + ETA; Savings lines linked to a goal; goals with active contributions list
   first.
-- Mantine mobile-first restyle; two-decimal money formatting; `primaryColor:
-  'teal'` with green/red money semantics and a recoloured Summary donut.
+- Bold dark-first Mantine design system: dark is the primary scheme with a
+  high-contrast paper light counterpart, an electric-lime brand `primaryColor`,
+  and named semantic scales (`positive`, `negative`, `warning`, `info`) plus a
+  neutral `dark` surface scale so components reference tokens, not raw hex. Space
+  Grotesk headings over an Inter body (bundled offline via `@fontsource`),
+  tabular-lining money via a shared `MoneyText`, a 10px default radius, and
+  theme-level component defaults that restyle every screen. Shared primitives —
+  `AppCard`, `PageSection`, `AddButton`, `MoneyText`, `EditAction` — live in
+  `components/`, and chart/semantic tokens in `lib/tokens.ts`. Two-decimal money
+  formatting with lime brand distinct from green/red money semantics.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
   `/inflows` `/budget` `/splits` `/goals` `/tax` `/deductions` `/super`
   `/help-debt` `/equity` `/breakdowns` `/household`; `/` and unknown routes

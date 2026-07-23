@@ -21,17 +21,19 @@ export function formatPerYear(cents: number): string {
 }
 
 /**
- * The text colour for a signed money figure: green for a positive amount, red for
- * a negative one, and the inherited neutral colour for zero. This is the app's one
- * money-sign signal, kept distinct from the teal primary. Each sign resolves per
- * scheme via `light-dark` so the figure clears WCAG AA contrast in light and dark.
+ * The text colour for a signed money figure: the `positive` token for a positive
+ * amount, the `negative` token for a negative one, and the inherited neutral
+ * colour for zero. This is the app's one money-sign signal, drawn from the
+ * semantic theme tokens and kept distinct from the brand lime. Each sign resolves
+ * per scheme via `light-dark` — a darker shade on light paper, a lighter shade on
+ * the dark base — so the figure clears WCAG AA contrast in both schemes.
  */
 export function moneyColor(cents: number): string | undefined {
   if (cents > 0) {
-    return 'light-dark(#1f7a3d, var(--mantine-color-green-4))'
+    return 'light-dark(var(--mantine-color-positive-7), var(--mantine-color-positive-4))'
   }
   if (cents < 0) {
-    return 'light-dark(var(--mantine-color-red-9), var(--mantine-color-red-4))'
+    return 'light-dark(var(--mantine-color-negative-7), var(--mantine-color-negative-4))'
   }
   return undefined
 }

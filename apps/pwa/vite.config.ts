@@ -39,8 +39,8 @@ export default defineConfig({
               name: 'Nest',
               short_name: 'Nest',
               description: 'Household income, tax, spending, and savings',
-              theme_color: '#0b4f4f',
-              background_color: '#0b4f4f',
+              theme_color: '#0b0f14',
+              background_color: '#0b0f14',
               display: 'standalone',
               start_url: '/',
               icons: [

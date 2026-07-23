@@ -387,7 +387,7 @@ export function SplitsScreen({
   return (
     <PageSection
       title="Pay splits"
-      intro="Up can’t read or set pay splits, so these are recommendations: set each account’s pay split in Up to match. Amounts are the fortnightly total of the budget lines routed to each account, rounded up to the nearest $5."
+      intro="Up can’t read or set pay splits, so these are recommendations: set each account’s pay split in Up to match. Amounts are the fortnightly total of the budget items routed to each account, rounded up to the nearest $5."
     >
       {spendingAccounts.length > 0 && (
         <Select
@@ -413,7 +413,7 @@ export function SplitsScreen({
 
       {nothingRouted && (
         <Text c="dimmed" size="sm">
-          Route budget lines to an account — set “Funded from” on a line, or link a Savings goal to
+          Route budget items to an account — set “Funded from” on an item, or link a Savings goal to
           an Up saver — to see recommended splits here.
         </Text>
       )}
@@ -484,8 +484,8 @@ export function SplitsScreen({
 
       {unassignedFortnightlyCents > 0 && (
         <Alert color="yellow" variant="light" title="Unassigned">
-          {formatPerFortnight(unassignedFortnightlyCents)} comes from budget lines not yet routed to
-          an account. Set a “Funded from” account on those lines, or link their Savings goal to an
+          {formatPerFortnight(unassignedFortnightlyCents)} comes from budget items not yet routed to
+          an account. Set a “Funded from” account on those items, or link their Savings goal to an
           Up saver, to fold them into a split.
         </Alert>
       )}

@@ -76,7 +76,7 @@ describe('BudgetLineList', () => {
         onDelete={vi.fn()}
       />,
     )
-    expect(screen.getByText(/no investments lines yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no investments items yet/i)).toBeInTheDocument()
   })
 
   it('identifies each line’s route: the funding account, and the goal for savings', () => {
@@ -218,11 +218,11 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Add line' }))
+    await user.click(screen.getByRole('button', { name: 'Add item' }))
     const form = screen.getByRole('textbox', { name: /name/i }).closest('form') as HTMLElement
     await user.type(within(form).getByLabelText(/name/i), 'Misc')
     await user.type(within(form).getByLabelText(/amount/i), '10')
-    await user.click(within(form).getByRole('button', { name: 'Add line' }))
+    await user.click(within(form).getByRole('button', { name: 'Add item' }))
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Misc' })),
@@ -242,11 +242,11 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /add wants line/i }))
+    await user.click(screen.getByRole('button', { name: /add wants item/i }))
     const form = screen.getByRole('textbox', { name: /name/i }).closest('form') as HTMLElement
     await user.type(within(form).getByLabelText(/name/i), 'Dining')
     await user.type(within(form).getByLabelText(/amount/i), '50')
-    await user.click(within(form).getByRole('button', { name: /add line/i }))
+    await user.click(within(form).getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(
@@ -287,10 +287,10 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /add wants line/i }))
+    await user.click(screen.getByRole('button', { name: /add wants item/i }))
 
     // The universal trigger stays put and the opened form adds its own submit button.
-    expect(screen.getAllByRole('button', { name: 'Add line' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Add item' })).toHaveLength(2)
     expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Wants')
   })
 
@@ -306,7 +306,7 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    await user.type(screen.getByLabelText('Search budget lines'), 'rent')
+    await user.type(screen.getByLabelText('Search budget items'), 'rent')
 
     expect(screen.getByText('Rent')).toBeInTheDocument()
     expect(screen.queryByText('Power')).not.toBeInTheDocument()
@@ -327,7 +327,7 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    const search = screen.getByLabelText('Search budget lines')
+    const search = screen.getByLabelText('Search budget items')
     await user.type(search, 'rent')
     await user.click(screen.getByRole('button', { name: /clear search/i }))
 
@@ -746,7 +746,7 @@ describe('BudgetLineList', () => {
     }
   })
 
-  it('opens an unscoped add form via the universal Add line button', async () => {
+  it('opens an unscoped add form via the universal Add item button', async () => {
     const user = userEvent.setup()
     render(
       <BudgetLineList
@@ -758,10 +758,10 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Add line' }))
+    await user.click(screen.getByRole('button', { name: 'Add item' }))
 
     // The trigger stays put and the opened form adds its own submit button.
-    expect(screen.getAllByRole('button', { name: 'Add line' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Add item' })).toHaveLength(2)
     // Unlike the per-group button, it defaults to the first group, not a scoped one.
     expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Needs')
   })

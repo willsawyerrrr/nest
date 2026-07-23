@@ -65,7 +65,7 @@ function NewBreakdownForm({
         <EnumSelect
           label="Group"
           size="sm"
-          description="The budget group the rolled-up line belongs to."
+          description="The budget group the rolled-up item belongs to."
           data={BUDGET_GROUPS}
           value={group}
           onChange={(value) => value && setGroup(value)}
@@ -176,7 +176,7 @@ export function BreakdownsScreen({
   return (
     <PageSection
       title="Breakdowns"
-      intro="A breakdown is an itemised list whose items roll up into a single budget line."
+      intro="A breakdown is an itemised list whose items roll up into a single budget item."
     >
       {adding ? (
         <NewBreakdownForm

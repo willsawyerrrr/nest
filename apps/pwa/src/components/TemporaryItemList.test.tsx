@@ -68,7 +68,7 @@ describe('TemporaryItemList', () => {
     render(
       <TemporaryItemList items={[]} onCreate={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
-    expect(screen.getByText(/no temporary lines yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no temporary items yet/i)).toBeInTheDocument()
   })
 
   it('edits an item in place', async () => {
@@ -136,7 +136,7 @@ describe('TemporaryItemList', () => {
       <TemporaryItemList items={[]} onCreate={onCreate} onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
 
-    await user.click(screen.getByRole('button', { name: /add temporary line/i }))
+    await user.click(screen.getByRole('button', { name: /add temporary item/i }))
     await user.type(screen.getByLabelText(/name/i), 'New couch')
     await user.type(screen.getByLabelText(/contribution/i), '75')
     await user.click(screen.getByRole('button', { name: /add item/i }))

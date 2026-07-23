@@ -103,7 +103,7 @@ export function DerivedBudgetLineForm({
         destination_account_id: destinationAccountId,
       })
     } catch {
-      setError('Could not save this budget line. Please try again.')
+      setError('Could not save this budget item. Please try again.')
       setSubmitting(false)
     }
   }

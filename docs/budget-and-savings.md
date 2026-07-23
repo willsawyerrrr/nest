@@ -55,7 +55,9 @@ Fortnightly amount = `round(annual ÷ 26)` in every case.
 
 A budget line allocates a recurring amount to a named purpose within one of six
 fixed groups. There is one living budget per household — no per-period
-versioning. No actual-spend reconciliation yet.
+versioning. No actual-spend reconciliation yet. The UI labels a budget line a
+**budget item** (Add item, Delete budget item, and so on); "line" persists only
+in the schema (the `budget_line` table and its `line_group` column).
 
 | Group             | Meaning                                            |
 | ----------------- | -------------------------------------------------- |

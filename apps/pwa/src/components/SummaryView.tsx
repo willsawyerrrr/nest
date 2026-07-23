@@ -418,7 +418,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
     <PageSection title="Summary">
       {!hasData ? (
         <EmptyState>
-          Nothing to reconcile yet. Add inflows and budget lines to see how your money is allocated.
+          Nothing to reconcile yet. Add inflows and budget items to see how your money is allocated.
         </EmptyState>
       ) : (
         <>

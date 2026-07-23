@@ -22,7 +22,7 @@ describe('BudgetLineForm', () => {
 
     await user.type(screen.getByLabelText(/name/i), 'Dining out')
     await user.type(screen.getByLabelText(/amount/i), '250.50')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -48,7 +48,7 @@ describe('BudgetLineForm', () => {
     await user.type(screen.getByLabelText(/name/i), 'Emergency fund')
     await selectOption(user, /frequency/i, 'Monthly')
     await user.type(screen.getByLabelText(/amount/i), '400')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -74,7 +74,7 @@ describe('BudgetLineForm', () => {
     await selectOption(user, /frequency/i, 'Every N weeks')
     await user.type(screen.getByLabelText(/weeks between allocations/i), '4')
     await user.type(screen.getByLabelText(/amount/i), '20')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -100,7 +100,7 @@ describe('BudgetLineForm', () => {
     await selectOption(user, /frequency/i, 'Every N months')
     await user.type(screen.getByLabelText(/months between allocations/i), '6')
     await user.type(screen.getByLabelText(/amount/i), '300')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
@@ -125,7 +125,7 @@ describe('BudgetLineForm', () => {
     await selectOption(user, /frequency/i, 'Every N months')
     await user.type(screen.getByLabelText(/amount/i), '300')
 
-    const button = screen.getByRole('button', { name: /add line/i })
+    const button = screen.getByRole('button', { name: /add item/i })
     expect(button).toBeDisabled()
 
     await user.type(screen.getByLabelText(/months between allocations/i), '6')
@@ -140,7 +140,7 @@ describe('BudgetLineForm', () => {
     await selectOption(user, /frequency/i, 'Every N weeks')
     await user.type(screen.getByLabelText(/amount/i), '20')
 
-    const button = screen.getByRole('button', { name: /add line/i })
+    const button = screen.getByRole('button', { name: /add item/i })
     expect(button).toBeDisabled()
 
     await user.type(screen.getByLabelText(/weeks between allocations/i), '4')
@@ -151,7 +151,7 @@ describe('BudgetLineForm', () => {
     const user = userEvent.setup()
     render(<BudgetLineForm onSubmit={vi.fn()} />)
 
-    const button = screen.getByRole('button', { name: /add line/i })
+    const button = screen.getByRole('button', { name: /add item/i })
     expect(button).toBeDisabled()
 
     await user.type(screen.getByLabelText(/name/i), 'Rent')
@@ -212,7 +212,7 @@ describe('BudgetLineForm', () => {
     await user.type(screen.getByLabelText(/name/i), 'Deposit saver')
     await user.type(screen.getByLabelText(/amount/i), '500')
     await selectOption(user, /goal/i, 'House deposit')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ goal_id: 'g1' })),
@@ -235,7 +235,7 @@ describe('BudgetLineForm', () => {
     await selectOption(user, /goal/i, 'House deposit')
     await selectOption(user, /group/i, 'Needs')
     expect(screen.queryByRole('combobox', { name: /goal/i })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
@@ -280,7 +280,7 @@ describe('BudgetLineForm', () => {
     await user.type(screen.getByLabelText(/name/i), 'Rent')
     await user.type(screen.getByLabelText(/amount/i), '1000')
     await selectOption(user, /funded from/i, 'Everyday')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
@@ -329,7 +329,7 @@ describe('BudgetLineForm', () => {
     await selectOption(user, /funded from/i, 'Everyday')
     await selectOption(user, /group/i, 'Savings')
     expect(screen.queryByRole('combobox', { name: /funded from/i })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
@@ -355,10 +355,10 @@ describe('BudgetLineForm', () => {
 
     await user.type(screen.getByLabelText(/name/i), 'Rent')
     await user.type(screen.getByLabelText(/amount/i), '1000')
-    await user.click(screen.getByRole('button', { name: /add line/i }))
+    await user.click(screen.getByRole('button', { name: /add item/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save this budget line/i)
-    expect(screen.getByRole('button', { name: /add line/i })).toBeEnabled()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save this budget item/i)
+    expect(screen.getByRole('button', { name: /add item/i })).toBeEnabled()
   })
 
   it('preserves an existing line goal link on edit', async () => {

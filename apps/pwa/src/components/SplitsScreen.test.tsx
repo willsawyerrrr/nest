@@ -182,12 +182,12 @@ describe('SplitsScreen', () => {
     })
 
     expect(screen.getByText('Unassigned')).toBeInTheDocument()
-    expect(screen.getByText(/\$50\.00 \/ fn comes from budget lines/)).toBeInTheDocument()
+    expect(screen.getByText(/\$50\.00 \/ fn comes from budget items/)).toBeInTheDocument()
   })
 
   it('shows an empty state when nothing is routed', () => {
     renderScreen()
-    expect(screen.getByText(/route budget lines to an account/i)).toBeInTheDocument()
+    expect(screen.getByText(/route budget items to an account/i)).toBeInTheDocument()
   })
 
   it('flags a saver whose configured split differs and confirms the rounded amount', async () => {

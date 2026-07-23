@@ -89,7 +89,7 @@ describe('DerivedBudgetLineForm', () => {
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save this budget line/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save this budget item/i)
     expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
   })
 

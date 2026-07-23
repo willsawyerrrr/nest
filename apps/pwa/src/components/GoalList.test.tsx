@@ -160,7 +160,7 @@ describe('GoalList', () => {
 
     const someday = card('Someday')
     expect(within(someday).getByText('No ETA')).toBeInTheDocument()
-    expect(within(someday).getByText(/link a savings line/i)).toBeInTheDocument()
+    expect(within(someday).getByText(/link a savings item/i)).toBeInTheDocument()
     expect(within(someday).queryByText(/linked contribution/i)).toBeNull()
   })
 

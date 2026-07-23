@@ -43,7 +43,7 @@ export function TemporaryItemForm({ initial, onSubmit, onCancel }: TemporaryItem
     try {
       await onSubmit(input)
     } catch {
-      setError('Could not save this temporary line. Please try again.')
+      setError('Could not save this temporary item. Please try again.')
       setSubmitting(false)
     }
   }

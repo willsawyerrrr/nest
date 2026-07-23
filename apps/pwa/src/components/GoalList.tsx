@@ -93,7 +93,7 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
     )}`
   } else {
     status = { label: 'No ETA', color: 'gray' }
-    eta = 'Link a savings line to project an ETA.'
+    eta = 'Link a savings item to project an ETA.'
   }
 
   return { currentBalanceCents, percent, status, eta }

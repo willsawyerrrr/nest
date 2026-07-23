@@ -119,7 +119,7 @@ export function TemporaryItemList({
 
   return (
     <GroupSection title="Temporary" subtotalCents={activeSubtotal}>
-      {items.length === 0 && !adding && <EmptyState>No temporary lines yet.</EmptyState>}
+      {items.length === 0 && !adding && <EmptyState>No temporary items yet.</EmptyState>}
 
       {items.map((item) =>
         editingId === item.id ? (
@@ -140,7 +140,7 @@ export function TemporaryItemList({
             onEdit={() => startEditing(item.id)}
             onDelete={() =>
               confirm({
-                title: 'Delete temporary line?',
+                title: 'Delete temporary item?',
                 itemLabel: item.name,
                 onConfirm: () => onDelete(item.id),
               })
@@ -158,7 +158,7 @@ export function TemporaryItemList({
           onCancel={closeForms}
         />
       ) : (
-        <AddButton label="Add temporary line" onClick={() => startAdding(true)} />
+        <AddButton label="Add temporary item" onClick={() => startAdding(true)} />
       )}
 
       {modal}

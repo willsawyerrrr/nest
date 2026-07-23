@@ -90,7 +90,7 @@ export function BudgetLineForm({
     try {
       await onSubmit(input)
     } catch {
-      setError('Could not save this budget line. Please try again.')
+      setError('Could not save this budget item. Please try again.')
       setSubmitting(false)
     }
   }
@@ -189,7 +189,7 @@ export function BudgetLineForm({
 
         <Group grow>
           <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add line'}
+            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add item'}
           </Button>
           {onCancel && (
             <Button type="button" variant="default" onClick={onCancel}>

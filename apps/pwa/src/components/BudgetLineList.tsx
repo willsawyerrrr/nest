@@ -307,7 +307,7 @@ export function BudgetLineList({
 
   return (
     <Stack gap="lg">
-      <AddButton label="Add line" onClick={startAddingItem} />
+      <AddButton label="Add item" onClick={startAddingItem} />
       <Flex
         direction={{ base: 'column', sm: 'row' }}
         gap="sm"
@@ -315,8 +315,8 @@ export function BudgetLineList({
         wrap="wrap"
       >
         <TextInput
-          aria-label="Search budget lines"
-          placeholder="Search budget lines"
+          aria-label="Search budget items"
+          placeholder="Search budget items"
           value={query}
           onChange={(event) => setQuery(event.currentTarget.value)}
           rightSection={
@@ -376,7 +376,7 @@ export function BudgetLineList({
         return (
           <GroupSection key={group} title={label} subtotalCents={subtotal}>
             {!searching && groupLines.length === 0 && addingGroup !== group && (
-              <EmptyState>No {label.toLowerCase()} lines yet.</EmptyState>
+              <EmptyState>No {label.toLowerCase()} items yet.</EmptyState>
             )}
 
             {visibleLines.map((line) => {
@@ -444,7 +444,7 @@ export function BudgetLineList({
                   onEdit={() => startEditing(line.id)}
                   onDelete={() =>
                     confirm({
-                      title: 'Delete budget line?',
+                      title: 'Delete budget item?',
                       itemLabel: line.name,
                       onConfirm: () => onDelete(line.id),
                     })
@@ -466,7 +466,7 @@ export function BudgetLineList({
                   onCancel={closeForms}
                 />
               ) : (
-                <AddButton label={`Add ${label} line`} onClick={() => startAdding(group)} />
+                <AddButton label={`Add ${label} item`} onClick={() => startAdding(group)} />
               ))}
           </GroupSection>
         )

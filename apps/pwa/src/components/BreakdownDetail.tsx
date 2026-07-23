@@ -101,7 +101,8 @@ function BreakdownSettings({
               confirm({
                 title: 'Delete breakdown?',
                 itemLabel: breakdown.name,
-                description: 'This removes its items and its budget line. This cannot be undone.',
+                description:
+                  'This removes its items and the budget item they roll up into. This cannot be undone.',
                 onConfirm: onDelete,
               })
             }

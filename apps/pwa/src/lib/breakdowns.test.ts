@@ -592,4 +592,64 @@ describe('reconcileBreakdownLines — gift breakdown partitions', () => {
     expect(ops.create[0]!.name).toBe('Gifts')
     expect(ops.create[0]!.gift_recipient_member_id).toBe('m-mystery')
   })
+
+  it('preserves each gift line’s own group, queuing no update when only the group differs', () => {
+    // Two member lines sit in different groups from each other and from the
+    // breakdown; their groups are per-line, so reconcile leaves them untouched.
+    const samLine = line({
+      id: 'sam',
+      breakdown_id: 'x',
+      gift_recipient_member_id: 'm-sam',
+      name: 'Gifts for Sam',
+      line_group: 'wants',
+      amount_cents: 120_00,
+      destination_account_id: 'will-txn',
+    })
+    const willLine = line({
+      id: 'will',
+      breakdown_id: 'x',
+      gift_recipient_member_id: 'm-will',
+      name: 'Gifts for Will',
+      line_group: 'discretionary',
+      amount_cents: 50_00,
+      destination_account_id: 'sam-txn',
+    })
+    const ops = reconcile(
+      [gift],
+      giftContext([
+        ['m-sam', 120_00],
+        ['m-will', 50_00],
+      ]),
+      new Map(),
+      [samLine, willLine],
+      memberNames,
+      members,
+      directory,
+    )
+    // Will's group differs from the breakdown's ('wants') yet is not forced back,
+    // and Sam's is left as is — neither queues an update.
+    expect(ops.create).toHaveLength(0)
+    expect(ops.update).toHaveLength(0)
+    expect(ops.remove).toHaveLength(0)
+  })
+
+  it('seeds a brand-new gift partition line from the breakdown’s group', () => {
+    const discretionaryGift = breakdown({
+      id: 'x',
+      kind: 'gift',
+      name: 'Gifts',
+      line_group: 'discretionary',
+    })
+    const ops = reconcile(
+      [discretionaryGift],
+      giftContext([['m-sam', 120_00]]),
+      new Map(),
+      [],
+      memberNames,
+      members,
+      directory,
+    )
+    expect(ops.create).toHaveLength(1)
+    expect(ops.create[0]!.line_group).toBe('discretionary')
+  })
 })

@@ -95,7 +95,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   A gift breakdown funds each recipient separately: it derives one budget line per
   household member who has gift budgets (named "Gifts for &lt;member&gt;", keyed by
   `budget_line.gift_recipient_member_id`) plus one line for all external recipients;
-  the gift planner stays a single unified screen. A "Gifts for &lt;member&gt;" line
+  the gift planner stays a single unified screen. Each gift line's budget group is
+  independent — set per line and preserved across reconcile (the breakdown's group
+  only seeds a brand-new gift line), so "Gifts (others)" can be Discretionary while
+  "Gifts for &lt;member&gt;" lines are Wants — whereas a generic breakdown's single
+  line takes its group from the breakdown. A "Gifts for &lt;member&gt;" line
   is funded automatically from the **buyer's** — the other partner's — spending
   account (the other member's `type='transaction'` account, never the joint one),
   set by the reconcile each pass and NOT user-configurable (its "Funded from" picker

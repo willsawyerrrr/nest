@@ -16,12 +16,14 @@ interface UseDerivedLineEditorParams {
  * Composes the budget-line and breakdown collections into a single derived-line
  * save. Editing a generic derived line fans out: its name and group belong to the
  * owning breakdown (reconcile copies them back onto the line), its funding account
- * to the line itself. A gift-breakdown line's name is partition-derived
- * ("Gifts for <member>"), so only its group flows to the breakdown while its name
- * and recipient partition stay untouched. A gift member line's funding account is
- * auto-derived (the buyer's spending account) and stays reconcile-owned, so the
- * save leaves it at its current value; every other line's funding account is set
- * from the edit. The amount stays owned by the breakdown in every case.
+ * to the line itself. A gift line's name is partition-derived ("Gifts for <member>")
+ * and its group is per-line, so its save touches only the line, never the breakdown:
+ * the edited group is written straight onto the line (each gift line's group is
+ * independent) and its name and recipient partition stay untouched. A gift member
+ * line's funding account is auto-derived (the buyer's spending account) and stays
+ * reconcile-owned, so the save leaves it at its current value; every other line's
+ * funding account is set from the edit. The amount stays owned by the breakdown in
+ * every case.
  */
 export function useDerivedLineEditor({
   lines,
@@ -40,12 +42,14 @@ export function useDerivedLineEditor({
       // A gift member line's funding account is auto-derived, so the edit never
       // sets it — the line keeps its reconcile-owned value.
       const fundingLocked = line.gift_recipient_member_id !== null
-      await updateBreakdown(line.breakdown_id, {
-        // A gift line's name is partition-derived, so leave the breakdown's name as
-        // is; a generic line's name is the breakdown's own name.
-        name: isGift ? (breakdown?.name ?? values.name) : values.name,
-        line_group: values.line_group,
-      })
+      // A gift line owns its own name and group, so only the line is written; a
+      // generic line's name and group belong to the breakdown.
+      if (!isGift) {
+        await updateBreakdown(line.breakdown_id, {
+          name: values.name,
+          line_group: values.line_group,
+        })
+      }
       await updateLine(lineId, {
         line_group: values.line_group,
         name: isGift ? line.name : values.name,

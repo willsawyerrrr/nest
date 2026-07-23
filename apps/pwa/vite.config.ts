@@ -34,7 +34,7 @@ export default defineConfig({
           VitePWA({
             registerType: 'autoUpdate',
             injectRegister: false,
-            includeAssets: ['icon.svg', 'favicon-32.png', 'apple-touch-icon.png'],
+            includeAssets: ['icon.svg', 'icon-app.svg', 'favicon-32.png', 'apple-touch-icon.png'],
             manifest: {
               name: 'nest',
               short_name: 'nest',
@@ -52,7 +52,7 @@ export default defineConfig({
                   type: 'image/png',
                   purpose: 'maskable',
                 },
-                { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+                { src: 'icon-app.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
               ],
             },
           }),

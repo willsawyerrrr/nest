@@ -188,26 +188,34 @@ function HeroFigures({ row }: { row: Row }) {
 }
 
 /**
+ * Opt-in content behind a borderless, collapsed-by-default accordion toggle. The
+ * `label` is the toggle text; the content stays hidden until the user expands it.
+ * Shared by the build-up breakdown and the what-if tools so every disclosure on a
+ * tax card reads and behaves the same.
+ */
+function Disclosure({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Accordion chevronPosition="right" styles={{ content: { paddingInline: 0 } }}>
+      <Accordion.Item value="disclosure" style={{ border: 'none' }}>
+        <Accordion.Control px={0}>
+          <Text size="sm" fw={600}>
+            {label}
+          </Text>
+        </Accordion.Control>
+        <Accordion.Panel>{children}</Accordion.Panel>
+      </Accordion.Item>
+    </Accordion>
+  )
+}
+
+/**
  * A subtly brand-accented panel that frames an interactive what-if tool, marking
  * it off from the read-only figures around it. A "What-if" badge and the tool's
- * title head the panel; `component` and `aria-label` let it stand as a landmark
- * region when the tool is its own top-level card.
+ * title head the panel.
  */
-function WhatIfPanel({
-  title,
-  component = 'div',
-  'aria-label': ariaLabel,
-  children,
-}: {
-  title: string
-  component?: 'div' | 'section'
-  'aria-label'?: string
-  children: ReactNode
-}) {
+function WhatIfPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Stack
-      component={component}
-      aria-label={ariaLabel}
       gap="xs"
       p="sm"
       style={{
@@ -308,7 +316,7 @@ function SalarySacrificePanel({
  * bar. When `breakdown` is given, the full income and tax build-up sits behind a
  * collapsed "Show breakdown" accordion; `grossCents` and `concessionalCents` feed
  * that build-up. When `input` and `config` are given, an interactive salary-
- * sacrifice what-if follows.
+ * sacrifice what-if sits behind its own collapsed toggle.
  */
 function FiguresCard({
   name,
@@ -347,31 +355,24 @@ function FiguresCard({
           </Text>
         )}
         {breakdown && (
-          <Accordion chevronPosition="right" styles={{ content: { paddingInline: 0 } }}>
-            <Accordion.Item value="breakdown" style={{ border: 'none' }}>
-              <Accordion.Control px={0}>
-                <Text size="sm" fw={600}>
-                  Show breakdown
-                </Text>
-              </Accordion.Control>
-              <Accordion.Panel>
-                <BreakdownTable
-                  breakdown={breakdown}
-                  grossCents={row.annualGrossCents}
-                  concessionalCents={concessionalCents}
-                  deductionsCents={deductionsCents}
-                />
-              </Accordion.Panel>
-            </Accordion.Item>
-          </Accordion>
+          <Disclosure label="Show breakdown">
+            <BreakdownTable
+              breakdown={breakdown}
+              grossCents={row.annualGrossCents}
+              concessionalCents={concessionalCents}
+              deductionsCents={deductionsCents}
+            />
+          </Disclosure>
         )}
         {input && config && (
-          <SalarySacrificePanel
-            input={input}
-            config={config}
-            currentConcessionalCents={concessionalCents}
-            concessionalCapCents={concessionalCapCents}
-          />
+          <Disclosure label="Salary sacrifice what-if">
+            <SalarySacrificePanel
+              input={input}
+              config={config}
+              currentConcessionalCents={concessionalCents}
+              concessionalCapCents={concessionalCapCents}
+            />
+          </Disclosure>
         )}
       </Stack>
     </Card>
@@ -390,7 +391,8 @@ function formatPercent(rate: number): string {
  * against the family thresholds (raised per dependent child). Against an entered
  * annual policy premium it reports whether cover saves money or costs more than the
  * surcharge it avoids. Dependent-children and premium inputs are ephemeral (local
- * state only, never persisted).
+ * state only, never persisted). The tool sits behind a collapsed toggle, opened
+ * on demand, within its own landmark region.
  */
 function MlsWhatIf({
   members,
@@ -415,62 +417,62 @@ function MlsWhatIf({
   const savingCents = surchargeCents - premiumCents
 
   return (
-    <WhatIfPanel
-      component="section"
-      aria-label="Private hospital cover"
-      title="Private hospital cover vs the Medicare levy surcharge"
-    >
-      <Group grow align="flex-start">
-        <NumberInput
-          label="Dependent children"
-          size="sm"
-          min={0}
-          step={1}
-          allowDecimal={false}
-          allowNegative={false}
-          value={dependentChildren}
-          onChange={(value) => setDependentChildren(typeof value === 'number' ? value : 0)}
-        />
-        <MoneyInput
-          label="Hospital cover premium ($/yr)"
-          size="sm"
-          min={0}
-          hideControls
-          value={premiumDollars}
-          onChange={setPremiumDollars}
-        />
-      </Group>
-      {result.tierRate === 0 ? (
-        <Text size="sm" c="dimmed">
-          Below the family MLS threshold — no surcharge applies.
-        </Text>
-      ) : (
-        <Stack gap={4}>
-          <Text size="sm">
-            Without hospital cover: combined income{' '}
-            <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}
-            {formatPercent(result.tierRate)} MLS tier ={' '}
-            <MoneyText span fw={600} cents={surchargeCents} />
-            /yr surcharge.
-          </Text>
-          {premiumCents > 0 && (
-            <Text size="sm" c={moneyColor(savingCents)}>
-              {savingCents > 0 ? (
-                <>
-                  Hospital cover saves <MoneyText span cents={savingCents} />
-                  /yr over paying the surcharge.
-                </>
-              ) : (
-                <>
-                  Hospital cover costs <MoneyText span cents={-savingCents} />
-                  /yr more than the surcharge.
-                </>
-              )}
+    <Box component="section" aria-label="Private hospital cover">
+      <Disclosure label="Private hospital cover what-if">
+        <WhatIfPanel title="Private hospital cover vs the Medicare levy surcharge">
+          <Group grow align="flex-start">
+            <NumberInput
+              label="Dependent children"
+              size="sm"
+              min={0}
+              step={1}
+              allowDecimal={false}
+              allowNegative={false}
+              value={dependentChildren}
+              onChange={(value) => setDependentChildren(typeof value === 'number' ? value : 0)}
+            />
+            <MoneyInput
+              label="Hospital cover premium ($/yr)"
+              size="sm"
+              min={0}
+              hideControls
+              value={premiumDollars}
+              onChange={setPremiumDollars}
+            />
+          </Group>
+          {result.tierRate === 0 ? (
+            <Text size="sm" c="dimmed">
+              Below the family MLS threshold — no surcharge applies.
             </Text>
+          ) : (
+            <Stack gap={4}>
+              <Text size="sm">
+                Without hospital cover: combined income{' '}
+                <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}
+                {formatPercent(result.tierRate)} MLS tier ={' '}
+                <MoneyText span fw={600} cents={surchargeCents} />
+                /yr surcharge.
+              </Text>
+              {premiumCents > 0 && (
+                <Text size="sm" c={moneyColor(savingCents)}>
+                  {savingCents > 0 ? (
+                    <>
+                      Hospital cover saves <MoneyText span cents={savingCents} />
+                      /yr over paying the surcharge.
+                    </>
+                  ) : (
+                    <>
+                      Hospital cover costs <MoneyText span cents={-savingCents} />
+                      /yr more than the surcharge.
+                    </>
+                  )}
+                </Text>
+              )}
+            </Stack>
           )}
-        </Stack>
-      )}
-    </WhatIfPanel>
+        </WhatIfPanel>
+      </Disclosure>
+    </Box>
   )
 }
 

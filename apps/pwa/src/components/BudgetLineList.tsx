@@ -174,7 +174,7 @@ function BudgetLineRow({
         style={{ width: '6rem', flexShrink: 0 }}
       />
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-        <Badge size="xs" variant="light" color="gray">
+        <Badge size="xs" variant="default">
           {formatFrequency(line.frequency, line.interval_count)}
         </Badge>
       </Box>
@@ -226,7 +226,7 @@ function BudgetLineCard({
           </Text>
           <Group gap={6} wrap="nowrap">
             <MoneyText cents={line.amount_cents} size="xs" c="dimmed" />
-            <Badge size="xs" variant="light" color="gray">
+            <Badge size="xs" variant="default">
               {formatFrequency(line.frequency, line.interval_count)}
             </Badge>
             {route && <RouteBadge route={route} />}

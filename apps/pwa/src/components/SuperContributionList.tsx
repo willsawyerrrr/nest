@@ -62,7 +62,7 @@ function ContributionRow({ contribution, memberName, onEdit, onDelete }: Contrib
         <Text fw={600} size="sm" truncate>
           {kindLabel(contribution.kind)}
         </Text>
-        <Badge size="xs" variant="light" color="gray">
+        <Badge size="xs" variant="default">
           {formatFrequency(contribution.frequency, contribution.interval_count)}
         </Badge>
         {contribution.fhss_eligible && (
@@ -91,7 +91,7 @@ function ContributionCard({ contribution, memberName, onEdit, onDelete }: Contri
             {kindLabel(contribution.kind)}
           </Text>
           <Group gap={6} wrap="wrap">
-            <Badge size="xs" variant="light" color="gray">
+            <Badge size="xs" variant="default">
               {formatFrequency(contribution.frequency, contribution.interval_count)}
             </Badge>
             {contribution.fhss_eligible && (

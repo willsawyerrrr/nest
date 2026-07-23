@@ -124,11 +124,12 @@ so the rule it enforces holds app-wide.
 - **List layout.** Long or variable-length lists use the dense `ListRow` on
   desktop with a mobile card; short per-member or per-section surfaces use
   `AppCard`.
-- **Badges.** All use `variant="light"` `size="xs"`. A frequency label is neutral
-  (`color="gray"`); a badge that encodes a category — a budget group, inflow type,
-  or equity instrument — takes a distinct hue from the categorical palette
-  (`chartColorName` for budget groups); a status badge takes a semantic `color`
-  (on-track `positive`, behind `warning`).
+- **Badges.** Most use `variant="light"` `size="xs"`. A frequency label is neutral
+  and high-contrast (`variant="default"`, giving standard border + surface +
+  body-color text that reads clearly in both schemes); a badge that encodes a
+  category — a budget group, inflow type, or equity instrument — takes a distinct
+  hue from the categorical palette (`chartColorName` for budget groups); a status
+  badge takes a semantic `color` (on-track `positive`, behind `warning`).
 - **Add / edit.** Exactly one add affordance (`AddButton`) and one edit pencil
   (`EditAction` / `EditDeleteActions`) across the app.
 - **Page scaffolding.** Every screen wraps its body in `PageSection` — one title,

@@ -53,10 +53,11 @@ export interface NetWorthProjectionPoint {
 
 /** The `helpCentsByYear` entry for `year`, reusing the last entry past its end. */
 function helpAt(helpCentsByYear: readonly Money[], year: number): Money {
-  if (helpCentsByYear.length === 0) {
+  const lastIndex = helpCentsByYear.length - 1
+  if (lastIndex < 0) {
     return 0
   }
-  return helpCentsByYear[Math.min(year, helpCentsByYear.length - 1)] ?? 0
+  return helpCentsByYear[Math.min(year, lastIndex)]!
 }
 
 /** A copy of `date` advanced by whole `years`. */

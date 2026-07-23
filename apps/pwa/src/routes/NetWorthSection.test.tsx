@@ -124,6 +124,42 @@ describe('NetWorthSection', () => {
     ])
   })
 
+  it('projects net worth forward, accruing super from each member contribution', () => {
+    mockLoaded()
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    // A taxable salary gives the member a gross, so employer SG produces a net
+    // annual super contribution that the projection accrues year on year.
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [
+        {
+          id: 'i1',
+          household_id: 'h1',
+          member_id: 'm1',
+          name: 'Salary',
+          taxable: true,
+          type: 'salary',
+          schedule: 'annual',
+          interval_count: null,
+          amount_cents: 100_000_00,
+          hourly_rate_cents: null,
+          hours_per_period: null,
+          starts_on: null,
+          ends_on: null,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    })
+    render(<NetWorthSection householdId="h1" />)
+
+    const projection = hooks.screenProps?.projection as { year: number; superCents: number }[]
+    expect(hooks.screenProps?.projectionBaseYear).toBe(new Date().getFullYear())
+    // No super balance today, but contributions lift the balance by the horizon.
+    expect(projection.at(0)?.superCents).toBe(0)
+    expect(projection.at(-1)?.superCents).toBeGreaterThan(0)
+  })
+
   it('toggling exclusion updates the account with the flag', () => {
     mockLoaded()
     const update = vi.fn().mockResolvedValue(undefined)

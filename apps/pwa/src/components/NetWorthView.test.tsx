@@ -285,15 +285,17 @@ describe('NetWorthView', () => {
             year: 1,
             superCents: 21_400_000,
             otherCents: 200000,
-            equityCents: 0,
+            equityCents: 5_000_00,
             helpCents: 0,
-            totalCents: 21_600_000,
+            totalCents: 22_100_000,
           },
         ]}
         projectionBaseYear={2026}
         onToggleExclude={vi.fn()}
       />,
     )
+    // A point carrying equity adds the equity series alongside the super and cash
+    // areas and the net-worth line.
     const chart = screen.getByRole('region', { name: 'Net worth projection' })
     expect(within(chart).getByText('Projected forward')).toBeInTheDocument()
     expect(within(chart).getByText(/future \(nominal\) dollars/i)).toBeInTheDocument()

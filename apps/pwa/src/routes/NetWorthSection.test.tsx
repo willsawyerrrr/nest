@@ -9,6 +9,8 @@ const hooks = vi.hoisted(() => ({
   useInflows: vi.fn(),
   useHelpDebts: vi.fn(),
   useEquityGrants: vi.fn(),
+  useTaxProfiles: vi.fn(),
+  useDeductions: vi.fn(),
   useMembers: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -24,6 +26,8 @@ vi.mock('../hooks/useSuperContributions', () => ({
 vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
+vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles }))
+vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../components/NetWorthView', () => ({
   NetWorthView: (props: Record<string, unknown>) => {
@@ -39,6 +43,8 @@ function mockLoaded() {
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [] })
+  hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+  hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
   hooks.useMembers.mockReturnValue({ loading: false, members: [] })
 }
 

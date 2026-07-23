@@ -1,21 +1,30 @@
-import { grantValueCents } from '@nest/plan'
+import { grantValueCents, projectNetWorth } from '@nest/plan'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { NetWorthView } from '../components/NetWorthView'
 import { useAccounts } from '../hooks/useAccounts'
+import { useDeductions } from '../hooks/useDeductions'
 import { useEquityGrants } from '../hooks/useEquityGrants'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
+import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { equityGrantToPlan } from '../lib/equity'
+import { combinedHelpCentsByYear, projectionHorizonYears } from '../lib/netWorth'
+import { readAssumptions, readMemberAges } from '../lib/retirement'
 import {
   accountsWithEffectiveSuperBalances,
+  netWorthBreakdown,
   superAccountIds,
   type EquityHolding,
   type Liability,
 } from '../lib/super'
-import { netAnnualSuperContributionFromRows } from '../lib/tax'
+import {
+  estimateHouseholdTaxFromRows,
+  helpPayoffByMember,
+  netAnnualSuperContributionFromRows,
+} from '../lib/tax'
 
 export function NetWorthSection({ householdId }: { householdId: string }) {
   const accounts = useAccounts(householdId)
@@ -24,6 +33,8 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const inflows = useInflows(householdId)
   const helpDebts = useHelpDebts(householdId)
   const equityGrants = useEquityGrants(householdId)
+  const taxProfiles = useTaxProfiles(householdId)
+  const deductions = useDeductions(householdId)
   const { members, loading: membersLoading } = useMembers()
 
   if (
@@ -33,6 +44,8 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     inflows.loading ||
     helpDebts.loading ||
     equityGrants.loading ||
+    taxProfiles.loading ||
+    deductions.loading ||
     membersLoading ||
     !members
   ) {
@@ -40,13 +53,14 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   }
 
   const profileRows = superProfiles.profiles ?? []
-  const netContributionByMember = netAnnualSuperContributionFromRows(
-    inflows.inflows ?? [],
-    contributions.contributions ?? [],
-  )
+  const inflowRows = inflows.inflows ?? []
+  const contributionRows = contributions.contributions ?? []
+  const helpDebtRows = helpDebts.helpDebts ?? []
+  const grantRows = equityGrants.grants ?? []
+  const netContributionByMember = netAnnualSuperContributionFromRows(inflowRows, contributionRows)
 
   const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
-  const liabilities: Liability[] = (helpDebts.helpDebts ?? [])
+  const liabilities: Liability[] = helpDebtRows
     .filter((debt) => debt.balance_cents > 0)
     .map((debt) => ({
       label: `${memberName(debt.member_id)}'s HELP debt`,
@@ -54,24 +68,71 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     }))
 
   const today = new Date()
-  const equity: EquityHolding[] = (equityGrants.grants ?? [])
+  const planGrants = grantRows.map(equityGrantToPlan)
+  const equity: EquityHolding[] = grantRows
     .map((grant) => ({
       label: `${memberName(grant.member_id)} — ${grant.label}`,
       valueCents: grantValueCents(equityGrantToPlan(grant), today),
     }))
     .filter((holding) => holding.valueCents > 0)
 
+  const effectiveAccounts = accountsWithEffectiveSuperBalances(
+    accounts.accounts ?? [],
+    profileRows,
+    netContributionByMember,
+    today,
+  )
+  const superIds = superAccountIds(profileRows)
+  const breakdown = netWorthBreakdown(effectiveAccounts, superIds)
+
+  const assumptions = readAssumptions()
+  const ages = readMemberAges()
+  const horizonYears = projectionHorizonYears(
+    members.map((member) => ages[member.id]).filter((age): age is number => age !== undefined),
+    assumptions.retirementAge,
+  )
+  const estimate = estimateHouseholdTaxFromRows(
+    inflowRows,
+    taxProfiles.profiles ?? [],
+    contributionRows,
+    helpDebtRows,
+    deductions.deductions ?? [],
+  )
+  const helpNowCents = helpDebtRows.reduce(
+    (total, debt) => total + Math.max(0, debt.balance_cents),
+    0,
+  )
+  const helpCentsByYear = combinedHelpCentsByYear(
+    helpPayoffByMember(estimate, helpDebtRows).values(),
+    helpNowCents,
+    horizonYears,
+  )
+  const totalNetContributionCents = [...netContributionByMember.values()].reduce(
+    (total, cents) => total + cents,
+    0,
+  )
+  const projection = projectNetWorth({
+    asOf: today,
+    horizonYears,
+    superInput: {
+      currentBalanceCents: breakdown.superTotalCents,
+      annualContributionCents: totalNetContributionCents,
+      nominalReturnRate: assumptions.expectedReturnPct / 100,
+      contributionGrowthRate: assumptions.contributionGrowthPct / 100,
+    },
+    otherCents: breakdown.otherTotalCents,
+    equityGrants: planGrants,
+    helpCentsByYear,
+  })
+
   return (
     <NetWorthView
-      accounts={accountsWithEffectiveSuperBalances(
-        accounts.accounts ?? [],
-        profileRows,
-        netContributionByMember,
-        today,
-      )}
-      superIds={superAccountIds(profileRows)}
+      accounts={effectiveAccounts}
+      superIds={superIds}
       equity={equity}
       liabilities={liabilities}
+      projection={projection}
+      projectionBaseYear={today.getFullYear()}
       onToggleExclude={(id, exclude) => {
         void accounts.update(id, { exclude_from_net_worth: exclude })
       }}

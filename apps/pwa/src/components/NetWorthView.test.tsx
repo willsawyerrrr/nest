@@ -252,6 +252,71 @@ describe('NetWorthView', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('omits the projection chart when no projection is supplied', () => {
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('region', { name: 'Net worth projection' })).not.toBeInTheDocument()
+  })
+
+  it('renders the projection chart when points carry data', () => {
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          {
+            year: 0,
+            superCents: 20_000_000,
+            otherCents: 200000,
+            equityCents: 0,
+            helpCents: 0,
+            totalCents: 20_200_000,
+          },
+          {
+            year: 1,
+            superCents: 21_400_000,
+            otherCents: 200000,
+            equityCents: 0,
+            helpCents: 0,
+            totalCents: 21_600_000,
+          },
+        ]}
+        projectionBaseYear={2026}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    const chart = screen.getByRole('region', { name: 'Net worth projection' })
+    expect(within(chart).getByText('Projected forward')).toBeInTheDocument()
+    expect(within(chart).getByText(/future \(nominal\) dollars/i)).toBeInTheDocument()
+  })
+
+  it('shows the projection empty state when every point is zero', () => {
+    render(
+      <NetWorthView
+        accounts={[]}
+        superIds={new Set()}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          { year: 0, superCents: 0, otherCents: 0, equityCents: 0, helpCents: 0, totalCents: 0 },
+        ]}
+        projectionBaseYear={2026}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    const chart = screen.getByRole('region', { name: 'Net worth projection' })
+    expect(within(chart).getByText(/project your net worth forward/i)).toBeInTheDocument()
+  })
+
   it('offers no Edit affordance when only super accounts exist', () => {
     render(
       <NetWorthView

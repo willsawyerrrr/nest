@@ -71,6 +71,26 @@ surfaces the account in a muted "Excluded from net worth" group. The exclusion
 affects net-worth totals only: it leaves the retirement projection and budgeting
 untouched.
 
+### Projected forward
+
+Below the total, a stacked-area chart projects net worth forward year by year to
+the household's retirement horizon (the longest span to the retirement-age
+assumption across the members whose age is entered, or 30 years when none is).
+The stacked areas are the asset components — super, cash and other accounts, and
+equity — and net worth (assets less HELP debt) is overlaid as a line, so the gap
+between the stack and the line reads as the shrinking HELP liability. Figures are
+nominal (future dollars): super compounds and accrues its net annual
+contributions (`projectSuperBalance`), cash and account balances are held flat,
+each equity grant is valued at its vested portion at that future date so the
+equity line lifts as grants vest at today's price (`equityTotalCents`), and each
+member's HELP debt follows the payoff projection from the Tax tab
+(`projectHelpPayoff`), summed across members. The projection is a pure function
+(`projectNetWorth` in `@nest/plan`); it reuses the same shared
+return / contribution-growth and retirement-age assumptions and per-member ages
+as the retirement projection (client-side, persisted in localStorage), and reads
+only existing data — no schema or stored series. Series colours come from the
+shared chart-token palette and money is formatted with the app's currency helper.
+
 ## HELP debt tab
 
 The HELP debt tab shows each member's single standing HELP/HECS balance (one

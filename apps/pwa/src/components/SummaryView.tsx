@@ -12,8 +12,10 @@ import {
 } from '@mantine/core'
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
-import { formatCents, moneyColor } from '../lib/money'
+import { formatCents } from '../lib/money'
+import { chartColors } from '../lib/tokens'
 import { EmptyState } from './EmptyState'
+import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
 /**
@@ -60,18 +62,18 @@ interface LedgerRow {
 }
 
 /**
- * The six budget groups in reconciliation order, each with its human label and
- * the CSS colour its allocation segment takes in the donut. The colours ramp
- * teal → cyan → green, alternating a dark then light shade within each hue so
- * adjacent slices stay distinguishable.
+ * The six budget groups in reconciliation order, each with its human label. The
+ * allocation-segment colour each takes in the donut comes from the shared
+ * `chartColors` token palette (`chartColors[key]`), so the palette lives in one
+ * place across the app.
  */
-const GROUP_ORDER: { key: keyof BudgetSummary['groups']; label: string; color: string }[] = [
-  { key: 'needs', label: 'Needs', color: 'var(--mantine-color-teal-8)' },
-  { key: 'wants', label: 'Wants', color: 'var(--mantine-color-teal-5)' },
-  { key: 'discretionary', label: 'Discretionary', color: 'var(--mantine-color-cyan-6)' },
-  { key: 'temporary', label: 'Temporary', color: 'var(--mantine-color-cyan-4)' },
-  { key: 'savings', label: 'Savings', color: 'var(--mantine-color-green-6)' },
-  { key: 'investments', label: 'Investments', color: 'var(--mantine-color-green-4)' },
+const GROUP_ORDER: { key: keyof BudgetSummary['groups']; label: string }[] = [
+  { key: 'needs', label: 'Needs' },
+  { key: 'wants', label: 'Wants' },
+  { key: 'discretionary', label: 'Discretionary' },
+  { key: 'temporary', label: 'Temporary' },
+  { key: 'savings', label: 'Savings' },
+  { key: 'investments', label: 'Investments' },
 ]
 
 /** The keys of the groups that make up outgoings, in reconciliation order. */
@@ -81,15 +83,6 @@ const OUTGOING_KEYS: (keyof BudgetSummary['groups'])[] = [
   'discretionary',
   'temporary',
 ]
-
-/** The colour of the leftover-buffer segment (After Saving) in the donut. */
-const BUFFER_COLOR = 'var(--mantine-color-gray-5)'
-
-/** The colour of the gross-basis Tax slice. */
-const TAX_COLOR = 'var(--mantine-color-red-7)'
-
-/** The colour of the gross-basis salary-sacrifice slice. */
-const SACRIFICE_COLOR = 'var(--mantine-color-green-8)'
 
 /** A donut segment: an allocation slice with its label, amount, colour, and share. */
 interface Segment {
@@ -142,13 +135,18 @@ function allocationSegments(summary: BudgetSummary, mode: IncomeBasis): Segment[
 
   const segments: Segment[] = []
   if (mode === 'gross') {
-    add(segments, 'Tax', summary.tax.fortnightlyCents, TAX_COLOR)
-    add(segments, 'Salary sacrifice', summary.salarySacrifice.fortnightlyCents, SACRIFICE_COLOR)
+    add(segments, 'Tax', summary.tax.fortnightlyCents, chartColors.tax)
+    add(
+      segments,
+      'Salary sacrifice',
+      summary.salarySacrifice.fortnightlyCents,
+      chartColors.sacrifice,
+    )
   }
-  for (const { key, label, color } of GROUP_ORDER) {
-    add(segments, label, summary.groups[key].fortnightlyCents, color)
+  for (const { key, label } of GROUP_ORDER) {
+    add(segments, label, summary.groups[key].fortnightlyCents, chartColors[key])
   }
-  add(segments, 'Buffer', summary.afterSaving.fortnightlyCents, BUFFER_COLOR)
+  add(segments, 'Buffer', summary.afterSaving.fortnightlyCents, chartColors.buffer)
   return segments
 }
 
@@ -170,9 +168,7 @@ function TotalTile({
       <Text size="xs" c="dimmed">
         {label}
       </Text>
-      <Text fw={700} c={signed ? moneyColor(cents) : undefined}>
-        {formatCents(cents)}
-      </Text>
+      <MoneyText cents={cents} colored={signed} fw={700} />
     </Stack>
   )
 }
@@ -304,15 +300,14 @@ function ReconRow({
         {label}
       </Text>
       <Group gap="sm" wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
-        <Text
+        <MoneyText
+          cents={amounts.fortnightlyCents}
+          colored={signed}
           fw={700}
           size="sm"
           w={92}
           ta="right"
-          c={signed ? moneyColor(amounts.fortnightlyCents) : undefined}
-        >
-          {formatCents(amounts.fortnightlyCents)}
-        </Text>
+        />
         <Text fw={700} size="xs" c="dimmed" w={48} ta="right">
           {formatPortion(portion)}
         </Text>
@@ -336,10 +331,12 @@ function RunningRow({
   return (
     <Table.Tr bg="var(--mantine-primary-color-light)">
       <Table.Th scope="row">{label}</Table.Th>
-      <Table.Td fw={700} c={signed ? moneyColor(amounts.fortnightlyCents) : undefined}>
-        {formatCents(amounts.fortnightlyCents)}
+      <Table.Td fw={700}>
+        <MoneyText span cents={amounts.fortnightlyCents} colored={signed} />
       </Table.Td>
-      <Table.Td fw={700}>{formatCents(amounts.annualCents)}</Table.Td>
+      <Table.Td fw={700}>
+        <MoneyText span cents={amounts.annualCents} />
+      </Table.Td>
       <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
     </Table.Tr>
   )
@@ -350,8 +347,12 @@ function GroupTableRow({ row, portion }: { row: LedgerRow; portion: number }) {
   return (
     <Table.Tr>
       <Table.Th scope="row">{row.label}</Table.Th>
-      <Table.Td>{formatCents(row.amounts.fortnightlyCents)}</Table.Td>
-      <Table.Td>{formatCents(row.amounts.annualCents)}</Table.Td>
+      <Table.Td>
+        <MoneyText span cents={row.amounts.fortnightlyCents} />
+      </Table.Td>
+      <Table.Td>
+        <MoneyText span cents={row.amounts.annualCents} />
+      </Table.Td>
       <Table.Td fw={700}>{formatPortion(portion)}</Table.Td>
     </Table.Tr>
   )

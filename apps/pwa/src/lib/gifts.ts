@@ -66,6 +66,29 @@ export function giftBudgetTotalCents(budgets: GiftBudget[]): number {
   return budgets.reduce((total, budget) => total + budget.budgeted_amount_cents, 0)
 }
 
+/**
+ * The planned gift spend partitioned by the recipient's household member: for
+ * each member with gift budgets, the summed budgeted cents keyed by their
+ * `member_id`; every external (non-member) recipient's budgets collapse into the
+ * `null` key. A member or the external group appears only when it has at least
+ * one budget — so an empty partition is absent rather than a zero entry. This
+ * drives the split into one derived budget line per partition.
+ */
+export function giftTotalsByMember(
+  budgets: GiftBudget[],
+  recipients: GiftRecipient[],
+): Map<string | null, number> {
+  const memberByRecipient = new Map(
+    recipients.map((recipient) => [recipient.id, recipient.member_id]),
+  )
+  const totals = new Map<string | null, number>()
+  for (const budget of budgets) {
+    const key = memberByRecipient.get(budget.recipient_id) ?? null
+    totals.set(key, (totals.get(key) ?? 0) + budget.budgeted_amount_cents)
+  }
+  return totals
+}
+
 /** The household's overall gift totals: budgeted, spent, and remaining across every gift budget. */
 export function overallGiftTotals(budgets: GiftBudget[], purchases: GiftPurchase[]): GiftTotals {
   return sumTotals(budgets.map((budget) => budgetTotals(budget, purchases)))

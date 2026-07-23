@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { BreakdownItem } from '../hooks/useBreakdownItems'
 import type { Breakdown } from '../hooks/useBreakdowns'
 import type { BudgetLine } from '../hooks/useBudgetLines'
-import { breakdownAnnualTotals, breakdownItemCounts, reconcileBreakdownLines } from './breakdowns'
+import {
+  breakdownItemCounts,
+  breakdownTotalsByBreakdownId,
+  derivedAmountContext,
+  reconcileBreakdownLines,
+  type DerivedAmountContext,
+} from './breakdowns'
+import type { GiftBudget, GiftRecipient } from './gifts'
 
 function breakdown(overrides: Partial<Breakdown> = {}): Breakdown {
   return {
@@ -44,14 +51,41 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     goal_id: null,
     destination_account_id: null,
     breakdown_id: null,
+    gift_recipient_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
   }
 }
 
-describe('breakdownAnnualTotals', () => {
-  it('sums a generic breakdown’s items and takes the gift total for a gift breakdown', () => {
+function budget(id: string, recipient_id: string, cents: number): GiftBudget {
+  return {
+    id,
+    recipient_id,
+    occasion_id: 'o1',
+    budgeted_amount_cents: cents,
+    event_date: null,
+    household_id: 'h',
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+function recipient(id: string, memberId: string | null): GiftRecipient {
+  return { id, name: id, member_id: memberId, household_id: 'h', created_at: '', updated_at: '' }
+}
+
+function context(overrides: Partial<DerivedAmountContext> = {}): DerivedAmountContext {
+  return {
+    genericTotalsByBreakdownId: new Map(),
+    giftBreakdownId: null,
+    giftTotalsByMember: new Map(),
+    ...overrides,
+  }
+}
+
+describe('derivedAmountContext', () => {
+  it('sums a generic breakdown’s items and partitions the gift breakdown', () => {
     const breakdowns = [
       breakdown({ id: 'g', kind: 'generic' }),
       breakdown({ id: 'x', kind: 'gift', name: 'Gifts' }),
@@ -60,30 +94,60 @@ describe('breakdownAnnualTotals', () => {
       item({ id: 'i1', breakdown_id: 'g', amount_cents: 10_00, frequency: 'monthly' }),
       item({ id: 'i2', breakdown_id: 'g', amount_cents: 5_00, frequency: 'annual' }),
     ]
-    const totals = breakdownAnnualTotals(breakdowns, items, 250_00)
+    const recipients = [recipient('r-sam', 'm-sam'), recipient('r-ext', null)]
+    const budgets = [budget('bd1', 'r-sam', 120_00), budget('bd2', 'r-ext', 30_00)]
+    const result = derivedAmountContext(breakdowns, items, budgets, recipients)
     // $10/month → $120/year, plus $5/year = $125/year.
+    expect(result.genericTotalsByBreakdownId.get('g')).toBe(125_00)
+    expect(result.giftBreakdownId).toBe('x')
+    expect(result.giftTotalsByMember.get('m-sam')).toBe(120_00)
+    expect(result.giftTotalsByMember.get(null)).toBe(30_00)
+  })
+
+  it('leaves the gift breakdown id null when there is no gift breakdown', () => {
+    const result = derivedAmountContext([breakdown({ id: 'g' })], [], [], [])
+    expect(result.giftBreakdownId).toBeNull()
+  })
+})
+
+describe('breakdownTotalsByBreakdownId', () => {
+  it('gives each generic breakdown its total and the gift breakdown the partition sum', () => {
+    const breakdowns = [breakdown({ id: 'g' }), breakdown({ id: 'x', kind: 'gift' })]
+    const ctx = context({
+      genericTotalsByBreakdownId: new Map([['g', 125_00]]),
+      giftBreakdownId: 'x',
+      giftTotalsByMember: new Map([
+        ['m-sam', 120_00],
+        [null, 30_00],
+      ]),
+    })
+    const totals = breakdownTotalsByBreakdownId(breakdowns, ctx)
     expect(totals.get('g')).toBe(125_00)
-    expect(totals.get('x')).toBe(250_00)
+    expect(totals.get('x')).toBe(150_00)
+  })
+
+  it('falls back to zero for a generic breakdown absent from the context', () => {
+    const totals = breakdownTotalsByBreakdownId([breakdown({ id: 'g' })], context())
+    expect(totals.get('g')).toBe(0)
   })
 })
 
 describe('breakdownItemCounts', () => {
-  it('counts a generic breakdown’s items and the gift budgets for a gift breakdown', () => {
-    const breakdowns = [
-      breakdown({ id: 'g', kind: 'generic' }),
-      breakdown({ id: 'x', kind: 'gift' }),
-    ]
+  it('counts each breakdown’s items', () => {
+    const breakdowns = [breakdown({ id: 'g' }), breakdown({ id: 'x', kind: 'gift' })]
     const items = [item({ id: 'i1', breakdown_id: 'g' }), item({ id: 'i2', breakdown_id: 'g' })]
-    const counts = breakdownItemCounts(breakdowns, items, 3)
+    const counts = breakdownItemCounts(breakdowns, items)
     expect(counts.get('g')).toBe(2)
-    expect(counts.get('x')).toBe(3)
+    expect(counts.get('x')).toBe(0)
   })
 })
 
-describe('reconcileBreakdownLines', () => {
+describe('reconcileBreakdownLines — generic breakdowns', () => {
+  const gen = (total: number) => context({ genericTotalsByBreakdownId: new Map([['g', total]]) })
+
   it('creates a derived line for a breakdown with items but no line', () => {
     const b = breakdown({ id: 'g', name: 'Medications', line_group: 'needs' })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 120_00]]), new Map([['g', 2]]), [])
+    const ops = reconcileBreakdownLines([b], gen(120_00), new Map([['g', 2]]), [], new Map())
     expect(ops.create).toEqual([
       {
         line_group: 'needs',
@@ -94,6 +158,7 @@ describe('reconcileBreakdownLines', () => {
         goal_id: null,
         breakdown_id: 'g',
         destination_account_id: null,
+        gift_recipient_member_id: null,
       },
     ])
     expect(ops.update).toHaveLength(0)
@@ -110,9 +175,13 @@ describe('reconcileBreakdownLines', () => {
       amount_cents: 50_00,
       destination_account_id: 'acc1',
     })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 120_00]]), new Map([['g', 2]]), [
-      existing,
-    ])
+    const ops = reconcileBreakdownLines(
+      [b],
+      gen(120_00),
+      new Map([['g', 2]]),
+      [existing],
+      new Map(),
+    )
     expect(ops.update).toEqual([
       {
         id: 'l1',
@@ -125,6 +194,7 @@ describe('reconcileBreakdownLines', () => {
           goal_id: null,
           breakdown_id: 'g',
           destination_account_id: 'acc1',
+          gift_recipient_member_id: null,
         },
       },
     ])
@@ -133,9 +203,6 @@ describe('reconcileBreakdownLines', () => {
   })
 
   it('updates the line when only a rolled-up item amount changes', () => {
-    // Guards the propagation path: an item edit shifts the breakdown's total, so
-    // the roll-up must be seen fresh for reconcile to rewrite the derived line's
-    // amount. A no-op here would leave Budget and Splits stale until a reload.
     const b = breakdown({ id: 'g', name: 'Medications', line_group: 'needs' })
     const existing = line({
       id: 'l1',
@@ -145,24 +212,14 @@ describe('reconcileBreakdownLines', () => {
       amount_cents: 120_00,
       frequency: 'annual',
     })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 180_00]]), new Map([['g', 2]]), [
-      existing,
-    ])
-    expect(ops.update).toEqual([
-      {
-        id: 'l1',
-        input: {
-          line_group: 'needs',
-          name: 'Medications',
-          amount_cents: 180_00,
-          frequency: 'annual',
-          interval_count: null,
-          goal_id: null,
-          breakdown_id: 'g',
-          destination_account_id: null,
-        },
-      },
-    ])
+    const ops = reconcileBreakdownLines(
+      [b],
+      gen(180_00),
+      new Map([['g', 2]]),
+      [existing],
+      new Map(),
+    )
+    expect(ops.update[0]!.input.amount_cents).toBe(180_00)
     expect(ops.create).toHaveLength(0)
     expect(ops.remove).toHaveLength(0)
   })
@@ -177,9 +234,13 @@ describe('reconcileBreakdownLines', () => {
       amount_cents: 120_00,
       frequency: 'annual',
     })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 120_00]]), new Map([['g', 2]]), [
-      existing,
-    ])
+    const ops = reconcileBreakdownLines(
+      [b],
+      gen(120_00),
+      new Map([['g', 2]]),
+      [existing],
+      new Map(),
+    )
     expect(ops.create).toHaveLength(0)
     expect(ops.update).toHaveLength(0)
     expect(ops.remove).toHaveLength(0)
@@ -188,7 +249,7 @@ describe('reconcileBreakdownLines', () => {
   it('removes an empty breakdown’s line', () => {
     const b = breakdown({ id: 'g' })
     const existing = line({ id: 'l1', breakdown_id: 'g' })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 0]]), new Map([['g', 0]]), [existing])
+    const ops = reconcileBreakdownLines([b], gen(0), new Map([['g', 0]]), [existing], new Map())
     expect(ops.remove).toEqual(['l1'])
     expect(ops.create).toHaveLength(0)
     expect(ops.update).toHaveLength(0)
@@ -205,34 +266,206 @@ describe('reconcileBreakdownLines', () => {
       frequency: 'annual',
       destination_account_id: 'acc1',
     })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 120_00]]), new Map([['g', 2]]), [
-      existing,
-    ])
-    expect(ops.update).toEqual([
-      {
-        id: 'l1',
-        input: {
-          line_group: 'savings',
-          name: 'Deposit',
-          amount_cents: 120_00,
-          frequency: 'annual',
-          interval_count: null,
-          goal_id: null,
-          breakdown_id: 'g',
-          destination_account_id: null,
-        },
-      },
-    ])
+    const ops = reconcileBreakdownLines(
+      [b],
+      gen(120_00),
+      new Map([['g', 2]]),
+      [existing],
+      new Map(),
+    )
+    expect(ops.update[0]!.input.destination_account_id).toBeNull()
     expect(ops.create).toHaveLength(0)
     expect(ops.remove).toHaveLength(0)
   })
 
-  it('keeps an empty breakdown’s line when it carries routing', () => {
+  it('keeps an emptied breakdown’s routed line at $0 rather than removing it', () => {
     const b = breakdown({ id: 'g' })
-    const existing = line({ id: 'l1', breakdown_id: 'g', destination_account_id: 'acc1' })
-    const ops = reconcileBreakdownLines([b], new Map([['g', 0]]), new Map([['g', 0]]), [existing])
+    const existing = line({
+      id: 'l1',
+      breakdown_id: 'g',
+      amount_cents: 50_00,
+      destination_account_id: 'acc1',
+    })
+    const ops = reconcileBreakdownLines([b], gen(0), new Map([['g', 0]]), [existing], new Map())
     expect(ops.remove).toHaveLength(0)
-    expect(ops.update).toHaveLength(0)
     expect(ops.create).toHaveLength(0)
+    expect(ops.update[0]!.input.amount_cents).toBe(0)
+    expect(ops.update[0]!.input.destination_account_id).toBe('acc1')
+  })
+
+  it('does nothing for a breakdown with no items and no line, even absent from counts', () => {
+    // The count map omits this breakdown entirely, exercising the count fallback,
+    // and there is no line to create, update, or remove.
+    const b = breakdown({ id: 'g' })
+    const ops = reconcileBreakdownLines([b], context(), new Map(), [], new Map())
+    expect(ops.create).toHaveLength(0)
+    expect(ops.update).toHaveLength(0)
+    expect(ops.remove).toHaveLength(0)
+  })
+
+  it('leaves an emptied routed line alone once it already reads $0', () => {
+    const b = breakdown({ id: 'g' })
+    const existing = line({
+      id: 'l1',
+      breakdown_id: 'g',
+      name: 'Medications',
+      amount_cents: 0,
+      destination_account_id: 'acc1',
+    })
+    const ops = reconcileBreakdownLines([b], gen(0), new Map([['g', 0]]), [existing], new Map())
+    expect(ops.create).toHaveLength(0)
+    expect(ops.update).toHaveLength(0)
+    expect(ops.remove).toHaveLength(0)
+  })
+})
+
+describe('reconcileBreakdownLines — gift breakdown partitions', () => {
+  const gift = breakdown({ id: 'x', kind: 'gift', name: 'Gifts', line_group: 'wants' })
+  const memberNames = new Map([
+    ['m-sam', 'Sam'],
+    ['m-will', 'Will'],
+  ])
+  const giftContext = (entries: [string | null, number][]) =>
+    context({ giftBreakdownId: 'x', giftTotalsByMember: new Map(entries) })
+
+  it('creates one line per recipient partition, named per member', () => {
+    const ops = reconcileBreakdownLines(
+      [gift],
+      giftContext([
+        ['m-sam', 120_00],
+        ['m-will', 50_00],
+        [null, 30_00],
+      ]),
+      new Map(),
+      [],
+      memberNames,
+    )
+    expect(ops.create).toHaveLength(3)
+    const byMember = new Map(ops.create.map((c) => [c.gift_recipient_member_id, c]))
+    expect(byMember.get('m-sam')).toMatchObject({
+      name: 'Gifts for Sam',
+      amount_cents: 120_00,
+      line_group: 'wants',
+      breakdown_id: 'x',
+      frequency: 'annual',
+    })
+    expect(byMember.get('m-will')).toMatchObject({ name: 'Gifts for Will', amount_cents: 50_00 })
+    // The external partition keeps the breakdown's own name.
+    expect(byMember.get(null)).toMatchObject({ name: 'Gifts', amount_cents: 30_00 })
+    // The split lines sum to the old single total.
+    expect(ops.create.reduce((sum, c) => sum + c.amount_cents, 0)).toBe(200_00)
+    expect(ops.update).toHaveLength(0)
+    expect(ops.remove).toHaveLength(0)
+  })
+
+  it('matches existing lines by their recipient member and updates only drift', () => {
+    const samLine = line({
+      id: 'sam',
+      breakdown_id: 'x',
+      gift_recipient_member_id: 'm-sam',
+      name: 'Gifts for Sam',
+      line_group: 'wants',
+      amount_cents: 120_00,
+    })
+    const extLine = line({
+      id: 'ext',
+      breakdown_id: 'x',
+      gift_recipient_member_id: null,
+      name: 'Gifts',
+      line_group: 'wants',
+      amount_cents: 20_00,
+    })
+    const ops = reconcileBreakdownLines(
+      [gift],
+      giftContext([
+        ['m-sam', 120_00],
+        [null, 30_00],
+      ]),
+      new Map(),
+      [samLine, extLine],
+      memberNames,
+    )
+    // Sam's line already matches; only the external line's amount drifted.
+    expect(ops.create).toHaveLength(0)
+    expect(ops.update).toHaveLength(1)
+    expect(ops.update[0]).toMatchObject({ id: 'ext' })
+    expect(ops.update[0]!.input.amount_cents).toBe(30_00)
+    expect(ops.remove).toHaveLength(0)
+  })
+
+  it('removes a partition’s line when its budgets are gone and it is unrouted', () => {
+    const willLine = line({
+      id: 'will',
+      breakdown_id: 'x',
+      gift_recipient_member_id: 'm-will',
+      name: 'Gifts for Will',
+      amount_cents: 50_00,
+    })
+    const ops = reconcileBreakdownLines(
+      [gift],
+      giftContext([['m-sam', 120_00]]),
+      new Map(),
+      [willLine],
+      memberNames,
+    )
+    expect(ops.remove).toEqual(['will'])
+    expect(ops.create).toHaveLength(1)
+    expect(ops.create[0]!.gift_recipient_member_id).toBe('m-sam')
+  })
+
+  it('keeps an emptied partition’s routed line at $0 so its split survives', () => {
+    const willLine = line({
+      id: 'will',
+      breakdown_id: 'x',
+      gift_recipient_member_id: 'm-will',
+      name: 'Gifts for Will',
+      line_group: 'wants',
+      amount_cents: 50_00,
+      destination_account_id: 'acc1',
+    })
+    const ops = reconcileBreakdownLines(
+      [gift],
+      giftContext([['m-sam', 120_00]]),
+      new Map(),
+      [willLine],
+      memberNames,
+    )
+    expect(ops.remove).toHaveLength(0)
+    const willUpdate = ops.update.find((u) => u.id === 'will')!
+    expect(willUpdate.input.amount_cents).toBe(0)
+    expect(willUpdate.input.destination_account_id).toBe('acc1')
+    expect(willUpdate.input.name).toBe('Gifts for Will')
+  })
+
+  it('falls back to the existing line’s name when the member is unknown', () => {
+    // A routed line whose member is missing from the names map (its budgets gone)
+    // keeps its own name rather than inventing one.
+    const orphan = line({
+      id: 'orphan',
+      breakdown_id: 'x',
+      gift_recipient_member_id: 'm-gone',
+      name: 'Gifts for Someone',
+      line_group: 'wants',
+      amount_cents: 10_00,
+      destination_account_id: 'acc1',
+    })
+    const ops = reconcileBreakdownLines([gift], giftContext([]), new Map(), [orphan], memberNames)
+    const update = ops.update.find((u) => u.id === 'orphan')!
+    expect(update.input.name).toBe('Gifts for Someone')
+    expect(update.input.amount_cents).toBe(0)
+  })
+
+  it('falls back to the breakdown name when creating a line for an unknown member', () => {
+    // A partition whose member is not in the names map and has no existing line
+    // takes the breakdown's own name as a last resort.
+    const ops = reconcileBreakdownLines(
+      [gift],
+      giftContext([['m-mystery', 40_00]]),
+      new Map(),
+      [],
+      memberNames,
+    )
+    expect(ops.create[0]!.name).toBe('Gifts')
+    expect(ops.create[0]!.gift_recipient_member_id).toBe('m-mystery')
   })
 })

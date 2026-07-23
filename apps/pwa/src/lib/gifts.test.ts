@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   budgetTotals,
   giftBudgetTotalCents,
+  giftTotalsByMember,
   groupGifts,
   overallGiftTotals,
   pairKey,
@@ -129,6 +130,41 @@ describe('giftBudgetTotalCents', () => {
 
   it('is zero with no budgets', () => {
     expect(giftBudgetTotalCents([])).toBe(0)
+  })
+})
+
+describe('giftTotalsByMember', () => {
+  function memberRecipient(id: string, name: string, memberId: string): GiftRecipient {
+    return { id, name, member_id: memberId, household_id: 'h', created_at: '', updated_at: '' }
+  }
+
+  it('partitions budgets by the recipient’s member, external recipients under null', () => {
+    const sam = memberRecipient('r-sam', 'Sam', 'm-sam')
+    const will = memberRecipient('r-will', 'Will', 'm-will')
+    const external = recipient('r-ext', 'Grandma')
+    const totals = giftTotalsByMember(
+      [
+        budget('b1', sam.id, xmas.id, 100_00),
+        budget('b2', sam.id, bday.id, 20_00),
+        budget('b3', will.id, xmas.id, 50_00),
+        budget('b4', external.id, xmas.id, 30_00),
+      ],
+      [sam, will, external],
+    )
+    expect(totals.get('m-sam')).toBe(120_00)
+    expect(totals.get('m-will')).toBe(50_00)
+    expect(totals.get(null)).toBe(30_00)
+    expect(totals.size).toBe(3)
+  })
+
+  it('keys a budget whose recipient is unknown under null', () => {
+    // A budget referencing no known recipient falls into the external partition.
+    const totals = giftTotalsByMember([budget('b1', 'r-missing', xmas.id, 40_00)], [])
+    expect(totals.get(null)).toBe(40_00)
+  })
+
+  it('is empty with no budgets', () => {
+    expect(giftTotalsByMember([], [recipient('r1', 'Alice')]).size).toBe(0)
   })
 })
 

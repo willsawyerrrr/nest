@@ -1,4 +1,5 @@
 import { Stack, Title } from '@mantine/core'
+import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import type { BudgetGroup } from '../lib/domain'
@@ -11,7 +12,7 @@ interface BudgetScreenProps {
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   accounts: { id: string; name: string }[]
   /** The household's breakdowns, naming the tap-through link on each derived line and seeding its editor. */
-  breakdowns: { id: string; name: string; line_group: BudgetGroup }[]
+  breakdowns: { id: string; name: string; line_group: BudgetGroup; kind: BreakdownKind }[]
   temporaryItems: TemporaryItem[]
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>

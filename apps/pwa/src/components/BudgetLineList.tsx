@@ -17,12 +17,13 @@ import {
 import { useMediaQuery } from '@mantine/hooks'
 import { IconChevronRight, IconPencil } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
+import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useSortPreference } from '../hooks/useSortPreference'
-import { accountLabel } from '../lib/accountName'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
+import { resolveRoute, type LineRoute } from '../lib/budgetLineRoute'
 import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
 import { formatCents } from '../lib/money'
@@ -41,7 +42,7 @@ interface BudgetLineListProps {
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
   /** The household's breakdowns; a line sourced from one links through to it and seeds its editor. */
-  breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
+  breakdowns?: { id: string; name: string; line_group: BudgetGroup; kind: BreakdownKind }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
   /** Saves a derived line's edit, fanning the name/group to its breakdown and the funding account to the line. */
@@ -116,50 +117,6 @@ function DerivedLineControls({
       <BreakdownLink id={breakdownId} />
     </>
   )
-}
-
-/** Whether lines in a group route via a savings goal rather than a funding account. */
-function groupLinksGoal(group: BudgetGroup): boolean {
-  return group === 'savings' || group === 'investments'
-}
-
-/** Where a budget line sends its money, ready to render as a route badge. */
-interface LineRoute {
-  /** The account/saver name the icon is derived from. */
-  iconName: string
-  /** The route's emoji-stripped display text. */
-  label: string
-  /** The badge's hover text. */
-  title: string
-}
-
-/**
- * The route a line displays: a Savings/Investments line names its linked goal,
- * iconed by the goal's linked saver; every other line names its funding account.
- * Undefined when the line is unrouted or the target is not in the supplied data.
- */
-function resolveRoute(
-  line: BudgetLine,
-  goals: { id: string; name: string; linkedAccountId?: string | null }[],
-  accountNames: Map<string, string>,
-): LineRoute | undefined {
-  if (groupLinksGoal(line.line_group)) {
-    const goal = line.goal_id ? goals.find((g) => g.id === line.goal_id) : undefined
-    if (!goal) {
-      return undefined
-    }
-    const label = accountLabel(goal.name)
-    const linkedName = goal.linkedAccountId ? accountNames.get(goal.linkedAccountId) : undefined
-    return { iconName: linkedName ?? goal.name, label, title: `Goal: ${label}` }
-  }
-  const name = line.destination_account_id
-    ? accountNames.get(line.destination_account_id)
-    : undefined
-  if (!name) {
-    return undefined
-  }
-  const label = accountLabel(name)
-  return { iconName: name, label, title: `Funded from ${label}` }
 }
 
 /** A subtle badge naming where a line routes: its linked goal or its funding account. */
@@ -437,13 +394,17 @@ export function BudgetLineList({
               // breakdown and its funding account to the line, while its amount
               // stays owned by the breakdown.
               if (breakdown) {
+                // A gift line's name is partition-derived ("Gifts for <member>"),
+                // owned by the line rather than the breakdown, so it seeds and shows
+                // read-only; a generic line's name is the breakdown's own name.
+                const isGift = breakdown.kind === 'gift'
                 return editingId === line.id && onUpdateDerivedLine ? (
                   <DerivedBudgetLineForm
                     key={line.id}
                     initial={{
                       id: line.id,
                       breakdown_id: breakdown.id,
-                      name: breakdown.name,
+                      name: isGift ? line.name : breakdown.name,
                       line_group: breakdown.line_group,
                       destination_account_id: line.destination_account_id,
                       amount_cents: line.amount_cents,
@@ -451,6 +412,7 @@ export function BudgetLineList({
                       interval_count: line.interval_count,
                     }}
                     accounts={accounts}
+                    nameEditable={!isGift}
                     onSave={async (values) => {
                       await onUpdateDerivedLine(line.id, values)
                       closeForms()

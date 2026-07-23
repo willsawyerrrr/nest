@@ -2,6 +2,7 @@ import type { SummaryInput } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Inflow } from '../hooks/useInflows'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import type { DerivedAmountContext } from './breakdowns'
 import { applyBreakdownAmounts } from './derivedBudget'
 
 /** The household rows a Summary is built from, before adapting to the plan's shape. */
@@ -10,8 +11,8 @@ export interface SummarySources {
   afterTaxIncomeAnnualCents: number
   inflows: Inflow[]
   budgetLines: BudgetLine[]
-  /** Each breakdown's rolled-up annual total, keyed by breakdown id, for derived lines. */
-  breakdownTotals: Map<string, number>
+  /** The rolled-up amounts each derived line reads (generic totals and gift partitions). */
+  derivedAmounts: DerivedAmountContext
   temporaryItems: TemporaryItem[]
   /** Annual income tax and levies (including the 15% super contributions tax) for the gross-basis view. */
   taxAnnualCents?: number
@@ -33,7 +34,7 @@ export function toSummaryInput({
   afterTaxIncomeAnnualCents,
   inflows,
   budgetLines,
-  breakdownTotals,
+  derivedAmounts,
   temporaryItems,
   taxAnnualCents = 0,
   salarySacrificeAnnualCents = 0,
@@ -49,7 +50,7 @@ export function toSummaryInput({
         frequency: inflow.schedule,
         interval: inflow.interval_count ?? undefined,
       })),
-    budgetLines: applyBreakdownAmounts(budgetLines, breakdownTotals).map((line) => ({
+    budgetLines: applyBreakdownAmounts(budgetLines, derivedAmounts).map((line) => ({
       group: line.line_group,
       amountCents: line.amount_cents,
       frequency: line.frequency,

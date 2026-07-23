@@ -2,8 +2,7 @@ import { BreakdownsScreen } from '../components/BreakdownsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useGifts } from '../hooks/useGifts'
-import { breakdownAnnualTotals } from '../lib/breakdowns'
-import { giftBudgetTotalCents } from '../lib/gifts'
+import { breakdownTotalsByBreakdownId, derivedAmountContext } from '../lib/breakdowns'
 
 export function BreakdownsSection({ householdId }: { householdId: string }) {
   const breakdowns = useBreakdowns(householdId)
@@ -13,11 +12,13 @@ export function BreakdownsSection({ householdId }: { householdId: string }) {
     return <LoadingScreen />
   }
 
-  const totals = breakdownAnnualTotals(
+  const context = derivedAmountContext(
     breakdowns.breakdowns ?? [],
     breakdowns.items ?? [],
-    giftBudgetTotalCents(gifts.budgets ?? []),
+    gifts.budgets ?? [],
+    gifts.recipients ?? [],
   )
+  const totals = breakdownTotalsByBreakdownId(breakdowns.breakdowns ?? [], context)
 
   return (
     <BreakdownsScreen

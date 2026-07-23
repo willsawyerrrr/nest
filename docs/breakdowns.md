@@ -1,11 +1,13 @@
 # Breakdowns
 
 A **breakdown** is a user-created, household-scoped itemised list whose items roll
-up into a single budget line. The household creates arbitrary breakdowns; each one
-owns a real budget line whose amount is the sum of the breakdown's items, so the
-line and its detail are one source of truth and never drift. Breakdowns are the
-sole source of derived budget lines: the gift planner and medications are
-breakdowns defined as data, not hardcoded enum cases.
+up into a derived budget line. The household creates arbitrary breakdowns; a
+generic breakdown owns one real budget line whose amount is the sum of its items,
+while the gift breakdown owns one line per recipient partition (one per household
+member with gift budgets, plus one for all external recipients), so the lines and
+their detail are one source of truth and never drift. Breakdowns are the sole
+source of derived budget lines: the gift planner and medications are breakdowns
+defined as data, not hardcoded enum cases.
 
 Amounts are integer minor units (cents). Every item carries an amount + frequency,
 normalised to fortnightly and annual exactly as a budget line is.
@@ -16,14 +18,23 @@ normalised to fortnightly and annual exactly as a budget line is.
   gifts, medications, a holiday's line items — is a breakdown row it creates, names,
   and assigns to a budget group. There is no fixed catalogue of sources and no
   migration per new source.
-- **A breakdown owns exactly one budget line.** The rolled-up line is a real,
-  routable `budget_line` row (it participates in the Pay splits tab's account routing
-  like any line). Its group, name, and amount come from the breakdown; the amount is
-  read-only and system-managed.
-- **The line exists only when there is something to roll up.** A breakdown with no
-  items (for a `gift` breakdown: no gift budgets) has no budget line. The line is
-  created when the first item lands and removed when the last item goes, so an empty
-  breakdown never shows a $0 line in the budget.
+- **A generic breakdown owns one derived line; the gift breakdown owns one per
+  recipient partition.** A rolled-up line is a real, routable `budget_line` row (it
+  participates in the Pay splits tab's account routing like any line). A generic
+  breakdown owns exactly one line whose group, name, and amount come from the
+  breakdown. The gift breakdown instead splits by recipient: one derived line per
+  household member who has gift budgets — named "Gifts for &lt;member&gt;" and
+  discriminated by `budget_line.gift_recipient_member_id` — plus one line keeping the
+  breakdown's own name for all external (non-member) recipients (the null
+  discriminator). Each gift line carries its own recipient partition's total and
+  routes to its own funding account, so gifts for each partner can be funded from
+  different accounts and pay splits. A line's amount is read-only and system-managed
+  in every case.
+- **The line exists only when there is something to roll up.** A generic breakdown
+  with no items has no budget line, and a gift recipient partition with no gift
+  budgets has no line. A line is created when the first item/budget in its partition
+  lands and removed when the last goes, so an empty breakdown or partition never
+  shows a $0 line in the budget.
 - **`kind` picks the editor, not a per-instance type.** `kind = 'generic'` uses a
   simple item editor; `kind = 'gift'` uses the recipient × occasion + purchases
   planner and keeps its bespoke `gift_*` tables. `kind` is a small enum that selects
@@ -36,7 +47,7 @@ normalised to fortnightly and annual exactly as a budget line is.
   reached as a `kind = 'gift'` breakdown, not a standalone tab.
 - **A gift's budget is shared; its purchases are private from the recipient.**
   The two partners set a gift's agreed amount together, so `gift_budget` stays
-  fully shared and continues to feed the derived line and pay splits unchanged.
+  fully shared and continues to feed the derived lines and pay splits.
   What must stay hidden — so the surprise is not spoiled — is the purchases and the
   spent/remaining they derive. A `gift_recipient` can be linked to a household
   member (`gift_recipient.member_id`): when it is, that member is the recipient,
@@ -102,38 +113,56 @@ items live in `gift_budget`).
 - A budget line with a non-null `breakdown_id` is a **derived line** owned by that
   breakdown; null is an ordinary manual line.
 
+### `budget_line.gift_recipient_member_id`
+
+- `gift_recipient_member_id uuid`, nullable, with composite FK
+  `foreign key (gift_recipient_member_id, household_id) references public.members (id, household_id) on delete cascade`, plus an index.
+- The partition discriminator for the gift breakdown's derived lines: on a
+  gift-breakdown line it names the household member whose gifts the line funds;
+  null for the gift breakdown's external-recipients line, for generic-breakdown
+  lines, and for manual lines. Cascades the line away with the member. No new RLS
+  policy — the existing `budget_line` household policy covers it.
+
 ## Behaviour
 
 - **Roll-up amount.** A derived line's amount is the summed annualised items via
   `@nest/plan` `annualCents` — for a generic breakdown, over its `breakdown_item`
-  rows; for a `gift` breakdown, over `gift_budget.budgeted_amount_cents` (an annual
-  figure). The line's `frequency` is `annual`. The amount is read-only in every
-  budget surface (list, form, summary).
-- **Lifecycle.** The derived line exists iff the breakdown has ≥ 1 item (for a
-  `gift` breakdown: ≥ 1 gift budget). Adding the first item creates the line; adding
-  or editing items updates its amount; removing the last item removes the line. The
-  line's `line_group` follows the breakdown's group and its `name` follows the
-  breakdown's name. The one exception to removal: an emptied breakdown whose line
-  carries a `destination_account_id` keeps its line so its pay-split routing is not
-  silently lost — the line stays in place (rolling up to $0) until the breakdown has
-  items again or the line is re-routed. The reconcile runs app-wide from a headless
-  component mounted under the authenticated shell (not on any one route), so a
-  breakdown edit made anywhere rewrites the owned line: it computes the creates,
-  updates, and removes needed to bring each breakdown's line into step, and is a
-  no-op once they already match. Every collection write invalidates its table's
-  whole `[table, householdId]` cache prefix, so a breakdown-item edit refreshes both
-  the scoped item query and the unscoped roll-up, the reconcile sees the fresh
-  totals, and the derived amount propagates live to the Budget, Pay splits, and Summary
-  tabs with no reload.
+  rows; for a `gift` breakdown, each line takes its recipient partition's sum of
+  `gift_budget.budgeted_amount_cents` (an annual figure), partitioned by the
+  budget's recipient's `member_id` (null for external recipients). The line's
+  `frequency` is `annual`. The amount is read-only in every budget surface (list,
+  form, summary), and every surface resolves it from one derived-amount context so
+  Budget, Summary, and Splits never drift.
+- **Lifecycle.** A generic breakdown's line exists iff it has ≥ 1 item; each gift
+  recipient partition's line exists iff that partition has ≥ 1 gift budget. Adding
+  the first item/budget in a partition creates its line; adding or editing
+  items/budgets updates its amount; removing the last removes the line. A generic
+  line's `line_group` and `name` follow the breakdown; a gift line's group follows
+  the breakdown while its name is partition-derived ("Gifts for &lt;member&gt;", or
+  the breakdown's name for the external line). The one exception to removal: an
+  emptied partition whose line carries a `destination_account_id` keeps its line so
+  its pay-split routing is not silently lost — the line stays in place (rolling up to
+  $0) until its partition has budgets again or the line is re-routed. The reconcile
+  runs app-wide from a headless component mounted under the authenticated shell (not
+  on any one route), so a breakdown or gift edit made anywhere rewrites the owned
+  lines: it computes the creates, updates, and removes needed to bring each
+  breakdown's lines into step, and is a no-op once they already match. Every
+  collection write invalidates its table's whole `[table, householdId]` cache
+  prefix, so a breakdown-item or gift-budget edit refreshes both the scoped query and
+  the unscoped roll-up, the reconcile sees the fresh totals, and the derived amounts
+  propagate live to the Budget, Pay splits, and Summary tabs with no reload.
 - **System-managed amount.** A derived line is not created via the budget form and
   is not manually deletable, and its amount is not hand-editable — it is rolled up
   from the breakdown's items. Deleting the breakdown cascade-deletes its line (via
   the FK).
-- **Editable inline.** A derived line's name, group, and funding account edit
-  inline from the budget list like a manual line: the name and group write to the
-  owning `breakdown` (the reconcile pass copies them back onto the line), and the
-  funding account is set on the line's `destination_account_id`. The group choices
-  exclude Savings/Investments, which route via a goal rather than a funding account.
+- **Editable inline.** A derived line's group and funding account edit inline from
+  the budget list like a manual line: a generic line's name and group write to the
+  owning `breakdown` (the reconcile pass copies them back onto the line); a gift
+  line's name is partition-derived and shows read-only, so only its group flows to
+  the breakdown (shared across all its gift lines) while its name is left untouched.
+  The funding account is set on the line's own `destination_account_id`. The group
+  choices exclude Savings/Investments, which route via a goal rather than a funding
+  account.
 - **Routable.** A derived line is an ordinary `budget_line` in every other respect:
   it carries a `destination_account_id` and feeds the Pay splits tab's per-account
   recommendation like any line.
@@ -152,9 +181,12 @@ items live in `gift_budget`).
   - `kind = 'gift'` — the recipient × occasion + purchases planner, reached via this
     route.
 - **Budget list** — a derived line carries a tap-through chevron to its breakdown
-  (`/breakdowns/:id`) and an edit pencil that opens an inline editor for its name,
-  group, and funding account. Its amount shows read-only there, with a link to the
-  breakdown page to change the itemised total.
+  (`/breakdowns/:id`) and an edit pencil that opens an inline editor for its group
+  and funding account (and name, for a generic line — a gift line's name shows
+  read-only). Its amount shows read-only there, with a link to the breakdown page to
+  change the itemised total. A gift breakdown renders as several rows — "Gifts for
+  &lt;member&gt;" per member with gift budgets, plus "Gifts" for external recipients
+  — each with its own funding account.
 - **Absent surfaces** — there is no standalone Gifts tab (gifts is reached from the
   Breakdowns list) and no budget-line-form Amount source picker. There is no Health
   tab; medications is a generic breakdown the household creates.
@@ -163,17 +195,20 @@ items live in `gift_budget`).
 
 The roll-up reuses `annualCents`: a generic breakdown's amount is the sum of
 `annualCents(item.amount_cents, item.frequency, item.interval_count)` over its
-items; a `gift` breakdown's amount is the gift-budget total. No per-source
-special-casing beyond the two `kind` branches.
+items; a `gift` breakdown's per-recipient amounts come from `giftTotalsByMember`,
+which partitions the gift-budget totals by the recipient's `member_id`. No
+per-source special-casing beyond the two `kind` branches.
 
 ## Invariants
 
 - **Empty-breakdown lifecycle is app-enforced, not DB-enforced.** The schema
-  permits a breakdown with no items and no derived line, and does not itself create,
-  update, or remove the line as items come and go — the app's reconcile pass owns
-  that lifecycle.
-- **One-line-per-breakdown is app-enforced, not DB-enforced.** No unique constraint
-  ties a breakdown to a single `budget_line`; the app keeps the relationship 1:1.
+  permits a breakdown or gift partition with no items/budgets and no derived line,
+  and does not itself create, update, or remove the lines as items come and go — the
+  app's reconcile pass owns that lifecycle.
+- **Line-per-breakdown mapping is app-enforced, not DB-enforced.** No constraint
+  ties a breakdown to its lines; the app keeps a generic breakdown 1:1 and the gift
+  breakdown 1:1 with each recipient partition (matched by
+  `(breakdown_id, gift_recipient_member_id)`).
 - **Roll-up amount is app-enforced, not DB-enforced.** A derived line's
-  `amount_cents` is written by the app from the summed items; the schema does not
-  compute or check it.
+  `amount_cents` is written by the app from its partition's summed items/budgets; the
+  schema does not compute or check it.

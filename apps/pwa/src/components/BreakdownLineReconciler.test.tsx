@@ -47,7 +47,14 @@ vi.mock('../hooks/useBreakdowns', () => ({
 }))
 
 vi.mock('../hooks/useGifts', () => ({
-  useGifts: () => ({ budgets: [], loading: false }),
+  useGifts: () => ({ budgets: [], recipients: [], loading: false }),
+}))
+
+vi.mock('../hooks/useMembers', () => ({
+  useMembers: () => ({
+    members: [{ id: 'm-sam', household_id: 'h1', name: 'Sam' }],
+    loading: false,
+  }),
 }))
 
 const reconcileSpy = vi.fn()
@@ -56,20 +63,22 @@ vi.mock('../hooks/useReconcileBreakdownLines', () => ({
 }))
 
 describe('BreakdownLineReconciler', () => {
-  it('runs the reconcile with rolled-up totals and counts, with no route in scope', () => {
+  it('runs the reconcile with the derived-amount context, counts, and member names', () => {
     const { container } = render(<BreakdownLineReconciler householdId="h1" />)
 
     expect(container).toBeEmptyDOMElement()
     expect(reconcileSpy).toHaveBeenCalledTimes(1)
     const params = reconcileSpy.mock.calls[0]![0] as {
       dataLoaded: boolean
-      totals: Map<string, number>
+      context: { genericTotalsByBreakdownId: Map<string, number> }
       counts: Map<string, number>
+      memberNames: Map<string, string>
       createLine: unknown
     }
     expect(params.dataLoaded).toBe(true)
-    expect(params.totals.get('bd1')).toBe(10_00)
+    expect(params.context.genericTotalsByBreakdownId.get('bd1')).toBe(10_00)
     expect(params.counts.get('bd1')).toBe(1)
+    expect(params.memberNames.get('m-sam')).toBe('Sam')
     expect(params.createLine).toBe(createLine)
   })
 })

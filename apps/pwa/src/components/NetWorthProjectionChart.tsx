@@ -11,7 +11,7 @@ import {
   Title,
 } from '@mantine/core'
 import type { NetWorthProjectionPoint } from '@nest/plan'
-import { formatCents } from '../lib/money'
+import { formatCents, formatCompactDollars } from '../lib/money'
 import {
   NET_WORTH_SERIES_COLORS,
   projectionTooltipItems,
@@ -169,7 +169,8 @@ export function NetWorthProjectionChart({
               curveType="monotone"
               withDots={false}
               withLegend
-              valueFormatter={formatCents}
+              valueFormatter={formatCompactDollars}
+              yAxisProps={{ width: 48 }}
               areaProps={{ stackId: 'assets', fillOpacity: 0.25 }}
               tooltipProps={{ content: ProjectionTooltip }}
             />

@@ -127,9 +127,8 @@ export const theme = createTheme({
   headings: {
     fontFamily: headingFontFamily,
     fontWeight: '700',
-    // Display-scale, tightly-tracked h1 for page titles, stepping down sharply to
-    // clearly-subordinate section headings. h1 carries a negative letter-spacing
-    // so the heavy Space Grotesk reads as a bold display line.
+    // Display-scale h1 for page titles, stepping down sharply to clearly-subordinate
+    // section headings. The h1's negative letter-spacing lives on the Title component.
     sizes: {
       h1: { fontSize: rem(38), lineHeight: '1.05', fontWeight: '700' },
       h2: { fontSize: rem(28), lineHeight: '1.15', fontWeight: '700' },
@@ -141,6 +140,14 @@ export const theme = createTheme({
   },
 
   components: {
+    Title: {
+      // The display-scale page title (h1) carries a negative letter-spacing so the
+      // heavy Space Grotesk reads as a bold display line — a shared token here, so
+      // no screen hand-applies it inline.
+      styles: (_theme: MantineTheme, props: { order?: number }) => ({
+        root: { letterSpacing: (props.order ?? 1) === 1 ? '-0.02em' : undefined },
+      }),
+    },
     Card: {
       defaultProps: { withBorder: true, radius: 'md', padding: 'lg' },
       styles: {

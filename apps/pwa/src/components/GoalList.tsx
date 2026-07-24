@@ -143,7 +143,7 @@ function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemP
         justify="flex-end"
         style={{ width: '7rem', flexShrink: 0 }}
       />
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -160,7 +160,7 @@ function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItem
           <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
             {goal.name}
           </Text>
-          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
             <Badge size="xs" variant="light" color={status.color}>
               {status.label}
             </Badge>

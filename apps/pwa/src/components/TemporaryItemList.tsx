@@ -54,7 +54,7 @@ function TemporaryItemRow({ item, now, onEdit, onDelete }: TemporaryItemItemProp
         ta="right"
         style={{ width: '7rem', flexShrink: 0 }}
       />
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -80,7 +80,7 @@ function TemporaryItemCard({ item, now, onEdit, onDelete }: TemporaryItemItemPro
             </Badge>
           </Group>
         </Stack>
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <MoneyText cents={item.contribution_cents} fw={700} size="sm" />
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>

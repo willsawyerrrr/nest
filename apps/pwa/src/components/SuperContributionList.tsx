@@ -75,7 +75,7 @@ function ContributionRow({ contribution, memberName, onEdit, onDelete }: Contrib
       <Text fw={700} size="sm" ta="right" style={{ width: '9rem', flexShrink: 0 }}>
         {describeValue(contribution)}
       </Text>
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -107,7 +107,7 @@ function ContributionCard({ contribution, memberName, onEdit, onDelete }: Contri
             )}
           </Group>
         </Stack>
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <Text fw={700} size="sm">
             {describeValue(contribution)}
           </Text>

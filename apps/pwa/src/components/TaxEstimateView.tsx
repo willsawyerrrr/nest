@@ -131,7 +131,7 @@ function SupportFigure({
       <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
         {label}
       </Text>
-      <Group gap={4} align="baseline" wrap="nowrap">
+      <Group gap="xxs" align="baseline" wrap="nowrap">
         <MoneyText cents={fortnightlyCents} fw={600} size="sm" />
         <Text size="xs" c="dimmed">
           / fn
@@ -455,7 +455,7 @@ function MlsWhatIf({
               Below the family MLS threshold — no surcharge applies.
             </Text>
           ) : (
-            <Stack gap={4}>
+            <Stack gap="xxs">
               <Text size="sm">
                 Without hospital cover: combined income{' '}
                 <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}

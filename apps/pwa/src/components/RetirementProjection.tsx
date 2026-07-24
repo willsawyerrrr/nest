@@ -23,6 +23,7 @@ import {
   yearsToRetirement,
   type RetirementAssumptions,
 } from '../lib/retirement'
+import { MoneyText } from './MoneyText'
 
 /** A member's inputs to their retirement projection: balance and net annual contribution. */
 interface RetirementProjectionEntry {
@@ -95,25 +96,16 @@ function GrowthBar({
           <Text size="xs" c="dimmed">
             Now
           </Text>
-          <MoneyLine cents={currentBalanceCents} />
+          <MoneyText cents={currentBalanceCents} size="sm" fw={600} />
         </Stack>
         <Stack gap={0} align="flex-end">
           <Text size="xs" c="dimmed">
             At {retirementAge}
           </Text>
-          <MoneyLine cents={nominalCents} />
+          <MoneyText cents={nominalCents} size="sm" fw={600} />
         </Stack>
       </Group>
     </Stack>
-  )
-}
-
-/** A tabular-figure money line for the growth-bar captions. */
-function MoneyLine({ cents }: { cents: number }) {
-  return (
-    <Text size="sm" fw={600} style={{ fontVariantNumeric: 'tabular-nums lining-nums' }}>
-      {formatCents(cents)}
-    </Text>
   )
 }
 
@@ -166,17 +158,13 @@ function MemberProjectionCard({
                 <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
                   Projected at retirement
                 </Text>
-                <Text
+                <MoneyText
+                  cents={projection.realCents}
                   fw={700}
                   lh={1.1}
                   fz={rem(30)}
-                  style={{
-                    fontFamily: 'var(--mantine-font-family-headings)',
-                    fontVariantNumeric: 'tabular-nums lining-nums',
-                  }}
-                >
-                  {formatCents(projection.realCents)}
-                </Text>
+                  style={{ fontFamily: 'var(--mantine-font-family-headings)' }}
+                />
                 <Text size="sm" c="dimmed">
                   in today&rsquo;s dollars
                 </Text>

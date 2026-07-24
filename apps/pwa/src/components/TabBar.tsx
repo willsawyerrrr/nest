@@ -46,7 +46,7 @@ const DRAWER_ID = 'primary-nav-drawer'
  */
 function NavList({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   return (
-    <Stack gap={4} component="nav" aria-label="Primary">
+    <Stack gap="xxs" component="nav" aria-label="Primary">
       {items.map((item) => (
         <NavLink
           key={item.path}

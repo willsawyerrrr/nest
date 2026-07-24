@@ -181,7 +181,7 @@ function ItemRow({ item, onEdit, onDelete }: ItemRowProps) {
         justify="flex-end"
         style={{ width: '7rem', flexShrink: 0 }}
       />
-      <Group gap={4} wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
         <ItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -209,7 +209,7 @@ function ItemCard({ item, onEdit, onDelete }: ItemRowProps) {
             </Badge>
           </Group>
         </Stack>
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightly} />
           <ItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
         </Group>

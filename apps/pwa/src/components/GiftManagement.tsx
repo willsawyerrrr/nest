@@ -151,7 +151,7 @@ function EntityActions({
   actions: { onEdit: () => void; onDelete: () => void }
 }) {
   return (
-    <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+    <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
       <ActionIcon variant="subtle" aria-label={`Edit ${label}`} onClick={actions.onEdit}>
         <IconPencil size={16} />
       </ActionIcon>

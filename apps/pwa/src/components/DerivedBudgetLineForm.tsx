@@ -128,7 +128,7 @@ export function DerivedBudgetLineForm({
             onChange={(event) => setName(event.currentTarget.value)}
           />
         ) : (
-          <Stack gap={4}>
+          <Stack gap="xxs">
             <Text component="span" size="sm" fw={500}>
               Name
             </Text>
@@ -137,7 +137,7 @@ export function DerivedBudgetLineForm({
         )}
 
         {fundingLocked ? (
-          <Stack gap={4}>
+          <Stack gap="xxs">
             <Text component="span" size="sm" fw={500}>
               Funded from
             </Text>
@@ -158,7 +158,7 @@ export function DerivedBudgetLineForm({
           />
         )}
 
-        <Stack gap={4}>
+        <Stack gap="xxs">
           <Text component="span" size="sm" fw={500}>
             Amount
           </Text>

@@ -145,7 +145,7 @@ function DeductionRow({ deduction, onEdit, onDelete, ...receiptProps }: Deductio
         ta="right"
         style={{ width: '7rem', flexShrink: 0 }}
       />
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -166,7 +166,7 @@ function DeductionCard({ deduction, onEdit, onDelete, ...receiptProps }: Deducti
               {formatIsoDate(deduction.deduction_date)}
             </Text>
           </Stack>
-          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
             <MoneyText cents={deduction.amount_cents} fw={700} size="sm" />
             <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           </Group>

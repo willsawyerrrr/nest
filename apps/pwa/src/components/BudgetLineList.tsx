@@ -192,7 +192,7 @@ function BudgetLineRow({
         justify="flex-end"
         style={{ width: '7rem', flexShrink: 0 }}
       />
-      <Group gap={4} wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
         {breakdown ? (
           <DerivedLineControls breakdown={breakdown} onEdit={onEdit} />
         ) : (
@@ -239,7 +239,7 @@ function BudgetLineCard({
             </Badge>
           </Group>
         </Stack>
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightly} />
           {breakdown ? (
             <DerivedLineControls breakdown={breakdown} onEdit={onEdit} />

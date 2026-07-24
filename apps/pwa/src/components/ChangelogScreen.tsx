@@ -94,7 +94,7 @@ export function ChangelogScreen({
       {!error && configured && (
         <>
           {available.length > 0 && (
-            <Alert color="blue" variant="light" title="Update available">
+            <Alert color="info" variant="light" title="Update available">
               <Stack gap="sm">
                 <Text size="sm">
                   A newer version of the app is ready. Reload to get{' '}

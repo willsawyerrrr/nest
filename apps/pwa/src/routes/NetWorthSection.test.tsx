@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '../test/render'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '../test/render'
 import { NetWorthSection } from './NetWorthSection'
+
+afterEach(() => localStorage.clear())
 
 const hooks = vi.hoisted(() => ({
   useAccounts: vi.fn(),
@@ -234,6 +236,22 @@ describe('NetWorthSection', () => {
       debtCents: 1_200_00,
       totalCents: 3_800_00,
     })
+  })
+
+  it('redraws the projection to the chosen horizon', () => {
+    mockLoaded()
+    render(<NetWorthSection householdId="h1" />)
+
+    const initial = hooks.screenProps?.projection as unknown[]
+    // Default "to retirement" with no ages set → the 30-year fallback → 31 points.
+    expect(initial).toHaveLength(31)
+
+    const change = hooks.screenProps?.onHorizonChange as (option: string) => void
+    act(() => change('5y'))
+
+    // Five years spans years 0–5 inclusive → 6 points.
+    const updated = hooks.screenProps?.projection as unknown[]
+    expect(updated).toHaveLength(6)
   })
 
   it('toggling exclusion updates the account with the flag', () => {

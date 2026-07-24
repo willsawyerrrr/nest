@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { grantValueCents, projectNetWorth } from '@nest/plan'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { NetWorthView } from '../components/NetWorthView'
@@ -17,9 +18,16 @@ import {
   combinedHelpCentsByYear,
   netWorthGoals,
   projectionHorizonYears,
+  resolveHorizonYears,
   splitCashAndDebt,
 } from '../lib/netWorth'
-import { readAssumptions, readMemberAges } from '../lib/retirement'
+import {
+  readAssumptions,
+  readMemberAges,
+  readProjectionHorizon,
+  writeProjectionHorizon,
+  type ProjectionHorizonOption,
+} from '../lib/retirement'
 import {
   accountsWithEffectiveSuperBalances,
   netWorthBreakdown,
@@ -45,6 +53,7 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)
   const budgetLines = useBudgetLines(householdId)
   const { members, loading: membersLoading } = useMembers()
+  const [horizon, setHorizon] = useState<ProjectionHorizonOption>(readProjectionHorizon)
 
   if (
     accounts.loading ||
@@ -96,12 +105,18 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const superIds = superAccountIds(profileRows)
   const breakdown = netWorthBreakdown(effectiveAccounts, superIds)
 
+  const changeHorizon = (option: ProjectionHorizonOption) => {
+    setHorizon(option)
+    writeProjectionHorizon(option)
+  }
+
   const assumptions = readAssumptions()
   const ages = readMemberAges()
-  const horizonYears = projectionHorizonYears(
+  const retirementHorizonYears = projectionHorizonYears(
     members.map((member) => ages[member.id]).filter((age): age is number => age !== undefined),
     assumptions.retirementAge,
   )
+  const horizonYears = resolveHorizonYears(horizon, retirementHorizonYears)
   const estimate = estimateHouseholdTaxFromRows(
     inflowRows,
     taxProfiles.profiles ?? [],
@@ -155,6 +170,8 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
       liabilities={liabilities}
       projection={projection}
       projectionBaseYear={today.getFullYear()}
+      horizon={horizon}
+      onHorizonChange={changeHorizon}
       onToggleExclude={(id, exclude) => {
         void accounts.update(id, { exclude_from_net_worth: exclude })
       }}

@@ -3,6 +3,7 @@ import type { HelpPayoffProjection } from '@nest/tax'
 import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
+import type { ProjectionHorizonOption } from './retirement'
 
 /** Default projection horizon in years when no member age pins it to retirement. */
 export const DEFAULT_PROJECTION_HORIZON_YEARS = 30
@@ -15,6 +16,25 @@ export const DEFAULT_PROJECTION_HORIZON_YEARS = 30
 export function projectionHorizonYears(ages: readonly number[], retirementAge: number): number {
   const spans = ages.map((age) => Math.round(retirementAge - age)).filter((years) => years > 0)
   return spans.length > 0 ? Math.max(...spans) : DEFAULT_PROJECTION_HORIZON_YEARS
+}
+
+/** Whole-year length of each fixed horizon option. */
+const FIXED_HORIZON_YEARS: Record<Exclude<ProjectionHorizonOption, 'retirement'>, number> = {
+  '5y': 5,
+  '10y': 10,
+  '20y': 20,
+  '30y': 30,
+}
+
+/**
+ * The horizon in whole years for the selected option: a fixed span, or the
+ * retirement-age-derived `retirementHorizonYears` when `retirement` is chosen.
+ */
+export function resolveHorizonYears(
+  option: ProjectionHorizonOption,
+  retirementHorizonYears: number,
+): number {
+  return option === 'retirement' ? retirementHorizonYears : FIXED_HORIZON_YEARS[option]
 }
 
 /**

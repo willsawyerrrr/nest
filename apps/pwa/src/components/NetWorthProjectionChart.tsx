@@ -1,9 +1,19 @@
 import { CompositeChart } from '@mantine/charts'
-import { Card, Stack, Text, Title } from '@mantine/core'
+import { Card, SegmentedControl, Stack, Text, Title } from '@mantine/core'
 import type { NetWorthProjectionPoint } from '@nest/plan'
 import { formatCents } from '../lib/money'
+import type { ProjectionHorizonOption } from '../lib/retirement'
 import { chartColors } from '../lib/tokens'
 import { EmptyState } from './EmptyState'
+
+/** The horizon options offered by the control, in order. */
+const HORIZON_OPTIONS: { value: ProjectionHorizonOption; label: string }[] = [
+  { value: '5y', label: '5y' },
+  { value: '10y', label: '10y' },
+  { value: '20y', label: '20y' },
+  { value: '30y', label: '30y' },
+  { value: 'retirement', label: 'To retirement' },
+]
 
 /**
  * Token colours for the projection series, from the shared chart palette. Assets
@@ -28,6 +38,9 @@ interface NetWorthProjectionChartProps {
   points: NetWorthProjectionPoint[]
   /** Calendar year of the first point (year 0), for the x-axis labels. */
   baseYear: number
+  /** The selected horizon and a callback to change it; both drive the horizon control. */
+  horizon?: ProjectionHorizonOption
+  onHorizonChange?: (horizon: ProjectionHorizonOption) => void
 }
 
 /**
@@ -38,7 +51,12 @@ interface NetWorthProjectionChartProps {
  * line crossing through. Each band that carries a value is its own series. Falls
  * back to an empty state when the household has nothing to project.
  */
-export function NetWorthProjectionChart({ points, baseYear }: NetWorthProjectionChartProps) {
+export function NetWorthProjectionChart({
+  points,
+  baseYear,
+  horizon,
+  onHorizonChange,
+}: NetWorthProjectionChartProps) {
   const hasData = points.some(
     (point) =>
       point.superCents > 0 ||
@@ -83,6 +101,16 @@ export function NetWorthProjectionChart({ points, baseYear }: NetWorthProjection
         <Title order={3} size="h5">
           Projected forward
         </Title>
+        {horizon && onHorizonChange && (
+          <SegmentedControl
+            size="xs"
+            fullWidth
+            aria-label="Projection horizon"
+            value={horizon}
+            onChange={(value) => onHorizonChange(value as ProjectionHorizonOption)}
+            data={HORIZON_OPTIONS}
+          />
+        )}
         {hasData ? (
           <>
             <CompositeChart

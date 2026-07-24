@@ -329,6 +329,37 @@ describe('NetWorthView', () => {
     expect(within(chart).getByText(/project your net worth forward/i)).toBeInTheDocument()
   })
 
+  it('renders the horizon control and reports the chosen option', () => {
+    const onHorizonChange = vi.fn()
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          {
+            year: 0,
+            superCents: 20_000_000,
+            otherCents: 0,
+            equityCents: 0,
+            helpCents: 0,
+            debtCents: 0,
+            totalCents: 20_000_000,
+          },
+        ]}
+        projectionBaseYear={2026}
+        horizon="retirement"
+        onHorizonChange={onHorizonChange}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    const control = screen.getByRole('radiogroup', { name: 'Projection horizon' })
+    expect(within(control).getByText('To retirement')).toBeInTheDocument()
+    fireEvent.click(within(control).getByText('5y'))
+    expect(onHorizonChange).toHaveBeenCalledWith('5y')
+  })
+
   it('offers no Edit affordance when only super accounts exist', () => {
     render(
       <NetWorthView

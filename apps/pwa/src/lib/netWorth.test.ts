@@ -8,6 +8,7 @@ import {
   DEFAULT_PROJECTION_HORIZON_YEARS,
   netWorthGoals,
   projectionHorizonYears,
+  resolveHorizonYears,
   splitCashAndDebt,
 } from './netWorth'
 
@@ -37,6 +38,19 @@ describe('projectionHorizonYears', () => {
 
   it('falls back to the default when every known member is past retirement', () => {
     expect(projectionHorizonYears([62, 65], 60)).toBe(DEFAULT_PROJECTION_HORIZON_YEARS)
+  })
+})
+
+describe('resolveHorizonYears', () => {
+  it('maps each fixed option to its year count', () => {
+    expect(resolveHorizonYears('5y', 42)).toBe(5)
+    expect(resolveHorizonYears('10y', 42)).toBe(10)
+    expect(resolveHorizonYears('20y', 42)).toBe(20)
+    expect(resolveHorizonYears('30y', 42)).toBe(30)
+  })
+
+  it('uses the retirement-derived horizon for the "retirement" option', () => {
+    expect(resolveHorizonYears('retirement', 42)).toBe(42)
   })
 })
 

@@ -3,11 +3,15 @@ import {
   AGES_STORAGE_KEY,
   ASSUMPTIONS_STORAGE_KEY,
   DEFAULT_ASSUMPTIONS,
+  DEFAULT_PROJECTION_HORIZON_OPTION,
+  PROJECTION_HORIZON_STORAGE_KEY,
   readAssumptions,
   readMemberAges,
+  readProjectionHorizon,
   setMemberAge,
   toProjectionInput,
   writeAssumptions,
+  writeProjectionHorizon,
   yearsToRetirement,
 } from './retirement'
 
@@ -70,6 +74,23 @@ describe('member ages', () => {
   it('returns an empty map on unparseable storage', () => {
     localStorage.setItem(AGES_STORAGE_KEY, '{not json')
     expect(readMemberAges()).toEqual({})
+  })
+})
+
+describe('projection horizon', () => {
+  it('defaults to "to retirement" when nothing is stored', () => {
+    expect(readProjectionHorizon()).toBe(DEFAULT_PROJECTION_HORIZON_OPTION)
+    expect(DEFAULT_PROJECTION_HORIZON_OPTION).toBe('retirement')
+  })
+
+  it('round-trips a written horizon option', () => {
+    writeProjectionHorizon('10y')
+    expect(readProjectionHorizon()).toBe('10y')
+  })
+
+  it('falls back to the default for an unrecognised stored value', () => {
+    localStorage.setItem(PROJECTION_HORIZON_STORAGE_KEY, '99y')
+    expect(readProjectionHorizon()).toBe(DEFAULT_PROJECTION_HORIZON_OPTION)
   })
 })
 

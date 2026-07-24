@@ -30,6 +30,40 @@ export const DEFAULT_ASSUMPTIONS: RetirementAssumptions = {
 
 export const ASSUMPTIONS_STORAGE_KEY = 'super-retirement-assumptions'
 export const AGES_STORAGE_KEY = 'super-retirement-ages'
+export const PROJECTION_HORIZON_STORAGE_KEY = 'net-worth-projection-horizon'
+
+/**
+ * How far the net-worth projection runs: a fixed number of years, or `retirement`
+ * to track the retirement-age-derived horizon.
+ */
+export type ProjectionHorizonOption = '5y' | '10y' | '20y' | '30y' | 'retirement'
+
+/** The horizon selected until the household chooses otherwise. */
+export const DEFAULT_PROJECTION_HORIZON_OPTION: ProjectionHorizonOption = 'retirement'
+
+const PROJECTION_HORIZON_OPTIONS = new Set<ProjectionHorizonOption>([
+  '5y',
+  '10y',
+  '20y',
+  '30y',
+  'retirement',
+])
+
+/**
+ * Reads the stored projection horizon, falling back to the default when nothing is
+ * stored or the stored value is not a recognised option.
+ */
+export function readProjectionHorizon(): ProjectionHorizonOption {
+  const stored = localStorage.getItem(PROJECTION_HORIZON_STORAGE_KEY)
+  return stored !== null && PROJECTION_HORIZON_OPTIONS.has(stored as ProjectionHorizonOption)
+    ? (stored as ProjectionHorizonOption)
+    : DEFAULT_PROJECTION_HORIZON_OPTION
+}
+
+/** Persists the household's projection horizon choice. */
+export function writeProjectionHorizon(option: ProjectionHorizonOption): void {
+  localStorage.setItem(PROJECTION_HORIZON_STORAGE_KEY, option)
+}
 
 /** A member's current age keyed by member id; missing when not yet entered. */
 export type MemberAges = Record<string, number>

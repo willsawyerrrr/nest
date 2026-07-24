@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react'
 import type { NetWorthProjectionPoint } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
+import type { ProjectionHorizonOption } from '../lib/retirement'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
 import { EmptyState } from './EmptyState'
 import { ListRow } from './ListRow'
@@ -41,6 +42,9 @@ interface NetWorthViewProps {
   /** The net worth projected forward, and the calendar year of its first point. */
   projection?: NetWorthProjectionPoint[]
   projectionBaseYear?: number
+  /** The selected projection horizon and a callback to change it. */
+  horizon?: ProjectionHorizonOption
+  onHorizonChange?: (horizon: ProjectionHorizonOption) => void
 }
 
 /**
@@ -290,6 +294,8 @@ export function NetWorthView({
   onToggleExclude,
   projection,
   projectionBaseYear,
+  horizon,
+  onHorizonChange,
 }: NetWorthViewProps) {
   const breakdown = netWorthBreakdown(accounts, superIds, liabilities, equity)
   const [editing, { toggle: toggleEditing }] = useDisclosure(false)
@@ -322,7 +328,12 @@ export function NetWorthView({
       </Card>
 
       {projection && (
-        <NetWorthProjectionChart points={projection} baseYear={projectionBaseYear ?? 0} />
+        <NetWorthProjectionChart
+          points={projection}
+          baseYear={projectionBaseYear ?? 0}
+          horizon={horizon}
+          onHorizonChange={onHorizonChange}
+        />
       )}
 
       <AccountGroup

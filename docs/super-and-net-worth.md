@@ -73,9 +73,13 @@ untouched.
 
 ### Projected forward
 
-Below the total, a chart projects net worth forward year by year to the
-household's retirement horizon (the longest span to the retirement-age assumption
-across the members whose age is entered, or 30 years when none is). Each asset
+Below the total, a chart projects net worth forward year by year over a horizon
+chosen with a segmented control by the chart: 5, 10, 20, or 30 years, or **To
+retirement** (the default). The fixed options run that many years; **To
+retirement** tracks the household's retirement horizon — the longest span to the
+retirement-age assumption across the members whose age is entered, or 30 years
+when none is. The choice is saved in localStorage (a sibling of the retirement
+assumptions), so the chart reopens on the same horizon. Each asset
 component — super, cash and other accounts, and equity — stacks as its own area
 above the axis, and each liability is its own band below the axis: HELP debt and
 debt accounts are itemised separately rather than lumped together. Net worth

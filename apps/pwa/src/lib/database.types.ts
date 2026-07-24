@@ -222,6 +222,7 @@ export type Database = {
           household_id: string
           id: string
           interval_count: number | null
+          is_gift_line: boolean
           line_group: Database['public']['Enums']['budget_group']
           name: string
           updated_at: string
@@ -237,6 +238,7 @@ export type Database = {
           household_id: string
           id?: string
           interval_count?: number | null
+          is_gift_line?: boolean
           line_group: Database['public']['Enums']['budget_group']
           name: string
           updated_at?: string
@@ -252,6 +254,7 @@ export type Database = {
           household_id?: string
           id?: string
           interval_count?: number | null
+          is_gift_line?: boolean
           line_group?: Database['public']['Enums']['budget_group']
           name?: string
           updated_at?: string

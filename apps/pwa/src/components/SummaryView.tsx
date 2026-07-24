@@ -1,10 +1,11 @@
-import { DonutChart } from '@mantine/charts'
+import { lazy, Suspense } from 'react'
 import {
   Card,
   ColorSwatch,
   Group,
   SegmentedControl,
   SimpleGrid,
+  Skeleton,
   Stack,
   Table,
   Text,
@@ -19,6 +20,14 @@ import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
+
+// The donut's recharts graphic is loaded on demand so the charting library
+// stays out of the default `/summary` route's bundle; the fallback reserves the
+// chart's diameter so streaming it in causes no layout shift.
+const AllocationDonutChart = lazy(() => import('./AllocationDonutChart'))
+
+/** The donut's diameter in pixels, matched by the loading fallback. */
+const DONUT_DIAMETER = 180
 
 /**
  * The basis the allocation donut divides against: take-home (post-tax) available
@@ -235,15 +244,16 @@ function AllocationDonut({
             ]}
           />
         </Group>
-        <DonutChart
-          data={segments.map(({ name, value, color }) => ({ name, value, color }))}
-          size={180}
-          thickness={28}
-          withTooltip
-          tooltipDataSource="segment"
-          valueFormatter={formatCents}
-          chartLabel={`${formatCents(summary.afterSaving.fortnightlyCents)} buffer`}
-        />
+        <Suspense
+          fallback={
+            <Skeleton circle height={DONUT_DIAMETER} width={DONUT_DIAMETER} animate={false} />
+          }
+        >
+          <AllocationDonutChart
+            segments={segments.map(({ name, value, color }) => ({ name, value, color }))}
+            chartLabel={`${formatCents(summary.afterSaving.fortnightlyCents)} buffer`}
+          />
+        </Suspense>
         <SimpleGrid cols={3} spacing="xs" w="100%">
           <DonutTiles summary={summary} mode={mode} />
         </SimpleGrid>

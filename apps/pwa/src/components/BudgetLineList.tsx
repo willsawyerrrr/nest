@@ -86,33 +86,41 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   )
 }
 
-/** A chevron control linking a derived line through to its breakdown's editor. */
-function BreakdownLink({ id }: { id: string }) {
+/** The breakdown fields a derived line's chevron needs to build its navigation target. */
+type LinkedBreakdown = { id: string; kind: BreakdownKind }
+
+/**
+ * A chevron control linking a derived line through to its source. A gift line goes
+ * straight to the Gifts tab, where gifts are managed; a generic line goes to its
+ * breakdown's editor.
+ */
+function BreakdownLink({ breakdown }: { breakdown: LinkedBreakdown }) {
+  const isGift = breakdown.kind === 'gift'
   return (
     <ActionIcon
       component={Link}
-      to={`/breakdowns/${id}`}
+      to={isGift ? '/gifts' : `/breakdowns/${breakdown.id}`}
       state={{ from: '/budget' }}
       variant="subtle"
-      aria-label="Open breakdown"
+      aria-label={isGift ? 'Open gifts' : 'Open breakdown'}
     >
       <IconChevronRight size={16} />
     </ActionIcon>
   )
 }
 
-/** A derived line's controls: an inline edit pencil beside the chevron to its breakdown. */
+/** A derived line's controls: an inline edit pencil beside the chevron to its source. */
 function DerivedLineControls({
-  breakdownId,
+  breakdown,
   onEdit,
 }: {
-  breakdownId: string
+  breakdown: LinkedBreakdown
   onEdit?: () => void
 }) {
   return (
     <>
       {onEdit && <EditAction onClick={onEdit} />}
-      <BreakdownLink id={breakdownId} />
+      <BreakdownLink breakdown={breakdown} />
     </>
   )
 }
@@ -149,7 +157,7 @@ function BudgetLineRow({
 }: {
   line: BudgetLine
   route?: LineRoute
-  breakdown?: { id: string }
+  breakdown?: LinkedBreakdown
   onEdit?: () => void
   onDelete?: () => void
 }) {
@@ -185,7 +193,7 @@ function BudgetLineRow({
       />
       <Group gap={4} wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
         {breakdown ? (
-          <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
+          <DerivedLineControls breakdown={breakdown} onEdit={onEdit} />
         ) : (
           onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         )}
@@ -207,7 +215,7 @@ function BudgetLineCard({
 }: {
   line: BudgetLine
   route?: LineRoute
-  breakdown?: { id: string }
+  breakdown?: LinkedBreakdown
   onEdit?: () => void
   onDelete?: () => void
 }) {
@@ -233,7 +241,7 @@ function BudgetLineCard({
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightly} />
           {breakdown ? (
-            <DerivedLineControls breakdownId={breakdown.id} onEdit={onEdit} />
+            <DerivedLineControls breakdown={breakdown} onEdit={onEdit} />
           ) : (
             onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           )}
@@ -250,7 +258,7 @@ function BudgetLineCard({
 function BudgetLineItem(props: {
   line: BudgetLine
   route?: LineRoute
-  breakdown?: { id: string }
+  breakdown?: LinkedBreakdown
   onEdit?: () => void
   onDelete?: () => void
 }) {

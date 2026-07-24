@@ -208,8 +208,9 @@ items live in `gift_budget`).
   interval as elsewhere); rename the breakdown; choose its group; delete the
   breakdown. A `kind = 'gift'` breakdown has no editor here and redirects to the
   Gifts tab (`/gifts`).
-- **Budget list** — a derived line carries a tap-through chevron to its breakdown
-  (`/breakdowns/:id`, which lands on the Gifts tab for a gift line) and an edit
+- **Budget list** — a derived line carries a tap-through chevron to its source — a
+  generic line to its breakdown (`/breakdowns/:id`), a gift line straight to the
+  Gifts tab (`/gifts`) — and an edit
   pencil that opens an inline editor for its group and funding account (and name, for
   a generic line — a gift line's name shows read-only). Its amount shows read-only
   there, with a link to change the itemised total. A gift breakdown drives several

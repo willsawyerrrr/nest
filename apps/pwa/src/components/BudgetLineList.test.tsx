@@ -575,6 +575,46 @@ describe('BudgetLineList', () => {
     expect(within(card).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
   })
 
+  it('links a generic derived line to its breakdown and a gift line to the Gifts tab', () => {
+    render(
+      <MemoryRouter>
+        <BudgetLineList
+          lines={[
+            line({ id: 'meds', line_group: 'needs', name: 'Meds', breakdown_id: 'b-meds' }),
+            line({
+              id: 'gift',
+              line_group: 'wants',
+              name: 'Gifts for Sam',
+              breakdown_id: 'b-gift',
+            }),
+          ]}
+          goals={[]}
+          breakdowns={[
+            { id: 'b-meds', name: 'Meds', line_group: 'needs', kind: 'generic' },
+            { id: 'b-gift', name: 'Gifts', line_group: 'wants', kind: 'gift' },
+          ]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onUpdateDerivedLine={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const generic = screen.getByText('Meds').closest('.mantine-Card-root') as HTMLElement
+    expect(within(generic).getByRole('link', { name: /open breakdown/i })).toHaveAttribute(
+      'href',
+      '/breakdowns/b-meds',
+    )
+
+    const gift = screen.getByText('Gifts for Sam').closest('.mantine-Card-root') as HTMLElement
+    expect(within(gift).queryByRole('link', { name: /open breakdown/i })).not.toBeInTheDocument()
+    expect(within(gift).getByRole('link', { name: /open gifts/i })).toHaveAttribute(
+      'href',
+      '/gifts',
+    )
+  })
+
   it('opens the derived-line editor with the amount locked and no frequency input', async () => {
     const user = userEvent.setup()
     render(

@@ -237,7 +237,7 @@ design.
       or by person, default collapsed), each group rolling up budgeted / spent /
       remaining, reusing the Budget tab's `GroupSection`. The effective date is
       `event_date ?? occasion.occasion_date`.
-- [x] Derived-line lifecycle (`reconcileBreakdownLines`): the line exists iff the
+- [x] Derived-line lifecycle (DB reconcile trigger): the line exists iff the
       breakdown has items, its amount is the summed-annualised roll-up
       (`applyBreakdownAmounts`), and its group and name track the breakdown. A
       routed line survives an empty breakdown so its pay-split routing is not lost.

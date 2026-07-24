@@ -12,8 +12,6 @@ export const semanticColors = {
   info: 'info',
 } as const
 
-export type SemanticColor = keyof typeof semanticColors
-
 /**
  * Each categorical key's Mantine base colour and per-scheme scale shade. The six
  * budget groups span six distinct hues — indigo, violet, pink, orange, teal,

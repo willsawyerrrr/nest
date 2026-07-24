@@ -216,9 +216,7 @@ Owned by a breakdown; every breakdown is generic.
   reconcile pass derives the gift budget lines from them.
 - **`/breakdowns/:id`** — the item editor: the item list with add / edit / remove
   (name + amount + frequency, `every_n_weeks`/`every_n_months` taking an interval as
-  elsewhere); rename the breakdown; choose its group; delete the breakdown. As a
-  transitional guard, a `kind = 'gift'` breakdown id redirects to the Gifts tab
-  (`/gifts`).
+  elsewhere); rename the breakdown; choose its group; delete the breakdown.
 - **Budget list** — a derived line carries a tap-through chevron to its source — a
   breakdown line to its breakdown (`/breakdowns/:id`), a gift line straight to the
   Gifts tab (`/gifts`) — and an edit

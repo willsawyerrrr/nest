@@ -334,8 +334,7 @@ export function reconcileGiftLines(
  * Computes the app-enforced derived-line lifecycle for generic breakdowns: each
  * owns exactly one line tracking its name, group, and item roll-up, linked by
  * `budget_line.breakdown_id`. Gift lines are reconciled separately by
- * {@link reconcileGiftLines}; a `kind === 'gift'` breakdown (should one linger
- * during a data migration) is skipped here.
+ * {@link reconcileGiftLines}.
  *
  * A generic line's group tracks its breakdown's group.
  *
@@ -354,9 +353,6 @@ export function reconcileBreakdownLines(
 ): BreakdownLineOps {
   const ops: BreakdownLineOps = { create: [], update: [], remove: [] }
   for (const breakdown of breakdowns) {
-    if (breakdown.kind === 'gift') {
-      continue
-    }
     const breakdownLines = lines.filter((line) => line.breakdown_id === breakdown.id)
     reconcileGenericBreakdown(
       breakdown,

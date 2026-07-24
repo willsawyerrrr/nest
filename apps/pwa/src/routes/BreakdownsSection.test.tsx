@@ -40,20 +40,4 @@ describe('BreakdownsSection', () => {
       { id: 'b1', name: 'Meds', kind: 'generic', line_group: 'needs' },
     ])
   })
-
-  it('excludes gift breakdowns from the list', () => {
-    hooks.useBreakdowns.mockReturnValue({
-      loading: false,
-      breakdowns: [
-        { id: 'b1', name: 'Meds', kind: 'generic', line_group: 'needs' },
-        { id: 'b2', name: 'Gifts', kind: 'gift', line_group: 'wants' },
-      ],
-      items: [],
-      create: vi.fn(),
-    })
-    render(<BreakdownsSection householdId="h1" />)
-    expect(hooks.screenProps?.breakdowns).toEqual([
-      { id: 'b1', name: 'Meds', kind: 'generic', line_group: 'needs' },
-    ])
-  })
 })

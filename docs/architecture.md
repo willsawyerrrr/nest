@@ -178,7 +178,8 @@ Each pnpm job (`check`, `test-shard`, `test`) sets up the toolchain the same way
 `corepack prepare pnpm@11.14.0 --activate` provides the pnpm version pinned in the
 root `package.json` `packageManager` field — no separate `pnpm/action-setup`.
 Corepack fetches that pnpm binary from the npm registry, so each job points
-`COREPACK_HOME` at a workspace-local `.corepack` directory that `actions/cache`
+`COREPACK_HOME` at a `corepack` directory under the runner temp path (outside the
+checkout, so it never reaches `prettier`/lint/git) that `actions/cache`
 restores keyed on the pnpm version (`corepack-<os>-pnpm-11.14.0`): on a warm cache
 the binary is already present and corepack never touches the registry. On a cold
 cache the `corepack prepare` activation retries a few times so a transient

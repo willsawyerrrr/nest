@@ -15,8 +15,10 @@ liability, plan spending, and track savings goals.
 - **Superannuation & net worth** — model per-person super (contributions, caps,
   Division 293, co-contribution) with its tax impact and a retirement projection,
   and total balances into a net-worth view.
-- **Breakdowns** — user-created itemised lists (gifts by recipient × occasion,
-  medications, any costed list) that roll up into a single derived budget line.
+- **Gifts** — a first-class Gifts tab: a unified planner of gift budgets by
+  recipient × occasion with a purchase log, each recipient's spend private from them.
+- **Breakdowns** — user-created itemised lists (medications, any costed list) that
+  roll up into a single derived budget line.
 - **Pay splits** — route each budget line to the Up account that funds it and get
   a recommended fortnightly pay split per account to type into Up.
 
@@ -97,8 +99,9 @@ The plan-only app — income + tax estimate, fortnightly budget, and savings goa
 no transaction data. Full superannuation modelling (concessional-contribution tax
 impact, Division 293, contribution caps, government co-contribution, and a
 retirement projection) and a net-worth view are live, as are user-created
-breakdowns (itemised lists that roll up into a derived budget line, with gifts the
-first `kind = 'gift'` breakdown), pay splits (per-account fortnightly split
+breakdowns (itemised lists that roll up into a derived budget line), a first-class
+Gifts tab (a unified recipient × occasion planner whose budgets roll up through an
+internal `kind = 'gift'` breakdown), pay splits (per-account fortnightly split
 recommendations against routed budget lines), and an in-app "What's new" changelog.
 The Up savers → savings-goals layer is also live: members connect an Up token and
 link a goal to a synced Up saver, so goal progress tracks the real balance (synced

@@ -2,6 +2,7 @@
 .env
 .env.*
 *.local
+!apps/pwa/.env.example
 
 # Local, untracked operational handoff (machine-specific notes)
 HANDOFF.local.md

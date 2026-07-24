@@ -73,7 +73,7 @@ annual total, exactly like the app.
 | Allocation ranking + `Unallocated` | ✅ Have | Summary allocation donut with remaining/unallocated |
 | Savings goals | ✅ Have | App richer: target date, current balance, contribution link, progress + ETA |
 | **Payment-method tag per bill** (Debit/Transfer/Card/Saver) | ➖ Not planned | Deliberate non-gap — the household keeps this in the sheet |
-| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ✅ Have | Shipped as breakdowns: a user-created itemised list rolls up into a derived budget line, gifts being the first `kind = 'gift'` breakdown and generic breakdowns covering any other list |
+| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ✅ Have | Shipped as breakdowns: a user-created itemised list rolls up into a derived budget line, gifts being the built-in `kind = 'gift'` roll-up managed in the Gifts tab and generic breakdowns covering any other list |
 | **Wishlist** (per-member aspirational purchases) | ❌ Missing | No wishlist surface |
 | **Finance-admin to-do list** | ➖ Not planned | Deliberate non-gap — the household keeps this in the sheet |
 | **Free-text notes on a budget line** ("Spendings" scratch list) | ❌ Missing | Budget lines have no notes field |
@@ -87,8 +87,8 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
 1. **Generic itemised sub-budget (line-item breakdown)** — _shipped as
    breakdowns._ A user-created breakdown holds items (name + amount + frequency)
    that roll up into a single derived budget line via `budget_line.breakdown_id`;
-   gifts are the first `kind = 'gift'` breakdown, generic breakdowns cover any
-   other list (e.g. the "Spendings" scratch list, medications). See
+   gifts are the built-in `kind = 'gift'` roll-up managed in the Gifts tab, generic
+   breakdowns cover any other list (e.g. the "Spendings" scratch list, medications). See
    [`breakdowns.md`](breakdowns.md) and [`roadmap.md`](roadmap.md).
 
 2. **Wishlist** — a per-member list of aspirational purchases (name + amount),

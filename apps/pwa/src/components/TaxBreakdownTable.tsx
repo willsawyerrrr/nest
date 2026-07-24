@@ -30,7 +30,7 @@ function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
   const fw = total ? 700 : undefined
   return (
     <Table.Tr>
-      <Table.Th scope="row" fw={fw} c={total ? undefined : 'dimmed'}>
+      <Table.Th scope="row" fw={fw} {...(!total && { c: 'dimmed' })}>
         {label}
       </Table.Th>
       <Table.Td ta="right" fw={fw}>

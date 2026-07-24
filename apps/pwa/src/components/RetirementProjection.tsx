@@ -214,13 +214,12 @@ function AssumptionInput({
     <NumberInput
       label={label}
       size="xs"
-      suffix={suffix}
       min={0}
-      max={suffix ? undefined : 120}
-      decimalScale={suffix ? 2 : undefined}
       hideControls
       value={value}
       onChange={onChange}
+      {...(suffix !== undefined && { suffix })}
+      {...(suffix ? { decimalScale: 2 } : { max: 120 })}
     />
   )
 }

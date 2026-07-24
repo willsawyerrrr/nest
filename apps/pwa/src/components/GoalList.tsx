@@ -57,7 +57,7 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
     {
       targetAmountCents: goal.target_amount_cents,
       currentBalanceCents,
-      targetDate: goal.target_date ?? undefined,
+      ...(goal.target_date != null && { targetDate: goal.target_date }),
     },
     contributionCents,
     new Date(),

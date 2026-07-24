@@ -332,7 +332,7 @@ export function SplitsScreen({
       group: line.line_group,
       amountCents: line.amount_cents,
       frequency: line.frequency,
-      interval: line.interval_count ?? undefined,
+      ...(line.interval_count != null && { interval: line.interval_count }),
       goalId: line.goal_id,
       destinationAccountId: line.destination_account_id,
     })),

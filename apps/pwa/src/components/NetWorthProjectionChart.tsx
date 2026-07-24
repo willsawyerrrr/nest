@@ -95,8 +95,8 @@ interface NetWorthProjectionChartProps {
   /** Calendar year of the first point (year 0), for the x-axis labels. */
   baseYear: number
   /** The selected horizon and a callback to change it; both drive the horizon control. */
-  horizon?: ProjectionHorizonOption
-  onHorizonChange?: (horizon: ProjectionHorizonOption) => void
+  horizon?: ProjectionHorizonOption | undefined
+  onHorizonChange?: ((horizon: ProjectionHorizonOption) => void) | undefined
 }
 
 /**

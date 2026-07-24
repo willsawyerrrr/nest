@@ -113,7 +113,7 @@ function AccountGroup({
       <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
         {collapsible && (opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />)}
         <SectionAccent color={accentColor} icon={accentIcon} dimmed={excluded} />
-        <Title order={3} size="h5" c={excluded ? 'dimmed' : undefined}>
+        <Title order={3} size="h5" {...(excluded && { c: 'dimmed' })}>
           {title}
         </Title>
       </Group>

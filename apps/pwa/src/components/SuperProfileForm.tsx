@@ -15,9 +15,9 @@ export interface SuperFormValues {
 
 interface SuperProfileFormProps {
   member: Member
-  initialFundName?: string | null
+  initialFundName?: string | null | undefined
   /** The last confirmed baseline balance for the member's linked account, in cents. */
-  initialBalanceCents?: number | null
+  initialBalanceCents?: number | null | undefined
   /** The date that baseline was confirmed (a true-up); null when never confirmed. */
   balanceAsOf?: string | null
   /** The member's modelled net annual contribution, accrued onto the baseline. */

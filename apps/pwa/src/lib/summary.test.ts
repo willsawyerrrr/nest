@@ -168,6 +168,19 @@ describe('toSummaryInput', () => {
     ])
   })
 
+  it('carries a budget line’s custom cadence interval through', () => {
+    const result = toSummaryInput({
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [],
+      budgetLines: [line({ amount_cents: 60_00, frequency: 'every_n_months', interval_count: 4 })],
+      derivedAmounts: context(),
+      temporaryItems: [],
+    })
+    expect(result.budgetLines).toEqual([
+      { group: 'wants', amountCents: 60_00, frequency: 'every_n_months', interval: 4 },
+    ])
+  })
+
   it('maps temporary items to their contribution and target date', () => {
     const result = toSummaryInput({
       afterTaxIncomeAnnualCents: 0,

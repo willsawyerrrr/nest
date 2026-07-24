@@ -18,9 +18,10 @@ interface MoneyTextProps extends TextProps {
  * renderer; pass `colored` to signal sign.
  */
 export function MoneyText({ cents, colored = false, style, c, ...textProps }: MoneyTextProps) {
+  const color = colored ? moneyColor(cents) : c
   return (
     <Text
-      c={colored ? moneyColor(cents) : c}
+      {...(color !== undefined && { c: color })}
       style={{ fontVariantNumeric: 'tabular-nums lining-nums', ...style }}
       {...textProps}
     >

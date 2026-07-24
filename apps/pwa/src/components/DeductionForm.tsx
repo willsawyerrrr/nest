@@ -10,7 +10,7 @@ import { MoneyInput } from './MoneyInput'
 
 interface DeductionFormProps {
   member: { id: string; name: string }
-  initial?: DeductionRow
+  initial?: DeductionRow | undefined
   onSubmit: (input: DeductionInput) => void | Promise<void>
   onCancel?: () => void
 }

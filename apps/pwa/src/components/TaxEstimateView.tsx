@@ -256,7 +256,7 @@ function SalarySacrificePanel({
   input: TaxInput
   config: TaxYearConfig
   currentConcessionalCents: number
-  concessionalCapCents?: number
+  concessionalCapCents?: number | undefined
 }) {
   const [extra, setExtra] = useState<number | string>('')
   const extraCents = dollarsToCents(extra) ?? 0
@@ -337,8 +337,8 @@ function FiguresCard({
   deductionsCents?: number
   input?: TaxInput
   config?: TaxYearConfig
-  concessionalCapCents?: number
-  helpPayoff?: HelpPayoffProjection
+  concessionalCapCents?: number | undefined
+  helpPayoff?: HelpPayoffProjection | undefined
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="md">
@@ -425,6 +425,7 @@ function MlsWhatIf({
   const premiumCents = dollarsToCents(premiumDollars) ?? 0
   const surchargeCents = result.totalSurchargeCents
   const savingCents = surchargeCents - premiumCents
+  const savingColor = moneyColor(savingCents)
 
   return (
     <Box component="section" aria-label="Private hospital cover">
@@ -464,7 +465,7 @@ function MlsWhatIf({
                 /yr surcharge.
               </Text>
               {premiumCents > 0 && (
-                <Text size="sm" c={moneyColor(savingCents)}>
+                <Text size="sm" {...(savingColor !== undefined && { c: savingColor })}>
                   {savingCents > 0 ? (
                     <>
                       Hospital cover saves <MoneyText span cents={savingCents} />

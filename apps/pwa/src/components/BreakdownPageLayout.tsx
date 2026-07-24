@@ -5,9 +5,9 @@ import { IconArrowLeft } from '@tabler/icons-react'
 
 interface BreakdownPageLayoutProps {
   /** Where the back link returns to; omit for a top-level page with no back link. */
-  backTo?: string
+  backTo?: string | undefined
   /** The back link's label, naming its destination. */
-  backLabel?: string
+  backLabel?: string | undefined
   /** The page heading. */
   title: string
   /** Right-aligned header control (e.g. the Edit or Manage toggle). */

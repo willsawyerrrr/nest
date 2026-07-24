@@ -6,6 +6,7 @@
     "lib": ["ES2023"],
     "types": [],
     "strict": true,
+    "exactOptionalPropertyTypes": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,

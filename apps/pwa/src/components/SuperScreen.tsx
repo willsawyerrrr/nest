@@ -31,7 +31,7 @@ function SuperProfileCard({
   onEdit,
 }: {
   member: Member
-  fundName?: string | null
+  fundName?: string | null | undefined
   baselineCents: number
   balanceAsOf: string | null
   effectiveCents: number

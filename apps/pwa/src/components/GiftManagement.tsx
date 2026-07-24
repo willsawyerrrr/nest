@@ -121,13 +121,13 @@ function GiftEntityForm({
 
 interface EntityRowProps {
   label: string
-  meta?: string
-  tag?: string
+  meta?: string | undefined
+  tag?: string | undefined
   actions?: { onEdit: () => void; onDelete: () => void }
 }
 
 /** The label with its optional tag badge, growing to fill the row. */
-function EntityLabel({ label, tag }: { label: string; tag?: string }) {
+function EntityLabel({ label, tag }: { label: string; tag?: string | undefined }) {
   return (
     <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
       <Text fw={600} size="sm" truncate>

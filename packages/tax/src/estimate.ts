@@ -303,10 +303,13 @@ export function estimateHouseholdTax(
   // surcharge line and total liability reflect the combined-income assessment.
   const members = contexts.map((context, index) => {
     const { memberId, bucket, concessionalCents, deductionsCents, input } = context
+    const perMemberSurchargeCents = familySurcharge.perMemberSurchargeCents[index]
     const breakdown = computeTax(
       {
         ...input,
-        medicareLevySurchargeCentsOverride: familySurcharge.perMemberSurchargeCents[index],
+        ...(perMemberSurchargeCents !== undefined && {
+          medicareLevySurchargeCentsOverride: perMemberSurchargeCents,
+        }),
       },
       config,
     )

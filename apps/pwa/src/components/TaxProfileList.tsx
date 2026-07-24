@@ -19,7 +19,7 @@ function TaxProfileCard({
   onEdit,
 }: {
   member: Member
-  profile?: TaxProfile
+  profile?: TaxProfile | undefined
   onEdit: () => void
 }) {
   const foreign = profile?.residency === 'foreign_resident'

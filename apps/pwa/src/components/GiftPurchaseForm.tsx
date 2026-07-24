@@ -12,7 +12,7 @@ interface GiftPurchaseFormProps {
   budgetId: string
   initial?: GiftPurchase
   onSubmit: (input: GiftPurchaseInput) => void | Promise<void>
-  onCancel?: () => void
+  onCancel?: (() => void) | undefined
 }
 
 /** Presentational add/edit form for one gift purchase. Persistence lives in the caller. */

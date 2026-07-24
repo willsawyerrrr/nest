@@ -14,7 +14,7 @@ import { MoneyInput } from './MoneyInput'
 
 interface InflowFormProps {
   members: Member[]
-  initial?: Inflow
+  initial?: Inflow | undefined
   onSubmit: (input: InflowInput) => void | Promise<void>
   onCancel?: () => void
 }

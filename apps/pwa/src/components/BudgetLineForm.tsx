@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core'
+import { useState } from 'react'
+import { NumberInput, Select, Text, TextInput } from '@mantine/core'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
+import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface BudgetLineFormProps {
@@ -42,9 +44,6 @@ export function BudgetLineForm({
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
     initial?.destination_account_id ?? null,
   )
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
   const showGoalPicker = groupLinksGoal(group)
   // Savings/Investments lines route to their goal's account, so they carry no
   // direct destination; every other group offers a "Funded from" picker.
@@ -64,19 +63,13 @@ export function BudgetLineForm({
   }
 
   const canSubmit =
-    name.trim() !== '' &&
-    amount !== '' &&
-    (isEveryN ? interval !== '' && intervalValid : true) &&
-    !submitting
+    name.trim() !== '' && amount !== '' && (isEveryN ? interval !== '' && intervalValid : true)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    const input: BudgetLineInput = {
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    canSubmit,
+    errorMessage: 'Could not save this budget item. Please try again.',
+    onSubmit,
+    buildInput: (): BudgetLineInput => ({
       line_group: group,
       name: name.trim(),
       amount_cents: dollarsToCents(amount) ?? 0,
@@ -86,118 +79,101 @@ export function BudgetLineForm({
       breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
       gift_recipient_member_id: null,
-    }
-    try {
-      await onSubmit(input)
-    } catch {
-      setError('Could not save this budget item. Please try again.')
-      setSubmitting(false)
-    }
-  }
+    }),
+  })
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        <EnumSelect
-          label="Group"
-          size="sm"
-          data={BUDGET_GROUPS}
-          value={group}
-          onChange={(value) => value && changeGroup(value)}
-          allowDeselect={false}
-        />
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      editing={Boolean(initial)}
+      addLabel="item"
+      onCancel={onCancel}
+    >
+      <EnumSelect
+        label="Group"
+        size="sm"
+        data={BUDGET_GROUPS}
+        value={group}
+        onChange={(value) => value && changeGroup(value)}
+        allowDeselect={false}
+      />
 
-        <TextInput
-          label="Name"
-          size="sm"
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-        />
+      <TextInput
+        label="Name"
+        size="sm"
+        value={name}
+        onChange={(event) => setName(event.currentTarget.value)}
+      />
 
-        <EnumSelect
-          label="Frequency"
-          size="sm"
-          description="The app converts every amount to fortnightly and annual."
-          data={FREQUENCY_OPTIONS}
-          value={frequency}
-          onChange={(value) => value && setFrequency(value)}
-          allowDeselect={false}
-        />
+      <EnumSelect
+        label="Frequency"
+        size="sm"
+        description="The app converts every amount to fortnightly and annual."
+        data={FREQUENCY_OPTIONS}
+        value={frequency}
+        onChange={(value) => value && setFrequency(value)}
+        allowDeselect={false}
+      />
 
-        {isEveryN && (
-          <NumberInput
-            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between allocations`}
-            size="sm"
-            description={`How many ${intervalUnit} apart each allocation lands (e.g. 4 for once every four ${intervalUnit}).`}
-            min={1}
-            step={1}
-            allowDecimal={false}
-            hideControls
-            value={interval}
-            onChange={setInterval}
-          />
-        )}
-
-        <MoneyInput
-          label="Amount"
+      {isEveryN && (
+        <NumberInput
+          label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between allocations`}
           size="sm"
-          min={0}
+          description={`How many ${intervalUnit} apart each allocation lands (e.g. 4 for once every four ${intervalUnit}).`}
+          min={1}
+          step={1}
+          allowDecimal={false}
           hideControls
-          value={amount}
-          onChange={setAmount}
+          value={interval}
+          onChange={setInterval}
         />
+      )}
 
-        {showGoalPicker && (
-          <>
-            <Select
-              label="Goal"
-              size="sm"
-              description="Optional. Links this line's contribution to a savings goal."
-              placeholder="No goal"
-              data={goals.map((goal) => ({ value: goal.id, label: goal.name }))}
-              value={goalId}
-              onChange={setGoalId}
-              clearable
-              nothingFoundMessage="No goals yet"
-            />
-            <Text size="xs" c="dimmed">
-              This line's pay split is routed to its goal's linked Up saver.
-            </Text>
-          </>
-        )}
+      <MoneyInput
+        label="Amount"
+        size="sm"
+        min={0}
+        hideControls
+        value={amount}
+        onChange={setAmount}
+      />
 
-        {showAccountPicker && (
+      {showGoalPicker && (
+        <>
           <Select
-            label="Funded from"
+            label="Goal"
             size="sm"
-            description="Optional. The account or Up saver whose pay split funds this line."
-            placeholder="Not routed"
-            data={accounts.map((account) => ({ value: account.id, label: account.name }))}
-            value={destinationAccountId}
-            onChange={setDestinationAccountId}
+            description="Optional. Links this line's contribution to a savings goal."
+            placeholder="No goal"
+            data={goals.map((goal) => ({ value: goal.id, label: goal.name }))}
+            value={goalId}
+            onChange={setGoalId}
             clearable
-            searchable
-            nothingFoundMessage="No matching accounts"
+            nothingFoundMessage="No goals yet"
           />
-        )}
-
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
+          <Text size="xs" c="dimmed">
+            This line's pay split is routed to its goal's linked Up saver.
           </Text>
-        )}
+        </>
+      )}
 
-        <Group grow>
-          <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add item'}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </Group>
-      </Stack>
-    </Card>
+      {showAccountPicker && (
+        <Select
+          label="Funded from"
+          size="sm"
+          description="Optional. The account or Up saver whose pay split funds this line."
+          placeholder="Not routed"
+          data={accounts.map((account) => ({ value: account.id, label: account.name }))}
+          value={destinationAccountId}
+          onChange={setDestinationAccountId}
+          clearable
+          searchable
+          nothingFoundMessage="No matching accounts"
+        />
+      )}
+    </FormShell>
   )
 }

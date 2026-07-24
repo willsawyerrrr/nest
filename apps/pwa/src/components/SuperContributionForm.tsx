@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, NumberInput, Select, Stack, Switch, Text } from '@mantine/core'
+import { useState } from 'react'
+import { NumberInput, Select, Switch } from '@mantine/core'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Member } from '../hooks/useMembers'
 import type {
   SuperContribution,
@@ -12,6 +13,7 @@ import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
 import { EnumSegmentedControl, EnumSelect } from './EnumSelect'
+import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface SuperContributionFormProps {
@@ -43,8 +45,6 @@ export function SuperContributionForm({
   const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
   const [fhssEligible, setFhssEligible] = useState(initial?.fhss_eligible ?? false)
   const [contributorId, setContributorId] = useState(initial?.contributor_member_id ?? '')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const otherMembers = members.filter((candidate) => candidate.id !== member.id)
   const isPercent = mode === 'percent'
@@ -55,17 +55,13 @@ export function SuperContributionForm({
   const canSubmit =
     (isPercent ? percent !== '' : amount !== '') &&
     (isEveryN ? interval !== '' && intervalValid : true) &&
-    (isSpouse ? contributorId !== '' : true) &&
-    !submitting
+    (isSpouse ? contributorId !== '' : true)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    const input: SuperContributionInput = {
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    canSubmit,
+    errorMessage: 'Could not save this contribution. Please try again.',
+    onSubmit,
+    buildInput: (): SuperContributionInput => ({
       member_id: member.id,
       kind,
       mode,
@@ -75,121 +71,104 @@ export function SuperContributionForm({
       interval_count: isEveryN ? Number(interval) : null,
       fhss_eligible: fhssEligible,
       contributor_member_id: isSpouse ? contributorId : null,
-    }
-    try {
-      await onSubmit(input)
-    } catch {
-      setError('Could not save this contribution. Please try again.')
-      setSubmitting(false)
-    }
-  }
+    }),
+  })
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        <EnumSelect
-          label="Kind"
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      editing={Boolean(initial)}
+      addLabel="contribution"
+      onCancel={onCancel}
+    >
+      <EnumSelect
+        label="Kind"
+        size="sm"
+        data={SUPER_CONTRIBUTION_KINDS}
+        value={kind}
+        onChange={(value) => value && setKind(value)}
+        allowDeselect={false}
+      />
+
+      {isSpouse && (
+        <Select
+          label="Contributor"
           size="sm"
-          data={SUPER_CONTRIBUTION_KINDS}
-          value={kind}
-          onChange={(value) => value && setKind(value)}
+          description="The member making this spouse contribution."
+          data={otherMembers.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+          value={contributorId}
+          onChange={(value) => setContributorId(value ?? '')}
           allowDeselect={false}
+          placeholder="Select a member"
         />
+      )}
 
-        {isSpouse && (
-          <Select
-            label="Contributor"
-            size="sm"
-            description="The member making this spouse contribution."
-            data={otherMembers.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
-            value={contributorId}
-            onChange={(value) => setContributorId(value ?? '')}
-            allowDeselect={false}
-            placeholder="Select a member"
-          />
-        )}
+      <EnumSegmentedControl
+        fullWidth
+        size="sm"
+        aria-label="Contribution mode"
+        value={mode}
+        onChange={setMode}
+        data={[
+          { value: 'amount', label: 'Amount' },
+          { value: 'percent', label: 'Percent of salary' },
+        ]}
+      />
 
-        <EnumSegmentedControl
-          fullWidth
+      {isPercent ? (
+        <NumberInput
+          label="Percent of gross salary"
           size="sm"
-          aria-label="Contribution mode"
-          value={mode}
-          onChange={setMode}
-          data={[
-            { value: 'amount', label: 'Amount' },
-            { value: 'percent', label: 'Percent of salary' },
-          ]}
+          suffix="%"
+          decimalScale={2}
+          min={0}
+          max={100}
+          hideControls
+          value={percent}
+          onChange={setPercent}
         />
-
-        {isPercent ? (
-          <NumberInput
-            label="Percent of gross salary"
-            size="sm"
-            suffix="%"
-            decimalScale={2}
-            min={0}
-            max={100}
-            hideControls
-            value={percent}
-            onChange={setPercent}
-          />
-        ) : (
-          <MoneyInput
-            label="Contribution amount"
-            size="sm"
-            min={0}
-            hideControls
-            value={amount}
-            onChange={setAmount}
-          />
-        )}
-
-        <EnumSelect
-          label="Frequency"
+      ) : (
+        <MoneyInput
+          label="Contribution amount"
           size="sm"
-          data={FREQUENCY_OPTIONS}
-          value={frequency}
-          onChange={(value) => value && setFrequency(value)}
-          allowDeselect={false}
+          min={0}
+          hideControls
+          value={amount}
+          onChange={setAmount}
         />
+      )}
 
-        {isEveryN && (
-          <NumberInput
-            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between contributions`}
-            size="sm"
-            min={1}
-            step={1}
-            allowDecimal={false}
-            hideControls
-            value={interval}
-            onChange={setInterval}
-          />
-        )}
+      <EnumSelect
+        label="Frequency"
+        size="sm"
+        data={FREQUENCY_OPTIONS}
+        value={frequency}
+        onChange={(value) => value && setFrequency(value)}
+        allowDeselect={false}
+      />
 
-        <Switch
-          label="FHSS eligible"
+      {isEveryN && (
+        <NumberInput
+          label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between contributions`}
           size="sm"
-          checked={fhssEligible}
-          onChange={(event) => setFhssEligible(event.currentTarget.checked)}
+          min={1}
+          step={1}
+          allowDecimal={false}
+          hideControls
+          value={interval}
+          onChange={setInterval}
         />
+      )}
 
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
-          </Text>
-        )}
-
-        <Group grow>
-          <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add contribution'}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </Group>
-      </Stack>
-    </Card>
+      <Switch
+        label="FHSS eligible"
+        size="sm"
+        checked={fhssEligible}
+        onChange={(event) => setFhssEligible(event.currentTarget.checked)}
+      />
+    </FormShell>
   )
 }

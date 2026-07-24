@@ -3,15 +3,13 @@ import { IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionInput, DeductionRow } from '../hooks/useDeductions'
-import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
-import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
 import { DeductionForm } from './DeductionForm'
+import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
-import { EmptyState } from './EmptyState'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
@@ -209,7 +207,8 @@ function MemberDeductions({
   onRemoveReceipt: (receipt: DeductionReceiptRow) => Promise<void>
   signedUrl: (path: string) => Promise<string | null>
 }) {
-  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
+  // A second confirm dialog for a deduction's receipts; the deduction's own
+  // delete is owned by the EditableList. Only one is ever open at a time.
   const { confirm, modal } = useConfirmDelete()
 
   const totalCents = deductions.reduce((total, deduction) => total + deduction.amount_cents, 0)
@@ -223,33 +222,23 @@ function MemberDeductions({
         </Text>
       </Group>
 
-      {deductions.length === 0 && !adding && <EmptyState>No deductions yet.</EmptyState>}
-
-      {deductions.map((deduction) =>
-        editingId === deduction.id ? (
-          <DeductionForm
-            key={deduction.id}
-            member={member}
-            initial={deduction}
-            onSubmit={async (input) => {
-              await onUpdate(deduction.id, input)
-              closeForms()
-            }}
-            onCancel={closeForms}
-          />
-        ) : (
+      <EditableList<DeductionRow, DeductionInput>
+        items={deductions}
+        addLabel="Add deduction"
+        emptyMessage="No deductions yet."
+        deleteTarget={(deduction) => ({
+          title: 'Delete deduction?',
+          itemLabel: deduction.description,
+        })}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        renderItem={(deduction, { onEdit, onDelete: onDeleteItem }) => (
           <DeductionItem
-            key={deduction.id}
             deduction={deduction}
             receipts={receipts.filter((receipt) => receipt.deduction_id === deduction.id)}
-            onEdit={() => startEditing(deduction.id)}
-            onDelete={() =>
-              confirm({
-                title: 'Delete deduction?',
-                itemLabel: deduction.description,
-                onConfirm: () => onDelete(deduction.id),
-              })
-            }
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
             onUploadReceipt={(file) => onUploadReceipt(deduction.id, file)}
             onRemoveReceipt={(receipt) =>
               confirm({
@@ -260,21 +249,16 @@ function MemberDeductions({
             }
             signedUrl={signedUrl}
           />
-        ),
-      )}
-
-      {adding ? (
-        <DeductionForm
-          member={member}
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <AddButton label="Add deduction" onClick={() => startAdding(true)} />
-      )}
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
+          <DeductionForm
+            member={member}
+            initial={initial}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
+          />
+        )}
+      />
 
       {modal}
     </Stack>

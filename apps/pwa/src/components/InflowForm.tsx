@@ -1,16 +1,7 @@
-import { useState, type FormEvent } from 'react'
-import {
-  Button,
-  Card,
-  Group,
-  NumberInput,
-  SegmentedControl,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core'
+import { useState } from 'react'
+import { Group, NumberInput, SegmentedControl, Select, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { Frequency } from '../lib/domain'
@@ -18,6 +9,7 @@ import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { NON_TAXABLE_INFLOW_TYPE_OPTIONS, TAXABLE_INFLOW_TYPE_OPTIONS } from '../lib/inflowTypes'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
+import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface InflowFormProps {
@@ -57,8 +49,6 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [hours, setHours] = useState<number | string>(initial?.hours_per_period ?? '')
   const [startsOn, setStartsOn] = useState<string | null>(initial?.starts_on ?? null)
   const [endsOn, setEndsOn] = useState<string | null>(initial?.ends_on ?? null)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const typeOptions = taxable ? TAXABLE_INFLOW_TYPE_OPTIONS : NON_TAXABLE_INFLOW_TYPE_OPTIONS
 
@@ -79,17 +69,13 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     name.trim() !== '' &&
     (taxable ? memberId !== '' : true) &&
     (isWage ? hourlyRate !== '' && hours !== '' : amount !== '') &&
-    (isEveryN ? interval !== '' && intervalValid : true) &&
-    !submitting
+    (isEveryN ? interval !== '' && intervalValid : true)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    const input: InflowInput = {
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    canSubmit,
+    errorMessage: 'Could not save this inflow. Please try again.',
+    onSubmit,
+    buildInput: (): InflowInput => ({
       name: name.trim(),
       taxable,
       member_id: taxable ? memberId : null,
@@ -101,165 +87,148 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
       starts_on: taxable ? startsOn : null,
       ends_on: taxable ? endsOn : null,
-    }
-    try {
-      await onSubmit(input)
-    } catch {
-      setError('Could not save this inflow. Please try again.')
-      setSubmitting(false)
-    }
-  }
+    }),
+  })
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        <SegmentedControl
-          fullWidth
-          size="sm"
-          aria-label="Taxability"
-          value={taxable ? 'taxable' : 'nontaxable'}
-          onChange={(value) => handleTaxableChange(value === 'taxable')}
-          data={[
-            { value: 'taxable', label: 'Taxable income' },
-            { value: 'nontaxable', label: 'Non-taxable inflow' },
-          ]}
-        />
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      editing={Boolean(initial)}
+      addLabel="inflow"
+      onCancel={onCancel}
+    >
+      <SegmentedControl
+        fullWidth
+        size="sm"
+        aria-label="Taxability"
+        value={taxable ? 'taxable' : 'nontaxable'}
+        onChange={(value) => handleTaxableChange(value === 'taxable')}
+        data={[
+          { value: 'taxable', label: 'Taxable income' },
+          { value: 'nontaxable', label: 'Non-taxable inflow' },
+        ]}
+      />
 
-        <TextInput
-          label="Name"
-          size="sm"
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-        />
+      <TextInput
+        label="Name"
+        size="sm"
+        value={name}
+        onChange={(event) => setName(event.currentTarget.value)}
+      />
 
-        {taxable && (
-          <Select
-            label="Member"
-            size="sm"
-            data={members.map((member) => ({ value: member.id, label: member.name }))}
-            value={memberId}
-            onChange={(value) => setMemberId(value ?? '')}
-            allowDeselect={false}
-          />
-        )}
-
-        <EnumSelect
-          label="Type"
+      {taxable && (
+        <Select
+          label="Member"
           size="sm"
-          data={typeOptions}
-          value={type}
-          onChange={(value) => value && setType(value)}
+          data={members.map((member) => ({ value: member.id, label: member.name }))}
+          value={memberId}
+          onChange={(value) => setMemberId(value ?? '')}
           allowDeselect={false}
         />
+      )}
 
-        <EnumSelect
-          label="Frequency"
-          size="sm"
-          description={
-            <>
-              How often you receive this amount. The app converts everything to{' '}
-              <b>fortnightly and annual</b> regardless of your actual cycle. On an annual salary?
-              Choose <b>Annually</b> and enter your yearly gross — even if you&apos;re paid
-              fortnightly.
-            </>
-          }
-          data={FREQUENCY_OPTIONS}
-          value={schedule}
-          onChange={(value) => value && setSchedule(value)}
-          allowDeselect={false}
-        />
+      <EnumSelect
+        label="Type"
+        size="sm"
+        data={typeOptions}
+        value={type}
+        onChange={(value) => value && setType(value)}
+        allowDeselect={false}
+      />
 
-        {isEveryN && (
-          <NumberInput
-            label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between payments`}
-            size="sm"
-            description={`How many ${intervalUnit} apart each payment lands (e.g. 4 for once every four ${intervalUnit}).`}
-            min={1}
-            step={1}
-            allowDecimal={false}
-            hideControls
-            value={interval}
-            onChange={setInterval}
-          />
-        )}
-
-        {isWage ? (
+      <EnumSelect
+        label="Frequency"
+        size="sm"
+        description={
           <>
-            <MoneyInput
-              label="Hourly rate"
-              size="sm"
-              description="Your gross (before tax) hourly pay rate."
-              min={0}
-              hideControls
-              value={hourlyRate}
-              onChange={setHourlyRate}
-            />
-            <NumberInput
-              label="Hours per period"
-              size="sm"
-              description="Hours worked each period. Gross = rate × hours × periods."
-              min={0}
-              decimalScale={2}
-              hideControls
-              value={hours}
-              onChange={setHours}
-            />
+            How often you receive this amount. The app converts everything to{' '}
+            <b>fortnightly and annual</b> regardless of your actual cycle. On an annual salary?
+            Choose <b>Annually</b> and enter your yearly gross — even if you&apos;re paid
+            fortnightly.
           </>
-        ) : (
+        }
+        data={FREQUENCY_OPTIONS}
+        value={schedule}
+        onChange={(value) => value && setSchedule(value)}
+        allowDeselect={false}
+      />
+
+      {isEveryN && (
+        <NumberInput
+          label={`${intervalUnit === 'months' ? 'Months' : 'Weeks'} between payments`}
+          size="sm"
+          description={`How many ${intervalUnit} apart each payment lands (e.g. 4 for once every four ${intervalUnit}).`}
+          min={1}
+          step={1}
+          allowDecimal={false}
+          hideControls
+          value={interval}
+          onChange={setInterval}
+        />
+      )}
+
+      {isWage ? (
+        <>
           <MoneyInput
-            label={`Amount per ${PERIOD_NOUN[schedule]}`}
+            label="Hourly rate"
             size="sm"
-            description={
-              taxable
-                ? 'Gross pay (before tax) for one period.'
-                : 'Amount received each period; excluded from tax.'
-            }
+            description="Your gross (before tax) hourly pay rate."
             min={0}
             hideControls
-            value={amount}
-            onChange={setAmount}
+            value={hourlyRate}
+            onChange={setHourlyRate}
           />
-        )}
+          <NumberInput
+            label="Hours per period"
+            size="sm"
+            description="Hours worked each period. Gross = rate × hours × periods."
+            min={0}
+            decimalScale={2}
+            hideControls
+            value={hours}
+            onChange={setHours}
+          />
+        </>
+      ) : (
+        <MoneyInput
+          label={`Amount per ${PERIOD_NOUN[schedule]}`}
+          size="sm"
+          description={
+            taxable
+              ? 'Gross pay (before tax) for one period.'
+              : 'Amount received each period; excluded from tax.'
+          }
+          min={0}
+          hideControls
+          value={amount}
+          onChange={setAmount}
+        />
+      )}
 
-        {taxable && (
-          <Group grow align="flex-start">
-            <DateInput
-              label="Effective from"
-              size="sm"
-              description="Leave blank if this income applies all year. To model a pay rise, set an end date and add a second inflow starting the next day."
-              valueFormat="D MMM YYYY"
-              clearable
-              value={startsOn}
-              onChange={setStartsOn}
-            />
-            <DateInput
-              label="Effective until"
-              size="sm"
-              valueFormat="D MMM YYYY"
-              clearable
-              value={endsOn}
-              onChange={setEndsOn}
-            />
-          </Group>
-        )}
-
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
-          </Text>
-        )}
-
-        <Group grow>
-          <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add inflow'}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
+      {taxable && (
+        <Group grow align="flex-start">
+          <DateInput
+            label="Effective from"
+            size="sm"
+            description="Leave blank if this income applies all year. To model a pay rise, set an end date and add a second inflow starting the next day."
+            valueFormat="D MMM YYYY"
+            clearable
+            value={startsOn}
+            onChange={setStartsOn}
+          />
+          <DateInput
+            label="Effective until"
+            size="sm"
+            valueFormat="D MMM YYYY"
+            clearable
+            value={endsOn}
+            onChange={setEndsOn}
+          />
         </Group>
-      </Stack>
-    </Card>
+      )}
+    </FormShell>
   )
 }

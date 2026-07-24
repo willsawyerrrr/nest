@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Anchor, Button, Card, Group, Select, Stack, Text, TextInput } from '@mantine/core'
+import { Anchor, Group, Select, Stack, Text, TextInput } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { EnumSelect } from './EnumSelect'
+import { FormShell } from './FormShell'
 import { FortnightlyAmount } from './FortnightlyAmount'
 
 /** The fields a derived-line edit surfaces: the breakdown's name and group, plus the line's funding account. */
@@ -75,8 +77,6 @@ export function DerivedBudgetLineForm({
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
     initial.destination_account_id,
   )
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // A gift member line funds from the buyer's spending account, set by the
   // reconcile pass rather than the user, so its funding picker locks.
@@ -87,114 +87,94 @@ export function DerivedBudgetLineForm({
     initial.frequency,
     initial.interval_count ?? undefined,
   )
-  const canSubmit = (!nameEditable || name.trim() !== '') && !submitting
+  const canSubmit = !nameEditable || name.trim() !== ''
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    try {
-      await onSave({
-        name: name.trim(),
-        line_group: group,
-        destination_account_id: destinationAccountId,
-      })
-    } catch {
-      setError('Could not save this budget item. Please try again.')
-      setSubmitting(false)
-    }
-  }
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    canSubmit,
+    errorMessage: 'Could not save this budget item. Please try again.',
+    onSubmit: onSave,
+    buildInput: (): DerivedLineValues => ({
+      name: name.trim(),
+      line_group: group,
+      destination_account_id: destinationAccountId,
+    }),
+  })
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        <EnumSelect
-          label="Group"
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      editing
+      onCancel={onCancel}
+    >
+      <EnumSelect
+        label="Group"
+        size="sm"
+        data={ACCOUNT_FUNDED_GROUPS}
+        value={group}
+        onChange={(value) => value && setGroup(value)}
+        allowDeselect={false}
+      />
+
+      {nameEditable ? (
+        <TextInput
+          label="Name"
           size="sm"
-          data={ACCOUNT_FUNDED_GROUPS}
-          value={group}
-          onChange={(value) => value && setGroup(value)}
-          allowDeselect={false}
+          value={name}
+          onChange={(event) => setName(event.currentTarget.value)}
         />
-
-        {nameEditable ? (
-          <TextInput
-            label="Name"
-            size="sm"
-            value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
-          />
-        ) : (
-          <Stack gap="xxs">
-            <Text component="span" size="sm" fw={500}>
-              Name
-            </Text>
-            <Text size="sm">{name}</Text>
-          </Stack>
-        )}
-
-        {fundingLocked ? (
-          <Stack gap="xxs">
-            <Text component="span" size="sm" fw={500}>
-              Funded from
-            </Text>
-            <Text size="sm">Automatically from the buyer's spending account.</Text>
-          </Stack>
-        ) : (
-          <Select
-            label="Funded from"
-            size="sm"
-            description="Optional. The account or Up saver whose pay split funds this line."
-            placeholder="Not routed"
-            data={accounts.map((account) => ({ value: account.id, label: account.name }))}
-            value={destinationAccountId}
-            onChange={setDestinationAccountId}
-            clearable
-            searchable
-            nothingFoundMessage="No matching accounts"
-          />
-        )}
-
+      ) : (
         <Stack gap="xxs">
           <Text component="span" size="sm" fw={500}>
-            Amount
+            Name
           </Text>
-          <Group justify="space-between" wrap="nowrap" gap="sm">
-            <FortnightlyAmount cents={fortnightly} />
-            <Anchor
-              component={Link}
-              to={`/breakdowns/${initial.breakdown_id}`}
-              state={{ from: '/budget' }}
-              size="sm"
-            >
-              Edit in breakdown
-            </Anchor>
-          </Group>
-          <Text size="xs" c="dimmed">
-            The amount is rolled up from the breakdown's items.
-          </Text>
+          <Text size="sm">{name}</Text>
         </Stack>
+      )}
 
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
+      {fundingLocked ? (
+        <Stack gap="xxs">
+          <Text component="span" size="sm" fw={500}>
+            Funded from
           </Text>
-        )}
+          <Text size="sm">Automatically from the buyer's spending account.</Text>
+        </Stack>
+      ) : (
+        <Select
+          label="Funded from"
+          size="sm"
+          description="Optional. The account or Up saver whose pay split funds this line."
+          placeholder="Not routed"
+          data={accounts.map((account) => ({ value: account.id, label: account.name }))}
+          value={destinationAccountId}
+          onChange={setDestinationAccountId}
+          clearable
+          searchable
+          nothingFoundMessage="No matching accounts"
+        />
+      )}
 
-        <Group grow>
-          <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : 'Save changes'}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
+      <Stack gap="xxs">
+        <Text component="span" size="sm" fw={500}>
+          Amount
+        </Text>
+        <Group justify="space-between" wrap="nowrap" gap="sm">
+          <FortnightlyAmount cents={fortnightly} />
+          <Anchor
+            component={Link}
+            to={`/breakdowns/${initial.breakdown_id}`}
+            state={{ from: '/budget' }}
+            size="sm"
+          >
+            Edit in breakdown
+          </Anchor>
         </Group>
+        <Text size="xs" c="dimmed">
+          The amount is rolled up from the breakdown's items.
+        </Text>
       </Stack>
-    </Card>
+    </FormShell>
   )
 }

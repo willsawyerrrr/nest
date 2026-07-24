@@ -5,17 +5,14 @@ import {
   grossVestedValueCents,
   vestedQuantity,
 } from '@nest/plan'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { EquityGrantInput, EquityGrantRow } from '../hooks/useEquityGrants'
-import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { EQUITY_INSTRUMENT_TYPES, equityGrantToPlan, VESTING_FREQUENCIES } from '../lib/equity'
 import { formatCents } from '../lib/money'
-import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
+import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
-import { EmptyState } from './EmptyState'
 import { EquityGrantForm } from './EquityGrantForm'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
@@ -184,58 +181,30 @@ function MemberEquityGrants({
   onUpdate: (id: string, input: EquityGrantInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
-  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
-  const { confirm, modal } = useConfirmDelete()
-
   return (
     <Stack gap="xs">
       <Text fw={600}>{member.name}</Text>
 
-      {grants.length === 0 && !adding && <EmptyState>No grants yet.</EmptyState>}
-
-      {grants.map((grant) =>
-        editingId === grant.id ? (
+      <EditableList<EquityGrantRow, EquityGrantInput>
+        items={grants}
+        addLabel="Add grant"
+        emptyMessage="No grants yet."
+        deleteTarget={(grant) => ({ title: 'Delete grant?', itemLabel: grant.label })}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        renderItem={(grant, { onEdit, onDelete: onDeleteItem }) => (
+          <GrantItem grant={grant} asOf={asOf} onEdit={onEdit} onDelete={onDeleteItem} />
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
           <EquityGrantForm
-            key={grant.id}
             member={member}
-            initial={grant}
-            onSubmit={async (input) => {
-              await onUpdate(grant.id, input)
-              closeForms()
-            }}
-            onCancel={closeForms}
+            initial={initial}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
           />
-        ) : (
-          <GrantItem
-            key={grant.id}
-            grant={grant}
-            asOf={asOf}
-            onEdit={() => startEditing(grant.id)}
-            onDelete={() =>
-              confirm({
-                title: 'Delete grant?',
-                itemLabel: grant.label,
-                onConfirm: () => onDelete(grant.id),
-              })
-            }
-          />
-        ),
-      )}
-
-      {adding ? (
-        <EquityGrantForm
-          member={member}
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <AddButton label="Add grant" onClick={() => startAdding(true)} />
-      )}
-
-      {modal}
+        )}
+      />
     </Stack>
   )
 }

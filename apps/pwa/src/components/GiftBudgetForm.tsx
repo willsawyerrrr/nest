@@ -1,10 +1,13 @@
-import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, Select, Stack, Text } from '@mantine/core'
+import { useState } from 'react'
+import { Select, Text } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { GiftBudget, GiftBudgetInput, GiftOccasion, GiftRecipient } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
 import { pairKey } from '../lib/gifts'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { FormError } from './FormError'
+import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface GiftBudgetFormProps {
@@ -43,8 +46,6 @@ export function GiftBudgetForm({
     centsToDollars(initial?.budgeted_amount_cents),
   )
   const [eventDate, setEventDate] = useState<string | null>(initial?.event_date ?? null)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // When the chosen occasion carries its own date, that date governs and no
   // per-gift override is offered.
@@ -58,102 +59,79 @@ export function GiftBudgetForm({
     (initial ? pairKey(initial.recipient_id, initial.occasion_id) : '')
   const duplicate = isNewPair && takenPairs.has(pairKey(recipientId, occasionId))
 
-  const canSubmit =
-    recipientId !== '' && occasionId !== '' && amount !== '' && !duplicate && !submitting
+  const canSubmit = recipientId !== '' && occasionId !== '' && amount !== '' && !duplicate
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    try {
-      await onSubmit({
-        recipient_id: recipientId,
-        occasion_id: occasionId,
-        budgeted_amount_cents: dollarsToCents(amount) ?? 0,
-        event_date: occasionHasDate ? null : eventDate,
-      })
-    } catch {
-      setError('Could not save this gift budget. Please try again.')
-      setSubmitting(false)
-    }
-  }
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    canSubmit,
+    errorMessage: 'Could not save this gift budget. Please try again.',
+    onSubmit,
+    buildInput: (): GiftBudgetInput => ({
+      recipient_id: recipientId,
+      occasion_id: occasionId,
+      budgeted_amount_cents: dollarsToCents(amount) ?? 0,
+      event_date: occasionHasDate ? null : eventDate,
+    }),
+  })
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        {!lockedRecipientId && !initial && (
-          <Select
-            label="Recipient"
-            size="sm"
-            data={recipients.map((recipient) => ({ value: recipient.id, label: recipient.name }))}
-            value={recipientId}
-            onChange={(value) => setRecipientId(value ?? '')}
-            allowDeselect={false}
-          />
-        )}
-
-        {!lockedOccasionId && !initial && (
-          <Select
-            label="Occasion"
-            size="sm"
-            data={occasions.map((occasion) => ({ value: occasion.id, label: occasion.name }))}
-            value={occasionId}
-            onChange={(value) => setOccasionId(value ?? '')}
-            allowDeselect={false}
-          />
-        )}
-
-        <MoneyInput
-          label="Budget"
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      editing={Boolean(initial)}
+      addLabel="budget"
+      onCancel={onCancel}
+    >
+      {!lockedRecipientId && !initial && (
+        <Select
+          label="Recipient"
           size="sm"
-          description="The amount planned for this gift."
-          min={0}
-          hideControls
-          value={amount}
-          onChange={setAmount}
+          data={recipients.map((recipient) => ({ value: recipient.id, label: recipient.name }))}
+          value={recipientId}
+          onChange={(value) => setRecipientId(value ?? '')}
+          allowDeselect={false}
         />
+      )}
 
-        {occasionDate !== null ? (
-          <Text size="sm" c="dimmed">
-            Uses the occasion&rsquo;s date — {formatIsoDate(occasionDate)}
-          </Text>
-        ) : (
-          <DateInput
-            label="Date"
-            size="sm"
-            description="Optional. When this gift is due — e.g. this person's birthday. Falls back to the occasion's date."
-            valueFormat="D MMM YYYY"
-            clearable
-            value={eventDate}
-            onChange={setEventDate}
-          />
-        )}
+      {!lockedOccasionId && !initial && (
+        <Select
+          label="Occasion"
+          size="sm"
+          data={occasions.map((occasion) => ({ value: occasion.id, label: occasion.name }))}
+          value={occasionId}
+          onChange={(value) => setOccasionId(value ?? '')}
+          allowDeselect={false}
+        />
+      )}
 
-        {duplicate && (
-          <Text role="alert" c="red" size="sm">
-            A budget already exists for this recipient and occasion.
-          </Text>
-        )}
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
-          </Text>
-        )}
+      <MoneyInput
+        label="Budget"
+        size="sm"
+        description="The amount planned for this gift."
+        min={0}
+        hideControls
+        value={amount}
+        onChange={setAmount}
+      />
 
-        <Group grow>
-          <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add budget'}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </Group>
-      </Stack>
-    </Card>
+      {occasionDate !== null ? (
+        <Text size="sm" c="dimmed">
+          Uses the occasion&rsquo;s date — {formatIsoDate(occasionDate)}
+        </Text>
+      ) : (
+        <DateInput
+          label="Date"
+          size="sm"
+          description="Optional. When this gift is due — e.g. this person's birthday. Falls back to the occasion's date."
+          valueFormat="D MMM YYYY"
+          clearable
+          value={eventDate}
+          onChange={setEventDate}
+        />
+      )}
+
+      {duplicate && <FormError>A budget already exists for this recipient and occasion.</FormError>}
+    </FormShell>
   )
 }

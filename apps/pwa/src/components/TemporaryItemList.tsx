@@ -1,14 +1,11 @@
 import { Badge, Group, Stack, Text } from '@mantine/core'
 import { isTemporaryActive } from '@nest/plan'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
-import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
-import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
+import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
-import { EmptyState } from './EmptyState'
 import { GroupSection } from './GroupSection'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
@@ -106,9 +103,6 @@ export function TemporaryItemList({
   onUpdate,
   onDelete,
 }: TemporaryItemListProps) {
-  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
-  const { confirm, modal } = useConfirmDelete()
-
   const activeSubtotal = items.reduce(
     (total, item) =>
       isTemporaryActive({ contributionCents: 0, targetDate: item.target_date }, now)
@@ -119,49 +113,21 @@ export function TemporaryItemList({
 
   return (
     <GroupSection title="Temporary" subtotalCents={activeSubtotal}>
-      {items.length === 0 && !adding && <EmptyState>No temporary items yet.</EmptyState>}
-
-      {items.map((item) =>
-        editingId === item.id ? (
-          <TemporaryItemForm
-            key={item.id}
-            initial={item}
-            onSubmit={async (input) => {
-              await onUpdate(item.id, input)
-              closeForms()
-            }}
-            onCancel={closeForms}
-          />
-        ) : (
-          <TemporaryItemItem
-            key={item.id}
-            item={item}
-            now={now}
-            onEdit={() => startEditing(item.id)}
-            onDelete={() =>
-              confirm({
-                title: 'Delete temporary item?',
-                itemLabel: item.name,
-                onConfirm: () => onDelete(item.id),
-              })
-            }
-          />
-        ),
-      )}
-
-      {adding ? (
-        <TemporaryItemForm
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <AddButton label="Add temporary item" onClick={() => startAdding(true)} />
-      )}
-
-      {modal}
+      <EditableList<TemporaryItem, TemporaryItemInput>
+        items={items}
+        addLabel="Add temporary item"
+        emptyMessage="No temporary items yet."
+        deleteTarget={(item) => ({ title: 'Delete temporary item?', itemLabel: item.name })}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        renderItem={(item, { onEdit, onDelete: onDeleteItem }) => (
+          <TemporaryItemItem item={item} now={now} onEdit={onEdit} onDelete={onDeleteItem} />
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
+          <TemporaryItemForm initial={initial} onSubmit={onSubmit} onCancel={onCancel} />
+        )}
+      />
     </GroupSection>
   )
 }

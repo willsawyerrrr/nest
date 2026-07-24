@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from 'react'
-import { Button, Card, Group, Select, Stack, Text, TextInput } from '@mantine/core'
+import { useState } from 'react'
+import { Select, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface GoalFormProps {
@@ -26,10 +28,20 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
   const [linkedAccountId, setLinkedAccountId] = useState<string | null>(
     initial?.linked_account_id ?? null,
   )
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const canSubmit = name.trim() !== '' && targetAmount !== ''
 
-  const canSubmit = name.trim() !== '' && targetAmount !== '' && !submitting
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    canSubmit,
+    errorMessage: 'Could not save this goal. Please try again.',
+    onSubmit,
+    buildInput: (): GoalInput => ({
+      name: name.trim(),
+      target_amount_cents: dollarsToCents(targetAmount) ?? 0,
+      target_date: targetDate,
+      current_balance_cents: dollarsToCents(currentBalance) ?? 0,
+      linked_account_id: linkedAccountId,
+    }),
+  })
 
   const handleSaverChange = (accountId: string | null) => {
     setLinkedAccountId(accountId)
@@ -41,105 +53,72 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
     }
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    const input: GoalInput = {
-      name: name.trim(),
-      target_amount_cents: dollarsToCents(targetAmount) ?? 0,
-      target_date: targetDate,
-      current_balance_cents: dollarsToCents(currentBalance) ?? 0,
-      linked_account_id: linkedAccountId,
-    }
-    try {
-      await onSubmit(input)
-    } catch {
-      setError('Could not save this goal. Please try again.')
-      setSubmitting(false)
-    }
-  }
-
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        <TextInput
-          label="Name"
-          size="sm"
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-        />
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      editing={Boolean(initial)}
+      addLabel="goal"
+      onCancel={onCancel}
+    >
+      <TextInput
+        label="Name"
+        size="sm"
+        value={name}
+        onChange={(event) => setName(event.currentTarget.value)}
+      />
 
-        <MoneyInput
-          label="Target amount"
+      <MoneyInput
+        label="Target amount"
+        size="sm"
+        min={0}
+        hideControls
+        value={targetAmount}
+        onChange={setTargetAmount}
+      />
+
+      <DateInput
+        label="Target date"
+        size="sm"
+        description="Optional. Sets the contribution needed to reach the target."
+        valueFormat="D MMM YYYY"
+        clearable
+        value={targetDate}
+        onChange={setTargetDate}
+      />
+
+      {savers.length > 0 ? (
+        <Select
+          label="Up saver"
           size="sm"
+          description="Optional. Pulls the current balance from a synced Up saver."
+          placeholder="Not linked"
+          clearable
+          searchable
+          nothingFoundMessage="No matching savers"
+          data={savers.map((saver) => ({ value: saver.id, label: saver.name }))}
+          value={linkedAccountId}
+          onChange={handleSaverChange}
+        />
+      ) : (
+        <Text size="xs" c="dimmed">
+          Connect Up and sync to link a saver.
+        </Text>
+      )}
+
+      {linkedAccountId === null && (
+        <MoneyInput
+          label="Current balance"
+          size="sm"
+          description="Entered manually for now."
           min={0}
           hideControls
-          value={targetAmount}
-          onChange={setTargetAmount}
+          value={currentBalance}
+          onChange={setCurrentBalance}
         />
-
-        <DateInput
-          label="Target date"
-          size="sm"
-          description="Optional. Sets the contribution needed to reach the target."
-          valueFormat="D MMM YYYY"
-          clearable
-          value={targetDate}
-          onChange={setTargetDate}
-        />
-
-        {savers.length > 0 ? (
-          <Select
-            label="Up saver"
-            size="sm"
-            description="Optional. Pulls the current balance from a synced Up saver."
-            placeholder="Not linked"
-            clearable
-            searchable
-            nothingFoundMessage="No matching savers"
-            data={savers.map((saver) => ({ value: saver.id, label: saver.name }))}
-            value={linkedAccountId}
-            onChange={handleSaverChange}
-          />
-        ) : (
-          <Text size="xs" c="dimmed">
-            Connect Up and sync to link a saver.
-          </Text>
-        )}
-
-        {linkedAccountId === null && (
-          <MoneyInput
-            label="Current balance"
-            size="sm"
-            description="Entered manually for now."
-            min={0}
-            hideControls
-            value={currentBalance}
-            onChange={setCurrentBalance}
-          />
-        )}
-
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
-          </Text>
-        )}
-
-        <Group grow>
-          <Button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add goal'}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </Group>
-      </Stack>
-    </Card>
+      )}
+    </FormShell>
   )
 }

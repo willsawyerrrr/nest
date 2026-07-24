@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react'
-import { Button, Card, Checkbox, Group, Stack, Text } from '@mantine/core'
+import { useState } from 'react'
+import { Checkbox, Text } from '@mantine/core'
+import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Member } from '../hooks/useMembers'
 import type { TaxProfile, TaxProfileInput, TaxResidency } from '../hooks/useTaxProfiles'
 import { EnumSelect } from './EnumSelect'
+import { FormShell } from './FormShell'
 
 interface TaxProfileFormProps {
   member: Member
@@ -20,75 +22,52 @@ const RESIDENCIES: { value: TaxResidency; label: string }[] = [
 export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfileFormProps) {
   const [residency, setResidency] = useState<TaxResidency>(initial?.residency ?? 'resident')
   const [hasCover, setHasCover] = useState(initial?.has_private_hospital_cover ?? false)
-  const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmitting(true)
-    setSaved(false)
-    setError(null)
-    try {
-      await onSubmit({
-        member_id: member.id,
-        residency,
-        has_private_hospital_cover: hasCover,
-      })
-      setSaved(true)
-    } catch {
-      setError('Could not save this tax profile. Please try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const { submitting, error, handleSubmit } = useFormSubmit({
+    errorMessage: 'Could not save this tax profile. Please try again.',
+    resetOnSuccess: true,
+    onStart: () => setSaved(false),
+    onSuccess: () => setSaved(true),
+    onSubmit,
+    buildInput: (): TaxProfileInput => ({
+      member_id: member.id,
+      residency,
+      has_private_hospital_cover: hasCover,
+    }),
+  })
 
   return (
-    <Card withBorder radius="md" p="sm" component="form" onSubmit={handleSubmit}>
-      <Stack gap="xs">
-        <Text fw={600}>{member.name}</Text>
-
-        <EnumSelect
-          label="Residency"
-          size="sm"
-          data={RESIDENCIES}
-          value={residency}
-          onChange={(value) => value && setResidency(value)}
-          allowDeselect={false}
-        />
-
-        <Checkbox
-          label="Private hospital cover"
-          checked={hasCover}
-          onChange={(event) => setHasCover(event.currentTarget.checked)}
-        />
-
-        {error && (
-          <Text role="alert" c="red" size="sm">
-            {error}
-          </Text>
-        )}
-        {saved && !error && (
+    <FormShell
+      onSubmit={handleSubmit}
+      error={error}
+      submitting={submitting}
+      submitLabel="Save"
+      onCancel={onCancel}
+      status={
+        saved && !error ? (
           <Text role="status" c="green" size="sm">
             Saved
           </Text>
-        )}
+        ) : null
+      }
+    >
+      <Text fw={600}>{member.name}</Text>
 
-        {onCancel ? (
-          <Group grow>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save'}
-            </Button>
-            <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          </Group>
-        ) : (
-          <Button type="submit" fullWidth disabled={submitting}>
-            {submitting ? 'Saving…' : 'Save'}
-          </Button>
-        )}
-      </Stack>
-    </Card>
+      <EnumSelect
+        label="Residency"
+        size="sm"
+        data={RESIDENCIES}
+        value={residency}
+        onChange={(value) => value && setResidency(value)}
+        allowDeselect={false}
+      />
+
+      <Checkbox
+        label="Private hospital cover"
+        checked={hasCover}
+        onChange={(event) => setHasCover(event.currentTarget.checked)}
+      />
+    </FormShell>
   )
 }

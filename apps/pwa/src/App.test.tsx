@@ -181,33 +181,27 @@ describe('App', () => {
     expect(screen.getAllByRole('link', { name: 'Summary' }).length).toBeGreaterThan(0)
   })
 
-  it('routes to the household section', async () => {
+  // Each path lazily loads its section chunk, so awaiting the mocked section's
+  // text also exercises every route's dynamic-import factory.
+  it.each([
+    ['/net-worth', 'NetWorthSection'],
+    ['/inflows', 'InflowsSection'],
+    ['/budget', 'BudgetSection'],
+    ['/splits', 'SplitsSection'],
+    ['/goals', 'GoalsSection'],
+    ['/tax', 'TaxSection'],
+    ['/deductions', 'DeductionsSection'],
+    ['/super', 'SuperSection'],
+    ['/help-debt', 'HelpDebtSection'],
+    ['/equity', 'EquitySection'],
+    ['/gifts', 'GiftsSection'],
+    ['/breakdowns', 'BreakdownsSection'],
+    ['/breakdowns/b1', 'BreakdownDetailSection'],
+    ['/whats-new', 'ChangelogSection'],
+    ['/household', 'HomeSection'],
+  ])('routes to %s', async (path, section) => {
     mocks.getSession.mockResolvedValue({ data: { session } })
-    renderApp(['/household'])
-    expect(await screen.findByText('HomeSection')).toBeInTheDocument()
-  })
-
-  it('routes to the help-debt section', async () => {
-    mocks.getSession.mockResolvedValue({ data: { session } })
-    renderApp(['/help-debt'])
-    expect(await screen.findByText('HelpDebtSection')).toBeInTheDocument()
-  })
-
-  it('routes to the equity section', async () => {
-    mocks.getSession.mockResolvedValue({ data: { session } })
-    renderApp(['/equity'])
-    expect(await screen.findByText('EquitySection')).toBeInTheDocument()
-  })
-
-  it('routes to the deductions section', async () => {
-    mocks.getSession.mockResolvedValue({ data: { session } })
-    renderApp(['/deductions'])
-    expect(await screen.findByText('DeductionsSection')).toBeInTheDocument()
-  })
-
-  it('routes to the gifts section', async () => {
-    mocks.getSession.mockResolvedValue({ data: { session } })
-    renderApp(['/gifts'])
-    expect(await screen.findByText('GiftsSection')).toBeInTheDocument()
+    renderApp([path])
+    expect(await screen.findByText(section)).toBeInTheDocument()
   })
 })

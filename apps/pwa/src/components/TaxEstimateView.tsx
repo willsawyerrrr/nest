@@ -360,6 +360,7 @@ function FiguresCard({
             <Stack gap="md">
               <TaxWaterfall
                 grossCents={row.annualGrossCents}
+                deductionsCents={deductionsCents}
                 concessionalCents={concessionalCents}
                 breakdown={breakdown}
                 afterTaxCents={row.annualAfterTaxCents}

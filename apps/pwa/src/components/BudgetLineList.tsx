@@ -132,6 +132,7 @@ function RouteBadge({ route }: { route: LineRoute }) {
       size="xs"
       variant="light"
       color="gray"
+      ml="auto"
       leftSection={<AccountIcon name={route.iconName} size={10} />}
       title={route.title}
       style={{ maxWidth: '12rem' }}

@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Group,
+  Paper,
   Select,
   Stack,
   Text,
@@ -430,23 +431,25 @@ export function SplitsScreen({
       )}
 
       {staysRows.length > 0 && (
-        <Stack gap="xs">
-          <Title order={3} size="h5">
-            {hasPayAccount ? 'Stays in your pay account' : 'Stays in your spending account'}
-          </Title>
-          {hasPayAccount && (
-            <Text size="xs" c="dimmed">
-              Pay lands here — no transfer needed.
-            </Text>
-          )}
-          {staysRows.map((row) => (
-            <StaysItem
-              key={row.account.id}
-              account={row.account}
-              fortnightlyCents={row.fortnightlyCents}
-            />
-          ))}
-        </Stack>
+        <Paper p="sm" radius="md" bg="var(--mantine-primary-color-light)">
+          <Stack gap="xs">
+            <Title order={3} size="h5">
+              {hasPayAccount ? 'Stays in your pay account' : 'Stays in your spending account'}
+            </Title>
+            {hasPayAccount && (
+              <Text size="xs" c="dimmed">
+                Pay lands here — no transfer needed.
+              </Text>
+            )}
+            {staysRows.map((row) => (
+              <StaysItem
+                key={row.account.id}
+                account={row.account}
+                fortnightlyCents={row.fortnightlyCents}
+              />
+            ))}
+          </Stack>
+        </Paper>
       )}
 
       {recommendedRows.length > 0 && (

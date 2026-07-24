@@ -1360,7 +1360,7 @@ export type Database = {
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
-      breakdown_kind: 'generic' | 'gift'
+      breakdown_kind: 'generic'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
       frequency:
@@ -1505,7 +1505,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
-      breakdown_kind: ['generic', 'gift'],
+      breakdown_kind: ['generic'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
       frequency: [

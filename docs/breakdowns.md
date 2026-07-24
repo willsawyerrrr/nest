@@ -98,12 +98,12 @@ membership, a `set_updated_at` trigger, and explicit grants.
 - `line_group public.budget_group not null` — the budget group the rolled-up line
   belongs to. Each breakdown specifies its own group.
 - `kind public.breakdown_kind not null default 'generic'` — always `'generic'`,
-  reading `breakdown_item`. The enum's `'gift'` value is retired and unused.
+  reading `breakdown_item`.
 - `created_at` / `updated_at timestamptz not null default now()`
 - `unique (id, household_id)` — the composite key children reference.
 
-The enum `create type public.breakdown_kind as enum ('generic', 'gift')` backs
-`kind`.
+The enum `create type public.breakdown_kind as enum ('generic')` backs `kind`;
+`'generic'` is its only value.
 
 ### `breakdown_item`
 

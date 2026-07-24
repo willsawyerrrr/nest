@@ -211,11 +211,10 @@ each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design
 - **breakdown** — a household-created itemised list that owns one derived line.
   - `id`, `household_id`, `name` (the rolled-up line's name), `line_group`
     (`budget_group` enum — the group the rolled-up line belongs to), `kind`
-    (`breakdown_kind` enum: `generic` | `gift`, default `generic`), `created_at`,
+    (`breakdown_kind` enum: `generic`-only, default `generic`), `created_at`,
     `updated_at`. Unique on `(id, household_id)`.
-  - Every breakdown row is `generic` and rolls up its `breakdown_item` rows. The
-    enum's `gift` value is retired and unused — no `gift` breakdown rows exist;
-    gift budget lines roll up directly from the gift tables via
+  - Every breakdown row is `generic` and rolls up its `breakdown_item` rows. Gift
+    budget lines roll up directly from the gift tables via
     `budget_line.is_gift_line` (see [Gift tables](#gift-tables)).
 - **breakdown_item** — a line item of a breakdown (every breakdown is `generic`).
   - `id`, `household_id`, `breakdown_id`, `name`, `amount_cents`, `frequency`

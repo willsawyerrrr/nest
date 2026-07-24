@@ -115,6 +115,17 @@ describe('accountsWithEffectiveSuperBalances', () => {
     expect(result.find((a) => a.id === 'super2')?.balance_cents).toBe(20_000_00)
     expect(result.find((a) => a.id === 'other')?.balance_cents).toBe(5_000_00)
   })
+
+  it('accrues nothing for a super account whose member has no modelled contribution', () => {
+    const accounts = [account('super1', 10_000_00)]
+    const profiles = [
+      profile({ member_id: 'm1', linked_account_id: 'super1', balance_as_of: '2025-07-20' }),
+    ]
+    // The member is absent from the net-contribution map, so their accrual is
+    // zero and the balance stays at the baseline despite a year-old as-of date.
+    const result = accountsWithEffectiveSuperBalances(accounts, profiles, new Map(), today)
+    expect(result[0]!.balance_cents).toBe(10_000_00)
+  })
 })
 
 describe('netWorthBreakdown', () => {

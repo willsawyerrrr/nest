@@ -46,6 +46,12 @@ export default defineConfig({
               functions: 100,
               lines: 100,
             },
+            // The app-level money logic is held to the same bar as the pure
+            // packages: every reachable branch is covered, so it gates at 100%
+            // branches while the rest of apps/pwa keeps the lower branch floor.
+            'apps/pwa/src/lib/**': {
+              branches: 100,
+            },
           },
     },
   },

@@ -22,7 +22,7 @@ function HelpDebtCard({
   onEdit,
 }: {
   member: Member
-  debt?: HelpDebt
+  debt?: HelpDebt | undefined
   onEdit: () => void
 }) {
   return (
@@ -48,7 +48,7 @@ function MemberHelpDebtForm({
   onCancel,
 }: {
   member: Member
-  initial?: HelpDebt
+  initial?: HelpDebt | undefined
   onSave: (input: HelpDebtInput) => Promise<void>
   onCancel: () => void
 }) {

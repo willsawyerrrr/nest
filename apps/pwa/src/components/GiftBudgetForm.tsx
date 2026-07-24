@@ -16,13 +16,13 @@ interface GiftBudgetFormProps {
   /** Existing budget when editing; its pairing is fixed and only the amount changes. */
   initial?: GiftBudget
   /** Fixes the recipient (grouping by person); its selector is hidden. */
-  lockedRecipientId?: string
+  lockedRecipientId?: string | undefined
   /** Fixes the occasion (grouping by occasion); its selector is hidden. */
-  lockedOccasionId?: string
+  lockedOccasionId?: string | undefined
   /** Existing `recipient:occasion` pairings, so a duplicate pairing is blocked. */
   takenPairs: Set<string>
   onSubmit: (input: GiftBudgetInput) => void | Promise<void>
-  onCancel?: () => void
+  onCancel?: (() => void) | undefined
 }
 
 /** Presentational add/edit form for one gift budget. Persistence lives in the caller. */

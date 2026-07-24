@@ -115,7 +115,7 @@ function DerivedLineControls({
   onEdit,
 }: {
   breakdown: LinkedBreakdown
-  onEdit?: () => void
+  onEdit?: (() => void) | undefined
 }) {
   return (
     <>
@@ -157,9 +157,9 @@ function BudgetLineRow({
   onDelete,
 }: {
   line: BudgetLine
-  route?: LineRoute
-  breakdown?: LinkedBreakdown
-  onEdit?: () => void
+  route?: LineRoute | undefined
+  breakdown?: LinkedBreakdown | undefined
+  onEdit?: (() => void) | undefined
   onDelete?: () => void
 }) {
   const fortnightly = fortnightlyCents(
@@ -215,9 +215,9 @@ function BudgetLineCard({
   onDelete,
 }: {
   line: BudgetLine
-  route?: LineRoute
-  breakdown?: LinkedBreakdown
-  onEdit?: () => void
+  route?: LineRoute | undefined
+  breakdown?: LinkedBreakdown | undefined
+  onEdit?: (() => void) | undefined
   onDelete?: () => void
 }) {
   const fortnightly = fortnightlyCents(
@@ -258,9 +258,9 @@ function BudgetLineCard({
  */
 function BudgetLineItem(props: {
   line: BudgetLine
-  route?: LineRoute
-  breakdown?: LinkedBreakdown
-  onEdit?: () => void
+  route?: LineRoute | undefined
+  breakdown?: LinkedBreakdown | undefined
+  onEdit?: (() => void) | undefined
   onDelete?: () => void
 }) {
   const wide = useIsWide()

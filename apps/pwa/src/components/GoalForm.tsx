@@ -9,7 +9,7 @@ import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface GoalFormProps {
-  initial?: Goal
+  initial?: Goal | undefined
   savers: Saver[]
   onSubmit: (input: GoalInput) => void | Promise<void>
   onCancel?: () => void

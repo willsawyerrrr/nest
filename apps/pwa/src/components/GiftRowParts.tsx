@@ -38,6 +38,7 @@ export function GiftMoneyBar({
     )
   }
   const { percent, color } = progress(totals)
+  const remainingColor = moneyColor(totals.remainingCents)
   return (
     <Stack gap="xxs">
       <Group gap="md" wrap="wrap">
@@ -47,7 +48,7 @@ export function GiftMoneyBar({
         <Text size="xs" c="dimmed">
           Spent {formatCents(totals.spentCents)}
         </Text>
-        <Text size="xs" fw={600} c={moneyColor(totals.remainingCents)}>
+        <Text size="xs" fw={600} {...(remainingColor !== undefined && { c: remainingColor })}>
           Left {formatCents(totals.remainingCents)}
         </Text>
       </Group>

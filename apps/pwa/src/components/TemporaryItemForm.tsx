@@ -9,7 +9,7 @@ import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface TemporaryItemFormProps {
-  initial?: TemporaryItem
+  initial?: TemporaryItem | undefined
   onSubmit: (input: TemporaryItemInput) => void | Promise<void>
   onCancel?: () => void
 }

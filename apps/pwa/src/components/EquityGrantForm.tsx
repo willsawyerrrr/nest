@@ -13,7 +13,7 @@ import { MoneyInput } from './MoneyInput'
 
 interface EquityGrantFormProps {
   member: { id: string; name: string }
-  initial?: EquityGrantRow
+  initial?: EquityGrantRow | undefined
   onSubmit: (input: EquityGrantInput) => void | Promise<void>
   onCancel?: () => void
 }

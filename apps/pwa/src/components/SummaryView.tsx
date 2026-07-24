@@ -295,7 +295,7 @@ function ReconRow({
   amounts: Amounts
   portion: number
   running?: boolean
-  signed?: boolean
+  signed?: boolean | undefined
 }) {
   return (
     <Group
@@ -305,7 +305,7 @@ function ReconRow({
       wrap="nowrap"
       gap="sm"
       p="xs"
-      bg={running ? 'var(--mantine-primary-color-light)' : undefined}
+      {...(running && { bg: 'var(--mantine-primary-color-light)' })}
       style={{ borderRadius: 'var(--mantine-radius-sm)' }}
     >
       <Text size="sm" fw={running ? 700 : 400} truncate style={{ flex: 1, minWidth: 0 }}>
@@ -338,7 +338,7 @@ function RunningRow({
   label: string
   amounts: Amounts
   portion: number
-  signed?: boolean
+  signed?: boolean | undefined
 }) {
   return (
     <Table.Tr bg="var(--mantine-primary-color-light)">

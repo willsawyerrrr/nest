@@ -48,13 +48,13 @@ export function toSummaryInput({
       .map((inflow) => ({
         amountCents: inflow.amount_cents ?? 0,
         frequency: inflow.schedule,
-        interval: inflow.interval_count ?? undefined,
+        ...(inflow.interval_count != null && { interval: inflow.interval_count }),
       })),
     budgetLines: applyBreakdownAmounts(budgetLines, derivedAmounts).map((line) => ({
       group: line.line_group,
       amountCents: line.amount_cents,
       frequency: line.frequency,
-      interval: line.interval_count ?? undefined,
+      ...(line.interval_count != null && { interval: line.interval_count }),
     })),
     temporaryItems: temporaryItems.map((item) => ({
       contributionCents: item.contribution_cents,

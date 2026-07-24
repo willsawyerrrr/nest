@@ -37,12 +37,12 @@ export function toIncomeInput(inflow: Inflow): IncomeInput {
       ? (inflow.type as IncomeInput['type'])
       : 'other',
     schedule: inflow.schedule,
-    amountCents: inflow.amount_cents ?? undefined,
-    hourlyRateCents: inflow.hourly_rate_cents ?? undefined,
-    hoursPerPeriod: inflow.hours_per_period ?? undefined,
-    interval: inflow.interval_count ?? undefined,
-    startsOn: inflow.starts_on ?? undefined,
-    endsOn: inflow.ends_on ?? undefined,
+    ...(inflow.amount_cents != null && { amountCents: inflow.amount_cents }),
+    ...(inflow.hourly_rate_cents != null && { hourlyRateCents: inflow.hourly_rate_cents }),
+    ...(inflow.hours_per_period != null && { hoursPerPeriod: inflow.hours_per_period }),
+    ...(inflow.interval_count != null && { interval: inflow.interval_count }),
+    ...(inflow.starts_on != null && { startsOn: inflow.starts_on }),
+    ...(inflow.ends_on != null && { endsOn: inflow.ends_on }),
   }
 }
 

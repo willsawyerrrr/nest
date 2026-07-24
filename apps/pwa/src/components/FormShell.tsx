@@ -18,7 +18,7 @@ interface FormShellProps {
   /** Overrides the derived submit label (e.g. "Save", "Update actual balance"). */
   submitLabel?: string
   /** Renders a Cancel button beside submit when provided. */
-  onCancel?: () => void
+  onCancel?: (() => void) | undefined
   /** Extra content between the error block and the footer, e.g. a saved status. */
   status?: ReactNode
   /** The form fields. */

@@ -19,7 +19,7 @@ import { MoneyInput } from './MoneyInput'
 interface SuperContributionFormProps {
   member: Member
   members: Member[]
-  initial?: SuperContribution
+  initial?: SuperContribution | undefined
   onSubmit: (input: SuperContributionInput) => void | Promise<void>
   onCancel?: () => void
 }

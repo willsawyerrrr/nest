@@ -8,7 +8,7 @@ import { FormShell } from './FormShell'
 
 interface TaxProfileFormProps {
   member: Member
-  initial?: TaxProfile
+  initial?: TaxProfile | undefined
   onSubmit: (input: TaxProfileInput) => void | Promise<void>
   onCancel?: () => void
 }

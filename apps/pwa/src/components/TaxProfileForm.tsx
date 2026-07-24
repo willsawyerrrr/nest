@@ -46,7 +46,7 @@ export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfi
       onCancel={onCancel}
       status={
         saved && !error ? (
-          <Text role="status" c="green" size="sm">
+          <Text role="status" c="positive" size="sm">
             Saved
           </Text>
         ) : null

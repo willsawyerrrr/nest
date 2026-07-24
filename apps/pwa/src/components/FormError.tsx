@@ -9,7 +9,7 @@ interface FormErrorProps {
 /** The inline error message shown when a form action fails, announced to assistive tech. */
 export function FormError({ children }: FormErrorProps) {
   return (
-    <Text role="alert" c="red" size="sm">
+    <Text role="alert" c="negative" size="sm">
       {children}
     </Text>
   )

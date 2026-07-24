@@ -247,7 +247,7 @@ function EquityGroup({
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <SectionAccent color="grape" icon={<IconChartPie size={14} />} />
+            <SectionAccent color="cyan" icon={<IconChartPie size={14} />} />
             <Title order={3} size="h5">
               Equity
             </Title>

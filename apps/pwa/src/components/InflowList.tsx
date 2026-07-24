@@ -182,7 +182,7 @@ function InflowCard({
                 Non-taxable
               </Badge>
             )}
-            <Badge size="xs" variant="light" color="grape">
+            <Badge size="xs" variant="light" color="violet">
               {inflowTypeLabel(inflow.type)}
             </Badge>
             <Badge size="xs" variant="default">

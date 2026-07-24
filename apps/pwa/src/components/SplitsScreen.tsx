@@ -195,7 +195,7 @@ function DriftNote({
   return (
     <Group justify="space-between" wrap="nowrap" gap="sm">
       <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <Badge size="xs" variant="light" color="yellow" style={{ flexShrink: 0 }}>
+        <Badge size="xs" variant="light" color="warning" style={{ flexShrink: 0 }}>
           Update
         </Badge>
         <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
@@ -244,7 +244,7 @@ function RecommendedSplitRow({
     </ListRow>
   )
   return needsUpdate ? (
-    <Box pl="xs" style={{ borderLeft: '3px solid var(--mantine-color-yellow-6)' }}>
+    <Box pl="xs" style={{ borderLeft: '3px solid var(--mantine-color-warning-6)' }}>
       {row}
     </Box>
   ) : (
@@ -268,7 +268,7 @@ function RecommendedSplitCard({
     <AppCard
       withBorder
       padding="sm"
-      style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-yellow-6)' } : undefined}
+      style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-warning-6)' } : undefined}
     >
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <AccountName name={account.name} />
@@ -459,7 +459,7 @@ export function SplitsScreen({
               Recommended pay splits
             </Title>
             {rowsToUpdate > 0 && (
-              <Badge size="xs" variant="light" color="yellow">
+              <Badge size="xs" variant="light" color="warning">
                 {rowsToUpdate} to update
               </Badge>
             )}
@@ -477,7 +477,7 @@ export function SplitsScreen({
       )}
 
       {unassignedFortnightlyCents > 0 && (
-        <Alert color="yellow" variant="light" title="Unassigned">
+        <Alert color="warning" variant="light" title="Unassigned">
           {formatPerFortnight(unassignedFortnightlyCents)} comes from budget items not yet routed to
           an account. Set a “Funded from” account on those items, or link their Savings goal to an
           Up saver, to fold them into a split.

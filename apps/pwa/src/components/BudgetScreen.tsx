@@ -1,4 +1,3 @@
-import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import type { BudgetGroup } from '../lib/domain'
@@ -11,8 +10,8 @@ interface BudgetScreenProps {
   lines: BudgetLine[]
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   accounts: { id: string; name: string }[]
-  /** The household's breakdowns, naming the tap-through link on each derived line and seeding its editor. */
-  breakdowns: { id: string; name: string; line_group: BudgetGroup; kind: BreakdownKind }[]
+  /** The household's generic breakdowns, naming the tap-through link on each derived line and seeding its editor. */
+  breakdowns: { id: string; name: string; line_group: BudgetGroup }[]
   temporaryItems: TemporaryItem[]
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>

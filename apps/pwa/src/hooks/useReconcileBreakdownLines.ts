@@ -1,5 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { reconcileBreakdownLines, type DerivedAmountContext } from '../lib/breakdowns'
+import {
+  reconcileBreakdownLines,
+  reconcileGiftLines,
+  type BreakdownLineOps,
+  type DerivedAmountContext,
+} from '../lib/breakdowns'
 import type { DirectoryAccount } from '../lib/gifts'
 import type { Breakdown } from './useBreakdowns'
 import type { BudgetLine, UseBudgetLinesResult } from './useBudgetLines'
@@ -26,11 +31,21 @@ interface UseReconcileBreakdownLinesParams {
   removeLine: UseBudgetLinesResult['remove']
 }
 
+/** Concatenates the create/update/remove ops of the generic and gift reconciles into one batch. */
+function mergeOps(...batches: BreakdownLineOps[]): BreakdownLineOps {
+  return {
+    create: batches.flatMap((batch) => batch.create),
+    update: batches.flatMap((batch) => batch.update),
+    remove: batches.flatMap((batch) => batch.remove),
+  }
+}
+
 /**
- * Enforces the app-managed derived-line lifecycle: as breakdown items come and
- * go, brings each breakdown's owned budget line into being, up to date, or away.
- * A re-entrancy guard blocks a fresh reconcile while its writes are in flight, so
- * the reload they trigger cannot re-enter mid-write.
+ * Enforces the app-managed derived-line lifecycle: as breakdown items and gift
+ * budgets come and go, brings each generic breakdown's owned line and each gift
+ * line into being, up to date, or away. A re-entrancy guard blocks a fresh
+ * reconcile while its writes are in flight, so the reload they trigger cannot
+ * re-enter mid-write.
  */
 export function useReconcileBreakdownLines({
   lines,
@@ -50,14 +65,9 @@ export function useReconcileBreakdownLines({
     if (!lines || !dataLoaded || reconcilingRef.current) {
       return
     }
-    const ops = reconcileBreakdownLines(
-      breakdowns,
-      context,
-      counts,
-      lines,
-      memberNames,
-      members,
-      directory,
+    const ops = mergeOps(
+      reconcileBreakdownLines(breakdowns, context, counts, lines),
+      reconcileGiftLines(context.giftTotalsByMember, lines, memberNames, members, directory),
     )
     if (ops.create.length === 0 && ops.update.length === 0 && ops.remove.length === 0) {
       return

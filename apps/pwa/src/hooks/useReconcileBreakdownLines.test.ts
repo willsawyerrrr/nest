@@ -9,7 +9,6 @@ import { useReconcileBreakdownLines } from './useReconcileBreakdownLines'
 function context(overrides: Partial<DerivedAmountContext> = {}): DerivedAmountContext {
   return {
     genericTotalsByBreakdownId: new Map(),
-    giftBreakdownId: null,
     giftTotalsByMember: new Map(),
     ...overrides,
   }
@@ -79,9 +78,8 @@ describe('useReconcileBreakdownLines', () => {
 
   it('funds a gift member line from the buyer’s account, threading members and directory', async () => {
     const p = params({
-      breakdowns: [makeBreakdown({ id: 'gift', name: 'Gifts', kind: 'gift', line_group: 'wants' })],
+      breakdowns: [],
       context: context({
-        giftBreakdownId: 'gift',
         giftTotalsByMember: new Map([['m-sam', 120_00]]),
       }),
       memberNames: new Map([['m-sam', 'Sam']]),

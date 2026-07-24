@@ -14,7 +14,6 @@ import {
 } from '@mantine/core'
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
-import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
@@ -43,8 +42,8 @@ interface BudgetLineListProps {
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
-  /** The household's breakdowns; a line sourced from one links through to it and seeds its editor. */
-  breakdowns?: { id: string; name: string; line_group: BudgetGroup; kind: BreakdownKind }[]
+  /** The household's generic breakdowns; a line sourced from one links through to it and seeds its editor. */
+  breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
   /** Saves a derived line's edit, fanning the name/group to its breakdown and the funding account to the line. */
@@ -86,23 +85,22 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   )
 }
 
-/** The breakdown fields a derived line's chevron needs to build its navigation target. */
-type LinkedBreakdown = { id: string; kind: BreakdownKind }
+/** What a derived line links through to: a gift line to the Gifts tab, a generic line to its breakdown. */
+type DerivedSource = { isGift: true } | { isGift: false; breakdownId: string }
 
 /**
  * A chevron control linking a derived line through to its source. A gift line goes
  * straight to the Gifts tab, where gifts are managed; a generic line goes to its
  * breakdown's editor.
  */
-function BreakdownLink({ breakdown }: { breakdown: LinkedBreakdown }) {
-  const isGift = breakdown.kind === 'gift'
+function DerivedLink({ source }: { source: DerivedSource }) {
   return (
     <ActionIcon
       component={Link}
-      to={isGift ? '/gifts' : `/breakdowns/${breakdown.id}`}
+      to={source.isGift ? '/gifts' : `/breakdowns/${source.breakdownId}`}
       state={{ from: '/budget' }}
       variant="subtle"
-      aria-label={isGift ? 'Open gifts' : 'Open breakdown'}
+      aria-label={source.isGift ? 'Open gifts' : 'Open breakdown'}
     >
       <IconChevronRight size={16} />
     </ActionIcon>
@@ -111,16 +109,16 @@ function BreakdownLink({ breakdown }: { breakdown: LinkedBreakdown }) {
 
 /** A derived line's controls: an inline edit pencil beside the chevron to its source. */
 function DerivedLineControls({
-  breakdown,
+  source,
   onEdit,
 }: {
-  breakdown: LinkedBreakdown
+  source: DerivedSource
   onEdit?: (() => void) | undefined
 }) {
   return (
     <>
       {onEdit && <EditAction onClick={onEdit} />}
-      <BreakdownLink breakdown={breakdown} />
+      <DerivedLink source={source} />
     </>
   )
 }
@@ -152,13 +150,13 @@ function RouteBadge({ route }: { route: LineRoute }) {
 function BudgetLineRow({
   line,
   route,
-  breakdown,
+  source,
   onEdit,
   onDelete,
 }: {
   line: BudgetLine
   route?: LineRoute | undefined
-  breakdown?: LinkedBreakdown | undefined
+  source?: DerivedSource | undefined
   onEdit?: (() => void) | undefined
   onDelete?: () => void
 }) {
@@ -193,8 +191,8 @@ function BudgetLineRow({
         style={{ width: '7rem', flexShrink: 0 }}
       />
       <Group gap="xxs" wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
-        {breakdown ? (
-          <DerivedLineControls breakdown={breakdown} onEdit={onEdit} />
+        {source ? (
+          <DerivedLineControls source={source} onEdit={onEdit} />
         ) : (
           onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         )}
@@ -210,13 +208,13 @@ function BudgetLineRow({
  */
 function BudgetLineCard({
   line,
-  breakdown,
+  source,
   onEdit,
   onDelete,
 }: {
   line: BudgetLine
   route?: LineRoute | undefined
-  breakdown?: LinkedBreakdown | undefined
+  source?: DerivedSource | undefined
   onEdit?: (() => void) | undefined
   onDelete?: () => void
 }) {
@@ -241,8 +239,8 @@ function BudgetLineCard({
         </Stack>
         <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightly} />
-          {breakdown ? (
-            <DerivedLineControls breakdown={breakdown} onEdit={onEdit} />
+          {source ? (
+            <DerivedLineControls source={source} onEdit={onEdit} />
           ) : (
             onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           )}
@@ -259,7 +257,7 @@ function BudgetLineCard({
 function BudgetLineItem(props: {
   line: BudgetLine
   route?: LineRoute | undefined
-  breakdown?: LinkedBreakdown | undefined
+  source?: DerivedSource | undefined
   onEdit?: (() => void) | undefined
   onDelete?: () => void
 }) {
@@ -270,10 +268,11 @@ function BudgetLineItem(props: {
 /**
  * The household's budget lines grouped by the five groups, each group showing a
  * fortnightly subtotal, a per-group add affordance, and inline add/edit forms.
- * A derived line (one owned by a breakdown) edits inline like a manual line —
- * its name and group flow to the breakdown and its funding account to the line —
- * but its amount stays breakdown-owned, so it carries an edit pencil and a
- * chevron to its breakdown rather than a delete control.
+ * A derived line (a gift line or one owned by a generic breakdown) edits inline
+ * like a manual line — a generic line's name and group flow to the breakdown and
+ * its funding account to the line — but its amount stays roll-up-owned, so it
+ * carries an edit pencil and a chevron to its source (its breakdown, or the Gifts
+ * tab) rather than a delete control.
  */
 export function BudgetLineList({
   lines,
@@ -390,23 +389,31 @@ export function BudgetLineList({
               const breakdown = line.breakdown_id
                 ? breakdownsById.get(line.breakdown_id)
                 : undefined
-              // A derived line edits inline: its name and group flow to the
-              // breakdown and its funding account to the line, while its amount
-              // stays owned by the breakdown.
-              if (breakdown) {
-                // A gift line's name is partition-derived ("Gifts for <member>"),
-                // owned by the line rather than the breakdown, so it seeds and shows
-                // read-only; a generic line's name is the breakdown's own name.
-                const isGift = breakdown.kind === 'gift'
+              // A gift line is derived off `is_gift_line` (no breakdown); a generic
+              // line is derived off its owning breakdown. Either edits inline: a
+              // generic line's name and group flow to the breakdown and its funding
+              // account to the line, while a gift line owns its own group and its
+              // partition-derived name; the amount stays roll-up-owned in both.
+              const isGift = line.is_gift_line
+              const source: DerivedSource | undefined = isGift
+                ? { isGift: true }
+                : breakdown
+                  ? { isGift: false, breakdownId: breakdown.id }
+                  : undefined
+              if (source) {
                 return editingId === line.id && onUpdateDerivedLine ? (
                   <DerivedBudgetLineForm
                     key={line.id}
                     initial={{
                       id: line.id,
-                      breakdown_id: breakdown.id,
-                      name: isGift ? line.name : breakdown.name,
+                      breakdown_id: breakdown?.id ?? null,
+                      // A gift line's name is partition-derived, owned by the line;
+                      // a generic line's name is the breakdown's own name.
+                      name: isGift ? line.name : (breakdown?.name ?? line.name),
                       // A gift line owns its own group; a generic line's group is the breakdown's.
-                      line_group: isGift ? line.line_group : breakdown.line_group,
+                      line_group: isGift
+                        ? line.line_group
+                        : (breakdown?.line_group ?? line.line_group),
                       destination_account_id: line.destination_account_id,
                       amount_cents: line.amount_cents,
                       frequency: line.frequency,
@@ -426,7 +433,7 @@ export function BudgetLineList({
                     key={line.id}
                     line={line}
                     route={resolveRoute(line, goals, accountNames)}
-                    breakdown={breakdown}
+                    source={source}
                     onEdit={onUpdateDerivedLine ? () => startEditing(line.id) : undefined}
                   />
                 )

@@ -27,7 +27,6 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
 function context(overrides: Partial<DerivedAmountContext> = {}): DerivedAmountContext {
   return {
     genericTotalsByBreakdownId: new Map(),
-    giftBreakdownId: null,
     giftTotalsByMember: new Map(),
     ...overrides,
   }
@@ -46,13 +45,12 @@ describe('applyBreakdownAmounts', () => {
 
   it('takes a gift line’s amount from its recipient partition', () => {
     const lines = [
-      line({ id: 'sam', breakdown_id: 'g', gift_recipient_member_id: 'm-sam', amount_cents: 0 }),
-      line({ id: 'ext', breakdown_id: 'g', gift_recipient_member_id: null, amount_cents: 0 }),
+      line({ id: 'sam', is_gift_line: true, gift_recipient_member_id: 'm-sam', amount_cents: 0 }),
+      line({ id: 'ext', is_gift_line: true, gift_recipient_member_id: null, amount_cents: 0 }),
     ]
     const result = applyBreakdownAmounts(
       lines,
       context({
-        giftBreakdownId: 'g',
         giftTotalsByMember: new Map([
           ['m-sam', 120_00],
           [null, 30_00],
@@ -67,12 +65,12 @@ describe('applyBreakdownAmounts', () => {
     const lines = [
       line({
         id: 'sam',
-        breakdown_id: 'g',
+        is_gift_line: true,
         gift_recipient_member_id: 'm-sam',
         amount_cents: 42_00,
       }),
     ]
-    const result = applyBreakdownAmounts(lines, context({ giftBreakdownId: 'g' }))
+    const result = applyBreakdownAmounts(lines, context())
     expect(result[0]!.amount_cents).toBe(0)
   })
 

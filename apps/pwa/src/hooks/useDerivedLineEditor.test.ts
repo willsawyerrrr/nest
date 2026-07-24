@@ -1,21 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { makeBudgetLine } from '../test/fixtures'
-import type { Breakdown } from './useBreakdowns'
 import { useDerivedLineEditor } from './useDerivedLineEditor'
-
-function makeBreakdown(overrides: Partial<Breakdown> = {}): Breakdown {
-  return {
-    id: 'bd1',
-    household_id: 'h1',
-    name: 'Meds',
-    line_group: 'needs',
-    kind: 'generic',
-    created_at: '',
-    updated_at: '',
-    ...overrides,
-  }
-}
 
 describe('useDerivedLineEditor', () => {
   it('fans a generic derived-line save out to the breakdown and the line', async () => {
@@ -25,7 +11,6 @@ describe('useDerivedLineEditor', () => {
     const { result } = renderHook(() =>
       useDerivedLineEditor({
         lines: [line],
-        breakdowns: [makeBreakdown({ id: 'bd1' })],
         updateBreakdown,
         updateLine,
       }),
@@ -52,7 +37,7 @@ describe('useDerivedLineEditor', () => {
     const updateLine = vi.fn().mockResolvedValue(undefined)
     const line = makeBudgetLine({
       id: 'l1',
-      breakdown_id: 'gift',
+      is_gift_line: true,
       name: 'Gifts for Sam',
       gift_recipient_member_id: 'm-sam',
       destination_account_id: 'will-txn',
@@ -60,7 +45,6 @@ describe('useDerivedLineEditor', () => {
     const { result } = renderHook(() =>
       useDerivedLineEditor({
         lines: [line],
-        breakdowns: [makeBreakdown({ id: 'gift', name: 'Gifts', kind: 'gift' })],
         updateBreakdown,
         updateLine,
       }),
@@ -94,7 +78,7 @@ describe('useDerivedLineEditor', () => {
     const updateLine = vi.fn().mockResolvedValue(undefined)
     const line = makeBudgetLine({
       id: 'l1',
-      breakdown_id: 'gift',
+      is_gift_line: true,
       name: 'Gifts',
       gift_recipient_member_id: null,
       destination_account_id: 'joint',
@@ -102,7 +86,6 @@ describe('useDerivedLineEditor', () => {
     const { result } = renderHook(() =>
       useDerivedLineEditor({
         lines: [line],
-        breakdowns: [makeBreakdown({ id: 'gift', name: 'Gifts', kind: 'gift' })],
         updateBreakdown,
         updateLine,
       }),
@@ -135,7 +118,7 @@ describe('useDerivedLineEditor', () => {
     const updateLine = vi.fn().mockResolvedValue(undefined)
 
     const missing = renderHook(() =>
-      useDerivedLineEditor({ lines: null, breakdowns: [], updateBreakdown, updateLine }),
+      useDerivedLineEditor({ lines: null, updateBreakdown, updateLine }),
     )
     await act(async () => {
       await missing.result.current('nope', {
@@ -148,7 +131,6 @@ describe('useDerivedLineEditor', () => {
     const manual = renderHook(() =>
       useDerivedLineEditor({
         lines: [makeBudgetLine({ id: 'l2', breakdown_id: null })],
-        breakdowns: [],
         updateBreakdown,
         updateLine,
       }),

@@ -24,9 +24,10 @@ export function BreakdownDetailSection({ householdId }: { householdId: string })
     return <Navigate to="/breakdowns" replace />
   }
 
-  // Gifts are managed solely in the Gifts tab; a gift breakdown is an internal
-  // roll-up mechanism with no editor of its own here, so any link to one lands on
-  // the Gifts tab.
+  // Gifts are managed solely in the Gifts tab. Transitional guard: gifts roll up
+  // standalone (keyed by `budget_line.is_gift_line`) with no breakdown, so this
+  // redirect only shields the brief prod window before the contract migration
+  // deletes any pre-existing gift breakdown a stale link might still target.
   if (breakdown.kind === 'gift') {
     return <Navigate to="/gifts" replace />
   }

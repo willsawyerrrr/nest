@@ -79,6 +79,7 @@ export function BudgetLineForm({
       breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
       gift_recipient_member_id: null,
+      is_gift_line: false,
     }),
   })
 

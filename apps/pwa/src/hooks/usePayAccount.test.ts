@@ -2,16 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { usePayAccount } from './usePayAccount'
 
-const { builder, rpcMock } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: { pay_account_id: null }, error: null },
-  } as never
-  for (const method of ['select', 'eq']) {
-    b[method] = vi.fn(() => b)
-  }
-  b.single = vi.fn(() => Promise.resolve(b.result))
+const { builder, rpcMock } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
   return {
-    builder: b,
+    builder: makeSupabaseBuilder(['select', 'eq', 'single']),
     rpcMock: vi.fn((): Promise<{ error: unknown }> => Promise.resolve({ error: null })),
   }
 })

@@ -2,13 +2,12 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeWrapper } from '../test/queryWrapper'
 import { useHouseholdCollection, useHouseholdUpsertCollection } from './useCollection'
 
-const { builder, fromMock } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: [], error: null },
-  } as never
-  for (const method of [
+const { builder, fromMock } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
+  const b = makeSupabaseBuilder([
     'select',
     'insert',
     'upsert',
@@ -17,21 +16,11 @@ const { builder, fromMock } = vi.hoisted(() => {
     'eq',
     'order',
     'single',
-  ]) {
-    b[method] = vi.fn(() => b)
-  }
-  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-    Promise.resolve(b.result).then(onFulfilled, onRejected)
+  ])
   return { builder: b, fromMock: vi.fn(() => b) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: fromMock } }))
-
-function makeWrapper() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client }, children)
-}
 
 beforeEach(() => {
   vi.clearAllMocks()

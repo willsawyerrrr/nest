@@ -13,6 +13,8 @@ interface ListRowProps {
   caption?: ReactNode
   /** Dulls the whole row (reduced opacity), e.g. for an inactive item. */
   dimmed?: boolean
+  /** Test hook applied to the row's root element. */
+  'data-testid'?: string
 }
 
 /**
@@ -20,7 +22,7 @@ interface ListRowProps {
  * bottom rule, with an optional second line beneath. The desktop counterpart to
  * a compact `AppCard`, shared by the app's long lists so they scan as a table.
  */
-export function ListRow({ children, gap = 'md', caption, dimmed }: ListRowProps) {
+export function ListRow({ children, gap = 'md', caption, dimmed, ...rest }: ListRowProps) {
   return (
     <Stack
       gap={caption == null ? 0 : 4}
@@ -29,6 +31,7 @@ export function ListRow({ children, gap = 'md', caption, dimmed }: ListRowProps)
         borderBottom: '1px solid var(--mantine-color-default-border)',
         opacity: dimmed ? 0.55 : undefined,
       }}
+      {...rest}
     >
       <Group wrap="nowrap" gap={gap}>
         {children}

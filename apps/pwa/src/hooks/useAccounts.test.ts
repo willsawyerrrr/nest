@@ -3,16 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeSaver } from '../test/fixtures'
 import { useAccounts } from './useAccounts'
 
-const { builder } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: [], error: null },
-  } as never
-  for (const method of ['select', 'insert', 'update', 'upsert', 'eq', 'order', 'single']) {
-    b[method] = vi.fn(() => b)
+const { builder } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
+  return {
+    builder: makeSupabaseBuilder(['select', 'insert', 'update', 'upsert', 'eq', 'order', 'single']),
   }
-  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-    Promise.resolve(b.result).then(onFulfilled, onRejected)
-  return { builder: b }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))

@@ -109,6 +109,7 @@ function InflowRow({
   const ended = isInflowEnded(inflow)
   return (
     <ListRow
+      data-testid="inflow-row"
       gap="sm"
       dimmed={ended}
       caption={ended ? undefined : (effectiveDatesCaption(inflow) ?? undefined)}

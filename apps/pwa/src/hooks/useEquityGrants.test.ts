@@ -1,27 +1,27 @@
-import { createElement, type ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useEquityGrants } from './useEquityGrants'
+import { makeWrapper } from '../test/queryWrapper'
+import { useEquityGrants, type EquityGrantInput } from './useEquityGrants'
 
-const { builder } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: [], error: null },
-  } as never
-  for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order']) {
-    b[method] = vi.fn(() => b)
-  }
-  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-    Promise.resolve(b.result).then(onFulfilled, onRejected)
-  return { builder: b }
+const { builder } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
+  return { builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
 
-function makeWrapper() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client }, children)
+const input: EquityGrantInput = {
+  member_id: 'm1',
+  label: 'ISO grant',
+  instrument_type: 'option',
+  quantity: 1000,
+  grant_date: '2026-01-01',
+  cliff_months: 12,
+  vesting_period_months: 48,
+  vesting_frequency: 'monthly',
+  strike_price_cents: 1_00,
+  price_per_share_cents: 5_00,
+  price_as_of: null,
 }
 
 beforeEach(() => {
@@ -36,13 +36,15 @@ describe('useEquityGrants', () => {
     expect(result.current.loading).toBe(false)
 
     await act(async () => {
-      await result.current.create({} as never)
-      await result.current.update('eg1', {} as never)
+      await result.current.create(input)
+      await result.current.update('eg1', input)
       await result.current.remove('eg1')
       await result.current.reload()
     })
-    expect(builder.insert).toHaveBeenCalled()
-    expect(builder.update).toHaveBeenCalled()
+
+    expect(builder.insert).toHaveBeenCalledWith({ ...input, household_id: 'h1' })
+    expect(builder.update).toHaveBeenCalledWith(input)
     expect(builder.delete).toHaveBeenCalled()
+    expect(builder.eq).toHaveBeenCalledWith('id', 'eg1')
   })
 })

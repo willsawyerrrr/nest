@@ -2,16 +2,9 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { usePaySplits } from './usePaySplits'
 
-const { builder } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: [], error: null },
-  } as never
-  for (const method of ['select', 'upsert', 'eq']) {
-    b[method] = vi.fn(() => b)
-  }
-  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-    Promise.resolve(b.result).then(onFulfilled, onRejected)
-  return { builder: b }
+const { builder } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
+  return { builder: makeSupabaseBuilder(['select', 'upsert', 'eq']) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))

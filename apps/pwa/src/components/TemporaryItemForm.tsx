@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
+import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
 
@@ -9,11 +10,6 @@ interface TemporaryItemFormProps {
   initial?: TemporaryItem
   onSubmit: (input: TemporaryItemInput) => void | Promise<void>
   onCancel?: () => void
-}
-
-/** Today as an ISO date (`YYYY-MM-DD`), the default target date for a new item. */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /** Presentational add/edit form for a single temporary item. Persistence lives in the caller. */

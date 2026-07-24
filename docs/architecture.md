@@ -146,11 +146,12 @@ is CRUD over RLS.
 ## CI
 
 Parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own runner
-so overall wall-clock is the slowest single job, not the sum:
+so overall wall-clock is the slowest single job, not the sum. A push supersedes
+an in-flight run for the same ref (`concurrency` with `cancel-in-progress`), and
+the workflow token is scoped `contents: read`:
 
-- **check** — lint / format / typecheck / build. The long pole (~50–59s); it is
-  what keeps overall CI near the one-minute budget, so profile it first if CI
-  creeps up.
+- **check** — lint / format / typecheck / build (~49s). Not the binding
+  constraint.
 - **test** — the Vitest workspace, sharded across six parallel runners with V8
   coverage. A `test-shard` matrix job runs
   `vitest run --shard=N/6 --coverage --reporter=blob` on six runners (each
@@ -170,7 +171,16 @@ so overall wall-clock is the slowest single job, not the sum:
   their own Deno harness).
 
 A `ci-status` job `needs` all four and is the single required `CI Status` check
-(squash-only, no bypass). The next lever if `test` creeps up is a seventh shard.
+(squash-only, no bypass).
+
+Overall wall-clock is about two minutes, above the one-minute budget. The binding
+constraint is the serialized `test-shard` → `test` chain: the shards run in
+parallel (~66s), then the `test` merge job waits on them and runs afterwards
+(~34s), so their durations add. The merge itself replays the recorded runs in a
+few seconds; almost all of its ~34s is checkout, Node/pnpm setup, and
+`pnpm install`. Collapsing that install/setup overhead on the merge job — not
+adding shards — is the lever, since the shards already run concurrently and the
+merge cannot start until they finish.
 
 Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports
 via `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint

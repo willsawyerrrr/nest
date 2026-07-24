@@ -1,17 +1,14 @@
 import { Badge, Group, Progress, Stack, Text } from '@mantine/core'
 import { fortnightlyCents, projectGoal } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Goal, GoalInput } from '../hooks/useGoals'
-import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
-import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
+import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
-import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { GoalForm } from './GoalForm'
 import { ListRow } from './ListRow'
@@ -211,9 +208,6 @@ function GoalItem(props: GoalItemProps) {
 
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
 export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }: GoalListProps) {
-  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
-  const { confirm, modal } = useConfirmDelete()
-
   // Goals with an active linked contribution lead, each partition keeping its original order.
   const funded = goals.filter((goal) => contributionForGoal(goal.id, lines) > 0)
   const unfunded = goals.filter((goal) => contributionForGoal(goal.id, lines) === 0)
@@ -221,52 +215,27 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
 
   return (
     <Stack gap="sm">
-      {goals.length === 0 && !adding && <EmptyState>No goals yet.</EmptyState>}
-
-      {orderedGoals.map((goal) =>
-        editingId === goal.id ? (
-          <GoalForm
-            key={goal.id}
-            initial={goal}
-            savers={savers}
-            onSubmit={async (input) => {
-              await onUpdate(goal.id, input)
-              closeForms()
-            }}
-            onCancel={closeForms}
-          />
-        ) : (
+      <EditableList<Goal, GoalInput>
+        items={orderedGoals}
+        addLabel="Add goal"
+        emptyMessage="No goals yet."
+        deleteTarget={(goal) => ({ title: 'Delete goal?', itemLabel: goal.name })}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        renderItem={(goal, { onEdit, onDelete: onDeleteItem }) => (
           <GoalItem
-            key={goal.id}
             goal={goal}
             saver={linkedSaver(goal, savers)}
             contributionCents={contributionForGoal(goal.id, lines)}
-            onEdit={() => startEditing(goal.id)}
-            onDelete={() =>
-              confirm({
-                title: 'Delete goal?',
-                itemLabel: goal.name,
-                onConfirm: () => onDelete(goal.id),
-              })
-            }
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
           />
-        ),
-      )}
-
-      {adding ? (
-        <GoalForm
-          savers={savers}
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <AddButton label="Add goal" onClick={() => startAdding(true)} />
-      )}
-
-      {modal}
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
+          <GoalForm initial={initial} savers={savers} onSubmit={onSubmit} onCancel={onCancel} />
+        )}
+      />
     </Stack>
   )
 }

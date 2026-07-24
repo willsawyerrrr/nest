@@ -1,6 +1,4 @@
 import { Badge, Group, Stack, Text } from '@mantine/core'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
-import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
@@ -8,10 +6,9 @@ import { formatFrequency } from '../lib/frequency'
 import { memberName } from '../lib/members'
 import { formatCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
-import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
+import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
-import { EmptyState } from './EmptyState'
 import { ListRow } from './ListRow'
 import { SuperContributionForm } from './SuperContributionForm'
 
@@ -136,58 +133,37 @@ export function SuperContributionList({
   onUpdate,
   onDelete,
 }: SuperContributionListProps) {
-  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
-  const { confirm, modal } = useConfirmDelete()
-
   return (
     <Stack gap="xs">
-      {contributions.length === 0 && !adding && <EmptyState>No contributions yet.</EmptyState>}
-
-      {contributions.map((contribution) =>
-        editingId === contribution.id ? (
-          <SuperContributionForm
-            key={contribution.id}
-            member={member}
-            members={members}
-            initial={contribution}
-            onSubmit={async (input) => {
-              await onUpdate(contribution.id, input)
-              closeForms()
-            }}
-            onCancel={closeForms}
-          />
-        ) : (
+      <EditableList<SuperContribution, SuperContributionInput>
+        items={contributions}
+        addLabel="Add contribution"
+        emptyMessage="No contributions yet."
+        deleteTarget={(contribution) => ({
+          title: 'Delete contribution?',
+          itemLabel: kindLabel(contribution.kind),
+        })}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        renderItem={(contribution, { onEdit, onDelete: onDeleteItem }) => (
           <ContributionItem
-            key={contribution.id}
             contribution={contribution}
             memberName={(id) => memberName(members, id)}
-            onEdit={() => startEditing(contribution.id)}
-            onDelete={() =>
-              confirm({
-                title: 'Delete contribution?',
-                itemLabel: kindLabel(contribution.kind),
-                onConfirm: () => onDelete(contribution.id),
-              })
-            }
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
           />
-        ),
-      )}
-
-      {adding ? (
-        <SuperContributionForm
-          member={member}
-          members={members}
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <AddButton label="Add contribution" onClick={() => startAdding(true)} />
-      )}
-
-      {modal}
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
+          <SuperContributionForm
+            member={member}
+            members={members}
+            initial={initial}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
+          />
+        )}
+      />
     </Stack>
   )
 }

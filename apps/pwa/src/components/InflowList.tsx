@@ -1,9 +1,7 @@
 import { Badge, Box, Group, Stack, Text } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
-import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate, todayIso } from '../lib/dates'
@@ -12,10 +10,9 @@ import { inflowTypeLabel } from '../lib/inflowTypes'
 import { memberName } from '../lib/members'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
-import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
+import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
-import { EmptyState } from './EmptyState'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { InflowForm } from './InflowForm'
 import { ListRow } from './ListRow'
@@ -223,61 +220,32 @@ function InflowItem(props: {
 
 /** The household's inflows with an add affordance and inline add/edit forms. */
 export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: InflowListProps) {
-  const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
-  const { confirm, modal } = useConfirmDelete()
   // Inactive (ended) inflows sink to the bottom; the sort is stable, so the order
   // within the active and inactive groups is otherwise preserved.
   const ordered = [...inflows].sort((a, b) => Number(isInflowEnded(a)) - Number(isInflowEnded(b)))
 
   return (
     <Stack gap="sm">
-      {inflows.length === 0 && !adding ? (
-        <EmptyState>No inflows yet. Add one to get started.</EmptyState>
-      ) : (
-        ordered.map((inflow) =>
-          editingId === inflow.id ? (
-            <InflowForm
-              key={inflow.id}
-              members={members}
-              initial={inflow}
-              onSubmit={async (input) => {
-                await onUpdate(inflow.id, input)
-                closeForms()
-              }}
-              onCancel={closeForms}
-            />
-          ) : (
-            <InflowItem
-              key={inflow.id}
-              inflow={inflow}
-              memberName={(id) => memberName(members, id)}
-              onEdit={() => startEditing(inflow.id)}
-              onDelete={() =>
-                confirm({
-                  title: 'Delete inflow?',
-                  itemLabel: inflow.name,
-                  onConfirm: () => onDelete(inflow.id),
-                })
-              }
-            />
-          ),
-        )
-      )}
-
-      {adding ? (
-        <InflowForm
-          members={members}
-          onSubmit={async (input) => {
-            await onCreate(input)
-            closeForms()
-          }}
-          onCancel={closeForms}
-        />
-      ) : (
-        <AddButton label="Add inflow" onClick={() => startAdding(true)} />
-      )}
-
-      {modal}
+      <EditableList<Inflow, InflowInput>
+        items={ordered}
+        addLabel="Add inflow"
+        emptyMessage="No inflows yet. Add one to get started."
+        deleteTarget={(inflow) => ({ title: 'Delete inflow?', itemLabel: inflow.name })}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+        renderItem={(inflow, { onEdit, onDelete: onDeleteItem }) => (
+          <InflowItem
+            inflow={inflow}
+            memberName={(id) => memberName(members, id)}
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
+          />
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
+          <InflowForm members={members} initial={initial} onSubmit={onSubmit} onCancel={onCancel} />
+        )}
+      />
     </Stack>
   )
 }

@@ -296,11 +296,10 @@ describe('NetWorthView', () => {
         onToggleExclude={vi.fn()}
       />,
     )
-    // Points carrying equity and liabilities add the equity, HELP, and debt bands
-    // alongside the super and cash areas and the net-worth line.
+    // Assets are plotted as areas; liabilities stay in the total and the tooltip.
     const chart = screen.getByRole('region', { name: 'Net worth projection' })
     expect(within(chart).getByText('Projected forward')).toBeInTheDocument()
-    expect(within(chart).getByText(/liabilities below it/i)).toBeInTheDocument()
+    expect(within(chart).getByText(/itemised in the tooltip/i)).toBeInTheDocument()
   })
 
   it('shows the projection empty state when every point is zero', () => {

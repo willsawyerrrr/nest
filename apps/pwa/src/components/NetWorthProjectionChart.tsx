@@ -1,9 +1,23 @@
 import { CompositeChart } from '@mantine/charts'
-import { Card, SegmentedControl, Stack, Text, Title } from '@mantine/core'
+import {
+  Card,
+  ColorSwatch,
+  Divider,
+  Group,
+  Paper,
+  SegmentedControl,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core'
 import type { NetWorthProjectionPoint } from '@nest/plan'
 import { formatCents } from '../lib/money'
+import {
+  NET_WORTH_SERIES_COLORS,
+  projectionTooltipItems,
+  type NetWorthProjectionRow,
+} from '../lib/netWorthChart'
 import type { ProjectionHorizonOption } from '../lib/retirement'
-import { chartColors } from '../lib/tokens'
 import { EmptyState } from './EmptyState'
 
 /** The horizon options offered by the control, in order. */
@@ -15,24 +29,59 @@ const HORIZON_OPTIONS: { value: ProjectionHorizonOption; label: string }[] = [
   { value: 'retirement', label: 'To retirement' },
 ]
 
-/**
- * Token colours for the projection series, from the shared chart palette. Assets
- * take the cool teal / indigo / violet of the Super, Other-accounts, and Equity
- * groups; liabilities take warm debt tones (the cost-red of the tax family for HELP
- * and orange for debt accounts) so they read apart from the assets; the net-worth
- * line takes the brand lime.
- */
-const SERIES_COLORS = {
-  super: chartColors.savings,
-  cash: chartColors.needs,
-  equity: chartColors.wants,
-  help: chartColors.tax,
-  debt: chartColors.temporary,
-  total: chartColors.sacrifice,
-} as const
+/** The props recharts passes to a tooltip content component. */
+interface ProjectionTooltipProps {
+  active?: boolean
+  payload?: readonly { payload?: NetWorthProjectionRow }[]
+}
 
-/** The series drawn below the axis as negative-magnitude liability bands. */
-const LIABILITY_SERIES = new Set(['help', 'debt'])
+/**
+ * The chart's hover tooltip: every asset as a positive line item and every
+ * liability (HELP debt, debt accounts) as a negative one — so the liabilities that
+ * are not plotted are still itemised — then the net-worth total.
+ */
+export function ProjectionTooltip({ active, payload }: ProjectionTooltipProps) {
+  const row = active ? payload?.[0]?.payload : undefined
+  if (!row) {
+    return null
+  }
+  return (
+    <Paper
+      withBorder
+      shadow="md"
+      radius="md"
+      p="sm"
+      role="dialog"
+      aria-label="Projection breakdown"
+    >
+      <Stack gap={4}>
+        <Text fw={600} fz="sm">
+          {row.year}
+        </Text>
+        {projectionTooltipItems(row).map((item) => (
+          <Group key={item.label} justify="space-between" gap="lg" wrap="nowrap">
+            <Group gap={6} wrap="nowrap">
+              <ColorSwatch color={item.color} size={10} withShadow={false} />
+              <Text fz="xs">{item.label}</Text>
+            </Group>
+            <Text fz="xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatCents(item.cents)}
+            </Text>
+          </Group>
+        ))}
+        <Divider my={2} />
+        <Group justify="space-between" gap="lg" wrap="nowrap">
+          <Text fw={600} fz="xs">
+            Net worth
+          </Text>
+          <Text fw={600} fz="xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {formatCents(row.total)}
+          </Text>
+        </Group>
+      </Stack>
+    </Paper>
+  )
+}
 
 interface NetWorthProjectionChartProps {
   points: NetWorthProjectionPoint[]
@@ -46,10 +95,10 @@ interface NetWorthProjectionChartProps {
 /**
  * The net worth projected forward: the asset components (super, cash and other
  * accounts, and — when any grant vests within the horizon — equity) as stacked
- * areas above the axis, the liabilities (HELP debt and debt accounts) as their own
- * stacked bands below it, and net worth (assets less liabilities) overlaid as a
- * line crossing through. Each band that carries a value is its own series. Falls
- * back to an empty state when the household has nothing to project.
+ * areas, with net worth (assets less liabilities) overlaid as a line. Liabilities
+ * are not plotted as their own areas; they stay in the net-worth total and are
+ * itemised in the hover tooltip. Falls back to an empty state when the household
+ * has nothing to project.
  */
 export function NetWorthProjectionChart({
   points,
@@ -66,33 +115,32 @@ export function NetWorthProjectionChart({
       point.debtCents > 0,
   )
   const showEquity = points.some((point) => point.equityCents > 0)
-  const showHelp = points.some((point) => point.helpCents > 0)
-  const showDebt = points.some((point) => point.debtCents > 0)
 
-  const data = points.map((point) => ({
+  const data: NetWorthProjectionRow[] = points.map((point) => ({
     year: String(baseYear + point.year),
     super: point.superCents,
     cash: point.otherCents,
     equity: point.equityCents,
-    // Liabilities plot below the axis as negative magnitudes.
-    help: -point.helpCents,
-    debt: -point.debtCents,
+    // Liabilities are carried for the tooltip but not plotted as series.
+    help: point.helpCents,
+    debt: point.debtCents,
     total: point.totalCents,
   }))
 
   const series: CompositeChart.Series[] = [
-    { name: 'super', label: 'Super', color: SERIES_COLORS.super, type: 'area' },
-    { name: 'cash', label: 'Cash & other', color: SERIES_COLORS.cash, type: 'area' },
+    { name: 'super', label: 'Super', color: NET_WORTH_SERIES_COLORS.super, type: 'area' },
+    { name: 'cash', label: 'Cash & other', color: NET_WORTH_SERIES_COLORS.cash, type: 'area' },
     ...(showEquity
-      ? [{ name: 'equity', label: 'Equity', color: SERIES_COLORS.equity, type: 'area' as const }]
+      ? [
+          {
+            name: 'equity',
+            label: 'Equity',
+            color: NET_WORTH_SERIES_COLORS.equity,
+            type: 'area' as const,
+          },
+        ]
       : []),
-    ...(showHelp
-      ? [{ name: 'help', label: 'HELP debt', color: SERIES_COLORS.help, type: 'area' as const }]
-      : []),
-    ...(showDebt
-      ? [{ name: 'debt', label: 'Debt accounts', color: SERIES_COLORS.debt, type: 'area' as const }]
-      : []),
-    { name: 'total', label: 'Net worth', color: SERIES_COLORS.total, type: 'line' },
+    { name: 'total', label: 'Net worth', color: NET_WORTH_SERIES_COLORS.total, type: 'line' },
   ]
 
   return (
@@ -122,17 +170,16 @@ export function NetWorthProjectionChart({
               withDots={false}
               withLegend
               valueFormatter={formatCents}
-              areaProps={(item) => ({
-                stackId: LIABILITY_SERIES.has(item.name) ? 'liabilities' : 'assets',
-                fillOpacity: 0.25,
-              })}
+              areaProps={{ stackId: 'assets', fillOpacity: 0.25 }}
+              tooltipProps={{ content: ProjectionTooltip }}
             />
             <Text size="xs" c="dimmed">
-              Estimated future (nominal) dollars from your retirement assumptions. Assets stack
-              above the axis and liabilities below it, with net worth (assets less liabilities) as
-              the line. Super compounds and accrues contributions, cash grows by ongoing
-              savings-goal contributions, equity grows as it vests at today&rsquo;s price, HELP debt
-              follows its projected paydown, and debt-account balances are held flat.
+              Estimated future (nominal) dollars from your retirement assumptions. The areas are
+              your assets and the line is net worth — assets less your liabilities (HELP debt and
+              debt accounts), which are itemised in the tooltip. Super compounds and accrues
+              contributions, cash grows by ongoing savings-goal contributions, equity grows as it
+              vests at today&rsquo;s price, HELP debt follows its projected paydown, and
+              debt-account balances are held flat.
             </Text>
           </>
         ) : (

@@ -278,7 +278,7 @@ insert into public.budget_line (household_id, line_group, name, amount_cents, fr
   values (current_setting('test.hid')::uuid, 'needs', 'Medications', 0, 'annual', current_setting('test.bdid')::uuid);
 
 do $$ begin
-  assert (select count(*) from public.breakdown) = 2, 'Alice should see both her breakdowns';
+  assert (select count(*) from public.breakdown) = 1, 'Alice should see her breakdown';
   assert (select count(*) from public.breakdown_item) = 1, 'Alice should see her breakdown item';
   assert (select count(*) from public.breakdown_item
     where breakdown_id = current_setting('test.bdid')::uuid) = 1,
@@ -521,7 +521,7 @@ do $$ begin
   assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
   assert (select count(*) from public.pay_split) = 1, 'Carol should see Alice''s pay split';
-  assert (select count(*) from public.breakdown) = 2, 'Carol should see both Alice''s breakdowns';
+  assert (select count(*) from public.breakdown) = 1, 'Carol should see Alice''s breakdown';
   assert (select count(*) from public.breakdown_item) = 1, 'Carol should see Alice''s breakdown item';
   assert (select count(*) from public.breakdown where id = current_setting('test.bdid')::uuid) = 1,
     'Carol should see Alice''s breakdown by id';

@@ -59,15 +59,17 @@ export interface UseGiftsResult {
 
 /**
  * Loads and mutates the household's gift recipients, occasions, budgets, and
- * purchases. RLS scopes reads to the household. Every write reloads the whole
- * set so derived rollups stay in step (deletes cascade in the database).
+ * purchases. RLS scopes reads to the household. Each write refreshes its own
+ * table; a delete additionally refreshes the sibling tables its cascade
+ * reaches — deleting a recipient or an occasion cascades to gift budgets and
+ * their purchases, and deleting a budget cascades to its purchases.
  */
 export function useGifts(householdId: string): UseGiftsResult {
   const {
     rows: recipientRows,
     reload: reloadRecipients,
-    create: createRecipientRow,
-    update: updateRecipientRow,
+    create: createRecipient,
+    update: updateRecipient,
     remove: removeRecipientRow,
   } = useHouseholdCollection<'gift_recipient', GiftRecipientInput>(householdId, {
     table: 'gift_recipient',
@@ -76,8 +78,8 @@ export function useGifts(householdId: string): UseGiftsResult {
   const {
     rows: occasionRows,
     reload: reloadOccasions,
-    create: createOccasionRow,
-    update: updateOccasionRow,
+    create: createOccasion,
+    update: updateOccasion,
     remove: removeOccasionRow,
   } = useHouseholdCollection<'gift_occasion', GiftOccasionInput>(householdId, {
     table: 'gift_occasion',
@@ -86,8 +88,8 @@ export function useGifts(householdId: string): UseGiftsResult {
   const {
     rows: budgetRows,
     reload: reloadBudgets,
-    create: createBudgetRow,
-    update: updateBudgetRow,
+    create: createBudget,
+    update: updateBudget,
     remove: removeBudgetRow,
   } = useHouseholdCollection<'gift_budget', GiftBudgetInput>(householdId, {
     table: 'gift_budget',
@@ -95,9 +97,9 @@ export function useGifts(householdId: string): UseGiftsResult {
   const {
     rows: purchaseRows,
     reload: reloadPurchases,
-    create: createPurchaseRow,
-    update: updatePurchaseRow,
-    remove: removePurchaseRow,
+    create: createPurchase,
+    update: updatePurchase,
+    remove: removePurchase,
   } = useHouseholdCollection<'gift_purchase', GiftPurchaseInput>(householdId, {
     table: 'gift_purchase',
     orderBy: 'purchased_on',
@@ -107,92 +109,26 @@ export function useGifts(householdId: string): UseGiftsResult {
     await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets(), reloadPurchases()])
   }, [reloadRecipients, reloadOccasions, reloadBudgets, reloadPurchases])
 
-  const createRecipient = useCallback(
-    async (input: GiftRecipientInput) => {
-      await createRecipientRow(input)
-      await Promise.all([reloadOccasions(), reloadBudgets(), reloadPurchases()])
-    },
-    [createRecipientRow, reloadOccasions, reloadBudgets, reloadPurchases],
-  )
-  const updateRecipient = useCallback(
-    async (id: string, input: GiftRecipientInput) => {
-      await updateRecipientRow(id, input)
-      await Promise.all([reloadOccasions(), reloadBudgets(), reloadPurchases()])
-    },
-    [updateRecipientRow, reloadOccasions, reloadBudgets, reloadPurchases],
-  )
   const removeRecipient = useCallback(
     async (id: string) => {
       await removeRecipientRow(id)
-      await Promise.all([reloadOccasions(), reloadBudgets(), reloadPurchases()])
+      await Promise.all([reloadBudgets(), reloadPurchases()])
     },
-    [removeRecipientRow, reloadOccasions, reloadBudgets, reloadPurchases],
-  )
-
-  const createOccasion = useCallback(
-    async (input: GiftOccasionInput) => {
-      await createOccasionRow(input)
-      await Promise.all([reloadRecipients(), reloadBudgets(), reloadPurchases()])
-    },
-    [createOccasionRow, reloadRecipients, reloadBudgets, reloadPurchases],
-  )
-  const updateOccasion = useCallback(
-    async (id: string, input: GiftOccasionInput) => {
-      await updateOccasionRow(id, input)
-      await Promise.all([reloadRecipients(), reloadBudgets(), reloadPurchases()])
-    },
-    [updateOccasionRow, reloadRecipients, reloadBudgets, reloadPurchases],
+    [removeRecipientRow, reloadBudgets, reloadPurchases],
   )
   const removeOccasion = useCallback(
     async (id: string) => {
       await removeOccasionRow(id)
-      await Promise.all([reloadRecipients(), reloadBudgets(), reloadPurchases()])
+      await Promise.all([reloadBudgets(), reloadPurchases()])
     },
-    [removeOccasionRow, reloadRecipients, reloadBudgets, reloadPurchases],
-  )
-
-  const createBudget = useCallback(
-    async (input: GiftBudgetInput) => {
-      await createBudgetRow(input)
-      await Promise.all([reloadRecipients(), reloadOccasions(), reloadPurchases()])
-    },
-    [createBudgetRow, reloadRecipients, reloadOccasions, reloadPurchases],
-  )
-  const updateBudget = useCallback(
-    async (id: string, input: GiftBudgetInput) => {
-      await updateBudgetRow(id, input)
-      await Promise.all([reloadRecipients(), reloadOccasions(), reloadPurchases()])
-    },
-    [updateBudgetRow, reloadRecipients, reloadOccasions, reloadPurchases],
+    [removeOccasionRow, reloadBudgets, reloadPurchases],
   )
   const removeBudget = useCallback(
     async (id: string) => {
       await removeBudgetRow(id)
-      await Promise.all([reloadRecipients(), reloadOccasions(), reloadPurchases()])
+      await reloadPurchases()
     },
-    [removeBudgetRow, reloadRecipients, reloadOccasions, reloadPurchases],
-  )
-
-  const createPurchase = useCallback(
-    async (input: GiftPurchaseInput) => {
-      await createPurchaseRow(input)
-      await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets()])
-    },
-    [createPurchaseRow, reloadRecipients, reloadOccasions, reloadBudgets],
-  )
-  const updatePurchase = useCallback(
-    async (id: string, input: GiftPurchaseInput) => {
-      await updatePurchaseRow(id, input)
-      await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets()])
-    },
-    [updatePurchaseRow, reloadRecipients, reloadOccasions, reloadBudgets],
-  )
-  const removePurchase = useCallback(
-    async (id: string) => {
-      await removePurchaseRow(id)
-      await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets()])
-    },
-    [removePurchaseRow, reloadRecipients, reloadOccasions, reloadBudgets],
+    [removeBudgetRow, reloadPurchases],
   )
 
   return {

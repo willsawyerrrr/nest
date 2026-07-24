@@ -34,15 +34,17 @@ export interface UseBreakdownsResult {
 /**
  * Loads and mutates the household's breakdowns, alongside every generic
  * breakdown item so a caller can roll up each breakdown's total and count its
- * items. RLS scopes reads to the household; deletes cascade to items in the
- * database, so every breakdown write reloads the items too.
+ * items. RLS scopes reads to the household. Creating or updating a breakdown
+ * leaves its items untouched, so each refreshes only the breakdown table;
+ * deleting one cascades to its items in the database, so the delete refreshes
+ * the items too.
  */
 export function useBreakdowns(householdId: string): UseBreakdownsResult {
   const {
     rows: breakdownRows,
     reload: reloadBreakdowns,
-    create: createBreakdown,
-    update: updateBreakdown,
+    create,
+    update,
     remove: removeBreakdown,
   } = useHouseholdCollection<'breakdown', BreakdownInput, BreakdownUpdate>(householdId, {
     table: 'breakdown',
@@ -56,22 +58,6 @@ export function useBreakdowns(householdId: string): UseBreakdownsResult {
   const reload = useCallback(async () => {
     await Promise.all([reloadBreakdowns(), reloadItems()])
   }, [reloadBreakdowns, reloadItems])
-
-  const create = useCallback(
-    async (input: BreakdownInput) => {
-      await createBreakdown(input)
-      await reloadItems()
-    },
-    [createBreakdown, reloadItems],
-  )
-
-  const update = useCallback(
-    async (id: string, input: BreakdownUpdate) => {
-      await updateBreakdown(id, input)
-      await reloadItems()
-    },
-    [updateBreakdown, reloadItems],
-  )
 
   const remove = useCallback(
     async (id: string) => {

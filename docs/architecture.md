@@ -173,14 +173,22 @@ the workflow token is scoped `contents: read`:
 A `ci-status` job `needs` all four and is the single required `CI Status` check
 (squash-only, no bypass).
 
-Overall wall-clock is about two minutes, above the one-minute budget. The binding
-constraint is the serialized `test-shard` → `test` chain: the shards run in
-parallel (~66s), then the `test` merge job waits on them and runs afterwards
-(~34s), so their durations add. The merge itself replays the recorded runs in a
-few seconds; almost all of its ~34s is checkout, Node/pnpm setup, and
-`pnpm install`. Collapsing that install/setup overhead on the merge job — not
-adding shards — is the lever, since the shards already run concurrently and the
-merge cannot start until they finish.
+Each pnpm job (`check`, `test-shard`, `test`) sets up the toolchain the same way:
+`actions/setup-node` installs Node, then `corepack enable` /
+`corepack prepare pnpm@11.14.0 --activate` provides the pnpm version pinned in the
+root `package.json` `packageManager` field — no separate `pnpm/action-setup`. The
+pnpm content-addressable store is restored by `actions/cache` keyed on
+`pnpm-lock.yaml`, so a warm `pnpm install --frozen-lockfile` links packages from
+cache rather than downloading them. The Deno `functions` job keeps its own
+`setup-deno` cache.
+
+The binding constraint on wall-clock is the serialized `test-shard` → `test`
+chain: the shards run in parallel, then the `test` merge job waits on them and
+runs afterwards, so their durations add. The merge itself replays the recorded
+runs in a few seconds; the rest of that job is checkout, Node/pnpm setup, and
+`pnpm install` — the tail the warm store cache and corepack setup shrink, since
+the shards already run concurrently and the merge cannot start until they
+finish.
 
 Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports
 via `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint

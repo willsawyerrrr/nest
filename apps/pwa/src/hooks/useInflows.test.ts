@@ -1,28 +1,28 @@
-import { createElement, type ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeInflow } from '../test/fixtures'
-import { useInflows } from './useInflows'
+import { makeWrapper } from '../test/queryWrapper'
+import { useInflows, type InflowInput } from './useInflows'
 
-const { builder } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: [], error: null },
-  } as never
-  for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order']) {
-    b[method] = vi.fn(() => b)
-  }
-  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-    Promise.resolve(b.result).then(onFulfilled, onRejected)
-  return { builder: b }
+const { builder } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
+  return { builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
 
-function makeWrapper() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client }, children)
+const input: InflowInput = {
+  name: 'Salary',
+  taxable: true,
+  member_id: 'm1',
+  type: 'salary',
+  schedule: 'fortnightly',
+  interval_count: null,
+  amount_cents: 5_000_00,
+  hourly_rate_cents: null,
+  hours_per_period: null,
+  starts_on: null,
+  ends_on: null,
 }
 
 beforeEach(() => {
@@ -37,10 +37,15 @@ describe('useInflows', () => {
     expect(result.current.loading).toBe(false)
 
     await act(async () => {
-      await result.current.create({} as never)
-      await result.current.update('i1', {} as never)
+      await result.current.create(input)
+      await result.current.update('i1', input)
       await result.current.remove('i1')
       await result.current.reload()
     })
+
+    expect(builder.insert).toHaveBeenCalledWith({ ...input, household_id: 'h1' })
+    expect(builder.update).toHaveBeenCalledWith(input)
+    expect(builder.delete).toHaveBeenCalled()
+    expect(builder.eq).toHaveBeenCalledWith('id', 'i1')
   })
 })

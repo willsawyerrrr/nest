@@ -138,10 +138,11 @@ describe('InflowList', () => {
       }) as unknown as MediaQueryList) as typeof window.matchMedia
     try {
       renderList([datedSalary])
-      // The caption hangs below the main line as a sub-line within the row Stack,
+      // The caption hangs below the main line as a sub-line within the row,
       // alongside the name, so it renders in the same row as the inflow.
-      const row = screen.getByText('Old salary').closest('div')?.parentElement
-        ?.parentElement as HTMLElement
+      const row = screen
+        .getByText('Old salary')
+        .closest('[data-testid="inflow-row"]') as HTMLElement
       expect(within(row).getByText('1 July 2026 – 14 Sept 2099')).toBeInTheDocument()
     } finally {
       window.matchMedia = original
@@ -170,8 +171,7 @@ describe('InflowList', () => {
   it('marks an ended inflow with an Inactive pill in the dense desktop row', () => {
     setWideViewport()
     renderList([makeInflow({ id: 'i10', name: 'Lapsed gig', ends_on: '2000-01-01' })])
-    const row = screen.getByText('Lapsed gig').closest('div')?.parentElement
-      ?.parentElement as HTMLElement
+    const row = screen.getByText('Lapsed gig').closest('[data-testid="inflow-row"]') as HTMLElement
     expect(within(row).getByText('Inactive')).toBeInTheDocument()
     expect(within(row).queryByText('until 1 Jan 2000')).not.toBeInTheDocument()
   })
@@ -202,10 +202,8 @@ describe('InflowList', () => {
 
       const name = screen.getByText('Shifts')
       expect(name.closest('.mantine-Card-root')).toBeNull()
-      // The name group sits in the main line Group, which sits in the row Stack
-      // (main line + optional effective-date caption), so the row is two
-      // ancestors up from the name group.
-      const row = name.closest('div')?.parentElement?.parentElement as HTMLElement
+      // The dense desktop layout renders the inflow as a row, not a card.
+      const row = name.closest('[data-testid="inflow-row"]') as HTMLElement
       expect(within(row).getByText('$45.00 × 38 hrs')).toBeInTheDocument()
       expect(within(row).getByText('Weekly')).toBeInTheDocument()
       expect(within(row).getByText('Will · Wage')).toBeInTheDocument()
@@ -234,7 +232,7 @@ describe('InflowList', () => {
     try {
       renderList([reimbursement])
 
-      const row = screen.getByText('Travel').closest('div')?.parentElement as HTMLElement
+      const row = screen.getByText('Travel').closest('[data-testid="inflow-row"]') as HTMLElement
       expect(within(row).getByText('Non-taxable · Reimbursement')).toBeInTheDocument()
     } finally {
       window.matchMedia = original

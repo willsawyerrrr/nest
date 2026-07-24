@@ -3,16 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeMember } from '../test/fixtures'
 import { useCurrentMember } from './useCurrentMember'
 
-const { builder, getUser } = vi.hoisted(() => {
-  const b: Record<string, unknown> & { result: { data: unknown; error: unknown } } = {
-    result: { data: [], error: null },
-  } as never
-  for (const method of ['select', 'order']) {
-    b[method] = vi.fn(() => b)
-  }
-  b.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-    Promise.resolve(b.result).then(onFulfilled, onRejected)
-  return { builder: b, getUser: vi.fn() }
+const { builder, getUser } = await vi.hoisted(async () => {
+  const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
+  return { builder: makeSupabaseBuilder(['select', 'order']), getUser: vi.fn() }
 })
 
 vi.mock('../lib/supabase', () => ({

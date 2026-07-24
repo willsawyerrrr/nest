@@ -12,13 +12,13 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BreakdownKind } from '../hooks/useBreakdowns'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import { useSortPreference } from '../hooks/useSortPreference'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { resolveRoute, type LineRoute } from '../lib/budgetLineRoute'
@@ -263,7 +263,7 @@ function BudgetLineItem(props: {
   onEdit?: () => void
   onDelete?: () => void
 }) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <BudgetLineRow {...props} /> : <BudgetLineCard {...props} />
 }
 

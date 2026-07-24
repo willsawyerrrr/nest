@@ -62,7 +62,14 @@ export default function App() {
 }
 
 function AuthedApp({ session }: { session: Session }) {
-  const { households, loading, reload, createInviteCode, revokeInviteCode } = useHousehold()
+  const {
+    households,
+    loading,
+    createHousehold,
+    joinHousehold,
+    createInviteCode,
+    revokeInviteCode,
+  } = useHousehold()
 
   if (loading) {
     return <LoadingScreen />
@@ -71,30 +78,7 @@ function AuthedApp({ session }: { session: Session }) {
   const household = households?.[0]
 
   if (!household) {
-    return (
-      <OnboardingScreen
-        onCreate={async (name, memberName) => {
-          const { error } = await supabase.rpc('create_household', {
-            p_name: name,
-            p_member_name: memberName,
-          })
-          if (error) {
-            throw error
-          }
-          await reload()
-        }}
-        onJoin={async (code, memberName) => {
-          const { error } = await supabase.rpc('join_household', {
-            p_code: code,
-            p_member_name: memberName,
-          })
-          if (error) {
-            throw error
-          }
-          await reload()
-        }}
-      />
-    )
+    return <OnboardingScreen onCreate={createHousehold} onJoin={joinHousehold} />
   }
 
   return (

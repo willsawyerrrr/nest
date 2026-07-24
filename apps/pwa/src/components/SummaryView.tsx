@@ -10,8 +10,9 @@ import {
   Text,
   Title,
 } from '@mantine/core'
-import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
+import { useLocalStorage } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
+import { useIsWide } from '../hooks/useIsWide'
 import { formatCents } from '../lib/money'
 import { chartColors } from '../lib/tokens'
 import { DataTable } from './DataTable'
@@ -404,7 +405,7 @@ function ledgerRows(summary: BudgetSummary, mode: IncomeBasis): LedgerRow[] {
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  */
 export function SummaryView({ summary }: SummaryViewProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   const [mode, setMode] = useLocalStorage<IncomeBasis>({
     key: INCOME_BASIS_STORAGE_KEY,
     defaultValue: 'take-home',

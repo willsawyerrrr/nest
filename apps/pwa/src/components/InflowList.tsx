@@ -1,13 +1,15 @@
 import { Badge, Box, Group, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate, todayIso } from '../lib/dates'
 import { formatFrequency } from '../lib/frequency'
+import { inflowTypeLabel } from '../lib/inflowTypes'
+import { memberName } from '../lib/members'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
 import { AddButton } from './AddButton'
@@ -68,19 +70,14 @@ function isInflowEnded(inflow: Inflow, now: Date = new Date()): boolean {
   return inflow.ends_on !== null && inflow.ends_on < todayIso(now)
 }
 
-/** The inflow type as a natural-case label, e.g. "Salary". */
-function inflowTypeLabel(inflow: Inflow): string {
-  return inflow.type.charAt(0).toUpperCase() + inflow.type.slice(1)
-}
-
 /**
- * The dimmed row subtitle: the capitalised type, prefixed by the member (for a
+ * The dimmed row subtitle: the type label, prefixed by the member (for a
  * member-tagged taxable inflow) or a "Non-taxable" marker. Taxable is the expected
  * default and is not labelled, so a taxable inflow with no member shows just the
  * type.
  */
 function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): string {
-  const type = inflowTypeLabel(inflow)
+  const type = inflowTypeLabel(inflow.type)
   if (!inflow.taxable) {
     return `Non-taxable · ${type}`
   }
@@ -189,7 +186,7 @@ function InflowCard({
               </Badge>
             )}
             <Badge size="xs" variant="light" color="grape">
-              {inflowTypeLabel(inflow)}
+              {inflowTypeLabel(inflow.type)}
             </Badge>
             <Badge size="xs" variant="default">
               {formatFrequency(inflow.schedule, inflow.interval_count)}
@@ -220,7 +217,7 @@ function InflowItem(props: {
   onEdit: () => void
   onDelete: () => void
 }) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <InflowRow {...props} /> : <InflowCard {...props} />
 }
 
@@ -228,7 +225,6 @@ function InflowItem(props: {
 export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: InflowListProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const { confirm, modal } = useConfirmDelete()
-  const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
   // Inactive (ended) inflows sink to the bottom; the sort is stable, so the order
   // within the active and inactive groups is otherwise preserved.
   const ordered = [...inflows].sort((a, b) => Number(isInflowEnded(a)) - Number(isInflowEnded(b)))
@@ -254,7 +250,7 @@ export function InflowList({ inflows, members, onCreate, onUpdate, onDelete }: I
             <InflowItem
               key={inflow.id}
               inflow={inflow}
-              memberName={memberName}
+              memberName={(id) => memberName(members, id)}
               onEdit={() => startEditing(inflow.id)}
               onDelete={() =>
                 confirm({

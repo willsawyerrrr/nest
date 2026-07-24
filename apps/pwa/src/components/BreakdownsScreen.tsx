@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge, Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { IconChevronRight } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { Breakdown, BreakdownInput } from '../hooks/useBreakdowns'
+import { useIsWide } from '../hooks/useIsWide'
 import { BUDGET_GROUPS, groupLabel } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatPerYear } from '../lib/money'
@@ -162,7 +162,7 @@ function BreakdownCard({ breakdown, annualCents }: BreakdownItemProps) {
  * up and as a compact bordered card below it.
  */
 function BreakdownItem(props: BreakdownItemProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <BreakdownRow {...props} /> : <BreakdownCard {...props} />
 }
 

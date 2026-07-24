@@ -11,13 +11,14 @@ import {
   TextInput,
   Title,
 } from '@mantine/core'
-import { useDisclosure, useMediaQuery } from '@mantine/hooks'
+import { useDisclosure } from '@mantine/hooks'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { annualCents, fortnightlyCents } from '@nest/plan'
 import type { BreakdownItem, BreakdownItemInput } from '../hooks/useBreakdownItems'
 import type { Breakdown, BreakdownUpdate } from '../hooks/useBreakdowns'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup } from '../lib/domain'
 import { formatFrequency } from '../lib/frequency'
@@ -222,7 +223,7 @@ function ItemCard({ item, onEdit, onDelete }: ItemRowProps) {
  * breakpoint up and as a compact bordered card below it.
  */
 function ItemDisplay(props: ItemRowProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <ItemRow {...props} /> : <ItemCard {...props} />
 }
 

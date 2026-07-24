@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ActionIcon, Badge, Button, Group, Stack, Text, TextInput, Title } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
-import { useMediaQuery } from '@mantine/hooks'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type {
@@ -10,6 +9,7 @@ import type {
   GiftRecipient,
   GiftRecipientInput,
 } from '../hooks/useGifts'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { AddButton } from './AddButton'
@@ -203,7 +203,7 @@ function EntityCard({ label, meta, tag, actions }: EntityRowProps) {
  * passes none.
  */
 function EntityItem(props: EntityRowProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <EntityRow {...props} /> : <EntityCard {...props} />
 }
 

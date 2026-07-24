@@ -15,6 +15,7 @@ import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
+import { NON_TAXABLE_INFLOW_TYPE_OPTIONS, TAXABLE_INFLOW_TYPE_OPTIONS } from '../lib/inflowTypes'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
 import { MoneyInput } from './MoneyInput'
@@ -25,19 +26,6 @@ interface InflowFormProps {
   onSubmit: (input: InflowInput) => void | Promise<void>
   onCancel?: () => void
 }
-
-const TAXABLE_TYPES: { value: InflowType; label: string }[] = [
-  { value: 'salary', label: 'Salary' },
-  { value: 'wage', label: 'Wage' },
-  { value: 'other', label: 'Other' },
-]
-
-const NON_TAXABLE_TYPES: { value: InflowType; label: string }[] = [
-  { value: 'reimbursement', label: 'Reimbursement' },
-  { value: 'hobby', label: 'Hobby income' },
-  { value: 'gift', label: 'Gift' },
-  { value: 'other', label: 'Other' },
-]
 
 /** The type a form defaults to for each taxability mode. */
 const DEFAULT_TYPE = { taxable: 'salary', nonTaxable: 'reimbursement' } as const
@@ -72,12 +60,12 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const typeOptions = taxable ? TAXABLE_TYPES : NON_TAXABLE_TYPES
+  const typeOptions = taxable ? TAXABLE_INFLOW_TYPE_OPTIONS : NON_TAXABLE_INFLOW_TYPE_OPTIONS
 
   /** Switches taxability, resetting the type to the new mode's default if it no longer applies. */
   const handleTaxableChange = (nextTaxable: boolean) => {
     setTaxable(nextTaxable)
-    const options = nextTaxable ? TAXABLE_TYPES : NON_TAXABLE_TYPES
+    const options = nextTaxable ? TAXABLE_INFLOW_TYPE_OPTIONS : NON_TAXABLE_INFLOW_TYPE_OPTIONS
     if (!options.some((option) => option.value === type)) {
       setType(nextTaxable ? DEFAULT_TYPE.taxable : DEFAULT_TYPE.nonTaxable)
     }

@@ -40,6 +40,27 @@ describe('useHousehold', () => {
     expect(rpcMock).toHaveBeenCalledWith('revoke_invite_code')
   })
 
+  it('creates and joins a household, reloading each time', async () => {
+    const { result } = renderHook(() => useHousehold())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.createHousehold('Home', 'Will')
+    })
+    expect(rpcMock).toHaveBeenCalledWith('create_household', {
+      p_name: 'Home',
+      p_member_name: 'Will',
+    })
+
+    await act(async () => {
+      await result.current.joinHousehold('CODE', 'Will')
+    })
+    expect(rpcMock).toHaveBeenCalledWith('join_household', {
+      p_code: 'CODE',
+      p_member_name: 'Will',
+    })
+  })
+
   it('propagates load and rpc errors', async () => {
     const { result } = renderHook(() => useHousehold())
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -50,5 +71,7 @@ describe('useHousehold', () => {
     rpcMock.mockResolvedValue({ error: new Error('rpc failed') })
     await expect(result.current.createInviteCode()).rejects.toThrow('rpc failed')
     await expect(result.current.revokeInviteCode()).rejects.toThrow('rpc failed')
+    await expect(result.current.createHousehold('Home', 'Will')).rejects.toThrow('rpc failed')
+    await expect(result.current.joinHousehold('CODE', 'Will')).rejects.toThrow('rpc failed')
   })
 })

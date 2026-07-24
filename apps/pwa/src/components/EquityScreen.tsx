@@ -1,5 +1,4 @@
 import { Badge, Group, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import {
   exerciseCostCents,
   grantValueCents,
@@ -9,6 +8,7 @@ import {
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { EquityGrantInput, EquityGrantRow } from '../hooks/useEquityGrants'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { EQUITY_INSTRUMENT_TYPES, equityGrantToPlan, VESTING_FREQUENCIES } from '../lib/equity'
 import { formatCents } from '../lib/money'
@@ -164,7 +164,7 @@ function GrantCard({ grant, asOf, onEdit, onDelete }: GrantItemProps) {
  * and as a compact bordered card below it.
  */
 function GrantItem(props: GrantItemProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <GrantRow {...props} /> : <GrantCard {...props} />
 }
 

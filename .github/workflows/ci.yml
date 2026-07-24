@@ -16,7 +16,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
-      COREPACK_HOME: ${{ runner.temp }}/corepack
+      COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -63,7 +63,7 @@ jobs:
     # the thresholds (they are enforced on the merged result instead).
     env:
       VITEST_SKIP_COVERAGE_THRESHOLDS: '1'
-      COREPACK_HOME: ${{ runner.temp }}/corepack
+      COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -109,7 +109,7 @@ jobs:
     # merge. Fail explicitly instead.
     if: ${{ always() }}
     env:
-      COREPACK_HOME: ${{ runner.temp }}/corepack
+      COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
       - run: |
           if [ "${{ needs.test-shard.result }}" != "success" ]; then

@@ -54,6 +54,14 @@ does not restate them.
   building up to the total, with a footnote that capital gains tax is out of scope
   and not modelled. Tax profiles are edited on the Household tab; each member's
   HELP/HECS balance is edited on the HELP debt tab.
+- Tax income build-up as a waterfall: the Tax tab charts each member's
+  gross-to-take-home flow as a waterfall (`taxWaterfallSteps` → `TaxWaterfall`),
+  gross opening the bars, deductions and the concessional super diverted to the
+  fund stepping down to taxable income, each tax component (income tax net of the
+  Low Income Tax Offset, the Medicare levy and its surcharge, the HELP/HECS
+  repayment, and Division 293) stepping down further, a deductions-kept step
+  returning the paper reduction, and take-home closing the flow so the bars
+  reconcile to the estimate.
 - Budget, savings-goal, and temporary-item schema (RLS, tests, types).
 - `@nest/plan` pure math package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry.
@@ -193,6 +201,13 @@ the FY2027 tax config was.
       15% contributions tax, and the signed drop in take-home cash, with a warning
       when the sacrifice pushes the member past their concessional cap. The entered
       amount is ephemeral (local state, not persisted).
+- [x] Net-worth projection chart: `projectNetWorth` in `@nest/plan` carries the
+      household's net worth forward year by year — super compounding and accruing
+      contributions, cash growing by ongoing savings-goal contributions, equity
+      growing only as it vests at today's price, HELP following its paydown, and
+      debt accounts held flat — and `NetWorthProjectionChart` renders the itemised
+      asset and liability components and the resulting total to a chosen horizon,
+      collapsed by default with compact-currency axis labels.
 
 ### Breakdowns — derived budget lines (complete)
 

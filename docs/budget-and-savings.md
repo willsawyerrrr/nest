@@ -79,8 +79,9 @@ A line's amount is normally typed. It can instead be **derived** — rolled up f
 user-created **breakdown** (an itemised list) that owns the line via
 `budget_line.breakdown_id`, so the line and its detail never drift. The summary
 substitutes the breakdown's rolled-up amount for the typed `amount_cents`. Gifts
-are the first breakdown (`kind = 'gift'`); medications and any other itemised
-budget are `generic` breakdowns the household creates. See
+are managed in the Gifts tab; a single internal `kind = 'gift'` breakdown rolls their
+budgets into derived lines. Medications and any other itemised budget are `generic`
+breakdowns the household creates. See
 [`breakdowns.md`](breakdowns.md) and
 [`data-model.md`](data-model.md#breakdowns).
 

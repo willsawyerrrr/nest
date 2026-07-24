@@ -4,7 +4,6 @@ import { BreakdownsSection } from './BreakdownsSection'
 
 const hooks = vi.hoisted(() => ({
   useBreakdowns: vi.fn(),
-  useGifts: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -12,7 +11,6 @@ vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
 }))
 vi.mock('../hooks/useBreakdowns', () => ({ useBreakdowns: hooks.useBreakdowns }))
-vi.mock('../hooks/useGifts', () => ({ useGifts: hooks.useGifts }))
 vi.mock('../components/BreakdownsScreen', () => ({
   BreakdownsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -23,7 +21,6 @@ vi.mock('../components/BreakdownsScreen', () => ({
 describe('BreakdownsSection', () => {
   it('shows the loading screen while data loads', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: true })
-    hooks.useGifts.mockReturnValue({ loading: false })
     render(<BreakdownsSection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -36,10 +33,25 @@ describe('BreakdownsSection', () => {
       items: [],
       create,
     })
-    hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
     render(<BreakdownsSection householdId="h1" />)
     expect(screen.getByTestId('breakdowns-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.onCreate).toBe(create)
+    expect(hooks.screenProps?.breakdowns).toEqual([
+      { id: 'b1', name: 'Meds', kind: 'generic', line_group: 'needs' },
+    ])
+  })
+
+  it('excludes gift breakdowns from the list', () => {
+    hooks.useBreakdowns.mockReturnValue({
+      loading: false,
+      breakdowns: [
+        { id: 'b1', name: 'Meds', kind: 'generic', line_group: 'needs' },
+        { id: 'b2', name: 'Gifts', kind: 'gift', line_group: 'wants' },
+      ],
+      items: [],
+      create: vi.fn(),
+    })
+    render(<BreakdownsSection householdId="h1" />)
     expect(hooks.screenProps?.breakdowns).toEqual([
       { id: 'b1', name: 'Meds', kind: 'generic', line_group: 'needs' },
     ])

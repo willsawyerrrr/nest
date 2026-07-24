@@ -15,11 +15,6 @@ vi.mock('../components/LoadingScreen', () => ({
 }))
 vi.mock('../hooks/useBreakdowns', () => ({ useBreakdowns: hooks.useBreakdowns }))
 vi.mock('../hooks/useBreakdownItems', () => ({ useBreakdownItems: hooks.useBreakdownItems }))
-vi.mock('./GiftsSection', () => ({
-  GiftsSection: (props: Record<string, unknown>) => (
-    <div data-testid="gifts-section" data-back-label={String(props.backLabel)} />
-  ),
-}))
 vi.mock('../components/BreakdownDetail', () => ({
   BreakdownDetail: (props: Record<string, unknown>) => {
     hooks.detailProps = props
@@ -33,6 +28,7 @@ function renderAt(ui: ReactElement, entry: string | { pathname: string; state: u
       <Routes>
         <Route path="/breakdowns/:id" element={ui} />
         <Route path="/breakdowns" element={<div data-testid="breakdowns-list" />} />
+        <Route path="/gifts" element={<div data-testid="gifts-tab" />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -51,15 +47,13 @@ describe('BreakdownDetailSection', () => {
     expect(screen.getByTestId('breakdowns-list')).toBeInTheDocument()
   })
 
-  it('renders the gift planner for a gift breakdown with the default back target', () => {
+  it('redirects a gift breakdown to the Gifts tab', () => {
     hooks.useBreakdowns.mockReturnValue({
       loading: false,
       breakdowns: [{ id: 'b1', kind: 'gift', name: 'Gifts', line_group: 'wants' }],
     })
     renderAt(<BreakdownDetailSection householdId="h1" />, '/breakdowns/b1')
-    const gifts = screen.getByTestId('gifts-section')
-    expect(gifts).toBeInTheDocument()
-    expect(gifts).toHaveAttribute('data-back-label', 'Breakdowns')
+    expect(screen.getByTestId('gifts-tab')).toBeInTheDocument()
   })
 
   it('shows the loading screen while a generic breakdown loads its items', () => {

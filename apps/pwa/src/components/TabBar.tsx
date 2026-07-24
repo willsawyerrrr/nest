@@ -21,6 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/help-debt', label: 'HELP debt' },
   { path: '/equity', label: 'Equity' },
   { path: '/breakdowns', label: 'Breakdowns' },
+  { path: '/gifts', label: 'Gifts' },
   { path: '/household', label: 'Household' },
   { path: '/whats-new', label: "What's new" },
 ]

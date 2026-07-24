@@ -8,10 +8,12 @@ import {
   readAssumptions,
   readMemberAges,
   readProjectionHorizon,
+  readProjectionOpen,
   setMemberAge,
   toProjectionInput,
   writeAssumptions,
   writeProjectionHorizon,
+  writeProjectionOpen,
   yearsToRetirement,
 } from './retirement'
 
@@ -91,6 +93,19 @@ describe('projection horizon', () => {
   it('falls back to the default for an unrecognised stored value', () => {
     localStorage.setItem(PROJECTION_HORIZON_STORAGE_KEY, '99y')
     expect(readProjectionHorizon()).toBe(DEFAULT_PROJECTION_HORIZON_OPTION)
+  })
+})
+
+describe('projection open state', () => {
+  it('is collapsed by default when nothing is stored', () => {
+    expect(readProjectionOpen()).toBe(false)
+  })
+
+  it('round-trips the open and collapsed states', () => {
+    writeProjectionOpen(true)
+    expect(readProjectionOpen()).toBe(true)
+    writeProjectionOpen(false)
+    expect(readProjectionOpen()).toBe(false)
   })
 })
 

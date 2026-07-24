@@ -73,13 +73,17 @@ untouched.
 
 ### Projected forward
 
-Below the total, a chart projects net worth forward year by year over a horizon
-chosen with a segmented control by the chart: 5, 10, 20, or 30 years, or **To
-retirement** (the default). The fixed options run that many years; **To
-retirement** tracks the household's retirement horizon — the longest span to the
-retirement-age assumption across the members whose age is entered, or 30 years
-when none is. The choice is saved in localStorage (a sibling of the retirement
-assumptions), so the chart reopens on the same horizon. Each asset
+Below the total, a collapsible "Projected forward" section holds a chart of net
+worth forward year by year. It is collapsed by default — the header row (a chevron
+and its title) is the tap target that expands it — and its open/closed state is
+saved in localStorage, so it stays shut on first load but remembers once opened.
+Expanding reveals a horizon control and the chart. The horizon is chosen with a
+segmented control by the chart: 5, 10, 20, or 30 years, or **To retirement** (the
+default). The fixed options run that many years; **To retirement** tracks the
+household's retirement horizon — the longest span to the retirement-age assumption
+across the members whose age is entered, or 30 years when none is. The choice is
+saved in localStorage (a sibling of the retirement assumptions), so the chart
+reopens on the same horizon. Each asset
 component — super, cash and other accounts, and equity — stacks as its own area,
 and net worth is overlaid as a line: it is the asset bands less the household's
 liabilities (each member's HELP debt and the debt accounts) at every point, so the

@@ -65,6 +65,21 @@ export function writeProjectionHorizon(option: ProjectionHorizonOption): void {
   localStorage.setItem(PROJECTION_HORIZON_STORAGE_KEY, option)
 }
 
+export const PROJECTION_OPEN_STORAGE_KEY = 'net-worth-projection-open'
+
+/**
+ * Whether the net-worth projection section is expanded. Collapsed by default: only
+ * an explicit stored `true` opens it.
+ */
+export function readProjectionOpen(): boolean {
+  return localStorage.getItem(PROJECTION_OPEN_STORAGE_KEY) === 'true'
+}
+
+/** Persists whether the net-worth projection section is expanded. */
+export function writeProjectionOpen(open: boolean): void {
+  localStorage.setItem(PROJECTION_OPEN_STORAGE_KEY, open ? 'true' : 'false')
+}
+
 /** A member's current age keyed by member id; missing when not yet entered. */
 export type MemberAges = Record<string, number>
 

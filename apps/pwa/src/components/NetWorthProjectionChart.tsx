@@ -9,7 +9,10 @@ import {
   Stack,
   Text,
   Title,
+  UnstyledButton,
 } from '@mantine/core'
+import { useDisclosure } from '@mantine/hooks'
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { NetWorthProjectionPoint } from '@nest/plan'
 import { formatCents, formatCompactDollars } from '../lib/money'
 import {
@@ -17,7 +20,11 @@ import {
   projectionTooltipItems,
   type NetWorthProjectionRow,
 } from '../lib/netWorthChart'
-import type { ProjectionHorizonOption } from '../lib/retirement'
+import {
+  readProjectionOpen,
+  writeProjectionOpen,
+  type ProjectionHorizonOption,
+} from '../lib/retirement'
 import { EmptyState } from './EmptyState'
 
 /** The horizon options offered by the control, in order. */
@@ -106,6 +113,10 @@ export function NetWorthProjectionChart({
   horizon,
   onHorizonChange,
 }: NetWorthProjectionChartProps) {
+  const [opened, { toggle }] = useDisclosure(readProjectionOpen(), {
+    onOpen: () => writeProjectionOpen(true),
+    onClose: () => writeProjectionOpen(false),
+  })
   const hasData = points.some(
     (point) =>
       point.superCents > 0 ||
@@ -146,47 +157,61 @@ export function NetWorthProjectionChart({
   return (
     <Card component="section" aria-label="Net worth projection" withBorder radius="md" p="md">
       <Stack gap="sm">
-        <Title order={3} size="h5">
-          Projected forward
-        </Title>
-        {horizon && onHorizonChange && (
-          <SegmentedControl
-            size="xs"
-            fullWidth
-            aria-label="Projection horizon"
-            value={horizon}
-            onChange={(value) => onHorizonChange(value as ProjectionHorizonOption)}
-            data={HORIZON_OPTIONS}
-          />
-        )}
-        {hasData ? (
-          <>
-            <CompositeChart
-              h={260}
-              data={data}
-              dataKey="year"
-              series={series}
-              curveType="monotone"
-              withDots={false}
-              withLegend
-              valueFormatter={formatCompactDollars}
-              yAxisProps={{ width: 48 }}
-              areaProps={{ stackId: 'assets', fillOpacity: 0.25 }}
-              tooltipProps={{ content: ProjectionTooltip }}
-            />
-            <Text size="xs" c="dimmed">
-              Estimated future (nominal) dollars from your retirement assumptions. The areas are
-              your assets and the line is net worth — assets less your liabilities (HELP debt and
-              debt accounts), which are itemised in the tooltip. Super compounds and accrues
-              contributions, cash grows by ongoing savings-goal contributions, equity grows as it
-              vests at today&rsquo;s price, HELP debt follows its projected paydown, and
-              debt-account balances are held flat.
-            </Text>
-          </>
-        ) : (
-          <EmptyState>
-            Add super, account balances, or equity to project your net worth forward.
-          </EmptyState>
+        <UnstyledButton
+          onClick={toggle}
+          aria-expanded={opened}
+          aria-controls="net-worth-projection-body"
+          w="100%"
+        >
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+            {opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />}
+            <Title order={3} size="h5">
+              Projected forward
+            </Title>
+          </Group>
+        </UnstyledButton>
+        {opened && (
+          <Stack gap="sm" id="net-worth-projection-body">
+            {horizon && onHorizonChange && (
+              <SegmentedControl
+                size="xs"
+                fullWidth
+                aria-label="Projection horizon"
+                value={horizon}
+                onChange={(value) => onHorizonChange(value as ProjectionHorizonOption)}
+                data={HORIZON_OPTIONS}
+              />
+            )}
+            {hasData ? (
+              <>
+                <CompositeChart
+                  h={260}
+                  data={data}
+                  dataKey="year"
+                  series={series}
+                  curveType="monotone"
+                  withDots={false}
+                  withLegend
+                  valueFormatter={formatCompactDollars}
+                  yAxisProps={{ width: 48 }}
+                  areaProps={{ stackId: 'assets', fillOpacity: 0.25 }}
+                  tooltipProps={{ content: ProjectionTooltip }}
+                />
+                <Text size="xs" c="dimmed">
+                  Estimated future (nominal) dollars from your retirement assumptions. The areas are
+                  your assets and the line is net worth — assets less your liabilities (HELP debt
+                  and debt accounts), which are itemised in the tooltip. Super compounds and accrues
+                  contributions, cash grows by ongoing savings-goal contributions, equity grows as
+                  it vests at today&rsquo;s price, HELP debt follows its projected paydown, and
+                  debt-account balances are held flat.
+                </Text>
+              </>
+            ) : (
+              <EmptyState>
+                Add super, account balances, or equity to project your net worth forward.
+              </EmptyState>
+            )}
+          </Stack>
         )}
       </Stack>
     </Card>

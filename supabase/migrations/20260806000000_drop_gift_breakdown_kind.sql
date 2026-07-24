@@ -19,7 +19,7 @@ alter table public.breakdown
   alter column kind type public.breakdown_kind_new
   using kind::text::public.breakdown_kind_new;
 drop type public.breakdown_kind;
-alter type public.breakdown_kind_new rename to public.breakdown_kind;
+alter type public.breakdown_kind_new rename to breakdown_kind;
 alter table public.breakdown alter column kind set default 'generic';
 
 comment on column public.breakdown.kind is 'Always generic: rolls up breakdown_item rows via the item editor. Breakdowns are generic-only.';

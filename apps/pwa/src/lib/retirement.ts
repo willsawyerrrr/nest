@@ -1,32 +1,4 @@
-import type { SuperProjectionInput } from '@nest/plan'
-
-/**
- * Household-level retirement-projection assumptions, shared across members and
- * persisted in localStorage. Ages are held separately, per member. Percentages
- * are whole numbers as shown in the UI (7 = 7%), converted to decimal rates when
- * building the projection input.
- */
-export interface RetirementAssumptions {
-  /** Age each member's super is assumed to be accessed at (default preservation age). */
-  retirementAge: number
-  /** Expected nominal annual fund return, as a percentage. */
-  expectedReturnPct: number
-  /** Expected annual inflation, as a percentage, used to deflate to today's dollars. */
-  inflationPct: number
-  /** Year-on-year growth of the annual contribution, as a percentage. */
-  contributionGrowthPct: number
-}
-
-/** Default retirement age when none is stored — the FY2027 preservation age. */
-const DEFAULT_RETIREMENT_AGE = 60
-
-/** Assumptions used until the household edits them. */
-export const DEFAULT_ASSUMPTIONS: RetirementAssumptions = {
-  retirementAge: DEFAULT_RETIREMENT_AGE,
-  expectedReturnPct: 7,
-  inflationPct: 2.5,
-  contributionGrowthPct: 0,
-}
+import { DEFAULT_ASSUMPTIONS, type RetirementAssumptions } from '@nest/plan'
 
 export const ASSUMPTIONS_STORAGE_KEY = 'super-retirement-assumptions'
 export const AGES_STORAGE_KEY = 'super-retirement-ages'
@@ -156,30 +128,4 @@ export function setMemberAge(ages: MemberAges, memberId: string, age: number | n
   }
   localStorage.setItem(AGES_STORAGE_KEY, JSON.stringify(next))
   return next
-}
-
-/** Whole years from `currentAge` to `retirementAge`, never negative. */
-export function yearsToRetirement(currentAge: number, retirementAge: number): number {
-  return Math.max(0, Math.round(retirementAge - currentAge))
-}
-
-/**
- * Builds the pure `projectSuperBalance` input from a member's balance, net annual
- * contribution, and age together with the household assumptions — converting the
- * whole-number percentages to decimal rates and the ages to a year count.
- */
-export function toProjectionInput(
-  currentBalanceCents: number,
-  netAnnualContributionCents: number,
-  currentAge: number,
-  assumptions: RetirementAssumptions,
-): SuperProjectionInput {
-  return {
-    currentBalanceCents,
-    annualContributionCents: netAnnualContributionCents,
-    years: yearsToRetirement(currentAge, assumptions.retirementAge),
-    nominalReturnRate: assumptions.expectedReturnPct / 100,
-    inflationRate: assumptions.inflationPct / 100,
-    contributionGrowthRate: assumptions.contributionGrowthPct / 100,
-  }
 }

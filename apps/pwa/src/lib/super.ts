@@ -1,3 +1,4 @@
+import { accruedBalanceCents } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { SuperContributionKind } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
@@ -24,32 +25,6 @@ export function superAccountIds(profiles: readonly SuperProfile[]): Set<string> 
   return new Set(
     profiles.map((profile) => profile.linked_account_id).filter((id): id is string => id !== null),
   )
-}
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000
-
-/**
- * The effective super balance today: a confirmed baseline plus the member's
- * modelled net annual contributions accrued (contributions only — no investment
- * growth) since the baseline date.
- *
- * `balanceAsOf` is the `YYYY-MM-DD` date the `baselineCents` figure was last
- * confirmed by a true-up; null treats the baseline as current and returns it
- * unchanged. Elapsed time is clamped at zero so a future as-of date never
- * accrues negatively. `today` is passed in to keep the result deterministic.
- */
-export function accruedBalanceCents(
-  baselineCents: number,
-  balanceAsOf: string | null,
-  netAnnualContributionCents: number,
-  today: Date,
-): number {
-  if (balanceAsOf === null) {
-    return baselineCents
-  }
-  const asOfMs = Date.parse(`${balanceAsOf}T00:00:00Z`)
-  const elapsedYears = Math.max(0, (today.getTime() - asOfMs) / MS_PER_DAY / 365)
-  return baselineCents + Math.round(netAnnualContributionCents * elapsedYears)
 }
 
 /**

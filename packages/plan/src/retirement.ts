@@ -1,7 +1,9 @@
 /**
- * Retirement projection: the future value of a super balance at retirement, from
- * the current balance plus a growing stream of annual contributions, in both
- * nominal and today's (real) dollars.
+ * Super balance over time: the effective balance today accrued from a confirmed
+ * baseline, and the projected future value at retirement — the current balance
+ * plus a growing stream of annual contributions, in both nominal and today's
+ * (real) dollars. Together with the household assumptions that drive the
+ * projection input.
  */
 
 import type { Money } from './index'
@@ -84,4 +86,84 @@ export function projectSuperBalance(input: SuperProjectionInput): SuperProjectio
   const real = nominal / (1 + inflationRate) ** years
 
   return { nominalCents: Math.round(nominal), realCents: Math.round(real) }
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/**
+ * The effective super balance today: a confirmed baseline plus the member's
+ * modelled net annual contributions accrued (contributions only — no investment
+ * growth) since the baseline date.
+ *
+ * `balanceAsOf` is the `YYYY-MM-DD` date the `baselineCents` figure was last
+ * confirmed by a true-up; null treats the baseline as current and returns it
+ * unchanged. Elapsed time is clamped at zero so a future as-of date never
+ * accrues negatively. `today` is passed in to keep the result deterministic.
+ */
+export function accruedBalanceCents(
+  baselineCents: number,
+  balanceAsOf: string | null,
+  netAnnualContributionCents: number,
+  today: Date,
+): number {
+  if (balanceAsOf === null) {
+    return baselineCents
+  }
+  const asOfMs = Date.parse(`${balanceAsOf}T00:00:00Z`)
+  const elapsedYears = Math.max(0, (today.getTime() - asOfMs) / MS_PER_DAY / 365)
+  return baselineCents + Math.round(netAnnualContributionCents * elapsedYears)
+}
+
+/**
+ * Household-level retirement-projection assumptions, shared across members. Ages
+ * are held separately, per member. Percentages are whole numbers as shown in the
+ * UI (7 = 7%), converted to decimal rates when building the projection input.
+ */
+export interface RetirementAssumptions {
+  /** Age each member's super is assumed to be accessed at (default preservation age). */
+  retirementAge: number
+  /** Expected nominal annual fund return, as a percentage. */
+  expectedReturnPct: number
+  /** Expected annual inflation, as a percentage, used to deflate to today's dollars. */
+  inflationPct: number
+  /** Year-on-year growth of the annual contribution, as a percentage. */
+  contributionGrowthPct: number
+}
+
+/** Default retirement age when none is set — the FY2027 preservation age. */
+const DEFAULT_RETIREMENT_AGE = 60
+
+/** Assumptions used until the household edits them. */
+export const DEFAULT_ASSUMPTIONS: RetirementAssumptions = {
+  retirementAge: DEFAULT_RETIREMENT_AGE,
+  expectedReturnPct: 7,
+  inflationPct: 2.5,
+  contributionGrowthPct: 0,
+}
+
+/** Whole years from `currentAge` to `retirementAge`, never negative. */
+export function yearsToRetirement(currentAge: number, retirementAge: number): number {
+  return Math.max(0, Math.round(retirementAge - currentAge))
+}
+
+/**
+ * Builds the {@link projectSuperBalance} input from a member's balance, net
+ * annual contribution, and age together with the household assumptions —
+ * converting the whole-number percentages to decimal rates and the ages to a
+ * year count.
+ */
+export function toProjectionInput(
+  currentBalanceCents: number,
+  netAnnualContributionCents: number,
+  currentAge: number,
+  assumptions: RetirementAssumptions,
+): SuperProjectionInput {
+  return {
+    currentBalanceCents,
+    annualContributionCents: netAnnualContributionCents,
+    years: yearsToRetirement(currentAge, assumptions.retirementAge),
+    nominalReturnRate: assumptions.expectedReturnPct / 100,
+    inflationRate: assumptions.inflationPct / 100,
+    contributionGrowthRate: assumptions.contributionGrowthPct / 100,
+  }
 }

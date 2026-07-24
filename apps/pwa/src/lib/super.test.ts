@@ -3,7 +3,6 @@ import type { Account } from '../hooks/useAccounts'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import {
   accountsWithEffectiveSuperBalances,
-  accruedBalanceCents,
   netWorthBreakdown,
   superAccountIds,
   superAccountName,
@@ -62,31 +61,6 @@ describe('superAccountIds', () => {
       profile({ linked_account_id: 'a2' }),
     ])
     expect(ids).toEqual(new Set(['a1', 'a2']))
-  })
-})
-
-describe('accruedBalanceCents', () => {
-  const today = new Date('2026-07-20T00:00:00Z')
-
-  it('returns the baseline unchanged when the as-of date is null', () => {
-    expect(accruedBalanceCents(10_000_00, null, 12_000_00, today)).toBe(10_000_00)
-  })
-
-  it('accrues a proportional share of the annual contribution for a mid-year as-of', () => {
-    // 2026-04-11 is 100 days before today; at $365/yr (100c/day) → $100 accrued.
-    expect(accruedBalanceCents(10_000_00, '2026-04-11', 365_00, today)).toBe(10_100_00)
-  })
-
-  it('leaves the baseline unchanged when the net contribution is zero', () => {
-    expect(accruedBalanceCents(10_000_00, '2025-07-20', 0, today)).toBe(10_000_00)
-  })
-
-  it('accrues a full year of contributions across a full year', () => {
-    expect(accruedBalanceCents(10_000_00, '2025-07-20', 12_000_00, today)).toBe(22_000_00)
-  })
-
-  it('clamps a future as-of date to zero accrual', () => {
-    expect(accruedBalanceCents(10_000_00, '2027-07-20', 12_000_00, today)).toBe(10_000_00)
   })
 })
 

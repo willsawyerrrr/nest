@@ -10,7 +10,12 @@ import {
   Stack,
   Text,
 } from '@mantine/core'
-import { projectSuperBalance } from '@nest/plan'
+import {
+  projectSuperBalance,
+  toProjectionInput,
+  yearsToRetirement,
+  type RetirementAssumptions,
+} from '@nest/plan'
 import type { Member } from '../hooks/useMembers'
 import { formatCents, formatPerYear } from '../lib/money'
 import {
@@ -18,10 +23,7 @@ import {
   readAssumptions,
   readMemberAges,
   setMemberAge,
-  toProjectionInput,
   writeAssumptions,
-  yearsToRetirement,
-  type RetirementAssumptions,
 } from '../lib/retirement'
 import { MoneyText } from './MoneyText'
 

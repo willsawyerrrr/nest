@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core'
+import { accruedBalanceCents } from '@nest/plan'
 import type { Member } from '../hooks/useMembers'
 import { centsToDollars, dollarsToCents } from '../lib/money'
-import { accruedBalanceCents } from '../lib/super'
 import { MoneyInput } from './MoneyInput'
 
 /** The values a super form submits for one member: fund name and the confirmed actual balance. */

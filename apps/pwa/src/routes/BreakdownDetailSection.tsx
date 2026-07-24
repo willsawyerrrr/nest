@@ -3,7 +3,6 @@ import { BreakdownDetail } from '../components/BreakdownDetail'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useBreakdownItems } from '../hooks/useBreakdownItems'
 import { useBreakdowns, type Breakdown } from '../hooks/useBreakdowns'
-import { GiftsSection } from './GiftsSection'
 
 export function BreakdownDetailSection({ householdId }: { householdId: string }) {
   const { id } = useParams<{ id: string }>()
@@ -25,10 +24,11 @@ export function BreakdownDetailSection({ householdId }: { householdId: string })
     return <Navigate to="/breakdowns" replace />
   }
 
-  // A gift breakdown is edited through the existing gift planner; a generic one
-  // through its item editor.
+  // Gifts are managed solely in the Gifts tab; a gift breakdown is an internal
+  // roll-up mechanism with no editor of its own here, so any link to one lands on
+  // the Gifts tab.
   if (breakdown.kind === 'gift') {
-    return <GiftsSection householdId={householdId} backTo={backTo} backLabel={backLabel} />
+    return <Navigate to="/gifts" replace />
   }
 
   return (

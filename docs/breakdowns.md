@@ -16,9 +16,10 @@ normalised to fortnightly and annual exactly as a budget line is.
 ## Decisions (locked)
 
 - **Breakdowns are data, not an enum.** Any itemised budget the household wants —
-  gifts, medications, a holiday's line items — is a breakdown row it creates, names,
-  and assigns to a budget group. There is no fixed catalogue of sources and no
-  migration per new source.
+  medications, a holiday's line items — is a generic breakdown row it creates in the
+  Breakdowns tab, names, and assigns to a budget group. Gifts are the one built-in
+  roll-up: a single `kind = 'gift'` breakdown minted internally by the Gifts tab. In
+  both cases there is no fixed catalogue of sources and no migration per new source.
 - **A generic breakdown owns one derived line; the gift breakdown owns one per
   recipient partition.** A rolled-up line is a real, routable `budget_line` row (it
   participates in the Pay splits tab's account routing like any line). A generic
@@ -41,18 +42,21 @@ normalised to fortnightly and annual exactly as a budget line is.
   budgets has no line. A line is created when the first item/budget in its partition
   lands and removed when the last goes, so an empty breakdown or partition never
   shows a $0 line in the budget.
-- **`kind` picks the editor, not a per-instance type.** `kind = 'generic'` uses a
-  simple item editor; `kind = 'gift'` uses the recipient × occasion + purchases
-  planner and keeps its bespoke `gift_*` tables. `kind` is a small enum that selects
-  behaviour, not an open per-breakdown enumeration.
+- **`kind` picks the roll-up source, not a per-instance type.** `kind = 'generic'`
+  rolls up `breakdown_item` rows via a simple item editor; `kind = 'gift'` rolls up
+  the bespoke `gift_*` tables. `kind` is a small enum that selects behaviour, not an
+  open per-breakdown enumeration.
 - **Derived lines are never created from the budget form.** The budget-line form has
   no "Amount source" picker; a derived line comes into being only through its
   breakdown.
-- **Gifts is a breakdown.** The gift planner uses its own UX and its
-  `gift_recipient` / `gift_occasion` / `gift_budget` / `gift_purchase` tables; a
-  `kind = 'gift'` breakdown rolls the gift budgets into budget lines. The planner
-  itself is household-scoped (its `gift_*` tables need no breakdown), so it is a
-  first-class tab (`/gifts`) as well as the editor a gift breakdown opens.
+- **Gifts are managed solely in the Gifts tab.** The gift planner uses its own UX
+  and its `gift_recipient` / `gift_occasion` / `gift_budget` / `gift_purchase`
+  tables, all household-scoped. A single `kind = 'gift'` breakdown is an internal
+  roll-up mechanism that turns the gift budgets into the derived "Gifts for
+  &lt;member&gt;" / "Gifts (others)" budget lines; it is minted lazily by the Gifts
+  tab (the first gift budget creates it if the household has none) and never appears
+  in the Breakdowns tab or has an editor of its own. The Breakdowns tab is
+  generic-only.
 - **A gift's budget is shared; its purchases are private from the recipient.**
   The two partners set a gift's agreed amount together, so `gift_budget` stays
   fully shared and continues to feed the derived lines and pay splits.
@@ -191,30 +195,31 @@ items live in `gift_budget`).
 
 ## UI
 
-- **Breakdowns tab** (route `/breakdowns`, in `NAV_ITEMS`) — lists every breakdown
-  with its name, group, and rolled-up fortnightly + annual total, plus a **New
-  breakdown** action (a name and a group). Each row taps through to
-  `/breakdowns/:id`.
-- **Gifts tab** (route `/gifts`, in `NAV_ITEMS`) — the unified gift planner as a
-  top-level tab, showing every recipient, occasion, budget, and purchase. It is the
-  same screen a `kind = 'gift'` breakdown opens, without the back link.
-- **`/breakdowns/:id`** — the editor, chosen by `kind`:
-  - `kind = 'generic'` — a simple item editor: the item list with add / edit /
-    remove (name + amount + frequency, `every_n_weeks`/`every_n_months` taking an
-    interval as elsewhere); rename the breakdown; choose its group; delete the
-    breakdown.
-  - `kind = 'gift'` — the recipient × occasion + purchases planner, with a back link
-    to its origin. The same planner is the **Gifts tab** (`/gifts`).
+- **Breakdowns tab** (route `/breakdowns`, in `NAV_ITEMS`) — lists every generic
+  breakdown with its name, group, and rolled-up fortnightly + annual total, plus a
+  **New breakdown** action (a name and a group; every breakdown created here is
+  generic). Gift breakdowns are excluded. Each row taps through to `/breakdowns/:id`.
+- **Gifts tab** (route `/gifts`, in `NAV_ITEMS`) — the unified gift planner and the
+  sole place gifts are managed, showing every recipient, occasion, budget, and
+  purchase. It reads and writes the household-scoped `gift_*` tables directly and
+  mints the household's single gift breakdown on the first gift budget.
+- **`/breakdowns/:id`** — the generic item editor: the item list with add / edit /
+  remove (name + amount + frequency, `every_n_weeks`/`every_n_months` taking an
+  interval as elsewhere); rename the breakdown; choose its group; delete the
+  breakdown. A `kind = 'gift'` breakdown has no editor here and redirects to the
+  Gifts tab (`/gifts`).
 - **Budget list** — a derived line carries a tap-through chevron to its breakdown
-  (`/breakdowns/:id`) and an edit pencil that opens an inline editor for its group
-  and funding account (and name, for a generic line — a gift line's name shows
-  read-only). Its amount shows read-only there, with a link to the breakdown page to
-  change the itemised total. A gift breakdown renders as several rows — "Gifts for
-  &lt;member&gt;" per member with gift budgets, plus "Gifts" for external recipients.
-  The external line offers an editable "Funded from" picker; a "Gifts for
-  &lt;member&gt;" line replaces it with a read-only note ("Funded automatically from
-  the buyer's spending account"), since its account is auto-derived, not chosen.
-- **Absent surfaces** — there is no budget-line-form Amount source picker. There is
+  (`/breakdowns/:id`, which lands on the Gifts tab for a gift line) and an edit
+  pencil that opens an inline editor for its group and funding account (and name, for
+  a generic line — a gift line's name shows read-only). Its amount shows read-only
+  there, with a link to change the itemised total. A gift breakdown drives several
+  rows — "Gifts for &lt;member&gt;" per member with gift budgets, plus "Gifts" for
+  external recipients. The external line offers an editable "Funded from" picker; a
+  "Gifts for &lt;member&gt;" line replaces it with a read-only note ("Funded
+  automatically from the buyer's spending account"), since its account is
+  auto-derived, not chosen.
+- **Absent surfaces** — there is no budget-line-form Amount source picker, no gift
+  option in the Breakdowns creation form, and no in-breakdown gift editor. There is
   no Health tab; medications is a generic breakdown the household creates.
 
 ## Pure logic (`@nest/plan`)

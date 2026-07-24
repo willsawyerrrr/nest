@@ -1,28 +1,26 @@
 import { BreakdownsScreen } from '../components/BreakdownsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useBreakdowns } from '../hooks/useBreakdowns'
-import { useGifts } from '../hooks/useGifts'
 import { breakdownTotalsByBreakdownId, derivedAmountContext } from '../lib/breakdowns'
 
 export function BreakdownsSection({ householdId }: { householdId: string }) {
   const breakdowns = useBreakdowns(householdId)
-  const gifts = useGifts(householdId)
 
-  if (breakdowns.loading || gifts.loading) {
+  if (breakdowns.loading) {
     return <LoadingScreen />
   }
 
-  const context = derivedAmountContext(
-    breakdowns.breakdowns ?? [],
-    breakdowns.items ?? [],
-    gifts.budgets ?? [],
-    gifts.recipients ?? [],
+  // Gifts are managed solely in the Gifts tab; the gift breakdown is an internal
+  // roll-up mechanism, so it never appears as a row here.
+  const genericBreakdowns = (breakdowns.breakdowns ?? []).filter(
+    (breakdown) => breakdown.kind !== 'gift',
   )
-  const totals = breakdownTotalsByBreakdownId(breakdowns.breakdowns ?? [], context)
+  const context = derivedAmountContext(genericBreakdowns, breakdowns.items ?? [], [], [])
+  const totals = breakdownTotalsByBreakdownId(genericBreakdowns, context)
 
   return (
     <BreakdownsScreen
-      breakdowns={breakdowns.breakdowns ?? []}
+      breakdowns={genericBreakdowns}
       totalsByBreakdownId={totals}
       onCreate={breakdowns.create}
     />

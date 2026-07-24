@@ -36,8 +36,6 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
   return render(
     <MemoryRouter>
       <GiftsScreen
-        backTo="/breakdowns"
-        backLabel="Breakdowns"
         recipients={[alice]}
         occasions={[xmas]}
         budgets={[budget]}
@@ -62,21 +60,14 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
   )
 }
 
-describe('GiftsScreen back link', () => {
+describe('GiftsScreen header', () => {
   beforeEach(() => localStorage.clear())
 
-  it('renders the back link to the given destination and label', () => {
-    renderScreen({ backTo: '/budget', backLabel: 'Budget' })
+  it('renders as a top-level tab with a title and no back link', () => {
+    renderScreen()
 
-    const link = screen.getByRole('link', { name: /budget/i })
-    expect(link).toHaveAttribute('href', '/budget')
-  })
-
-  it('omits the back link when no destination is given', () => {
-    renderScreen({ backTo: undefined, backLabel: undefined })
-
-    expect(screen.queryByRole('link', { name: /breakdowns/i })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Gifts' })).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })
 

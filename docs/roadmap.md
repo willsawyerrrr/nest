@@ -87,9 +87,9 @@ does not restate them.
   `/summary`), so
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
   Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
-  deductions · Super · Help debt · Breakdowns · Gifts · Household. The gift planner is
-  a first-class tab (`/gifts`) and the editor a gift breakdown opens
-  (`/breakdowns/:id`). One
+  deductions · Super · Help debt · Breakdowns · Gifts · Household. Gifts are managed
+  solely in the Gifts tab (`/gifts`); gift breakdowns never appear in Breakdowns, and
+  a gift breakdown at `/breakdowns/:id` redirects to `/gifts`. One
   `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
   and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to
   the first nine tabs, ⌘/Ctrl+Shift+←/→ cycle.
@@ -208,11 +208,13 @@ the editor. The household's real gift budgets are loaded in production. See
       The four gift tables (`gift_recipient`, `gift_occasion`, `gift_budget` with
       an optional per-pairing `event_date`, `gift_purchase`) back the
       `kind = 'gift'` breakdown.
-- [x] Breakdowns tab (`/breakdowns`): lists every breakdown with its group and
-      fortnightly + annual total, and a New breakdown action. `/breakdowns/:id` is
-      the editor, chosen by `kind` — a generic item editor, or the gift planner.
-- [x] Gifts tab (`/gifts`): the unified gift planner as a first-class tab, the same
-      household-scoped screen a gift breakdown opens, without the back link.
+- [x] Breakdowns tab (`/breakdowns`): lists every generic breakdown with its group
+      and fortnightly + annual total, and a New breakdown action (generic-only). Gift
+      breakdowns are excluded. `/breakdowns/:id` is the generic item editor; a gift
+      breakdown redirects to the Gifts tab.
+- [x] Gifts tab (`/gifts`): the unified gift planner and the sole place gifts are
+      managed, reading the household-scoped gift tables and minting the single gift
+      breakdown on the first gift budget so the derived lines still roll up.
 - [x] Gift planner (`kind = 'gift'`): plan a spend per **recipient × occasion**,
       then record purchases against it. Two-way collapsible grouping (by occasion
       or by person, default collapsed), each group rolling up budgeted / spent /

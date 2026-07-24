@@ -180,22 +180,27 @@ select set_config('test.gbid', :'gbid', false);
 insert into public.gift_purchase (household_id, gift_budget_id, amount_cents, description, purchased_on)
   values (current_setting('test.hid')::uuid, current_setting('test.gbid')::uuid, 80_00, 'Book', '2027-12-01');
 
--- The external ("others") gift line: is_gift_line, no breakdown row, with its
--- own routing.
-insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, is_gift_line, destination_account_id)
-  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts', 0, 'annual', true, current_setting('test.aid')::uuid);
+-- The external ("others") gift line is derived, not typed: the reconcile trigger
+-- mints a standalone is_gift_line line the moment Alice's gift budget for Mum (an
+-- external recipient) lands. Alice routes that line to her own account.
+update public.budget_line set destination_account_id = current_setting('test.aid')::uuid
+  where is_gift_line and gift_recipient_member_id is null;
 
--- A per-recipient gift line: gifts for Alice's own member, discriminated by
--- gift_recipient_member_id. The composite FK on (gift_recipient_member_id,
--- household_id) accepts a same-household member.
-insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, is_gift_line, gift_recipient_member_id)
-  values (current_setting('test.hid')::uuid, 'discretionary', 'Gifts for Alice', 0, 'annual', true, current_setting('test.mid')::uuid);
+-- A per-recipient gift line, discriminated by gift_recipient_member_id: budgeting
+-- a gift for Alice's own member recipient makes the trigger mint a "Gifts for
+-- <member>" line keyed to her member. The composite FK on (recipient_id,
+-- household_id) accepts a same-household recipient.
+select id as arid from public.gift_recipient where member_id = current_setting('test.mid')::uuid \gset
+select set_config('test.arid', :'arid', false);
+insert into public.gift_budget (household_id, recipient_id, occasion_id, budgeted_amount_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.arid')::uuid, current_setting('test.oid')::uuid, 120_00);
 
 do $$ begin
   assert (select count(*) from public.gift_recipient) = 2,
     'Alice should see her gift recipient plus her own auto-created member recipient';
   assert (select count(*) from public.gift_occasion) = 1, 'Alice should see her gift occasion';
-  assert (select count(*) from public.gift_budget) = 1, 'Alice should see her gift budget';
+  assert (select count(*) from public.gift_budget) = 2,
+    'Alice should see her two gift budgets (Mum''s and her own member''s)';
   assert (select count(*) from public.gift_budget
     where recipient_id = current_setting('test.rid')::uuid
       and occasion_id = current_setting('test.oid')::uuid) = 1,
@@ -205,7 +210,7 @@ do $$ begin
     where gift_budget_id = current_setting('test.gbid')::uuid) = 1,
     'Alice''s gift purchase should link to her gift budget';
   assert (select count(*) from public.budget_line where is_gift_line) = 2,
-    'Alice should see her two gift budget lines (external plus her member partition)';
+    'Alice should see her two derived gift lines (external plus her member partition)';
   assert (select destination_account_id from public.budget_line
     where is_gift_line and gift_recipient_member_id is null)
     = current_setting('test.aid')::uuid,
@@ -262,10 +267,10 @@ do $$ begin
     'Alice''s pay split should link to her own account';
 end $$;
 
--- Alice's breakdown: a generic breakdown with one item, and a budget line
--- derived from it. The composite FKs on (id, household_id) accept same-household
--- links — the breakdown_item to its breakdown, and the budget_line to the
--- breakdown it is derived from.
+-- Alice's breakdown: a generic breakdown with one item. Its derived budget line
+-- is minted by the reconcile trigger the moment the item lands — the composite
+-- FKs on (id, household_id) keep the item's breakdown link and the derived line's
+-- breakdown link within the household.
 insert into public.breakdown (household_id, name, line_group, kind)
   values (current_setting('test.hid')::uuid, 'Medications', 'needs', 'generic');
 select id as bdid from public.breakdown where kind = 'generic' limit 1 \gset
@@ -273,9 +278,6 @@ select set_config('test.bdid', :'bdid', false);
 
 insert into public.breakdown_item (household_id, breakdown_id, name, amount_cents, frequency)
   values (current_setting('test.hid')::uuid, current_setting('test.bdid')::uuid, 'Prescription', 30_00, 'monthly');
-
-insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, breakdown_id)
-  values (current_setting('test.hid')::uuid, 'needs', 'Medications', 0, 'annual', current_setting('test.bdid')::uuid);
 
 do $$ begin
   assert (select count(*) from public.breakdown) = 1, 'Alice should see her breakdown';
@@ -518,7 +520,7 @@ do $$ begin
   assert (select count(*) from public.gift_recipient) = 3,
     'Carol should see Alice''s external recipient plus both members'' auto-created recipients';
   assert (select count(*) from public.gift_occasion) = 1, 'Carol should see Alice''s gift occasion';
-  assert (select count(*) from public.gift_budget) = 1, 'Carol should see Alice''s gift budget';
+  assert (select count(*) from public.gift_budget) = 2, 'Carol should see both of Alice''s gift budgets';
   assert (select count(*) from public.gift_purchase) = 1, 'Carol should see Alice''s gift purchase';
   assert (select count(*) from public.pay_split) = 1, 'Carol should see Alice''s pay split';
   assert (select count(*) from public.breakdown) = 1, 'Carol should see Alice''s breakdown';

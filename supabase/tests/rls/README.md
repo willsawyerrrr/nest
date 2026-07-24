@@ -10,12 +10,18 @@ Automated proof that Row-Level Security isolates households. These run in CI (th
   `service_role` roles). Not used in production.
 - `rls_isolation.sql` — the assertions: a member sees only their own household's
   rows, a second user is fully isolated, and cross-household writes are rejected.
+- `derived_line_triggers.sql` — the assertions that the derived-budget-line
+  reconcile triggers produce the exact tuple the client reconciler does, across
+  the generic-breakdown and gift lifecycles (add/update/remove items and budgets,
+  routing preservation, buyer-account funding, member add/rename/remove, and
+  idempotency).
 
 ## What runs
 
-`setup_auth.sql` → every file in `supabase/migrations/` in order → `rls_isolation.sql`.
-Because the real migration and policies are applied, the assertions test the
-actual security boundary, not a reimplementation.
+`setup_auth.sql` → every file in `supabase/migrations/` in order →
+`rls_isolation.sql` → `derived_line_triggers.sql`. Because the real migrations
+and policies are applied, the assertions test the actual security boundary and
+trigger behaviour, not a reimplementation.
 
 ## Run locally
 

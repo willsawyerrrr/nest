@@ -170,14 +170,18 @@ Owned by a breakdown; every breakdown is generic.
   or is re-routed. A gift member line is exempt from this: its routing is
   auto-derived (see below) rather than user-set, so an emptied member partition
   always removes its line rather than pinning it at $0. The reconcile
-  runs app-wide from a headless component mounted under the authenticated shell (not
-  on any one route), so a breakdown or gift edit made anywhere rewrites the owned
-  lines: it computes the creates, updates, and removes needed to bring the breakdown
-  and gift lines into step, and is a no-op once they already match. Every
-  collection write invalidates its table's whole `[table, householdId]` cache
-  prefix, so a breakdown-item or gift-budget edit refreshes both the scoped query and
-  the unscoped roll-up, the reconcile sees the fresh totals, and the derived amounts
-  propagate live to the Budget, Pay splits, and Summary tabs with no reload.
+  runs in the database: `SECURITY DEFINER` triggers on every roll-up source
+  (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, `members`,
+  `accounts`) re-derive the affected household's lines the moment a source changes,
+  computing the creates, updates, and removes needed to bring the breakdown and gift
+  lines into step and no-opping once they already match; a `budget_line` normalizer
+  canonicalises any derived row on write. The identical reconcile also runs app-wide
+  from a headless client component mounted under the authenticated shell, as a
+  convergent safety net that computes the same tuple. Every collection write
+  invalidates its table's whole `[table, householdId]` cache prefix, so a
+  breakdown-item or gift-budget edit refreshes both the scoped query and the unscoped
+  roll-up and the derived amounts propagate live to the Budget, Pay splits, and
+  Summary tabs with no reload.
 - **System-managed amount.** A derived line is not created via the budget form and
   is not manually deletable, and its amount is not hand-editable — it is rolled up
   from the breakdown's items or, for a gift line, the gift tables. Deleting a

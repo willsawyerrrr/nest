@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   onAuthStateChange: vi.fn(),
   signInWithOAuth: vi.fn(),
-  rpc: vi.fn(),
   useHousehold: vi.fn(),
   unsubscribe: vi.fn(),
   authCallback: { current: null as AuthCallback | null },
@@ -33,7 +32,6 @@ vi.mock('./lib/supabase', () => ({
       },
       signInWithOAuth: mocks.signInWithOAuth,
     },
-    rpc: mocks.rpc,
   },
 }))
 
@@ -96,6 +94,8 @@ function householdResult(overrides: Partial<UseHouseholdResult> = {}): UseHouseh
     households: [household],
     loading: false,
     reload: vi.fn().mockResolvedValue(undefined),
+    createHousehold: vi.fn().mockResolvedValue(undefined),
+    joinHousehold: vi.fn().mockResolvedValue(undefined),
     createInviteCode: vi.fn().mockResolvedValue(undefined),
     revokeInviteCode: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -155,33 +155,23 @@ describe('App', () => {
     await waitFor(() => expect(document.querySelector('.mantine-Loader-root')).not.toBeNull())
   })
 
-  it('shows onboarding and runs create/join on success and error', async () => {
+  it('shows onboarding and delegates create/join to the household hook', async () => {
+    const createHousehold = vi.fn().mockResolvedValue(undefined)
+    const joinHousehold = vi.fn().mockResolvedValue(undefined)
     mocks.getSession.mockResolvedValue({ data: { session } })
-    mocks.useHousehold.mockReturnValue(householdResult({ households: [] }))
+    mocks.useHousehold.mockReturnValue(
+      householdResult({ households: [], createHousehold, joinHousehold }),
+    )
     renderApp()
 
     const create = await screen.findByRole('button', { name: 'create' })
     const join = screen.getByRole('button', { name: 'join' })
 
-    mocks.rpc.mockResolvedValueOnce({ error: null })
     await userEvent.click(create)
-    expect(mocks.rpc).toHaveBeenLastCalledWith('create_household', {
-      p_name: 'Home',
-      p_member_name: 'Will',
-    })
+    expect(createHousehold).toHaveBeenCalledWith('Home', 'Will')
 
-    mocks.rpc.mockResolvedValueOnce({ error: new Error('nope') })
-    await userEvent.click(create)
-
-    mocks.rpc.mockResolvedValueOnce({ error: null })
     await userEvent.click(join)
-    expect(mocks.rpc).toHaveBeenLastCalledWith('join_household', {
-      p_code: 'CODE',
-      p_member_name: 'Will',
-    })
-
-    mocks.rpc.mockResolvedValueOnce({ error: new Error('nope') })
-    await userEvent.click(join)
+    expect(joinHousehold).toHaveBeenCalledWith('CODE', 'Will')
   })
 
   it('renders the routed shell with a household', async () => {

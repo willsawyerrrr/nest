@@ -1,10 +1,10 @@
 import { Badge, Group, Progress, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { fortnightlyCents, projectGoal } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
@@ -205,7 +205,7 @@ function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItem
  * and as a compact bordered card below it.
  */
 function GoalItem(props: GoalItemProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <GoalRow {...props} /> : <GoalCard {...props} />
 }
 

@@ -1,10 +1,10 @@
 import { ActionIcon, Anchor, FileInput, Group, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionInput, DeductionRow } from '../hooks/useDeductions'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
 import { AddButton } from './AddButton'
@@ -183,7 +183,7 @@ function DeductionCard({ deduction, onEdit, onDelete, ...receiptProps }: Deducti
  * up and as a compact bordered card below it.
  */
 function DeductionItem(props: DeductionItemProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <DeductionRow {...props} /> : <DeductionCard {...props} />
 }
 

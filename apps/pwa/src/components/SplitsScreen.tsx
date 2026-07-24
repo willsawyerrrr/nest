@@ -11,7 +11,6 @@ import {
   Text,
   Title,
 } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import {
   assignmentsByAccount,
   isRecommendedSplitAccount,
@@ -21,6 +20,7 @@ import {
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
+import { useIsWide } from '../hooks/useIsWide'
 import { useSortPreference } from '../hooks/useSortPreference'
 import { accountLabel } from '../lib/accountName'
 import { formatCents, formatPerFortnight } from '../lib/money'
@@ -169,7 +169,7 @@ function StaysCard({
  * `sm` breakpoint up and as a compact bordered card below it.
  */
 function StaysItem(props: { account: AccountDirectoryEntry; fortnightlyCents: number }) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <StaysRow {...props} /> : <StaysCard {...props} />
 }
 
@@ -301,7 +301,7 @@ function RecommendedSplitCard({
  * amount is source-agnostic — see `SplitsScreenProps`.
  */
 function RecommendedSplitItem(props: RecommendedSplitProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <RecommendedSplitRow {...props} /> : <RecommendedSplitCard {...props} />
 }
 

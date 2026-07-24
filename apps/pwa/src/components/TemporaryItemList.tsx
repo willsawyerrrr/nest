@@ -1,8 +1,8 @@
 import { Badge, Group, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { isTemporaryActive } from '@nest/plan'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
 import { AddButton } from './AddButton'
@@ -94,7 +94,7 @@ function TemporaryItemCard({ item, now, onEdit, onDelete }: TemporaryItemItemPro
  * breakpoint up and as a compact bordered card below it.
  */
 function TemporaryItemItem(props: TemporaryItemItemProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <TemporaryItemRow {...props} /> : <TemporaryItemCard {...props} />
 }
 

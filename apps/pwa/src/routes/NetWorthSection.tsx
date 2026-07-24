@@ -14,6 +14,7 @@ import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { equityGrantToPlan } from '../lib/equity'
+import { memberName } from '../lib/members'
 import {
   combinedHelpCentsByYear,
   netWorthGoals,
@@ -79,11 +80,10 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const grantRows = equityGrants.grants ?? []
   const netContributionByMember = netAnnualSuperContributionFromRows(inflowRows, contributionRows)
 
-  const memberName = (id: string) => members.find((member) => member.id === id)?.name ?? 'Unknown'
   const liabilities: Liability[] = helpDebtRows
     .filter((debt) => debt.balance_cents > 0)
     .map((debt) => ({
-      label: `${memberName(debt.member_id)}'s HELP debt`,
+      label: `${memberName(members, debt.member_id)}'s HELP debt`,
       balanceCents: debt.balance_cents,
     }))
 
@@ -91,7 +91,7 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const planGrants = grantRows.map(equityGrantToPlan)
   const equity: EquityHolding[] = grantRows
     .map((grant) => ({
-      label: `${memberName(grant.member_id)} — ${grant.label}`,
+      label: `${memberName(members, grant.member_id)} — ${grant.label}`,
       valueCents: grantValueCents(equityGrantToPlan(grant), today),
     }))
     .filter((holding) => holding.valueCents > 0)

@@ -1,10 +1,11 @@
 import { Badge, Group, Stack, Text } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
 import { formatFrequency } from '../lib/frequency'
+import { memberName } from '../lib/members'
 import { formatCents } from '../lib/money'
 import { SUPER_CONTRIBUTION_KINDS } from '../lib/super'
 import { AddButton } from './AddButton'
@@ -122,7 +123,7 @@ function ContributionCard({ contribution, memberName, onEdit, onDelete }: Contri
  * breakpoint up and as a compact bordered card below it.
  */
 function ContributionItem(props: ContributionItemProps) {
-  const wide = useMediaQuery('(min-width: 48em)')
+  const wide = useIsWide()
   return wide ? <ContributionRow {...props} /> : <ContributionCard {...props} />
 }
 
@@ -137,8 +138,6 @@ export function SuperContributionList({
 }: SuperContributionListProps) {
   const { editingId, adding, startAdding, startEditing, close: closeForms } = useInlineEditing()
   const { confirm, modal } = useConfirmDelete()
-  const memberName = (id: string) =>
-    members.find((candidate) => candidate.id === id)?.name ?? 'Unknown'
 
   return (
     <Stack gap="xs">
@@ -161,7 +160,7 @@ export function SuperContributionList({
           <ContributionItem
             key={contribution.id}
             contribution={contribution}
-            memberName={memberName}
+            memberName={(id) => memberName(members, id)}
             onEdit={() => startEditing(contribution.id)}
             onDelete={() =>
               confirm({

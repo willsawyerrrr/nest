@@ -2,11 +2,15 @@ import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { DerivedAmountContext } from './breakdowns'
 
 /** The effective annual amount of a single derived line, resolved from the context. */
-function derivedAmountCents(line: BudgetLine, context: DerivedAmountContext): number {
-  if (context.giftBreakdownId !== null && line.breakdown_id === context.giftBreakdownId) {
+function derivedAmountCents(
+  line: BudgetLine,
+  breakdownId: string,
+  context: DerivedAmountContext,
+): number {
+  if (context.giftBreakdownId !== null && breakdownId === context.giftBreakdownId) {
     return context.giftTotalsByMember.get(line.gift_recipient_member_id ?? null) ?? 0
   }
-  return context.genericTotalsByBreakdownId.get(line.breakdown_id ?? '') ?? 0
+  return context.genericTotalsByBreakdownId.get(breakdownId) ?? 0
 }
 
 /**
@@ -28,7 +32,11 @@ export function applyBreakdownAmounts(
   }
   return lines.map((line) =>
     line.breakdown_id !== null
-      ? { ...line, amount_cents: derivedAmountCents(line, context), frequency: 'annual' }
+      ? {
+          ...line,
+          amount_cents: derivedAmountCents(line, line.breakdown_id, context),
+          frequency: 'annual',
+        }
       : line,
   )
 }

@@ -198,7 +198,7 @@ export function superCapSummaryByMember(
   const concessional = concessionalByMember(contributions, grossByMember)
   const nonConcessional = nonConcessionalByMember(contributions, grossByMember)
   const carryForwardByMember = new Map(
-    profiles.map((profile) => [profile.member_id, profile.carry_forward_cap_cents ?? 0]),
+    profiles.map((profile) => [profile.member_id, profile.carry_forward_cap_cents]),
   )
   const memberIds = new Set<string>([
     ...concessional.keys(),

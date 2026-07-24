@@ -139,6 +139,30 @@ describe('concessionalByMember', () => {
     // Only salary sacrifice (13_000_00) + personal deductible annual (500_00) count.
     expect(result.get('m1')).toBe(13_000_00 + 500_00)
   })
+
+  it('yields zero for a percent-mode contribution with no rate against an unknown member gross', () => {
+    const percentRow: SuperContribution = {
+      ...baseContribution,
+      mode: 'percent',
+      amount_cents: null,
+      percent_bp: null,
+      frequency: 'annual',
+    }
+    // No rate and no gross salary for the member: 0% of $0 is nothing.
+    const result = concessionalByMember([percentRow], new Map())
+    expect(result.get('m1')).toBe(0)
+  })
+
+  it('yields zero for an amount-mode contribution with no amount', () => {
+    const amountRow: SuperContribution = {
+      ...baseContribution,
+      mode: 'amount',
+      amount_cents: null,
+      frequency: 'annual',
+    }
+    const result = concessionalByMember([amountRow], new Map())
+    expect(result.get('m1')).toBe(0)
+  })
 })
 
 describe('estimateHouseholdTaxFromRows', () => {
@@ -452,6 +476,26 @@ describe('superCapSummaryByMember', () => {
     expect(summary.nonConcessionalCents).toBe(0)
     expect(summary.coContributionCents).toBe(0)
   })
+
+  it('applies the bare config cap to a contributing member who has no super profile', () => {
+    const contribution: SuperContribution = {
+      ...baseContribution,
+      member_id: 'm2',
+      kind: 'salary_sacrifice',
+      frequency: 'annual',
+      amount_cents: 5_000_00,
+    }
+    // m1 has a profile; m2 contributes but has no profile, so no carry-forward
+    // entry: their cap falls back to the bare config cap.
+    const summaries = superCapSummaryByMember(
+      [contribution],
+      [{ ...baseProfile, member_id: 'm1' }],
+      new Map(),
+      FY2027_CONFIG,
+    )
+    expect(summaries.get('m2')!.concessionalCapCents).toBe(32_500_00)
+    expect(summaries.get('m2')!.concessionalCents).toBe(5_000_00)
+  })
 })
 
 describe('superCapSummaryFromRows', () => {
@@ -507,6 +551,13 @@ describe('netAnnualSuperContributionByMember', () => {
     const grossByMember = new Map([['m1', 80_000_00]])
     const result = netAnnualSuperContributionByMember([], grossByMember, FY2027_CONFIG)
     expect(result.get('m1')).toBe(Math.round(0.12 * 80_000_00 * 0.85))
+  })
+
+  it('taxes a contribution with no gross salary, contributing no employer SG', () => {
+    // The member contributes but has no gross salary on record, so there is no
+    // employer SG; only the salary sacrifice is taxed at 15% in the fund.
+    const result = netAnnualSuperContributionByMember([baseContribution], new Map(), FY2027_CONFIG)
+    expect(result.get('m1')).toBe(Math.round(13_000_00 * 0.85))
   })
 })
 
@@ -575,6 +626,12 @@ describe('helpPayoffSummary', () => {
     expect(helpPayoffSummary({ paidOffFinancialYear: 2027, yearsToPayOff: 1, schedule: [] })).toBe(
       'HELP debt projected paid off in FY2027 (1 year)',
     )
+  })
+
+  it('treats a missing years-to-go as zero', () => {
+    expect(
+      helpPayoffSummary({ paidOffFinancialYear: 2027, yearsToPayOff: null, schedule: [] }),
+    ).toBe('HELP debt projected paid off in FY2027 (0 years)')
   })
 
   it('summarises a projection that does not clear within the horizon', () => {

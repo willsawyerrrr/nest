@@ -39,7 +39,7 @@ export function GiftMoneyBar({
   }
   const { percent, color } = progress(totals)
   return (
-    <Stack gap={4}>
+    <Stack gap="xxs">
       <Group gap="md" wrap="wrap">
         <Text size="xs" c="dimmed">
           Budget {formatCents(totals.budgetedCents)}
@@ -76,7 +76,7 @@ export function PurchaseRow({
           {formatIsoDate(purchase.purchased_on)}
         </Text>
       </Stack>
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <Text size="sm" fw={600}>
           {formatCents(purchase.amount_cents)}
         </Text>

@@ -397,7 +397,7 @@ export function SplitsScreen({
       )}
 
       {!hasPayAccount && spendingAccounts.length > 0 && (
-        <Alert color="blue" variant="light" title="Choose the account you’re paid into">
+        <Alert color="info" variant="light" title="Choose the account you’re paid into">
           Pick the spending account your pay lands in above. Once set, your other spending accounts
           join the recommended pay splits alongside your savers.
         </Alert>

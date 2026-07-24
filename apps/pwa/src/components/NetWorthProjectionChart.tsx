@@ -61,7 +61,7 @@ export function ProjectionTooltip({ active, payload }: ProjectionTooltipProps) {
       role="dialog"
       aria-label="Projection breakdown"
     >
-      <Stack gap={4}>
+      <Stack gap="xxs">
         <Text fw={600} fz="sm">
           {row.year}
         </Text>

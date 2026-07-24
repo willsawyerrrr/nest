@@ -97,7 +97,7 @@ function ConnectUpCard({
           </Stack>
         )}
 
-        <Stack gap={4}>
+        <Stack gap="xxs">
           {members.map((member) => (
             <Group key={member.id} justify="space-between">
               <Text size="sm">{member.name}</Text>

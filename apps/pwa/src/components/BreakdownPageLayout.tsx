@@ -31,7 +31,7 @@ export function BreakdownPageLayout({
     <Stack gap="md">
       {backTo != null && (
         <Anchor component={Link} to={backTo} size="sm">
-          <Group gap={4} wrap="nowrap">
+          <Group gap="xxs" wrap="nowrap">
             <IconArrowLeft size={16} />
             {backLabel}
           </Group>
@@ -39,9 +39,7 @@ export function BreakdownPageLayout({
       )}
 
       <Group justify="space-between" align="center" wrap="wrap" pt={{ base: 0, sm: 'md' }}>
-        <Title order={1} style={{ letterSpacing: '-0.02em' }}>
-          {title}
-        </Title>
+        <Title order={1}>{title}</Title>
         {action}
       </Group>
 

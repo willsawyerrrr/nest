@@ -63,6 +63,9 @@ The theme restyles Mantine components app-wide:
 - **Badge** — `variant: 'light'`, `radius: 'sm'`, `textTransform: 'none'` so every
   pill renders its label in natural case as written (e.g. "Fortnightly", "Every 7
   weeks", "Needs", "On track", "Salary"), overriding Mantine's default uppercasing.
+- **Title** — the display h1 (`order={1}`) carries a negative `letter-spacing`
+  (`-0.02em`) so the heavy Space Grotesk reads as a bold display line, applied
+  as a token here rather than per-screen.
 - **ActionIcon** — `variant: 'subtle'`.
 - Inputs (**TextInput**, **NumberInput**, **Select**, **SegmentedControl**,
   **Switch**, **Checkbox**) — `size: 'sm'` with `radius: 'md'` (Checkbox `sm`).

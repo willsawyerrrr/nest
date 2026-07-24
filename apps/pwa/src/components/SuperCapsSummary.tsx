@@ -42,7 +42,7 @@ export function SuperCapsSummary({ summary }: { summary: SuperCapSummaryData }) 
           Cap includes carry-forward from prior years.
         </Text>
         {summary.concessionalOverCap && (
-          <Alert color="red" variant="light" p="xs" mt={4}>
+          <Alert color="red" variant="light" p="xs" mt="xxs">
             <Text size="xs">
               Over the concessional cap ({formatCents(summary.concessionalCapCents)}). Excess is
               taxed at your marginal rate.
@@ -61,7 +61,7 @@ export function SuperCapsSummary({ summary }: { summary: SuperCapSummaryData }) 
           Bring-forward may allow up to 3&times; the cap.
         </Text>
         {summary.nonConcessionalOverCap && (
-          <Alert color="red" variant="light" p="xs" mt={4}>
+          <Alert color="red" variant="light" p="xs" mt="xxs">
             <Text size="xs">
               Over the non-concessional cap ({formatCents(summary.nonConcessionalCapCents)}) —
               unless bring-forward applies.

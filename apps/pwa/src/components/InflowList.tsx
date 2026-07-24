@@ -137,7 +137,7 @@ function InflowRow({
         justify="flex-end"
         style={{ width: '7rem', flexShrink: 0 }}
       />
-      <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -198,7 +198,7 @@ function InflowCard({
             </Text>
           )}
         </Stack>
-        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
           <FortnightlyAmount cents={fortnightlyOf(inflow)} />
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>

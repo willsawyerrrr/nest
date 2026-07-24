@@ -117,7 +117,7 @@ function GiftRowCard({
   if (hidden) {
     return (
       <AppCard withBorder padding="xs">
-        <Stack gap={4}>
+        <Stack gap="xxs">
           <Group justify="space-between" wrap="nowrap" gap="sm">
             <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
               <Text fw={600} size="sm" truncate>
@@ -313,7 +313,7 @@ function GiftGroupCard({
     <AppCard withBorder padding="sm">
       <Stack gap="sm">
         <UnstyledButton onClick={toggle} aria-expanded={opened}>
-          <Stack gap={4}>
+          <Stack gap="xxs">
             <Group justify="space-between" wrap="nowrap" gap="sm" align="center">
               <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
                 {opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />}
@@ -451,7 +451,7 @@ export function GiftsScreen({
     >
       {budgets.length > 0 && (
         <AppCard withBorder padding="sm">
-          <Stack gap={4}>
+          <Stack gap="xxs">
             <Title order={3} size="h5">
               Total
             </Title>

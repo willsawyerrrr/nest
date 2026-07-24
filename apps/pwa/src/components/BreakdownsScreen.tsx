@@ -134,7 +134,7 @@ function BreakdownCard({ breakdown, annualCents }: BreakdownItemProps) {
     <UnstyledButton component={Link} to={`/breakdowns/${breakdown.id}`}>
       <AppCard withBorder padding="sm">
         <Group justify="space-between" wrap="nowrap" gap="sm">
-          <Stack gap={4} style={{ minWidth: 0 }}>
+          <Stack gap="xxs" style={{ minWidth: 0 }}>
             <Text fw={600} size="sm" truncate>
               {breakdown.name}
             </Text>

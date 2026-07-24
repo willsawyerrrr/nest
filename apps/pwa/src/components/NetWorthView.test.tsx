@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Account } from '../hooks/useAccounts'
 import { fireEvent, render, screen, within } from '../test/render'
 import { NetWorthView } from './NetWorthView'
+
+afterEach(() => localStorage.clear())
 
 function account(
   overrides: Partial<Account> & Pick<Account, 'id' | 'name' | 'balance_cents'>,
@@ -250,6 +252,158 @@ describe('NetWorthView', () => {
     expect(
       screen.queryByRole('button', { name: 'Exclude Holiday saver from net worth' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('omits the projection chart when no projection is supplied', () => {
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('region', { name: 'Net worth projection' })).not.toBeInTheDocument()
+  })
+
+  it('renders the projection chart when points carry data', () => {
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          {
+            year: 0,
+            superCents: 20_000_000,
+            otherCents: 200000,
+            equityCents: 0,
+            helpCents: 30_000_00,
+            debtCents: 1_000_00,
+            totalCents: 16_900_000,
+          },
+          {
+            year: 1,
+            superCents: 21_400_000,
+            otherCents: 200000,
+            equityCents: 5_000_00,
+            helpCents: 20_000_00,
+            debtCents: 1_000_00,
+            totalCents: 19_100_000,
+          },
+        ]}
+        projectionBaseYear={2026}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    // Collapsed by default: only the header shows until expanded.
+    const chart = screen.getByRole('region', { name: 'Net worth projection' })
+    expect(within(chart).queryByText(/itemised in the tooltip/i)).not.toBeInTheDocument()
+    fireEvent.click(within(chart).getByRole('button', { name: 'Projected forward' }))
+    // Expanded: assets are plotted as areas; liabilities stay in the total and the tooltip.
+    expect(within(chart).getByText(/itemised in the tooltip/i)).toBeInTheDocument()
+  })
+
+  it('collapses the projection by default and toggles it open and shut', () => {
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          {
+            year: 0,
+            superCents: 20_000_000,
+            otherCents: 0,
+            equityCents: 0,
+            helpCents: 0,
+            debtCents: 0,
+            totalCents: 20_000_000,
+          },
+        ]}
+        projectionBaseYear={2026}
+        horizon="retirement"
+        onHorizonChange={vi.fn()}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    const chart = screen.getByRole('region', { name: 'Net worth projection' })
+    const toggle = within(chart).getByRole('button', { name: 'Projected forward' })
+    // Collapsed: the header reports collapsed and the horizon control is absent.
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(chart).queryByRole('radiogroup', { name: 'Projection horizon' })).toBeNull()
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(
+      within(chart).getByRole('radiogroup', { name: 'Projection horizon' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(within(chart).queryByRole('radiogroup', { name: 'Projection horizon' })).toBeNull()
+  })
+
+  it('shows the projection empty state when every point is zero', () => {
+    render(
+      <NetWorthView
+        accounts={[]}
+        superIds={new Set()}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          {
+            year: 0,
+            superCents: 0,
+            otherCents: 0,
+            equityCents: 0,
+            helpCents: 0,
+            debtCents: 0,
+            totalCents: 0,
+          },
+        ]}
+        projectionBaseYear={2026}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    const chart = screen.getByRole('region', { name: 'Net worth projection' })
+    fireEvent.click(within(chart).getByRole('button', { name: 'Projected forward' }))
+    expect(within(chart).getByText(/project your net worth forward/i)).toBeInTheDocument()
+  })
+
+  it('renders the horizon control and reports the chosen option', () => {
+    const onHorizonChange = vi.fn()
+    render(
+      <NetWorthView
+        accounts={accounts}
+        superIds={new Set(['a1', 'a2'])}
+        equity={[]}
+        liabilities={[]}
+        projection={[
+          {
+            year: 0,
+            superCents: 20_000_000,
+            otherCents: 0,
+            equityCents: 0,
+            helpCents: 0,
+            debtCents: 0,
+            totalCents: 20_000_000,
+          },
+        ]}
+        projectionBaseYear={2026}
+        horizon="retirement"
+        onHorizonChange={onHorizonChange}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Projected forward' }))
+    const control = screen.getByRole('radiogroup', { name: 'Projection horizon' })
+    expect(within(control).getByText('To retirement')).toBeInTheDocument()
+    fireEvent.click(within(control).getByText('5y'))
+    expect(onHorizonChange).toHaveBeenCalledWith('5y')
   })
 
   it('offers no Edit affordance when only super accounts exist', () => {

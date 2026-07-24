@@ -3,6 +3,7 @@ import {
   centsToDollars,
   dollarsToCents,
   formatCents,
+  formatCompactDollars,
   formatPerFortnight,
   formatPerYear,
   moneyColor,
@@ -57,6 +58,49 @@ describe('formatCents', () => {
 
   it('formats zero', () => {
     expect(formatCents(0)).toBe('$0.00')
+  })
+})
+
+describe('formatCompactDollars', () => {
+  it('formats zero as a bare dollar sign', () => {
+    expect(formatCompactDollars(0)).toBe('$0')
+  })
+
+  it('rounds a sub-1k amount to whole dollars', () => {
+    expect(formatCompactDollars(500_00)).toBe('$500')
+    expect(formatCompactDollars(499_49)).toBe('$499')
+  })
+
+  it('abbreviates thousands with k', () => {
+    expect(formatCompactDollars(50_000_00)).toBe('$50k')
+    expect(formatCompactDollars(150_000_00)).toBe('$150k')
+  })
+
+  it('keeps exact thousands without a decimal', () => {
+    expect(formatCompactDollars(1_000_00)).toBe('$1k')
+  })
+
+  it('abbreviates millions with M', () => {
+    expect(formatCompactDollars(1_200_000_00)).toBe('$1.2M')
+    expect(formatCompactDollars(5_000_000_00)).toBe('$5M')
+  })
+
+  it('rounds to at most one decimal', () => {
+    // $123,450 → 123.45k rounds to 123.5k; $1,234,500 → 1.2345M rounds to 1.2M.
+    expect(formatCompactDollars(123_450_00)).toBe('$123.5k')
+    expect(formatCompactDollars(1_234_500_00)).toBe('$1.2M')
+  })
+
+  it('trims a trailing .0', () => {
+    // $150,000 → 150.0k trims to 150k; $2,000,000 → 2.0M trims to 2M.
+    expect(formatCompactDollars(150_000_00)).toBe('$150k')
+    expect(formatCompactDollars(2_000_000_00)).toBe('$2M')
+  })
+
+  it('formats negatives with a leading minus', () => {
+    expect(formatCompactDollars(-50_000_00)).toBe('-$50k')
+    expect(formatCompactDollars(-1_200_000_00)).toBe('-$1.2M')
+    expect(formatCompactDollars(-500_00)).toBe('-$500')
   })
 })
 

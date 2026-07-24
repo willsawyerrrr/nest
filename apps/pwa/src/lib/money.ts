@@ -10,6 +10,30 @@ export function formatCents(cents: number): string {
   return currency.format(cents / 100)
 }
 
+/** Rounds to at most one decimal and drops a trailing `.0` (e.g. `1.2`, `150`). */
+function compactMagnitude(value: number): string {
+  return (Math.round(value * 10) / 10).toString()
+}
+
+/**
+ * Formats integer cents as abbreviated whole-dollar currency for dense labels
+ * (e.g. axis ticks): `$0`, `$500`, `$50k`, `$150k`, `$1.2M`, and negatives like
+ * `-$50k`. Thousands take `k` and millions `M`, at most one decimal with a trailing
+ * `.0` trimmed; sub-thousand amounts round to whole dollars.
+ */
+export function formatCompactDollars(cents: number): string {
+  const dollars = cents / 100
+  const sign = dollars < 0 ? '-' : ''
+  const abs = Math.abs(dollars)
+  if (abs >= 1_000_000) {
+    return `${sign}$${compactMagnitude(abs / 1_000_000)}M`
+  }
+  if (abs >= 1_000) {
+    return `${sign}$${compactMagnitude(abs / 1_000)}k`
+  }
+  return `${sign}$${Math.round(abs)}`
+}
+
 /** Formats integer cents as a fortnightly rate (e.g. `$1,234.56 / fn`). */
 export function formatPerFortnight(cents: number): string {
   return `${formatCents(cents)} / fn`

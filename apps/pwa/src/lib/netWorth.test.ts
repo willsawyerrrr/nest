@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { HelpPayoffProjection } from '@nest/tax'
+import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { Goal } from '../hooks/useGoals'
 import {
   combinedHelpCentsByYear,
   DEFAULT_PROJECTION_HORIZON_YEARS,
+  netWorthGoals,
   projectionHorizonYears,
 } from './netWorth'
 
@@ -49,5 +52,50 @@ describe('combinedHelpCentsByYear', () => {
 
   it('returns a flat current total when there are no debts', () => {
     expect(combinedHelpCentsByYear([], 0, 2)).toEqual([0, 0, 0])
+  })
+})
+
+/** A savings-goal row carrying only the fields the projection reads. */
+function goal(overrides: Partial<Goal> & Pick<Goal, 'id'>): Goal {
+  return {
+    target_amount_cents: 10_000_00,
+    current_balance_cents: 0,
+    linked_account_id: null,
+    ...overrides,
+  } as Goal
+}
+
+/** A budget line funding a goal at a fortnightly amount. */
+function line(goalId: string, amountCents: number): BudgetLine {
+  return { goal_id: goalId, amount_cents: amountCents, frequency: 'fortnightly' } as BudgetLine
+}
+
+describe('netWorthGoals', () => {
+  it('sums the fortnightly contribution from the budget lines routed to a goal', () => {
+    const goals = [goal({ id: 'g1', target_amount_cents: 20_000_00 })]
+    const lines = [line('g1', 60_00), line('g1', 40_00), line('g2', 999_00)]
+    expect(netWorthGoals(goals, lines, new Map())).toEqual([
+      {
+        targetAmountCents: 20_000_00,
+        currentBalanceCents: 0,
+        fortnightlyContributionCents: 100_00,
+      },
+    ])
+  })
+
+  it('uses a linked saver synced balance over the manual figure', () => {
+    const goals = [goal({ id: 'g1', linked_account_id: 'acc1', current_balance_cents: 1_000_00 })]
+    expect(netWorthGoals(goals, [], new Map([['acc1', 7_500_00]]))).toEqual([
+      {
+        targetAmountCents: 10_000_00,
+        currentBalanceCents: 7_500_00,
+        fortnightlyContributionCents: 0,
+      },
+    ])
+  })
+
+  it('falls back to the manual balance when the linked account is not visible', () => {
+    const goals = [goal({ id: 'g1', linked_account_id: 'hidden', current_balance_cents: 2_000_00 })]
+    expect(netWorthGoals(goals, [], new Map())[0]?.currentBalanceCents).toBe(2_000_00)
   })
 })

@@ -26,6 +26,7 @@ export type { SuperProjection, SuperProjectionInput } from './retirement'
 
 export { projectNetWorth } from './netWorthProjection'
 export type {
+  NetWorthGoal,
   NetWorthProjectionInput,
   NetWorthProjectionPoint,
   NetWorthSuperInput,

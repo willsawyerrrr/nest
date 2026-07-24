@@ -11,6 +11,8 @@ const hooks = vi.hoisted(() => ({
   useEquityGrants: vi.fn(),
   useTaxProfiles: vi.fn(),
   useDeductions: vi.fn(),
+  useGoals: vi.fn(),
+  useBudgetLines: vi.fn(),
   useMembers: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -28,6 +30,8 @@ vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
 vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
+vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
+vi.mock('../hooks/useBudgetLines', () => ({ useBudgetLines: hooks.useBudgetLines }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../components/NetWorthView', () => ({
   NetWorthView: (props: Record<string, unknown>) => {
@@ -45,6 +49,8 @@ function mockLoaded() {
   hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [] })
   hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+  hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
+  hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
   hooks.useMembers.mockReturnValue({ loading: false, members: [] })
 }
 
@@ -158,6 +164,49 @@ describe('NetWorthSection', () => {
     // No super balance today, but contributions lift the balance by the horizon.
     expect(projection.at(0)?.superCents).toBe(0)
     expect(projection.at(-1)?.superCents).toBeGreaterThan(0)
+  })
+
+  it('folds a funded goal into cash without double-counting its linked saver balance', () => {
+    mockLoaded()
+    // A saver holding $8,000 is already in the account totals; a goal linked to it
+    // targets $10,000 and is funded $100/fn, so cash starts at the saver balance
+    // and climbs by future contributions capped at the $2,000 remaining.
+    hooks.useAccounts.mockReturnValue({
+      loading: false,
+      update: vi.fn(),
+      accounts: [
+        {
+          id: 'acc1',
+          name: 'House deposit',
+          balance_cents: 8_000_00,
+          exclude_from_net_worth: false,
+        },
+      ],
+    })
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [
+        {
+          id: 'g1',
+          name: 'House',
+          target_amount_cents: 10_000_00,
+          current_balance_cents: 0,
+          linked_account_id: 'acc1',
+        },
+      ],
+    })
+    hooks.useBudgetLines.mockReturnValue({
+      loading: false,
+      lines: [{ id: 'b1', goal_id: 'g1', amount_cents: 100_00, frequency: 'fortnightly' }],
+    })
+    render(<NetWorthSection householdId="h1" />)
+
+    const projection = hooks.screenProps?.projection as { year: number; otherCents: number }[]
+    // Year 0 is the saver balance (no double count); the goal adds only the $2,000
+    // remaining, reached by year 1 and then held flat.
+    expect(projection.at(0)?.otherCents).toBe(8_000_00)
+    expect(projection.at(1)?.otherCents).toBe(10_000_00)
+    expect(projection.at(-1)?.otherCents).toBe(10_000_00)
   })
 
   it('toggling exclusion updates the account with the flag', () => {

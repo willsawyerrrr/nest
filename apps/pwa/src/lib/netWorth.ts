@@ -1,4 +1,7 @@
+import { fortnightlyCents, type NetWorthGoal } from '@nest/plan'
 import type { HelpPayoffProjection } from '@nest/tax'
+import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { Goal } from '../hooks/useGoals'
 
 /** Default projection horizon in years when no member age pins it to retirement. */
 export const DEFAULT_PROJECTION_HORIZON_YEARS = 30
@@ -34,4 +37,33 @@ export function combinedHelpCentsByYear(
     result.push(sum)
   }
   return result
+}
+
+/**
+ * Maps the household's savings goals to the projection's goal shape. Each goal's
+ * effective current balance is its linked saver's synced balance (from
+ * `balanceByAccountId`, falling back to the manual figure when the account is not
+ * visible) or, for an unlinked goal, its manually entered balance — the same
+ * balance the Goals tab shows. The fortnightly contribution is the sum of the
+ * budget lines routed to the goal, matching the Goals tab's funding rate.
+ */
+export function netWorthGoals(
+  goals: readonly Goal[],
+  lines: readonly BudgetLine[],
+  balanceByAccountId: ReadonlyMap<string, number>,
+): NetWorthGoal[] {
+  return goals.map((goal) => {
+    const currentBalanceCents =
+      goal.linked_account_id !== null
+        ? (balanceByAccountId.get(goal.linked_account_id) ?? goal.current_balance_cents)
+        : goal.current_balance_cents
+    const fortnightlyContributionCents = lines
+      .filter((line) => line.goal_id === goal.id)
+      .reduce((total, line) => total + fortnightlyCents(line.amount_cents, line.frequency), 0)
+    return {
+      targetAmountCents: goal.target_amount_cents,
+      currentBalanceCents,
+      fortnightlyContributionCents,
+    }
+  })
 }

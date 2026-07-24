@@ -2,8 +2,10 @@ import { grantValueCents, projectNetWorth } from '@nest/plan'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { NetWorthView } from '../components/NetWorthView'
 import { useAccounts } from '../hooks/useAccounts'
+import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useDeductions } from '../hooks/useDeductions'
 import { useEquityGrants } from '../hooks/useEquityGrants'
+import { useGoals } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
@@ -11,7 +13,7 @@ import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { equityGrantToPlan } from '../lib/equity'
-import { combinedHelpCentsByYear, projectionHorizonYears } from '../lib/netWorth'
+import { combinedHelpCentsByYear, netWorthGoals, projectionHorizonYears } from '../lib/netWorth'
 import { readAssumptions, readMemberAges } from '../lib/retirement'
 import {
   accountsWithEffectiveSuperBalances,
@@ -35,6 +37,8 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   const equityGrants = useEquityGrants(householdId)
   const taxProfiles = useTaxProfiles(householdId)
   const deductions = useDeductions(householdId)
+  const goals = useGoals(householdId)
+  const budgetLines = useBudgetLines(householdId)
   const { members, loading: membersLoading } = useMembers()
 
   if (
@@ -46,6 +50,8 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     equityGrants.loading ||
     taxProfiles.loading ||
     deductions.loading ||
+    goals.loading ||
+    budgetLines.loading ||
     membersLoading ||
     !members
   ) {
@@ -111,6 +117,12 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     (total, cents) => total + cents,
     0,
   )
+  // A linked goal's saver balance is already in the account totals, so goals fold
+  // in only their future contributions on top, resolved from that same balance.
+  const balanceByAccountId = new Map(
+    effectiveAccounts.map((account) => [account.id, account.balance_cents]),
+  )
+  const savingsGoals = netWorthGoals(goals.goals ?? [], budgetLines.lines ?? [], balanceByAccountId)
   const projection = projectNetWorth({
     asOf: today,
     horizonYears,
@@ -123,6 +135,7 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     otherCents: breakdown.otherTotalCents,
     equityGrants: planGrants,
     helpCentsByYear,
+    savingsGoals,
   })
 
   return (

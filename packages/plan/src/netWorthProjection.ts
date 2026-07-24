@@ -3,12 +3,15 @@
  * components (super, cash and other accounts, vested equity) less its HELP debt,
  * and the resulting total. Pure and deterministic — `asOf` and every assumption
  * are passed in, never read from the clock. Figures are nominal (future dollars):
- * super compounds and accrues contributions, cash is held flat, equity grows only
- * as it vests at today's price, and HELP follows a supplied paydown.
+ * super compounds and accrues contributions, cash starts flat and grows by ongoing
+ * savings-goal contributions, equity grows only as it vests at today's price, and
+ * HELP follows a supplied paydown.
  */
 
 import { equityTotalCents, type EquityGrant } from './equity'
+import { projectGoal } from './goal'
 import type { Money } from './index'
+import { FORTNIGHTS_PER_YEAR } from './normalize'
 import { projectSuperBalance } from './retirement'
 
 /**
@@ -25,12 +28,25 @@ export interface NetWorthSuperInput {
 }
 
 /**
+ * A savings goal folded into the projection's cash component. Its
+ * `currentBalanceCents` is assumed already counted in `otherCents` (its linked
+ * saver's synced balance, or the money a manual goal is saved in), so only future
+ * contributions are added on top — never the current balance. Contributions accrue
+ * at `fortnightlyContributionCents` and stop once the target is reached.
+ */
+export interface NetWorthGoal {
+  readonly targetAmountCents: Money
+  readonly currentBalanceCents: Money
+  readonly fortnightlyContributionCents: Money
+}
+
+/**
  * Inputs to the net worth projection. `horizonYears` is the whole number of years
  * to project past `asOf`. `otherCents` is the current total of non-super accounts,
- * held flat. `equityGrants` are valued at each future year so vesting lifts the
- * equity line. `helpCentsByYear` is the total HELP balance at each year offset
- * (index 0 = as of `asOf`); a shorter array reuses its last entry, an empty one
- * means no debt.
+ * which grows only by the `savingsGoals` contributions folded on top. `equityGrants`
+ * are valued at each future year so vesting lifts the equity line. `helpCentsByYear`
+ * is the total HELP balance at each year offset (index 0 = as of `asOf`); a shorter
+ * array reuses its last entry, an empty one means no debt.
  */
 export interface NetWorthProjectionInput {
   readonly asOf: Date
@@ -39,6 +55,7 @@ export interface NetWorthProjectionInput {
   readonly otherCents: Money
   readonly equityGrants: readonly EquityGrant[]
   readonly helpCentsByYear: readonly Money[]
+  readonly savingsGoals: readonly NetWorthGoal[]
 }
 
 /** One year of the projection: each component and the resulting total, in cents. */
@@ -68,16 +85,60 @@ function addYears(date: Date, years: number): Date {
 }
 
 /**
+ * A goal's future saving, reduced to what still accrues: `remainingCents` — the
+ * amount left to the target (`projectGoal`), which caps the contributions — and
+ * `annualContributionCents`, the goal's fortnightly funding annualised.
+ */
+interface GoalAccrual {
+  readonly remainingCents: Money
+  readonly annualContributionCents: Money
+}
+
+/** Reduces each goal to its remaining-to-target cap and annualised contribution. */
+function goalAccruals(goals: readonly NetWorthGoal[], asOf: Date): GoalAccrual[] {
+  return goals.map((goal) => ({
+    remainingCents: projectGoal(
+      { targetAmountCents: goal.targetAmountCents, currentBalanceCents: goal.currentBalanceCents },
+      goal.fortnightlyContributionCents,
+      asOf,
+    ).remainingCents,
+    annualContributionCents: goal.fortnightlyContributionCents * FORTNIGHTS_PER_YEAR,
+  }))
+}
+
+/**
+ * The total future savings-goal contributions accrued by `year`, each goal capped
+ * at its remaining-to-target amount so a goal stops adding once it is met.
+ */
+function goalsSavedByYear(accruals: readonly GoalAccrual[], year: number): Money {
+  return accruals.reduce(
+    (total, accrual) =>
+      total + Math.min(accrual.remainingCents, Math.max(0, accrual.annualContributionCents * year)),
+    0,
+  )
+}
+
+/**
  * Projects net worth for each year from 0 (as of `asOf`) through `horizonYears`.
  * Super is compounded and accrued via `projectSuperBalance` in nominal terms (so
- * inflation is not applied); cash stays at `otherCents`; equity is the vested value
- * of the grants at that future date; HELP is read from `helpCentsByYear`. The total
- * is super plus cash plus equity less HELP. A `horizonYears` below 0 yields the
- * single year-0 point.
+ * inflation is not applied); cash starts at `otherCents` and grows by the
+ * `savingsGoals` contributions accrued to that year (each capped at its
+ * remaining-to-target); equity is the vested value of the grants at that future
+ * date; HELP is read from `helpCentsByYear`. The total is super plus cash plus
+ * equity less HELP. A `horizonYears` below 0 yields the single year-0 point.
  */
 export function projectNetWorth(input: NetWorthProjectionInput): NetWorthProjectionPoint[] {
-  const { asOf, horizonYears, superInput, otherCents, equityGrants, helpCentsByYear } = input
+  const {
+    asOf,
+    horizonYears,
+    superInput,
+    otherCents,
+    equityGrants,
+    helpCentsByYear,
+    savingsGoals,
+  } = input
   const lastYear = Math.max(0, Math.floor(horizonYears))
+  const accruals = goalAccruals(savingsGoals, asOf)
   const points: NetWorthProjectionPoint[] = []
   for (let year = 0; year <= lastYear; year++) {
     const superCents = projectSuperBalance({
@@ -88,15 +149,16 @@ export function projectNetWorth(input: NetWorthProjectionInput): NetWorthProject
       inflationRate: 0,
       contributionGrowthRate: superInput.contributionGrowthRate,
     }).nominalCents
+    const cashCents = otherCents + goalsSavedByYear(accruals, year)
     const equityCents = equityTotalCents(equityGrants, addYears(asOf, year))
     const helpCents = helpAt(helpCentsByYear, year)
     points.push({
       year,
       superCents,
-      otherCents,
+      otherCents: cashCents,
       equityCents,
       helpCents,
-      totalCents: superCents + otherCents + equityCents - helpCents,
+      totalCents: superCents + cashCents + equityCents - helpCents,
     })
   }
   return points

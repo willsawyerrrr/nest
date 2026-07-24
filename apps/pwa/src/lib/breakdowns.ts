@@ -11,17 +11,14 @@ import {
 } from './gifts'
 
 /**
- * The rolled-up annual amounts every derived line reads, resolved per line rather
- * than per breakdown so a gift breakdown can own several lines. A generic
- * breakdown owns one line whose amount is `genericTotalsByBreakdownId`; the single
- * `gift` breakdown owns one line per recipient partition, each taking its share
- * from `giftTotalsByMember` (keyed by member id, `null` for external recipients).
+ * The rolled-up annual amounts every derived line reads, resolved per line. A
+ * generic breakdown owns one line whose amount is `genericTotalsByBreakdownId`;
+ * each gift line (keyed by `is_gift_line`) takes its share from
+ * `giftTotalsByMember` (keyed by member id, `null` for external recipients).
  */
 export interface DerivedAmountContext {
   /** Each generic breakdown's summed annualised item total, keyed by breakdown id. */
   genericTotalsByBreakdownId: Map<string, number>
-  /** The household's single gift breakdown's id, or `null` when it has none. */
-  giftBreakdownId: string | null
   /** The gift spend partitioned by recipient member (`null` = external recipients). */
   giftTotalsByMember: Map<string | null, number>
 }
@@ -41,7 +38,7 @@ function genericTotal(items: BreakdownItem[], breakdownId: string): number {
  * Builds the {@link DerivedAmountContext} from the household's breakdowns, generic
  * items, and gift data. Every derived-line amount — in the Budget and Summary
  * tabs and the reconcile pass — resolves from this one context, so the surfaces
- * never drift.
+ * never drift. Breakdowns are generic; the gift roll-up reads gift data alone.
  */
 export function derivedAmountContext(
   breakdowns: Breakdown[],
@@ -50,47 +47,34 @@ export function derivedAmountContext(
   giftRecipients: GiftRecipient[],
 ): DerivedAmountContext {
   const genericTotalsByBreakdownId = new Map<string, number>()
-  let giftBreakdownId: string | null = null
   for (const breakdown of breakdowns) {
-    if (breakdown.kind === 'gift') {
-      giftBreakdownId = breakdown.id
-    } else {
-      genericTotalsByBreakdownId.set(breakdown.id, genericTotal(items, breakdown.id))
-    }
+    genericTotalsByBreakdownId.set(breakdown.id, genericTotal(items, breakdown.id))
   }
   return {
     genericTotalsByBreakdownId,
-    giftBreakdownId,
     giftTotalsByMember: giftTotalsByMember(giftBudgets, giftRecipients),
   }
 }
 
 /**
- * Each breakdown's overall rolled-up annual total, keyed by breakdown id — the
- * gift breakdown summing every recipient partition — for the Breakdowns list,
- * which shows one total per breakdown rather than the per-partition split.
+ * Each generic breakdown's rolled-up annual total, keyed by breakdown id, for the
+ * Breakdowns list, which shows one total per breakdown.
  */
 export function breakdownTotalsByBreakdownId(
   breakdowns: Breakdown[],
   context: DerivedAmountContext,
 ): Map<string, number> {
-  const giftTotal = [...context.giftTotalsByMember.values()].reduce((sum, cents) => sum + cents, 0)
   const totals = new Map<string, number>()
   for (const breakdown of breakdowns) {
-    totals.set(
-      breakdown.id,
-      breakdown.kind === 'gift'
-        ? giftTotal
-        : (context.genericTotalsByBreakdownId.get(breakdown.id) ?? 0),
-    )
+    totals.set(breakdown.id, context.genericTotalsByBreakdownId.get(breakdown.id) ?? 0)
   }
   return totals
 }
 
 /**
  * How many items each generic breakdown owns, keyed by breakdown id, driving its
- * derived line's existence. A gift breakdown owns no `breakdown_item` rows (its
- * items live in `gift_budget`), so its line lifecycle is driven by
+ * derived line's existence. Gift lines carry no `breakdown_item` rows (their
+ * amounts live in `gift_budget`), so their lifecycle is driven by
  * {@link DerivedAmountContext.giftTotalsByMember} instead, not this count.
  */
 export function breakdownItemCounts(
@@ -111,14 +95,21 @@ export interface BreakdownLineOps {
   remove: string[]
 }
 
+/** The default budget group a brand-new gift line seeds into (a member line keeps its own group thereafter). */
+const GIFT_LINE_DEFAULT_GROUP: Breakdown['line_group'] = 'wants'
+
+/** The stable name of the external ("others") gift line — the one recipient partition with no household member. */
+const EXTERNAL_GIFT_LINE_NAME = 'Gifts'
+
 /** Whether a group routes via a savings goal rather than a funding account (the DB CHECK bars a destination). */
 function groupRoutesViaGoal(group: Breakdown['line_group']): boolean {
   return group === 'savings' || group === 'investments'
 }
 
-/** The derived-line fields a breakdown drives, at the given effective group, routing, and any goal link. */
+/** The derived-line fields a roll-up drives, at the given effective group, routing, source, and any goal link. */
 function derivedInput(
-  breakdown: Breakdown,
+  breakdownId: string | null,
+  isGiftLine: boolean,
   group: Breakdown['line_group'],
   totalCents: number,
   name: string,
@@ -133,13 +124,14 @@ function derivedInput(
     frequency: 'annual',
     interval_count: null,
     goal_id: line?.goal_id ?? null,
-    breakdown_id: breakdown.id,
+    breakdown_id: breakdownId,
     destination_account_id: destinationAccountId,
     gift_recipient_member_id: giftRecipientMemberId,
+    is_gift_line: isGiftLine,
   }
 }
 
-/** Whether a derived line has drifted from the name, effective group, amount, partition, or routing it should carry. */
+/** Whether a derived line has drifted from the name, group, amount, partition, or routing it should carry. */
 function lineDrifted(
   line: BudgetLine,
   group: Breakdown['line_group'],
@@ -171,9 +163,10 @@ function preservedDestination(
   return groupRoutesViaGoal(group) ? null : (line?.destination_account_id ?? null)
 }
 
-/** Queues the create/update to bring one partition's line to the given amount, name, effective group, and routing. */
+/** Queues the create/update to bring one partition's line to the given amount, name, group, source, and routing. */
 function reconcilePartition(
-  breakdown: Breakdown,
+  breakdownId: string | null,
+  isGiftLine: boolean,
   group: Breakdown['line_group'],
   totalCents: number,
   name: string,
@@ -184,7 +177,15 @@ function reconcilePartition(
 ): void {
   if (!line) {
     ops.create.push(
-      derivedInput(breakdown, group, totalCents, name, giftRecipientMemberId, destinationAccountId),
+      derivedInput(
+        breakdownId,
+        isGiftLine,
+        group,
+        totalCents,
+        name,
+        giftRecipientMemberId,
+        destinationAccountId,
+      ),
     )
   } else if (
     lineDrifted(line, group, totalCents, name, giftRecipientMemberId, destinationAccountId)
@@ -192,7 +193,8 @@ function reconcilePartition(
     ops.update.push({
       id: line.id,
       input: derivedInput(
-        breakdown,
+        breakdownId,
+        isGiftLine,
         group,
         totalCents,
         name,
@@ -204,18 +206,17 @@ function reconcilePartition(
   }
 }
 
-/** The derived line's name for a gift partition: the member's own line, else the breakdown's name. */
+/** The derived line's name for a gift partition: the member's own line, else the stable external-line name. */
 function giftLineName(
-  breakdown: Breakdown,
   memberKey: string | null,
   memberNames: Map<string, string>,
   line: BudgetLine | undefined,
 ): string {
   if (memberKey === null) {
-    return breakdown.name
+    return EXTERNAL_GIFT_LINE_NAME
   }
   const memberName = memberNames.get(memberKey)
-  return memberName ? `Gifts for ${memberName}` : (line?.name ?? breakdown.name)
+  return memberName ? `Gifts for ${memberName}` : (line?.name ?? EXTERNAL_GIFT_LINE_NAME)
 }
 
 /**
@@ -233,10 +234,20 @@ function reconcileGenericBreakdown(
   const group = breakdown.line_group
   const destination = preservedDestination(group, line)
   if (itemCount >= 1) {
-    reconcilePartition(breakdown, group, totalCents, breakdown.name, null, destination, line, ops)
+    reconcilePartition(
+      breakdown.id,
+      false,
+      group,
+      totalCents,
+      breakdown.name,
+      null,
+      destination,
+      line,
+      ops,
+    )
   } else if (line?.destination_account_id) {
     // No items left, but the line's routing must survive: keep it at $0.
-    reconcilePartition(breakdown, group, 0, breakdown.name, null, destination, line, ops)
+    reconcilePartition(breakdown.id, false, group, 0, breakdown.name, null, destination, line, ops)
   } else if (line) {
     ops.remove.push(line.id)
   }
@@ -262,26 +273,28 @@ function giftPartitionDestination(
 }
 
 /**
- * Reconciles the gift breakdown's derived lines, one per recipient partition: a
- * member with gift budgets, plus the external-recipients partition (`null` key).
- * A member partition's line exists purely while it has budgets, funded
- * automatically from the buyer's spending account; the external partition's line
- * survives an empty partition at $0 while it carries user-set routing. Any other
- * empty partition's line is removed. Each partition's effective group is its own
- * line's group (the breakdown's group only seeds a brand-new partition line), so a
- * gift line's group is per-line and never overwritten by reconcile.
+ * Reconciles the household's gift lines against its gift data alone, keyed off
+ * `budget_line.is_gift_line` — no breakdown involved. It yields one line per
+ * recipient partition: a member with gift budgets, plus the external-recipients
+ * partition (`null` key). A member partition's line exists purely while it has
+ * budgets, funded automatically from the buyer's spending account; the external
+ * partition's line survives an empty partition at $0 while it carries user-set
+ * routing. Any other empty partition's line is removed. Each member line's group
+ * is its own line's group (a brand-new gift line seeds {@link GIFT_LINE_DEFAULT_GROUP}),
+ * so a gift line's group is per-line and never overwritten by reconcile. Every
+ * line it writes is stamped `is_gift_line: true` and `breakdown_id: null`.
  */
-function reconcileGiftBreakdown(
-  breakdown: Breakdown,
+export function reconcileGiftLines(
   totalsByMember: Map<string | null, number>,
-  existingLines: BudgetLine[],
+  lines: BudgetLine[],
   memberNames: Map<string, string>,
   members: { id: string }[],
   directory: DirectoryAccount[],
-  ops: BreakdownLineOps,
-): void {
+): BreakdownLineOps {
+  const ops: BreakdownLineOps = { create: [], update: [], remove: [] }
+  const giftLines = lines.filter((line) => line.is_gift_line)
   const lineByKey = new Map<string | null, BudgetLine>()
-  for (const line of existingLines) {
+  for (const line of giftLines) {
     lineByKey.set(line.gift_recipient_member_id ?? null, line)
   }
 
@@ -295,16 +308,16 @@ function reconcileGiftBreakdown(
   for (const key of keys) {
     const line = lineByKey.get(key)
     const total = totalsByMember.get(key) ?? 0
-    const name = giftLineName(breakdown, key, memberNames, line)
-    // Preserve the line's own group; a brand-new partition line seeds from the breakdown.
-    const group = line?.line_group ?? breakdown.line_group
+    const name = giftLineName(key, memberNames, line)
+    // Preserve the line's own group; a brand-new gift line seeds the default.
+    const group = line?.line_group ?? GIFT_LINE_DEFAULT_GROUP
     const destination = giftPartitionDestination(group, key, line, members, directory)
-    reconcilePartition(breakdown, group, total, name, key, destination, line, ops)
+    reconcilePartition(null, true, group, total, name, key, destination, line, ops)
   }
 
   // Remove a member line once its budgets are gone, and the external line once it
   // is both empty and unrouted.
-  for (const line of existingLines) {
+  for (const line of giftLines) {
     const key = line.gift_recipient_member_id ?? null
     if (totalsByMember.has(key)) {
       continue
@@ -314,62 +327,44 @@ function reconcileGiftBreakdown(
     }
     ops.remove.push(line.id)
   }
+  return ops
 }
 
 /**
- * Computes the app-enforced derived-line lifecycle: a generic breakdown owns
- * exactly one line tracking its name, group, and item roll-up; the gift breakdown
- * owns one line per recipient partition (a member with gift budgets, plus the
- * external-recipients line), each tracking its partition total and named
- * "Gifts for <member>" (the breakdown's own name for the external line).
+ * Computes the app-enforced derived-line lifecycle for generic breakdowns: each
+ * owns exactly one line tracking its name, group, and item roll-up, linked by
+ * `budget_line.breakdown_id`. Gift lines are reconciled separately by
+ * {@link reconcileGiftLines}; a `kind === 'gift'` breakdown (should one linger
+ * during a data migration) is skipped here.
  *
- * A generic line's group tracks its breakdown's group. A gift line's group is
- * per-line and preserved across reconcile — the breakdown's group only seeds a
- * brand-new gift partition line — so each gift line can sit in its own budget group.
+ * A generic line's group tracks its breakdown's group.
  *
- * - A partition with budgets/items but no line yields a create (a new gift line
- *   seeded with the breakdown's group).
- * - A line whose name, group, amount, partition, frequency, or routing has drifted
- *   yields an update, keeping a user-routable line's own routing and goal link (a
- *   goal-routed group clears its funding account) while forcing each gift member
- *   line's routing to the buyer's spending account. A gift line's group is not
- *   treated as drift, so changing one gift line's group never touches the others.
- * - A generic or external line with no budgets/items is removed unless it carries a
- *   `destination_account_id`, in which case its routing is preserved and it is kept
- *   at $0; a gift member line is removed as soon as its budgets are gone, since its
- *   routing is auto-derived rather than user-set.
+ * - A breakdown with items but no line yields a create.
+ * - A line whose name, group, amount, source, frequency, or routing has drifted
+ *   yields an update, keeping the line's own routing and goal link (a goal-routed
+ *   group clears its funding account).
+ * - A line with no items is removed unless it carries a `destination_account_id`,
+ *   in which case its routing is preserved and it is kept at $0.
  */
 export function reconcileBreakdownLines(
   breakdowns: Breakdown[],
   context: DerivedAmountContext,
   counts: Map<string, number>,
   lines: BudgetLine[],
-  memberNames: Map<string, string>,
-  members: { id: string }[],
-  directory: DirectoryAccount[],
 ): BreakdownLineOps {
   const ops: BreakdownLineOps = { create: [], update: [], remove: [] }
   for (const breakdown of breakdowns) {
-    const breakdownLines = lines.filter((line) => line.breakdown_id === breakdown.id)
     if (breakdown.kind === 'gift') {
-      reconcileGiftBreakdown(
-        breakdown,
-        context.giftTotalsByMember,
-        breakdownLines,
-        memberNames,
-        members,
-        directory,
-        ops,
-      )
-    } else {
-      reconcileGenericBreakdown(
-        breakdown,
-        context.genericTotalsByBreakdownId.get(breakdown.id) ?? 0,
-        counts.get(breakdown.id) ?? 0,
-        breakdownLines[0],
-        ops,
-      )
+      continue
     }
+    const breakdownLines = lines.filter((line) => line.breakdown_id === breakdown.id)
+    reconcileGenericBreakdown(
+      breakdown,
+      context.genericTotalsByBreakdownId.get(breakdown.id) ?? 0,
+      counts.get(breakdown.id) ?? 0,
+      breakdownLines[0],
+      ops,
+    )
   }
   return ops
 }

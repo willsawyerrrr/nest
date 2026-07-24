@@ -13,12 +13,14 @@ export interface BudgetLineInput {
   /** Interval count for the `every_n_weeks`/`every_n_months` frequency (weeks or months, read from `frequency`); null for every fixed frequency. */
   interval_count: number | null
   goal_id: string | null
-  /** The breakdown that owns this line (its amount, name, and group), or `null` for a manual line. */
+  /** The generic breakdown that owns this line (its amount, name, and group), or `null` for a gift or manual line. */
   breakdown_id: string | null
   /** Account funding this line's pay split; only non-Savings/Investments lines may set it. */
   destination_account_id: string | null
-  /** On a gift-breakdown line, the member whose gifts it funds; null for the external line, generic lines, and manual lines. */
+  /** On a gift line, the member whose gifts it funds; null for the external gift line, generic lines, and manual lines. */
   gift_recipient_member_id: string | null
+  /** True for a gift-derived line — the per-member and external gift lines — identifying it independently of `breakdown_id`. */
+  is_gift_line: boolean
 }
 
 export interface UseBudgetLinesResult {

@@ -161,7 +161,8 @@ no per-member scoping; each line stands alone under the household.
     `amount_cents`, `frequency` (the shared enum above), `interval_count`
     (nullable — non-null iff `frequency` is `every_n_weeks`/`every_n_months`, as
     on inflows),
-    `goal_id` (nullable), `breakdown_id` (nullable), `destination_account_id`
+    `goal_id` (nullable), `breakdown_id` (nullable), `is_gift_line` (bool),
+    `gift_recipient_member_id` (nullable), `destination_account_id`
     (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
@@ -169,6 +170,14 @@ no per-member scoping; each line stands alone under the household.
     breakdown's items rather than typed by hand — see [Breakdowns](#breakdowns).
     Null is an ordinary manual line. Composite FK `(breakdown_id, household_id)` →
     `breakdown` `on delete cascade`.
+  - `is_gift_line` marks a **gift-derived line** rolled up directly from the gift
+    tables by the reconcile pass — see [Gift tables](#gift-tables). A gift line has
+    `is_gift_line` true and `breakdown_id` null (there is no gift breakdown).
+    `gift_recipient_member_id` partitions the gift lines: it names the member whose
+    gifts a "Gifts for &lt;member&gt;" line funds (one per member with gift
+    budgets), and is null on the single external ("others") line and on every
+    non-gift line. Composite FK `(gift_recipient_member_id, household_id)` →
+    `members` `on delete cascade`.
   - `destination_account_id` routes the line to the Up account that funds it for
     the Pay splits tab — see [Pay splits](#pay-splits). Nullable composite FK
     `(destination_account_id, household_id)` → `accounts`, `on delete set null`.
@@ -204,10 +213,11 @@ each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design
     (`budget_group` enum — the group the rolled-up line belongs to), `kind`
     (`breakdown_kind` enum: `generic` | `gift`, default `generic`), `created_at`,
     `updated_at`. Unique on `(id, household_id)`.
-  - `kind` selects the editor and roll-up source: `generic` rolls up
-    `breakdown_item` rows; `gift` rolls up the `gift_*` tables.
-- **breakdown_item** — a line item of a `generic` breakdown (a `gift` breakdown
-  owns none — its items live in `gift_budget`).
+  - Every breakdown row is `generic` and rolls up its `breakdown_item` rows. The
+    enum's `gift` value is retired and unused — no `gift` breakdown rows exist;
+    gift budget lines roll up directly from the gift tables via
+    `budget_line.is_gift_line` (see [Gift tables](#gift-tables)).
+- **breakdown_item** — a line item of a breakdown (every breakdown is `generic`).
   - `id`, `household_id`, `breakdown_id`, `name`, `amount_cents`, `frequency`
     (the shared enum), `interval_count` (nullable — the same CHECK as
     `budget_line`), `created_at`, `updated_at`. Composite FK
@@ -216,16 +226,18 @@ each to a budget group. See [`breakdowns.md`](breakdowns.md) for the full design
 The derived line's amount is the summed-annualised roll-up of the breakdown's
 items and is read-only in every budget surface. The line exists only while the
 breakdown has items (a routed line — one carrying a `destination_account_id` —
-survives an empty breakdown so its pay-split routing is not lost).
-`budget_line.breakdown_id` is the sole derived-line mechanism: a non-null
-`breakdown_id` marks the line as derived and owned by that breakdown, its amount
-rolled up from the breakdown's items; a null `breakdown_id` is an ordinary
-manual line.
+survives an empty breakdown so its pay-split routing is not lost). A non-null
+`breakdown_id` marks a line as derived and owned by that breakdown, its amount
+rolled up from the breakdown's items; a null `breakdown_id` is an ordinary manual
+line — or, when `is_gift_line` is true, a gift-derived line rolled up from the gift
+tables (see below).
 
 ### Gift tables
 
-The `kind = 'gift'` breakdown keeps the bespoke gift planner: plan a spend per
-**recipient × occasion**, then record the actual purchases against it. All four
+The bespoke gift planner: plan a spend per **recipient × occasion**, then record
+the actual purchases against it. The reconcile pass rolls these tables up directly
+into the gift budget lines (`budget_line.is_gift_line`, partitioned by
+`gift_recipient_member_id`) with no breakdown row. All four
 tables are household-scoped under the ledger's RLS, with composite foreign keys on
 `(id, household_id)` that keep every reference inside the household. A gift's
 agreed budget is shared, but its purchases are private from the recipient when the

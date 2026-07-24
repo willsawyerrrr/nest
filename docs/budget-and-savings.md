@@ -78,10 +78,11 @@ the unit read from the frequency.
 A line's amount is normally typed. It can instead be **derived** — rolled up from a
 user-created **breakdown** (an itemised list) that owns the line via
 `budget_line.breakdown_id`, so the line and its detail never drift. The summary
-substitutes the breakdown's rolled-up amount for the typed `amount_cents`. Gifts
-are managed in the Gifts tab; a single internal `kind = 'gift'` breakdown rolls their
-budgets into derived lines. Medications and any other itemised budget are `generic`
-breakdowns the household creates. See
+substitutes the breakdown's rolled-up amount for the typed `amount_cents`.
+Medications and any other itemised budget are `generic` breakdowns the household
+creates. Gift budget lines are a separate standalone roll-up keyed by
+`budget_line.is_gift_line` (with no breakdown row): the Gifts tab manages the gift
+data, and the reconcile derives the gift lines directly from it. See
 [`breakdowns.md`](breakdowns.md) and
 [`data-model.md`](data-model.md#breakdowns).
 
@@ -180,6 +181,8 @@ income tables.
     `every_n_weeks`/`every_n_months`, else null), `goal_id` (nullable; set on
     Savings/Investments lines that fund a goal),
     `breakdown_id` (nullable; a derived line owned by a breakdown — see above),
+    `is_gift_line` (bool; true on a gift-derived line rolled up directly from the
+    gift tables, with `breakdown_id` null — see above),
     `destination_account_id` (nullable; the Up account funding the line, for the
     Pay splits tab).
   - Temporary is a Summary group derived from the `temporary_item` table, not a

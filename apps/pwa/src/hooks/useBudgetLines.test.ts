@@ -21,6 +21,7 @@ const input: BudgetLineInput = {
   breakdown_id: null,
   destination_account_id: null,
   gift_recipient_member_id: null,
+  is_gift_line: false,
 }
 
 beforeEach(() => {

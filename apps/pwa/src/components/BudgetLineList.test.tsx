@@ -454,7 +454,7 @@ describe('BudgetLineList', () => {
         <BudgetLineList
           lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
           goals={[]}
-          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'generic' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onDelete={vi.fn()}
@@ -492,7 +492,7 @@ describe('BudgetLineList', () => {
             ]}
             goals={[]}
             accounts={[{ id: 'acc1', name: 'Everyday' }]}
-            breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'generic' }]}
+            breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
             onCreate={vi.fn()}
             onUpdate={vi.fn()}
             onUpdateDerivedLine={vi.fn()}
@@ -554,7 +554,7 @@ describe('BudgetLineList', () => {
         <BudgetLineList
           lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
           goals={[]}
-          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'generic' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onUpdateDerivedLine={vi.fn()}
@@ -585,14 +585,11 @@ describe('BudgetLineList', () => {
               id: 'gift',
               line_group: 'wants',
               name: 'Gifts for Sam',
-              breakdown_id: 'b-gift',
+              is_gift_line: true,
             }),
           ]}
           goals={[]}
-          breakdowns={[
-            { id: 'b-meds', name: 'Meds', line_group: 'needs', kind: 'generic' },
-            { id: 'b-gift', name: 'Gifts', line_group: 'wants', kind: 'gift' },
-          ]}
+          breakdowns={[{ id: 'b-meds', name: 'Meds', line_group: 'needs' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onUpdateDerivedLine={vi.fn()}
@@ -632,7 +629,7 @@ describe('BudgetLineList', () => {
           ]}
           goals={[]}
           accounts={[{ id: 'acc1', name: 'Everyday' }]}
-          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'generic' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onUpdateDerivedLine={vi.fn()}
@@ -661,7 +658,7 @@ describe('BudgetLineList', () => {
         <BudgetLineList
           lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
           goals={[]}
-          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'generic' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onUpdateDerivedLine={vi.fn()}
@@ -688,7 +685,7 @@ describe('BudgetLineList', () => {
           lines={[line({ id: 'g', line_group: 'wants', name: 'Presents', breakdown_id: 'b1' })]}
           goals={[]}
           accounts={[{ id: 'acc1', name: 'Everyday' }]}
-          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'generic' }]}
+          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants' }]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onUpdateDerivedLine={onUpdateDerivedLine}
@@ -722,14 +719,14 @@ describe('BudgetLineList', () => {
               id: 'g',
               line_group: 'wants',
               name: 'Gifts for Sam',
-              breakdown_id: 'b1',
+              is_gift_line: true,
               gift_recipient_member_id: 'm-sam',
               destination_account_id: 'will-txn',
             }),
           ]}
           goals={[]}
           accounts={[{ id: 'will-txn', name: 'Will’s Spending' }]}
-          breakdowns={[{ id: 'b1', name: 'Gifts', line_group: 'wants', kind: 'gift' }]}
+          breakdowns={[]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onUpdateDerivedLine={vi.fn()}

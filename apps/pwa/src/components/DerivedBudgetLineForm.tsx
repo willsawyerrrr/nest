@@ -18,13 +18,14 @@ export interface DerivedLineValues {
 
 interface DerivedBudgetLineFormProps {
   /**
-   * The derived line under edit. Its name and group come from the owning
-   * breakdown; its funding account and the locked amount/frequency come from the
-   * line itself.
+   * The derived line under edit. A generic line's name and group come from the
+   * owning breakdown; a gift line's are its own. Its funding account and the locked
+   * amount/frequency come from the line itself.
    */
   initial: {
     id: string
-    breakdown_id: string
+    /** The owning generic breakdown, or `null` for a gift line (whose amount is edited in the Gifts tab). */
+    breakdown_id: string | null
     name: string
     line_group: BudgetGroup
     destination_account_id: string | null
@@ -164,15 +165,17 @@ export function DerivedBudgetLineForm({
           <FortnightlyAmount cents={fortnightly} />
           <Anchor
             component={Link}
-            to={`/breakdowns/${initial.breakdown_id}`}
+            to={initial.breakdown_id ? `/breakdowns/${initial.breakdown_id}` : '/gifts'}
             state={{ from: '/budget' }}
             size="sm"
           >
-            Edit in breakdown
+            {initial.breakdown_id ? 'Edit in breakdown' : 'Edit in gifts'}
           </Anchor>
         </Group>
         <Text size="xs" c="dimmed">
-          The amount is rolled up from the breakdown's items.
+          {initial.breakdown_id
+            ? "The amount is rolled up from the breakdown's items."
+            : 'The amount is rolled up from the gift budgets.'}
         </Text>
       </Stack>
     </FormShell>

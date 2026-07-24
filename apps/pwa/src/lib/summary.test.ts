@@ -8,7 +8,6 @@ import { toSummaryInput } from './summary'
 function context(overrides: Partial<DerivedAmountContext> = {}): DerivedAmountContext {
   return {
     genericTotalsByBreakdownId: new Map(),
-    giftBreakdownId: null,
     giftTotalsByMember: new Map(),
     ...overrides,
   }

@@ -209,6 +209,33 @@ describe('NetWorthSection', () => {
     expect(projection.at(-1)?.otherCents).toBe(10_000_00)
   })
 
+  it('splits a negative-balance account into its own debt band, respecting exclusion', () => {
+    mockLoaded()
+    hooks.useAccounts.mockReturnValue({
+      loading: false,
+      update: vi.fn(),
+      accounts: [
+        { id: 'a1', name: 'Everyday', balance_cents: 5_000_00, exclude_from_net_worth: false },
+        { id: 'a2', name: 'Credit card', balance_cents: -1_200_00, exclude_from_net_worth: false },
+        { id: 'a3', name: 'Old loan', balance_cents: -9_999_00, exclude_from_net_worth: true },
+      ],
+    })
+    render(<NetWorthSection householdId="h1" />)
+
+    const projection = hooks.screenProps?.projection as {
+      otherCents: number
+      debtCents: number
+      totalCents: number
+    }[]
+    // Cash counts only the positive balance; the credit card becomes its own debt
+    // band, the excluded loan is left out entirely, and net worth nets the two.
+    expect(projection.at(0)).toMatchObject({
+      otherCents: 5_000_00,
+      debtCents: 1_200_00,
+      totalCents: 3_800_00,
+    })
+  })
+
   it('toggling exclusion updates the account with the flag', () => {
     mockLoaded()
     const update = vi.fn().mockResolvedValue(undefined)

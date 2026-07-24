@@ -13,7 +13,12 @@ import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { equityGrantToPlan } from '../lib/equity'
-import { combinedHelpCentsByYear, netWorthGoals, projectionHorizonYears } from '../lib/netWorth'
+import {
+  combinedHelpCentsByYear,
+  netWorthGoals,
+  projectionHorizonYears,
+  splitCashAndDebt,
+} from '../lib/netWorth'
 import { readAssumptions, readMemberAges } from '../lib/retirement'
 import {
   accountsWithEffectiveSuperBalances,
@@ -123,6 +128,9 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     effectiveAccounts.map((account) => [account.id, account.balance_cents]),
   )
   const savingsGoals = netWorthGoals(goals.goals ?? [], budgetLines.lines ?? [], balanceByAccountId)
+  // Split the other accounts so a negative-balance account (credit card, loan)
+  // becomes its own debt band rather than sinking the cash asset band.
+  const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
   const projection = projectNetWorth({
     asOf: today,
     horizonYears,
@@ -132,10 +140,11 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
       nominalReturnRate: assumptions.expectedReturnPct / 100,
       contributionGrowthRate: assumptions.contributionGrowthPct / 100,
     },
-    otherCents: breakdown.otherTotalCents,
+    otherCents: cashCents,
     equityGrants: planGrants,
     helpCentsByYear,
     savingsGoals,
+    debtCents,
   })
 
   return (

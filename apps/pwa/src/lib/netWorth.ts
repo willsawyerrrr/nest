@@ -1,5 +1,6 @@
 import { fortnightlyCents, type NetWorthGoal } from '@nest/plan'
 import type { HelpPayoffProjection } from '@nest/tax'
+import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
 
@@ -66,4 +67,29 @@ export function netWorthGoals(
       fortnightlyContributionCents,
     }
   })
+}
+
+/** The cash (non-negative balances) and debt (magnitude of negative balances) split. */
+export interface CashDebtSplit {
+  cashCents: number
+  debtCents: number
+}
+
+/**
+ * Splits accounts into cash and debt: positive balances sum into `cashCents`, while
+ * negative balances (credit cards, loans) sum, as a positive magnitude, into
+ * `debtCents`. Pass the net-worth-included, non-super accounts so a debt account
+ * surfaces as its own liability rather than sinking the cash total.
+ */
+export function splitCashAndDebt(accounts: readonly Account[]): CashDebtSplit {
+  let cashCents = 0
+  let debtCents = 0
+  for (const account of accounts) {
+    if (account.balance_cents < 0) {
+      debtCents -= account.balance_cents
+    } else {
+      cashCents += account.balance_cents
+    }
+  }
+  return { cashCents, debtCents }
 }

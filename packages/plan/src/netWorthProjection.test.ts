@@ -19,6 +19,7 @@ function input(overrides: Partial<NetWorthProjectionInput>): NetWorthProjectionI
     equityGrants: [],
     helpCentsByYear: [],
     savingsGoals: [],
+    debtCents: 0,
     ...overrides,
   }
 }
@@ -56,6 +57,7 @@ describe('projectNetWorth', () => {
       otherCents: 20_000_00,
       equityCents: 0,
       helpCents: 0,
+      debtCents: 0,
       totalCents: 120_000_00,
     })
   })
@@ -189,6 +191,37 @@ describe('projectNetWorth', () => {
     expect(points.map((p) => p.helpCents)).toEqual([
       10_000_00, 8_000_00, 8_000_00, 8_000_00, 8_000_00,
     ])
+  })
+
+  it('holds debt accounts flat as their own band and subtracts them from the total', () => {
+    const points = projectNetWorth(
+      input({ horizonYears: 2, otherCents: 20_000_00, debtCents: 5_000_00 }),
+    )
+    // Debt is a flat liability band; cash is unchanged and net worth nets them.
+    expect(points.map((p) => p.debtCents)).toEqual([5_000_00, 5_000_00, 5_000_00])
+    expect(points.map((p) => p.otherCents)).toEqual([20_000_00, 20_000_00, 20_000_00])
+    expect(points.map((p) => p.totalCents)).toEqual([15_000_00, 15_000_00, 15_000_00])
+  })
+
+  it('reconciles the total to assets less every liability band at each point', () => {
+    const points = projectNetWorth(
+      input({
+        horizonYears: 3,
+        superInput: { ...flatSuper, currentBalanceCents: 60_000_00 },
+        otherCents: 10_000_00,
+        equityGrants: [vestedShares(1000, 5_00)],
+        helpCentsByYear: [20_000_00, 15_000_00, 10_000_00, 0],
+        debtCents: 3_000_00,
+      }),
+    )
+    for (const p of points) {
+      expect(p.totalCents).toBe(
+        p.superCents + p.otherCents + p.equityCents - p.helpCents - p.debtCents,
+      )
+    }
+    // HELP shrinks to zero while the debt band stays put.
+    expect(points.map((p) => p.helpCents)).toEqual([20_000_00, 15_000_00, 10_000_00, 0])
+    expect(points.map((p) => p.debtCents)).toEqual([3_000_00, 3_000_00, 3_000_00, 3_000_00])
   })
 
   it('projects an all-empty household as a flat zero series without crashing', () => {

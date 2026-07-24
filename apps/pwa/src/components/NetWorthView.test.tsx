@@ -278,27 +278,29 @@ describe('NetWorthView', () => {
             superCents: 20_000_000,
             otherCents: 200000,
             equityCents: 0,
-            helpCents: 0,
-            totalCents: 20_200_000,
+            helpCents: 30_000_00,
+            debtCents: 1_000_00,
+            totalCents: 16_900_000,
           },
           {
             year: 1,
             superCents: 21_400_000,
             otherCents: 200000,
             equityCents: 5_000_00,
-            helpCents: 0,
-            totalCents: 22_100_000,
+            helpCents: 20_000_00,
+            debtCents: 1_000_00,
+            totalCents: 19_100_000,
           },
         ]}
         projectionBaseYear={2026}
         onToggleExclude={vi.fn()}
       />,
     )
-    // A point carrying equity adds the equity series alongside the super and cash
-    // areas and the net-worth line.
+    // Points carrying equity and liabilities add the equity, HELP, and debt bands
+    // alongside the super and cash areas and the net-worth line.
     const chart = screen.getByRole('region', { name: 'Net worth projection' })
     expect(within(chart).getByText('Projected forward')).toBeInTheDocument()
-    expect(within(chart).getByText(/future \(nominal\) dollars/i)).toBeInTheDocument()
+    expect(within(chart).getByText(/liabilities below it/i)).toBeInTheDocument()
   })
 
   it('shows the projection empty state when every point is zero', () => {
@@ -309,7 +311,15 @@ describe('NetWorthView', () => {
         equity={[]}
         liabilities={[]}
         projection={[
-          { year: 0, superCents: 0, otherCents: 0, equityCents: 0, helpCents: 0, totalCents: 0 },
+          {
+            year: 0,
+            superCents: 0,
+            otherCents: 0,
+            equityCents: 0,
+            helpCents: 0,
+            debtCents: 0,
+            totalCents: 0,
+          },
         ]}
         projectionBaseYear={2026}
         onToggleExclude={vi.fn()}

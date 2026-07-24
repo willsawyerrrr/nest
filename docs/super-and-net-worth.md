@@ -73,29 +73,35 @@ untouched.
 
 ### Projected forward
 
-Below the total, a stacked-area chart projects net worth forward year by year to
-the household's retirement horizon (the longest span to the retirement-age
-assumption across the members whose age is entered, or 30 years when none is).
-The stacked areas are the asset components — super, cash and other accounts, and
-equity — and net worth (assets less HELP debt) is overlaid as a line, so the gap
-between the stack and the line reads as the shrinking HELP liability. Figures are
-nominal (future dollars): super compounds and accrues its net annual
-contributions (`projectSuperBalance`); cash starts at the current account balances
-and grows by each savings goal's ongoing fortnightly contribution (the sum of the
-budget lines funding it, as on the Goals tab), accruing only up to the goal's
-target and then holding flat; each equity grant is valued at its vested portion at
-that future date so the equity line lifts as grants vest at today's price
-(`equityTotalCents`); and each member's HELP debt follows the payoff projection
-from the Tax tab (`projectHelpPayoff`), summed across members. A goal contributes
-only its future saving on top of the cash it already holds — a goal's current
-balance (its linked saver's synced balance, or a manual goal's own figure) is
-already counted in the account totals, so it is never added twice
-(`projectGoal` supplies the remaining-to-target cap). The projection is a pure function
-(`projectNetWorth` in `@nest/plan`); it reuses the same shared
+Below the total, a chart projects net worth forward year by year to the
+household's retirement horizon (the longest span to the retirement-age assumption
+across the members whose age is entered, or 30 years when none is). Each asset
+component — super, cash and other accounts, and equity — stacks as its own area
+above the axis, and each liability is its own band below the axis: HELP debt and
+debt accounts are itemised separately rather than lumped together. Net worth
+(assets less liabilities) is overlaid as a line crossing through, equal to the
+asset bands minus the liability bands at every point. Figures are nominal (future
+dollars): super compounds and accrues its net annual contributions
+(`projectSuperBalance`); cash counts the non-negative account balances and grows
+by each savings goal's ongoing fortnightly contribution (the sum of the budget
+lines funding it, as on the Goals tab), accruing only up to the goal's target and
+then holding flat; each equity grant is valued at its vested portion at that
+future date so the equity line lifts as grants vest at today's price
+(`equityTotalCents`); each member's HELP debt follows the payoff projection from
+the Tax tab (`projectHelpPayoff`), summed across members; and any account with a
+negative balance (a credit card or loan) forms a debt band at its current
+magnitude, held flat, split out of the cash band so it neither sinks the cash
+total nor hides the liability. Excluded accounts are left out of every band. A
+goal contributes only its future saving on top of the cash it already holds — a
+goal's current balance (its linked saver's synced balance, or a manual goal's own
+figure) is already counted in the account totals, so it is never added twice
+(`projectGoal` supplies the remaining-to-target cap). The projection is a pure
+function (`projectNetWorth` in `@nest/plan`); it reuses the same shared
 return / contribution-growth and retirement-age assumptions and per-member ages
 as the retirement projection (client-side, persisted in localStorage), and reads
 only existing data — no schema or stored series. Series colours come from the
-shared chart-token palette and money is formatted with the app's currency helper.
+shared chart-token palette (cool tones for assets, warm debt tones for
+liabilities) and money is formatted with the app's currency helper.
 
 ## HELP debt tab
 

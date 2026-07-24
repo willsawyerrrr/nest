@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HelpPayoffProjection } from '@nest/tax'
+import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal } from '../hooks/useGoals'
 import {
@@ -7,6 +8,7 @@ import {
   DEFAULT_PROJECTION_HORIZON_YEARS,
   netWorthGoals,
   projectionHorizonYears,
+  splitCashAndDebt,
 } from './netWorth'
 
 /** A payoff projection whose only meaningful field here is the closing-balance schedule. */
@@ -97,5 +99,22 @@ describe('netWorthGoals', () => {
   it('falls back to the manual balance when the linked account is not visible', () => {
     const goals = [goal({ id: 'g1', linked_account_id: 'hidden', current_balance_cents: 2_000_00 })]
     expect(netWorthGoals(goals, [], new Map())[0]?.currentBalanceCents).toBe(2_000_00)
+  })
+})
+
+/** An account carrying only the balance the split reads. */
+function balance(balanceCents: number): Account {
+  return { balance_cents: balanceCents } as Account
+}
+
+describe('splitCashAndDebt', () => {
+  it('sums non-negative balances into cash and negative balances into debt', () => {
+    const split = splitCashAndDebt([balance(8_000_00), balance(0), balance(-1_500_00)])
+    // Cash = 8_000 + 0; debt is the magnitude of the −1_500 balance.
+    expect(split).toEqual({ cashCents: 8_000_00, debtCents: 1_500_00 })
+  })
+
+  it('is all zero for no accounts', () => {
+    expect(splitCashAndDebt([])).toEqual({ cashCents: 0, debtCents: 0 })
   })
 })

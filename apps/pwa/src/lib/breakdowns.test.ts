@@ -187,16 +187,6 @@ describe('reconcileBreakdownLines — generic breakdowns', () => {
     expect(ops.remove).toHaveLength(0)
   })
 
-  it('skips a lingering gift-kind breakdown rather than treating it as generic', () => {
-    // A stale `kind = 'gift'` breakdown (pre-contract-migration) is not reconciled
-    // here — gift lines are handled by reconcileGiftLines.
-    const b = breakdown({ id: 'x', kind: 'gift', name: 'Gifts' })
-    const ops = reconcile([b], context(), new Map([['x', 0]]), [])
-    expect(ops.create).toHaveLength(0)
-    expect(ops.update).toHaveLength(0)
-    expect(ops.remove).toHaveLength(0)
-  })
-
   it('updates a drifted line, preserving its routing', () => {
     const b = breakdown({ id: 'g', name: 'Medications', line_group: 'wants' })
     const existing = line({

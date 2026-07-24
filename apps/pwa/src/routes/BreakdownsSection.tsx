@@ -10,19 +10,13 @@ export function BreakdownsSection({ householdId }: { householdId: string }) {
     return <LoadingScreen />
   }
 
-  // Breakdowns are generic-only. Transitional guard: gifts roll up standalone
-  // (keyed by `budget_line.is_gift_line`) and never mint a breakdown, so no
-  // `kind = 'gift'` row is created; this filter only shields the brief prod window
-  // before the contract migration deletes any pre-existing gift breakdown.
-  const genericBreakdowns = (breakdowns.breakdowns ?? []).filter(
-    (breakdown) => breakdown.kind !== 'gift',
-  )
-  const context = derivedAmountContext(genericBreakdowns, breakdowns.items ?? [], [], [])
-  const totals = breakdownTotalsByBreakdownId(genericBreakdowns, context)
+  const breakdownRows = breakdowns.breakdowns ?? []
+  const context = derivedAmountContext(breakdownRows, breakdowns.items ?? [], [], [])
+  const totals = breakdownTotalsByBreakdownId(breakdownRows, context)
 
   return (
     <BreakdownsScreen
-      breakdowns={genericBreakdowns}
+      breakdowns={breakdownRows}
       totalsByBreakdownId={totals}
       onCreate={breakdowns.create}
     />

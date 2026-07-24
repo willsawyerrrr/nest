@@ -28,7 +28,6 @@ function renderAt(ui: ReactElement, entry: string | { pathname: string; state: u
       <Routes>
         <Route path="/breakdowns/:id" element={ui} />
         <Route path="/breakdowns" element={<div data-testid="breakdowns-list" />} />
-        <Route path="/gifts" element={<div data-testid="gifts-tab" />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -45,15 +44,6 @@ describe('BreakdownDetailSection', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [] })
     renderAt(<BreakdownDetailSection householdId="h1" />, '/breakdowns/missing')
     expect(screen.getByTestId('breakdowns-list')).toBeInTheDocument()
-  })
-
-  it('redirects a gift breakdown to the Gifts tab', () => {
-    hooks.useBreakdowns.mockReturnValue({
-      loading: false,
-      breakdowns: [{ id: 'b1', kind: 'gift', name: 'Gifts', line_group: 'wants' }],
-    })
-    renderAt(<BreakdownDetailSection householdId="h1" />, '/breakdowns/b1')
-    expect(screen.getByTestId('gifts-tab')).toBeInTheDocument()
   })
 
   it('shows the loading screen while a generic breakdown loads its items', () => {

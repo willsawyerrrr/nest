@@ -62,13 +62,11 @@ export function BudgetSection({ householdId }: { householdId: string }) {
       accounts={(accounts.accounts ?? [])
         .filter((account) => !superIds.has(account.id))
         .map((account) => ({ id: account.id, name: account.name }))}
-      breakdowns={breakdownRows
-        .filter((breakdown) => breakdown.kind !== 'gift')
-        .map((breakdown) => ({
-          id: breakdown.id,
-          name: breakdown.name,
-          line_group: breakdown.line_group,
-        }))}
+      breakdowns={breakdownRows.map((breakdown) => ({
+        id: breakdown.id,
+        name: breakdown.name,
+        line_group: breakdown.line_group,
+      }))}
       temporaryItems={temporaryItems.items ?? []}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}

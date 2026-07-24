@@ -7,6 +7,7 @@
  * stored in Supabase Vault). See https://developer.up.com.au/#callback_post_webhookURL.
  */
 
+import { requirePost } from '../_shared/http.ts'
 import { isSignatureValid } from './signature.ts'
 
 const SIGNATURE_HEADER = 'X-Up-Authenticity-Signature'
@@ -25,9 +26,9 @@ interface UpWebhookEvent {
 }
 
 Deno.serve(async (request) => {
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
-  }
+  // Server-to-server, so no CORS preflight — only the shared method guard.
+  const methodError = requirePost(request)
+  if (methodError) return methodError
 
   const secret = Deno.env.get('UP_WEBHOOK_SECRET')
   if (!secret) {

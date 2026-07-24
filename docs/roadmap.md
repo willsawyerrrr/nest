@@ -96,8 +96,8 @@ does not restate them.
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
   Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
   deductions · Super · Help debt · Breakdowns · Gifts · Household. Gifts are managed
-  solely in the Gifts tab (`/gifts`); gift breakdowns never appear in Breakdowns, and
-  a gift breakdown at `/breakdowns/:id` redirects to `/gifts`. One
+  solely in the Gifts tab (`/gifts`); the generic-only Breakdowns tab never lists
+  gift lines. One
   `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
   and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to
   the first nine tabs, ⌘/Ctrl+Shift+←/→ cycle.
@@ -213,24 +213,26 @@ the FY2027 tax config was.
 
 User-created itemised lists that each own one derived budget line, so a line and
 its detail are a single source of truth. Breakdowns are data, not a fixed enum:
-gifts and medications are breakdown rows the household creates, `kind` selecting
-the editor. The household's real gift budgets are loaded in production. See
-[`breakdowns.md`](breakdowns.md) for the full design.
+medications and any other itemised budget are breakdown rows the household creates.
+Gifts are a separate standalone roll-up keyed by `budget_line.is_gift_line`, derived
+directly from the gift tables rather than a breakdown. The household's real gift
+budgets are loaded in production. See [`breakdowns.md`](breakdowns.md) for the full
+design.
 
 - [x] Schema: `breakdown` (name / `line_group` / `breakdown_kind`) and
       `breakdown_item` (name / amount / frequency), plus `budget_line.breakdown_id`
       owning the derived line, with RLS + isolation tests and regenerated types.
       The four gift tables (`gift_recipient`, `gift_occasion`, `gift_budget` with
-      an optional per-pairing `event_date`, `gift_purchase`) back the
-      `kind = 'gift'` breakdown.
-- [x] Breakdowns tab (`/breakdowns`): lists every generic breakdown with its group
+      an optional per-pairing `event_date`, `gift_purchase`) back the standalone
+      gift roll-up, keyed by `budget_line.is_gift_line` and partitioned by
+      `budget_line.gift_recipient_member_id` rather than a breakdown row.
+- [x] Breakdowns tab (`/breakdowns`): lists every breakdown with its group
       and fortnightly + annual total, and a New breakdown action (generic-only). Gift
-      breakdowns are excluded. `/breakdowns/:id` is the generic item editor; a gift
-      breakdown redirects to the Gifts tab.
+      lines never appear here. `/breakdowns/:id` is the generic item editor.
 - [x] Gifts tab (`/gifts`): the unified gift planner and the sole place gifts are
-      managed, reading the household-scoped gift tables and minting the single gift
-      breakdown on the first gift budget so the derived lines still roll up.
-- [x] Gift planner (`kind = 'gift'`): plan a spend per **recipient × occasion**,
+      managed, reading the household-scoped gift tables; the reconcile pass derives
+      the gift budget lines directly from them via `is_gift_line`.
+- [x] Gift planner: plan a spend per **recipient × occasion**,
       then record purchases against it. Two-way collapsible grouping (by occasion
       or by person, default collapsed), each group rolling up budgeted / spent /
       remaining, reusing the Budget tab's `GroupSection`. The effective date is
@@ -241,8 +243,9 @@ the editor. The household's real gift budgets are loaded in production. See
       routed line survives an empty breakdown so its pay-split routing is not lost.
       The Budget tab and Summary read the derived amount, so line and detail never
       drift.
-- [x] Sole mechanism: `budget_line.breakdown_id` is the only derived-line marker —
-      there is no separate derived-source enum or column.
+- [x] Derived-line markers: a breakdown-owned line is marked by its
+      `budget_line.breakdown_id`; a gift-derived line by `budget_line.is_gift_line`
+      (with `breakdown_id` null) — there is no separate derived-source enum.
 - [x] Private / surprise gifts: a gift's agreed budget is shared (it still feeds
       the derived line and pay splits), but its purchases and the spent/remaining
       they derive are hidden from the recipient. `gift_recipient.member_id` links a
@@ -346,8 +349,8 @@ Uncommitted work, roughly ordered by likelihood of being picked up.
 
 - **Spreadsheet-parity gaps** ([`spreadsheet-parity.md`](spreadsheet-parity.md)):
   a wishlist of per-member aspirational purchases. Small and low-risk; good HDD
-  filler. (Gift budgets and generic itemised sub-budgets are built as breakdowns —
-  see Done.)
+  filler. (Generic itemised sub-budgets are built as breakdowns; gift budgets are a
+  separate standalone roll-up — see Done.)
 - **Breakdowns follow-ups** (the feature itself is shipped — see Done). See
   [`breakdowns.md`](breakdowns.md).
   - **Up-tagged gift purchases.** Once Up ingestion lands, an Up transaction can be

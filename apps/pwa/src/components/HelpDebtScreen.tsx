@@ -90,7 +90,7 @@ function MemberHelpDebtForm({
           </Text>
         )}
         {saved && !error && (
-          <Text role="status" c="green" size="sm">
+          <Text role="status" c="positive" size="sm">
             Saved
           </Text>
         )}

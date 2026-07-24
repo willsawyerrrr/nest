@@ -176,11 +176,17 @@ A `ci-status` job `needs` all four and is the single required `CI Status` check
 Each pnpm job (`check`, `test-shard`, `test`) sets up the toolchain the same way:
 `actions/setup-node` installs Node, then `corepack enable` /
 `corepack prepare pnpm@11.14.0 --activate` provides the pnpm version pinned in the
-root `package.json` `packageManager` field — no separate `pnpm/action-setup`. The
-pnpm content-addressable store is restored by `actions/cache` keyed on
-`pnpm-lock.yaml`, so a warm `pnpm install --frozen-lockfile` links packages from
-cache rather than downloading them. The Deno `functions` job keeps its own
-`setup-deno` cache.
+root `package.json` `packageManager` field — no separate `pnpm/action-setup`.
+Corepack fetches that pnpm binary from the npm registry, so each job points
+`COREPACK_HOME` at a `.corepack` directory (git- and prettier-ignored) that
+`actions/cache`
+restores keyed on the pnpm version (`corepack-<os>-pnpm-11.14.0`): on a warm cache
+the binary is already present and corepack never touches the registry. On a cold
+cache the `corepack prepare` activation retries a few times so a transient
+registry error does not fail the run. The pnpm content-addressable store is
+restored by a second `actions/cache` keyed on `pnpm-lock.yaml`, so a warm
+`pnpm install --frozen-lockfile` links packages from cache rather than downloading
+them. The Deno `functions` job keeps its own `setup-deno` cache.
 
 The binding constraint on wall-clock is the serialized `test-shard` → `test`
 chain: the shards run in parallel, then the `test` merge job waits on them and

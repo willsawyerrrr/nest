@@ -21,7 +21,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
+      # Cache the linked workspace node_modules keyed on the lockfile, so an
+      # unchanged dependency graph restores `node_modules` wholesale and
+      # `pnpm install` collapses to a near-instant integrity check. On a
+      # lockfile change the key misses and a full install runs.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-node24-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm format:check
@@ -47,7 +57,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
+      # Cache the linked workspace node_modules keyed on the lockfile, so an
+      # unchanged dependency graph restores `node_modules` wholesale and
+      # `pnpm install` collapses to a near-instant integrity check. On a
+      # lockfile change the key misses and a full install runs.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-node24-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run --shard=${{ matrix.shard }}/6 --coverage --reporter=blob
       - uses: actions/upload-artifact@v7
@@ -77,7 +97,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
+      # Cache the linked workspace node_modules keyed on the lockfile, so an
+      # unchanged dependency graph restores `node_modules` wholesale and
+      # `pnpm install` collapses to a near-instant integrity check. On a
+      # lockfile change the key misses and a full install runs.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-node24-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v8
         with:

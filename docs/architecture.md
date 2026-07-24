@@ -173,14 +173,21 @@ the workflow token is scoped `contents: read`:
 A `ci-status` job `needs` all four and is the single required `CI Status` check
 (squash-only, no bypass).
 
+Every JS job (`check`, `test-shard`, and the `test` merge) restores the linked
+workspace `node_modules` from an `actions/cache` entry keyed on `runner.os`, the
+Node major, and `hashFiles('pnpm-lock.yaml')`, so an unchanged dependency graph
+collapses `pnpm install --frozen-lockfile` to a near-instant integrity check. A
+lockfile change misses the key and runs a full install. The Deno `functions` job
+caches separately via `setup-deno`.
+
 Overall wall-clock is about two minutes, above the one-minute budget. The binding
 constraint is the serialized `test-shard` → `test` chain: the shards run in
-parallel (~66s), then the `test` merge job waits on them and runs afterwards
-(~34s), so their durations add. The merge itself replays the recorded runs in a
-few seconds; almost all of its ~34s is checkout, Node/pnpm setup, and
-`pnpm install`. Collapsing that install/setup overhead on the merge job — not
-adding shards — is the lever, since the shards already run concurrently and the
-merge cannot start until they finish.
+parallel (~66s), then the `test` merge job waits on them and runs afterwards, so
+their durations add. The merge itself replays the recorded runs in a few seconds;
+the rest of its runtime is checkout, Node/pnpm setup, and `pnpm install`, which
+the `node_modules` cache reduces to a near-instant integrity check on a warm
+cache. The shards already run concurrently and the merge cannot start until they
+finish.
 
 Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports
 via `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint

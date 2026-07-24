@@ -121,6 +121,11 @@ function incomeTable(name: string) {
   return within(card(name)).getByRole('table', { name: 'Taxable income' })
 }
 
+/** The income build-up waterfall within a named card (expanded first). */
+function waterfall(name: string) {
+  return within(card(name)).getByRole('figure', { name: 'Income build-up' })
+}
+
 describe('TaxEstimateView', () => {
   it('leads each member card with their take-home headline in both cadences', () => {
     render(
@@ -413,6 +418,77 @@ describe('TaxEstimateView', () => {
     ).toBeInTheDocument()
     expect(within(willTax).getByRole('row', { name: /HELP\/HECS repayment/ })).toBeInTheDocument()
     expect(within(willTax).getByRole('row', { name: /Total tax/ })).toHaveTextContent('$30,800.00')
+  })
+
+  it('visualises the income build-up as a waterfall alongside the tables', async () => {
+    const user = userEvent.setup()
+    const willFull: MemberTaxEstimate = {
+      ...will,
+      annualConcessionalContributionsCents: 10_000_00,
+      annualDeductionsCents: 5_000_00,
+      breakdown: {
+        ...breakdown,
+        incomeTaxCents: 20_000_00,
+        medicareLevyCents: 1_800_00,
+      },
+    }
+    const withFull: HouseholdTaxEstimate = { ...estimate, members: [willFull, sam] }
+    render(
+      <TaxEstimateView
+        estimate={withFull}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    await showBreakdown(user, 'Will')
+    const chart = waterfall('Will')
+    // The gross endpoint, each applicable step, and take-home each read as a bar.
+    expect(within(chart).getByText('Gross income')).toBeInTheDocument()
+    expect(within(chart).getByText('Deductions')).toBeInTheDocument()
+    expect(within(chart).getByText('Concessional super')).toBeInTheDocument()
+    expect(within(chart).getByText('Income tax')).toBeInTheDocument()
+    expect(within(chart).getByText('Medicare levy')).toBeInTheDocument()
+    expect(within(chart).getByText('Take-home pay')).toBeInTheDocument()
+    // A reduction annotates the amount taken out; a nil component draws no step.
+    expect(within(chart).getByText('-$1,800.00')).toBeInTheDocument()
+    expect(within(chart).queryByText(/Division 293/)).toBeNull()
+    // A deduction leaves taxable income then returns as cash, so it nets to nil.
+    expect(within(chart).getByText('-$5,000.00')).toBeInTheDocument()
+    expect(within(chart).getByText('Deductions kept')).toBeInTheDocument()
+    expect(within(chart).getByText('$5,000.00')).toBeInTheDocument()
+    expect(
+      within(chart).getByText(/lower taxable income and tax, not the cash/i),
+    ).toBeInTheDocument()
+    // The household card carries the headline figures but no per-component build-up.
+    expect(
+      within(screen.getByRole('region', { name: 'Household' })).queryByRole('figure'),
+    ).toBeNull()
+  })
+
+  it('omits the waterfall for a member with no gross income', async () => {
+    const user = userEvent.setup()
+    const noIncome: MemberTaxEstimate = {
+      ...will,
+      annualGrossCents: 0,
+      annualTaxCents: 0,
+      annualAfterTaxCents: 0,
+    }
+    const withNoIncome: HouseholdTaxEstimate = { ...estimate, members: [noIncome, sam] }
+    render(
+      <TaxEstimateView
+        estimate={withNoIncome}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    await showBreakdown(user, 'Will')
+    // The build-up tables still render, but there is no gross income to plot.
+    expect(within(card('Will')).getByRole('table', { name: 'Taxable income' })).toBeInTheDocument()
+    expect(within(card('Will')).queryByRole('figure')).toBeNull()
   })
 
   it('always shows income tax, Medicare levy, and total tax even at zero', async () => {

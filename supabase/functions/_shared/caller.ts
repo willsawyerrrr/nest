@@ -59,3 +59,42 @@ export async function resolveCaller(
 
   return { caller: { admin, memberId: member.id as string } }
 }
+
+/**
+ * A lazily-resolved caller paired with the service-role client the resolution
+ * captures, shaped for the connect/disconnect flows.
+ */
+export interface MemberResolution {
+  /**
+   * The `resolveMember` dependency for `runConnect` / `runDisconnect`: resolves
+   * the caller from the request JWT and captures the service-role client for the
+   * later Vault RPC. Called lazily so the connect flow can validate the token
+   * before any member is resolved.
+   */
+  resolveMember: () => Promise<{ memberId?: string; error?: CallerError }>
+  /** The service-role client captured by a successful `resolveMember`. */
+  admin: () => SupabaseClient
+}
+
+/**
+ * Bundles the member-resolution closure and the service-role client it captures,
+ * so the connect and disconnect functions share one resolution path instead of
+ * each hand-rolling the capture. `resolveCaller` is injectable for testing.
+ */
+export function resolveMemberWithAdmin(
+  request: Request,
+  resolve: typeof resolveCaller = resolveCaller,
+): MemberResolution {
+  let admin: SupabaseClient | null = null
+  return {
+    resolveMember: async () => {
+      const resolved = await resolve(request)
+      if ('error' in resolved) {
+        return { error: resolved.error }
+      }
+      admin = resolved.caller.admin
+      return { memberId: resolved.caller.memberId }
+    },
+    admin: () => admin!,
+  }
+}

@@ -19,7 +19,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { UpClient } from '../_shared/up.ts'
-import { handlePreflight, json } from '../_shared/http.ts'
+import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
 import { isServiceRoleToken } from './auth.ts'
 import { type AccountRow, runSync } from './sync.ts'
@@ -27,6 +27,8 @@ import { type AccountRow, runSync } from './sync.ts'
 Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
   if (preflight) return preflight
+  const methodError = requirePost(request)
+  if (methodError) return methodError
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')

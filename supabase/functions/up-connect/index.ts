@@ -8,10 +8,9 @@
  * `store_up_token` RPC. The token is never returned to the client.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
-import { resolveCaller } from '../_shared/caller.ts'
+import { resolveMemberWithAdmin } from '../_shared/caller.ts'
 import { runConnect } from './connect.ts'
 
 Deno.serve(async (request) => {
@@ -28,20 +27,13 @@ Deno.serve(async (request) => {
   }
 
   // Captured from member resolution so storeToken can reuse the service client.
-  let admin: SupabaseClient | null = null
+  const { resolveMember, admin } = resolveMemberWithAdmin(request)
 
   const result = await runConnect(body.token, {
     validateToken: (token) => new UpClient(token).ping(),
-    resolveMember: async () => {
-      const resolved = await resolveCaller(request)
-      if ('error' in resolved) {
-        return { error: resolved.error }
-      }
-      admin = resolved.caller.admin
-      return { memberId: resolved.caller.memberId }
-    },
+    resolveMember,
     storeToken: async (memberId, token) => {
-      const { error } = await admin!.rpc('store_up_token', {
+      const { error } = await admin().rpc('store_up_token', {
         p_member_id: memberId,
         p_token: token,
       })

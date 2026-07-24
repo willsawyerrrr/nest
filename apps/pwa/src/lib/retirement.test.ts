@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { DEFAULT_ASSUMPTIONS } from '@nest/plan'
 import {
   AGES_STORAGE_KEY,
   ASSUMPTIONS_STORAGE_KEY,
-  DEFAULT_ASSUMPTIONS,
   DEFAULT_PROJECTION_HORIZON_OPTION,
   PROJECTION_HORIZON_STORAGE_KEY,
   readAssumptions,
@@ -10,11 +10,9 @@ import {
   readProjectionHorizon,
   readProjectionOpen,
   setMemberAge,
-  toProjectionInput,
   writeAssumptions,
   writeProjectionHorizon,
   writeProjectionOpen,
-  yearsToRetirement,
 } from './retirement'
 
 afterEach(() => localStorage.clear())
@@ -106,33 +104,5 @@ describe('projection open state', () => {
     expect(readProjectionOpen()).toBe(true)
     writeProjectionOpen(false)
     expect(readProjectionOpen()).toBe(false)
-  })
-})
-
-describe('yearsToRetirement', () => {
-  it('is the whole-year gap, never negative', () => {
-    expect(yearsToRetirement(30, 60)).toBe(30)
-    expect(yearsToRetirement(65, 60)).toBe(0)
-    expect(yearsToRetirement(59.6, 60)).toBe(0)
-  })
-})
-
-describe('toProjectionInput', () => {
-  it('converts percentages to rates and ages to a year count', () => {
-    expect(
-      toProjectionInput(100_000_00, 20_000_00, 35, {
-        retirementAge: 60,
-        expectedReturnPct: 7,
-        inflationPct: 2.5,
-        contributionGrowthPct: 3,
-      }),
-    ).toEqual({
-      currentBalanceCents: 100_000_00,
-      annualContributionCents: 20_000_00,
-      years: 25,
-      nominalReturnRate: 0.07,
-      inflationRate: 0.025,
-      contributionGrowthRate: 0.03,
-    })
   })
 })

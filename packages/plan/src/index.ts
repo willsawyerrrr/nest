@@ -21,8 +21,14 @@ export type { Amounts, BudgetSummary, GroupSummary, SummaryInput } from './summa
 export { projectGoal } from './goal'
 export type { GoalProjection } from './goal'
 
-export { projectSuperBalance } from './retirement'
-export type { SuperProjection, SuperProjectionInput } from './retirement'
+export {
+  accruedBalanceCents,
+  DEFAULT_ASSUMPTIONS,
+  projectSuperBalance,
+  toProjectionInput,
+  yearsToRetirement,
+} from './retirement'
+export type { RetirementAssumptions, SuperProjection, SuperProjectionInput } from './retirement'
 
 export { projectNetWorth } from './netWorthProjection'
 export type {

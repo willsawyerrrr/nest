@@ -3,15 +3,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeWrapper } from '../test/queryWrapper'
 import { useBreakdowns, type BreakdownInput, type BreakdownUpdate } from './useBreakdowns'
 
-const { builder } = await vi.hoisted(async () => {
+const { builder, from } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
-  return { builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']) }
+  const builder = makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order'])
+  return { builder, from: vi.fn((_table: string) => builder) }
 })
 
-vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
+vi.mock('../lib/supabase', () => ({ supabase: { from } }))
 
 const createInput: BreakdownInput = { name: 'Meds', line_group: 'needs', kind: 'generic' }
 const updateInput: BreakdownUpdate = { name: 'Vitamins', line_group: 'wants' }
+
+/** How many times a table was accessed — one per load, plus one per write. */
+const accesses = (table: string): number =>
+  from.mock.calls.filter((call) => call[0] === table).length
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -19,23 +24,41 @@ beforeEach(() => {
 })
 
 describe('useBreakdowns', () => {
-  it('loads breakdowns alongside items and runs each mutation with an item reload', async () => {
+  it('loads breakdowns alongside items and reloads them together', async () => {
     const { result } = renderHook(() => useBreakdowns('h1'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.breakdowns).toEqual([])
     expect(result.current.items).toEqual([])
 
-    await act(async () => {
-      await result.current.reload()
-      await result.current.create(createInput)
-      await result.current.update('bd1', updateInput)
-      await result.current.remove('bd1')
-    })
+    const beforeBreakdown = accesses('breakdown')
+    const beforeItem = accesses('breakdown_item')
+    await act(() => result.current.reload())
+    expect(accesses('breakdown')).toBeGreaterThan(beforeBreakdown)
+    expect(accesses('breakdown_item')).toBeGreaterThan(beforeItem)
+  })
 
+  it('leaves items untouched when creating or updating, and reloads them on delete', async () => {
+    const { result } = renderHook(() => useBreakdowns('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // Creating a breakdown adds no items, so the items query stays put.
+    let beforeItem = accesses('breakdown_item')
+    await act(() => result.current.create(createInput))
     expect(builder.insert).toHaveBeenCalledWith({ ...createInput, household_id: 'h1' })
+    expect(accesses('breakdown_item')).toBe(beforeItem)
+
+    // Updating a breakdown's name and group changes no item either.
+    beforeItem = accesses('breakdown_item')
+    await act(() => result.current.update('bd1', updateInput))
     expect(builder.update).toHaveBeenCalledWith(updateInput)
+    expect(accesses('breakdown_item')).toBe(beforeItem)
+
+    // Deleting a breakdown cascades to its items, so the items query reloads.
+    beforeItem = accesses('breakdown_item')
+    await act(() => result.current.remove('bd1'))
     expect(builder.delete).toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'bd1')
+    expect(accesses('breakdown_item')).toBeGreaterThan(beforeItem)
   })
 
   it('reports loading while a collection is null', async () => {

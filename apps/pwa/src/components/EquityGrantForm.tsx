@@ -3,6 +3,7 @@ import { Button, Card, Group, NumberInput, Stack, Text, TextInput } from '@manti
 import { DateInput } from '@mantine/dates'
 import type { EquityInstrumentType, VestingFrequency } from '@nest/plan'
 import type { EquityGrantInput, EquityGrantRow } from '../hooks/useEquityGrants'
+import { todayIso } from '../lib/dates'
 import { EQUITY_INSTRUMENT_TYPES, VESTING_FREQUENCIES } from '../lib/equity'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSegmentedControl, EnumSelect } from './EnumSelect'
@@ -13,11 +14,6 @@ interface EquityGrantFormProps {
   initial?: EquityGrantRow
   onSubmit: (input: EquityGrantInput) => void | Promise<void>
   onCancel?: () => void
-}
-
-/** Today as an ISO date (`YYYY-MM-DD`), the default grant date for a new grant. */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /** An integer field's value as a number, or a fallback when blank or invalid. */

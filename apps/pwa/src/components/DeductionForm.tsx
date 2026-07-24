@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { DeductionInput, DeductionRow } from '../hooks/useDeductions'
+import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
 
@@ -10,11 +11,6 @@ interface DeductionFormProps {
   initial?: DeductionRow
   onSubmit: (input: DeductionInput) => void | Promise<void>
   onCancel?: () => void
-}
-
-/** Today as an ISO date (`YYYY-MM-DD`), the default date for a new deduction. */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /**

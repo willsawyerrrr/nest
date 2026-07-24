@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import type { GiftPurchase, GiftPurchaseInput } from '../hooks/useGifts'
+import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
 
@@ -10,11 +11,6 @@ interface GiftPurchaseFormProps {
   initial?: GiftPurchase
   onSubmit: (input: GiftPurchaseInput) => void | Promise<void>
   onCancel?: () => void
-}
-
-/** Today as an ISO date (`YYYY-MM-DD`), the default purchase date for a new entry. */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /** Presentational add/edit form for one gift purchase. Persistence lives in the caller. */

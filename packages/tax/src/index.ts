@@ -4,7 +4,7 @@
  * computation lives in exactly one place. Pure — no I/O, no side effects.
  */
 
-export { FY2027_CONFIG, configsByYear } from './configs'
+export { FY2026_CONFIG, FY2027_CONFIG, configsByYear } from './configs'
 
 export { annualGrossCents, estimateHouseholdTax } from './estimate'
 export type {

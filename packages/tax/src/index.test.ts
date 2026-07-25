@@ -7,6 +7,7 @@ import {
   familyMedicareLevySurcharge,
   financialYearBounds,
   financialYearForDate,
+  FY2026_CONFIG,
   FY2027_CONFIG,
   helpRepayment,
   incomeTax,
@@ -592,6 +593,81 @@ describe('computeTax with concessional super contributions', () => {
     )
     // Repayment income is 60,000 + 20,000 = 80,000: 10% × (80,000 − 50,000).
     expect(result.helpRepaymentCents).toBe(3_000_00)
+  })
+})
+
+/**
+ * Sanity checks against the verified FY2026 config (real, final ATO figures).
+ * These assert known income points reproduce the ATO's published rules — not
+ * just the engine's arithmetic. See packages/tax/src/configs.ts for sources.
+ */
+describe('FY2026_CONFIG', () => {
+  it('is registered in configsByYear', () => {
+    expect(configsByYear[2026]).toBe(FY2026_CONFIG)
+    expect(FY2026_CONFIG.financialYear).toBe(2026)
+    expect(FY2026_CONFIG.residency).toBe('resident')
+  })
+
+  it('charges no tax below the tax-free threshold', () => {
+    const result = computeTax(inputForSalary(15_000_00), FY2026_CONFIG)
+    expect(result.taxableIncomeCents).toBe(15_000_00)
+    expect(result.incomeTaxCents).toBe(0)
+    expect(result.medicareLevyCents).toBe(0)
+    expect(result.totalLiabilityCents).toBe(0)
+  })
+
+  it('applies the 16% lowest rate for 2025-26', () => {
+    // Tax at $45,000 = 16c per $1 over $18,200 = 0.16 × 26,800 = $4,288.
+    expect(incomeTax(45_000_00, FY2026_CONFIG)).toBe(4_288_00)
+    // Tax at $190,000 = $4,288 + 30% × $90,000 + 37% × $55,000 = $51,638.
+    expect(incomeTax(190_000_00, FY2026_CONFIG)).toBe(51_638_00)
+  })
+
+  it('computes a mid-bracket earner with HELP debt and private cover', () => {
+    const result = computeTax(
+      inputForSalary(80_000_00, { privateHospitalCover: true, helpDebtCents: 30_000_00 }),
+      FY2026_CONFIG,
+    )
+    expect(result.incomeTaxCents).toBe(14_788_00)
+    expect(result.medicareLevyCents).toBe(1_600_00)
+    expect(result.medicareLevySurchargeCents).toBe(0) // private cover exempts
+    // Marginal HELP: 15c per $1 over $67,000 = 0.15 × $13,000 = $1,950.
+    expect(result.helpRepaymentCents).toBe(1_950_00)
+    expect(result.totalLiabilityCents).toBe(18_338_00)
+  })
+
+  it('applies the top surcharge tier to a high earner without cover', () => {
+    const withoutCover = computeTax(inputForSalary(200_000_00), FY2026_CONFIG)
+    expect(withoutCover.medicareLevySurchargeCents).toBe(3_000_00) // 1.5% × $200,000
+    const withCover = computeTax(
+      inputForSalary(200_000_00, { privateHospitalCover: true }),
+      FY2026_CONFIG,
+    )
+    expect(withCover.medicareLevySurchargeCents).toBe(0)
+  })
+
+  it('caps HELP at 10% of repayment income for very high earners', () => {
+    // $250,000: marginal exceeds the 10% cap, so repayment = 10% × $250,000.
+    expect(helpRepayment(250_000_00, 5_000_000_00, FY2026_CONFIG)).toBe(25_000_00)
+  })
+
+  it('carries the final HELP indexation rate applied on 1 June 2026', () => {
+    expect(FY2026_CONFIG.helpRepayment.indexationRate).toBe(0.028)
+  })
+
+  it('gives the maximum LITO below the first taper threshold', () => {
+    expect(lowIncomeTaxOffset(30_000_00, FY2026_CONFIG)).toBe(700_00)
+    expect(lowIncomeTaxOffset(66_667_00, FY2026_CONFIG)).toBe(0) // cuts out at $66,667
+  })
+
+  it('levies Division 293 on a high earner with concessional contributions', () => {
+    const result = computeTax(
+      inputForSalary(300_000_00, { concessionalContributionsCents: 30_000_00 }),
+      FY2026_CONFIG,
+    )
+    expect(result.taxableIncomeCents).toBe(270_000_00)
+    // income + concessional = 300,000; 15% × min(30,000, 300,000 − 250,000).
+    expect(result.division293Cents).toBe(4_500_00)
   })
 })
 

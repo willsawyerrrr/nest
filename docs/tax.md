@@ -147,10 +147,10 @@ their tax breakdown.
 
 > **Payoff-projection simplifications.** Repayment income is held constant across
 > every projected year at the member's current estimate — real income (and so the
-> repayment) varies year to year. The current financial year's `config` is reused
-> for all future years, since `configsByYear` holds only FY2027, so future
-> indexation and repayment thresholds are assumed unchanged. Voluntary repayments,
-> new borrowings, and any interaction with super or investment growth are excluded.
+> repayment) varies year to year. The latest financial year's `config` in
+> `configsByYear` is reused for every year beyond it, so future indexation and
+> repayment thresholds are assumed unchanged. Voluntary repayments, new
+> borrowings, and any interaction with super or investment growth are excluded.
 
 ## `TaxYearConfig` shape (versioned)
 
@@ -196,6 +196,15 @@ super:
 
 ## Shipped configs
 
+- **FY2026** (`FY2026_CONFIG`, also in `configsByYear`) — a verified resident
+  config for the closed 2025-26 financial year. Every figure, including the HELP
+  indexation rate applied on 1 June 2026 (2.8%), is the ATO's final published or
+  legislated value — none are provisional. It is the last year at the 16%
+  lowest marginal rate, and carries the verified 2025-26 super figures
+  (concessional cap $30,000, non-concessional cap $120,000, the $2.0M general
+  transfer balance cap, the $250,000 Division 293 threshold, 15%
+  contributions/Division 293 rate, the co-contribution income test, and
+  preservation age 60). See `packages/tax/src/configs.ts`.
 - **FY2027** (`FY2027_CONFIG`, also in `configsByYear`) — a verified resident
   config with real ATO figures for 2026-27, including the Budget top-up cut that
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure

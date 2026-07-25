@@ -42,8 +42,9 @@ export interface CollectionConfig<T extends HouseholdTable> {
    * A write invalidates each one's `[table, householdId]` cache prefix too, so
    * consumers reading those trigger-maintained rows refetch. The `budget_line`
    * reconcile trigger, for instance, rewrites the derived lines when a
-   * `breakdown_item`, `breakdown`, `gift_budget`, or `gift_recipient` row
-   * changes, and the Pay splits tab reads those raw lines directly.
+   * `breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, or
+   * `gift_occasion` row changes, and the Pay splits tab reads those raw lines
+   * directly.
    */
   alsoInvalidate?: readonly HouseholdTable[]
 }

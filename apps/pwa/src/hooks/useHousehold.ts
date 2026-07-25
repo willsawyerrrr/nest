@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
 
@@ -17,6 +18,7 @@ export interface UseHouseholdResult {
 /** Loads the households the signed-in user belongs to. RLS scopes the result. */
 export function useHousehold(): UseHouseholdResult {
   const [households, setHouseholds] = useState<Household[] | null>(null)
+  const queryClient = useQueryClient()
 
   const reload = useCallback(async () => {
     const { data, error } = await supabase.from('households').select('*')
@@ -26,32 +28,45 @@ export function useHousehold(): UseHouseholdResult {
     setHouseholds(data)
   }, [])
 
+  // Seeding or adding a member drives the `budget_line` reconcile trigger — it
+  // rewrites the household's derived "Gifts for <member>" lines and their
+  // buyer-account funding — so the new household's budget_line cache is
+  // invalidated once the RPC returns its household id.
+  const invalidateBudgetLines = useCallback(
+    async (householdId: string) => {
+      await queryClient.invalidateQueries({ queryKey: ['budget_line', householdId] })
+    },
+    [queryClient],
+  )
+
   const createHousehold = useCallback(
     async (name: string, memberName: string) => {
-      const { error } = await supabase.rpc('create_household', {
+      const { data, error } = await supabase.rpc('create_household', {
         p_name: name,
         p_member_name: memberName,
       })
       if (error) {
         throw error
       }
+      await invalidateBudgetLines(data)
       await reload()
     },
-    [reload],
+    [invalidateBudgetLines, reload],
   )
 
   const joinHousehold = useCallback(
     async (code: string, memberName: string) => {
-      const { error } = await supabase.rpc('join_household', {
+      const { data, error } = await supabase.rpc('join_household', {
         p_code: code,
         p_member_name: memberName,
       })
       if (error) {
         throw error
       }
+      await invalidateBudgetLines(data)
       await reload()
     },
-    [reload],
+    [invalidateBudgetLines, reload],
   )
 
   const createInviteCode = useCallback(async () => {

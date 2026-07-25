@@ -55,6 +55,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   balance is a single standing figure (the `help_debt` table, not FY-scoped),
   edited on its own HELP debt tab, that feeds the tax estimate and counts as a
   net-worth liability.
+- EOFY summary: a read-only filing-prep tab (`/eofy`) that gathers the
+  household's already-tracked tax data — the tax estimate, deductions, super
+  contributions, and HELP debt — into one per-member view for a financial year
+  picked from a selector built from the tax engine's published configs, so the
+  selector scales as future FY configs are added. It aggregates existing data
+  only: no new tables, no actual-paid-tax tracking, and no checklist state. Each
+  member's card condenses their filing-relevant tax figures, lists their claimed
+  deductions with receipts, shows their super contributions against the same
+  cap warnings as the Super tab, and shows their standing HELP balance with the
+  year's estimated repayment; nothing on the tab is editable.
 - Tax deductions: each member owns many deductible expenses on their own Tax
   deductions tab (the `deduction` table, FY-scoped), each an amount and date
   tagged to a member. A deduction reduces that member's taxable income in the

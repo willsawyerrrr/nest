@@ -231,16 +231,16 @@ export function superCapSummaryByMember(
 
 /**
  * Resolves each member's `SuperCapSummary` from raw inflow, profile, and
- * contribution rows, using the config for the current financial year (falling
- * back to FY2027). Annual gross salary drives both percent-mode contributions and
- * the co-contribution income test.
+ * contribution rows, using `config` (defaulting to the current financial year,
+ * falling back to FY2027). Annual gross salary drives both percent-mode
+ * contributions and the co-contribution income test.
  */
 export function superCapSummaryFromRows(
   inflows: readonly Inflow[],
   profiles: readonly SuperProfile[],
   contributions: readonly SuperContribution[],
+  config: TaxYearConfig = currentTaxConfig(),
 ): Map<string, SuperCapSummary> {
-  const config = currentTaxConfig()
   return superCapSummaryByMember(contributions, profiles, grossByMemberFromInflows(inflows), config)
 }
 
@@ -301,14 +301,15 @@ export function netAnnualSuperContributionFromRows(
 }
 
 /**
- * Estimates the household's tax for the current financial year from raw inflow,
- * tax-profile, and HELP-debt rows, using the config for the year (falling back
- * to FY2027). Only taxable inflows feed the estimate. Each member's HELP balance
- * is threaded in from `helpDebts`; a member with a HELP balance but no tax
- * profile still contributes a resident, cover-less profile so their repayment is
- * assessed. Concessional super contributions, when supplied, reduce each
- * member's taxable income and after-tax cash; deductions, when supplied, reduce
- * each member's taxable income only (so tax falls and after-tax cash rises).
+ * Estimates the household's tax for a financial year from raw inflow,
+ * tax-profile, and HELP-debt rows, using `config` (defaulting to the current
+ * financial year, falling back to FY2027). Only taxable inflows feed the
+ * estimate. Each member's HELP balance is threaded in from `helpDebts`; a
+ * member with a HELP balance but no tax profile still contributes a resident,
+ * cover-less profile so their repayment is assessed. Concessional super
+ * contributions, when supplied, reduce each member's taxable income and
+ * after-tax cash; deductions, when supplied, reduce each member's taxable
+ * income only (so tax falls and after-tax cash rises).
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly Inflow[],
@@ -316,8 +317,8 @@ export function estimateHouseholdTaxFromRows(
   contributions: readonly SuperContribution[] = [],
   helpDebts: readonly HelpDebt[] = [],
   deductions: readonly DeductionRow[] = [],
+  config: TaxYearConfig = currentTaxConfig(),
 ): HouseholdTaxEstimate {
-  const config = currentTaxConfig()
   const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
   // Per-member annual gross salary, the base for percent-of-salary contributions.
   const grossByMember = grossByMemberFromInflows(inflows)

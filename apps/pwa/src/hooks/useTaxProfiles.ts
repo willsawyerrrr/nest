@@ -21,11 +21,13 @@ export interface UseTaxProfilesResult {
 }
 
 /**
- * Loads and upserts tax profiles for the household's current financial year,
- * keyed by member. RLS scopes reads to the household.
+ * Loads and upserts tax profiles for `financialYear` (defaulting to the current
+ * financial year), keyed by member. RLS scopes reads to the household.
  */
-export function useTaxProfiles(householdId: string): UseTaxProfilesResult {
-  const financialYear = financialYearForDate(new Date())
+export function useTaxProfiles(
+  householdId: string,
+  financialYear: number = financialYearForDate(new Date()),
+): UseTaxProfilesResult {
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'tax_profile',
     TaxProfileInput

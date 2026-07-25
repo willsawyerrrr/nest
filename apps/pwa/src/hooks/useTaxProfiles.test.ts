@@ -28,4 +28,20 @@ describe('useTaxProfiles', () => {
     })
     expect(builder.upsert).toHaveBeenCalled()
   })
+
+  it('scopes to an explicit financial year when given one', async () => {
+    const { result } = renderHook(() => useTaxProfiles('h1', 2025), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.profiles).toEqual([{ id: 'tp1' }]))
+    expect(result.current.financialYear).toBe(2025)
+
+    await act(async () => {
+      await result.current.upsert({} as never)
+    })
+
+    expect(builder.eq).toHaveBeenCalledWith('financial_year', 2025)
+    expect(builder.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ financial_year: 2025, household_id: 'h1' }),
+      { onConflict: 'member_id,financial_year' },
+    )
+  })
 })

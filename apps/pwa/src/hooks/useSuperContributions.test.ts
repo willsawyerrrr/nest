@@ -52,4 +52,23 @@ describe('useSuperContributions', () => {
     expect(builder.delete).toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'sc1')
   })
+
+  it('scopes to an explicit financial year when given one', async () => {
+    const { result } = renderHook(() => useSuperContributions('h1', 2025), {
+      wrapper: makeWrapper(),
+    })
+    await waitFor(() => expect(result.current.contributions).toEqual([{ id: 'sc1' }]))
+    expect(result.current.financialYear).toBe(2025)
+
+    await act(async () => {
+      await result.current.create(input)
+    })
+
+    expect(builder.eq).toHaveBeenCalledWith('financial_year', 2025)
+    expect(builder.insert).toHaveBeenCalledWith({
+      ...input,
+      financial_year: 2025,
+      household_id: 'h1',
+    })
+  })
 })

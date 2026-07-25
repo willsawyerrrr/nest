@@ -37,7 +37,10 @@ export interface UseBreakdownsResult {
  * items. RLS scopes reads to the household. Creating or updating a breakdown
  * leaves its items untouched, so each refreshes only the breakdown table;
  * deleting one cascades to its items in the database, so the delete refreshes
- * the items too.
+ * the items too. A breakdown write drives the `budget_line` reconcile trigger
+ * (name and group flow onto the derived line, a delete cascades the line away),
+ * so it invalidates `budget_line` too, keeping the raw-line consumers (the Pay
+ * splits tab) current.
  */
 export function useBreakdowns(householdId: string): UseBreakdownsResult {
   const {
@@ -49,6 +52,7 @@ export function useBreakdowns(householdId: string): UseBreakdownsResult {
   } = useHouseholdCollection<'breakdown', BreakdownInput, BreakdownUpdate>(householdId, {
     table: 'breakdown',
     orderBy: 'name',
+    alsoInvalidate: ['budget_line'],
   })
   const { rows: itemRows, reload: reloadItems } = useHouseholdCollection<'breakdown_item', never>(
     householdId,

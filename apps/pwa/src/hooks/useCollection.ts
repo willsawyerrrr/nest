@@ -37,6 +37,15 @@ export interface CollectionConfig<T extends HouseholdTable> {
   match?: Readonly<Record<string, ScopeValue>>
   /** Fields merged into every insert alongside `household_id` (e.g. a parent id). */
   insertDefaults?: Readonly<Record<string, ScopeValue>>
+  /**
+   * Other tables a database trigger cross-updates whenever a row here changes.
+   * A write invalidates each one's `[table, householdId]` cache prefix too, so
+   * consumers reading those trigger-maintained rows refetch. The `budget_line`
+   * reconcile trigger, for instance, rewrites the derived lines when a
+   * `breakdown_item`, `breakdown`, `gift_budget`, or `gift_recipient` row
+   * changes, and the Pay splits tab reads those raw lines directly.
+   */
+  alsoInvalidate?: readonly HouseholdTable[]
 }
 
 /** The load, create, update, and remove surface of a household collection. */
@@ -98,6 +107,9 @@ function collectionKey(
  * write invalidates every cache entry under the `[table, householdId]` prefix, so
  * both this scope and any other scope reading the same table refresh — a match-
  * scoped detail query and the unscoped roll-up of the same table stay in step.
+ * A write also invalidates the `[table, householdId]` prefix of every table in
+ * `alsoInvalidate`, so rows a database trigger cross-updates (e.g. the derived
+ * `budget_line` rows) are refetched by their consumers too.
  * `household_id` is injected on every insert.
  */
 export function useHouseholdCollection<
@@ -117,9 +129,11 @@ export function useHouseholdCollection<
   const orderKey = orderColumns(config.orderBy).join(',')
   const matchKey = JSON.stringify(config.match ?? {})
   const defaultsKey = JSON.stringify(config.insertDefaults ?? {})
+  const alsoInvalidateKey = (config.alsoInvalidate ?? []).join(',')
   const order = useMemo(() => orderColumns(config.orderBy), [orderKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const match = useMemo(() => config.match ?? {}, [matchKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const insertDefaults = useMemo(() => config.insertDefaults ?? {}, [defaultsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const alsoInvalidate = useMemo(() => config.alsoInvalidate ?? [], [alsoInvalidateKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const queryKey = useMemo(
     () => collectionKey(table, householdId, matchKey, orderKey),
@@ -132,8 +146,13 @@ export function useHouseholdCollection<
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: [table, householdId] })
-  }, [queryClient, table, householdId])
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [table, householdId] }),
+      ...alsoInvalidate.map((other) =>
+        queryClient.invalidateQueries({ queryKey: [other, householdId] }),
+      ),
+    ])
+  }, [queryClient, table, householdId, alsoInvalidate])
 
   const create = useCallback(
     async (input: CreateInput) => {

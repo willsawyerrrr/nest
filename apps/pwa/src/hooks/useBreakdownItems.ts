@@ -22,7 +22,12 @@ export interface UseBreakdownItemsResult {
   remove: (id: string) => Promise<void>
 }
 
-/** Loads and mutates one breakdown's items. RLS scopes reads to the household. */
+/**
+ * Loads and mutates one breakdown's items. RLS scopes reads to the household.
+ * An item write drives the `budget_line` reconcile trigger, which rewrites the
+ * breakdown's derived line, so the mutation invalidates `budget_line` too and
+ * consumers reading the raw lines (the Pay splits tab) refetch the new amount.
+ */
 export function useBreakdownItems(
   householdId: string,
   breakdownId: string,
@@ -35,6 +40,7 @@ export function useBreakdownItems(
     orderBy: 'name',
     match: { breakdown_id: breakdownId },
     insertDefaults: { breakdown_id: breakdownId },
+    alsoInvalidate: ['budget_line'],
   })
   return { items: rows, loading, reload, create, update, remove }
 }

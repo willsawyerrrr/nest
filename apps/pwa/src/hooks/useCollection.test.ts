@@ -121,6 +121,34 @@ describe('useHouseholdCollection', () => {
     )
   })
 
+  it('also invalidates the prefix of every table a trigger cross-updates', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+
+    const { result } = renderHook(
+      () =>
+        useHouseholdCollection('h1', {
+          table: 'breakdown_item',
+          orderBy: 'name',
+          alsoInvalidate: ['budget_line'],
+        }),
+      { wrapper },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    invalidateSpy.mockClear()
+    await act(async () => {
+      await result.current.remove('i1')
+    })
+
+    // The write invalidates the mutated table's own prefix and every table the
+    // trigger cross-updates — here the derived `budget_line` rows.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['breakdown_item', 'h1'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
+  })
+
   it('loads without an order or match', async () => {
     const { result } = renderHook(() => useHouseholdCollection('h1', { table: 'inflows' }), {
       wrapper: makeWrapper(),

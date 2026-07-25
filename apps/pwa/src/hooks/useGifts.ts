@@ -63,6 +63,13 @@ export interface UseGiftsResult {
  * table; a delete additionally refreshes the sibling tables its cascade
  * reaches — deleting a recipient or an occasion cascades to gift budgets and
  * their purchases, and deleting a budget cascades to its purchases.
+ *
+ * A gift-budget or gift-recipient write drives the `budget_line` reconcile
+ * trigger, which rewrites the derived gift lines, so those two collections also
+ * invalidate `budget_line` and the raw-line consumers (the Pay splits tab)
+ * refetch. (`members` and `accounts` changes drive the same trigger but are
+ * onboarding/Up-sync driven, not interactive gift edits, so their lines refresh
+ * on the next natural refetch.)
  */
 export function useGifts(householdId: string): UseGiftsResult {
   const {
@@ -74,6 +81,7 @@ export function useGifts(householdId: string): UseGiftsResult {
   } = useHouseholdCollection<'gift_recipient', GiftRecipientInput>(householdId, {
     table: 'gift_recipient',
     orderBy: 'name',
+    alsoInvalidate: ['budget_line'],
   })
   const {
     rows: occasionRows,
@@ -93,6 +101,7 @@ export function useGifts(householdId: string): UseGiftsResult {
     remove: removeBudgetRow,
   } = useHouseholdCollection<'gift_budget', GiftBudgetInput>(householdId, {
     table: 'gift_budget',
+    alsoInvalidate: ['budget_line'],
   })
   const {
     rows: purchaseRows,

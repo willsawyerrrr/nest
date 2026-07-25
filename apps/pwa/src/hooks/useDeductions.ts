@@ -27,11 +27,14 @@ export interface UseDeductionsResult {
 }
 
 /**
- * Loads and mutates the household's tax deductions for the current financial
- * year, ordered by date. RLS scopes reads to the household.
+ * Loads and mutates the household's tax deductions for `financialYear`
+ * (defaulting to the current financial year), ordered by date. RLS scopes reads
+ * to the household.
  */
-export function useDeductions(householdId: string): UseDeductionsResult {
-  const financialYear = financialYearForDate(new Date())
+export function useDeductions(
+  householdId: string,
+  financialYear: number = financialYearForDate(new Date()),
+): UseDeductionsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction',
     DeductionInput

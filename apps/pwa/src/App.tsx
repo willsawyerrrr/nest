@@ -26,6 +26,9 @@ const ChangelogSection = lazy(() =>
 const DeductionsSection = lazy(() =>
   import('./routes/DeductionsSection').then((m) => ({ default: m.DeductionsSection })),
 )
+const EofySection = lazy(() =>
+  import('./routes/EofySection').then((m) => ({ default: m.EofySection })),
+)
 const EquitySection = lazy(() =>
   import('./routes/EquitySection').then((m) => ({ default: m.EquitySection })),
 )
@@ -151,6 +154,7 @@ function HouseholdApp({
             <Route path="/deductions" element={<DeductionsSection householdId={household.id} />} />
             <Route path="/super" element={<SuperSection householdId={household.id} />} />
             <Route path="/help-debt" element={<HelpDebtSection householdId={household.id} />} />
+            <Route path="/eofy" element={<EofySection householdId={household.id} />} />
             <Route path="/equity" element={<EquitySection householdId={household.id} />} />
             <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
             <Route path="/breakdowns" element={<BreakdownsSection householdId={household.id} />} />

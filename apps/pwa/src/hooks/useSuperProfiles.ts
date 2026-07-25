@@ -22,12 +22,14 @@ export interface UseSuperProfilesResult {
 }
 
 /**
- * Loads and upserts super profiles for the household's current financial year,
- * keyed by member. RLS scopes reads to the household. The balance itself lives
- * on the linked account, not here.
+ * Loads and upserts super profiles for `financialYear` (defaulting to the
+ * current financial year), keyed by member. RLS scopes reads to the household.
+ * The balance itself lives on the linked account, not here.
  */
-export function useSuperProfiles(householdId: string): UseSuperProfilesResult {
-  const financialYear = financialYearForDate(new Date())
+export function useSuperProfiles(
+  householdId: string,
+  financialYear: number = financialYearForDate(new Date()),
+): UseSuperProfilesResult {
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'super_profile',
     SuperProfileInput

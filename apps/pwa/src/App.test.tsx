@@ -67,6 +67,7 @@ vi.mock('./routes/DeductionsSection', () => ({
 }))
 vi.mock('./routes/SuperSection', () => ({ SuperSection: () => <div>SuperSection</div> }))
 vi.mock('./routes/HelpDebtSection', () => ({ HelpDebtSection: () => <div>HelpDebtSection</div> }))
+vi.mock('./routes/EofySection', () => ({ EofySection: () => <div>EofySection</div> }))
 vi.mock('./routes/EquitySection', () => ({ EquitySection: () => <div>EquitySection</div> }))
 vi.mock('./routes/GiftsSection', () => ({ GiftsSection: () => <div>GiftsSection</div> }))
 vi.mock('./routes/BreakdownsSection', () => ({
@@ -187,6 +188,7 @@ describe('App', () => {
     ['/deductions', 'DeductionsSection'],
     ['/super', 'SuperSection'],
     ['/help-debt', 'HelpDebtSection'],
+    ['/eofy', 'EofySection'],
     ['/equity', 'EquitySection'],
     ['/gifts', 'GiftsSection'],
     ['/breakdowns', 'BreakdownsSection'],

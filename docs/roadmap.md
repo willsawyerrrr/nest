@@ -90,12 +90,14 @@ does not restate them.
   formatting with lime brand distinct from green/red money semantics.
 - Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
   `/inflows` `/budget` `/splits` `/goals` `/tax` `/deductions` `/super`
-  `/help-debt` `/equity` `/breakdowns` `/gifts` `/household`; `/` and unknown routes
+  `/help-debt` `/eofy` `/equity` `/breakdowns` `/gifts` `/household`; `/` and
+  unknown routes
   redirect to
   `/summary`), so
   tabs are deep-linkable and reload-safe. Summary is the landing tab; order
   Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
-  deductions · Super · Help debt · Breakdowns · Gifts · Household. Gifts are managed
+  deductions · Super · Help debt · EOFY · Breakdowns · Gifts · Household. Gifts
+  are managed
   solely in the Gifts tab (`/gifts`); the generic-only Breakdowns tab never lists
   gift lines. One
   `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
@@ -342,6 +344,27 @@ what-if that weighs private hospital cover against the surcharge it avoids.
 - [x] Tax-tab what-if panel under the household card: assesses the surcharge as if
       neither member held cover, over ephemeral dependent-children and annual-premium
       inputs, and reports whether cover saves money or costs more than the surcharge.
+
+### EOFY summary (complete)
+
+A read-only filing-prep rollup of the household's already-tracked tax data,
+gathered from across the Tax, Deductions, Super, and HELP debt tabs into one
+per-member view for a financial year the household picks.
+
+- [x] `/eofy` tab with a financial-year selector built from `@nest/tax`'s
+      `configsByYear`, so the mechanism scales as future FY configs are added
+      without a code change.
+- [x] `useTaxProfiles`, `useDeductions`, `useSuperProfiles`, and
+      `useSuperContributions` take an optional financial year, defaulting to the
+      current one, so the same hooks serve both their own tab and the EOFY
+      selector.
+- [x] Per member: condensed tax figures (taxable income, tax payable, the
+      Medicare levy and its surcharge, the HELP repayment estimate, Division 293
+      when it applies, and net take-home), claimed deductions with their receipts,
+      super contributions against their caps (reusing the Super tab's over-cap
+      warning), and standing HELP balance with the year's estimated repayment.
+      Nothing on the tab is editable; it links out to the Tax, Deductions, Super,
+      and HELP debt tabs where each figure is entered.
 
 ## Later
 

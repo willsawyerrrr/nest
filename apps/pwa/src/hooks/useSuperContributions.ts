@@ -35,11 +35,14 @@ export interface UseSuperContributionsResult {
 }
 
 /**
- * Loads and mutates the household's super contributions for the current
- * financial year. RLS scopes reads to the household.
+ * Loads and mutates the household's super contributions for `financialYear`
+ * (defaulting to the current financial year). RLS scopes reads to the
+ * household.
  */
-export function useSuperContributions(householdId: string): UseSuperContributionsResult {
-  const financialYear = financialYearForDate(new Date())
+export function useSuperContributions(
+  householdId: string,
+  financialYear: number = financialYearForDate(new Date()),
+): UseSuperContributionsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'super_contribution',
     SuperContributionInput

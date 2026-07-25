@@ -1,3 +1,5 @@
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeWrapper } from '../test/queryWrapper'
@@ -65,5 +67,20 @@ describe('useBreakdowns', () => {
     builder.result = { data: null, error: new Error('load failed') }
     const { result } = renderHook(() => useBreakdowns('h1'), { wrapper: makeWrapper() })
     expect(result.current.loading).toBe(true)
+  })
+
+  it('invalidates the budget_line cache on a breakdown write', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+    const { result } = renderHook(() => useBreakdowns('h1'), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // A breakdown's name and group flow onto its derived line via the trigger, so
+    // the raw budget lines are invalidated for the Pay splits tab.
+    invalidateSpy.mockClear()
+    await act(() => result.current.update('bd1', updateInput))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
   })
 })

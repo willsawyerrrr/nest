@@ -1,3 +1,5 @@
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeWrapper } from '../test/queryWrapper'
@@ -156,5 +158,25 @@ describe('useGifts', () => {
     builder.result = { data: null, error: new Error('load failed') }
     const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
     expect(result.current.loading).toBe(true)
+  })
+
+  it('invalidates the budget_line cache on a gift-budget or gift-recipient write', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+    const { result } = renderHook(() => useGifts('h1'), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // A gift-budget write drives the reconcile trigger, rewriting the derived gift
+    // lines the Pay splits tab reads, so budget_line is invalidated.
+    invalidateSpy.mockClear()
+    await act(() => result.current.removeBudget('gb1'))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
+
+    // A gift-recipient write does the same (an external recipient's partition).
+    invalidateSpy.mockClear()
+    await act(() => result.current.createRecipient({ name: 'Mum', member_id: null }))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
   })
 })

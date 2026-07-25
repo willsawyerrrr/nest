@@ -175,13 +175,17 @@ Owned by a breakdown; every breakdown is generic.
   `accounts`) re-derive the affected household's lines the moment a source changes,
   computing the creates, updates, and removes needed to bring the breakdown and gift
   lines into step and no-opping once they already match; a `budget_line` normalizer
-  canonicalises any derived row on write. The identical reconcile also runs app-wide
-  from a headless client component mounted under the authenticated shell, as a
-  convergent safety net that computes the same tuple. Every collection write
-  invalidates its table's whole `[table, householdId]` cache prefix, so a
-  breakdown-item or gift-budget edit refreshes both the scoped query and the unscoped
-  roll-up and the derived amounts propagate live to the Budget, Pay splits, and
-  Summary tabs with no reload.
+  canonicalises any derived row on write. The database is the sole authority for the
+  derived lines — no client code maintains them. Every collection write invalidates
+  its own table's whole `[table, householdId]` cache prefix; an interactive roll-up
+  source (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`) additionally
+  invalidates the `budget_line` prefix (via the collection's `alsoInvalidate`), since
+  the trigger rewrites the derived lines server-side. So a breakdown-item or gift-budget
+  edit both refetches the roll-up sources — letting the Budget and Summary tabs recompute
+  the amounts live via `derivedAmountContext` — and refetches the trigger-updated
+  `budget_line` rows the Pay splits tab reads directly, all with no reload. (`members`
+  and `accounts` also drive the trigger, but their changes are onboarding/Up-sync driven,
+  not interactive budget edits, so the derived lines refresh on the next natural refetch.)
 - **System-managed amount.** A derived line is not created via the budget form and
   is not manually deletable, and its amount is not hand-editable — it is rolled up
   from the breakdown's items or, for a gift line, the gift tables. Deleting a
@@ -245,15 +249,15 @@ partitions the gift-budget totals by the recipient's `member_id`.
 
 ## Invariants
 
-- **Empty-breakdown lifecycle is app-enforced, not DB-enforced.** The schema
-  permits a breakdown or gift partition with no items/budgets and no derived line,
-  and does not itself create, update, or remove the lines as items come and go — the
-  app's reconcile pass owns that lifecycle.
-- **Line-per-breakdown mapping is app-enforced, not DB-enforced.** No constraint
-  ties a breakdown to its line or a gift partition to its line; the app keeps a
-  breakdown 1:1 with its line (matched by `breakdown_id`) and the gift roll-up 1:1
-  with each recipient partition (matched by `is_gift_line` +
+- **Empty-breakdown lifecycle is trigger-enforced, not constraint-enforced.** No
+  declarative constraint creates, updates, or removes the lines as items come and go;
+  the reconcile trigger owns that lifecycle, so a breakdown or gift partition with no
+  items/budgets and no derived line is a valid resting state the trigger converges to.
+- **Line-per-breakdown mapping is trigger-enforced, not constraint-enforced.** No
+  constraint ties a breakdown to its line or a gift partition to its line; the trigger
+  keeps a breakdown 1:1 with its line (matched by `breakdown_id`) and the gift roll-up
+  1:1 with each recipient partition (matched by `is_gift_line` +
   `gift_recipient_member_id`).
-- **Roll-up amount is app-enforced, not DB-enforced.** A derived line's
-  `amount_cents` is written by the app from its partition's summed items/budgets; the
-  schema does not compute or check it.
+- **Roll-up amount is trigger-enforced, not constraint-enforced.** A derived line's
+  `amount_cents` is written by the trigger from its partition's summed items/budgets;
+  no schema constraint computes or checks it.

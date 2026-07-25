@@ -37,12 +37,6 @@ vi.mock('./lib/supabase', () => ({
 
 vi.mock('./hooks/useHousehold', () => ({ useHousehold: mocks.useHousehold }))
 
-// The headless reconciler runs the household's data hooks; mocked so the shell
-// renders without them, as the routed sections below are.
-vi.mock('./components/BreakdownLineReconciler', () => ({
-  BreakdownLineReconciler: () => null,
-}))
-
 // Onboarding is mocked so its create/join callbacks can be invoked directly,
 // exercising both the success (reload) and error (throw) paths in AuthedApp.
 vi.mock('./components/OnboardingScreen', () => ({

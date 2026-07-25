@@ -1,3 +1,5 @@
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeWrapper } from '../test/queryWrapper'
@@ -28,5 +30,22 @@ describe('useBreakdownItems', () => {
       await result.current.reload()
     })
     expect(builder.eq).toHaveBeenCalledWith('breakdown_id', 'bd1')
+  })
+
+  it('invalidates the budget_line cache so the trigger-updated line refetches', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+    const { result } = renderHook(() => useBreakdownItems('h1', 'bd1'), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // Deleting an item drives the reconcile trigger, so the raw budget lines the
+    // Pay splits tab reads are invalidated and refetch.
+    invalidateSpy.mockClear()
+    await act(async () => {
+      await result.current.remove('x')
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
   })
 })

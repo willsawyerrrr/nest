@@ -89,38 +89,6 @@ export function giftTotalsByMember(
   return totals
 }
 
-/** The account identity a gift line's buyer-account resolution reads (no balance). */
-export interface DirectoryAccount {
-  id: string
-  owner_member_id: string | null
-  type: string
-}
-
-/**
- * The spending account that funds a member's gift line: the account the buyer —
- * the other household member — spends from. With the household's two members
- * fixed, the buyer is whichever member is not the gift's recipient, and their
- * spending account is their own `transaction` account in the directory. The
- * `owner_member_id` filter excludes the joint account (whose owner is `null`).
- * Resolves to `null` when there is no other member or their spending account is
- * not synced, leaving the line unrouted.
- */
-export function buyerSpendingAccountId(
-  giftRecipientMemberId: string,
-  members: { id: string }[],
-  directory: DirectoryAccount[],
-): string | null {
-  const buyer = members.find((member) => member.id !== giftRecipientMemberId)
-  if (!buyer) {
-    return null
-  }
-  return (
-    directory.find(
-      (account) => account.owner_member_id === buyer.id && account.type === 'transaction',
-    )?.id ?? null
-  )
-}
-
 /** The household's overall gift totals: budgeted, spent, and remaining across every gift budget. */
 export function overallGiftTotals(budgets: GiftBudget[], purchases: GiftPurchase[]): GiftTotals {
   return sumTotals(budgets.map((budget) => budgetTotals(budget, purchases)))

@@ -40,9 +40,10 @@ describe('GoalsSection', () => {
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
-  it('renders the goal screen and wires refresh through both reloads', async () => {
+  it('renders the goal screen and wires refresh through the reloads', async () => {
     const reloadSavers = vi.fn().mockResolvedValue(undefined)
     const reloadGoals = vi.fn().mockResolvedValue(undefined)
+    const reloadLines = vi.fn().mockResolvedValue(undefined)
     const refresh = vi.fn()
     hooks.useGoals.mockReturnValue({
       loading: false,
@@ -52,16 +53,18 @@ describe('GoalsSection', () => {
       update: vi.fn(),
       remove: vi.fn(),
     })
-    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], reload: reloadLines })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [], reload: reloadSavers })
     hooks.useRefreshSavers.mockReturnValue({ refresh, refreshing: false, error: null })
     render(<GoalsSection householdId="h1" />)
     expect(screen.getByTestId('goal-screen')).toBeInTheDocument()
 
-    // The refresh callback reloads both savers and goals.
+    // The refresh callback reloads the savers, the goals, and the budget lines
+    // whose gift-funding the Up sync re-derives via the trigger.
     await hooks.refreshArg?.()
     expect(reloadSavers).toHaveBeenCalledOnce()
     expect(reloadGoals).toHaveBeenCalledOnce()
+    expect(reloadLines).toHaveBeenCalledOnce()
 
     // The screen's onRefresh triggers the saver refresh.
     const onRefresh = hooks.screenProps!.onRefresh as () => void

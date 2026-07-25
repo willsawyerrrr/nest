@@ -160,7 +160,7 @@ describe('useGifts', () => {
     expect(result.current.loading).toBe(true)
   })
 
-  it('invalidates the budget_line cache on a gift-budget or gift-recipient write', async () => {
+  it('invalidates the budget_line cache on a gift-recipient, gift-occasion, or gift-budget write', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
@@ -178,5 +178,32 @@ describe('useGifts', () => {
     invalidateSpy.mockClear()
     await act(() => result.current.createRecipient({ name: 'Mum', member_id: null }))
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
+
+    // A gift-occasion write does too — deleting one cascades its budgets away,
+    // changing the derived lines.
+    invalidateSpy.mockClear()
+    await act(() => result.current.removeOccasion('o1'))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
+  })
+
+  it('leaves the budget_line cache untouched on a gift-purchase write', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children)
+    const { result } = renderHook(() => useGifts('h1'), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    // A purchase changes only spent/remaining, not the derived lines.
+    invalidateSpy.mockClear()
+    await act(() =>
+      result.current.createPurchase({
+        gift_budget_id: 'gb1',
+        amount_cents: 50,
+        description: 'x',
+        purchased_on: '2027-01-01',
+      }),
+    )
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
   })
 })

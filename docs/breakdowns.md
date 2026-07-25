@@ -178,14 +178,16 @@ Owned by a breakdown; every breakdown is generic.
   canonicalises any derived row on write. The database is the sole authority for the
   derived lines — no client code maintains them. Every collection write invalidates
   its own table's whole `[table, householdId]` cache prefix; an interactive roll-up
-  source (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`) additionally
-  invalidates the `budget_line` prefix (via the collection's `alsoInvalidate`), since
-  the trigger rewrites the derived lines server-side. So a breakdown-item or gift-budget
+  source (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, `gift_occasion`)
+  additionally invalidates the `budget_line` prefix (via the collection's `alsoInvalidate`),
+  since the trigger rewrites the derived lines server-side. So a breakdown-item or gift
   edit both refetches the roll-up sources — letting the Budget and Summary tabs recompute
   the amounts live via `derivedAmountContext` — and refetches the trigger-updated
-  `budget_line` rows the Pay splits tab reads directly, all with no reload. (`members`
-  and `accounts` also drive the trigger, but their changes are onboarding/Up-sync driven,
-  not interactive budget edits, so the derived lines refresh on the next natural refetch.)
+  `budget_line` rows the Pay splits tab reads directly, all with no reload. `members` and
+  `accounts` drive the same trigger through their own client actions: creating or joining
+  a household invalidates the new household's `budget_line` prefix once the RPC returns,
+  and the on-demand Up sync invalidates it when the sync completes, so a new member's gift
+  lines and account-driven gift funding refresh with no manual reload.
 - **System-managed amount.** A derived line is not created via the budget form and
   is not manually deletable, and its amount is not hand-editable — it is rolled up
   from the breakdown's items or, for a gift line, the gift tables. Deleting a

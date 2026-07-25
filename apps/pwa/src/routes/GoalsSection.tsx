@@ -11,13 +11,16 @@ export function GoalsSection({ householdId }: { householdId: string }) {
   const budgetLines = useBudgetLines(householdId)
   const savers = useSavers()
 
-  // Refreshing pulls fresh Up balances, so both the savers and the goals that
-  // read from them are reloaded.
+  // Refreshing pulls fresh Up balances, so the savers and the goals that read
+  // from them are reloaded. The sync also rewrites synced accounts, which drives
+  // the `budget_line` reconcile trigger to re-derive gift-line buyer funding, so
+  // the budget lines are reloaded too.
   const reloadSavers = savers.reload
   const reloadGoals = goals.reload
+  const reloadLines = budgetLines.reload
   const reloadBalances = useCallback(async () => {
-    await Promise.all([reloadSavers(), reloadGoals()])
-  }, [reloadSavers, reloadGoals])
+    await Promise.all([reloadSavers(), reloadGoals(), reloadLines()])
+  }, [reloadSavers, reloadGoals, reloadLines])
   const refresh = useRefreshSavers(reloadBalances)
 
   if (goals.loading || budgetLines.loading || savers.loading) {

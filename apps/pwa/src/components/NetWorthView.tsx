@@ -27,6 +27,7 @@ import type { NetWorthProjectionPoint } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { ProjectionHorizonOption } from '../lib/retirement'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
+import { netWorthColorName } from '../lib/tokens'
 import { EmptyState } from './EmptyState'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
@@ -66,7 +67,7 @@ function SectionAccent({
       size="sm"
       radius="sm"
       variant="light"
-      color={dimmed ? 'gray' : color}
+      color={dimmed ? netWorthColorName.excluded : color}
       style={{ flexShrink: 0 }}
     >
       {icon}
@@ -201,7 +202,7 @@ function LiabilityGroup({
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <SectionAccent color="negative" icon={<IconReceipt2 size={14} />} />
+            <SectionAccent color={netWorthColorName.liability} icon={<IconReceipt2 size={14} />} />
             <Title order={3} size="h5">
               Liabilities
             </Title>
@@ -247,7 +248,7 @@ function EquityGroup({
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            <SectionAccent color="cyan" icon={<IconChartPie size={14} />} />
+            <SectionAccent color={netWorthColorName.equity} icon={<IconChartPie size={14} />} />
             <Title order={3} size="h5">
               Equity
             </Title>
@@ -344,7 +345,7 @@ export function NetWorthView({
         excluded={false}
         editing={editing}
         togglable={false}
-        accentColor="teal"
+        accentColor={netWorthColorName.superannuation}
         accentIcon={<IconBuildingBank size={14} />}
         onToggleExclude={onToggleExclude}
       />
@@ -356,7 +357,7 @@ export function NetWorthView({
         excluded={false}
         editing={editing}
         togglable
-        accentColor="indigo"
+        accentColor={netWorthColorName.cash}
         accentIcon={<IconWallet size={14} />}
         onToggleExclude={onToggleExclude}
       />
@@ -381,7 +382,7 @@ export function NetWorthView({
           editing={editing}
           togglable
           collapsible
-          accentColor="gray"
+          accentColor={netWorthColorName.excluded}
           accentIcon={<IconEyeOff size={14} />}
           onToggleExclude={onToggleExclude}
         />

@@ -1,19 +1,20 @@
-import { chartColors } from './tokens'
+import { netWorthColors } from './tokens'
 
 /**
- * Token colours for the projection rows, from the shared chart palette. Assets take
- * the cool teal / indigo / violet of the Super, Other-accounts, and Equity groups;
- * liabilities keep warm debt tones (the cost-red of the tax family for HELP and
- * orange for debt accounts) for their tooltip swatches even though they are not
- * plotted; the net-worth line takes the brand lime.
+ * Token colours for the projection rows, from the net-worth colour map — the same
+ * source the view-section glyphs draw from, so a band and its glyph cannot drift.
+ * Assets take the cool teal / indigo / violet of the Super, Other-accounts, and
+ * Equity groups; liabilities keep warm debt tones (the cost-red `negative` family
+ * for HELP and orange for debt accounts) for their tooltip swatches even though
+ * they are not plotted; the net-worth line takes the brand lime.
  */
 export const NET_WORTH_SERIES_COLORS = {
-  super: chartColors.savings,
-  cash: chartColors.needs,
-  equity: chartColors.wants,
-  help: chartColors.tax,
-  debt: chartColors.temporary,
-  total: chartColors.sacrifice,
+  super: netWorthColors.superannuation,
+  cash: netWorthColors.cash,
+  equity: netWorthColors.equity,
+  help: netWorthColors.liability,
+  debt: netWorthColors.debtAccount,
+  total: netWorthColors.total,
 } as const
 
 /** A single row of the projection data, carrying every component for the tooltip. */

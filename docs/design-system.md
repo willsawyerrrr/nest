@@ -86,8 +86,21 @@ deeper shade on the light surface, a vivid one on the near-black dark base — s
 every hue stays legible and mutually distinguishable in both schemes.
 `chartColorName` exposes the same mapping as Mantine base-colour names, for a
 `Badge` or `ThemeIcon` `color` that derives its own scheme-aware shade — so a
-category chip (a budget-group badge) or a net-worth section glyph stays in step
-with its chart hue.
+category chip (a budget-group badge) stays in step with its chart hue.
+
+### Net-worth palette
+
+The net-worth section has its own colour map — separate from the budget-group
+categorical palette — so its projection-chart bands and its view-section glyphs
+draw from one source and cannot drift. `netWorthColors` gives the scheme-aware
+CSS colour refs (the projection chart's series and tooltip swatches, via
+`NET_WORTH_SERIES_COLORS`); `netWorthColorName` gives the Mantine base-colour
+names for each `SectionAccent` glyph in `NetWorthView`. Both derive from the same
+per-key hues: super → teal, cash → indigo, equity → violet, HELP liability →
+`negative` (cost) red, debt accounts → orange, excluded → grey, and the net-worth
+total → brand lime. The shades mirror the matching categorical hues, so the chart
+reads identically whether a colour is sourced here or from the budget-group
+palette.
 
 ## Shared primitives
 

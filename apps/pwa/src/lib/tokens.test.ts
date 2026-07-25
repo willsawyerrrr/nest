@@ -4,6 +4,8 @@ import {
   chartColorName,
   chartColors,
   chartPalette,
+  netWorthColorName,
+  netWorthColors,
   semanticColors,
 } from './tokens'
 
@@ -75,5 +77,57 @@ describe('chartPalette', () => {
   it('is the budget groups in plot order', () => {
     expect(chartPalette).toEqual(budgetGroupChartOrder.map((key) => chartColors[key]))
     expect(chartPalette).toHaveLength(6)
+  })
+})
+
+describe('netWorthColors', () => {
+  it('covers each net-worth key', () => {
+    expect(Object.keys(netWorthColors)).toEqual([
+      'superannuation',
+      'cash',
+      'equity',
+      'liability',
+      'debtAccount',
+      'excluded',
+      'total',
+    ])
+  })
+
+  it('resolves each key to a scheme-aware light-dark pair', () => {
+    expect(netWorthColors.equity).toBe(
+      'light-dark(var(--mantine-color-violet-6), var(--mantine-color-violet-5))',
+    )
+    expect(netWorthColors.liability).toBe(
+      'light-dark(var(--mantine-color-negative-6), var(--mantine-color-negative-6))',
+    )
+  })
+
+  it('mirrors the matching categorical chart hues', () => {
+    // Chart bands source the same hues the budget-group palette uses, so nothing
+    // shifts visually when the net-worth section re-sources through its own keys.
+    expect(netWorthColors.superannuation).toBe(chartColors.savings)
+    expect(netWorthColors.cash).toBe(chartColors.needs)
+    expect(netWorthColors.equity).toBe(chartColors.wants)
+    expect(netWorthColors.liability).toBe(chartColors.tax)
+    expect(netWorthColors.debtAccount).toBe(chartColors.temporary)
+    expect(netWorthColors.total).toBe(chartColors.sacrifice)
+  })
+})
+
+describe('netWorthColorName', () => {
+  it('names the Mantine base colour for each net-worth key', () => {
+    expect(netWorthColorName).toEqual({
+      superannuation: 'teal',
+      cash: 'indigo',
+      equity: 'violet',
+      liability: 'negative',
+      debtAccount: 'orange',
+      excluded: 'gray',
+      total: 'brand',
+    })
+  })
+
+  it('gives the equity glyph the same hue as its chart band', () => {
+    expect(netWorthColorName.equity).toBe('violet')
   })
 })

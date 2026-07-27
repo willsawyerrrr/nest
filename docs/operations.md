@@ -65,9 +65,62 @@ Vault holds every secret that must never reach a client:
 | `up_sync_cron_url`         | the hourly cron's `up-sync` invocation URL          |
 | `up_sync_cron_key`         | the service-role key the cron POSTs with            |
 | `GITHUB_CHANGELOG_TOKEN`   | the `changelog` function's GitHub PAT (see below)   |
+| `vapid_public_key`         | the Web Push VAPID public key, base64url (see below) |
+| `vapid_private_key`        | the Web Push VAPID private key, base64url           |
+| `vapid_subject`            | the `mailto:` contact URI the VAPID JWT carries     |
 
 Up tokens are written/read/cleared only by the service-role-only SECURITY
-DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)).
+DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
+by the equally service-role-only `vapid_keys()`.
+
+## Web Push VAPID keypair setup
+
+`push-key` and `push-test` sign every push with a VAPID keypair (RFC 8292) held
+in Vault. Nothing in the app writes it — the operator sets and rotates it by
+hand, so there is no store RPC to abuse.
+
+1. Generate a P-256 keypair in the base64url form both secrets expect:
+
+   ```sh
+   deno run https://raw.githubusercontent.com/negrel/webpush/master/cmd/generate-vapid-keys.ts
+   ```
+
+   That script prints JWKs; for the raw base64url encoding the secrets hold, use
+   the Node tool instead:
+
+   ```sh
+   npx web-push generate-vapid-keys
+   ```
+
+   The public key is a base64url uncompressed P-256 point (65 bytes, so it starts
+   `B`); the private key is a base64url 32-byte scalar. `push-test` rejects
+   anything else before attempting a push, naming the offending secret.
+
+2. Set the three secrets in prod:
+
+   ```sql
+   select vault.create_secret('<public-key>', 'vapid_public_key');
+   select vault.create_secret('<private-key>', 'vapid_private_key');
+   select vault.create_secret('mailto:you@example.com', 'vapid_subject');
+   ```
+
+   The subject must be a `mailto:` or `https:` URI — RFC 8292 requires it, and a
+   push service admin uses it to reach whoever runs the application server. A
+   value that is neither is refused rather than sent, because a push service
+   answers a bad `sub` claim with an opaque 400.
+
+3. Verify the chain end to end: opt a device in from the Household tab and send a
+   test push. `push-test` answers `{ devices, sent, pruned, failed }`.
+
+To rotate, `select vault.update_secret(id, '<new-key>', name, null)` for both
+keys. `push-key` serves the public key rather than the PWA baking it in at build
+time, so a rotation needs no rebuild — but every existing subscription was minted
+against the old key and stops working, so each device must re-subscribe.
+
+**iOS caveat.** Safari delivers Web Push only to a PWA **installed to the home
+screen**, on **iOS 16.4+**. In a browser tab there is no push manager to
+subscribe with. Permission is also effectively one-shot per install: once denied,
+it is restored only by removing and re-adding the app.
 
 ## up-sync hourly cron (prod only)
 

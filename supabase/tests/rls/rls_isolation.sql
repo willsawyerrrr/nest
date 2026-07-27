@@ -1318,4 +1318,120 @@ do $$ begin
     'the joint-account candidate claimed as Bob''s gift stays withheld from Bob';
 end $$;
 
+-- ── Web Push subscriptions: a member manages only their own devices ───────────
+--
+-- A subscription endpoint is a bearer capability to push to someone's phone, so
+-- unlike the household's shared planning data it is scoped to the one member
+-- whose device it is: household membership alone grants neither read nor delete.
+-- The endpoint is also globally unique, so a re-subscribing device upserts on it.
+
+-- Alice opts in two devices of her own.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+insert into public.push_subscription (household_id, member_id, endpoint, p256dh, auth)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid,
+    'https://push.example/alice-phone', 'alice-phone-p256dh', 'alice-phone-auth')
+  returning id as priv_alice_device \gset
+select set_config('test.priv_alice_device', :'priv_alice_device', false);
+
+insert into public.push_subscription (household_id, member_id, endpoint, p256dh, auth)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid,
+    'https://push.example/alice-laptop', 'alice-laptop-p256dh', 'alice-laptop-auth');
+
+do $$ begin
+  assert (select count(*) from public.push_subscription) = 2,
+    'Alice should read both of her own devices';
+end $$;
+
+-- Re-subscribing the same device refreshes its keys in place: the unique
+-- endpoint makes `on conflict (endpoint)` inferable, so no duplicate lands.
+insert into public.push_subscription (household_id, member_id, endpoint, p256dh, auth)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid,
+    'https://push.example/alice-phone', 'rotated-p256dh', 'rotated-auth')
+  on conflict (endpoint) do update
+    set p256dh = excluded.p256dh, auth = excluded.auth;
+
+do $$ begin
+  assert (select count(*) from public.push_subscription) = 2,
+    'a re-subscribe should upsert on the endpoint, not duplicate the device';
+  assert (select p256dh from public.push_subscription
+    where id = current_setting('test.priv_alice_device')::uuid) = 'rotated-p256dh',
+    'a re-subscribe should refresh the stored keys';
+end $$;
+
+-- Alice cannot attribute a device to her co-member.
+do $$ begin
+  insert into public.push_subscription (household_id, member_id, endpoint, p256dh, auth)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid,
+      'https://push.example/forged', 'x', 'y');
+  raise exception 'FAIL: Alice registered a device for her co-member';
+exception when insufficient_privilege then
+  raise notice 'PASS: a member cannot register a device for a co-member';
+end $$;
+
+-- Bob, a member of the same household, sees and can delete only his own devices.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+insert into public.push_subscription (household_id, member_id, endpoint, p256dh, auth)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid,
+    'https://push.example/bob-phone', 'bob-phone-p256dh', 'bob-phone-auth');
+
+do $$ begin
+  assert (select count(*) from public.push_subscription) = 1,
+    'Bob should see only his own device, never a co-member''s';
+  assert not exists (select 1 from public.push_subscription
+    where id = current_setting('test.priv_alice_device')::uuid),
+    'a co-member''s subscription endpoint must not be readable';
+end $$;
+
+-- His delete of her device matches no row rather than erroring, so the row
+-- survives (checked below, as Alice, since Bob cannot read it to confirm).
+delete from public.push_subscription where id = current_setting('test.priv_alice_device')::uuid;
+
+-- Nor can Bob take the device over by upserting on its endpoint: the update
+-- policy is gated on the existing row's member.
+do $$ begin
+  insert into public.push_subscription (household_id, member_id, endpoint, p256dh, auth)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid,
+      'https://push.example/alice-phone', 'stolen-p256dh', 'stolen-auth')
+    on conflict (endpoint) do update
+      set member_id = excluded.member_id, p256dh = excluded.p256dh, auth = excluded.auth;
+  raise exception 'FAIL: Bob took over a co-member''s device by upserting its endpoint';
+exception when insufficient_privilege then
+  raise notice 'PASS: a member cannot reassign a co-member''s device';
+end $$;
+
+-- A member of another household sees and deletes nothing at all.
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com"}', true);
+do $$ begin
+  assert (select count(*) from public.push_subscription) = 0,
+    'an outside household must not see Privacy House''s devices';
+end $$;
+delete from public.push_subscription where id = current_setting('test.priv_alice_device')::uuid;
+
+-- Back as Alice: neither delete attempt touched her device, and her own delete
+-- (the opt-out path) does.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$ begin
+  assert exists (select 1 from public.push_subscription
+    where id = current_setting('test.priv_alice_device')::uuid),
+    'neither a co-member nor an outside household should delete Alice''s device';
+  assert (select p256dh from public.push_subscription
+    where id = current_setting('test.priv_alice_device')::uuid) = 'rotated-p256dh',
+    'the blocked takeover should leave Alice''s keys untouched';
+end $$;
+
+delete from public.push_subscription where id = current_setting('test.priv_alice_device')::uuid;
+do $$ begin
+  assert (select count(*) from public.push_subscription) = 1,
+    'Alice should delete her own device and keep her remaining one';
+end $$;
+
+-- The VAPID credential set is service-role-only: a member cannot read the keys
+-- that authorise a push, even though its own subscriptions are hers to manage.
+do $$ begin
+  perform public.vapid_keys();
+  raise exception 'FAIL: a member read the VAPID credential set';
+exception when insufficient_privilege then
+  raise notice 'PASS: vapid_keys is not executable by a member';
+end $$;
+
 rollback;

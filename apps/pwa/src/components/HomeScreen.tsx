@@ -11,9 +11,11 @@ import {
   Title,
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
+import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
 import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
 import { PageSection } from './PageSection'
+import { PushNotificationsCard } from './PushNotificationsCard'
 import { TaxProfileList } from './TaxProfileList'
 
 interface HomeScreenProps {
@@ -31,6 +33,7 @@ interface HomeScreenProps {
   onConnectUp: (token: string) => Promise<void>
   onDisconnectUp: () => Promise<void>
   upBusy: boolean
+  push: UsePushNotificationsResult
   onSignOut: () => void
 }
 
@@ -142,6 +145,7 @@ export function HomeScreen({
   onConnectUp,
   onDisconnectUp,
   upBusy,
+  push,
   onSignOut,
 }: HomeScreenProps) {
   const codeActive =
@@ -176,6 +180,16 @@ export function HomeScreen({
         onConnectUp={onConnectUp}
         onDisconnectUp={onDisconnectUp}
         upBusy={upBusy}
+      />
+
+      <PushNotificationsCard
+        status={push.status}
+        pending={push.pending}
+        error={push.error}
+        testResult={push.testResult}
+        onEnable={() => void push.subscribe()}
+        onDisable={() => void push.unsubscribe()}
+        onSendTest={() => void push.sendTest()}
       />
 
       <AppCard>

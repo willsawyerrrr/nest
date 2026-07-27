@@ -9,8 +9,10 @@ import {
   Text,
   TextInput,
   Title,
+  UnstyledButton,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { GiftPurchaseInput } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
@@ -180,11 +182,17 @@ function GiftCandidateLinkForm({
   )
 }
 
+const INBOX_BODY_ID = 'gift-candidate-inbox-body'
+
 /**
  * The gift inbox: the gift-category card spending Up synced that is not yet
  * accounted for, each row offering a link to a gift budget or a "not a gift"
  * set-aside. Up files charity donations under the same category, so setting one
  * aside is routine — and reversible from the set-aside list.
+ *
+ * The rows sit behind a collapsed header, so the planner below stays the first
+ * thing the tab shows; the header carries the count of candidates waiting, which
+ * is the signal that there is anything to act on.
  *
  * The section renders only when there is something in it, so a household with no
  * synced gift spending sees nothing at all.
@@ -198,6 +206,7 @@ export function GiftCandidateInbox({
   onRestore,
 }: GiftCandidateInboxProps) {
   const [linkingId, setLinkingId] = useState<string | null>(null)
+  const [opened, { toggle }] = useDisclosure(false)
   const [showDismissed, { toggle: toggleDismissed }] = useDisclosure(false)
 
   if (candidates.length === 0 && dismissed.length === 0) {
@@ -207,82 +216,99 @@ export function GiftCandidateInbox({
   return (
     <AppCard withBorder padding="sm">
       <Stack gap="sm">
-        <Stack gap="xxs">
-          <Title order={3} size="h5">
-            From your card
-          </Title>
-          <Text size="xs" c="dimmed">
-            Gift spending synced from Up. Link one to a gift, or set it aside.
-          </Text>
-        </Stack>
+        <UnstyledButton
+          onClick={toggle}
+          aria-expanded={opened}
+          aria-controls={INBOX_BODY_ID}
+          w="100%"
+        >
+          <Stack gap="xxs">
+            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+              {opened ? <IconChevronDown size={18} /> : <IconChevronRight size={18} />}
+              <Title order={3} size="h5" style={{ minWidth: 0 }}>
+                {candidates.length > 0 ? `From your card (${candidates.length})` : 'From your card'}
+              </Title>
+            </Group>
+            <Text size="xs" c="dimmed">
+              Gift spending synced from Up. Link one to a gift, or set it aside.
+            </Text>
+          </Stack>
+        </UnstyledButton>
 
-        {candidates.length > 0 && recipientChoices.length === 0 && (
-          <Text size="xs" c="dimmed">
-            Add a gift budget to link these against.
-          </Text>
-        )}
+        <Collapse expanded={opened} id={INBOX_BODY_ID}>
+          <Stack gap="sm">
+            {candidates.length > 0 && recipientChoices.length === 0 && (
+              <Text size="xs" c="dimmed">
+                Add a gift budget to link these against.
+              </Text>
+            )}
 
-        {candidates.map((candidate) => (
-          <AppCard key={candidate.transactionId} withBorder padding="xs">
-            <Stack gap="xs">
-              <CandidateSummary candidate={candidate} />
-              {linkingId === candidate.transactionId ? (
-                <GiftCandidateLinkForm
-                  candidate={candidate}
-                  recipientChoices={recipientChoices}
-                  onSubmit={async (input) => {
-                    await onLink(input)
-                    setLinkingId(null)
-                  }}
-                  onCancel={() => setLinkingId(null)}
-                />
-              ) : (
-                <Group gap="xs" grow>
-                  <Button
-                    variant="light"
-                    disabled={recipientChoices.length === 0}
-                    onClick={() => setLinkingId(candidate.transactionId)}
-                  >
-                    Link to a gift
-                  </Button>
-                  <Button variant="subtle" onClick={() => void onDismiss(candidate.transactionId)}>
-                    Not a gift
+            {candidates.map((candidate) => (
+              <AppCard key={candidate.transactionId} withBorder padding="xs">
+                <Stack gap="xs">
+                  <CandidateSummary candidate={candidate} />
+                  {linkingId === candidate.transactionId ? (
+                    <GiftCandidateLinkForm
+                      candidate={candidate}
+                      recipientChoices={recipientChoices}
+                      onSubmit={async (input) => {
+                        await onLink(input)
+                        setLinkingId(null)
+                      }}
+                      onCancel={() => setLinkingId(null)}
+                    />
+                  ) : (
+                    <Group gap="xs" grow>
+                      <Button
+                        variant="light"
+                        disabled={recipientChoices.length === 0}
+                        onClick={() => setLinkingId(candidate.transactionId)}
+                      >
+                        Link to a gift
+                      </Button>
+                      <Button
+                        variant="subtle"
+                        onClick={() => void onDismiss(candidate.transactionId)}
+                      >
+                        Not a gift
+                      </Button>
+                    </Group>
+                  )}
+                </Stack>
+              </AppCard>
+            ))}
+
+            {dismissed.length > 0 && (
+              <Stack gap="xs">
+                <Group justify="flex-start">
+                  <Button size="xs" variant="subtle" onClick={toggleDismissed}>
+                    {showDismissed ? 'Hide set aside' : `Set aside (${dismissed.length})`}
                   </Button>
                 </Group>
-              )}
-            </Stack>
-          </AppCard>
-        ))}
-
-        {dismissed.length > 0 && (
-          <Stack gap="xs">
-            <Group justify="flex-start">
-              <Button size="xs" variant="subtle" onClick={toggleDismissed}>
-                {showDismissed ? 'Hide set aside' : `Set aside (${dismissed.length})`}
-              </Button>
-            </Group>
-            <Collapse expanded={showDismissed}>
-              <Stack gap="xs">
-                {dismissed.map((candidate) => (
-                  <AppCard key={candidate.transactionId} withBorder padding="xs">
-                    <Stack gap="xs">
-                      <CandidateSummary candidate={candidate} />
-                      <Group gap="xs">
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() => void onRestore(candidate.dismissalId)}
-                        >
-                          Undo
-                        </Button>
-                      </Group>
-                    </Stack>
-                  </AppCard>
-                ))}
+                <Collapse expanded={showDismissed}>
+                  <Stack gap="xs">
+                    {dismissed.map((candidate) => (
+                      <AppCard key={candidate.transactionId} withBorder padding="xs">
+                        <Stack gap="xs">
+                          <CandidateSummary candidate={candidate} />
+                          <Group gap="xs">
+                            <Button
+                              size="xs"
+                              variant="subtle"
+                              onClick={() => void onRestore(candidate.dismissalId)}
+                            >
+                              Undo
+                            </Button>
+                          </Group>
+                        </Stack>
+                      </AppCard>
+                    ))}
+                  </Stack>
+                </Collapse>
               </Stack>
-            </Collapse>
+            )}
           </Stack>
-        )}
+        </Collapse>
       </Stack>
     </AppCard>
   )

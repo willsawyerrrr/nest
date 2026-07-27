@@ -559,16 +559,24 @@ describe('GiftsScreen card-spending inbox', () => {
 
   const bookshop = makeGiftTransaction({ id: 't1', description: 'Bookshop' })
 
-  it('offers the synced card spending as a candidate to link', () => {
+  /** Taps the inbox header, revealing the candidates behind it. */
+  async function expandInbox(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /from your card/i }))
+  }
+
+  it('offers the synced card spending as a candidate to link', async () => {
+    const user = userEvent.setup()
     renderScreen({ transactions: [bookshop] })
 
-    expect(screen.getByRole('heading', { name: 'From your card' })).toBeInTheDocument()
-    expect(screen.getByText('Bookshop')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'From your card (1)' })).toBeVisible()
+
+    await expandInbox(user)
+    expect(screen.getByText('Bookshop')).toBeVisible()
   })
 
   it('omits the inbox entirely when nothing is synced', () => {
     renderScreen()
-    expect(screen.queryByRole('heading', { name: 'From your card' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /from your card/i })).not.toBeInTheDocument()
   })
 
   it('keeps a gift for the signed-in member out of the link picker', async () => {
@@ -582,6 +590,7 @@ describe('GiftsScreen card-spending inbox', () => {
       currentMemberId: 'me',
     })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }))
 

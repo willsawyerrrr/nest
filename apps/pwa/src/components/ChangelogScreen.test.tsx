@@ -38,6 +38,7 @@ function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> 
       configured
       error={null}
       onUpdate={() => {}}
+      updating={false}
       {...overrides}
     />,
   )
@@ -69,8 +70,17 @@ describe('ChangelogScreen', () => {
     expect(screen.getByText('Update available')).toBeInTheDocument()
     expect(screen.getByText('Add a savings goal ring')).toBeInTheDocument()
 
+    expect(screen.queryByText('Updating…')).not.toBeInTheDocument()
+
     await userEvent.click(screen.getByRole('button', { name: /reload to update/i }))
     expect(onUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the update as under way while it is being applied', () => {
+    renderScreen({ available, updating: true })
+
+    expect(screen.getByText('Updating…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reload to update/i })).toBeDisabled()
   })
 
   it('hides the update-available section when nothing newer exists', () => {

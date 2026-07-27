@@ -21,9 +21,12 @@ deno task test     # runs the *_test.ts unit suites
 Pure logic sits in server-free sibling modules so tests never import an
 `index.ts` (which would start `Deno.serve`): `_shared/up.ts`'s `UpClient` takes an
 injectable `fetch` for stubbing HTTP, `up-sync/map.ts` holds the ledger mappers,
-`up-webhook/signature.ts` holds the HMAC verification, and `up-connect/connect.ts`
+`up-webhook/signature.ts` holds the HMAC verification, `up-connect/connect.ts`
 / `up-disconnect/disconnect.ts` hold the connect/disconnect flows with their I/O
-injected so the validate-then-store ordering is tested against fakes.
+injected so the validate-then-store ordering is tested against fakes, and
+`push-key/key.ts` / `push-test/send.ts` do the same for the push flows —
+`push-test/webpush.ts` is exercised against a stubbed `fetch`, so the real VAPID
+signature and aes128gcm framing are asserted without a push service.
 
 ## Up Bank sync
 
@@ -78,11 +81,13 @@ authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if that
 Supabase access token is rotated, update the secret or the deploy fails.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
-`up-connect`, `up-disconnect`, `up-sync`, and `changelog` are JWT-verified (the
+`up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, and `push-test`
+are JWT-verified (the
 default) — the caller is resolved from their JWT, so a member can only touch their
-own token, and `up-sync`'s PWA Refresh carries the member's JWT while its hourly
-cron presents the service-role key. `up-webhook` sets `verify_jwt = false` so Up
-can call it unauthenticated; its HMAC signature check is the security boundary.
+own token or their own devices, and `up-sync`'s PWA Refresh carries the member's
+JWT while its hourly cron presents the service-role key. `up-webhook` is the only
+entry in `config.toml`, setting `verify_jwt = false` so Up can call it
+unauthenticated; its HMAC signature check is the security boundary.
 
 Serve locally against the running stack, or deploy a single function by hand:
 
@@ -150,3 +155,50 @@ the function proxies the API.
   error. Set it locally in
   `supabase/functions/.env` and in prod with
   `supabase secrets set GITHUB_CHANGELOG_TOKEN=<pat>`.
+
+## Web Push
+
+Alerts reach the installed PWA over Web Push — payload encryption per
+[RFC 8291](https://www.rfc-editor.org/rfc/rfc8291) (aes128gcm) and application
+server auth per [RFC 8292](https://www.rfc-editor.org/rfc/rfc8292) (a VAPID JWT,
+ES256). Both functions are JWT-verified and resolve the caller from their JWT, so
+a member reaches only their own devices.
+
+- **`push-key`** — returns `{ publicKey }`, the VAPID public key the client passes
+  to `pushManager.subscribe({ applicationServerKey })`. Served rather than baked
+  into the build so rotating the keypair is a Vault change with no rebuild. When
+  the secrets are unset it answers `503 { error }`, never a null key a caller
+  might subscribe with unchecked.
+- **`push-test`** — POST. Loads the caller's own `push_subscription` rows and
+  sends a test notification to each, answering
+  `{ devices, sent, pruned, failed }`. Every device is attempted independently, so
+  one failing endpoint neither aborts the others nor loses the summary. A `404` or
+  `410 Gone` means the device unsubscribed, so that row is deleted; every other
+  failure leaves the row alone for the next attempt. The payload is
+  `{ title, body, url }`, with `url` (`/household`) the target for the service
+  worker's `notificationclick`.
+
+The crypto is `@negrel/webpush` (WebCrypto only, no npm shims), pinned in
+`deno.json` and `deno.lock` like every other dependency. `push-test/webpush.ts`
+supplies the two pieces the library leaves to the caller: converting the stored
+base64url keypair into the JWK pair WebCrypto imports, and classifying a failure
+as a dead endpoint or a transient one.
+
+Nothing here decides _when_ to notify — there is no scheduled evaluation and no
+buffer / goal / expiry trigger. A push happens only when a member asks for a test.
+
+### Secrets
+
+The VAPID keypair lives in Vault, read only by the service-role-only
+`vapid_keys()` RPC — one call returning all three, because a send needs all three
+at once. There is no store RPC: the operator sets and rotates them by hand.
+
+- **`vapid_public_key`** — base64url uncompressed P-256 point (65 bytes).
+- **`vapid_private_key`** — base64url 32-byte P-256 scalar.
+- **`vapid_subject`** — a `mailto:` (or `https:`) contact URI for the push
+  service's admins; RFC 8292 requires it, and a malformed one is refused before
+  any push is attempted.
+
+Generation, the exact `vault.create_secret` calls, rotation, and the iOS
+install/version requirements are in
+[`docs/operations.md`](../../docs/operations.md#web-push-vapid-keypair-setup).

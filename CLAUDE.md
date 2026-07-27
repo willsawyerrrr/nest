@@ -205,6 +205,24 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   PWA never shows entries newer than the build it is running), and the commits
   newer than it are returned as an "Update available" list with a Reload-to-update
   button that force-updates the PWA to the latest deployed version.
+- Push notifications: alerts reach the installed PWA over Web Push (RFC 8291
+  payload encryption, RFC 8292 VAPID auth) — no push vendor and no native app. A
+  member opts in **per device**: the subscription (endpoint plus its two keys)
+  lands in `push_subscription`, upserted on the globally unique `endpoint` so a
+  re-subscribe refreshes the row. That table is the one exception to the
+  shared-household rule — an endpoint is a bearer capability to make someone's
+  phone buzz, so RLS scopes all four commands to the owning member
+  (`current_member_ids()`), a co-member can neither read nor delete nor reassign
+  it, and `service_role` holds only `select` (to send) and `delete` (to prune).
+  The VAPID keypair and its `mailto:` subject live in Vault, read only through the
+  service-role-only `vapid_keys()` RPC and set by hand; `push-key` serves the
+  public key so rotating the pair needs no rebuild, and `push-test` sends a
+  verification notification to the caller's own devices, pruning a row only on a
+  `404`/`410` and reporting `{ devices, sent, pruned, failed }`. The payload is
+  `{ title, body, url }`, the URL being where `notificationclick` navigates.
+  Deciding **when** to notify is out of scope: there is no scheduled evaluation
+  pass and no buffer / goal / expiry trigger, so a push happens only when a member
+  asks for a test.
 
 ## Conventions
 

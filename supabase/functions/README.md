@@ -19,9 +19,17 @@ deno task test     # runs the *_test.ts unit suites
 ```
 
 Run the suite through `deno task test` rather than a bare `deno test`: the task
-carries `--allow-env`, which the Anthropic SDK needs because constructing a client
-reads its configuration (base URL, key, log level) from the environment. CI runs
-the same task, so the permissions live in one place.
+carries the one permission the suite needs, a named env allowlist the Anthropic
+SDK requires because constructing a client reads its configuration from the
+environment. The set is closed and spelled out — `ANTHROPIC_BASE_URL`,
+`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_WEBHOOK_SIGNING_KEY`, `ANTHROPIC_LOG`,
+`ANTHROPIC_CUSTOM_HEADERS` — and the task adds `--no-prompt`, so a read outside it
+fails the run rather than being granted at an interactive prompt.
+`ANTHROPIC_API_KEY` is not among them: the key is always passed to the
+constructor, so the SDK never reads it. Nothing else is granted, so the tests have
+no net, file, or subprocess access. CI runs the same task, so local and CI
+permissions are one definition and widening the list takes a deliberate change
+here.
 
 Pure logic sits in server-free sibling modules so tests never import an
 `index.ts` (which would start `Deno.serve`): `_shared/up.ts`'s `UpClient` takes an

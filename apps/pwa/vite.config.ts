@@ -34,6 +34,11 @@ export default defineConfig({
           VitePWA({
             registerType: 'autoUpdate',
             injectRegister: false,
+            // The worker is hand-written (`src/sw.ts`) so it can carry the Web
+            // Push handlers; workbox only injects the precache manifest into it.
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.ts',
             includeAssets: ['icon.svg', 'icon-app.svg', 'favicon-32.png', 'apple-touch-icon.png'],
             manifest: {
               name: 'nest',

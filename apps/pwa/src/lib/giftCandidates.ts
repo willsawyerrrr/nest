@@ -1,6 +1,13 @@
 import type { Tables } from './database.types'
 import { isoDate } from './dates'
-import type { GiftBudget, GiftOccasion, GiftPurchase, GiftRecipient } from './gifts'
+import {
+  compareOccasions,
+  compareRecipients,
+  type GiftBudget,
+  type GiftOccasion,
+  type GiftPurchase,
+  type GiftRecipient,
+} from './gifts'
 
 /**
  * The Up category the gift inbox is built from. Up assigns it to gift spending
@@ -30,10 +37,20 @@ export interface DismissedGiftCandidate extends GiftCandidate {
   dismissalId: string
 }
 
-/** One selectable gift budget: its id and a "recipient — occasion" label. */
-export interface GiftBudgetChoice {
+/** One selectable choice: the value it submits and the label it reads as. */
+export interface GiftLinkOption {
   value: string
   label: string
+}
+
+/** A recipient a candidate can be linked to, with the occasions they are budgeted for. */
+export interface GiftLinkRecipient extends GiftLinkOption {
+  /**
+   * The recipient's budgeted occasions, each valued by the `gift_budget` id the
+   * pairing resolves to — so choosing an occasion names its budget outright and
+   * a recipient/occasion mismatch cannot be expressed.
+   */
+  occasions: GiftLinkOption[]
 }
 
 function toCandidate(transaction: GiftTransaction): GiftCandidate {
@@ -109,31 +126,42 @@ export function dismissedGiftCandidates(
 }
 
 /**
- * The gift budgets a candidate can be linked to, labelled "recipient —
- * occasion" and ordered by that label.
+ * The recipients a candidate can be linked to — name-ordered, each carrying its
+ * budgeted occasions in occasion order (dated first, undated last) — so the link
+ * form picks a recipient, then one of that recipient's occasions.
  *
- * A gift for the signed-in member is excluded: RLS blocks them logging a
- * purchase against it (the spend is hidden from them), so offering the budget
- * would only fail on save.
+ * A recipient appears only once they have a linkable gift budget, so an occasion
+ * list is never empty. A gift for the signed-in member is excluded: RLS blocks
+ * them logging a purchase against it (the spend is hidden from them), so
+ * offering the budget would only fail on save — and a recipient whose every
+ * budget is hidden that way drops out with them.
  */
-export function linkableGiftBudgets(
+export function linkableGiftRecipients(
   budgets: GiftBudget[],
   recipients: GiftRecipient[],
   occasions: GiftOccasion[],
   hiddenBudgetIds: ReadonlySet<string>,
-): GiftBudgetChoice[] {
-  const recipientById = new Map(recipients.map((recipient) => [recipient.id, recipient]))
+): GiftLinkRecipient[] {
   const occasionById = new Map(occasions.map((occasion) => [occasion.id, occasion]))
-  return budgets
-    .filter((budget) => !hiddenBudgetIds.has(budget.id))
-    .map((budget): GiftBudgetChoice | null => {
-      const recipient = recipientById.get(budget.recipient_id)
-      const occasion = occasionById.get(budget.occasion_id)
-      if (!recipient || !occasion) {
-        return null
-      }
-      return { value: budget.id, label: `${recipient.name} — ${occasion.name}` }
-    })
-    .filter((choice): choice is GiftBudgetChoice => choice !== null)
-    .sort((a, b) => a.label.localeCompare(b.label) || a.value.localeCompare(b.value))
+  const budgetedByRecipient = new Map<string, { occasion: GiftOccasion; budgetId: string }[]>()
+  for (const budget of budgets) {
+    const occasion = occasionById.get(budget.occasion_id)
+    if (hiddenBudgetIds.has(budget.id) || !occasion) {
+      continue
+    }
+    const budgeted = budgetedByRecipient.get(budget.recipient_id) ?? []
+    budgeted.push({ occasion, budgetId: budget.id })
+    budgetedByRecipient.set(budget.recipient_id, budgeted)
+  }
+  return [...recipients]
+    .filter((recipient) => budgetedByRecipient.has(recipient.id))
+    .sort(compareRecipients)
+    .map((recipient) => ({
+      value: recipient.id,
+      label: recipient.name,
+      occasions: budgetedByRecipient
+        .get(recipient.id)!
+        .sort((a, b) => compareOccasions(a.occasion, b.occasion))
+        .map(({ occasion, budgetId }) => ({ value: budgetId, label: occasion.name })),
+    }))
 }

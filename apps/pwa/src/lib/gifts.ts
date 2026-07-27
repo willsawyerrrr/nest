@@ -107,7 +107,7 @@ function sumTotals(totals: GiftTotals[]): GiftTotals {
 }
 
 /** Orders occasions by date (undated last), then name, then id for a stable tiebreak. */
-function compareOccasions(a: GiftOccasion, b: GiftOccasion): number {
+export function compareOccasions(a: GiftOccasion, b: GiftOccasion): number {
   if (a.occasion_date !== b.occasion_date) {
     if (a.occasion_date === null) return 1
     if (b.occasion_date === null) return -1
@@ -117,7 +117,7 @@ function compareOccasions(a: GiftOccasion, b: GiftOccasion): number {
 }
 
 /** Orders recipients by name, then id for a stable tiebreak. */
-function compareRecipients(a: GiftRecipient, b: GiftRecipient): number {
+export function compareRecipients(a: GiftRecipient, b: GiftRecipient): number {
   return a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
 }
 

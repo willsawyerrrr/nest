@@ -245,14 +245,25 @@ Owned by a breakdown; every breakdown is generic.
   transaction's description (or "Card purchase" where Up gives none), its posting
   date, and its amount, plus a `Pending` badge and a note while the transaction is
   still `HELD` and its amount can still change on settlement.
-  - **Link to a gift** opens an inline form: a gift picker ("recipient — occasion")
-    and a description seeded from Up's wording, editable into something the gift log
+  - **Link to a gift** opens an inline form: a **Recipient** picker, then an
+    **Occasion** picker holding that recipient's occasions, and a description seeded
+    from Up's wording, editable into something the gift log
     reads better. The amount and date are fixed to the transaction — a linked
     purchase follows its transaction's amount — and the form says so. Saving writes a
     `gift_purchase` carrying `transaction_id`, its `purchased_on` the transaction's
     `posted_at` as a **local** calendar date rather than a slice of the UTC
     timestamp, so a late-evening purchase is not dated a day out.
-  - The picker omits any gift for the signed-in member: their own gift's spend is
+  - The two pickers are dependent, so neither list is long on a phone. The recipient
+    list holds only recipients with a linkable gift budget, by name; the occasion
+    list holds only that recipient's budgeted occasions, in occasion order (dated
+    first, undated last), and stays disabled — reading "Choose a recipient first" —
+    until a recipient is picked. Each occasion option is valued by the `gift_budget`
+    it resolves to, the pairing being unique, so an occasion names its budget
+    outright and a mismatch cannot be submitted. Changing the recipient restarts the
+    occasion. Where there is one recipient, or a recipient has one occasion, that
+    sole choice is made for the household, so the common case is a single pick.
+  - The pickers omit any gift for the signed-in member — and the recipient itself
+    where their every gift is one: their own gift's spend is
     hidden from them, so RLS refuses the insert and offering the budget would only
     fail on save. The same privacy holds from the other direction without the
     client doing anything: RLS withholds a transaction claimed as a gift for the

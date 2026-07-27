@@ -27,7 +27,7 @@ import { formatIsoDate } from '../lib/dates'
 import {
   dismissedGiftCandidates,
   giftCandidates,
-  linkableGiftBudgets,
+  linkableGiftRecipients,
   type GiftTransaction,
   type GiftTransactionDismissal,
 } from '../lib/giftCandidates'
@@ -297,7 +297,7 @@ export function GiftsScreen({
       <GiftCandidateInbox
         candidates={giftCandidates(transactions, purchases, dismissals)}
         dismissed={dismissedGiftCandidates(transactions, dismissals)}
-        budgetChoices={linkableGiftBudgets(budgets, recipients, occasions, hiddenBudgetIds)}
+        recipientChoices={linkableGiftRecipients(budgets, recipients, occasions, hiddenBudgetIds)}
         onLink={onCreatePurchase}
         onDismiss={onDismissTransaction}
         onRestore={onRestoreTransaction}

@@ -649,6 +649,13 @@ Because these RPCs run as their owner, `service_role` needs no grant on the
 tables they write; the surgical grant stance is in
 [`operations.md`](operations.md#service_role-grants).
 
+Every function in the schema — RPC, helper, and trigger alike, `SECURITY DEFINER`
+or invoker — is declared `set search_path = ''`, so each body schema-qualifies
+everything it names and nothing it resolves can be shadowed by a relation, type,
+or operator planted in a schema earlier on the caller's path. The RLS suite
+asserts the invariant over the whole of `pg_proc`, so a function that omits the
+setting fails CI.
+
 ## Reconcile
 
 The derived budget lines — the breakdown roll-ups and the gift lines — are

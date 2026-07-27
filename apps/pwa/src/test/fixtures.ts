@@ -1,10 +1,16 @@
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { GiftPurchase } from '../hooks/useGifts'
 import type { Goal } from '../hooks/useGoals'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { Saver } from '../hooks/useSavers'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import {
+  GIFT_TRANSACTION_CATEGORY,
+  type GiftTransaction,
+  type GiftTransactionDismissal,
+} from '../lib/giftCandidates'
 
 /** Builds a household member row, overriding any field a test cares about. */
 export function makeMember(overrides: Partial<Member> = {}): Member {
@@ -107,6 +113,59 @@ export function makeBudgetLine(overrides: Partial<BudgetLine> = {}): BudgetLine 
     breakdown_id: null,
     gift_recipient_member_id: null,
     is_gift_line: false,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a gift-purchase row, defaulting to a hand-entered (unlinked) purchase. */
+export function makeGiftPurchase(overrides: Partial<GiftPurchase> = {}): GiftPurchase {
+  return {
+    id: 'p1',
+    household_id: 'h1',
+    gift_budget_id: 'b1',
+    amount_cents: 30_00,
+    description: 'Book',
+    purchased_on: '2026-11-01',
+    transaction_id: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a synced Up gift-category transaction: settled, and signed negative as a debit. */
+export function makeGiftTransaction(overrides: Partial<GiftTransaction> = {}): GiftTransaction {
+  return {
+    id: 't1',
+    household_id: 'h1',
+    account_id: 'a1',
+    member_id: 'm1',
+    category_id: null,
+    posted_at: '2026-11-20T02:30:00+00:00',
+    amount_cents: -45_00,
+    description: 'Bookshop',
+    notes: null,
+    kind: 'expense',
+    status: 'settled',
+    source: 'up',
+    external_id: 'up-t1',
+    external_category: GIFT_TRANSACTION_CATEGORY,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a "not a gift" dismissal for a synced gift transaction. */
+export function makeGiftTransactionDismissal(
+  overrides: Partial<GiftTransactionDismissal> = {},
+): GiftTransactionDismissal {
+  return {
+    id: 'd1',
+    household_id: 'h1',
+    transaction_id: 't1',
     created_at: '',
     updated_at: '',
     ...overrides,

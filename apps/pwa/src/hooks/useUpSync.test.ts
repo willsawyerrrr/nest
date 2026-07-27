@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from '../lib/supabase'
-import { useRefreshSavers } from './useRefreshSavers'
+import { useUpSync } from './useUpSync'
 
 vi.mock('../lib/supabase', () => ({
   supabase: { functions: { invoke: vi.fn() } },
@@ -9,7 +9,7 @@ vi.mock('../lib/supabase', () => ({
 
 const invoke = vi.mocked(supabase.functions.invoke)
 
-describe('useRefreshSavers', () => {
+describe('useUpSync', () => {
   beforeEach(() => {
     invoke.mockReset()
     invoke.mockResolvedValue({ data: null, error: null })
@@ -23,7 +23,7 @@ describe('useRefreshSavers', () => {
         resolveInvoke = resolve
       }),
     )
-    const { result } = renderHook(() => useRefreshSavers(reload))
+    const { result } = renderHook(() => useUpSync(reload))
 
     let pending: Promise<void> = Promise.resolve()
     act(() => {
@@ -46,7 +46,7 @@ describe('useRefreshSavers', () => {
   it('surfaces an error and does not reload when the sync fails', async () => {
     const reload = vi.fn().mockResolvedValue(undefined)
     invoke.mockResolvedValue({ data: null, error: new Error('boom') })
-    const { result } = renderHook(() => useRefreshSavers(reload))
+    const { result } = renderHook(() => useUpSync(reload))
 
     await act(async () => {
       await result.current.refresh()

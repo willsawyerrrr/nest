@@ -2,6 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GiftBudget, GiftOccasion, GiftPurchase, GiftRecipient } from '../hooks/useGifts'
+import { makeGiftPurchase, makeGiftTransaction } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { GiftsScreen } from './GiftsScreen'
 
@@ -40,6 +41,8 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
         occasions={[xmas]}
         budgets={[budget]}
         purchases={[]}
+        transactions={[]}
+        dismissals={[]}
         members={[]}
         currentMemberId={null}
         onCreateRecipient={vi.fn()}
@@ -54,6 +57,11 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
         onCreatePurchase={vi.fn()}
         onUpdatePurchase={vi.fn()}
         onDeletePurchase={vi.fn()}
+        onDismissTransaction={vi.fn()}
+        onRestoreTransaction={vi.fn()}
+        onRefresh={vi.fn()}
+        refreshing={false}
+        refreshError={null}
         {...overrides}
       />
     </MemoryRouter>,
@@ -154,6 +162,7 @@ describe('GiftsScreen total', () => {
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
+      transaction_id: null,
       household_id: 'h',
       created_at: '',
       updated_at: '',
@@ -189,6 +198,7 @@ describe('GiftsScreen spend rollup', () => {
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
+      transaction_id: null,
       household_id: 'h',
       created_at: '',
       updated_at: '',
@@ -206,6 +216,7 @@ describe('GiftsScreen spend rollup', () => {
       amount_cents: 20_00,
       description: 'Book',
       purchased_on: '2026-11-01',
+      transaction_id: null,
       household_id: 'h',
       created_at: '',
       updated_at: '',
@@ -316,6 +327,7 @@ describe('GiftsScreen private gifts for the current member', () => {
     amount_cents: 40_00,
     description: 'Secret',
     purchased_on: '2026-12-02',
+    transaction_id: null,
     household_id: 'h',
     created_at: '',
     updated_at: '',
@@ -454,6 +466,7 @@ describe('GiftsScreen purchases', () => {
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
+      transaction_id: null,
       household_id: 'h',
       created_at: '',
       updated_at: '',
@@ -500,6 +513,7 @@ describe('GiftsScreen purchases', () => {
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
+      transaction_id: null,
       household_id: 'h',
       created_at: '',
       updated_at: '',
@@ -527,6 +541,7 @@ describe('GiftsScreen purchases', () => {
       amount_cents: 30_00,
       description: '',
       purchased_on: '2026-11-01',
+      transaction_id: null,
       household_id: 'h',
       created_at: '',
       updated_at: '',
@@ -536,5 +551,73 @@ describe('GiftsScreen purchases', () => {
     await expandRow(user)
     expect(screen.getByRole('button', { name: 'Edit purchase' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete purchase' })).toBeInTheDocument()
+  })
+})
+
+describe('GiftsScreen card-spending inbox', () => {
+  beforeEach(() => localStorage.clear())
+
+  const bookshop = makeGiftTransaction({ id: 't1', description: 'Bookshop' })
+
+  it('offers the synced card spending as a candidate to link', () => {
+    renderScreen({ transactions: [bookshop] })
+
+    expect(screen.getByRole('heading', { name: 'From your card' })).toBeInTheDocument()
+    expect(screen.getByText('Bookshop')).toBeInTheDocument()
+  })
+
+  it('omits the inbox entirely when nothing is synced', () => {
+    renderScreen()
+    expect(screen.queryByRole('heading', { name: 'From your card' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a gift for the signed-in member out of the link picker', async () => {
+    const user = userEvent.setup()
+    const meRecipient: GiftRecipient = { ...alice, id: 'r9', name: 'Me', member_id: 'me' }
+    const myGift: GiftBudget = { ...budget, id: 'b9', recipient_id: 'r9' }
+    renderScreen({
+      recipients: [alice, meRecipient],
+      budgets: [budget, myGift],
+      transactions: [bookshop],
+      currentMemberId: 'me',
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
+    await user.click(screen.getByRole('combobox', { name: 'Gift' }))
+
+    // Their own gift's spend is hidden from them and RLS blocks the insert, so it
+    // is not offered at all.
+    expect(await screen.findByRole('option', { name: 'Alice — Christmas' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Me — Christmas' })).not.toBeInTheDocument()
+  })
+
+  it('marks a purchase that came from a card transaction', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      purchases: [makeGiftPurchase({ description: 'Novel', transaction_id: 't1' })],
+    })
+
+    await expandRow(user)
+    expect(screen.getByText('From Up')).toBeInTheDocument()
+  })
+
+  it('leaves a hand-entered purchase unmarked', async () => {
+    const user = userEvent.setup()
+    renderScreen({ purchases: [makeGiftPurchase({ description: 'Novel' })] })
+
+    await expandRow(user)
+    expect(screen.queryByText('From Up')).not.toBeInTheDocument()
+  })
+
+  it('pulls fresh transactions from Up and reports a failed refresh', async () => {
+    const user = userEvent.setup()
+    const onRefresh = vi.fn()
+    renderScreen({ onRefresh })
+
+    await user.click(screen.getByRole('button', { name: 'Refresh' }))
+    expect(onRefresh).toHaveBeenCalledOnce()
+
+    renderScreen({ refreshError: 'Could not refresh from Up. Try again.' })
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not refresh from up/i)
   })
 })

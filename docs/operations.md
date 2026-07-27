@@ -29,12 +29,15 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
 
 ## `service_role` grants
 
-`service_role` has NO blanket table access. It holds only the grants the Up
-functions need: `select` on `members` and `select`/`insert`/`update` on
-`accounts` (migration `20260719050000_service_role_ledger_grants.sql`). The token
-RPCs are SECURITY DEFINER and need no table grants. Any future server-side code
-touching other public tables must add its own grants deliberately — the stance is
-surgical, per-feature.
+`service_role` has NO blanket table access. Its grants are `select` on `members`
+and `select`/`insert`/`update` on `accounts` (migration
+`20260719050000_service_role_ledger_grants.sql`), plus the same three on
+`account_balance` (`20260802000000_split_account_balance.sql`). The Up functions
+read `members` and `accounts` under those grants; every write goes through a
+SECURITY DEFINER RPC — the token reads, `upsert_up_accounts`, and
+`sync_up_gift_transactions` — which runs as its owner, so `transactions` carries no
+`service_role` grant at all. Any future server-side code touching other public
+tables must add its own grants deliberately — the stance is surgical, per-feature.
 
 ## Vault secrets
 

@@ -74,7 +74,17 @@ normalised to fortnightly and annual exactly as a budget line is.
   amount — RLS on `gift_budget` permits it and the Gifts screen offers the edit
   control — since the budget is jointly planned; only the spend stays hidden. Any
   other member — the buyer — sees everything.
-  An unlinked recipient is an external person, fully shared.
+  A purchase linked from a synced Up transaction is hidden by that same policy, and
+  so is the transaction behind it: on top of the ledger's per-account rule
+  (`visible_balance_account_ids()`, which keeps a gift bought on the buyer's own
+  spending account out of the recipient's sight entirely), the `transactions`
+  policies exclude
+  `hidden_gift_transaction_ids_for_current_member()` — the spend claimed as a gift
+  for the caller. A gift bought on the joint account is therefore a candidate for
+  both partners while it is unclaimed, and claiming it for one of them withholds it
+  from that member, so no account choice is needed to keep a surprise intact. An
+  unlinked recipient is an external person, fully shared — a
+  joint-account purchase for them stays visible to both.
 - **Every household member is a permanent recipient.** A member's recipient is
   auto-created with the member and removed with them, and cannot be renamed or
   deleted (enforced in the database by an insert trigger, an `on delete cascade`
@@ -223,7 +233,40 @@ Owned by a breakdown; every breakdown is generic.
 - **Gifts tab** (route `/gifts`, in `NAV_ITEMS`) — the unified gift planner and the
   sole place gifts are managed, showing every recipient, occasion, budget, and
   purchase. It reads and writes the household-scoped `gift_*` tables directly; the
-  reconcile pass derives the gift budget lines from them.
+  reconcile pass derives the gift budget lines from them. A **Refresh** action beside
+  **Manage** invokes `up-sync` for the caller's household and reloads both the gift
+  tables and the synced transactions, so spending just recategorised as a gift in the
+  Up app reaches the tab without waiting for the hourly cron; a failed sync shows an
+  alert and leaves the existing data in place.
+- **"From your card" inbox** (the first section of the Gifts tab) — the
+  gift-category transactions `up-sync` ingested that are neither linked to a purchase
+  nor set aside, newest first. The section renders only when it has rows, so a
+  household with no synced gift spending sees nothing. Each row shows the
+  transaction's description (or "Card purchase" where Up gives none), its posting
+  date, and its amount, plus a `Pending` badge and a note while the transaction is
+  still `HELD` and its amount can still change on settlement.
+  - **Link to a gift** opens an inline form: a gift picker ("recipient — occasion")
+    and a description seeded from Up's wording, editable into something the gift log
+    reads better. The amount and date are fixed to the transaction — a linked
+    purchase follows its transaction's amount — and the form says so. Saving writes a
+    `gift_purchase` carrying `transaction_id`, its `purchased_on` the transaction's
+    `posted_at` as a **local** calendar date rather than a slice of the UTC
+    timestamp, so a late-evening purchase is not dated a day out.
+  - The picker omits any gift for the signed-in member: their own gift's spend is
+    hidden from them, so RLS refuses the insert and offering the budget would only
+    fail on save. The same privacy holds from the other direction without the
+    client doing anything: RLS withholds a transaction claimed as a gift for the
+    signed-in member, so their inbox never lists it.
+  - **Not a gift** sets a row aside, writing a `gift_transaction_dismissal` — Up
+    files charity donations in the same category, so this is routine. The set-aside
+    rows sit behind a `Set aside (n)` toggle, each with an **Undo** that deletes the
+    dismissal and returns the row to the inbox. A dismissal whose transaction the
+    signed-in member cannot see is dropped rather than rendered as a blank row.
+  - A purchase or dismissal write invalidates the `transactions` cache alongside its
+    own table, so a claimed or set-aside row leaves the inbox with no reload.
+- **Gift purchase rows** — every pairing row takes a hand-entered purchase
+  (description, amount, date) as well; a purchase linked from a synced transaction
+  carries a neutral `From Up` badge, so card spend reads apart from a typed one.
 - **`/breakdowns/:id`** — the item editor: the item list with add / edit / remove
   (name + amount + frequency, `every_n_weeks`/`every_n_months` taking an interval as
   elsewhere); rename the breakdown; choose its group; delete the breakdown.

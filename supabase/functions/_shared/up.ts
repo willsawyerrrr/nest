@@ -31,15 +31,24 @@ export interface UpTransaction {
   readonly attributes: {
     readonly status: 'HELD' | 'SETTLED'
     readonly description: string
-    readonly message: string | null
     readonly amount: UpMoney
     readonly createdAt: string
+    /** Null while the transaction is `HELD`. */
     readonly settledAt: string | null
   }
   readonly relationships: {
     readonly account: { readonly data: { readonly id: string } }
+    /** The child category, carried on list responses; null when uncategorised. */
     readonly category: { readonly data: { readonly id: string } | null }
   }
+}
+
+/** Filters narrowing a transaction listing to the slice the ledger wants. */
+export interface ListTransactionsOptions {
+  /** Only transactions created at or after this instant (`filter[since]`). */
+  readonly since?: Date
+  /** Only transactions in this Up category, e.g. `gifts-and-charity`. */
+  readonly category?: string
 }
 
 /** A paginated JSON:API list response. */
@@ -102,12 +111,15 @@ export class UpClient {
   }
 
   /**
-   * Lists transactions for the token's owner, newest first. When `since` is
-   * given (ISO 8601), only transactions created at or after it are returned.
+   * Lists transactions for the token's owner, newest first, walking every page.
+   * `since` bounds the listing by `createdAt` and `category` narrows it to one
+   * Up child category; each transaction carries its own `category` relationship,
+   * so no per-transaction fetch is needed to read it back.
    */
-  async listTransactions(since?: string): Promise<UpTransaction[]> {
+  async listTransactions(options: ListTransactionsOptions = {}): Promise<UpTransaction[]> {
     const query = new URLSearchParams({ 'page[size]': '100' })
-    if (since) query.set('filter[since]', since)
+    if (options.since) query.set('filter[since]', options.since.toISOString())
+    if (options.category) query.set('filter[category]', options.category)
     const transactions: UpTransaction[] = []
     for await (const tx of this.paginate<UpTransaction>(`/transactions?${query.toString()}`)) {
       transactions.push(tx)

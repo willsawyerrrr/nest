@@ -3,8 +3,8 @@ import { GoalScreen } from '../components/GoalScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGoals } from '../hooks/useGoals'
-import { useRefreshSavers } from '../hooks/useRefreshSavers'
 import { useSavers } from '../hooks/useSavers'
+import { useUpSync } from '../hooks/useUpSync'
 
 export function GoalsSection({ householdId }: { householdId: string }) {
   const goals = useGoals(householdId)
@@ -21,7 +21,7 @@ export function GoalsSection({ householdId }: { householdId: string }) {
   const reloadBalances = useCallback(async () => {
     await Promise.all([reloadSavers(), reloadGoals(), reloadLines()])
   }, [reloadSavers, reloadGoals, reloadLines])
-  const refresh = useRefreshSavers(reloadBalances)
+  const refresh = useUpSync(reloadBalances)
 
   if (goals.loading || budgetLines.loading || savers.loading) {
     return <LoadingScreen />

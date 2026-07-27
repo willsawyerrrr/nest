@@ -147,7 +147,10 @@ so the rule it enforces holds app-wide.
   body-color text that reads clearly in both schemes); a badge that encodes a
   category — a budget group, inflow type, or equity instrument — takes a distinct
   hue from the categorical palette (`chartColorName` for budget groups); a status
-  badge takes a semantic `color` (on-track `positive`, behind `warning`). Every
+  badge takes a semantic `color` (on-track `positive`, behind `warning`, a held Up
+  transaction `warning`); a badge that only qualifies its row — a purchase's
+  `From Up` source, an inactive inflow, a line's routing — stays neutral
+  `color="gray"` so it recedes behind the classifying badges. Every
   badge renders its label in natural case (set globally in the theme); source
   labels are written that way, so no per-badge `tt` override is needed.
 - **Add / edit.** Exactly one add affordance (`AddButton`) and one edit pencil

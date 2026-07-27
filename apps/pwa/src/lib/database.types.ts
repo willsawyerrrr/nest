@@ -606,6 +606,7 @@ export type Database = {
           household_id: string
           id: string
           purchased_on: string
+          transaction_id: string | null
           updated_at: string
         }
         Insert: {
@@ -616,6 +617,7 @@ export type Database = {
           household_id: string
           id?: string
           purchased_on: string
+          transaction_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -626,6 +628,7 @@ export type Database = {
           household_id?: string
           id?: string
           purchased_on?: string
+          transaction_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -642,6 +645,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gift_purchase_transaction_id_household_id_fkey'
+            columns: ['transaction_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'transactions'
+            referencedColumns: ['id', 'household_id']
           },
         ]
       }
@@ -683,6 +693,45 @@ export type Database = {
             columns: ['member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      gift_transaction_dismissal: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          transaction_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          transaction_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          transaction_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_transaction_dismissal_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gift_transaction_dismissal_transaction_id_household_id_fkey'
+            columns: ['transaction_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'transactions'
             referencedColumns: ['id', 'household_id']
           },
         ]
@@ -1206,6 +1255,7 @@ export type Database = {
           category_id: string | null
           created_at: string
           description: string
+          external_category: string | null
           external_id: string | null
           household_id: string
           id: string
@@ -1223,6 +1273,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           description?: string
+          external_category?: string | null
           external_id?: string | null
           household_id: string
           id?: string
@@ -1240,6 +1291,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           description?: string
+          external_category?: string | null
           external_id?: string | null
           household_id?: string
           id?: string
@@ -1353,6 +1405,15 @@ export type Database = {
       }
       store_up_token: {
         Args: { p_member_id: string; p_token: string }
+        Returns: undefined
+      }
+      sync_up_gift_transactions: {
+        Args: {
+          p_account_ids: string[]
+          p_household_id: string
+          p_since: string
+          rows: Json
+        }
         Returns: undefined
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }

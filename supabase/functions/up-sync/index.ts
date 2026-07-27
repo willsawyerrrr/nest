@@ -14,7 +14,11 @@
  * name to disambiguate them. The token is read server-side only, via the
  * service-role-only Vault RPC.
  *
- * Accounts only: transaction ingestion is deferred to a later ledger phase.
+ * It then ingests one slice of the ledger: each member's gift-category Up
+ * transactions over a trailing window, which the Gifts screen offers as
+ * candidate purchases to link against a gift budget. A general transaction
+ * ledger — every category, spend reconciliation, actual tax paid — is a separate
+ * phase (see docs/up-ledger-sync.md).
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -22,7 +26,7 @@ import { UpClient } from '../_shared/up.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveCaller } from '../_shared/caller.ts'
 import { isServiceRoleToken } from './auth.ts'
-import { type AccountRow, runSync } from './sync.ts'
+import { type AccountRow, type GiftTransactionWindow, runSync, UP_GIFT_CATEGORY } from './sync.ts'
 
 Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
@@ -88,6 +92,34 @@ Deno.serve(async (request) => {
     upsertAccounts: async (rows: AccountRow[]) => {
       const { error } = await supabase.rpc('upsert_up_accounts', { rows })
       if (error) throw new Error(`Failed to upsert accounts: ${error.message}`)
+    },
+    listGiftTransactions: (token, since) =>
+      new UpClient(token).listTransactions({ since, category: UP_GIFT_CATEGORY }),
+    // The account rows the pass above upserted, read back for their local ids:
+    // a transaction names its Up account, and the ledger row it becomes needs
+    // the local account, household, and owning member.
+    listSyncedAccounts: async (externalIds: string[]) => {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id, external_id, household_id, owner_member_id')
+        .eq('source', 'up')
+        .in('external_id', externalIds)
+      if (error) throw new Error(`Failed to resolve synced accounts: ${error.message}`)
+      return data ?? []
+    },
+    // A SECURITY DEFINER RPC settles the whole window in one transaction: upsert
+    // what Up returned, hold linked purchases to their transaction's amount, and
+    // prune the candidates Up no longer reports in the gift category.
+    syncGiftTransactions: async (
+      { householdId, accountIds, since, rows }: GiftTransactionWindow,
+    ) => {
+      const { error } = await supabase.rpc('sync_up_gift_transactions', {
+        p_household_id: householdId,
+        p_account_ids: accountIds,
+        p_since: since,
+        rows,
+      })
+      if (error) throw new Error(`Failed to sync gift transactions: ${error.message}`)
     },
   }, householdId)
 

@@ -16,7 +16,8 @@ liability, plan spending, and track savings goals.
   Division 293, co-contribution) with its tax impact and a retirement projection,
   and total balances into a net-worth view.
 - **Gifts** — a first-class Gifts tab: a unified planner of gift budgets by
-  recipient × occasion with a purchase log, each recipient's spend private from them.
+  recipient × occasion with a purchase log fed by hand or by linking gift-category
+  card spend synced from Up, each recipient's spend private from them.
 - **Breakdowns** — user-created itemised lists (medications, any costed list) that
   roll up into a single derived budget line.
 - **Pay splits** — route each budget line to the Up account that funds it and get
@@ -100,12 +101,14 @@ no transaction data. Full superannuation modelling (concessional-contribution ta
 impact, Division 293, contribution caps, government co-contribution, and a
 retirement projection) and a net-worth view are live, as are user-created
 breakdowns (itemised lists that roll up into a derived budget line), a first-class
-Gifts tab (a unified recipient × occasion planner whose budgets roll up through an
-internal `kind = 'gift'` breakdown), pay splits (per-account fortnightly split
+Gifts tab (a unified recipient × occasion planner whose budgets roll up into derived
+budget lines per recipient), pay splits (per-account fortnightly split
 recommendations against routed budget lines), and an in-app "What's new" changelog.
 The Up savers → savings-goals layer is also live: members connect an Up token and
 link a goal to a synced Up saver, so goal progress tracks the real balance (synced
-on demand and hourly). Up transaction ingestion + reconciliation (ledger UI, actual
-spend vs budget, actual tax paid) is the next phase. See
+on demand and hourly). The same sync ingests one slice of the ledger: each member's
+gift-category card spend, which the Gifts tab offers as candidate purchases to link
+against a gift budget. Ingestion across every category plus reconciliation (ledger
+UI, actual spend vs budget, actual tax paid) is the next phase. See
 [`docs/roadmap.md`](docs/roadmap.md) for the plan and
 [`docs/operations.md`](docs/operations.md) for what is deployed and how.

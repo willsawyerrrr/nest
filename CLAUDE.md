@@ -131,6 +131,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   amount (RLS on `gift_budget` permits it and the Gifts screen offers the edit
   control), since the budget is jointly planned; only the spend stays hidden — the
   buyer (any other member) sees everything.
+  A purchase is either hand-entered or linked from a synced Up card transaction:
+  the Gifts tab's "From your card" inbox offers each unclaimed `gifts-and-charity`
+  transaction (see Ingestion) to link against a (recipient, occasion) budget — the
+  purchase takes the transaction's amount and its local posting date, with only the
+  description editable — or to set aside as "not a gift"
+  (`gift_transaction_dismissal`), Up's category covering charity too. The inbox
+  respects the spend privacy above from both directions: the budget picker omits
+  gifts for the signed-in member, whose purchases RLS refuses anyway, and the
+  `transactions` policies withhold both a transaction outside the member's
+  balance-visible accounts (`visible_balance_account_ids()`, so a gift bought on
+  the buyer's own spending account is invisible to the recipient) and one already
+  claimed as a gift for them (`hidden_gift_transaction_ids_for_current_member()`,
+  so a joint-account gift is a candidate for both partners until one claims it and
+  is withheld from the recipient thereafter). No account choice is needed to keep
+  a surprise intact.
   Both household members are permanent recipients: each member's recipient is
   auto-created with the member (an insert trigger), removed with them (an
   `on delete cascade` FK), limited to one per member (a partial unique index),
@@ -159,8 +174,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   shared row (`owner_member_id` null), while individual accounts are attributed
   to their owner; an individual spending account's name is stored prefixed with
   the owner's name in possessive form (e.g. "Alex's Spending") to disambiguate
-  the household's two spending accounts. Up transaction ingestion (spend/ledger reconciliation,
-  actual tax paid) is deferred. Sources (Up Bank API + manual entry) are
+  the household's two spending accounts. Transaction ingestion covers one Up
+  category: the same poll lands each member's `gifts-and-charity` transactions in
+  `transactions` (Up's category in `external_category`, the household's own
+  `category_id` null) via the `sync_up_gift_transactions` RPC, so a gift purchase
+  can be linked to real card spend (`gift_purchase.transaction_id`) or set aside
+  as not a gift (`gift_transaction_dismissal`). It rescans a fixed 365-day
+  trailing window each run rather than following a cursor, because Up raises no
+  event when a transaction is recategorised — which is how most gift spend gets
+  categorised — and prunes the candidates Up no longer reports in the category,
+  keeping any a purchase links to. The ledger's per-account privacy applies: a
+  co-member's gift candidates on their own spending account stay invisible, and
+  joint-account spend is a candidate for both partners until it is claimed as one
+  partner's gift, at which point it is withheld from them. A general ledger
+  (every category, spend reconciliation, actual tax paid) is deferred.
+  Sources (Up Bank API + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
   prod on merge via `.github/workflows/deploy-functions.yml`.

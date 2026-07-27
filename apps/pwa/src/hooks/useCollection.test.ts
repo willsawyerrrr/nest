@@ -43,8 +43,22 @@ describe('useHouseholdCollection', () => {
     expect(fromMock).toHaveBeenCalledWith('inflows')
     expect(builder.select).toHaveBeenCalledWith('*')
     expect(builder.eq).toHaveBeenCalledWith('member_id', 'm1')
-    expect(builder.order).toHaveBeenCalledWith('name')
-    expect(builder.order).toHaveBeenCalledWith('type')
+    expect(builder.order).toHaveBeenCalledWith('name', { ascending: true })
+    expect(builder.order).toHaveBeenCalledWith('type', { ascending: true })
+  })
+
+  it('loads a descending collection under its own cache scope', async () => {
+    const { result } = renderHook(
+      () =>
+        useHouseholdCollection('h1', {
+          table: 'transactions',
+          orderBy: 'posted_at',
+          descending: true,
+        }),
+      { wrapper: makeWrapper() },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(builder.order).toHaveBeenCalledWith('posted_at', { ascending: false })
   })
 
   it('creates, updates, removes, and reloads', async () => {

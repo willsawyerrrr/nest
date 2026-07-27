@@ -16,6 +16,18 @@
     "fmt": "deno fmt",
     "lint": "deno lint",
     "check": "deno check **/*.ts",
-    "test": "deno test --allow-env"
+    // Constructing an Anthropic client reads its configuration from the
+    // environment, so the payslip-extract tests need exactly these names: the
+    // endpoint (`ANTHROPIC_BASE_URL`), the two credentials the client falls back
+    // to (`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_WEBHOOK_SIGNING_KEY`), the log level
+    // (`ANTHROPIC_LOG`), and the extra request headers
+    // (`ANTHROPIC_CUSTOM_HEADERS`). `ANTHROPIC_API_KEY` is absent because the key
+    // is always passed to the constructor, so the SDK never reads it. The set is
+    // closed — the SDK reads each name individually and never enumerates the
+    // environment — and the SDK is pinned and locked, so it moves only with a
+    // deliberate upgrade. `--no-prompt` keeps the list authoritative: a read
+    // outside it fails the run here exactly as it does in CI, rather than being
+    // granted at an interactive prompt.
+    "test": "deno test --no-prompt --allow-env=ANTHROPIC_AUTH_TOKEN,ANTHROPIC_BASE_URL,ANTHROPIC_CUSTOM_HEADERS,ANTHROPIC_LOG,ANTHROPIC_WEBHOOK_SIGNING_KEY"
   }
 }

@@ -117,6 +117,25 @@ often a filtered-out `chore`/`docs`/`refactor`. If the SHA is empty or not found
 `available` is empty and the full list is `implemented` (fail-open, never a blank
 page and never a false update prompt); in-progress open PRs are unaffected.
 
+**Reload to update** runs `applyLatestVersion`
+(`apps/pwa/src/serviceWorkerUpdate.ts`). The service worker is registered with
+`registerType: 'autoUpdate'` and `injectRegister: false`, so the generated
+`sw.js` omits `skipWaiting`/`clientsClaim`: a new worker precaches the new build
+and then waits indefinitely. The button's fast path exploits that — it looks the
+registration up and, when `registration.waiting` exists, posts the `SKIP_WAITING`
+message `sw.js` listens for, waits (up to a couple of seconds) for that worker's
+`statechange` to reach `activated` — `controllerchange` is a secondary signal
+because installed iOS PWAs do not reliably fire it — and reloads onto the
+precache the device already holds, downloading nothing.
+
+Any other outcome, including the activation timeout, takes the fallback: clear
+the Cache Storage, unregister every service worker, then hard-reload so the next
+load fetches the current bundle over the network. That path is deliberately
+aggressive and is the default, because iOS evicts service workers and caches out
+from under installed PWAs and WebKit has a history of serving stale precached
+assets after a deploy; it always lands on the new build, where the fast path only
+does so when a waiting worker proves the new build is already local.
+
 ## Auth
 
 Supabase Google OAuth (consent screen published). The site URL and redirect

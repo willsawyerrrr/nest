@@ -1,12 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@negrel/http-ece@0.7.0": "0.7.0",
-    "jsr:@negrel/webpush@0.5.0": "0.5.0",
     "jsr:@std/assert@1.0.19": "1.0.19",
-    "jsr:@std/bytes@1": "1.0.6",
-    "jsr:@std/encoding@1": "1.0.11",
-    "jsr:@std/encoding@1.0.11": "1.0.11",
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@supabase/supabase-js@2.110.7": "2.110.7",
     "npm:@supabase/auth-js@2.110.7": "2.110.7",
@@ -16,32 +11,11 @@
     "npm:@supabase/storage-js@2.110.7": "2.110.7"
   },
   "jsr": {
-    "@negrel/http-ece@0.7.0": {
-      "integrity": "068e61ba6f52da5454051a283cc19621607f8dd6e74d55c01bb365b8c6644076",
-      "dependencies": [
-        "jsr:@std/bytes",
-        "jsr:@std/encoding@1"
-      ]
-    },
-    "@negrel/webpush@0.5.0": {
-      "integrity": "919ed5bf4d676923667c5278093f36ffb2efe7fe2f155b6d32723ea3b73fa693",
-      "dependencies": [
-        "jsr:@negrel/http-ece",
-        "jsr:@std/bytes",
-        "jsr:@std/encoding@1"
-      ]
-    },
     "@std/assert@1.0.19": {
       "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
         "jsr:@std/internal"
       ]
-    },
-    "@std/bytes@1.0.6": {
-      "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
-    },
-    "@std/encoding@1.0.11": {
-      "integrity": "e7cef2f0b3153bccc17431e7c864a1de03a4b6d9647389c43e08aaa775d37385"
     },
     "@std/internal@1.0.14": {
       "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
@@ -102,9 +76,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@negrel/webpush@0.5.0",
       "jsr:@std/assert@1.0.19",
-      "jsr:@std/encoding@1.0.11",
       "jsr:@supabase/supabase-js@2.110.7"
     ]
   }

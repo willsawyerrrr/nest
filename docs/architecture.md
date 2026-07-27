@@ -26,18 +26,16 @@ Clients talk to the database in the way that fits each job:
   enforced by DB constraints + Row-Level Security; correctness is aided by
   generated TypeScript types.
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
-  Seven live under `supabase/functions/`, auto-deployed to prod on merge (see
+  Five live under `supabase/functions/`, auto-deployed to prod on merge (see
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
   member's Up token), `up-sync` (poll saver balances), `up-webhook`
-  (near-real-time receiver), `changelog` (proxy GitHub for the in-app "What's
+  (near-real-time receiver), and `changelog` (proxy GitHub for the in-app "What's
   new" feed; it accepts the client's build commit SHA and splits the raw commit
   list at it — that commit and older are `implemented` (so a stale/cached PWA
   never shows changes newer than its build), while the commits newer than it are
   returned as `available` so the tab can offer a one-tap reload to the latest
-  deployed version), and `push-key` / `push-test` (see *Push notifications*). The
-  Up functions hold Up tokens server-side (via
-  Vault); `changelog` holds a GitHub PAT server-side; the push functions hold the
-  VAPID keypair. All are JWT-verified except `up-webhook`
+  deployed version). The Up functions hold Up tokens server-side (via
+  Vault); `changelog` holds a GitHub PAT server-side. All are JWT-verified except `up-webhook`
   (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
   client-side in the PWA; an authoritative server-side tax estimate is a future
   edge function.
@@ -136,38 +134,6 @@ is CRUD over RLS.
   (joint accounts left owner-null) in the shared household ledger.
 - Reference: <https://developer.up.com.au/>
 
-### Push notifications
-
-The installed PWA is the primary device, so alerts go out over Web Push (RFC 8291
-payload encryption, RFC 8292 VAPID auth) — no third-party push vendor, no native
-app. The infrastructure is a subscription store, a key endpoint, and a send path:
-
-- A member opts each device in separately. The service worker's `PushManager`
-  mints a subscription; the PWA stores its endpoint and two keys in
-  `push_subscription`, upserting on the endpoint so a re-subscribe refreshes the
-  row rather than adding one. A subscription is readable and deletable only by
-  the member whose device it is (see *Security*).
-- `push-key` returns the VAPID public key for
-  `pushManager.subscribe({ applicationServerKey })`. Serving it beats baking it
-  into the build: rotating the keypair is then a Vault change with no rebuild.
-  Unset secrets answer `503`, as `push-test` does, so no caller subscribes with a
-  key that is not there.
-- `push-test` fires a test notification to every device the caller has opted in,
-  so the whole chain can be verified. It signs an ES256 VAPID JWT and encrypts an
-  aes128gcm payload per device via `@negrel/webpush` (WebCrypto only, pinned in
-  `supabase/functions/deno.lock`), attempts every device independently, prunes the
-  rows a push service reports `404`/`410` for, and answers
-  `{ devices, sent, pruned, failed }`. Any other failure leaves the row alone —
-  a 5xx is transient, not an unsubscribe.
-- The payload is `{ title, body, url }`; the service worker navigates to `url` on
-  `notificationclick`.
-- **Not built:** anything that decides *when* to notify. There is no scheduled
-  evaluation pass and no buffer / goal / expiry trigger — a send happens only
-  when a member asks for a test. Those triggers are the follow-on slice
-  ([`roadmap.md`](roadmap.md)).
-- VAPID setup and rotation, and the iOS install/version requirements, are in
-  [`operations.md`](operations.md#web-push-vapid-keypair-setup).
-
 ## Security
 
 - **RLS is the security boundary.** Policies grant access when `auth.uid()` maps
@@ -184,15 +150,7 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   `accounts_with_balance` are plain invoker views (`security_invoker = on`), so no
   view reads past the caller's RLS. Tested deliberately (pgTAP / integration
   tests), not by inspection.
-- **Push subscriptions are per-member, not per-household.** A push endpoint is a
-  bearer capability to make someone's phone buzz, so `push_subscription` is the
-  one table where household membership grants nothing: per-command policies gate
-  select/insert/update/delete on `current_member_ids()`, and an upsert on a
-  co-member's endpoint is refused rather than silently reassigning their device.
-  `service_role` holds only `select` (to send) and `delete` (to prune dead
-  endpoints).
-- Up tokens and webhook secrets encrypted at rest (Vault), as is the Web Push
-  VAPID keypair — read only through the service-role-only `vapid_keys()`.
+- Up tokens and webhook secrets encrypted at rest (Vault).
 
 ## Cross-cutting conventions
 

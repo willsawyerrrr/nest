@@ -8,8 +8,5 @@
     "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src"],
-  // The service worker types against `WebWorker` rather than `DOM`, so it is
-  // checked by `tsconfig.sw.json` instead.
-  "exclude": ["src/sw.ts"]
+  "include": ["src"]
 }

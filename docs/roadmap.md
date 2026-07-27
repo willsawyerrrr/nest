@@ -88,21 +88,29 @@ does not restate them.
   `AppCard`, `PageSection`, `AddButton`, `MoneyText`, `EditAction` — live in
   `components/`, and chart/semantic tokens in `lib/tokens.ts`. Two-decimal money
   formatting with lime brand distinct from green/red money semantics.
-- Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/splits` `/goals` `/tax` `/deductions` `/super`
-  `/help-debt` `/eofy` `/equity` `/breakdowns` `/gifts` `/household`; `/` and
-  unknown routes
-  redirect to
-  `/summary`), so
-  tabs are deep-linkable and reload-safe. Summary is the landing tab; order
-  Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
-  deductions · Super · Help debt · EOFY · Breakdowns · Gifts · Household. Gifts
-  are managed
-  solely in the Gifts tab (`/gifts`); the generic-only Breakdowns tab never lists
-  gift lines. One
-  `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
-  and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to
-  the first nine tabs, ⌘/Ctrl+Shift+←/→ cycle.
+- Navigation: path-routed tabs via `react-router-dom`, every tab a top-level
+  route, so each is deep-linkable and reload-safe (`/` and unknown routes
+  redirect to `/summary`). Summary is the landing tab and stands alone; the rest
+  sit in four collapsible groups, in display order:
+  - Summary (`/summary`)
+  - Plan — Inflows (`/inflows`) · Budget (`/budget`) · Breakdowns
+    (`/breakdowns`) · Gifts (`/gifts`) · Pay splits (`/splits`)
+  - Grow — Net worth (`/net-worth`) · Goals (`/goals`) · Super (`/super`) ·
+    Equity (`/equity`)
+  - Tax — Estimate (`/tax`) · Deductions (`/deductions`) · HELP debt
+    (`/help-debt`) · EOFY (`/eofy`)
+  - Settings — Household (`/household`) · What's new (`/whats-new`)
+
+  Gifts are managed solely in the Gifts tab (`/gifts`); the generic-only
+  Breakdowns tab never lists gift lines. One `NAV_SECTIONS` table drives a
+  responsive top app-bar + hamburger `Drawer` on mobile and a persistent left
+  sidebar on desktop, groups and all. The route sets which group is open — the
+  one holding the current page, the rest folded, re-derived on each navigation
+  and never persisted — while a header toggle opens a second group alongside it
+  until the route changes; a group folded over the current page carries a lime
+  dot. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to the first nine tabs in that
+  flattened order, ⌘/Ctrl+Shift+←/→ cycle across group boundaries, and either
+  opens the group it lands in.
 - Desktop layout: content capped at a 50rem max-width; budget lines and inflows
   render as dense single rows on desktop while mobile keeps cards.
 - Non-taxable inflow types: `inflow_type` carries `reimbursement`, `hobby`,

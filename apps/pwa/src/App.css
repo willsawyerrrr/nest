@@ -119,9 +119,9 @@
 
 /*
  * A nav group header. It labels its section rather than leading anywhere, so it
- * stays quieter than an item — no active treatment, and uppercase micro-type set
- * on the label itself — while taking the same block padding across the full
- * width, giving a thumb the whole row to tap.
+ * stays quieter than an item — no active treatment, and dimmed uppercase type a
+ * size down, set on the label itself — while taking the same block padding
+ * across the full width, giving a thumb the whole row to tap.
  */
 .drawer-nav__group {
   display: block;
@@ -138,7 +138,7 @@
   background-color: var(--mantine-color-default-hover);
 }
 
-/* Micro-type tracking, so the uppercase section label stays legible small. */
+/* Tracking, which reads the section label as a label rather than a destination. */
 .drawer-nav__group-label {
   letter-spacing: 0.06em;
 }

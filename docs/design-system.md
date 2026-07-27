@@ -162,9 +162,10 @@ so the rule it enforces holds app-wide.
   (`IconChevronDown` open, `IconChevronRight` closed), over a `Collapse` holding
   the body.
 - **Navigation.** The nav groups its tabs under that idiom, each header a quiet
-  uppercase micro-label over items inset beneath it. A header never takes the
-  active item's lime bar and wash — it labels rather than leads — so a group
-  folded over the current page marks itself with a single lime dot instead.
+  dimmed uppercase label — one size below the items inset beneath it, tracked out
+  and bold — so it stays legible beside them without competing. A header never
+  takes the active item's lime bar and wash — it labels rather than leads — so a
+  group folded over the current page marks itself with a single lime dot instead.
 - **Charts.** All charts draw from the shared token palette
   (`chartColors` / `chartPalette`).
 - **Money.** Every money figure renders through `MoneyText` (or

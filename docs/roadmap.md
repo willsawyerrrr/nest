@@ -433,7 +433,7 @@ goal / expiry triggers — is idea 8 in the ideas backlog and is **not** built.
       that stores the subscription, and a **Send test notification** button that
       reports the summary honestly.
 
-### Payslips (stages 1–2 complete)
+### Payslips (complete)
 
 The income side of actual-vs-plan: each pay event's real figures, reconciled
 against the projected inflow and the tax estimate. Design and staging in
@@ -454,8 +454,14 @@ against the projected inflow and the tax estimate. Design and staging in
 - [x] Variance and readout: per-period actual vs expected gross, withholding, and
       super, and the FY's summed actual withheld feeding the tax engine's
       `paygWithheldCents` so the estimate's balance is a concrete refund or bill.
-- [ ] Stage 3 — extraction pre-fill from an uploaded slip (needs an API key and a
-      server-side document pass; only ever pre-fills the form for confirmation).
+- [x] Extraction pre-fill: the `payslip-extract` edge function reads an uploaded
+      slip with Claude Haiku 4.5 (pinned to its dated snapshot, its Vault-held key
+      read only by the service-role-only `anthropic_api_key()`) and returns the
+      figures it read. It writes nothing — the form pre-fills, the member confirms,
+      and their own save persists. Amounts come back as the literal text printed on
+      the slip and are converted to integer cents in TypeScript, so no model
+      arithmetic touches a tax figure, and an unset key answers
+      `{ configured: false }` so manual entry still works.
 
 ## Later
 
@@ -542,34 +548,6 @@ Recurring shorthand:
   worth abstracting behind one "on-call source" adapter (mirroring the
   source-agnostic import boundary) so the pay-forecast logic is provider-neutral
   and the user picks whichever their team actually uses.
-
-#### 2. Payslip extraction pre-fill (stage 3 of payslips)
-
-Design: [`payslips.md`](payslips.md). Manual entry, variance, and file attachment
-are shipped (see Done); this is the remaining stage — reading an uploaded slip to
-pre-fill the entry form.
-
-- **What / value.** Entry is the only manual cost left: ~26 slips a year each,
-  transcribed from a PDF the app already stores. A document pass over the uploaded
-  file could pre-populate the pay period, gross, withheld, super, net, and YTD
-  fields for a human to confirm. Pure convenience — the analysis it feeds already
-  works on typed figures.
-- **Effort.** M–L. The parse is the whole cost: AU payslips are unstandardised, so
-  a layout-agnostic approach (an LLM document pass over the stored file) beats
-  per-employer templates, and it needs an API key held server-side plus an edge
-  function to call it.
-- **Touches.** A new edge function reading the object out of the `payslips` bucket
-  and an LLM/document-AI key in **Vault** (the Up-token pattern). No schema change
-  — `payslip.file_path` already holds the slip a pre-fill would read, and the
-  extracted figures land in the existing columns. Frontend: a "read this slip"
-  action on the entry form that fills the fields, leaving every one editable.
-- **Dependencies.** Needs the API key. Nothing else — the table, bucket, upload
-  flow, and variance math are all in place.
-- **Feasibility / risks.** Extraction must never write figures unconfirmed: a
-  misread gross would silently corrupt the variance and the refund/bill readout.
-  Payslips are sensitive, so sending one to a third-party model is a deliberate
-  privacy trade the household has to accept — which is the real open question, not
-  the engineering.
 
 #### 3. Recurring bill / subscription detection from Up transactions
 
@@ -863,7 +841,4 @@ Ranked for value-to-effort against this specific household's setup:
 Honourable mentions: **net worth via the Up `HOME_LOAN` balance (10)** is a
 big-picture win that's genuinely automatable through the existing Up token, and
 **inflow→category netting (14)** is a tiny, already-deferred change that makes
-reimbursements read truthfully. **Payslip extraction pre-fill (2)** ranks lower
-than its parent feature did: with entry, variance, and attachment shipped, it buys
-convenience only, and at the cost of an API key and sending a sensitive document to
-a third-party model.
+reimbursements read truthfully.

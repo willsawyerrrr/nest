@@ -6,6 +6,7 @@ on:
     paths:
       - 'supabase/functions/**'
       - 'supabase/config.toml'
+  workflow_dispatch:
 
 permissions:
   contents: read

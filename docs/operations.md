@@ -32,6 +32,13 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
     the whole file with `failed to parse config: … has invalid keys`, failing the
     deploy before a single function ships. Bumping the devDependency is what
     moves CI.
+  - The workflow also takes `workflow_dispatch`, so a deploy of `main` as it
+    stands can be run on demand from the Actions tab or with
+    `gh workflow run "Deploy functions"` — the way to redeploy after a failed
+    deploy, an access-token rotation, or a fix to the workflow itself, none of
+    which touch the paths the push trigger watches. Its `deploy-functions`
+    concurrency group serialises manual and push runs, queueing rather than
+    cancelling.
 - **Frontend** — Vercel deploys the PWA on merge to `main`; each PR gets a
   preview deployment (see [Hosting](#hosting)). Live prod may briefly trail
   `main` until the next merge triggers a deploy.

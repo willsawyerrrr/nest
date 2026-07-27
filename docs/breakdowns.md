@@ -241,7 +241,11 @@ Owned by a breakdown; every breakdown is generic.
 - **"From your card" inbox** (the first section of the Gifts tab) — the
   gift-category transactions `up-sync` ingested that are neither linked to a purchase
   nor set aside, newest first. The section renders only when it has rows, so a
-  household with no synced gift spending sees nothing. Each row shows the
+  household with no synced gift spending sees nothing. Its rows sit behind a
+  collapsed header — tapped to expand, as a gift group is — so the planner below stays
+  the first thing the tab shows; the header counts the candidates waiting
+  (`From your card (n)`, dropping the count where every row has been set aside), which
+  is the signal that there is anything to act on. Each row shows the
   transaction's description (or "Card purchase" where Up gives none), its posting
   date, and its amount, plus a `Pending` badge and a note while the transaction is
   still `HELD` and its amount can still change on settlement.

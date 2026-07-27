@@ -50,31 +50,60 @@ function renderInbox(overrides: Partial<Parameters<typeof GiftCandidateInbox>[0]
   )
 }
 
+/** Taps the section header, revealing the candidates behind it. */
+async function expandInbox(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /from your card/i }))
+}
+
 describe('GiftCandidateInbox', () => {
-  it('lists each candidate with its description, amount, and date', () => {
+  it('lists each candidate with its description, amount, and date', async () => {
+    const user = userEvent.setup()
     renderInbox()
 
-    expect(screen.getByRole('heading', { name: 'From your card' })).toBeInTheDocument()
-    expect(screen.getByText('Bookshop')).toBeInTheDocument()
-    expect(screen.getByText('$45.00')).toBeInTheDocument()
-    expect(screen.getByText('20 Nov 2026')).toBeInTheDocument()
+    await expandInbox(user)
+    expect(screen.getByText('Bookshop')).toBeVisible()
+    expect(screen.getByText('$45.00')).toBeVisible()
+    expect(screen.getByText('20 Nov 2026')).toBeVisible()
+  })
+
+  it('starts collapsed, counting the candidates waiting in its header', async () => {
+    const user = userEvent.setup()
+    renderInbox({
+      candidates: [bookshop, { ...bookshop, transactionId: 't3', description: 'Florist' }],
+    })
+
+    expect(screen.getByRole('heading', { name: 'From your card (2)' })).toBeVisible()
+    expect(screen.getByText('Bookshop')).not.toBeVisible()
+
+    await expandInbox(user)
+    expect(screen.getByText('Bookshop')).toBeVisible()
+  })
+
+  it('drops the count when every candidate has been set aside', () => {
+    renderInbox({ candidates: [], dismissed: [setAside] })
+    expect(screen.getByRole('heading', { name: 'From your card' })).toBeVisible()
   })
 
   it('renders nothing when there is neither a candidate nor a set-aside one', () => {
     renderInbox({ candidates: [], dismissed: [] })
-    expect(screen.queryByRole('heading', { name: 'From your card' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /from your card/i })).not.toBeInTheDocument()
   })
 
-  it('names an undescribed candidate as a card purchase', () => {
+  it('names an undescribed candidate as a card purchase', async () => {
+    const user = userEvent.setup()
     renderInbox({ candidates: [{ ...bookshop, description: '' }] })
-    expect(screen.getByText('Card purchase')).toBeInTheDocument()
+
+    await expandInbox(user)
+    expect(screen.getByText('Card purchase')).toBeVisible()
   })
 
-  it('marks a held transaction as pending and warns its amount can change', () => {
+  it('marks a held transaction as pending and warns its amount can change', async () => {
+    const user = userEvent.setup()
     renderInbox({ candidates: [{ ...bookshop, pending: true }] })
 
-    expect(screen.getByText('Pending')).toBeInTheDocument()
-    expect(screen.getByText(/amount can change when it settles/i)).toBeInTheDocument()
+    await expandInbox(user)
+    expect(screen.getByText('Pending')).toBeVisible()
+    expect(screen.getByText(/amount can change when it settles/i)).toBeVisible()
   })
 
   it('links a candidate to a chosen recipient and occasion, carrying the transaction and an edited description', async () => {
@@ -82,6 +111,7 @@ describe('GiftCandidateInbox', () => {
     const onLink = vi.fn()
     renderInbox({ onLink })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }))
     await user.click(await screen.findByRole('option', { name: 'Alice' }))
@@ -105,6 +135,7 @@ describe('GiftCandidateInbox', () => {
     const onLink = vi.fn()
     renderInbox({ onLink })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
 
     const occasion = screen.getByRole('combobox', { name: 'Occasion' })
@@ -122,6 +153,7 @@ describe('GiftCandidateInbox', () => {
     const onLink = vi.fn()
     renderInbox({ onLink })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }))
     await user.click(await screen.findByRole('option', { name: 'Bob' }))
@@ -135,6 +167,7 @@ describe('GiftCandidateInbox', () => {
     const user = userEvent.setup()
     renderInbox({ recipientChoices: [bob] })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     expect(screen.getByRole('combobox', { name: 'Recipient' })).toHaveValue('Bob')
     expect(screen.getByRole('combobox', { name: 'Occasion' })).toHaveValue('Christmas')
@@ -147,6 +180,7 @@ describe('GiftCandidateInbox', () => {
 
     // Bob's sole occasion is chosen for him, then Alice — who has two — is
     // picked instead, so no occasion of Bob's can be submitted against her.
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }))
     await user.click(await screen.findByRole('option', { name: 'Bob' }))
@@ -162,6 +196,7 @@ describe('GiftCandidateInbox', () => {
     const onLink = vi.fn()
     renderInbox({ onLink })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     expect(screen.getByLabelText('Description')).toHaveValue('Bookshop')
 
@@ -170,11 +205,13 @@ describe('GiftCandidateInbox', () => {
     expect(onLink).not.toHaveBeenCalled()
   })
 
-  it('withholds linking until a gift budget exists', () => {
+  it('withholds linking until a gift budget exists', async () => {
+    const user = userEvent.setup()
     renderInbox({ recipientChoices: [] })
 
+    await expandInbox(user)
     expect(screen.getByRole('button', { name: 'Link to a gift' })).toBeDisabled()
-    expect(screen.getByText(/add a gift budget to link these against/i)).toBeInTheDocument()
+    expect(screen.getByText(/add a gift budget to link these against/i)).toBeVisible()
   })
 
   it('sets a candidate aside as not a gift', async () => {
@@ -182,6 +219,7 @@ describe('GiftCandidateInbox', () => {
     const onDismiss = vi.fn()
     renderInbox({ onDismiss })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Not a gift' }))
     expect(onDismiss).toHaveBeenCalledWith('t1')
   })
@@ -191,9 +229,11 @@ describe('GiftCandidateInbox', () => {
     const onRestore = vi.fn()
     renderInbox({ dismissed: [setAside], onRestore })
 
+    await expandInbox(user)
+
     // The set-aside list stays collapsed until asked for, so a routine charity
     // donation does not clutter the inbox.
-    expect(screen.queryByText('Red Cross')).not.toBeVisible()
+    expect(screen.getByText('Red Cross')).not.toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Set aside (1)' }))
     expect(screen.getByText('Red Cross')).toBeVisible()
@@ -205,9 +245,12 @@ describe('GiftCandidateInbox', () => {
     expect(screen.getByRole('button', { name: 'Set aside (1)' })).toBeInTheDocument()
   })
 
-  it('keeps the section for an undo when every candidate was set aside', () => {
+  it('keeps the section for an undo when every candidate was set aside', async () => {
+    const user = userEvent.setup()
     renderInbox({ candidates: [], dismissed: [setAside] })
-    expect(screen.getByRole('button', { name: 'Set aside (1)' })).toBeInTheDocument()
+
+    await expandInbox(user)
+    expect(screen.getByRole('button', { name: 'Set aside (1)' })).toBeVisible()
   })
 
   it('shows an error and keeps the form open when the link fails', async () => {
@@ -215,6 +258,7 @@ describe('GiftCandidateInbox', () => {
     const onLink = vi.fn().mockRejectedValue(new Error('boom'))
     renderInbox({ onLink, recipientChoices: [bob] })
 
+    await expandInbox(user)
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
     await user.click(screen.getByRole('button', { name: 'Link purchase' }))
 

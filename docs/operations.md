@@ -19,10 +19,19 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
 - **Edge functions** auto-deploy on merge via
   `.github/workflows/deploy-functions.yml`: a push to `main` touching
   `supabase/functions/**` or `supabase/config.toml` runs
-  `supabase functions deploy --project-ref dgfeittjtxjtgbretdkj`, deploying every
-  function and honouring each one's `verify_jwt` from `config.toml` (`up-webhook`
-  is pinned `false`; the rest default to `true`). It authenticates with the
-  `SUPABASE_ACCESS_TOKEN` GitHub Actions secret.
+  `pnpm exec supabase functions deploy --project-ref dgfeittjtxjtgbretdkj`,
+  deploying every function and honouring each one's `verify_jwt` from
+  `config.toml` (`up-webhook` is pinned `false`; the rest default to `true`). It
+  authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret.
+  - The CLI comes from the `supabase` devDependency in the root
+    `package.json`, installed by `pnpm install --frozen-lockfile`, so
+    `pnpm-lock.yaml` is the single source of truth for the deploying version.
+    `supabase/config.toml` tracks the schema that version understands, and a CLI
+    resolved any other way (`supabase/setup-cli` without an explicit `version`,
+    a globally installed binary) can be older than the config's keys and rejects
+    the whole file with `failed to parse config: … has invalid keys`, failing the
+    deploy before a single function ships. Bumping the devDependency is what
+    moves CI.
 - **Frontend** — Vercel deploys the PWA on merge to `main`; each PR gets a
   preview deployment (see [Hosting](#hosting)). Live prod may briefly trail
   `main` until the next merge triggers a deploy.

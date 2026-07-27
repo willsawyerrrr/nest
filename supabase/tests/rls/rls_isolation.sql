@@ -951,4 +951,371 @@ do $$ begin
     'a null argument should clear the household pay account';
 end $$;
 
+-- ── Gift transaction candidates: per-account privacy and household isolation ──
+--
+-- up-sync lands gift-category Up transactions in public.transactions, and that
+-- table is the whole reason the feature reuses the ledger rather than a table of
+-- its own: a candidate on a member's private spending account must stay private
+-- from their co-member, while one on the joint (2Up) account is a candidate for
+-- both. A dismissal is household-scoped and resolves only through the
+-- transaction, so it names nothing its reader cannot already see.
+
+-- The sync RPC is service-role-only: no client may settle a window itself.
+do $$ begin
+  assert not has_function_privilege('authenticated',
+    'public.sync_up_gift_transactions(uuid, uuid[], timestamptz, jsonb)', 'execute'),
+    'authenticated must not execute sync_up_gift_transactions';
+  assert has_function_privilege('service_role',
+    'public.sync_up_gift_transactions(uuid, uuid[], timestamptz, jsonb)', 'execute'),
+    'service_role should execute sync_up_gift_transactions';
+end $$;
+
+-- One window for Privacy House, as up-sync settles it: a gift on the joint
+-- account, one on Bob's private spending account, and one on Alice's private
+-- spending account. The RPC is SECURITY DEFINER, so service_role reaches
+-- `transactions` through it alone and needs no grant on the table.
+reset role;
+set local role service_role;
+select public.sync_up_gift_transactions(
+  current_setting('test.priv_hid')::uuid,
+  array[
+    current_setting('test.priv_shared')::uuid,
+    current_setting('test.priv_bob_spending')::uuid,
+    current_setting('test.priv_alice_spending')::uuid
+  ],
+  now() - interval '365 days',
+  jsonb_build_array(
+    jsonb_build_object(
+      'household_id', current_setting('test.priv_hid'),
+      'account_id', current_setting('test.priv_shared'),
+      'member_id', null,
+      'posted_at', now() - interval '2 days',
+      'amount_cents', -120_00,
+      'description', 'Gift shop',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-joint',
+      'external_category', 'gifts-and-charity'
+    ),
+    jsonb_build_object(
+      'household_id', current_setting('test.priv_hid'),
+      'account_id', current_setting('test.priv_bob_spending'),
+      'member_id', current_setting('test.priv_bob_mid'),
+      'posted_at', now() - interval '3 days',
+      'amount_cents', -60_00,
+      'description', 'Bookshop',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-bob',
+      'external_category', 'gifts-and-charity'
+    ),
+    jsonb_build_object(
+      'household_id', current_setting('test.priv_hid'),
+      'account_id', current_setting('test.priv_alice_spending'),
+      'member_id', current_setting('test.priv_alice_mid'),
+      'posted_at', now() - interval '4 days',
+      'amount_cents', -30_00,
+      'description', 'Charity donation',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-charity-alice',
+      'external_category', 'gifts-and-charity'
+    )
+  )
+);
+reset role;
+
+select id as priv_tx_joint from public.transactions where external_id = 'up-tx-gift-joint' \gset
+select set_config('test.priv_tx_joint', :'priv_tx_joint', false);
+select id as priv_tx_bob from public.transactions where external_id = 'up-tx-gift-bob' \gset
+select set_config('test.priv_tx_bob', :'priv_tx_bob', false);
+select id as priv_tx_alice from public.transactions where external_id = 'up-tx-charity-alice' \gset
+select set_config('test.priv_tx_alice', :'priv_tx_alice', false);
+
+-- Alice reads the joint candidate and her own, never the one on Bob's private
+-- spending account: the transactions policy gates on the balance-visible set, so
+-- Bob's card spend stays his even though the row is in the shared household.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$ begin
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
+    'Alice should read the gift candidate on the joint account';
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_alice')::uuid),
+    'Alice should read the gift candidate on her own spending account';
+  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_bob')::uuid),
+    'Alice must not read a gift candidate on Bob''s private spending account';
+  assert (select external_category from public.transactions
+    where id = current_setting('test.priv_tx_joint')::uuid) = 'gifts-and-charity',
+    'the synced candidate should carry Up''s category';
+end $$;
+
+-- Symmetry: Bob reads the joint candidate and his own, never Alice's.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
+    'Bob should read the gift candidate on the joint account';
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_bob')::uuid),
+    'Bob should read the gift candidate on his own spending account';
+  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_alice')::uuid),
+    'Bob must not read a gift candidate on Alice''s private spending account';
+end $$;
+
+-- Alice claims the joint candidate for the gift she is buying Bob, and sets the
+-- charity donation aside as not a gift.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+update public.gift_purchase set transaction_id = current_setting('test.priv_tx_joint')::uuid
+  where gift_budget_id = current_setting('test.priv_bob_gift')::uuid;
+insert into public.gift_transaction_dismissal (household_id, transaction_id)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_tx_alice')::uuid);
+do $$ begin
+  assert (select count(*) from public.gift_purchase
+    where transaction_id = current_setting('test.priv_tx_joint')::uuid) = 1,
+    'Alice''s purchase should link the joint candidate';
+  assert (select count(*) from public.gift_transaction_dismissal) = 1,
+    'Alice should see the dismissal she recorded';
+end $$;
+
+-- Claiming the joint candidate withholds it from Bob: he read it a moment ago as
+-- an unclaimed candidate, and the purchase behind it is hidden from him, so the
+-- transactions policy drops it too — his inbox cannot offer him his own present.
+-- His other transactions are untouched, and Alice, the buyer, still reads it.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
+    'Bob must not read the joint-account transaction claimed as a gift for him';
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_bob')::uuid),
+    'withholding a claimed candidate must not affect Bob''s other transactions';
+end $$;
+
+-- Nor can he reach it through a write: the update and delete policies carry the
+-- same predicate, so neither returns the withheld row.
+do $$
+declare v_count int;
+begin
+  update public.transactions set description = 'Peeked'
+    where id = current_setting('test.priv_tx_joint')::uuid;
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'Bob must not update a transaction claimed as a gift for him';
+  delete from public.transactions where id = current_setting('test.priv_tx_joint')::uuid;
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'Bob must not delete a transaction claimed as a gift for him';
+end $$;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$ begin
+  assert (select description from public.transactions
+    where id = current_setting('test.priv_tx_joint')::uuid) = 'Gift shop',
+    'Alice (the buyer) should still read the transaction she claimed, unaltered';
+end $$;
+
+-- Bob reads the dismissal — it is household-shared planning state — but it
+-- resolves to nothing he can see: the transaction behind it is on Alice's
+-- private account, so the row names no spend of hers.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert (select count(*) from public.gift_transaction_dismissal) = 1,
+    'Bob should read his household''s dismissal';
+  assert not exists (
+    select 1 from public.gift_transaction_dismissal d
+    join public.transactions t on t.id = d.transaction_id),
+    'the dismissed transaction stays invisible to Bob through the join';
+end $$;
+
+-- Household isolation: Alice's first household sees no dismissal of Privacy
+-- House's and cannot record one against its transactions.
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com"}', true);
+do $$ begin
+  assert (select count(*) from public.gift_transaction_dismissal) = 0,
+    'an outside household must not see Privacy House''s dismissals';
+end $$;
+do $$ begin
+  insert into public.gift_transaction_dismissal (household_id, transaction_id)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_tx_bob')::uuid);
+  raise exception 'FAIL: an outside household recorded a dismissal';
+exception when insufficient_privilege then
+  raise notice 'PASS: an outside household cannot record a dismissal';
+end $$;
+
+-- Referential integrity is always checked past RLS, so a member can record a
+-- dismissal naming a transaction they cannot read. It discloses nothing: the row
+-- carries an id and no more, and resolves to no visible transaction, so a
+-- co-member's spend stays exactly as hidden as before.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+savepoint blind_dismissal;
+insert into public.gift_transaction_dismissal (household_id, transaction_id)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_tx_bob')::uuid);
+do $$ begin
+  assert not exists (
+    select 1 from public.gift_transaction_dismissal d
+    join public.transactions t on t.id = d.transaction_id
+    where d.transaction_id = current_setting('test.priv_tx_bob')::uuid),
+    'a dismissal for an invisible transaction should resolve to nothing';
+end $$;
+rollback to savepoint blind_dismissal;
+
+-- The next window reports only the joint candidate — the two private ones were
+-- recategorised away in the Up app, and Up sends no event for that, which is why
+-- the poll rescans the window instead of following a cursor. The prune drops
+-- them, the dismissal cascades away with its transaction (out of the category it
+-- is no longer a candidate to dismiss), and the claimed candidate stays and pulls
+-- its purchase to the settled amount.
+reset role;
+set local role service_role;
+select public.sync_up_gift_transactions(
+  current_setting('test.priv_hid')::uuid,
+  array[
+    current_setting('test.priv_shared')::uuid,
+    current_setting('test.priv_bob_spending')::uuid,
+    current_setting('test.priv_alice_spending')::uuid
+  ],
+  now() - interval '365 days',
+  jsonb_build_array(jsonb_build_object(
+    'household_id', current_setting('test.priv_hid'),
+    'account_id', current_setting('test.priv_shared'),
+    'member_id', null,
+    'posted_at', now() - interval '2 days',
+    'amount_cents', -150_00,
+    'description', 'Gift shop',
+    'kind', 'expense',
+    'status', 'settled',
+    'external_id', 'up-tx-gift-joint',
+    'external_category', 'gifts-and-charity'
+  ))
+);
+reset role;
+do $$ begin
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
+    'the claimed candidate should survive the prune';
+  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_bob')::uuid),
+    'a candidate Up no longer reports in the category should be pruned';
+  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_alice')::uuid),
+    'a dismissed candidate Up no longer reports should be pruned';
+  assert (select count(*) from public.gift_transaction_dismissal) = 0,
+    'a dismissal should cascade away with its transaction';
+  assert (select amount_cents from public.gift_purchase
+    where transaction_id = current_setting('test.priv_tx_joint')::uuid) = 150_00,
+    'a linked purchase should follow its transaction''s settled amount';
+end $$;
+
+-- An empty window prunes what is left of it, and still keeps the claimed
+-- candidate: the household has already made that transaction a purchase.
+set local role service_role;
+select public.sync_up_gift_transactions(
+  current_setting('test.priv_hid')::uuid,
+  array[current_setting('test.priv_shared')::uuid],
+  now() - interval '365 days',
+  '[]'::jsonb
+);
+reset role;
+do $$ begin
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
+    'an empty window must not drop a claimed candidate';
+end $$;
+set local role authenticated;
+
+-- Only the recipient's own gift is withheld. Three candidates on the joint
+-- account — the one Alice claimed for Bob's gift, one she claims for an external
+-- recipient, and one left unclaimed — sit on the account both partners see, so
+-- the gift-privacy predicate is the only thing that can tell them apart.
+reset role;
+set local role service_role;
+select public.sync_up_gift_transactions(
+  current_setting('test.priv_hid')::uuid,
+  array[current_setting('test.priv_shared')::uuid],
+  now() - interval '365 days',
+  jsonb_build_array(
+    jsonb_build_object(
+      'household_id', current_setting('test.priv_hid'),
+      'account_id', current_setting('test.priv_shared'),
+      'member_id', null,
+      'posted_at', now() - interval '2 days',
+      'amount_cents', -150_00,
+      'description', 'Gift shop',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-joint',
+      'external_category', 'gifts-and-charity'
+    ),
+    jsonb_build_object(
+      'household_id', current_setting('test.priv_hid'),
+      'account_id', current_setting('test.priv_shared'),
+      'member_id', null,
+      'posted_at', now() - interval '5 days',
+      'amount_cents', -80_00,
+      'description', 'Florist',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-joint-mum',
+      'external_category', 'gifts-and-charity'
+    ),
+    jsonb_build_object(
+      'household_id', current_setting('test.priv_hid'),
+      'account_id', current_setting('test.priv_shared'),
+      'member_id', null,
+      'posted_at', now() - interval '6 days',
+      'amount_cents', -25_00,
+      'description', 'Card shop',
+      'kind', 'expense',
+      'status', 'settled',
+      'external_id', 'up-tx-gift-joint-open',
+      'external_category', 'gifts-and-charity'
+    )
+  )
+);
+reset role;
+
+select id as priv_tx_mum from public.transactions where external_id = 'up-tx-gift-joint-mum' \gset
+select set_config('test.priv_tx_mum', :'priv_tx_mum', false);
+select id as priv_tx_open from public.transactions where external_id = 'up-tx-gift-joint-open' \gset
+select set_config('test.priv_tx_open', :'priv_tx_open', false);
+
+-- Alice budgets a gift for Mum — an external recipient, so nothing about it is
+-- private — and claims the florist candidate for it.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+insert into public.gift_recipient (household_id, name)
+  values (current_setting('test.priv_hid')::uuid, 'Mum')
+  returning id as priv_mum_recipient \gset
+select set_config('test.priv_mum_recipient', :'priv_mum_recipient', false);
+
+insert into public.gift_occasion (household_id, name)
+  values (current_setting('test.priv_hid')::uuid, 'Mum Birthday')
+  returning id as priv_mum_occasion \gset
+select set_config('test.priv_mum_occasion', :'priv_mum_occasion', false);
+
+insert into public.gift_budget (household_id, recipient_id, occasion_id, budgeted_amount_cents)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_mum_recipient')::uuid, current_setting('test.priv_mum_occasion')::uuid, 100_00)
+  returning id as priv_mum_gift \gset
+select set_config('test.priv_mum_gift', :'priv_mum_gift', false);
+
+insert into public.gift_purchase
+    (household_id, gift_budget_id, transaction_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_mum_gift')::uuid,
+    current_setting('test.priv_tx_mum')::uuid, 80_00, 'Flowers', '2027-04-01');
+
+-- Alice, the buyer of both, reads all three.
+do $$ begin
+  assert (select count(*) from public.transactions where id in (
+    current_setting('test.priv_tx_joint')::uuid,
+    current_setting('test.priv_tx_mum')::uuid,
+    current_setting('test.priv_tx_open')::uuid)) = 3,
+    'Alice should read every joint-account candidate';
+end $$;
+
+-- Bob reads the two that are not his surprise: a candidate claimed for an
+-- external recipient stays shared (purchase included), an unclaimed one is a
+-- candidate for both, and only the one claimed as his own gift is withheld.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_mum')::uuid),
+    'a joint-account candidate claimed for an external recipient stays visible to Bob';
+  assert (select count(*) from public.gift_purchase
+    where transaction_id = current_setting('test.priv_tx_mum')::uuid) = 1,
+    'the purchase for an external recipient stays shared with Bob';
+  assert exists (select 1 from public.transactions where id = current_setting('test.priv_tx_open')::uuid),
+    'an unclaimed joint-account candidate stays visible to Bob';
+  assert not exists (select 1 from public.transactions where id = current_setting('test.priv_tx_joint')::uuid),
+    'the joint-account candidate claimed as Bob''s gift stays withheld from Bob';
+end $$;
+
 rollback;

@@ -91,23 +91,42 @@ is CRUD over RLS.
   RPC) and clears it through `up-disconnect`. The token is written and read only
   by SECURITY DEFINER RPCs granted to `service_role` alone (`store_up_token` /
   `up_token_for_member` / `clear_up_token`); a member sees only a boolean status
-  (`members.up_connected_at`). The initial Up scope funds savings goals from saver
-  balances; spend/ledger reconciliation is deprioritised.
+  (`members.up_connected_at`). The Up scope funds savings goals from saver
+  balances and offers gift-category card spend as candidate gift purchases;
+  general spend/ledger reconciliation is deprioritised.
 - **Webhook receiver** — the `up-webhook` edge function (pinned
   `verify_jwt=false` in `config.toml`) for near-real-time updates; verifies Up's
-  HMAC signature.
-- **Scheduled poll** — the `up-sync` edge function syncs saver balances
-  (accounts only; transaction ingestion deferred). It runs `verify_jwt=true`, so
+  HMAC signature. It persists nothing yet: gift-category ingestion runs on the
+  `up-sync` poll instead, because Up raises no event when a transaction is
+  recategorised.
+- **Scheduled poll** — the `up-sync` edge function syncs every account's balance
+  and ingests gift-category transactions. It runs `verify_jwt=true`, so
   the gateway validates the bearer's signature, and the handler then tells the
   caller apart by the JWT's `role` claim: a `service_role` JWT (the cron) syncs
   every connected household, while any other JWT resolves to a member and scopes
-  the run to that member's household. The Goals-tab Refresh invokes it with the
-  member's JWT; an hourly `pg_cron` job (`up-sync-hourly`) calls it through
-  `pg_net` with the service-role key as a backstop. The schedule reads its
+  the run to that member's household. The Goals- and Gifts-tab Refresh actions
+  invoke it with the member's JWT (the shared `useUpSync` hook, which reloads the
+  calling tab's queries once the sync returns); an hourly `pg_cron` job
+  (`up-sync-hourly`) calls it through `pg_net` with the service-role key as a
+  backstop. The schedule reads its
   invocation URL/key from Vault at run time and is guarded on both extensions, so
   it no-ops where they are absent. Sync writes go through the
   `upsert_up_accounts` RPC, which upserts each account's identity (dedupe on
   `(source, external_id)`) and its balance (on `account_id`) in one transaction.
+- **Gift-category transactions** — after the account pass, `up-sync` polls each
+  member's `gifts-and-charity` transactions and settles them through the
+  `sync_up_gift_transactions` RPC (one call per member, over that member's own
+  accounts), which upserts the window, holds a linked `gift_purchase` to its
+  transaction's amount, and prunes the candidates Up no longer reports in the
+  category. It rescans a fixed 365-day trailing window every run rather than
+  advancing a cursor: Up exposes no `updatedAt` and fires no event when someone
+  recategorises a transaction in the app, which is how most gift spend gets
+  categorised, so only a rescan sees it. Ageing out of the window is not deletion
+  — the prune is bounded by the same window — so an older candidate simply stops
+  being refreshed. Only this one Up category is ingested; the synced row records
+  it in `transactions.external_category`, and `category_id` (the household's own
+  taxonomy) stays null. A general ledger is a later phase
+  ([`up-ledger-sync.md`](up-ledger-sync.md)).
 - A goal links to a synced saver via `savings_goal.linked_account_id`; a linked
   goal's current balance comes from that account's balance in `account_balance`
   (read via the `accounts_with_balance` view).
@@ -123,7 +142,10 @@ is CRUD over RLS.
   the account surfaces need no SECURITY DEFINER view) and, with `transactions`,
   add per-account balance privacy on top: a member sees a balance and its
   transactions only for shared, own, or household super accounts, gated by
-  `visible_balance_account_ids()`. A co-member's spending account is exposed by
+  `visible_balance_account_ids()`. A transaction the household has claimed as a
+  gift for that member is withheld from them on top of the account gate
+  (`hidden_gift_transaction_ids_for_current_member()`), so no account is the wrong
+  one to buy a surprise from. A co-member's spending account is exposed by
   name (no balance) through the `account_directory` view; both it and
   `accounts_with_balance` are plain invoker views (`security_invoker = on`), so no
   view reads past the caller's RLS. Tested deliberately (pgTAP / integration

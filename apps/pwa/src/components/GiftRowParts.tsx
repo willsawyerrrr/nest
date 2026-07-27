@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Progress, Stack, Text } from '@mantine/core'
+import { ActionIcon, Badge, Group, Progress, Stack, Text } from '@mantine/core'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import type { GiftPurchase } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
@@ -57,7 +57,10 @@ export function GiftMoneyBar({
   )
 }
 
-/** One purchase line with edit/delete controls. */
+/**
+ * One purchase line with edit/delete controls. A purchase linked from a synced
+ * Up transaction is marked, so a card purchase reads apart from a typed one.
+ */
 export function PurchaseRow({
   purchase,
   onEdit,
@@ -70,9 +73,16 @@ export function PurchaseRow({
   return (
     <Group justify="space-between" wrap="nowrap" gap="sm">
       <Stack gap={0} style={{ minWidth: 0 }}>
-        <Text size="sm" truncate>
-          {purchase.description || 'Purchase'}
-        </Text>
+        <Group gap="xxs" wrap="nowrap" style={{ minWidth: 0 }}>
+          <Text size="sm" truncate>
+            {purchase.description || 'Purchase'}
+          </Text>
+          {purchase.transaction_id !== null && (
+            <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+              From Up
+            </Badge>
+          )}
+        </Group>
         <Text size="xs" c="dimmed">
           {formatIsoDate(purchase.purchased_on)}
         </Text>

@@ -34,6 +34,12 @@ export interface GiftPurchaseInput {
   amount_cents: number
   description: string
   purchased_on: string
+  /**
+   * The synced Up transaction this purchase was linked from, set when claiming a
+   * candidate from the gift inbox. Omitted for a hand-entered purchase, and
+   * omitted by an edit so an existing link survives it.
+   */
+  transaction_id?: string
 }
 
 export interface UseGiftsResult {
@@ -69,7 +75,8 @@ export interface UseGiftsResult {
  * cascades its budgets away, changing those lines — so all three collections also
  * invalidate `budget_line` and the raw-line consumers (the Pay splits tab)
  * refetch. A gift-purchase write is excluded: it changes only spent/remaining,
- * never the derived lines.
+ * never the derived lines. It invalidates `transactions` instead, since claiming
+ * a synced transaction as a purchase takes it out of the gift inbox.
  */
 export function useGifts(householdId: string): UseGiftsResult {
   const {
@@ -113,6 +120,7 @@ export function useGifts(householdId: string): UseGiftsResult {
   } = useHouseholdCollection<'gift_purchase', GiftPurchaseInput>(householdId, {
     table: 'gift_purchase',
     orderBy: 'purchased_on',
+    alsoInvalidate: ['transactions'],
   })
 
   const reload = useCallback(async () => {

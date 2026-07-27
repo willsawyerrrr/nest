@@ -57,6 +57,12 @@ Deno.serve(async (request) => {
       // source = 'up' and external_id = transactionId, deduping on
       // (source, external_id). TRANSACTION_DELETED should remove the matching
       // row. Writes use a service-role client so RLS is bypassed server-side.
+      //
+      // That TODO is the general ledger. The one slice already ingested — the
+      // gift-category transactions the Gifts screen links purchases from — comes
+      // from the `up-sync` poll instead, and belongs there: Up raises no event
+      // when someone recategorises a transaction, so only a rescanned trailing
+      // window sees a purchase categorised as a gift after the fact.
       void transactionId
       return new Response('Accepted', { status: 200 })
     }

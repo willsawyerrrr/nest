@@ -186,7 +186,7 @@ describe('useGifts', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
   })
 
-  it('leaves the budget_line cache untouched on a gift-purchase write', async () => {
+  it('refreshes the gift inbox on a gift-purchase write, leaving budget_line untouched', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
@@ -194,7 +194,9 @@ describe('useGifts', () => {
     const { result } = renderHook(() => useGifts('h1'), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    // A purchase changes only spent/remaining, not the derived lines.
+    // A purchase changes only spent/remaining, not the derived lines. Claiming a
+    // synced transaction as a purchase does take it out of the gift inbox, so the
+    // transactions cache is invalidated instead.
     invalidateSpy.mockClear()
     await act(() =>
       result.current.createPurchase({
@@ -202,8 +204,10 @@ describe('useGifts', () => {
         amount_cents: 50,
         description: 'x',
         purchased_on: '2027-01-01',
+        transaction_id: 't1',
       }),
     )
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['transactions', 'h1'] })
   })
 })

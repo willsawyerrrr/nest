@@ -1,8 +1,17 @@
 import { useState } from 'react'
-import { Box, Button, Collapse, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import {
+  Alert,
+  Box,
+  Button,
+  Collapse,
+  Group,
+  Stack,
+  Text,
+  Title,
+  UnstyledButton,
+} from '@mantine/core'
 import { useDisclosure, useLocalStorage } from '@mantine/hooks'
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
-import { useConfirmDelete } from '../hooks/useConfirmDelete'
+import { IconChevronDown, IconChevronRight, IconRefresh } from '@tabler/icons-react'
 import type {
   GiftBudget,
   GiftBudgetInput,
@@ -16,29 +25,39 @@ import type {
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import {
+  dismissedGiftCandidates,
+  giftCandidates,
+  linkableGiftBudgets,
+  type GiftTransaction,
+  type GiftTransactionDismissal,
+} from '../lib/giftCandidates'
+import {
   groupGifts,
   overallGiftTotals,
   pairKey,
   type GiftGroup,
   type GiftGroupBy,
-  type GiftRow,
 } from '../lib/gifts'
-import { formatCents } from '../lib/money'
 import { AddButton } from './AddButton'
 import { AppCard } from './AppCard'
 import { BreakdownPageLayout } from './BreakdownPageLayout'
 import { EmptyState } from './EmptyState'
 import { EnumSegmentedControl } from './EnumSelect'
 import { GiftBudgetForm } from './GiftBudgetForm'
+import { GiftCandidateInbox } from './GiftCandidateInbox'
 import { GiftManagement } from './GiftManagement'
-import { GiftPurchaseForm } from './GiftPurchaseForm'
-import { GiftMoneyBar, PurchaseRow } from './GiftRowParts'
+import { GiftRowCard } from './GiftRowCard'
+import { GiftMoneyBar } from './GiftRowParts'
 
 interface GiftsScreenProps {
   recipients: GiftRecipient[]
   occasions: GiftOccasion[]
   budgets: GiftBudget[]
   purchases: GiftPurchase[]
+  /** The synced gift-category transactions the inbox offers, newest first. */
+  transactions: GiftTransaction[]
+  /** The dismissals keeping the transactions that were not gifts out of the inbox. */
+  dismissals: GiftTransactionDismissal[]
   members: Member[]
   /** The signed-in member's id, or null while unresolved / for a user with no member row. */
   currentMemberId: string | null
@@ -54,218 +73,17 @@ interface GiftsScreenProps {
   onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
   onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
   onDeletePurchase: (id: string) => Promise<void>
+  /** Sets a candidate aside as "not a gift". */
+  onDismissTransaction: (transactionId: string) => Promise<void>
+  /** Undoes a set-aside, returning its transaction to the inbox. */
+  onRestoreTransaction: (dismissalId: string) => Promise<void>
+  /** Pulls fresh gift transactions from Up on demand. */
+  onRefresh: () => void
+  refreshing: boolean
+  refreshError: string | null
 }
 
 const GROUP_BY_STORAGE_KEY = 'gift-group-by'
-
-/** One pairing row: its money, expandable to its purchases with add/edit/delete and budget edit. */
-function GiftRowCard({
-  row,
-  budget,
-  purchases,
-  recipients,
-  occasions,
-  takenPairs,
-  hidden,
-  onUpdateBudget,
-  onDeleteBudget,
-  onCreatePurchase,
-  onUpdatePurchase,
-  onDeletePurchase,
-}: {
-  row: GiftRow
-  budget: GiftBudget
-  purchases: GiftPurchase[]
-  recipients: GiftRecipient[]
-  occasions: GiftOccasion[]
-  takenPairs: Set<string>
-  /** The gift is for the signed-in member: hide its spend and purchases from them. */
-  hidden: boolean
-  onUpdateBudget: (id: string, input: GiftBudgetInput) => Promise<void>
-  onDeleteBudget: (id: string) => Promise<void>
-  onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
-  onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
-  onDeletePurchase: (id: string) => Promise<void>
-}) {
-  const [opened, { toggle }] = useDisclosure(false)
-  const [editingBudget, setEditingBudget] = useState(false)
-  const [addingPurchase, setAddingPurchase] = useState(false)
-  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null)
-  const { confirm, modal } = useConfirmDelete()
-
-  const rowPurchases = purchases.filter((purchase) => purchase.gift_budget_id === row.budgetId)
-
-  // The agreed budget is jointly planned, so both the buyer and the recipient
-  // edit it through the same form.
-  const budgetEditForm = (
-    <GiftBudgetForm
-      recipients={recipients}
-      occasions={occasions}
-      initial={budget}
-      takenPairs={takenPairs}
-      onSubmit={async (input) => {
-        await onUpdateBudget(row.budgetId, input)
-        setEditingBudget(false)
-      }}
-      onCancel={() => setEditingBudget(false)}
-    />
-  )
-
-  // A gift for the signed-in member shows only its agreed (shared) budget, which
-  // they can edit: its spend, remaining, and purchase log stay hidden so the
-  // surprise is not spoiled.
-  if (hidden) {
-    return (
-      <AppCard withBorder padding="xs">
-        <Stack gap="xxs">
-          <Group justify="space-between" wrap="nowrap" gap="sm">
-            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-              <Text fw={600} size="sm" truncate>
-                {row.label}
-              </Text>
-              {row.date && (
-                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                  {formatIsoDate(row.date)}
-                </Text>
-              )}
-            </Group>
-            <Text size="sm" fw={600} style={{ flexShrink: 0 }}>
-              {formatCents(row.budgetedCents)}
-            </Text>
-          </Group>
-          <Text size="xs" c="dimmed">
-            Spending on this gift is hidden from you — this is a gift for you.
-          </Text>
-          {editingBudget ? (
-            budgetEditForm
-          ) : (
-            <Group gap="xs">
-              <Button size="xs" variant="subtle" onClick={() => setEditingBudget(true)}>
-                Edit budget
-              </Button>
-            </Group>
-          )}
-        </Stack>
-      </AppCard>
-    )
-  }
-
-  return (
-    <AppCard withBorder padding="xs">
-      <Stack gap="xs">
-        <UnstyledButton onClick={toggle} aria-expanded={opened}>
-          <Group justify="space-between" wrap="nowrap" gap="sm">
-            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-              {opened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
-              <Text fw={600} size="sm" truncate>
-                {row.label}
-              </Text>
-              {row.date && (
-                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                  {formatIsoDate(row.date)}
-                </Text>
-              )}
-            </Group>
-          </Group>
-        </UnstyledButton>
-
-        <GiftMoneyBar totals={row} label={row.label} />
-
-        <Collapse expanded={opened}>
-          <Stack gap="xs" pt="xs">
-            {rowPurchases.length === 0 && !addingPurchase && (
-              <EmptyState>No purchases yet.</EmptyState>
-            )}
-            {rowPurchases.map((purchase) =>
-              editingPurchaseId === purchase.id ? (
-                <GiftPurchaseForm
-                  key={purchase.id}
-                  budgetId={row.budgetId}
-                  initial={purchase}
-                  onSubmit={async (input) => {
-                    await onUpdatePurchase(purchase.id, input)
-                    setEditingPurchaseId(null)
-                  }}
-                  onCancel={() => setEditingPurchaseId(null)}
-                />
-              ) : (
-                <PurchaseRow
-                  key={purchase.id}
-                  purchase={purchase}
-                  onEdit={() => {
-                    setAddingPurchase(false)
-                    setEditingPurchaseId(purchase.id)
-                  }}
-                  onDelete={() =>
-                    confirm({
-                      title: 'Delete purchase?',
-                      itemLabel: purchase.description || 'Purchase',
-                      onConfirm: () => onDeletePurchase(purchase.id),
-                    })
-                  }
-                />
-              ),
-            )}
-
-            {addingPurchase ? (
-              <GiftPurchaseForm
-                budgetId={row.budgetId}
-                onSubmit={async (input) => {
-                  await onCreatePurchase(input)
-                  setAddingPurchase(false)
-                }}
-                onCancel={() => setAddingPurchase(false)}
-              />
-            ) : editingBudget ? (
-              budgetEditForm
-            ) : (
-              <Group gap="xs">
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => {
-                    setEditingBudget(false)
-                    setAddingPurchase(true)
-                  }}
-                >
-                  Add purchase
-                </Button>
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  onClick={() => {
-                    setAddingPurchase(false)
-                    setEditingBudget(true)
-                  }}
-                >
-                  Edit budget
-                </Button>
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  color="red"
-                  onClick={() =>
-                    confirm({
-                      title: 'Delete gift budget?',
-                      itemLabel: row.label,
-                      description:
-                        'This also removes every purchase recorded against it. This cannot be undone.',
-                      onConfirm: () => onDeleteBudget(row.budgetId),
-                    })
-                  }
-                >
-                  Delete budget
-                </Button>
-              </Group>
-            )}
-          </Stack>
-        </Collapse>
-      </Stack>
-
-      {modal}
-    </AppCard>
-  )
-}
 
 /** One collapsible group: header rollup plus its pairing rows and an add-budget affordance. */
 function GiftGroupCard({
@@ -387,12 +205,18 @@ function GiftGroupCard({
   )
 }
 
-/** Presentational gift tracker: grouped budgets with spend rollups, plus recipient/occasion management. */
+/**
+ * Presentational gift tracker: the card-spending inbox, grouped budgets with
+ * spend rollups, and recipient/occasion management. Persistence lives in the
+ * caller.
+ */
 export function GiftsScreen({
   recipients,
   occasions,
   budgets,
   purchases,
+  transactions,
+  dismissals,
   members,
   currentMemberId,
   onCreateRecipient,
@@ -407,6 +231,11 @@ export function GiftsScreen({
   onCreatePurchase,
   onUpdatePurchase,
   onDeletePurchase,
+  onDismissTransaction,
+  onRestoreTransaction,
+  onRefresh,
+  refreshing,
+  refreshError,
 }: GiftsScreenProps) {
   const [groupBy, setGroupBy] = useLocalStorage<GiftGroupBy>({
     key: GROUP_BY_STORAGE_KEY,
@@ -444,11 +273,36 @@ export function GiftsScreen({
     <BreakdownPageLayout
       title="Gifts"
       action={
-        <Button variant={managing ? 'filled' : 'default'} onClick={toggleManaging}>
-          {managing ? 'Done' : 'Manage'}
-        </Button>
+        <Group gap="xs">
+          <Button
+            variant="light"
+            leftSection={<IconRefresh size={16} />}
+            onClick={onRefresh}
+            loading={refreshing}
+          >
+            Refresh
+          </Button>
+          <Button variant={managing ? 'filled' : 'default'} onClick={toggleManaging}>
+            {managing ? 'Done' : 'Manage'}
+          </Button>
+        </Group>
       }
     >
+      {refreshError && (
+        <Alert color="red" variant="light">
+          {refreshError}
+        </Alert>
+      )}
+
+      <GiftCandidateInbox
+        candidates={giftCandidates(transactions, purchases, dismissals)}
+        dismissed={dismissedGiftCandidates(transactions, dismissals)}
+        budgetChoices={linkableGiftBudgets(budgets, recipients, occasions, hiddenBudgetIds)}
+        onLink={onCreatePurchase}
+        onDismiss={onDismissTransaction}
+        onRestore={onRestoreTransaction}
+      />
+
       {budgets.length > 0 && (
         <AppCard withBorder padding="sm">
           <Stack gap="xxs">

@@ -50,23 +50,25 @@ Deno.test('listAccounts sends the bearer token', async () => {
   assertEquals(authHeader, 'Bearer secret-token')
 })
 
-Deno.test('listTransactions puts filter[since] in the query', async () => {
+Deno.test('listTransactions filters by category and since, one page of 100', async () => {
   let requestedUrl = ''
   const fetchImpl: typeof fetch = (input) => {
     requestedUrl = typeof input === 'string' ? input : (input as Request).url
     return Promise.resolve(jsonResponse({ data: [], links: { next: null } }))
   }
 
-  await new UpClient('token', 'https://up.test', fetchImpl).listTransactions(
-    '2026-01-01T00:00:00+11:00',
-  )
+  await new UpClient('token', 'https://up.test', fetchImpl).listTransactions({
+    since: new Date('2026-01-01T00:00:00+11:00'),
+    category: 'gifts-and-charity',
+  })
 
   const query = new URL(requestedUrl).searchParams
-  assertEquals(query.get('filter[since]'), '2026-01-01T00:00:00+11:00')
+  assertEquals(query.get('filter[since]'), '2025-12-31T13:00:00.000Z')
+  assertEquals(query.get('filter[category]'), 'gifts-and-charity')
   assertEquals(query.get('page[size]'), '100')
 })
 
-Deno.test('listTransactions omits filter[since] when no cursor is given', async () => {
+Deno.test('listTransactions omits both filters when no options are given', async () => {
   let requestedUrl = ''
   const fetchImpl: typeof fetch = (input) => {
     requestedUrl = typeof input === 'string' ? input : (input as Request).url
@@ -74,7 +76,35 @@ Deno.test('listTransactions omits filter[since] when no cursor is given', async 
   }
 
   await new UpClient('token', 'https://up.test', fetchImpl).listTransactions()
-  assertEquals(new URL(requestedUrl).searchParams.has('filter[since]'), false)
+  const query = new URL(requestedUrl).searchParams
+  assertEquals(query.has('filter[since]'), false)
+  assertEquals(query.has('filter[category]'), false)
+})
+
+Deno.test('listTransactions walks links.next to the end', async () => {
+  const base = 'https://up.test'
+  const calls: string[] = []
+  const fetchImpl: typeof fetch = (input) => {
+    const url = typeof input === 'string' ? input : (input as Request).url
+    calls.push(url)
+    return Promise.resolve(
+      jsonResponse(
+        calls.length === 1
+          ? {
+            data: [{ id: 'tx-1' }],
+            links: { next: `${base}/transactions?after=cursor` },
+          }
+          : { data: [{ id: 'tx-2' }], links: { next: null } },
+      ),
+    )
+  }
+
+  const transactions = await new UpClient('token', base, fetchImpl).listTransactions({
+    category: 'gifts-and-charity',
+  })
+
+  assertEquals(transactions.map((tx) => tx.id), ['tx-1', 'tx-2'])
+  assertEquals(calls[1], `${base}/transactions?after=cursor`)
 })
 
 Deno.test('a non-OK response throws', async () => {

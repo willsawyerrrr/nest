@@ -10,6 +10,7 @@ const purchase: GiftPurchase = {
   amount_cents: 45_00,
   description: 'Toy train',
   purchased_on: '2026-11-01',
+  transaction_id: null,
   household_id: 'h',
   created_at: '',
   updated_at: '',

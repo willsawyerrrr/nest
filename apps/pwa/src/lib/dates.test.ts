@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatIsoDate, todayIso } from './dates'
+import { formatIsoDate, isoDate, todayIso } from './dates'
 
 describe('formatIsoDate', () => {
   it('formats an ISO date as a short local date', () => {
@@ -14,5 +14,13 @@ describe('todayIso', () => {
 
   it('defaults to the current date', () => {
     expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('isoDate', () => {
+  it('takes the local calendar date of an instant, not its UTC text', () => {
+    // Local 11pm on 20 Nov is 21 Nov in UTC east of Greenwich, yet the local
+    // calendar date governs.
+    expect(isoDate(new Date(2026, 10, 20, 23, 30))).toBe('2026-11-20')
   })
 })

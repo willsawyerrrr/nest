@@ -1,20 +1,20 @@
 import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export interface UseRefreshSaversResult {
+export interface UseUpSyncResult {
   refreshing: boolean
   error: string | null
   refresh: () => Promise<void>
 }
 
 /**
- * Triggers an on-demand Up sync to refresh the household's synced saver
- * balances, then reloads the passed queries so the UI reflects the new
- * balances. The sync runs server-side in the JWT-verified `up-sync` function,
- * scoped to the caller's household. A failure is surfaced as `error` rather
- * than thrown, so a stale balance degrades gracefully.
+ * Triggers an on-demand Up sync, then reloads the passed queries so the UI
+ * reflects what it pulled in — saver balances on the Goals tab, gift-category
+ * transactions on the Gifts tab. The sync runs server-side in the JWT-verified
+ * `up-sync` function, scoped to the caller's household. A failure is surfaced as
+ * `error` rather than thrown, so stale data degrades gracefully.
  */
-export function useRefreshSavers(reload: () => Promise<void>): UseRefreshSaversResult {
+export function useUpSync(reload: () => Promise<void>): UseUpSyncResult {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,7 +28,7 @@ export function useRefreshSavers(reload: () => Promise<void>): UseRefreshSaversR
       }
       await reload()
     } catch {
-      setError('Could not refresh balances. Try again.')
+      setError('Could not refresh from Up. Try again.')
     } finally {
       setRefreshing(false)
     }

@@ -41,9 +41,10 @@ references are additionally blocked by composite foreign keys on
     `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
     It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
     `name`/`email` only, so a client cannot forge its Up connection status.
-  - `service_role` holds the server-side table grants the Up edge functions
-    need: `select` on `members` and `select`/`insert`/`update` on `accounts`,
-    for member lookup and account-balance upserts.
+  - `service_role` holds the table grants the Up edge functions read under:
+    `select` on `members` and `select`/`insert`/`update` on `accounts`, for member
+    lookup and for resolving a synced transaction's account. The sync's writes go
+    through SECURITY DEFINER RPCs (see RPCs) rather than these grants.
 
 ## Inflows
 
@@ -277,9 +278,32 @@ recipient is a household member (see **Private gifts** below).
     Unique on `(recipient_id, occasion_id)` and on `(id, household_id)`.
 - **gift_purchase** — an actual purchase assigned to a `gift_budget`.
   - `id`, `household_id`, `gift_budget_id`, `amount_cents` (≥ 0),
-    `description` (default `''`), `purchased_on`, `created_at`, `updated_at`.
+    `description` (default `''`), `purchased_on`, `transaction_id` (nullable),
+    `created_at`, `updated_at`.
   - Composite foreign key `(gift_budget_id, household_id)` → `gift_budget`
     `on delete cascade`.
+  - `transaction_id` is the synced Up transaction the purchase was linked from,
+    null for a hand-entered one. Composite foreign key
+    `(transaction_id, household_id)` → `transactions`, `on delete set null` on
+    that column alone, so losing the transaction leaves the purchase standing as
+    a hand-entered one. A partial unique index on `transaction_id` keeps it one
+    purchase per transaction. `up-sync` holds a linked purchase's
+    `amount_cents` to its transaction's magnitude — a hold settles at whatever the
+    merchant finally charges — while its description and date stay as the
+    household set them.
+- **gift_transaction_dismissal** — a synced transaction the household marked "not
+  a gift", keeping it out of the candidate inbox (Up files charity donations in
+  the same category as gifts).
+  - `id`, `household_id`, `transaction_id`, `created_at`, `updated_at`.
+    `unique (transaction_id)`, and a composite foreign key
+    `(transaction_id, household_id)` → `transactions` `on delete cascade`.
+  - The blanket "household members manage" policy: the row names a transaction
+    and nothing else, and the Gifts screen resolves it only by joining
+    `transactions`, where the balance-visible gate applies — so a dismissal
+    naming a co-member's private spending resolves, for the other partner, to no
+    transaction at all. A dismissal cascades away with its transaction, which is
+    right: once Up no longer reports the transaction in the gift category, it is
+    not a candidate to dismiss.
 
 **Private gifts.** `gift_recipient`, `gift_occasion`, and `gift_budget` carry the
 shared blanket "household members manage" policy — the agreed budget is set
@@ -294,13 +318,24 @@ to one of the caller's members (mirroring `visible_balance_account_ids`), so a
 member never reads and cannot log a purchase for their own surprise, while the
 buyer — any other member — sees and manages it normally.
 
+The card spend behind such a purchase is withheld too, so the claim cannot leak
+through the ledger: the `transactions` `SELECT`, `UPDATE`, and `DELETE` policies
+also require `id not in (select hidden_gift_transaction_ids_for_current_member())`
+— the transactions named by purchases against the caller's own gifts. Whichever
+account paid for it, a transaction the household has claimed as a gift for you is
+not yours to read, so the candidate inbox cannot offer you your own present. Spend
+claimed for an external recipient, and unclaimed spend, stay under the
+balance-visible rule alone.
+
 ## Ledger
 
 `accounts` is populated by the `up-sync` edge function for Up savers (see the Up
 integration in [`architecture.md`](architecture.md)); a savings goal links to one
-via `savings_goal.linked_account_id`. `transactions` and `categories` exist as
-the target for transaction ingestion (Up Bank API + manual entry) but are not yet
-populated; spending-plan reconciliation against them is a later phase.
+via `savings_goal.linked_account_id`. `transactions` holds one slice of the
+ledger: the gift-category Up transactions `up-sync` polls, which the Gifts screen
+links purchases from. Every other Up category, manual entry, and spending-plan
+reconciliation are a later phase, so `categories` — the household's own taxonomy —
+stays unpopulated and a synced row's `category_id` is null.
 
 - **accounts** — an identity-only bank or savings account; its balance lives in
   `account_balance`.
@@ -349,12 +384,29 @@ populated; spending-plan reconciliation against them is a later phase.
   goal balances, and super balances read from here.
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
-    `category_id` (nullable), `posted_at`, `amount_cents` (signed, negative =
-    outflow), `description`, `kind` (`income` | `expense` | `transfer`),
+    `category_id` (nullable), `external_category` (nullable), `posted_at`,
+    `amount_cents` (signed, negative = outflow), `description`,
+    `kind` (`income` | `expense` | `transfer`),
     `status` (`pending` | `settled`), `source` (`up` | `manual`),
     `external_id` (dedupe key), `notes`, `created_at`, `updated_at`.
+    `unique (source, external_id)` is the sync's dedupe key, and
+    `unique (id, household_id)` lets a gift purchase or dismissal reference a
+    transaction without leaving the household.
+  - `external_category` is the category the *source* assigned — Up's
+    `gifts-and-charity` for every row the gift poll lands — as distinct from
+    `category_id`, which points at the household's own (unpopulated) taxonomy.
   - RLS gates each transaction to the balance-visible account set, so a member
-    reads and writes transactions only on accounts whose balance they can see.
+    reads and writes transactions only on accounts whose balance they can see: a
+    co-member's spending account is outside that set, so their gift-category spend
+    never reaches the other partner's inbox, while a joint (2Up) account's spend
+    reaches both. `SELECT`, `UPDATE`, and `DELETE` add the gift gate on top,
+    excluding `hidden_gift_transaction_ids_for_current_member()` so a transaction
+    claimed as a gift for the caller is withheld from them (see **Private gifts**).
+    `INSERT` carries the account gate alone — a row being created cannot yet be
+    claimed by any purchase.
+  - Attribution mirrors the account: `member_id` is the resolved account's
+    `owner_member_id`, null for a joint account. A synced transaction whose
+    account is absent from `accounts` is skipped rather than landed.
 - **categories** — hierarchical income/expense taxonomy.
   - `id`, `household_id`, `parent_id` (nullable, self-referential), `name`,
     `kind` (`income` | `expense`), `is_archived`, `created_at`, `updated_at`.
@@ -403,6 +455,11 @@ not-yet-member can act past RLS in the narrow ways allowed:
   behind private gifts: the gift-budget ids whose recipient is linked to one of
   the caller's members, gating the `gift_purchase` policies so a member never sees
   or logs a purchase for a gift meant for them.
+- `hidden_gift_transaction_ids_for_current_member()` — its ledger counterpart: the
+  transactions named by purchases against those same gift budgets, gating the
+  `transactions` read, update, and delete policies so the card spend behind a gift
+  meant for the caller is withheld from them. SECURITY DEFINER precisely because
+  the caller cannot read those `gift_purchase` rows themselves.
 
 The Up token RPCs are also `SECURITY DEFINER`, but granted to `service_role`
 alone (not `authenticated`) — they are the only path to the token, which lives in
@@ -418,6 +475,17 @@ Vault:
   upserts the account identity into `accounts` (on `(source, external_id)`) and
   its balance into `account_balance` (on `account_id`) in one transaction, so
   identity and balance never diverge.
+- `sync_up_gift_transactions(household_id, account_ids, since, rows jsonb)` —
+  settles one member's gift-category window in a single transaction: upserts
+  every row Up returned (on `(source, external_id)`), holds each linked
+  `gift_purchase` to its transaction's amount, then prunes the gift-category rows
+  the pass did not return — over exactly `account_ids` and from `since` forward,
+  keeping any transaction a purchase links to. An empty `rows` clears the window,
+  the case where the last gift candidate was recategorised away in the Up app.
+
+Because these RPCs run as their owner, `service_role` needs no grant on the
+tables they write; the surgical grant stance is in
+[`operations.md`](operations.md#service_role-grants).
 
 ## Derived / computed (not stored)
 
@@ -430,4 +498,4 @@ Vault:
 - Tax estimate: the tax engine over each member's `tax_profile`, `help_debt`, and
   taxable inflows for a financial year.
 - Actual spend vs plan (reconciliation over the ledger tables) is a future
-  phase, pending transaction ingestion.
+  phase, pending transaction ingestion beyond the gift category.

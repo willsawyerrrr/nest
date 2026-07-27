@@ -53,6 +53,7 @@ function purchase(id: string, gift_budget_id: string, amount_cents: number): Gif
     amount_cents,
     description: '',
     purchased_on: '2026-01-01',
+    transaction_id: null,
     household_id: 'h',
     created_at: '',
     updated_at: '',

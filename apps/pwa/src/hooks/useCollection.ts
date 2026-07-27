@@ -22,7 +22,7 @@ interface QueryBuilder extends PromiseLike<{ data: unknown; error: unknown }> {
   update(values: unknown): QueryBuilder
   delete(): QueryBuilder
   eq(column: string, value: ScopeValue): QueryBuilder
-  order(column: string): QueryBuilder
+  order(column: string, options: { ascending: boolean }): QueryBuilder
 }
 
 const from = supabase.from.bind(supabase) as unknown as (table: HouseholdTable) => QueryBuilder
@@ -31,8 +31,10 @@ const from = supabase.from.bind(supabase) as unknown as (table: HouseholdTable) 
 export interface CollectionConfig<T extends HouseholdTable> {
   /** The table the collection reads and mutates. */
   table: T
-  /** Columns to order the load by, ascending, applied in the order given. */
+  /** Columns to order the load by, applied in the order given. */
   orderBy?: string | readonly string[]
+  /** Orders every `orderBy` column descending instead of ascending (e.g. newest first). */
+  descending?: boolean
   /** Equality filters narrowing the load (e.g. a parent id or the financial year). */
   match?: Readonly<Record<string, ScopeValue>>
   /** Fields merged into every insert alongside `household_id` (e.g. a parent id). */
@@ -70,13 +72,14 @@ async function loadRows(
   table: HouseholdTable,
   match: Readonly<Record<string, ScopeValue>>,
   order: readonly string[],
+  descending = false,
 ): Promise<unknown> {
   let query = from(table).select('*')
   for (const [column, value] of Object.entries(match)) {
     query = query.eq(column, value)
   }
   for (const column of order) {
-    query = query.order(column)
+    query = query.order(column, { ascending: !descending })
   }
   const { data, error } = await query
   if (error) {
@@ -127,7 +130,7 @@ export function useHouseholdCollection<
   // Snapshot the scope so the callbacks and query key re-derive only when it
   // changes in substance, not when the config object literal is recreated each
   // render.
-  const orderKey = orderColumns(config.orderBy).join(',')
+  const orderKey = `${orderColumns(config.orderBy).join(',')}${config.descending ? ':desc' : ''}`
   const matchKey = JSON.stringify(config.match ?? {})
   const defaultsKey = JSON.stringify(config.insertDefaults ?? {})
   const alsoInvalidateKey = (config.alsoInvalidate ?? []).join(',')
@@ -143,7 +146,7 @@ export function useHouseholdCollection<
 
   const query = useQuery({
     queryKey,
-    queryFn: async () => (await loadRows(table, match, order)) as Row<T>[],
+    queryFn: async () => (await loadRows(table, match, order, config.descending)) as Row<T>[],
   })
 
   const reload = useCallback(async () => {

@@ -120,7 +120,8 @@ does not restate them.
 ### Up savers → savings goals (complete)
 
 Savings-goal progress is funded from Up saver balances. The per-member token
-connection is the foundation; transaction ingestion stays deferred behind it.
+connection is the foundation; the same poll ingests gift-category transactions
+(see Breakdowns), while a general transaction ledger sits behind it.
 
 - Account balances read server-side: `up-sync` enumerates connected members
   (`up_connected_at` set), reads each token via `up_token_for_member` as service
@@ -133,7 +134,8 @@ connection is the foundation; transaction ingestion stays deferred behind it.
   "Spending", colliding across members) is stored with its name prefixed by the
   owner's name in possessive form (e.g. "Alex's Spending"), recomputed from Up's
   `displayName` each sync so repeated runs never double-prefix; joint accounts and
-  savers keep Up's name. Transaction sync is deferred to the ledger phase below.
+  savers keep Up's name. Transaction sync is limited to the gift category; a
+  general ledger is the phase below.
 - Goals reflect real saver balances (progress + ETA): a goal carries a nullable
   `linked_account_id`; the goal form offers an "Up saver" picker from the
   household's synced savers (selecting one prefills an empty goal name with the
@@ -255,6 +257,34 @@ design.
       (`hidden_gift_budget_ids_for_current_member`) stops that member reading or
       logging a purchase for their own gift, and the Gifts screen shows them only
       the budgeted amount plus a note. The buyer sees everything.
+- [x] Gift purchases from real Up spend: `up-sync` polls each member's
+      `gifts-and-charity` transactions into `public.transactions` (the Up-side
+      category in `external_category`) and settles them through the
+      `sync_up_gift_transactions` RPC, which upserts the window, holds a linked
+      purchase's amount to its transaction's, and prunes what Up no longer reports
+      in the category. A purchase points at its transaction via
+      `gift_purchase.transaction_id`; a candidate that is a charity donation rather
+      than a gift is set aside in `gift_transaction_dismissal`. The poll rescans a
+      365-day trailing window every run because Up raises no event when a
+      transaction is recategorised, which is how most gift spend gets categorised.
+      Per-account privacy carries over from the ledger's RLS: a member's gift
+      candidates on their own spending account are invisible to their co-member,
+      while joint-account spend is a candidate for both. On top of that gate, the
+      `transactions` policies exclude
+      `hidden_gift_transaction_ids_for_current_member()`, so a transaction claimed
+      as a gift for the caller is withheld from them whichever account paid for it
+      — a claim on the joint account leaves the recipient's inbox instead of
+      lingering there as an unclaimed candidate.
+- [x] The Gifts tab's "From your card" inbox: the unclaimed candidates, newest
+      first, each linkable to a gift budget through an inline picker over the
+      transaction's fixed amount and date (its description stays editable), or set
+      aside as "not a gift" and restored from a **Set aside** list. A held
+      transaction is badged `Pending` since its amount can still move on settlement,
+      a linked purchase is badged `From Up`, the budget picker omits gifts for the
+      signed-in member (RLS refuses those purchases anyway), and a **Refresh** action
+      invokes `up-sync` on demand so spending recategorised in the Up app appears
+      without waiting for the cron. See [`breakdowns.md`](breakdowns.md) for the
+      screen's full behaviour.
 
 ### Pay splits (complete)
 
@@ -374,21 +404,19 @@ Uncommitted work, roughly ordered by likelihood of being picked up.
   a wishlist of per-member aspirational purchases. Small and low-risk; good HDD
   filler. (Generic itemised sub-budgets are built as breakdowns; gift budgets are a
   separate standalone roll-up — see Done.)
-- **Breakdowns follow-ups** (the feature itself is shipped — see Done). See
-  [`breakdowns.md`](breakdowns.md).
-  - **Up-tagged gift purchases.** Once Up ingestion lands, an Up transaction can be
-    tagged to a gifting event instead of hand-entering the purchase.
 - Reconcile projected income against actual deposits; joint-income ownership
   split; recurring bills and forecasting; non-resident and part-year tax.
 
 ### Up ledger + reconciliation
 
-A large, deprioritised phase that pulls actual Up transactions to reconcile spend
-and tax against the plan. See [`up-ledger-sync.md`](up-ledger-sync.md) for the
-full design (staged sync foundation, ledger UI, and the two reconciliation
-layers).
+A large, deprioritised phase that pulls Up transactions across every category to
+reconcile spend and tax against the plan; the gift-category slice of the sync
+foundation is already ingested (see Done). See
+[`up-ledger-sync.md`](up-ledger-sync.md) for the full design (staged sync
+foundation, ledger UI, and the two reconciliation layers).
 
-- [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
+- [ ] Transaction sync across every category: webhook + scheduled poll; dedupe on
+      `external_id` (the account pass and the gift-category poll are done).
 - [ ] Ledger UI (accounts + transactions) over synced data.
 - [ ] Reconcile actual spend against the budget.
 - [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.

@@ -1,6 +1,6 @@
 # Up ledger + reconciliation
 
-An uncommitted, deprioritised roadmap phase (in **Later**): pull actual Up
+An uncommitted, deprioritised roadmap phase (in **Later**): pull *all* actual Up
 transactions to reconcile spend and tax against the plan. This is a large phase,
 layered on top of the plan-only app, Up savers, super, and gifts. It breaks into
 four ROADMAP checkboxes:
@@ -15,51 +15,73 @@ then a read-only ledger UI over it, then the two reconciliation layers that
 consume the synced data. Reconciliation is deferred behind sync deliberately —
 neither layer is buildable until real transactions land in `public.transactions`.
 
+One narrow slice of the sync foundation is already shipped: the **gift-category
+poll** (see below), which is all the Gifts screen needs to link a real card
+purchase to a gift budget (the screen's own behaviour is in
+[`breakdowns.md`](breakdowns.md#ui)). It is deliberately category-scoped, and its
+only reader is that screen's candidate inbox — the general ledger below, and the
+ledger UI over it, are what remains.
+
 ## What already exists
 
-The account-sync slice is built and deployed, and much of the transaction
-scaffolding is already in place — this phase largely fills in TODOs rather than
-starting cold.
+The account-sync slice and the gift-category transaction poll are built and
+deployed, and much of the remaining scaffolding is in place — this phase largely
+widens what is there rather than starting cold.
 
 - **`_shared/up.ts`** — a typed Up client (JSON:API, bearer per-member token). It
-  already models `UpTransaction` (status `HELD`/`SETTLED`, `amount`, `createdAt`,
+  models `UpTransaction` (status `HELD`/`SETTLED`, `amount`, `createdAt`,
   `settledAt`, `account` + `category` relationships) and exposes
-  `listTransactions(since?)` with `page[size]=100` + `filter[since]`, walking
-  `links.next` to completion. It does **not** yet model `getTransaction(id)`,
-  tags, `transferAccount`, `parentCategory`, or webhook registration.
-- **`up-sync/map.ts`** — `mapTransaction(tx)` already maps an `UpTransaction` to a
-  `TransactionUpsert` (`external_id`, `account_external_id`, `posted_at`,
-  `amount_cents`, `description`, `kind` income/expense, `status`
-  pending/settled, `source: 'up'`). It does **not** yet resolve `account_id`,
-  `household_id`, `member_id`, `category_id`, or the `transfer` kind.
-- **`up-sync/`** (index + sync) — accounts-only today. Two callers: a member's
-  manual refresh (JWT, scoped to their household) and the hourly `pg_cron`
-  service-role invocation (all households), told apart by the JWT `role` claim.
-  Dedupes on `(source, external_id)`, collapses joint accounts to one shared row
-  (`owner_member_id` null), attributes individual accounts to their owner, and
-  prefixes individual spending-account names. Idempotent upsert.
+  `listTransactions({ since, category })` with `page[size]=100`, walking
+  `links.next` to completion. It does **not** model `getTransaction(id)`, tags,
+  `transferAccount`, `parentCategory`, `message`, or webhook registration.
+- **`up-sync/map.ts`** — `mapTransaction(tx, accounts)` maps an `UpTransaction`
+  onto the row the sync RPC takes (`household_id`, `account_id`, `member_id`,
+  `external_id`, `external_category`, `posted_at`, `amount_cents`, `description`,
+  `kind` income/expense, `status` pending/settled), resolving the account from a
+  lookup the sync layer passes in and returning null — a skip — for an account
+  that is not synced. It stays pure. It does **not** map `category_id`, `notes`,
+  or the `transfer` kind.
+- **`up-sync/`** (index + sync) — two passes per member, in order: every account's
+  balance, then the member's gift-category transactions over a 365-day trailing
+  window. Two callers: a member's manual refresh (JWT, scoped to their household)
+  and the hourly `pg_cron` service-role invocation (all households), told apart by
+  the JWT `role` claim. Accounts dedupe on `(source, external_id)`, collapsing
+  joint accounts to one shared row (`owner_member_id` null), attributing
+  individual accounts to their owner, and prefixing individual spending-account
+  names. Idempotent throughout.
 - **`up-webhook/`** — deployed with `verify_jwt = false` (Up calls it
   unauthenticated) and a working `X-Up-Authenticity-Signature` HMAC-SHA256 check
   (`signature.ts`, constant-time compare). The handler switches on `PING` /
   `TRANSACTION_CREATED` / `TRANSACTION_SETTLED` / `TRANSACTION_DELETED` but the
   transaction branch is a **TODO** — it extracts the transaction id and returns
   `200` without persisting anything. It reads a single `UP_WEBHOOK_SECRET` env
-  var (see the per-member-secret gap in Stage 1).
+  var (see the per-member-secret gap in Stage 1). Gift ingestion does not depend
+  on it, and cannot: no event fires on recategorisation.
 - **`public.transactions`** — the target table exists (`ledger_core.sql`):
   `household_id`, `account_id` (FK `(id, household_id)`), `member_id` (nullable
-  attribution), `category_id` (nullable), `posted_at`, `amount_cents` (signed),
-  `description`, `kind` (`income`/`expense`/`transfer`), `status`
-  (`pending`/`settled`), `source` (`up`/`manual`), `external_id`, `notes`.
-  `unique (source, external_id)`; RLS gates on household membership; indexed on
-  household, account, category, posted_at. **Unpopulated today.**
+  attribution), `category_id` (nullable), `external_category` (the source's own
+  category), `posted_at`, `amount_cents` (signed), `description`, `kind`
+  (`income`/`expense`/`transfer`), `status` (`pending`/`settled`), `source`
+  (`up`/`manual`), `external_id`, `notes`. `unique (source, external_id)` and
+  `unique (id, household_id)`; RLS gates each row on the balance-visible account
+  set and withholds a row claimed as a gift for the caller
+  (`hidden_gift_transaction_ids_for_current_member()`, which a general ledger
+  inherits: the spend behind someone's surprise stays out of their ledger view
+  too); indexed on household, account, category, posted_at. **Populated for the
+  gift category only.**
 - **`public.categories`** — hierarchical income/expense taxonomy per household
-  (`parent_id`, `kind`, `is_archived`). Exists but unpopulated; not yet linked to
-  Up's category taxonomy.
+  (`parent_id`, `kind`, `is_archived`). Exists but unpopulated; not linked to Up's
+  category taxonomy, so a synced row's `category_id` is null and its Up category
+  sits in `external_category`.
 - **`service_role` grants** — surgical: `select` on `members`,
-  `select`/`insert`/`update` on `accounts`. Transaction sync needs new grants
-  (`insert`/`update`/`delete` on `transactions`; `select`/`insert` on
-  `categories` if we mirror Up categories) — added deliberately per the surgical
-  grant policy ([`operations.md`](operations.md#service_role-grants)).
+  `select`/`insert`/`update` on `accounts` and on `account_balance`. There is no
+  grant on `transactions`, and the gift poll wants none: it writes through the
+  `sync_up_gift_transactions` SECURITY DEFINER RPC and resolves accounts under the
+  `accounts` select. A general ledger that writes the table directly would need its
+  own grants (`insert`/`update`/`delete` on `transactions`; `select`/`insert` on
+  `categories` if Up categories are mirrored) — added deliberately per the
+  surgical grant policy ([`operations.md`](operations.md#service_role-grants)) —
+  or could route through an RPC the same way.
 
 ## Up API facts that shape the design
 
@@ -67,7 +89,8 @@ From <https://developer.up.com.au/> (base `https://api.up.com.au/api/v1`,
 `Authorization: Bearer <token>`, read-only, JSON:API):
 
 - **List:** `GET /transactions` and `GET /accounts/{id}/transactions`, newest
-  first. Params: `page[size]`, `filter[since]` / `filter[until]` (RFC-3339),
+  first. Params: `page[size]`, `filter[since]` / `filter[until]` (RFC-3339, both
+  bounding `createdAt` — not `settledAt`, so not `posted_at`),
   `filter[status]` (`HELD`/`SETTLED`), `filter[category]`, `filter[tag]`.
   Pagination is opaque cursors in `links.next` — follow until `null`, never
   construct URLs.
@@ -131,14 +154,53 @@ account sync relies on. Attribution for a joint-account transaction is `member_i
 null (mirror the account: derive `member_id` from the resolved account's
 `owner_member_id`, which is null for joint).
 
+### Gift-category poll (built)
+
+The one ingestion path in production, and the shape the general poll can follow.
+Per connected member, after the account pass: `listTransactions({ since,
+category: 'gifts-and-charity' })`, map each transaction against the accounts just
+upserted, and hand the whole result set to `sync_up_gift_transactions` — one call
+per member, with `p_account_ids` set to the local ids of the accounts that
+member's token can see and `p_since` to the window start. The RPC upserts the
+window, holds a linked `gift_purchase` to its transaction's amount, and prunes the
+gift-category rows the pass did not return.
+
+Two properties are specific to a **category-scoped** poll and do not carry over to
+the general ledger:
+
+- **A rescanned window, not a cursor.** A transaction's category is not part of
+  any cursor Up offers — no `updatedAt`, no event on recategorisation, and
+  `filter[since]` filters on `createdAt`, which never moves. Since most gift spend
+  is categorised by hand well after the purchase (Up files it under the merchant's
+  category first), a cursor would step straight past the transactions the poll
+  exists to find. Every run therefore rescans a fixed 365-day trailing window,
+  which is a handful of pages once `filter[category]` has narrowed it. A year keeps
+  a full annual cycle of occasions in scope.
+- **A prune.** Recategorising a transaction away from gifts takes it out of the
+  result set, and the prune takes it out of the inbox — except where a purchase
+  links it (the household already claimed it). The prune is bounded by the same
+  window, so a candidate that ages out is not deleted; it just stops being
+  refreshed, and one recategorised away after ageing out lingers until dismissed
+  as "not a gift". The two bounds are not quite the same instant, which is an
+  accepted boundary case: `filter[since]` bounds Up's result on `createdAt` while
+  the prune bounds on `posted_at` (`settledAt ?? createdAt`), so a transaction
+  created just outside the window and settled just inside it is absent from Up's
+  result yet within the prune's reach, and drops out of the inbox. It affects only
+  the far edge of a year-old window, and never a transaction a purchase links to.
+
+A general ledger needs neither: it ingests every category, so recategorisation
+changes nothing about whether a row belongs, and nothing is ever pruned for
+falling out of a filter. It can use the cursor strategy below.
+
 ### Scheduled poll — backstop (extend `up-sync`)
 
 Webhooks can miss deliveries (downtime, Up outage, delivery failures visible in
-`/webhooks/{id}/logs`), so the hourly `up-sync` cron must also pull transactions,
-not just balances. Extend the existing run: after upserting accounts, for each
-connected member call `listTransactions(since)` and upsert the mapped rows. This
-reuses the entire two-caller model (manual JWT refresh scoped to a household; cron
-service-role over all) and the per-member token read — no new invocation plumbing.
+`/webhooks/{id}/logs`), so the hourly `up-sync` cron must also pull transactions
+across every category, not just balances and gifts. Extend the existing run: after
+the account pass, for each connected member call `listTransactions({ since })` and
+upsert the mapped rows. This reuses the entire two-caller model (manual JWT refresh
+scoped to a household; cron service-role over all), the per-member token read, and
+the account lookup the gift pass already builds — no new invocation plumbing.
 
 **Incremental cursor / `since` strategy.** Don't refetch all history hourly. Track
 a high-water mark per member (or per account) and pass it as `filter[since]`:
@@ -168,9 +230,9 @@ if wanted.
 
 ### Field mapping (Up transaction → `public.transactions`)
 
-Extend `mapTransaction` (already exists for the base fields) and resolve the FKs
-in the sync/webhook layer (the pure mapper stays I/O-free; FK resolution needs DB
-lookups):
+`mapTransaction` already produces every column below except `category_id`,
+`notes`, and the `transfer` kind. The account lookup it takes is resolved in the
+sync layer, so the mapper stays I/O-free:
 
 | `transactions` column | Source |
 | --- | --- |
@@ -185,19 +247,21 @@ lookups):
 | `notes` | `tx.attributes.message` (nullable) — optional |
 | `status` | `SETTLED`→`settled`, `HELD`→`pending` |
 | `kind` | `transferAccount` set → `transfer`; else `amount < 0` → `expense`, else `income` (adds the `transfer` case the current mapper omits) |
+| `external_category` | `tx.relationships.category.data?.id` — the source's own category, carried on list responses |
 | `category_id` | from `tx.relationships.category` (+ `parentCategory`) — see below |
 
 **Categories/tags.** Up's category is a fixed child-under-parent taxonomy;
-`public.categories` is a per-household hierarchy that's currently empty. Options
-(open question): (a) leave `category_id` null for now and add it in a later
+`public.categories` is a per-household hierarchy that's currently empty. A synced
+row keeps Up's own child category verbatim in `external_category` (which is how
+the gift poll recognises its candidates) and leaves `category_id` null. Options
+for filling `category_id` (open question): (a) leave it null and add it in a later
 sub-stage; (b) mirror Up's `GET /categories` into `public.categories` per
 household (seeded once, `source`-tagged) and map each transaction's child +
-parent onto it. Recommend deferring category mapping out of the first sync stage —
-land transactions with `category_id` null, then add the Up-category mirror as its
-own stage before spend reconciliation (which needs categories to group spend). Up
-**tags** (custom labels, max 6) have no column today; defer entirely unless the
-gift-tagging use case (ROADMAP "Later": Up-tagged gift purchases) pulls them
-forward.
+parent onto it. Recommend deferring category mapping out of the first general sync
+stage, then adding the Up-category mirror as its own stage before spend
+reconciliation (which needs categories to group spend). Up **tags** (custom
+labels, max 6) have no column; the gift use case is served by the category
+instead, so tags stay unmapped.
 
 **Pending vs settled.** Persist both from day one (the `status` enum already has
 `pending`). A `HELD` transaction lands as `pending` with `posted_at = createdAt`;
@@ -220,11 +284,11 @@ dedicated action):
 
 ### Stages (smallest-useful-first)
 
-1. **Poll-only transaction sync.** Extend `up-sync` to pull + upsert
-   transactions (bounded backfill on first run, derived-`since` incremental
-   after), `category_id` null, `transfer` kind added to the mapper, `member_id`
-   from account owner. New `service_role` grants on `transactions`. Reuses all
-   existing cron/JWT plumbing — this alone populates the ledger.
+1. **Poll-only transaction sync.** Widen the poll from the gift category to every
+   category (bounded backfill on first run, derived-`since` incremental after),
+   `category_id` null, `transfer` kind added to the mapper, `member_id` from
+   account owner. Reuses all existing cron/JWT plumbing, the mapper, and the
+   account lookup — this alone populates the ledger.
 2. **Webhook ingestion.** Per-member webhook registration on connect/disconnect,
    per-member secrets in Vault, fill the `up-webhook` TODO (fetch-map-upsert +
    delete). Poll becomes the backstop.
@@ -345,8 +409,9 @@ inferring it circularly from the estimate.
 - **Joint accounts.** A joint transaction fires two webhook deliveries and is seen
   by both tokens on poll; the upsert collapses to one row; `member_id` is null
   (mirrors the account). This is the same dedupe the account sync already proves.
-- **`service_role` grants.** Sync needs new surgical grants (`transactions`, and
-  `categories` if mirrored) — added deliberately per the surgical grant policy
+- **`service_role` grants.** A direct-write sync needs new surgical grants
+  (`transactions`, and `categories` if mirrored), or an RPC to write through as
+  the gift poll does — either way deliberate, per the surgical grant policy
   ([`operations.md`](operations.md#service_role-grants)).
 
 ## Open questions (for the user to resolve later — not blocking)
@@ -359,13 +424,16 @@ inferring it circularly from the estimate.
 3. **Backfill depth** — all-time vs bounded (current + prior FY). Recommend
    bounded; all-time on demand.
 4. **Incremental cursor** — derived from `max(posted_at)` with an overlap window
-   (recommended, no schema change) vs an explicit stored `up_sync_cursor`.
+   (recommended, no schema change) vs an explicit stored `up_sync_cursor`. Either
+   works for the general poll, where a row's membership never depends on a
+   filter; the gift poll rescans a fixed window instead, for the reason given
+   above.
 5. **Category mapping** — leave `category_id` null initially (recommended for the
    first sync stage), then mirror `GET /categories` into `public.categories`; and
    how Up categories map onto `budget_group` / `budget_line` for reconciliation
    (category→group vs category→line vs account-routed).
-6. **Tags** — ingest Up tags now or defer until the Up-tagged-gift-purchase use
-   case needs them (no column today).
+6. **Tags** — whether to ingest Up tags at all. No column today, and the gift
+   use case is served by `external_category`, so nothing needs them yet.
 7. **Pending spend** — does reconciliation count `HELD`/pending transactions or
    settled-only?
 8. **Reconciliation period** — fortnight (matches the plan) vs calendar month.

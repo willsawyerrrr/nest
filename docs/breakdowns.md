@@ -225,11 +225,13 @@ Owned by a breakdown; every breakdown is generic.
 
 ## UI
 
-- **Breakdowns tab** (route `/breakdowns`, in `NAV_ITEMS`) — lists every breakdown
+- **Breakdowns tab** (route `/breakdowns`, in the Plan group of `NAV_SECTIONS`) —
+  lists every breakdown
   with its name, group, and rolled-up fortnightly + annual total, plus a
   **New breakdown** action (a name and a group). Gift lines never appear here. Each
   row taps through to `/breakdowns/:id`.
-- **Gifts tab** (route `/gifts`, in `NAV_ITEMS`) — the unified gift planner and the
+- **Gifts tab** (route `/gifts`, in the Plan group of `NAV_SECTIONS`) — the
+  unified gift planner and the
   sole place gifts are managed, showing every recipient, occasion, budget, and
   purchase. It reads and writes the household-scoped `gift_*` tables directly; the
   reconcile pass derives the gift budget lines from them. A **Refresh** action beside

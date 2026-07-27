@@ -319,7 +319,7 @@ Purely PostgREST + RLS (no new edge functions): the household already reads
   app's green/red money semantics, description, account, pending badge, member
   attribution tag.
 - New nav tab (e.g. **Ledger** or **Transactions**), slotting into the existing
-  `NAV_ITEMS`-driven tab bar; mobile cards / desktop dense rows like Budget and
+  `NAV_SECTIONS`-driven tab bar; mobile cards / desktop dense rows like Budget and
   Inflows.
 
 Staged: ship the transactions list first (the whole point of sync); layer

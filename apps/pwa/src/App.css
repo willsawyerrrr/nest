@@ -118,6 +118,49 @@
 }
 
 /*
+ * A nav group header. It labels its section rather than leading anywhere, so it
+ * stays quieter than an item — no active treatment, and uppercase micro-type set
+ * on the label itself — while taking the same block padding across the full
+ * width, giving a thumb the whole row to tap.
+ */
+.drawer-nav__group {
+  display: block;
+  width: 100%;
+  padding-block: var(--mantine-spacing-xs);
+  padding-inline: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-md);
+  color: inherit;
+  transition: background-color 120ms ease;
+}
+
+.drawer-nav__group:hover,
+.drawer-nav__group:focus-visible {
+  background-color: var(--mantine-color-default-hover);
+}
+
+/* Micro-type tracking, so the uppercase section label stays legible small. */
+.drawer-nav__group-label {
+  letter-spacing: 0.06em;
+}
+
+/*
+ * Marks a collapsed group holding the current route, so folding away the section
+ * you are in still shows where you are: one lime dot, the same fill as the
+ * active item's leading bar.
+ */
+.drawer-nav__group-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--mantine-primary-color-filled);
+}
+
+/* A group's items sit inset from its header, so the nesting reads at a glance. */
+.drawer-nav__group-items {
+  padding-left: var(--mantine-spacing-xs);
+}
+
+/*
  * The nav drawer is anchored to the left edge and spans the full height, so it
  * abuts the top, left, and bottom safe-area insets. The header stacks its
  * default padding on top of the notch inset so the title and close button sit

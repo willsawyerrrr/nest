@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { SignInScreen } from './components/SignInScreen'
-import { NAV_ITEMS, TabBar } from './components/TabBar'
+import { NAV_SECTIONS, TabBar } from './components/TabBar'
 import { useHousehold, type Household } from './hooks/useHousehold'
 import { supabase } from './lib/supabase'
 import './App.css'
@@ -179,7 +179,7 @@ function HouseholdApp({
           </Routes>
         </Suspense>
       </main>
-      <TabBar items={NAV_ITEMS} />
+      <TabBar sections={NAV_SECTIONS} />
     </div>
   )
 }

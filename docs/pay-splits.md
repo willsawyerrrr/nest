@@ -84,8 +84,11 @@ One `pay_split` row per account holds the confirmed split:
 The pay account lives on the household:
 
 - `households.pay_account_id uuid` — nullable composite FK
-  `(pay_account_id, id) → accounts (id, household_id)`, `on delete set null`. The
-  single spending account the household's pay lands in. Written only through the
+  `(pay_account_id, id) → accounts (id, household_id)`,
+  `on delete set null (pay_account_id)`. The single spending account the
+  household's pay lands in; deleting that account clears the designation and
+  leaves the household standing, dropping the tab back to its no-pay-account
+  state. Written only through the
   `set_household_pay_account(account_id)` SECURITY DEFINER RPC, which rejects any
   account that is not a `type = 'transaction'` account in the caller's household,
   so households writes stay controlled rather than exposing a broad column update.

@@ -9,7 +9,9 @@ Automated proof that Row-Level Security isolates households. These run in CI (th
   (`auth.users`, `auth.uid()`, `auth.jwt()`, and the `anon`/`authenticated`/
   `service_role` roles). Not used in production.
 - `rls_isolation.sql` — the assertions: a member sees only their own household's
-  rows, a second user is fully isolated, and cross-household writes are rejected.
+  rows, a second user is fully isolated, cross-household writes are rejected, and
+  the within-household boundaries hold (per-account balance privacy, private gift
+  purchases, and own-device-only push subscriptions).
 - `derived_line_triggers.sql` — the assertions that the derived-budget-line
   reconcile triggers produce the exact tuple the client reconciler does, across
   the generic-breakdown and gift lifecycles (add/update/remove items and budgets,

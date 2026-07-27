@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
 import { makeMember } from '../test/fixtures'
 import { fireEvent, render, screen, within } from '../test/render'
 import { HomeScreen } from './HomeScreen'
@@ -8,6 +9,16 @@ const members = [
   makeMember({ id: 'm1', name: 'Will', user_id: 'u1' }),
   makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' }),
 ]
+
+const push = {
+  status: 'not-subscribed',
+  pending: null,
+  error: null,
+  testResult: null,
+  subscribe: vi.fn().mockResolvedValue(undefined),
+  unsubscribe: vi.fn().mockResolvedValue(undefined),
+  sendTest: vi.fn().mockResolvedValue(undefined),
+} satisfies UsePushNotificationsResult
 
 function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
   return render(
@@ -26,6 +37,7 @@ function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
       onConnectUp={vi.fn()}
       onDisconnectUp={vi.fn()}
       upBusy={false}
+      push={push}
       onSignOut={vi.fn()}
       {...overrides}
     />,
@@ -177,6 +189,28 @@ describe('HomeScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /disconnect/i }))
     expect(onDisconnectUp).toHaveBeenCalledOnce()
+  })
+
+  it('offers to turn notifications on for this device', () => {
+    const subscribe = vi.fn().mockResolvedValue(undefined)
+    renderHome({ push: { ...push, subscribe } })
+
+    expect(screen.getByRole('heading', { name: /Notifications/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /turn on/i }))
+
+    expect(subscribe).toHaveBeenCalledOnce()
+  })
+
+  it('offers to turn a registered device off and to send it a test', () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined)
+    const sendTest = vi.fn().mockResolvedValue(undefined)
+    renderHome({ push: { ...push, status: 'subscribed', unsubscribe, sendTest } })
+
+    fireEvent.click(screen.getByRole('button', { name: /send test notification/i }))
+    fireEvent.click(screen.getByRole('button', { name: /turn off/i }))
+
+    expect(sendTest).toHaveBeenCalledOnce()
+    expect(unsubscribe).toHaveBeenCalledOnce()
   })
 
   it('lists each member connection status', () => {

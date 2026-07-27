@@ -13,6 +13,9 @@ export default defineConfig({
         'apps/pwa/src/lib/supabase.ts',
         'apps/pwa/src/lib/domain.ts',
         'apps/pwa/src/pwa.ts',
+        // Worker-scope registration, like `pwa.ts`. Its payload parsing and
+        // click-target resolution live in `lib/push.ts` and are tested there.
+        'apps/pwa/src/sw.ts',
         'apps/pwa/src/vite-env.d.ts',
         'apps/pwa/src/test/**',
         '**/*.test.*',

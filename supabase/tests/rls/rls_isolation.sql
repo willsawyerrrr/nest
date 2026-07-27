@@ -242,10 +242,16 @@ exception when others then
   else raise; end if;
 end $$;
 
+-- An external recipient stays editable, and the edit exercises `set_updated_at`,
+-- the trigger on almost every table: it stamps the transaction timestamp over
+-- whatever the client supplied, so a stale value cannot be forced in.
 do $$ begin
-  update public.gift_recipient set name = 'Mummy' where id = current_setting('test.rid')::uuid;
+  update public.gift_recipient set name = 'Mummy', updated_at = '2000-01-01'
+    where id = current_setting('test.rid')::uuid;
   assert (select name from public.gift_recipient where id = current_setting('test.rid')::uuid) = 'Mummy',
     'an external gift recipient should stay editable';
+  assert (select updated_at from public.gift_recipient where id = current_setting('test.rid')::uuid) = now(),
+    'set_updated_at should stamp the update, overriding a client-supplied updated_at';
 end $$;
 
 do $$ begin
@@ -768,6 +774,25 @@ begin
   where n.nspname = 'public' and c.relkind = 'v'
     and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=on%';
   assert v_bad is null, format('views missing security_invoker=on: %s', v_bad);
+end $$;
+
+-- 7. Every function in the public schema pins an empty search path. An unpinned
+-- SECURITY DEFINER function resolves its unqualified names against the caller's
+-- path, so a relation or operator planted in an earlier schema can hijack it and
+-- run as the owner; an unpinned invoker trigger is the same hazard one privilege
+-- short. Asserted over the whole schema rather than per function, so a new
+-- function that forgets the setting fails CI on the day it lands.
+do $$
+declare v_bad text;
+begin
+  select string_agg(p.oid::regprocedure::text, ', ' order by p.oid::regprocedure::text) into v_bad
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and not exists (
+      select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) as cfg
+      where cfg like 'search_path=%');
+  assert v_bad is null, format('functions missing a pinned search_path: %s', v_bad);
 end $$;
 
 -- ── Private gift purchases within a household ────────────────────────────────

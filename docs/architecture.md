@@ -222,6 +222,12 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   signed-URL brokering and no service-role proxy. Payslips and receipts are
   sensitive documents, and household membership, not individual authorship, is
   what protects them.
+- **Every function pins an empty search path.** `set search_path = ''` on every
+  function in the schema forces each body to schema-qualify what it names, so no
+  reference can be shadowed by a relation, type, or operator planted in a schema
+  earlier on the caller's path — a privilege-escalation gate for the SECURITY
+  DEFINER functions, defence in depth for the invoker triggers. The RLS suite
+  asserts it across `pg_proc` rather than per function.
 - Up tokens and webhook secrets encrypted at rest (Vault), as are the Web Push
   VAPID keypair — read only through the service-role-only `vapid_keys()` — and the
   Anthropic API key, read only through the service-role-only

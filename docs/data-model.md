@@ -31,9 +31,12 @@ and so without the trigger.
     member has generated one; it expires after 7 days and is consumed on join.
   - `pay_account_id` (nullable) — the single spending account the household's pay
     lands in, the source for the Pay splits tab. A composite FK `(pay_account_id, id)
-    → accounts (id, household_id)` `on delete set null` keeps it within the
-    household and clears it if the account is removed. Written only through the
-    `set_household_pay_account` RPC (see RPCs), not a broad households update.
+    → accounts (id, household_id)` keeps it within the household, and
+    `on delete set null (pay_account_id)` names the column so deleting the account
+    clears the designation alone and leaves the household row standing — a
+    columnless set-null on this FK would also target the `households.id` half of
+    the reference. Written only through the `set_household_pay_account` RPC (see
+    RPCs), not a broad households update.
 - **members** — a person in a household, linked to an auth user.
   - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
     (nullable), `up_connected_at` (nullable), `created_at`, `updated_at`.

@@ -951,6 +951,23 @@ do $$ begin
     'a null argument should clear the household pay account';
 end $$;
 
+-- Deleting the designated pay account clears the designation and leaves the
+-- household standing: the composite FK's set-null names pay_account_id, so it
+-- never reaches households.id. Wrapped in a savepoint so Alice's spending
+-- account survives for later assertions.
+savepoint pay_account_delete;
+select public.set_household_pay_account(current_setting('test.priv_alice_spending')::uuid);
+delete from public.accounts where id = current_setting('test.priv_alice_spending')::uuid;
+do $$ begin
+  assert not exists (select 1 from public.accounts where id = current_setting('test.priv_alice_spending')::uuid),
+    'deleting the designated pay account should succeed';
+  assert (select count(*) from public.households where id = current_setting('test.priv_hid')::uuid) = 1,
+    'deleting the pay account must leave the household row with its id unchanged';
+  assert (select pay_account_id from public.households where id = current_setting('test.priv_hid')::uuid) is null,
+    'deleting the pay account should clear pay_account_id';
+end $$;
+rollback to savepoint pay_account_delete;
+
 -- ── Gift transaction candidates: per-account privacy and household isolation ──
 --
 -- up-sync lands gift-category Up transactions in public.transactions, and that

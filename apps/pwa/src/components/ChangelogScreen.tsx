@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Alert, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Alert, Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 import { PageSection } from './PageSection'
 
@@ -10,6 +10,7 @@ interface ChangelogScreenProps {
   configured: boolean
   error: string | null
   onUpdate: () => void
+  updating: boolean
 }
 
 const TYPE_EMOJI: Record<string, { emoji: string; label: string }> = {
@@ -76,6 +77,7 @@ export function ChangelogScreen({
   configured,
   error,
   onUpdate,
+  updating,
 }: ChangelogScreenProps) {
   return (
     <PageSection title="What's new">
@@ -105,7 +107,28 @@ export function ChangelogScreen({
                     <Entry key={entry.sha} type={entry.type} description={entry.description} />
                   ))}
                 </Stack>
-                <Button onClick={onUpdate} variant="filled" style={{ alignSelf: 'flex-start' }}>
+                {/*
+                  The reload takes seconds, and an installed PWA holds its last
+                  painted frame for them with no browser chrome to show progress,
+                  so a spinner alone can read as a stuck button — the wording is
+                  what says "working". A loading button hides its label behind
+                  the loader, so both the spinner and the copy are rendered as
+                  the loader's own content.
+                */}
+                <Button
+                  onClick={onUpdate}
+                  loading={updating}
+                  loaderProps={{
+                    children: (
+                      <Group gap="xs" wrap="nowrap">
+                        <Loader size="xs" color="var(--button-color)" />
+                        <span>Updating…</span>
+                      </Group>
+                    ),
+                  }}
+                  variant="filled"
+                  style={{ alignSelf: 'flex-start' }}
+                >
                   Reload to update
                 </Button>
               </Stack>

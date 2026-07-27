@@ -334,8 +334,10 @@ way, sourced at runtime from GitHub for the private repo.
 - [x] **Update available**: the changes newer than the running build (merged and
       deployed but missing from the loaded bundle) are returned as `available` and
       shown in a top section with a **Reload to update** button that force-updates
-      the PWA to the latest deployed version (activates a waiting service worker,
-      then clears caches, unregisters, and hard-reloads as an iOS-safe fallback).
+      the PWA to the latest deployed version: when a new service worker is
+      installed and waiting, it is sent `SKIP_WAITING` and the page reloads onto
+      its precache; otherwise the iOS-safe fallback clears the Cache Storage,
+      unregisters every worker, and hard-reloads.
 
 ### HELP indexation & payoff (complete)
 

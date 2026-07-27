@@ -67,17 +67,17 @@ annual total, exactly like the app.
 | Per-member income; wage (rate × hours × weeks) and salary | ✅ Have | Taxable inflows: wage `rate × hours/period`, salary annual gross |
 | Income tax + HELP + Medicare estimate | ✅ Have | App is richer: LITO, Medicare low-income phase-in + surcharge, private hospital, marginal HELP with cap, versioned FY config |
 | Six budget groups (Needs/Wants/Discretionary/Temporary/Savings/Investments) | ✅ Have | Exact same groups |
-| Amount + frequency → fortnightly + annual normalisation | ✅ Have | Same frequencies, plus an "every N weeks" cadence the sheet lacks |
+| Amount + frequency → fortnightly + annual normalisation | ✅ Have | Same frequencies, plus every-N-weeks and every-N-months cadences the sheet lacks |
 | Summary reconciliation: after-tax − outgoings − savings = buffer | ✅ Have | Same running After Outgoing / After Saving ledger |
-| Per-category portion of after-tax income | ✅ Have | Rendered per line |
+| Per-category portion of after-tax income | ✅ Have | Rendered per budget group in the Summary ledger |
 | Allocation ranking + `Unallocated` | ✅ Have | Summary allocation donut with remaining/unallocated |
 | Savings goals | ✅ Have | App richer: target date, current balance, contribution link, progress + ETA |
 | **Payment-method tag per bill** (Debit/Transfer/Card/Saver) | ➖ Not planned | Deliberate non-gap — the household keeps this in the sheet |
-| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ✅ Have | Shipped as breakdowns: a user-created itemised list rolls up into a derived budget line, gifts being the built-in `kind = 'gift'` roll-up managed in the Gifts tab and generic breakdowns covering any other list |
+| **Itemised sub-budget under a line** (Gifts by occasion/recipient) | ✅ Have | Two roll-ups feed derived budget lines: generic breakdowns (a user-created itemised list owning one line via `budget_line.breakdown_id`) cover any list, and gifts are a standalone roll-up keyed by `budget_line.is_gift_line`, derived straight from the gift tables in the Gifts tab. App richer: the gift planner records purchases against each budget — hand-entered or linked from a synced Up card transaction — and keeps a member's own gifts private from them |
 | **Wishlist** (per-member aspirational purchases) | ❌ Missing | No wishlist surface |
 | **Finance-admin to-do list** | ➖ Not planned | Deliberate non-gap — the household keeps this in the sheet |
 | **Free-text notes on a budget line** ("Spendings" scratch list) | ❌ Missing | Budget lines have no notes field |
-| Per-member breakdown of discretionary spend / wishlist / gifts | 🟨 Partial | App pools money by explicit design; per-line member tagging is deliberately out of scope. Itemisation is covered by breakdowns; free-text notes are not |
+| Per-member breakdown of discretionary spend / wishlist / gifts | 🟨 Partial | App pools money by explicit design; per-line member tagging is deliberately out of scope, though gifts do partition by recipient — one derived line per member with gift budgets plus one for external recipients. Itemisation is covered by breakdowns; free-text notes are not |
 
 ## 3. Prioritised gap list
 
@@ -86,10 +86,14 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
 
 1. **Generic itemised sub-budget (line-item breakdown)** — _shipped as
    breakdowns._ A user-created breakdown holds items (name + amount + frequency)
-   that roll up into a single derived budget line via `budget_line.breakdown_id`;
-   gifts are the built-in `kind = 'gift'` roll-up managed in the Gifts tab, generic
-   breakdowns cover any other list (e.g. the "Spendings" scratch list, medications). See
-   [`breakdowns.md`](breakdowns.md) and [`roadmap.md`](roadmap.md).
+   that roll up into a single derived budget line via `budget_line.breakdown_id`,
+   covering any itemised list (e.g. the "Spendings" scratch list, medications);
+   breakdowns are generic-only, `breakdown_kind` being a single-value enum. Gifts
+   are a separate standalone roll-up keyed by `budget_line.is_gift_line` with
+   `breakdown_id` null, derived from the gift tables by the reconcile pass — one
+   line per household member with gift budgets plus one for external recipients —
+   and managed solely in the Gifts tab. See [`breakdowns.md`](breakdowns.md) and
+   [`roadmap.md`](roadmap.md).
 
 2. **Wishlist** — a per-member list of aspirational purchases (name + amount),
    separate from the budget, that can later graduate into a Discretionary line or
@@ -99,8 +103,8 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
 
 3. **Free-text note on a budget line** — the "Spendings" scratch annotations.
    _Why:_ small quality-of-life; lets a line carry context without a full
-   breakdown. Largely subsumed by gap 1, so build only if line-items are not.
-   _Size:_ S. _Backend + frontend_ (nullable `notes` text column + textarea).
+   breakdown, which covers any line whose detail is itemisable. _Size:_ S.
+   _Backend + frontend_ (nullable `notes` text column + textarea).
 
 **Deliberate non-gaps** (documented, not to build): a **payment-method tag per
 bill** (Debit / Transfer / Card / Saver) and a **finance-admin to-do list** — the
@@ -108,15 +112,14 @@ household keeps both in the spreadsheet, and neither needs to move into the app.
 The app's tax engine already exceeds the sheet's flat-Medicare / no-offset model;
 app Goals already exceed the sheet's flat target list; and per-person *budget*
 splitting is intentionally out of scope (money is fully pooled — member tags are a
-tax/reporting concept only). Wishlist and Gifts still warrant an optional
-per-member tag for display, without implying per-person budgets.
+tax/reporting concept only). Wishlist still warrants an optional per-member tag
+for display, without implying per-person budgets; gift recipients carry one via
+`gift_recipient.member_id`.
 
 ## 4. Recommended next builds
 
-1. **Generic itemised sub-budget (gap 1)** — the largest remaining fidelity loss
-   vs the sheet for non-gift lists; the gift budget is already built, so this
-   covers any other "list of small things under one line".
-2. **Wishlist (gap 2)** — self-contained, low-risk, restores a whole sheet the
+1. **Wishlist (gap 2)** — self-contained, low-risk, restores a whole sheet the
    household uses.
 
-Gap 3 (line notes) is optional and only if gap 1 is deferred.
+Gap 3 (line notes) is optional: a breakdown already covers a line whose detail is
+itemisable.

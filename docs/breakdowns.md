@@ -49,10 +49,9 @@ normalised to fortnightly and annual exactly as a budget line is.
   lands and removed when the last goes, so an empty breakdown or partition never
   shows a $0 line in the budget.
 - **Breakdowns are `generic`-only.** Every breakdown row is `kind = 'generic'` and
-  rolls up its `breakdown_item` rows via a simple item editor. The `breakdown_kind`
-  enum retains a `gift` value, but it is retired and unused — no `gift` breakdown
-  rows exist; gifts roll up directly from the bespoke `gift_*` tables via
-  `is_gift_line`.
+  rolls up its `breakdown_item` rows via a simple item editor. `'generic'` is the
+  `breakdown_kind` enum's only value; gifts roll up directly from the bespoke
+  `gift_*` tables via `is_gift_line`.
 - **Derived lines are never created from the budget form.** The budget-line form has
   no "Amount source" picker; a derived line comes into being only through its
   breakdown.

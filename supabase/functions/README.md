@@ -18,6 +18,11 @@ deno task check    # type-checks the function entrypoints
 deno task test     # runs the *_test.ts unit suites
 ```
 
+Run the suite through `deno task test` rather than a bare `deno test`: the task
+carries `--allow-env`, which the Anthropic SDK needs because constructing a client
+reads its configuration (base URL, key, log level) from the environment. CI runs
+the same task, so the permissions live in one place.
+
 Pure logic sits in server-free sibling modules so tests never import an
 `index.ts` (which would start `Deno.serve`): `_shared/up.ts`'s `UpClient` takes an
 injectable `fetch` for stubbing HTTP, `up-sync/map.ts` holds the ledger mappers,
@@ -26,7 +31,11 @@ injectable `fetch` for stubbing HTTP, `up-sync/map.ts` holds the ledger mappers,
 injected so the validate-then-store ordering is tested against fakes, and
 `push-key/key.ts` / `push-test/send.ts` do the same for the push flows —
 `push-test/webpush.ts` is exercised against a stubbed `fetch`, so the real VAPID
-signature and aes128gcm framing are asserted without a push service.
+signature and aes128gcm framing are asserted without a push service. On the same
+pattern, `payslip-extract/{money,fields,extract}.ts` hold the cents conversion,
+the field shaping, and the extraction flow (`payslip-extract/model.ts` takes an
+injectable `fetch` the same way `UpClient` does, so the Anthropic request is
+asserted against a stub).
 
 ## Up Bank sync
 
@@ -81,13 +90,14 @@ authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if that
 Supabase access token is rotated, update the secret or the deploy fails.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
-`up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, and `push-test`
-are JWT-verified (the
-default) — the caller is resolved from their JWT, so a member can only touch their
-own token or their own devices, and `up-sync`'s PWA Refresh carries the member's
-JWT while its hourly cron presents the service-role key. `up-webhook` is the only
-entry in `config.toml`, setting `verify_jwt = false` so Up can call it
-unauthenticated; its HMAC signature check is the security boundary.
+`up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`, and
+`payslip-extract` are JWT-verified (the default, so they carry no `config.toml`
+entry) — the caller is resolved from their JWT, so a member can only touch their
+own token, their own devices, and files in their own household, and `up-sync`'s PWA
+Refresh carries the member's JWT while its hourly cron presents the service-role
+key. `up-webhook` is the only entry in `config.toml`, setting `verify_jwt = false`
+so Up can call it unauthenticated; its HMAC signature check is the security
+boundary.
 
 Serve locally against the running stack, or deploy a single function by hand:
 
@@ -96,6 +106,7 @@ supabase functions serve up-connect
 supabase functions serve up-disconnect
 supabase functions serve up-webhook
 supabase functions serve up-sync
+supabase functions serve payslip-extract
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -124,6 +135,58 @@ select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
 The job (`up-sync-hourly`) is idempotent across re-runs (it unschedules any prior
 job first) and is skipped when the secrets are absent. Verify with
 `select * from cron.job where jobname = 'up-sync-hourly';`.
+
+## Payslip extraction
+
+`payslip-extract` reads the figures off an uploaded payslip so the member can
+confirm them. **It never writes a payslip figure anywhere**: it returns the fields
+it read, the manual entry form pre-fills from them, and the member's own save is
+what persists. A wrong tax figure saved silently is worse than no extraction at
+all, so there is no write path in the function — no table, no RPC, no Storage
+write — which also means a failure at any step can leave nothing half-written.
+
+- **Request** — `POST { "path": "<household_id>/…" }`, the object path of a file
+  the client has *already* uploaded to the private `payslips` bucket (the file is
+  the auditable record whether or not extraction succeeds, so it is uploaded
+  first). JWT-verified: the caller is resolved to their own member and household
+  from the JWT, and the path's first segment must be that household — defence in
+  depth on top of Storage RLS, because the path comes from the client. The object
+  is then downloaded with the service role.
+- **Model** — Claude Haiku 4.5, pinned to its dated snapshot
+  (`claude-haiku-4-5-20251001`) alongside the other pinned dependencies. Structure
+  is forced with a tool schema rather than parsed out of prose, and every field in
+  it is nullable, so a slip without super — or a figure the model cannot find —
+  comes back null rather than invented. PDFs go as a `document` block, photos and
+  scans as an `image` block; anything else is rejected.
+- **Money** — the model reports each amount as the **literal text printed on the
+  slip** (`"4,120.50"`, `"$1,234"`); `money.ts` converts it to integer cents with
+  integer arithmetic on the digit strings. The model is never asked to multiply by
+  100, and `parseFloat(text) * 100` is never used (it loses a cent on amounts like
+  `8.29`). Text that is not unambiguously an amount yields null, never a number.
+- **Response** — `{ model, fields, text, missing, unreadable }`: `fields` holds
+  the column-shaped values (ISO dates, `*_cents` integers, null where
+  unavailable), `text` the literal strings that were read so the form can show
+  what the model saw, `missing` the fields the slip did not show, and `unreadable`
+  the fields whose text could not be converted safely. A partial extraction is a
+  success — the member fills the gaps.
+- **Failures** — `400` bad path or empty file, `403` a path outside the caller's
+  household, `404` no such object, `415` an unsupported file type, `413` a file
+  past the size cap (5 MiB for an image, 20 MiB for a PDF, both sized so base64
+  stays inside the Messages API's per-image and 32 MB request limits), `422` the
+  model reporting the document is not a payslip — or declining to read it at all,
+  which is a content problem rather than a server one — `429` an upstream rate limit,
+  `502` an API error or unusable model output, `504` a timeout, and `503` with
+  `{ configured: false }` when the API key is unset — an honest "the feature is
+  off, enter it by hand" rather than a 500 that looks like a bug.
+
+### Secret
+
+- **`anthropic_api_key`** — one household-wide Anthropic API key, held in Vault
+  and readable only by the SECURITY DEFINER `anthropic_api_key()` function granted
+  to `service_role` alone (`20260812000000_anthropic_api_key.sql`), which the
+  function calls with its service-role client. It is never returned to a client.
+  The operator sets it by hand; see
+  [`docs/operations.md`](../../docs/operations.md).
 
 ## Changelog ("What's new")
 

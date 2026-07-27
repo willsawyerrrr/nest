@@ -76,12 +76,12 @@ still typed; the file is an auditable attachment, not a data source. Adds Storag
 RLS and an upload flow, but no parsing risk. Good middle ground once the household
 wants the source document retained.
 
-**(c) PDF/OCR parsing.** Upload the slip and extract fields automatically
-(text-layer PDF parsing, or OCR for scans, likely in an edge function). Removes
-transcription but is heavy and brittle: payslip layouts vary wildly by
-employer/payroll provider, so extraction needs per-format handling or an
-LLM/document-AI pass, and every parse still needs human confirmation before it
-counts. High effort for a two-person household entering ~26 slips/year each.
+**(c) Automatic extraction.** Upload the slip and read the fields off it
+automatically. Payslip layouts vary wildly by employer and payroll provider, so
+per-format parsing is hopeless and the pass is an LLM one; every extraction still
+needs human confirmation before it counts. Built as
+[stage 3](#stage-3-llm-extraction-payslip-extract) — the `payslip-extract` edge
+function — which only ever pre-fills the same manual form.
 
 The app does **(a) manual entry** with **(b) optional file attachment**: the
 figures are always typed, and the slip may be kept alongside them. **(c)
@@ -150,21 +150,125 @@ the income side, and the two converge on the same year-end position.
 
 ## Staging
 
-Smallest-useful-first, each stage independently shippable. **Stages 1 and 2 are
-built; stage 3 is outstanding.**
+Smallest-useful-first, each stage independently shippable. **All three stages are
+built.**
 
-1. **Manual entry + variance — built.** The `payslip` table, the per-member entry
+1. **Manual entry + variance.** The `payslip` table, the per-member entry
    form and list, the pure variance math, and the Tax-tab withholding/refund
    readout from summed actual withheld. Delivers the full correlation value.
-2. **File attachment — built.** The private `payslips` Storage bucket,
+2. **File attachment.** The private `payslips` Storage bucket,
    membership-scoped Storage RLS, `payslip.file_path`, and upload/download in the
    form and list. The record carries an auditable source document; the figures are
    still typed.
-3. **Extraction pre-fill — outstanding.** Read an uploaded slip (an LLM
-   document pass) to pre-populate the form for confirmation, never writing figures
-   unconfirmed. It needs an API key and a server-side call, and layout variance
-   makes it the heaviest and least certain stage; the schema does not presume it —
-   `file_path` already holds the uploaded slip a pre-fill would read.
+3. **Extraction pre-fill.** Read an uploaded slip with a model to pre-populate the
+   form for confirmation, never writing figures unconfirmed. See
+   [Stage 3](#stage-3-llm-extraction-payslip-extract).
+
+## Stage 3: LLM extraction (`payslip-extract`)
+
+The `payslip-extract` edge function reads the figures off a slip the member has
+just uploaded, so the entry form opens pre-filled instead of blank. It is a
+convenience over stages 1–2, not a replacement: everything it produces goes through
+the same form and the same save.
+
+### Extraction never writes a payslip figure
+
+The function has **no write path for payslip data at all** — no table, no RPC, no
+Storage write. It returns the fields it read; the client pre-fills the manual entry
+form; the member confirms and saves; that save is what persists. A wrong tax figure
+saved silently is worse than no extraction at all — nobody re-derives a number they
+believe was read off the document — so confirmation is structural rather than a
+convention the UI is trusted to follow. It also means a failure at any step can
+leave nothing half-written.
+
+### Request
+
+The client uploads the file to the private `payslips` bucket **first** — the file
+is the auditable record whether or not extraction succeeds — then posts the object
+path:
+
+```json
+{ "path": "<household_id>/<…>/payslip.pdf" }
+```
+
+JWT-verified (the default posture): the caller is resolved to their own member and
+household from the Authorization JWT, never the body. The path is the client's, so
+it is not trusted — its first segment must be the caller's own household, defence
+in depth on top of Storage RLS. The object is then downloaded with the service
+role and sent to the model. PDFs go as a document block, photos and scans as an
+image block (JPEG, PNG, WebP); anything else is rejected before a request is built.
+
+### Response
+
+```json
+{
+  "model": "claude-haiku-4-5-20251001",
+  "fields": {
+    "period_start": "2026-07-06", "period_end": "2026-07-19", "paid_on": "2026-07-22",
+    "gross_cents": 412050, "tax_withheld_cents": 104800, "super_cents": 47386,
+    "net_cents": 307250, "salary_sacrifice_cents": null,
+    "ytd_gross_cents": 1236150, "ytd_tax_withheld_cents": 314400, "ytd_super_cents": 142158
+  },
+  "text": { "gross": "4,120.50", "salary_sacrifice": null, "…": "…" },
+  "missing": ["salary_sacrifice_cents"],
+  "unreadable": []
+}
+```
+
+- `fields` — the column-shaped values the form pre-fills from: ISO dates and
+  integer cents, keyed as the `payslip` columns are, null where unavailable.
+- `text` — the literal text read for each field, so the form can show what the
+  model saw and the member can spot a misread rather than confirming one blind.
+- `missing` — fields the slip does not show. **Every field is nullable**: a slip
+  without super, or a figure the model cannot find, yields null. A partial
+  extraction is a success; the member fills the gaps.
+- `unreadable` — fields whose text came back but could not be converted safely
+  (a misread `4,12O.50`, a date that is not a real calendar date). Null, with the
+  text kept so the member can correct it.
+
+### Money is converted in TypeScript, never by the model
+
+The model reports each amount as the **literal text printed on the slip**
+(`"4,120.50"`, `"$1,234"`, `"(45.00)"`); a pure, exhaustively-tested converter
+turns that into integer cents. Asking a model to multiply by 100 invites a silent
+arithmetic slip in a tax figure, and per the repo's money convention the conversion
+is integer arithmetic on the digit strings — never `parseFloat(text) * 100`, which
+loses a cent on amounts as ordinary as `8.29`. Thousands separators, a leading
+`$` / `A$` / `AUD`, absent cents, whitespace, and both negative conventions
+(parenthesised and signed) parse; anything not unambiguously an amount yields null
+rather than a wrong number.
+
+### Model and cost
+
+Claude Haiku 4.5, pinned to its dated snapshot `claude-haiku-4-5-20251001`
+alongside the other edge-function dependencies — an unpinned model would silently
+change which figures a slip yields. Structured field extraction from a document is
+its use case, and it is the cheapest capable model: at $1 per million input tokens
+and $5 per million output, a slip costs well under a cent, so a fortnightly slip
+for each of two members is cents a year. Haiku 4.5 is on the standard vision tier
+(images downscaled to a 1568px long edge), so a large photographed slip loses
+detail in its small print; a PDF with a text layer is unaffected, since each page's
+extracted text is provided alongside its image.
+
+### Failure behaviour
+
+Every failure is specific and none of them is a bug-shaped 500:
+
+| Outcome | Response |
+| --- | --- |
+| API key unset | `503` `{ configured: false }` — the feature is off, not broken; the form still takes the figures by hand |
+| Path outside the caller's household | `403` |
+| Object missing from Storage / empty | `404` / `400` |
+| Unsupported file type | `415`, naming the types it takes |
+| File past the size cap | `413` with the size and the limit (5 MiB image, 20 MiB PDF, both sized so base64 stays inside the Messages API's per-image and 32 MB request limits) |
+| Not a payslip | `422` `{ notPayslip: true, reason }` — the model says so rather than hallucinating a slip |
+| Model refusal | `422` — the model declined to read the file; nothing is wrong with the server |
+| Upstream rate limit | `429`, so the client can back off |
+| Model API error / unusable output | `502` |
+| Model timeout | `504` |
+
+Operator setup for the key is in
+[`operations.md`](operations.md#anthropic_api_key-setup).
 
 ## Resolved decisions
 
@@ -184,14 +288,15 @@ built; stage 3 is outstanding.**
   balances are out — they add entry effort and drive no variance the quartet does
   not. YTD figures are stored rather than recomputed, so one recent slip anchors
   the whole year.
+- **Extraction.** Built as stage 3 — the `payslip-extract` edge function reads an
+  uploaded slip so the form opens pre-filled. It earns its API key by removing the
+  only manual cost left, and it stays safe by writing nothing: the member confirms
+  every figure, and an unset key leaves manual entry working untouched.
 
 ## Open questions
 
 Deferred; not blocking.
 
-- **Extraction at all?** For two people entering ~26 slips/year each, is automatic
-  extraction ever worth the layout-handling, API key, and confirmation overhead, or
-  is typing the figures (with the slip stored beside them) the permanent answer?
 - **Period vs YTD as the source of truth.** Prefer summing per-period rows, or
   trust the latest slip's YTD figures (which self-correct for missed entries)?
 - **Interaction with Up ingestion.** Once the Up ledger lands, actual net pay

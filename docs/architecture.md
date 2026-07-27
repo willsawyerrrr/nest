@@ -26,7 +26,7 @@ Clients talk to the database in the way that fits each job:
   enforced by DB constraints + Row-Level Security; correctness is aided by
   generated TypeScript types.
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
-  Seven live under `supabase/functions/`, auto-deployed to prod on merge (see
+  Eight live under `supabase/functions/`, auto-deployed to prod on merge (see
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
   member's Up token), `up-sync` (poll saver balances), `up-webhook`
   (near-real-time receiver), `changelog` (proxy GitHub for the in-app "What's
@@ -34,10 +34,17 @@ Clients talk to the database in the way that fits each job:
   list at it — that commit and older are `implemented` (so a stale/cached PWA
   never shows changes newer than its build), while the commits newer than it are
   returned as `available` so the tab can offer a one-tap reload to the latest
-  deployed version), and `push-key` / `push-test` (see *Push notifications*). The
-  Up functions hold Up tokens server-side (via
-  Vault); `changelog` holds a GitHub PAT server-side; the push functions hold the
-  VAPID keypair. All are JWT-verified except `up-webhook`
+  deployed version), `push-key` / `push-test` (see *Push notifications*), and
+  `payslip-extract` (read the figures off an uploaded payslip with Claude Haiku 4.5
+  so the member can confirm them: it takes the Storage object path of an
+  already-uploaded file, checks that path's household prefix against the caller's
+  own household, forces a nullable tool schema so an absent figure comes back null
+  rather than invented, converts each amount from the literal printed text to
+  integer cents in TypeScript, and **writes no figure** — the member confirms the
+  pre-filled form and their own save is what persists). The Up functions hold Up
+  tokens server-side (via Vault); `changelog` holds a GitHub PAT server-side; the
+  push functions hold the VAPID keypair; `payslip-extract` reads its Anthropic key
+  from Vault. All are JWT-verified except `up-webhook`
   (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
   client-side in the PWA; an authoritative server-side tax estimate is a future
   edge function.
@@ -205,8 +212,10 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   signed-URL brokering and no service-role proxy. Payslips and receipts are
   sensitive documents, and household membership, not individual authorship, is
   what protects them.
-- Up tokens and webhook secrets encrypted at rest (Vault), as is the Web Push
-  VAPID keypair — read only through the service-role-only `vapid_keys()`.
+- Up tokens and webhook secrets encrypted at rest (Vault), as are the Web Push
+  VAPID keypair — read only through the service-role-only `vapid_keys()` — and the
+  Anthropic API key, read only through the service-role-only
+  `anthropic_api_key()`.
 
 ## Cross-cutting conventions
 
@@ -282,4 +291,6 @@ Beyond the jobs, three static gates keep the tree tidy: Prettier sorts imports
 via `@ianvs/prettier-plugin-sort-imports` (`.prettierrc.json`); an oxlint
 `max-lines` cap of 500 (`.oxlintrc.json`, off for tests and generated types)
 guards file size; and the edge functions pin every dependency through
-`supabase/functions/deno.lock`.
+`supabase/functions/deno.lock` — including the extraction model, pinned to its
+dated snapshot (`claude-haiku-4-5-20251001`) so the figures a payslip yields
+cannot change under the feature.

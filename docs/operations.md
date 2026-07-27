@@ -86,19 +86,21 @@ policy on `storage.objects` gating the object key's first path segment
 
 Vault holds every secret that must never reach a client:
 
-| Secret                     | Purpose                                             |
-| -------------------------- | --------------------------------------------------- |
-| `up_token:<member_id>`     | a member's Up personal access token                 |
-| `up_sync_cron_url`         | the hourly cron's `up-sync` invocation URL          |
-| `up_sync_cron_key`         | the service-role key the cron POSTs with            |
-| `GITHUB_CHANGELOG_TOKEN`   | the `changelog` function's GitHub PAT (see below)   |
-| `vapid_public_key`         | the Web Push VAPID public key, base64url (see below) |
-| `vapid_private_key`        | the Web Push VAPID private key, base64url           |
-| `vapid_subject`            | the `mailto:` contact URI the VAPID JWT carries     |
+| Secret                   | Purpose                                                    |
+| ------------------------ | ---------------------------------------------------------- |
+| `up_token:<member_id>`   | a member's Up personal access token                        |
+| `up_sync_cron_url`       | the hourly cron's `up-sync` invocation URL                 |
+| `up_sync_cron_key`       | the service-role key the cron POSTs with                   |
+| `anthropic_api_key`      | the `payslip-extract` function's Anthropic key (see below) |
+| `GITHUB_CHANGELOG_TOKEN` | the `changelog` function's GitHub PAT (see below)          |
+| `vapid_public_key`       | the Web Push VAPID public key, base64url (see below)       |
+| `vapid_private_key`      | the Web Push VAPID private key, base64url                  |
+| `vapid_subject`          | the `mailto:` contact URI the VAPID JWT carries            |
 
 Up tokens are written/read/cleared only by the service-role-only SECURITY
 DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
-by the equally service-role-only `vapid_keys()`.
+by the equally service-role-only `vapid_keys()`, and the Anthropic key by
+`anthropic_api_key()`.
 
 ## Web Push VAPID keypair setup
 
@@ -172,6 +174,47 @@ and local Postgres and only schedules on Supabase. To bring it up in prod:
    ```sql
    select * from cron.job where jobname = 'up-sync-hourly';
    ```
+
+## `anthropic_api_key` setup
+
+The `payslip-extract` function reads an uploaded payslip with Claude Haiku 4.5,
+pinned to `claude-haiku-4-5-20251001`. The key is one household-wide credential
+(not per member), so it is a single Vault secret named `anthropic_api_key`. There
+is no store RPC — no client ever supplies this key — so the operator writes it by
+hand once, from the SQL editor or `psql`:
+
+```sql
+select vault.create_secret(
+  'sk-ant-…',
+  'anthropic_api_key',
+  'Anthropic API key for payslip extraction'
+);
+```
+
+Rotating it is a Vault update, not a re-migration or a redeploy:
+
+```sql
+select vault.update_secret(
+  (select id from vault.secrets where name = 'anthropic_api_key'),
+  'sk-ant-…'
+);
+```
+
+The only read path is `public.anthropic_api_key()`
+(`20260812000000_anthropic_api_key.sql`) — SECURITY DEFINER, `revoke execute from
+public`, granted to `service_role` alone — mirroring `up_token_for_member`. The
+function calls it with its service-role client; the key never reaches a client.
+
+Until the secret is set, extraction returns `503` with `{ configured: false }` and
+the UI falls back to manual entry with an honest "not configured" note, so the
+payslip feature works without it.
+
+**Cost.** Haiku 4.5 is $1 per million input tokens and $5 per million output. One
+payslip is a page or two: a few thousand input tokens (the page image plus its
+extracted text, the system prompt, and the tool schema) and a few hundred output
+tokens — well under a cent per slip. At a fortnightly slip for each of two members
+(~104 a year) the whole feature costs cents a year, which is why the cheapest
+capable model is the right one here.
 
 ## `GITHUB_CHANGELOG_TOKEN` setup
 

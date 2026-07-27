@@ -169,7 +169,9 @@ jobs:
       - run: deno fmt --check
       - run: deno lint
       - run: deno task check
-      - run: deno test
+      # The task, not a bare `deno test`, so the permissions the suite needs live
+      # in deno.json alongside the other function commands.
+      - run: deno task test
 
   rls:
     runs-on: ubuntu-latest

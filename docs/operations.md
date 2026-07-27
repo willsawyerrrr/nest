@@ -63,7 +63,7 @@ environment provisions them with the deploy:
 | Bucket     | Migration                          | Holds                      |
 | ---------- | ---------------------------------- | -------------------------- |
 | `receipts` | `20260803000000_tax_deduction.sql` | deduction receipt files    |
-| `payslips` | `20260810000000_payslip.sql`       | attached payslip documents |
+| `payslips` | `20260811000000_payslip.sql`       | attached payslip documents |
 
 Each is **private** (`public = false`) with a single `for all to authenticated`
 policy on `storage.objects` gating the object key's first path segment

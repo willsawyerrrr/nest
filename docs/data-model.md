@@ -4,11 +4,17 @@ Relational, stack-agnostic. Amounts are integer minor units (cents), stored in
 `bigint` columns. Financial years are AU FYs (1 Jul – 30 Jun), labelled by their
 ending year. Row-Level Security is the isolation boundary: every table is scoped
 to a `household_id`, and a member sees or changes only rows in a household they
-belong to. On top of membership, `accounts` and `transactions` add per-account
-balance privacy — a co-member's own-account balance rows are not visible (see the
-security model in [`architecture.md`](architecture.md#security)). Cross-household
-references are additionally blocked by composite foreign keys on
-`(id, household_id)`.
+belong to. Five tables narrow that further: `accounts` limits which account
+identities a member reads, `account_balance` and `transactions` add per-account
+balance privacy (a co-member's balances and spend are not visible),
+`gift_purchase` withholds the spend on gifts meant for the caller, and
+`push_subscription` is own-member-only (see the security model in
+[`architecture.md`](architecture.md#security)). Cross-household references are
+additionally blocked by composite foreign keys on `(id, household_id)`.
+
+Every table carrying an `updated_at` maintains it through a `BEFORE UPDATE`
+`set_updated_at` trigger; `deduction_receipt` is the one table without the column
+and so without the trigger.
 
 > The planning tables (inflows, budget lines, temporary items, savings goals)
 > are described from the user's perspective in
@@ -53,7 +59,15 @@ references are additionally blocked by composite foreign keys on
     `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
     `taxable` (default true), `schedule`, `interval_count` (nullable),
     `amount_cents` (nullable), `hourly_rate_cents` (nullable),
-    `hours_per_period` (nullable), `created_at`, `updated_at`.
+    `hours_per_period` (nullable), `starts_on` (date, nullable), `ends_on`
+    (date, nullable), `created_at`, `updated_at`.
+  - `starts_on` / `ends_on` bound when the rate applies; both null means the
+    whole year. A CHECK (`inflows_effective_dates`) requires
+    `ends_on >= starts_on` where both are set. The tax estimate prorates each
+    inflow's annual gross by its active share of the financial year in inclusive
+    calendar days, so a mid-year pay rise is modelled as the old rate ending and
+    a new dated inflow starting — see
+    [`tax.md`](tax.md#effective-dated-income).
   - `taxable` inflows feed the per-member tax estimate and require `member_id`;
     non-taxable inflows (reimbursement, hobby income, gift, or other) add to
     available cash and may omit it. For non-taxable inflows `type` is a reporting
@@ -84,6 +98,55 @@ references are additionally blocked by composite foreign keys on
   - Unique on `(member_id)`; composite FK on `(member_id, household_id)` →
     `members`. Feeds the tax engine's marginal HELP repayment and the Net worth
     tab as a liability. Edited on the HELP debt tab.
+- **deduction** — per member, per financial year; many rows per member (a
+  collection). A deductible expense whose amount reduces that member's taxable
+  income. Edited on the member's Tax deductions tab.
+  - `id`, `household_id`, `member_id`, `description`, `amount_cents` (bigint,
+    `>= 0`), `deduction_date` (date), `financial_year` (int, ending year),
+    `created_at`, `updated_at`.
+  - `financial_year` is the year the expense is claimed in and is stored rather
+    than derived from `deduction_date`, with no constraint tying the two: an
+    expense incurred near a year boundary is claimed in whichever year the
+    household lodges it. It is the FY scope every read filters on, so the Tax and
+    EOFY tabs for a year see only that year's rows.
+  - `member_id` is the tax attribution: a deduction reduces the taxable income of
+    exactly one member, so it must be set (not null) even though the money is
+    pooled. Composite FK `(member_id, household_id)` → `members`
+    `on delete cascade`, so a removed member's claims go with them. Unique on
+    `(id, household_id)` — the key `deduction_receipt` composite-FKs against.
+    Indexed on `(household_id)` and `(member_id)`.
+  - **In the estimate.** The tax adapter sums each member's rows into that
+    member's `TaxInput.deductionsCents`, which `taxableIncome` subtracts —
+    alongside concessional super — from assessable income, so their estimated tax
+    falls and their take-home rises. It surfaces as a Deductions line in the Tax
+    tab's per-member income build-up and, in the waterfall, as a down-and-up pair
+    (out of taxable income, returned as *Deductions kept*) because a deduction
+    costs no cash: the smaller tax is its only effect on take-home. See
+    [`tax.md`](tax.md#computation-pipeline). The same figures feed each member's
+    EOFY card.
+  - RLS is **household-wide CRUD** — the same boundary as `tax_profile`,
+    `help_debt`, `super_contribution`, and `payslip`. `member_id` is a
+    tax/reporting attribution, not a privacy boundary: the two returns are lodged
+    against one pooled pot, so each member maintains their co-member's claims.
+- **deduction_receipt** — a stored receipt file backing a deduction; many rows
+  per deduction.
+  - `id`, `deduction_id`, `household_id`, `storage_path`, `file_name`,
+    `created_at`. No `updated_at`: a receipt row is written once with its upload
+    and deleted rather than edited, so there is nothing to touch.
+  - Composite FK `(deduction_id, household_id)` → `deduction (id, household_id)`
+    `on delete cascade` — deleting a deduction takes its receipt rows with it.
+    Indexed on `(deduction_id)` (the list read) and `(household_id)`.
+  - `storage_path` is the object key in the private `receipts` bucket (see
+    **Storage buckets**), laid out `<household_id>/<deduction_id>/<file>`. The
+    leading household segment is load-bearing: the `storage.objects` policy
+    matches it against `household_ids_for_current_user()`, so the file's access
+    boundary is the row's rather than something separately administered.
+    `file_name` keeps the original upload name for display, since the key itself
+    is generated.
+  - RLS is household-wide CRUD on `household_id`, matching `deduction`. The
+    boundary is drawn at the household, not the claiming member, for the same
+    reason: a receipt is filing evidence for a jointly planned pair of returns,
+    so either member may attach one and either may read it back.
 - **equity_grant** — per member; many rows per member (a collection). A startup
   equity grant with a cliff and vesting schedule whose vested value counts toward
   net worth as an asset.
@@ -94,6 +157,9 @@ references are additionally blocked by composite foreign keys on
     `strike_price_cents` (bigint, nullable, options only), `price_per_share_cents`
     (bigint, `>= 0`, user-maintained current fair value), `price_as_of`
     (nullable), `created_at`, `updated_at`.
+  - `instrument_type` and `vesting_frequency` are `text` with a CHECK on the
+    allowed values rather than enums — they are grant paperwork, not a shape
+    other tables share.
   - Composite FK on `(member_id, household_id)` → `members`. Vesting and
     valuation are computed client-side by `@nest/plan` (`vestedQuantity`,
     `grantValueCents`); the vested value seeds the Net worth tab as an asset.
@@ -265,6 +331,12 @@ rolled up from the breakdown's items; a null `breakdown_id` is an ordinary manua
 line — or, when `is_gift_line` is true, a gift-derived line rolled up from the gift
 tables (see below).
 
+The database is the sole authority for these lines: `reconcile_derived_lines`
+(see [Reconcile](#reconcile)) creates, updates, and removes them from triggers on
+every roll-up source, so no client maintains them. Their lifecycle, amount, and
+one-line-per-breakdown mapping are trigger-enforced rather than constraint-enforced
+— see [`breakdowns.md`](breakdowns.md).
+
 ### Gift tables
 
 The bespoke gift planner: plan a spend per **recipient × occasion**, then record
@@ -362,7 +434,8 @@ balance-visible rule alone.
 
 ## Ledger
 
-`accounts` is populated by the `up-sync` edge function for Up savers (see the Up
+`accounts` is populated by the `up-sync` edge function from every Up account the
+member can see — savers, spending accounts, and home loans alike (see the Up
 integration in [`architecture.md`](architecture.md)); a savings goal links to one
 via `savings_goal.linked_account_id`. `transactions` holds one slice of the
 ledger: the gift-category Up transactions `up-sync` polls, which the Gifts screen
@@ -379,6 +452,11 @@ stays unpopulated and a synced row's `category_id` is null.
     shared, household-wide flag that drops the account from net-worth totals
     only, leaving retirement projection and budgeting untouched), `created_at`,
     `updated_at`.
+  - `unique (source, external_id)` is the sync's dedupe key — global rather than
+    household-scoped, since an Up account id is globally unique and a joint
+    account seen by both partners must collapse to the one shared row.
+    `unique (id, household_id)` lets the balance, goal, split, and routing
+    references composite-FK an account without leaving the household.
   - **Identity privacy.** SELECT spans both account surfaces' rules: a member
     reads the identity of shared/joint accounts (`owner_member_id` null), their
     own accounts, any member's `transaction` account (so a co-member's spending
@@ -557,10 +635,52 @@ that live in Vault:
   subject for its `sub` claim), so this is one round trip and one grant. It has no
   store counterpart — the operator sets and rotates the secrets by hand
   ([`operations.md`](operations.md#web-push-vapid-keypair-setup)).
+- `anthropic_api_key()` — the Anthropic API key from Vault, for the
+  `payslip-extract` edge function. Read-only, the same shape as
+  `up_token_for_member`: there is no store counterpart because no client ever
+  supplies this key, so the operator writes it by hand
+  ([`operations.md`](operations.md#anthropic_api_key-setup)). Null when unset,
+  which degrades extraction to manual entry rather than failing.
 
 Because these RPCs run as their owner, `service_role` needs no grant on the
 tables they write; the surgical grant stance is in
 [`operations.md`](operations.md#service_role-grants).
+
+## Reconcile
+
+The derived budget lines — the breakdown roll-ups and the gift lines — are
+maintained entirely in the database, by `SECURITY DEFINER` functions that are
+granted to **no role at all**. They are unreachable over PostgREST and run only as
+their owner from the triggers below, so the derived lines cannot be forged or left
+stale by a client.
+
+- `reconcile_derived_lines(household_id)` — the whole pass for one household:
+  computes the derived lines the current sources imply and applies the creates,
+  updates, and deletes needed to match, no-opping when they already do. It reads
+  each roll-up through `reconcile_generic_total` (a breakdown's annualised items),
+  `reconcile_gift_total` (a recipient's gift budgets), and
+  `reconcile_buyer_account` (the *other* member's `type = 'transaction'` account,
+  which funds a "Gifts for &lt;member&gt;" line), with `reconcile_annual_cents`
+  normalising an amount + frequency + interval to annual cents and
+  `budget_line_derived_fields` resolving one line's group, name, amount, and
+  destination.
+- Six `AFTER` triggers named `reconcile_derived_lines` call it whenever a source
+  changes, each narrowed to the columns that can move a roll-up:
+  `breakdown_item` (insert/delete/update of `amount_cents`, `frequency`,
+  `interval_count`, `breakdown_id`), `breakdown` (update of `name`,
+  `line_group`), `gift_budget` (insert/delete/update of
+  `budgeted_amount_cents`, `recipient_id`), `gift_recipient` (delete/update of
+  `member_id`), `members` (insert/delete/update of `name`), and `accounts`
+  (insert/delete/update of `owner_member_id`, `type`, `name` — the three columns
+  that decide which account funds a gift line).
+- `budget_line_normalize_derived` — a `BEFORE INSERT OR UPDATE` trigger on
+  `budget_line` that canonicalises any derived row on write, so a hand-issued
+  write cannot leave a derived line inconsistent with its source.
+
+Two more triggers sit outside the reconcile: `add_gift_recipient` on `members`
+(`AFTER INSERT`, auto-creating the member's permanent gift recipient) and
+`prevent_member_recipient_edit` on `gift_recipient` (`BEFORE UPDATE`) — both
+described under [Gift tables](#gift-tables).
 
 ## Derived / computed (not stored)
 
@@ -570,7 +690,8 @@ tables they write; the surgical grant stance is in
 - Savings-goal progress and required contribution rate: `current_balance_cents`
   against `target_amount_cents` and `target_date`, projected from the summed
   contributions of the budget lines funding it.
-- Tax estimate: the tax engine over each member's `tax_profile`, `help_debt`, and
-  taxable inflows for a financial year.
+- Tax estimate: the tax engine over each member's `tax_profile`, `help_debt`,
+  `deduction` rows, concessional `super_contribution` rows, and taxable inflows
+  for a financial year.
 - Actual spend vs plan (reconciliation over the ledger tables) is a future
   phase, pending transaction ingestion beyond the gift category.

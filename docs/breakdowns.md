@@ -179,7 +179,9 @@ Owned by a breakdown; every breakdown is generic.
   or is re-routed. A gift member line is exempt from this: its routing is
   auto-derived (see below) rather than user-set, so an emptied member partition
   always removes its line rather than pinning it at $0. The reconcile
-  runs in the database: `SECURITY DEFINER` triggers on every roll-up source
+  runs in the database as `reconcile_derived_lines(household_id)` (indexed in
+  [`data-model.md`](data-model.md#reconcile)): `SECURITY DEFINER` triggers on
+  every roll-up source
   (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, `members`,
   `accounts`) re-derive the affected household's lines the moment a source changes,
   computing the creates, updates, and removes needed to bring the breakdown and gift

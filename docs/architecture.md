@@ -28,7 +28,8 @@ Clients talk to the database in the way that fits each job:
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
   Eight live under `supabase/functions/`, auto-deployed to prod on merge (see
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
-  member's Up token), `up-sync` (poll saver balances), `up-webhook`
+  member's Up token), `up-sync` (poll every Up account's balance, then the
+  gift-category transaction window), `up-webhook`
   (near-real-time receiver), `changelog` (proxy GitHub for the in-app "What's
   new" feed; it accepts the client's build commit SHA and splits the raw commit
   list at it — that commit and older are `implemented` (so a stale/cached PWA
@@ -51,10 +52,19 @@ Clients talk to the database in the way that fits each job:
 - **SQL views / RPC** — derived reporting (spend-vs-budget, savings progress) and
   household management (`create_household`, `join_household`, and the temporary
   invite-code RPCs `create_invite_code` / `revoke_invite_code`), callable through
-  the auto-generated API.
+  the auto-generated API. The Vault, Up-sync, and RLS-helper functions are covered
+  where they are used, below; the full index is in
+  [`data-model.md`](data-model.md#rpcs).
+- **Database triggers** — the derived budget lines (breakdown roll-ups and gift
+  lines) are maintained by `SECURITY DEFINER` triggers, not by client code:
+  `reconcile_derived_lines` re-derives a household's lines whenever a roll-up
+  source changes. Granted to no role, so it is reachable only as its owner from
+  those triggers. Business logic lives in the database wherever an invariant must
+  hold no matter which client writes — see
+  [`data-model.md`](data-model.md#reconcile).
 
-Custom code is limited to the two things that genuinely need it; everything else
-is CRUD over RLS.
+Custom code is limited to what genuinely needs it; everything else is CRUD over
+RLS.
 
 ## Components
 

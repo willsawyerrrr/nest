@@ -157,6 +157,15 @@ so the rule it enforces holds app-wide.
   (`EditAction` / `EditDeleteActions`) across the app.
 - **Page scaffolding.** Every screen wraps its body in `PageSection` — one title,
   the same on mobile and desktop.
+- **Collapsing a section.** One idiom throughout: a full-width `UnstyledButton`
+  header carrying `aria-expanded` + `aria-controls`, led by a chevron
+  (`IconChevronDown` open, `IconChevronRight` closed), over a `Collapse` holding
+  the body.
+- **Navigation.** The nav groups its tabs under that idiom, each header a quiet
+  dimmed uppercase label — one size below the items inset beneath it, tracked out
+  and bold — so it stays legible beside them without competing. A header never
+  takes the active item's lime bar and wash — it labels rather than leads — so a
+  group folded over the current page marks itself with a single lime dot instead.
 - **Charts.** All charts draw from the shared token palette
   (`chartColors` / `chartPalette`).
 - **Money.** Every money figure renders through `MoneyText` (or

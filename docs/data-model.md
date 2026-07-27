@@ -427,28 +427,6 @@ sets the split in Up by hand and confirms the amount app-side. See
     `(account_id, household_id)` → `accounts` `on delete cascade`. The Pay splits tab
     compares the recommendation against this to surface drift and offer a Confirm.
 
-## Push notifications
-
-- **push_subscription** — one Web Push subscription per opted-in device, owned by
-  the member whose device it is.
-  - `id`, `household_id`, `member_id`, `endpoint`, `p256dh`, `auth`,
-    `created_at`, `updated_at`.
-  - `endpoint` is the push service URL that identifies the device, `unique` so a
-    re-subscribing device upserts `on conflict (endpoint)` instead of
-    accumulating rows. `p256dh` (the subscription's P-256 public key) and `auth`
-    (its auth secret) are the base64url values the aes128gcm payload encryption
-    derives from. Composite FK `(member_id, household_id)` → `members`
-    `on delete cascade`; indexed on `(household_id)` and `(member_id, household_id)`.
-  - **RLS is own-member-only, not household-wide** — the sole exception to the
-    shared-planning-data rule. An endpoint is a bearer capability to push to
-    someone's phone, so all four commands are gated on
-    `member_id in (select current_member_ids())` on top of household membership:
-    a member cannot read, delete, or reassign a co-member's device row, and an
-    upsert onto a co-member's endpoint fails rather than taking the device over.
-  - `authenticated` holds all four grants; `service_role` holds only `select` (to
-    send) and `delete` (to prune the endpoints a push service reports gone). It
-    never inserts one — only a device's own browser mints a subscription.
-
 ## RPCs
 
 Membership and invites run through `SECURITY DEFINER` functions so a
@@ -483,9 +461,9 @@ not-yet-member can act past RLS in the narrow ways allowed:
   meant for the caller is withheld from them. SECURITY DEFINER precisely because
   the caller cannot read those `gift_purchase` rows themselves.
 
-The Up token and VAPID RPCs are also `SECURITY DEFINER`, but granted to
-`service_role` alone (not `authenticated`) — they are the only path to secrets
-that live in Vault:
+The Up token RPCs are also `SECURITY DEFINER`, but granted to `service_role`
+alone (not `authenticated`) — they are the only path to the token, which lives in
+Vault:
 
 - `store_up_token(member_id, token)` — upsert the token into Vault under
   `up_token:<member_id>` and stamp `members.up_connected_at`.
@@ -504,13 +482,6 @@ that live in Vault:
   the pass did not return — over exactly `account_ids` and from `since` forward,
   keeping any transaction a purchase links to. An empty `rows` clears the window,
   the case where the last gift candidate was recategorised away in the Up app.
-- `vapid_keys()` — the Web Push VAPID credential set (base64url public key,
-  base64url private key, `mailto:` subject) as one row, nulls when unset. One
-  function rather than three: the sender needs all of it in the same breath (the
-  private key to sign the VAPID JWT, the public key for its `k=` parameter, the
-  subject for its `sub` claim), so this is one round trip and one grant. It has no
-  store counterpart — the operator sets and rotates the secrets by hand
-  ([`operations.md`](operations.md#web-push-vapid-keypair-setup)).
 
 Because these RPCs run as their owner, `service_role` needs no grant on the
 tables they write; the surgical grant stance is in

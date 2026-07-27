@@ -49,10 +49,9 @@ normalised to fortnightly and annual exactly as a budget line is.
   lands and removed when the last goes, so an empty breakdown or partition never
   shows a $0 line in the budget.
 - **Breakdowns are `generic`-only.** Every breakdown row is `kind = 'generic'` and
-  rolls up its `breakdown_item` rows via a simple item editor. The `breakdown_kind`
-  enum retains a `gift` value, but it is retired and unused — no `gift` breakdown
-  rows exist; gifts roll up directly from the bespoke `gift_*` tables via
-  `is_gift_line`.
+  rolls up its `breakdown_item` rows via a simple item editor. `'generic'` is the
+  `breakdown_kind` enum's only value; gifts roll up directly from the bespoke
+  `gift_*` tables via `is_gift_line`.
 - **Derived lines are never created from the budget form.** The budget-line form has
   no "Amount source" picker; a derived line comes into being only through its
   breakdown.
@@ -226,11 +225,13 @@ Owned by a breakdown; every breakdown is generic.
 
 ## UI
 
-- **Breakdowns tab** (route `/breakdowns`, in `NAV_ITEMS`) — lists every breakdown
+- **Breakdowns tab** (route `/breakdowns`, in the Plan group of `NAV_SECTIONS`) —
+  lists every breakdown
   with its name, group, and rolled-up fortnightly + annual total, plus a
   **New breakdown** action (a name and a group). Gift lines never appear here. Each
   row taps through to `/breakdowns/:id`.
-- **Gifts tab** (route `/gifts`, in `NAV_ITEMS`) — the unified gift planner and the
+- **Gifts tab** (route `/gifts`, in the Plan group of `NAV_SECTIONS`) — the
+  unified gift planner and the
   sole place gifts are managed, showing every recipient, occasion, budget, and
   purchase. It reads and writes the household-scoped `gift_*` tables directly; the
   reconcile pass derives the gift budget lines from them. A **Refresh** action beside

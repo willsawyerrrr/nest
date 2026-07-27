@@ -974,54 +974,6 @@ export type Database = {
           },
         ]
       }
-      push_subscription: {
-        Row: {
-          auth: string
-          created_at: string
-          endpoint: string
-          household_id: string
-          id: string
-          member_id: string
-          p256dh: string
-          updated_at: string
-        }
-        Insert: {
-          auth: string
-          created_at?: string
-          endpoint: string
-          household_id: string
-          id?: string
-          member_id: string
-          p256dh: string
-          updated_at?: string
-        }
-        Update: {
-          auth?: string
-          created_at?: string
-          endpoint?: string
-          household_id?: string
-          id?: string
-          member_id?: string
-          p256dh?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'push_subscription_household_id_fkey'
-            columns: ['household_id']
-            isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'push_subscription_member_id_household_id_fkey'
-            columns: ['member_id', 'household_id']
-            isOneToOne: false
-            referencedRelation: 'members'
-            referencedColumns: ['id', 'household_id']
-          },
-        ]
-      }
       savings_goal: {
         Row: {
           created_at: string

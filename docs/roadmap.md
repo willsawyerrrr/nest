@@ -88,21 +88,29 @@ does not restate them.
   `AppCard`, `PageSection`, `AddButton`, `MoneyText`, `EditAction` — live in
   `components/`, and chart/semantic tokens in `lib/tokens.ts`. Two-decimal money
   formatting with lime brand distinct from green/red money semantics.
-- Navigation: path-routed tabs via `react-router-dom` (`/summary` `/net-worth`
-  `/inflows` `/budget` `/splits` `/goals` `/tax` `/deductions` `/super`
-  `/help-debt` `/eofy` `/equity` `/breakdowns` `/gifts` `/household`; `/` and
-  unknown routes
-  redirect to
-  `/summary`), so
-  tabs are deep-linkable and reload-safe. Summary is the landing tab; order
-  Summary · Net worth · Inflows · Budget · Pay splits · Goals · Tax · Tax
-  deductions · Super · Help debt · EOFY · Breakdowns · Gifts · Household. Gifts
-  are managed
-  solely in the Gifts tab (`/gifts`); the generic-only Breakdowns tab never lists
-  gift lines. One
-  `NAV_ITEMS` table drives a responsive top app-bar + hamburger `Drawer` on mobile
-  and a persistent left sidebar on desktop. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to
-  the first nine tabs, ⌘/Ctrl+Shift+←/→ cycle.
+- Navigation: path-routed tabs via `react-router-dom`, every tab a top-level
+  route, so each is deep-linkable and reload-safe (`/` and unknown routes
+  redirect to `/summary`). Summary is the landing tab and stands alone; the rest
+  sit in four collapsible groups, in display order:
+  - Summary (`/summary`)
+  - Plan — Inflows (`/inflows`) · Budget (`/budget`) · Breakdowns
+    (`/breakdowns`) · Gifts (`/gifts`) · Pay splits (`/splits`)
+  - Grow — Net worth (`/net-worth`) · Goals (`/goals`) · Super (`/super`) ·
+    Equity (`/equity`)
+  - Tax — Estimate (`/tax`) · Deductions (`/deductions`) · HELP debt
+    (`/help-debt`) · EOFY (`/eofy`)
+  - Settings — Household (`/household`) · What's new (`/whats-new`)
+
+  Gifts are managed solely in the Gifts tab (`/gifts`); the generic-only
+  Breakdowns tab never lists gift lines. One `NAV_SECTIONS` table drives a
+  responsive top app-bar + hamburger `Drawer` on mobile and a persistent left
+  sidebar on desktop, groups and all. The route sets which group is open — the
+  one holding the current page, the rest folded, re-derived on each navigation
+  and never persisted — while a header toggle opens a second group alongside it
+  until the route changes; a group folded over the current page carries a lime
+  dot. Keyboard shortcuts: ⌘/Ctrl+1–9 jump to the first nine tabs in that
+  flattened order, ⌘/Ctrl+Shift+←/→ cycle across group boundaries, and either
+  opens the group it lands in.
 - Desktop layout: content capped at a 50rem max-width; budget lines and inflows
   render as dense single rows on desktop while mobile keeps cards.
 - Non-taxable inflow types: `inflow_type` carries `reimbursement`, `hobby`,
@@ -398,33 +406,6 @@ per-member view for a financial year the household picks.
       Nothing on the tab is editable; it links out to the Tax, Deductions, Super,
       and HELP debt tabs where each figure is entered.
 
-### Push notifications — delivery infrastructure
-
-The Web Push chain, end to end and verifiable, so a later slice only has to decide
-_when_ to notify. What decides that — a scheduled evaluation pass and the buffer /
-goal / expiry triggers — is idea 8 in the ideas backlog and is **not** built.
-
-- [x] `push_subscription`: one row per opted-in device, keyed on a globally unique
-      `endpoint` so a re-subscribe upserts rather than duplicating. RLS is
-      own-member-only — the one table where household membership grants nothing,
-      because an endpoint is a bearer capability to push to someone's phone.
-      `service_role` holds `select` (to send) and `delete` (to prune) alone.
-- [x] The VAPID keypair and its `mailto:` subject in Vault, read only through the
-      service-role-only `vapid_keys()` RPC. Set and rotated by hand — no store RPC
-      exists ([`operations.md`](operations.md#web-push-vapid-keypair-setup)).
-- [x] `push-key` edge function serving the VAPID public key for
-      `pushManager.subscribe({ applicationServerKey })`, so rotating the keypair
-      is a Vault change with no rebuild.
-- [x] `push-test` edge function: an ES256 VAPID JWT plus an aes128gcm payload
-      (RFC 8291/8292) per device via the pinned `@negrel/webpush`, over the
-      caller's own subscriptions only. Every device is attempted independently, a
-      `404`/`410` prunes that row and nothing else does, and the reply is
-      `{ devices, sent, pruned, failed }`.
-- [x] Client opt-in: a service worker handling `push` and `notificationclick`
-      (navigating to the payload's `url`), an opt-in control on the Household tab
-      that stores the subscription, and a **Send test notification** button that
-      reports the summary honestly.
-
 ## Later
 
 Uncommitted work, roughly ordered by likelihood of being picked up.
@@ -657,31 +638,22 @@ ledger's spend-side actual-tax-paid tracking in **Later**.
 #### 8. Push notifications / alerts
 
 - **What / value.** The PWA is an installed iOS home-screen app, so it can use
-  Web Push. The **delivery half is shipped**: a member opts each device in, the
-  subscription lands in `push_subscription` (own-member-only RLS), the VAPID
-  keypair lives in Vault, and `push-key` / `push-test` serve the application
-  server key and fire a verifiable test notification — see
-  [`architecture.md`](architecture.md#push-notifications). What remains is
-  everything that decides **when** to notify: the high-value,
-  household-specific triggers are **buffer went negative**
+  Web Push. High-value, household-specific triggers: **buffer went negative**
   (a new budget line or inflow change pushed the fortnight into deficit),
   **goal ETA slipped** past its target date, **on-call/salary landed** (once
   ingestion confirms the deposit), **a temporary item is about to expire**,
   **FY boundary approaching** (review tax configs), **a bill is due / a
   detected subscription's price rose**.
-- **Effort.** S–M for the remainder — a pg_cron-driven edge function evaluating
-  the conditions over existing data and reusing the shipped send path, plus
-  per-trigger preferences.
-- **Touches.** Schema: a notification-preferences table (which triggers a member
-  wants) and whatever dedupe state stops one condition pushing every run. A new
-  edge function to evaluate and send, scheduled the way `up-sync-hourly` is. No
-  new Vault secrets and no client push plumbing — both are in place.
+- **Effort.** M — service-worker push plumbing + a trigger/evaluation layer
+  (pg_cron edge function evaluating conditions and sending pushes).
+- **Touches.** Web Push (VAPID keys in **Vault**); a subscriptions table
+  (endpoint per device) + a notification-preferences table; edge function to
+  evaluate triggers and send. Service-worker code in the PWA.
 - **Dependencies.** Buffer/goal/temporary/FY alerts work on today's data.
   Deposit-landed alerts need **ingestion**.
 - **Feasibility / risks.** iOS Web Push requires the PWA to be _installed_ to
   the home screen (already the primary device) and iOS 16.4+. Permission UX is
-  finicky on iOS. Keep alerts few and meaningful — over-notifying kills opt-in,
-  and an installed PWA has no second chance once permission is denied.
+  finicky on iOS. Keep alerts few and meaningful — over-notifying kills opt-in.
 
 #### 9. Spending insights & trends over time
 
@@ -824,10 +796,8 @@ Ranked for value-to-effort against this specific household's setup:
    directly useful to this user. Provider-abstract it (PagerDuty/Opsgenie).
 3. **Payslip / PAYG manual entry (2)** — unlocks actual-tax-paid tracking with
    _no_ external dependency, filling an input the tax engine already consumes.
-4. **Push notification triggers (8)** — the subscription store, VAPID keys, and
-   send path are shipped (a device can opt in and receive a test push), so what is
-   left is the evaluation layer that makes the installed PWA proactive (negative
-   buffer, goal slippage, deposit landed); most of those triggers work on today's
+4. **Push notifications (8)** — makes the installed PWA proactive (negative
+   buffer, goal slippage, deposit landed); most of its triggers work on today's
    data, the rest arrive with ingestion.
 
 Honourable mentions: **net worth via the Up `HOME_LOAN` balance (10)** is a

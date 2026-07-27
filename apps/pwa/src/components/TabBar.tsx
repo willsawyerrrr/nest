@@ -158,7 +158,13 @@ function NavGroupSection({
       >
         <Group gap="xxs" wrap="nowrap">
           {opened ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-          <Text size="xs" fw={700} tt="uppercase" c="dimmed" className="drawer-nav__group-label">
+          {/*
+           * One size below the items it heads, so the label sits close enough to
+           * read as part of the same list while staying subordinate to them —
+           * the uppercase casing, tracking, and dimmed colour carry the rest of
+           * the distinction, leaving size to do only part of the work.
+           */}
+          <Text size="sm" fw={700} tt="uppercase" c="dimmed" className="drawer-nav__group-label">
             {group.label}
           </Text>
           {!opened && holdsActiveRoute && <Box className="drawer-nav__group-dot" aria-hidden />}

@@ -28,12 +28,11 @@ tagged to them.
   - **Super**: actual employer SG (and any salary sacrifice shown on the slip) vs
     the modelled super guarantee and concessional contributions, which feed the
     super balance accrual and the concessional-cap tracker.
-- Feed **actual** PAYG withheld into the year-end position. The tax engine already
-  accepts `paygWithheldCents` and returns `balanceCents` (positive = owing,
-  negative = refund); the estimate path (`estimateHouseholdTax`) currently hardcodes
-  it to nil. Summed actual withholding from payslips is the real input to that
-  field, turning the estimate's abstract liability into a concrete refund/bill
-  projection — the same outcome the Up ledger phase targets from the spend side.
+- Feed **actual** PAYG withheld into the year-end position. The tax engine accepts
+  `paygWithheldCents` and returns `balanceCents` (positive = owing, negative =
+  refund); summed actual withholding from payslips is the real input to that field,
+  turning the estimate's abstract liability into a concrete refund/bill projection
+  — the same outcome the Up ledger phase targets from the spend side.
 
 ## AU payslip fields
 
@@ -58,11 +57,11 @@ recent payslip anchor the whole year without entering every prior slip).
 ### Privacy
 
 Payslips are sensitive personal documents (name, employer, income, sometimes tax
-file references). If files are stored at all they go in a **private Supabase
-Storage bucket**, never public, with access mediated by Storage RLS keyed on
-household membership — the same isolation boundary as every table. The structured
-figures live in a household-scoped table under the existing RLS. No file is
-required for the feature to work: the numbers alone drive every variance.
+file references). Files go in the **private `payslips` Storage bucket**, never
+public, with access mediated by Storage RLS keyed on household membership — the
+same isolation boundary as every table. The structured figures live in a
+household-scoped table under the same RLS. No file is required for the feature to
+work: the numbers alone drive every variance.
 
 ## Capture options
 
@@ -84,42 +83,38 @@ employer/payroll provider, so extraction needs per-format handling or an
 LLM/document-AI pass, and every parse still needs human confirmation before it
 counts. High effort for a two-person household entering ~26 slips/year each.
 
-**Recommendation: start with (a) manual entry**, then add **(b) optional file
-attachment** once the structured flow is proven, and treat **(c) OCR** as a later
-convenience that only ever pre-fills the same manual form (never writes figures
-unconfirmed). Manual entry alone delivers the entire correlation value; upload and
-OCR reduce effort but add no new analysis. This mirrors how the app already favours
-smallest-useful-first (inflows before ingestion, manual goal balances before Up
-savers).
+The app does **(a) manual entry** with **(b) optional file attachment**: the
+figures are always typed, and the slip may be kept alongside them. **(c)
+extraction** is a convenience that only ever pre-fills the same manual form, never
+writing figures unconfirmed — see *Staging*. Manual entry alone delivers the entire
+correlation value; upload and extraction reduce effort but add no new analysis.
+This mirrors how the app favours smallest-useful-first (inflows before ingestion,
+manual goal balances before Up savers).
 
-## Data model sketch
+## Data model
 
-A single household-scoped table, mirroring the conventions of `tax_profile` and
+One household-scoped table, mirroring the conventions of `tax_profile` and
 `super_contribution` (cents in `bigint`, RLS on household membership, composite FKs
-on `(id, household_id)`):
+on `(id, household_id)`). The column list, constraints, and RLS boundary are
+canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
 
-- **payslip** — one actual pay event for a member.
-  - `id`, `household_id`, `member_id` (not null — a payslip is always a person's).
-  - `financial_year` (int, ending year) — derived from the pay period, for
-    year-scoped rollups and to align with `tax_profile`.
-  - `period_start` (date), `period_end` (date), `paid_on` (date, nullable).
-  - `gross_cents`, `tax_withheld_cents`, `super_cents`, `net_cents` (all `bigint`).
-  - `salary_sacrifice_cents` (nullable) — concessional sacrifice shown on the slip,
-    for the concessional-cap cross-check; nullable because not every slip has one.
-  - `ytd_gross_cents`, `ytd_tax_withheld_cents`, `ytd_super_cents` (nullable) — the
-    slip's running totals, kept when entered as a cheaper anchor than summing rows.
-  - `source_inflow_id` (nullable, composite FK `(id, household_id)` → `inflows`,
-    `on delete set null`) — the projected inflow this slip reconciles against; see
-    open questions on mapping.
-  - `file_path` (nullable text) — Storage object path when a file is attached
-    (option b); null under manual-only entry.
-  - `note` (nullable), `created_at`, `updated_at`.
-  - RLS: full CRUD for members of `household_id`, exactly as the planning tables.
-  - Suggested index on `(household_id, member_id, period_end)` for the per-member
-    timeline and YTD summing.
+- **payslip** — one actual pay event for a member: the pay period and payment
+  date, the gross / PAYG withheld / super / net quartet, the slip's optional
+  salary sacrifice and YTD running totals, a `note`, and a `file_path` for the
+  attached document.
+- **`source_inflow_id`** records which projected inflow the slip reconciles
+  against — an explicit picker, chosen by the household, nullable because a slip
+  need not map to one (a bonus, back-pay, a one-off). `on delete set null` on the
+  reference keeps the actuals when the inflow is retired.
+- **RLS is household-wide CRUD**, the same boundary as every other per-member tax
+  table. `member_id` is a tax/reporting attribution, not a privacy boundary: the
+  household's money is fully pooled, so each member manages their co-member's
+  slips. A payslip is a sensitive document, and the household — not the
+  individual member — is the trust boundary that protects it.
 
-No new config: payslips are data, not versioned parameters. The Storage bucket
-(option b onward) is private with membership-scoped policies.
+No new config: payslips are data, not versioned parameters. The **`payslips`**
+Storage bucket is private, its objects keyed `<household_id>/<payslip_id>/<file>`
+so a `storage.objects` policy gates them on the same membership check.
 
 ## Correlation / UI sketch
 
@@ -155,37 +150,48 @@ the income side, and the two converge on the same year-end position.
 
 ## Staging
 
-Smallest-useful-first, each stage independently shippable:
+Smallest-useful-first, each stage independently shippable. **Stages 1 and 2 are
+built; stage 3 is outstanding.**
 
-1. **Manual entry + variance.** The `payslip` table (no file, no Storage), the
-   per-member entry form and list, the pure variance math, and the Tax-tab
-   withholding/refund readout from summed actual withheld. Delivers the full
-   correlation value.
-2. **File attachment.** Add the private Storage bucket, membership-scoped Storage
-   RLS, `payslip.file_path`, and upload/download in the form and list. The record
-   gains an auditable source document; the figures are still typed.
-3. **OCR pre-fill (later).** Parse an uploaded slip to pre-populate the form for
-   confirmation, never writing figures unconfirmed. Layout variance makes this the
-   heaviest and least certain stage; defer until the manual flow is well used.
+1. **Manual entry + variance — built.** The `payslip` table, the per-member entry
+   form and list, the pure variance math, and the Tax-tab withholding/refund
+   readout from summed actual withheld. Delivers the full correlation value.
+2. **File attachment — built.** The private `payslips` Storage bucket,
+   membership-scoped Storage RLS, `payslip.file_path`, and upload/download in the
+   form and list. The record carries an auditable source document; the figures are
+   still typed.
+3. **Extraction pre-fill — outstanding.** Read an uploaded slip (an LLM
+   document pass) to pre-populate the form for confirmation, never writing figures
+   unconfirmed. It needs an API key and a server-side call, and layout variance
+   makes it the heaviest and least certain stage; the schema does not presume it —
+   `file_path` already holds the uploaded slip a pre-fill would read.
+
+## Resolved decisions
+
+- **Mapping a slip to a projected inflow.** An explicit `source_inflow_id`
+  picker: the household chooses which inflow a slip reconciles against, rather
+  than auto-matching on amount and cadence. Nullable, so a bonus or back-pay slip
+  that matches no projection still records.
+- **One employer per member.** A member has a single slip stream, so there is no
+  per-employer grouping. A mid-year job change is modelled the way a pay rise
+  already is — the old inflow ends, a new dated one starts — and each slip points
+  at whichever inflow was live for its period.
+- **RLS boundary.** Household-wide CRUD, not per-member. Money is fully pooled and
+  `member_id` is a tax/reporting tag; the household is the trust boundary that
+  protects the documents.
+- **Fields.** The gross / withheld / super / net quartet, plus salary sacrifice
+  and the slip's YTD running totals. Itemised deductions/allowances and leave
+  balances are out — they add entry effort and drive no variance the quartet does
+  not. YTD figures are stored rather than recomputed, so one recent slip anchors
+  the whole year.
 
 ## Open questions
 
-Deferred; resolved when the phase is picked up, not blocking.
+Deferred; not blocking.
 
-- **OCR at all?** For two people entering ~26 slips/year each, is automatic
-  extraction ever worth the layout-handling and confirmation overhead, or is
-  manual entry (optionally with a stored file) the permanent answer?
-- **Must-have fields.** Is the gross / withheld / super / net quartet enough, or
-  are itemised deductions/allowances and leave wanted? Are YTD figures worth
-  storing, or recomputed from rows?
-- **Mapping a slip to a projected inflow.** A member may have several taxable
-  inflows (base salary, a second job, irregular "other"). How is a payslip matched
-  to the inflow it reconciles — an explicit `source_inflow_id` picker, an
-  auto-match on member + amount + cadence, or member-level aggregate variance with
-  no per-inflow mapping?
-- **Multi-employer / irregular pay.** How to handle a member with two employers
-  (two slip streams), a mid-year job change, or bonus/back-pay periods where a
-  single slip won't match the steady projection.
+- **Extraction at all?** For two people entering ~26 slips/year each, is automatic
+  extraction ever worth the layout-handling, API key, and confirmation overhead, or
+  is typing the figures (with the slip stored beside them) the permanent answer?
 - **Period vs YTD as the source of truth.** Prefer summing per-period rows, or
   trust the latest slip's YTD figures (which self-correct for missed entries)?
 - **Interaction with Up ingestion.** Once the Up ledger lands, actual net pay

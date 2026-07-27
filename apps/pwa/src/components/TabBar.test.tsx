@@ -321,6 +321,7 @@ describe('flattenNavItems', () => {
       '/super',
       '/equity',
       '/tax',
+      '/payslips',
       '/deductions',
       '/help-debt',
       '/eofy',

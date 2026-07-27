@@ -309,7 +309,11 @@ export function netAnnualSuperContributionFromRows(
  * cover-less profile so their repayment is assessed. Concessional super
  * contributions, when supplied, reduce each member's taxable income and
  * after-tax cash; deductions, when supplied, reduce each member's taxable
- * income only (so tax falls and after-tax cash rises).
+ * income only (so tax falls and after-tax cash rises). `paygWithheld`, when
+ * supplied, gives each member's actual PAYG withheld for the year — summed from
+ * their payslips — which the engine nets against their liability as
+ * `breakdown.balanceCents` (positive owing, negative a refund). It changes no tax
+ * figure: omitting it leaves every liability and after-tax total identical.
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly Inflow[],
@@ -318,6 +322,7 @@ export function estimateHouseholdTaxFromRows(
   helpDebts: readonly HelpDebt[] = [],
   deductions: readonly DeductionRow[] = [],
   config: TaxYearConfig = currentTaxConfig(),
+  paygWithheld?: ReadonlyMap<string, number>,
 ): HouseholdTaxEstimate {
   const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
   // Per-member annual gross salary, the base for percent-of-salary contributions.
@@ -347,6 +352,7 @@ export function estimateHouseholdTaxFromRows(
     config,
     concessionalByMember(contributions, grossByMember),
     deductionsByMember(deductions),
+    paygWithheld,
   )
 }
 

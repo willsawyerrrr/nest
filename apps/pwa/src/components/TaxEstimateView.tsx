@@ -189,6 +189,37 @@ function HeroFigures({ row }: { row: Row }) {
 }
 
 /**
+ * Where the year's actual withholding sits against the estimated liability: what
+ * the member's payslips have had withheld so far, and the refund or bill the two
+ * imply (`balanceCents`, positive when owing). The refund direction takes the
+ * positive tone and the bill direction the negative one — money coming back
+ * versus money still to find. It renders only once a payslip has recorded
+ * withholding, so a household that has entered none sees the estimate unchanged.
+ */
+function WithholdingPosition({ breakdown }: { breakdown: TaxBreakdown }) {
+  const { paygWithheldCents, totalLiabilityCents, balanceCents } = breakdown
+  const color = moneyColor(-balanceCents)
+  return (
+    <Stack gap={2}>
+      <Text size="sm">
+        Withheld so far <MoneyText span fw={600} cents={paygWithheldCents} /> of{' '}
+        <MoneyText span cents={totalLiabilityCents} /> estimated tax.
+      </Text>
+      <Text size="sm" {...(color !== undefined && { c: color })}>
+        {balanceCents === 0 ? (
+          'Tracking toward no refund or bill.'
+        ) : (
+          <>
+            Tracking toward a <MoneyText span fw={600} cents={Math.abs(balanceCents)} />{' '}
+            {balanceCents < 0 ? 'refund' : 'bill'}.
+          </>
+        )}
+      </Text>
+    </Stack>
+  )
+}
+
+/**
  * Opt-in content behind a borderless, collapsed-by-default accordion toggle. The
  * `label` is the toggle text; the content stays hidden until the user expands it.
  * Shared by the build-up breakdown and the what-if tools so every disclosure on a
@@ -316,7 +347,8 @@ function SalarySacrificePanel({
  * headline, gross and total tax supporting figures, and a take-home-versus-tax
  * bar. When `breakdown` is given, the full income and tax build-up sits behind a
  * collapsed "Show breakdown" accordion; `grossCents` and `concessionalCents` feed
- * that build-up. When `input` and `config` are given, an interactive salary-
+ * that build-up, and the withholding position appears above it once payslips have
+ * recorded any. When `input` and `config` are given, an interactive salary-
  * sacrifice what-if sits behind its own collapsed toggle.
  */
 function FiguresCard({
@@ -350,6 +382,9 @@ function FiguresCard({
           afterTaxCents={row.annualAfterTaxCents}
           grossCents={row.annualGrossCents}
         />
+        {breakdown && breakdown.paygWithheldCents > 0 && (
+          <WithholdingPosition breakdown={breakdown} />
+        )}
         {helpPayoff && (
           <Text size="xs" c="dimmed">
             {helpPayoffSummary(helpPayoff)}

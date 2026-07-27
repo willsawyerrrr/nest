@@ -1434,4 +1434,202 @@ exception when insufficient_privilege then
   raise notice 'PASS: vapid_keys is not executable by a member';
 end $$;
 
+-- ── Payslips: household-wide CRUD, cascades, and Storage isolation ────────────
+--
+-- A payslip's `member_id` is a tax/reporting attribution, not a privacy boundary:
+-- the household's money is pooled, so each member manages their co-member's slips
+-- exactly as they do deductions and super contributions. The two-member privacy
+-- household makes that co-member case real, and Alice's separate household is the
+-- outsider that must see and touch none of it.
+
+-- Bob records a slip against his projected fortnightly salary, with the slip's
+-- YTD figures and an attached file under his household's Storage prefix.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+insert into public.inflows (household_id, member_id, name, type, schedule, amount_cents)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid,
+    'Acme salary', 'salary', 'fortnightly', 4_000_00)
+  returning id as priv_bob_inflow \gset
+select set_config('test.priv_bob_inflow', :'priv_bob_inflow', false);
+
+insert into public.payslip
+    (household_id, member_id, financial_year, period_start, period_end, paid_on,
+     gross_cents, tax_withheld_cents, super_cents, net_cents, salary_sacrifice_cents,
+     ytd_gross_cents, ytd_tax_withheld_cents, ytd_super_cents, source_inflow_id, file_path, note)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 2027,
+    '2026-07-01', '2026-07-14', '2026-07-16',
+    4_000_00, 900_00, 460_00, 3_100_00, 100_00,
+    4_000_00, 900_00, 460_00,
+    current_setting('test.priv_bob_inflow')::uuid,
+    current_setting('test.priv_hid') || '/slips/bob-july.pdf', 'First slip of the FY')
+  returning id as priv_bob_payslip \gset
+select set_config('test.priv_bob_payslip', :'priv_bob_payslip', false);
+
+-- Alice reads her co-member's slip in full, edits it, and records her own.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$ begin
+  assert (select gross_cents from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid) = 4_000_00,
+    'Alice should read her co-member''s payslip figures';
+  assert (select source_inflow_id from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid)
+    = current_setting('test.priv_bob_inflow')::uuid,
+    'a payslip should link to the projected inflow it reconciles against';
+end $$;
+
+update public.payslip set note = 'Checked against the estimate'
+  where id = current_setting('test.priv_bob_payslip')::uuid;
+
+insert into public.payslip
+    (household_id, member_id, financial_year, period_start, period_end,
+     gross_cents, tax_withheld_cents, super_cents, net_cents)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_alice_mid')::uuid, 2027,
+    '2026-07-01', '2026-07-14', 3_000_00, 0, 345_00, 2_655_00)
+  returning id as priv_alice_payslip \gset
+select set_config('test.priv_alice_payslip', :'priv_alice_payslip', false);
+
+do $$ begin
+  assert (select count(*) from public.payslip where household_id = current_setting('test.priv_hid')::uuid) = 2,
+    'Alice should see both members'' payslips';
+  assert (select note from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid)
+    = 'Checked against the estimate',
+    'Alice should be able to edit her co-member''s payslip';
+  assert (select tax_withheld_cents from public.payslip where id = current_setting('test.priv_alice_payslip')::uuid) = 0,
+    'a payslip may legitimately withhold nothing';
+end $$;
+
+-- Symmetry: Bob reads and edits Alice's slip too.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+update public.payslip set super_cents = 350_00
+  where id = current_setting('test.priv_alice_payslip')::uuid;
+do $$ begin
+  assert (select count(*) from public.payslip) = 2, 'Bob should see both members'' payslips';
+  assert (select super_cents from public.payslip where id = current_setting('test.priv_alice_payslip')::uuid) = 350_00,
+    'Bob should be able to edit his co-member''s payslip';
+end $$;
+
+-- A member of another household sees none of them, cannot write one into this
+-- household, and their update and delete match no rows.
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com"}', true);
+do $$
+declare v_count int;
+begin
+  assert (select count(*) from public.payslip) = 0,
+    'an outside household must not see the privacy household''s payslips';
+
+  update public.payslip set gross_cents = 1 where id = current_setting('test.priv_bob_payslip')::uuid;
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'an outside household''s update must match no payslip';
+
+  delete from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid;
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'an outside household''s delete must match no payslip';
+end $$;
+
+do $$ begin
+  insert into public.payslip
+      (household_id, member_id, financial_year, period_start, period_end,
+       gross_cents, tax_withheld_cents, super_cents, net_cents)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 2027,
+      '2026-07-15', '2026-07-28', 1_00, 0, 0, 1_00);
+  raise exception 'FAIL: an outside household inserted a payslip';
+exception when insufficient_privilege then
+  raise notice 'PASS: an outside household blocked from inserting a payslip';
+end $$;
+
+-- The period and non-negativity constraints reject nonsense figures.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+  v_mid uuid := current_setting('test.priv_alice_mid')::uuid;
+begin
+  begin
+    insert into public.payslip
+        (household_id, member_id, financial_year, period_start, period_end,
+         gross_cents, tax_withheld_cents, super_cents, net_cents)
+      values (v_hid, v_mid, 2027, '2026-07-14', '2026-07-01', 1_00, 0, 0, 1_00);
+    raise exception 'FAIL: a payslip ended before it started';
+  exception when check_violation then
+    raise notice 'PASS: period_end must not precede period_start';
+  end;
+
+  begin
+    insert into public.payslip
+        (household_id, member_id, financial_year, period_start, period_end,
+         gross_cents, tax_withheld_cents, super_cents, net_cents)
+      values (v_hid, v_mid, 2027, '2026-07-01', '2026-07-14', -1_00, 0, 0, 1_00);
+    raise exception 'FAIL: a payslip carried a negative gross';
+  exception when check_violation then
+    raise notice 'PASS: gross_cents must not be negative';
+  end;
+
+  begin
+    insert into public.payslip
+        (household_id, member_id, financial_year, period_start, period_end,
+         gross_cents, tax_withheld_cents, super_cents, net_cents, ytd_super_cents)
+      values (v_hid, v_mid, 2027, '2026-07-01', '2026-07-14', 1_00, 0, 0, 1_00, -1_00);
+    raise exception 'FAIL: a payslip carried a negative YTD super';
+  exception when check_violation then
+    raise notice 'PASS: ytd_super_cents must not be negative';
+  end;
+end $$;
+
+-- Storage: the bucket is private, and an object is reachable only under the
+-- caller's own `<household_id>/` prefix.
+do $$ begin
+  assert (select b.public from storage.buckets b where b.id = 'payslips') = false,
+    'the payslips bucket must be private';
+end $$;
+
+savepoint payslip_objects;
+insert into storage.objects (bucket_id, name)
+  values ('payslips', current_setting('test.priv_hid') || '/slips/bob-july.pdf');
+do $$ begin
+  assert (select count(*) from storage.objects where bucket_id = 'payslips') = 1,
+    'Alice should read the payslip object under her own household prefix';
+end $$;
+
+do $$ begin
+  insert into storage.objects (bucket_id, name)
+    values ('payslips', current_setting('test.hid') || '/slips/sneaky.pdf');
+  raise exception 'FAIL: a payslip object was written under another household''s prefix';
+exception when insufficient_privilege then
+  raise notice 'PASS: a payslip object cannot be written under another household''s prefix';
+end $$;
+
+-- An object another household owns is invisible, so its key never leaks.
+reset role;
+insert into storage.objects (bucket_id, name)
+  values ('payslips', current_setting('test.hid') || '/slips/alice-house.pdf');
+set local role authenticated;
+do $$ begin
+  assert not exists (
+    select 1 from storage.objects
+    where name = current_setting('test.hid') || '/slips/alice-house.pdf'),
+    'a payslip object under another household''s prefix must be invisible';
+end $$;
+rollback to savepoint payslip_objects;
+
+-- Removing the projected inflow clears the link and keeps the actuals.
+savepoint payslip_inflow_delete;
+delete from public.inflows where id = current_setting('test.priv_bob_inflow')::uuid;
+do $$ begin
+  assert exists (select 1 from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid),
+    'deleting the source inflow must keep the payslip';
+  assert (select source_inflow_id from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid) is null,
+    'deleting the source inflow should null source_inflow_id';
+end $$;
+rollback to savepoint payslip_inflow_delete;
+
+-- Removing a member takes their payslips with them and leaves their co-member's.
+-- Members carry no client DELETE grant, so this runs as the owner.
+savepoint payslip_member_delete;
+reset role;
+delete from public.members where id = current_setting('test.priv_alice_mid')::uuid;
+do $$ begin
+  assert not exists (select 1 from public.payslip where id = current_setting('test.priv_alice_payslip')::uuid),
+    'deleting a member should cascade their payslips away';
+  assert exists (select 1 from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid),
+    'a co-member''s payslips should survive';
+end $$;
+rollback to savepoint payslip_member_delete;
+set local role authenticated;
+
 rollback;

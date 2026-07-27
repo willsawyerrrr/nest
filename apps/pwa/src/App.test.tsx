@@ -60,6 +60,9 @@ vi.mock('./routes/NetWorthSection', () => ({ NetWorthSection: () => <div>NetWort
 vi.mock('./routes/InflowsSection', () => ({ InflowsSection: () => <div>InflowsSection</div> }))
 vi.mock('./routes/BudgetSection', () => ({ BudgetSection: () => <div>BudgetSection</div> }))
 vi.mock('./routes/SplitsSection', () => ({ SplitsSection: () => <div>SplitsSection</div> }))
+vi.mock('./routes/PayslipsSection', () => ({
+  PayslipsSection: () => <div>PayslipsSection</div>,
+}))
 vi.mock('./routes/GoalsSection', () => ({ GoalsSection: () => <div>GoalsSection</div> }))
 vi.mock('./routes/TaxSection', () => ({ TaxSection: () => <div>TaxSection</div> }))
 vi.mock('./routes/DeductionsSection', () => ({
@@ -185,6 +188,7 @@ describe('App', () => {
     ['/splits', 'SplitsSection'],
     ['/goals', 'GoalsSection'],
     ['/tax', 'TaxSection'],
+    ['/payslips', 'PayslipsSection'],
     ['/deductions', 'DeductionsSection'],
     ['/super', 'SuperSection'],
     ['/help-debt', 'HelpDebtSection'],

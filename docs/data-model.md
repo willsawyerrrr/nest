@@ -98,6 +98,39 @@ references are additionally blocked by composite foreign keys on
     valuation are computed client-side by `@nest/plan` (`vestedQuantity`,
     `grantValueCents`); the vested value seeds the Net worth tab as an asset.
     Edited on the Equity tab.
+- **payslip** — per member; many rows per member (a collection). One pay event's
+  actual figures, reconciled against the projected inflow and the tax estimate.
+  See [`payslips.md`](payslips.md).
+  - `id`, `household_id`, `member_id`, `financial_year` (int, ending year),
+    `period_start` (date), `period_end` (date), `paid_on` (date, nullable),
+    `gross_cents`, `tax_withheld_cents`, `super_cents`, `net_cents` (bigint,
+    all `>= 0`), `salary_sacrifice_cents` (nullable, `>= 0`), `ytd_gross_cents`,
+    `ytd_tax_withheld_cents`, `ytd_super_cents` (nullable, `>= 0`),
+    `source_inflow_id` (nullable), `file_path` (nullable), `note` (nullable),
+    `created_at`, `updated_at`.
+  - `period_end >= period_start` (`payslip_period`). The money columns are
+    non-negative rather than positive: `tax_withheld_cents` is legitimately zero
+    below the tax-free threshold, and `super_cents` is zero on a slip that omits
+    it. YTD figures hold the running totals as printed on the slip, so one recent
+    slip anchors the year without entering every prior one; they are null when not
+    entered and are not cross-checked against the per-period columns in a
+    constraint (a mid-year employer change or an out-of-order entry breaks that
+    relation legitimately).
+  - Composite FK on `(member_id, household_id)` → `members` `on delete cascade`,
+    so a removed member's slips go with them. `source_inflow_id` is the projected
+    inflow the slip reconciles against, picked by the household: composite FK
+    `(source_inflow_id, household_id)` → `inflows (id, household_id)`
+    `on delete set null (source_inflow_id)`, so removing the inflow clears the
+    link and keeps the actuals. Nullable throughout — a slip need not map to an
+    inflow.
+  - `file_path` is the object key of an attached slip in the private `payslips`
+    bucket (see **Storage buckets**); null under figures-only entry.
+  - RLS is **household-wide CRUD** — the same boundary as `tax_profile`,
+    `help_debt`, `super_contribution`, and `deduction`. `member_id` is a
+    tax/reporting attribution, not a privacy boundary: the household's money is
+    fully pooled, so each member manages their co-member's slips. A payslip is a
+    sensitive document and the household, not the individual member, is the trust
+    boundary that protects it. Deliberate, not an oversight.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`tax.md`](tax.md).
 
@@ -448,6 +481,19 @@ sets the split in Up by hand and confirms the amount app-side. See
   - `authenticated` holds all four grants; `service_role` holds only `select` (to
     send) and `delete` (to prune the endpoints a push service reports gone). It
     never inserts one — only a device's own browser mints a subscription.
+
+## Storage buckets
+
+Files live in **private** Supabase Storage buckets, never public. Every object key
+starts with the owning `<household_id>` as its first path segment, and a
+`for all to authenticated` policy on `storage.objects` matches that segment against
+`household_ids_for_current_user()` — the same membership boundary as the tables,
+applied to the files.
+
+- **receipts** — deduction receipts, keyed
+  `<household_id>/<deduction_id>/<file>`; the row is `deduction_receipt`.
+- **payslips** — attached payslip documents, keyed
+  `<household_id>/<payslip_id>/<file>`; the key is `payslip.file_path`.
 
 ## RPCs
 

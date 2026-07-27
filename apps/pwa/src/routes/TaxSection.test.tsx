@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { HouseholdTaxEstimate } from '@nest/tax'
+import { makeInflow, makePayslip } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { TaxSection } from './TaxSection'
 
@@ -10,6 +12,7 @@ const hooks = vi.hoisted(() => ({
   useSuperProfiles: vi.fn(),
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
+  usePayslips: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -25,6 +28,7 @@ vi.mock('../hooks/useSuperContributions', () => ({
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
+vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
 vi.mock('../components/TaxEstimateView', () => ({
   TaxEstimateView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -41,6 +45,7 @@ describe('TaxSection', () => {
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
     hooks.useHelpDebts.mockReturnValue({ loading: false })
     hooks.useDeductions.mockReturnValue({ loading: false })
+    hooks.usePayslips.mockReturnValue({ loading: false })
     render(<TaxSection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -56,6 +61,7 @@ describe('TaxSection', () => {
     })
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
     render(<TaxSection householdId="h1" />)
     expect(screen.getByTestId('tax-view')).toBeInTheDocument()
 
@@ -69,5 +75,42 @@ describe('TaxSection', () => {
       number
     >
     expect(concessionalCapCentsByMember.get('m1')).toBeGreaterThan(0)
+  })
+
+  it('nets each member’s payslip withholding against their estimated tax', () => {
+    hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.usePayslips.mockReturnValue({
+      loading: false,
+      payslips: [makePayslip({ tax_withheld_cents: 30_000_00 })],
+    })
+    render(<TaxSection householdId="h1" />)
+
+    const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
+    const member = estimate.members[0]!
+    expect(member.breakdown.paygWithheldCents).toBe(30_000_00)
+    expect(member.breakdown.balanceCents).toBe(member.breakdown.totalLiabilityCents - 30_000_00)
+  })
+
+  it('leaves the estimate unoffset when no payslip has been entered', () => {
+    hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+    render(<TaxSection householdId="h1" />)
+
+    const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
+    const member = estimate.members[0]!
+    expect(member.breakdown.paygWithheldCents).toBe(0)
+    expect(member.breakdown.balanceCents).toBe(member.breakdown.totalLiabilityCents)
   })
 })

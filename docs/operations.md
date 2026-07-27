@@ -55,6 +55,33 @@ SECURITY DEFINER RPC — the token reads, `upsert_up_accounts`, and
 `service_role` grant at all. Any future server-side code touching other public
 tables must add its own grants deliberately — the stance is surgical, per-feature.
 
+## Storage buckets
+
+Both buckets are created by migration, not by hand in the dashboard, so a fresh
+environment provisions them with the deploy:
+
+| Bucket     | Migration                          | Holds                      |
+| ---------- | ---------------------------------- | -------------------------- |
+| `receipts` | `20260803000000_tax_deduction.sql` | deduction receipt files    |
+| `payslips` | `20260810000000_payslip.sql`       | attached payslip documents |
+
+Each is **private** (`public = false`) with a single `for all to authenticated`
+policy on `storage.objects` gating the object key's first path segment
+(`<household_id>`) on household membership. Operational notes:
+
+- The `insert into storage.buckets … on conflict (id) do nothing` and the
+  `drop policy if exists` before each `create policy` make both blocks
+  idempotent, so a replay of the migration is safe.
+- Each block is guarded on `to_regnamespace('storage')`, so it is a no-op wherever
+  the `storage` schema is absent. Real Supabase has it; the `rls` CI job gets it
+  from the shim in `supabase/tests/rls/setup_auth.sql`.
+- Objects are **not** covered by a table backup of `public`. Removing an
+  attachment from the app deletes the object and its row together, but a row that
+  goes away by cascade (its deduction, payslip, or member removed) leaves the
+  object behind — there is no server-side reaper. Orphans are cheap and invisible;
+  clearing them is a manual bucket sweep.
+- Objects count against the project's storage quota, not the database's.
+
 ## Vault secrets
 
 Vault holds every secret that must never reach a client:

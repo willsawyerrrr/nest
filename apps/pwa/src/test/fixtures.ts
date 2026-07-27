@@ -4,6 +4,7 @@ import type { GiftPurchase } from '../hooks/useGifts'
 import type { Goal } from '../hooks/useGoals'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
+import type { PayslipRow } from '../hooks/usePayslips'
 import type { Saver } from '../hooks/useSavers'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
 import {
@@ -43,6 +44,33 @@ export function makeInflow(overrides: Partial<Inflow> = {}): Inflow {
     hours_per_period: null,
     starts_on: null,
     ends_on: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a payslip row for one fortnight, reconciled against the default inflow. */
+export function makePayslip(overrides: Partial<PayslipRow> = {}): PayslipRow {
+  return {
+    id: 'ps1',
+    household_id: 'h1',
+    member_id: 'm1',
+    financial_year: 2027,
+    period_start: '2026-07-01',
+    period_end: '2026-07-14',
+    paid_on: '2026-07-15',
+    gross_cents: 5_000_00,
+    tax_withheld_cents: 1_000_00,
+    super_cents: 600_00,
+    net_cents: 4_000_00,
+    salary_sacrifice_cents: null,
+    ytd_gross_cents: null,
+    ytd_tax_withheld_cents: null,
+    ytd_super_cents: null,
+    source_inflow_id: 'i1',
+    file_path: null,
+    note: null,
     created_at: '',
     updated_at: '',
     ...overrides,

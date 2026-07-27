@@ -26,3 +26,13 @@ export function isoDate(instant: Date): string {
 export function todayIso(today: Date = new Date()): string {
   return isoDate(today)
 }
+
+/**
+ * The local ISO date `days` before `iso` — e.g. the first day of a fortnight
+ * ending on it, 13 days back. The arithmetic runs on local calendar fields, so a
+ * daylight-saving shift cannot land the result on the neighbouring day.
+ */
+export function isoDaysBefore(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number) as [number, number, number]
+  return isoDate(new Date(year, month - 1, day - days))
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatIsoDate, isoDate, todayIso } from './dates'
+import { formatIsoDate, isoDate, isoDaysBefore, todayIso } from './dates'
 
 describe('formatIsoDate', () => {
   it('formats an ISO date as a short local date', () => {
@@ -22,5 +22,12 @@ describe('isoDate', () => {
     // Local 11pm on 20 Nov is 21 Nov in UTC east of Greenwich, yet the local
     // calendar date governs.
     expect(isoDate(new Date(2026, 10, 20, 23, 30))).toBe('2026-11-20')
+  })
+})
+
+describe('isoDaysBefore', () => {
+  it('counts back over a month boundary', () => {
+    expect(isoDaysBefore('2026-07-14', 13)).toBe('2026-07-01')
+    expect(isoDaysBefore('2026-07-07', 13)).toBe('2026-06-24')
   })
 })

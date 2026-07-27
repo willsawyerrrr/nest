@@ -46,6 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Tax',
     items: [
       { path: '/tax', label: 'Estimate' },
+      { path: '/payslips', label: 'Payslips' },
       { path: '/deductions', label: 'Deductions' },
       { path: '/help-debt', label: 'HELP debt' },
       { path: '/eofy', label: 'EOFY' },

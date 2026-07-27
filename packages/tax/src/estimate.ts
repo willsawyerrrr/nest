@@ -5,8 +5,10 @@
  *
  * DB-independent by design: the PWA maps database rows to these domain inputs;
  * this package imports nothing from the database or the PWA and stays pure.
- * Estimate-only — PAYG withheld is taken as nil, so figures are liabilities
- * rather than balances owing.
+ * Income and tax are projections; PAYG withheld is an optional per-member actual
+ * (summed from recorded payslips) that defaults to nil, so a member's figures are
+ * a bare liability until their withholding is supplied and a refund or amount
+ * owing once it is.
  */
 
 import {
@@ -189,8 +191,7 @@ interface MemberIncome {
  * `salary` and `wage` feed the salary/wages assessable component, `other` the
  * "other" component — each prorated by the fraction of `config.financialYear`
  * its effective `startsOn`/`endsOn` window is active, then run through the
- * per-person engine with deductions and PAYG withheld nil (estimate-only). A
- * member with income but no profile is
+ * per-person engine. A member with income but no profile is
  * treated as a cover-less resident with no HELP debt; a member with a profile but
  * no income yields a zero estimate. Household fields are the sum of members'.
  * `concessionalByMember`, when supplied, gives each member's annual concessional
@@ -198,6 +199,12 @@ interface MemberIncome {
  * `deductionsByMember`, when supplied, gives each member's annual work-related
  * deductions — reducing taxable income only, so tax falls and after-tax cash
  * rises; the diverted cash of a concessional contribution has no counterpart here.
+ * `paygWithheldByMember`, when supplied, gives each member's actual PAYG withheld
+ * for the year — summed from their payslips — which the engine nets against their
+ * liability as `breakdown.balanceCents` (positive owing, negative a refund); a
+ * member absent from the map is taken as having nil withheld, leaving their
+ * liability unoffset. It changes no tax calculation: liability, after-tax cash,
+ * and every household total are the same with or without it.
  *
  * The Medicare levy surcharge is assessed across the household, not per person: a
  * first pass computes each member's surcharge income, the family assessment picks
@@ -212,6 +219,7 @@ export function estimateHouseholdTax(
   config: TaxYearConfig,
   concessionalByMember?: ReadonlyMap<string, Money>,
   deductionsByMember?: ReadonlyMap<string, Money>,
+  paygWithheldByMember?: ReadonlyMap<string, Money>,
 ): HouseholdTaxEstimate {
   const incomeByMember = new Map<string, MemberIncome>()
   const memberOrder: string[] = []
@@ -271,7 +279,7 @@ export function estimateHouseholdTax(
       residency: profile.residency,
       privateHospitalCover: profile.privateHospitalCover,
       helpDebtCents: profile.helpDebtCents,
-      paygWithheldCents: 0,
+      paygWithheldCents: paygWithheldByMember?.get(memberId) ?? 0,
       concessionalContributionsCents: concessionalCents,
     }
     return {

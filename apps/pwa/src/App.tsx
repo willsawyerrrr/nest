@@ -50,6 +50,9 @@ const InflowsSection = lazy(() =>
 const NetWorthSection = lazy(() =>
   import('./routes/NetWorthSection').then((m) => ({ default: m.NetWorthSection })),
 )
+const PayslipsSection = lazy(() =>
+  import('./routes/PayslipsSection').then((m) => ({ default: m.PayslipsSection })),
+)
 const SplitsSection = lazy(() =>
   import('./routes/SplitsSection').then((m) => ({ default: m.SplitsSection })),
 )
@@ -151,6 +154,7 @@ function HouseholdApp({
             <Route path="/splits" element={<SplitsSection householdId={household.id} />} />
             <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
             <Route path="/tax" element={<TaxSection householdId={household.id} />} />
+            <Route path="/payslips" element={<PayslipsSection householdId={household.id} />} />
             <Route path="/deductions" element={<DeductionsSection householdId={household.id} />} />
             <Route path="/super" element={<SuperSection householdId={household.id} />} />
             <Route path="/help-debt" element={<HelpDebtSection householdId={household.id} />} />

@@ -141,7 +141,16 @@ so the rule it enforces holds app-wide.
 
 - **List layout.** Long or variable-length lists use the dense `ListRow` on
   desktop with a mobile card; short per-member or per-section surfaces use
-  `AppCard`.
+  `AppCard`. A row carrying several figures at once — a payslip's gross, withheld,
+  super, and net, each with its own variance — stays an `AppCard` at every width
+  and reflows its figure grid instead (`SimpleGrid cols={{ base: 2, xs: 4 }}`),
+  since a single dense line cannot hold them.
+- **Variance.** A variance is a signed money figure, so it renders through
+  `MoneyText`/`moneyColor` like any other — above plan positive, below plan
+  negative — with the direction spelled out in words beside it, never left to the
+  tint alone. Where a sign could be misread as good or bad (more tax withheld than
+  the estimate implies is a larger refund, not a problem), the screen says which
+  way it reads.
 - **Badges.** Most use `variant="light"` `size="xs"`. A frequency label is neutral
   and high-contrast (`variant="default"`, giving standard border + surface +
   body-color text that reads clearly in both schemes); a badge that encodes a

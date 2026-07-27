@@ -433,6 +433,30 @@ goal / expiry triggers — is idea 8 in the ideas backlog and is **not** built.
       that stores the subscription, and a **Send test notification** button that
       reports the summary honestly.
 
+### Payslips (stages 1–2 complete)
+
+The income side of actual-vs-plan: each pay event's real figures, reconciled
+against the projected inflow and the tax estimate. Design and staging in
+[`payslips.md`](payslips.md).
+
+- [x] `payslip` schema: per member, FY-scoped, with the gross / PAYG withheld /
+      super / net quartet, optional salary sacrifice and the slip's YTD running
+      totals, `period_end >= period_start` and non-negative money constraints, and
+      household-wide RLS (the same boundary as the other per-member tax tables —
+      `member_id` is a tax attribution, not a privacy boundary).
+- [x] `source_inflow_id`: the household picks which projected inflow a slip
+      reconciles against, `on delete set null` so retiring the inflow keeps the
+      actuals. One employer per member — no per-employer stream handling.
+- [x] File attachment: the private `payslips` Storage bucket keyed
+      `<household_id>/<payslip_id>/<file>`, household-scoped Storage RLS, and
+      `payslip.file_path`. The figures are always typed; the file is an auditable
+      record, not a data source.
+- [x] Variance and readout: per-period actual vs expected gross, withholding, and
+      super, and the FY's summed actual withheld feeding the tax engine's
+      `paygWithheldCents` so the estimate's balance is a concrete refund or bill.
+- [ ] Stage 3 — extraction pre-fill from an uploaded slip (needs an API key and a
+      server-side document pass; only ever pre-fills the form for confirmation).
+
 ## Later
 
 Uncommitted work, roughly ordered by likelihood of being picked up.
@@ -456,7 +480,8 @@ foundation, ledger UI, and the two reconciliation layers).
       `external_id` (the account pass and the gift-category poll are done).
 - [ ] Ledger UI (accounts + transactions) over synced data.
 - [ ] Reconcile actual spend against the budget.
-- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate.
+- [ ] Track actual tax paid (PAYG withheld) for a refund/bill vs the estimate from
+      the spend/transfer side; the income side is covered by payslips (see Done).
 
 ## Ideas backlog
 
@@ -518,34 +543,33 @@ Recurring shorthand:
   source-agnostic import boundary) so the pay-forecast logic is provider-neutral
   and the user picks whichever their team actually uses.
 
-#### 2. Payslip / PAYG ingestion (actual withheld vs the estimate)
+#### 2. Payslip extraction pre-fill (stage 3 of payslips)
 
-Design: [`payslips.md`](payslips.md). The income-side complement to the Up
-ledger's spend-side actual-tax-paid tracking in **Later**.
+Design: [`payslips.md`](payslips.md). Manual entry, variance, and file attachment
+are shipped (see Done); this is the remaining stage — reading an uploaded slip to
+pre-fill the entry form.
 
-- **What / value.** The tax engine already has a slot for `paye_withheld_cents`
-  and computes a balance (owing vs refund) against it, but nothing populates it.
-  Capturing each payslip's gross, PAYG withheld, super, and pre-tax deductions
-  turns the tax tab from a pure projection into a running **"withheld so far vs
-  estimated liability → tracking toward a $X refund/bill"** — the actual-tax-paid
-  tracking the ingestion phase otherwise defers, sourced from real income numbers.
-  It surfaces variance both ways: actual gross vs projected inflow, and actual
-  withholding vs the estimate's implied withholding.
-- **Effort.** M for manual entry; L if OCR/parsing of PDF payslips is added.
-  Staged smallest-useful-first: manual entry + variance, then optional file
-  attachment to a private Storage bucket, then OCR pre-fill.
-- **Touches.** No external API needed for manual entry — it's a
-  `Payslip`/`IncomeEvent` table (already sketched in `data-model.md`) + a small
-  entry form, RLS, types, feeding the tax engine's `paygWithheldCents`. Automated
-  capture (OCR of a PDF, or an email-forward parser) would need a parsing service
-  and file storage (Supabase Storage) and is where the L cost lives.
-- **Dependencies.** None for manual entry — it directly fills an input the tax
-  engine already consumes. Independent of Up ingestion.
-- **Feasibility / risks.** AU payslips are unstandardised, so reliable OCR is
-  hard; start with manual entry (few fields, entered fortnightly) and treat
-  parsing as a later nicety. Payslip data is sensitive → strict RLS, member
-  attribution. Actual super contributions captured here also feed idea 10 (net
-  worth).
+- **What / value.** Entry is the only manual cost left: ~26 slips a year each,
+  transcribed from a PDF the app already stores. A document pass over the uploaded
+  file could pre-populate the pay period, gross, withheld, super, net, and YTD
+  fields for a human to confirm. Pure convenience — the analysis it feeds already
+  works on typed figures.
+- **Effort.** M–L. The parse is the whole cost: AU payslips are unstandardised, so
+  a layout-agnostic approach (an LLM document pass over the stored file) beats
+  per-employer templates, and it needs an API key held server-side plus an edge
+  function to call it.
+- **Touches.** A new edge function reading the object out of the `payslips` bucket
+  and an LLM/document-AI key in **Vault** (the Up-token pattern). No schema change
+  — `payslip.file_path` already holds the slip a pre-fill would read, and the
+  extracted figures land in the existing columns. Frontend: a "read this slip"
+  action on the entry form that fills the fields, leaving every one editable.
+- **Dependencies.** Needs the API key. Nothing else — the table, bucket, upload
+  flow, and variance math are all in place.
+- **Feasibility / risks.** Extraction must never write figures unconfirmed: a
+  misread gross would silently corrupt the variance and the refund/bill readout.
+  Payslips are sensitive, so sending one to a third-party model is a deliberate
+  privacy trade the household has to accept — which is the real open question, not
+  the engineering.
 
 #### 3. Recurring bill / subscription detection from Up transactions
 
@@ -830,9 +854,7 @@ Ranked for value-to-effort against this specific household's setup:
 2. **incident.io on-call pay forecasting (1)** — solves a real modelling gap
    (the `every_n_weeks` proxy) with a concrete dated forecast; distinctive and
    directly useful to this user. Provider-abstract it (PagerDuty/Opsgenie).
-3. **Payslip / PAYG manual entry (2)** — unlocks actual-tax-paid tracking with
-   _no_ external dependency, filling an input the tax engine already consumes.
-4. **Push notification triggers (8)** — the subscription store, VAPID keys, and
+3. **Push notification triggers (8)** — the subscription store, VAPID keys, and
    send path are shipped (a device can opt in and receive a test push), so what is
    left is the evaluation layer that makes the installed PWA proactive (negative
    buffer, goal slippage, deposit landed); most of those triggers work on today's
@@ -841,4 +863,7 @@ Ranked for value-to-effort against this specific household's setup:
 Honourable mentions: **net worth via the Up `HOME_LOAN` balance (10)** is a
 big-picture win that's genuinely automatable through the existing Up token, and
 **inflow→category netting (14)** is a tiny, already-deferred change that makes
-reimbursements read truthfully.
+reimbursements read truthfully. **Payslip extraction pre-fill (2)** ranks lower
+than its parent feature did: with entry, variance, and attachment shipped, it buys
+convenience only, and at the cost of an API key and sending a sensitive document to
+a third-party model.

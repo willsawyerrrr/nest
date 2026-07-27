@@ -73,6 +73,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   Summary. Each deduction may carry stored receipts (`deduction_receipt`), the
   files held in a private Supabase Storage bucket (`receipts`) laid out under
   `<household_id>/…` so Storage RLS gates access by household membership.
+- Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
+  per pay event, carrying the actuals — gross, PAYG withheld, super, net, plus the
+  slip's optional salary sacrifice and year-to-date running totals. The figures are
+  always typed; a slip records which projected inflow it reconciles against via an
+  explicit picker (`source_inflow_id`, nullable — a bonus or back-pay slip maps to
+  none) and one employer per member, so there is no per-employer stream handling —
+  a job change is modelled the way a pay rise is, the old inflow ending and a new
+  dated one starting. Each slip may carry an attached document, the file held in a
+  private Supabase Storage bucket (`payslips`) laid out under `<household_id>/…` so
+  Storage RLS gates access by household membership. Payslips drive per-period
+  variance against the projection (gross, withholding, super) and the FY's summed
+  actual withheld feeds the tax engine's `paygWithheldCents`, turning the estimate's
+  balance into a concrete refund or bill. RLS is household-wide, exactly as for the
+  other per-member tax tables: `member_id` is a tax attribution, not a privacy
+  boundary. Extraction pre-fill from an uploaded slip is a deliberate follow-up.
 - Superannuation: modelled in full per person. Concessional contributions reduce
   taxable income and are taxed at 15% in the fund, with Division 293 for high
   earners; contribution caps (with manual carry-forward) and the government

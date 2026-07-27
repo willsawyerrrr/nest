@@ -974,6 +974,97 @@ export type Database = {
           },
         ]
       }
+      payslip: {
+        Row: {
+          created_at: string
+          file_path: string | null
+          financial_year: number
+          gross_cents: number
+          household_id: string
+          id: string
+          member_id: string
+          net_cents: number
+          note: string | null
+          paid_on: string | null
+          period_end: string
+          period_start: string
+          salary_sacrifice_cents: number | null
+          source_inflow_id: string | null
+          super_cents: number
+          tax_withheld_cents: number
+          updated_at: string
+          ytd_gross_cents: number | null
+          ytd_super_cents: number | null
+          ytd_tax_withheld_cents: number | null
+        }
+        Insert: {
+          created_at?: string
+          file_path?: string | null
+          financial_year: number
+          gross_cents: number
+          household_id: string
+          id?: string
+          member_id: string
+          net_cents: number
+          note?: string | null
+          paid_on?: string | null
+          period_end: string
+          period_start: string
+          salary_sacrifice_cents?: number | null
+          source_inflow_id?: string | null
+          super_cents: number
+          tax_withheld_cents: number
+          updated_at?: string
+          ytd_gross_cents?: number | null
+          ytd_super_cents?: number | null
+          ytd_tax_withheld_cents?: number | null
+        }
+        Update: {
+          created_at?: string
+          file_path?: string | null
+          financial_year?: number
+          gross_cents?: number
+          household_id?: string
+          id?: string
+          member_id?: string
+          net_cents?: number
+          note?: string | null
+          paid_on?: string | null
+          period_end?: string
+          period_start?: string
+          salary_sacrifice_cents?: number | null
+          source_inflow_id?: string | null
+          super_cents?: number
+          tax_withheld_cents?: number
+          updated_at?: string
+          ytd_gross_cents?: number | null
+          ytd_super_cents?: number | null
+          ytd_tax_withheld_cents?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payslip_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payslip_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'payslip_source_inflow_id_household_id_fkey'
+            columns: ['source_inflow_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'inflows'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       push_subscription: {
         Row: {
           auth: string

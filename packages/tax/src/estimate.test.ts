@@ -338,6 +338,72 @@ describe('estimateHouseholdTax', () => {
     expect(household.annualDeductionsCents).toBe(10_000_00)
   })
 
+  it('leaves each member’s balance their bare liability with no withholding supplied', () => {
+    const household = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG)
+    for (const member of household.members) {
+      expect(member.breakdown.paygWithheldCents).toBe(0)
+      expect(member.breakdown.balanceCents).toBe(member.annualTaxCents)
+    }
+  })
+
+  it('nets a member’s actual withholding against their liability as an amount owing', () => {
+    const withheld = new Map([['alex', 40_000_00]])
+    const household = estimateHouseholdTax(
+      incomes,
+      profiles,
+      FY2027_CONFIG,
+      undefined,
+      undefined,
+      withheld,
+    )
+    const alex = household.members.find((m) => m.memberId === 'alex')!
+    expect(alex.breakdown.paygWithheldCents).toBe(40_000_00)
+    // Alex's liability exceeds what was withheld, so the balance is owing.
+    expect(alex.breakdown.balanceCents).toBe(alex.annualTaxCents - 40_000_00)
+    expect(alex.breakdown.balanceCents).toBeGreaterThan(0)
+    // Sam, absent from the map, keeps nil withholding and an unoffset liability.
+    const sam = household.members.find((m) => m.memberId === 'sam')!
+    expect(sam.breakdown.paygWithheldCents).toBe(0)
+    expect(sam.breakdown.balanceCents).toBe(sam.annualTaxCents)
+  })
+
+  it('reports a refund for a member withheld more than their liability', () => {
+    const withheld = new Map([['alex', 50_000_00]])
+    const household = estimateHouseholdTax(
+      incomes,
+      profiles,
+      FY2027_CONFIG,
+      undefined,
+      undefined,
+      withheld,
+    )
+    const alex = household.members.find((m) => m.memberId === 'alex')!
+    expect(alex.breakdown.balanceCents).toBe(alex.annualTaxCents - 50_000_00)
+    expect(alex.breakdown.balanceCents).toBeLessThan(0)
+  })
+
+  it('leaves every liability and after-tax figure untouched by the withholding supplied', () => {
+    const withheld = new Map([
+      ['alex', 40_000_00],
+      ['sam', 8_000_00],
+    ])
+    const household = estimateHouseholdTax(
+      incomes,
+      profiles,
+      FY2027_CONFIG,
+      undefined,
+      undefined,
+      withheld,
+    )
+    const baseline = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG)
+    expect(household.annualGrossCents).toBe(baseline.annualGrossCents)
+    expect(household.annualTaxCents).toBe(baseline.annualTaxCents)
+    expect(household.annualAfterTaxCents).toBe(baseline.annualAfterTaxCents)
+    expect(household.members.map((m) => m.annualTaxCents)).toEqual(
+      baseline.members.map((m) => m.annualTaxCents),
+    )
+  })
+
   it('sums concessional and net-super figures across members', () => {
     const concessional = new Map([
       ['alex', 20_000_00],

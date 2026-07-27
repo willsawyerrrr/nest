@@ -126,6 +126,23 @@ function waterfall(name: string) {
   return within(card(name)).getByRole('figure', { name: 'Income build-up' })
 }
 
+/** A member estimate whose breakdown carries actual withholding against a liability. */
+function withWithholding(
+  member: MemberTaxEstimate,
+  paygWithheldCents: number,
+  totalLiabilityCents: number,
+): MemberTaxEstimate {
+  return {
+    ...member,
+    breakdown: {
+      ...member.breakdown,
+      paygWithheldCents,
+      totalLiabilityCents,
+      balanceCents: totalLiabilityCents - paygWithheldCents,
+    },
+  }
+}
+
 describe('TaxEstimateView', () => {
   it('leads each member card with their take-home headline in both cadences', () => {
     render(
@@ -565,6 +582,63 @@ describe('TaxEstimateView', () => {
     expect(
       within(willCard).getByText(/not cleared within 40 years at current income/),
     ).toBeInTheDocument()
+  })
+
+  it('tracks toward a refund when payslips withheld more than the estimated tax', () => {
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [withWithholding(will, 30_000_00, 25_000_00), sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    const willCard = card('Will')
+    expect(willCard).toHaveTextContent('Withheld so far $30,000.00 of $25,000.00 estimated tax.')
+    expect(willCard).toHaveTextContent('Tracking toward a $5,000.00 refund.')
+    // Sam has entered no payslip, so their card carries no position at all.
+    expect(within(card('Sam')).queryByText(/withheld so far/i)).toBeNull()
+  })
+
+  it('tracks toward a bill when payslips withheld less than the estimated tax', () => {
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [withWithholding(will, 20_000_00, 25_000_00), sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    expect(card('Will')).toHaveTextContent('Tracking toward a $5,000.00 bill.')
+  })
+
+  it('reports neither a refund nor a bill when withholding matches the estimate', () => {
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [withWithholding(will, 25_000_00, 25_000_00), sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    expect(card('Will')).toHaveTextContent('Tracking toward no refund or bill.')
+  })
+
+  it('shows no withholding position at all until a payslip records some', () => {
+    render(
+      <TaxEstimateView
+        estimate={estimate}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    expect(screen.queryByText(/withheld so far/i)).toBeNull()
+    expect(screen.queryByText(/tracking toward/i)).toBeNull()
   })
 
   it('notes that capital gains tax is excluded', () => {

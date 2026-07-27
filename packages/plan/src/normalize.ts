@@ -33,6 +33,26 @@ function isValidInterval(interval: number | undefined): interval is number {
 }
 
 /**
+ * How many periods of `frequency` fall in a year. A fixed frequency has its
+ * constant count; `every_n_weeks` is `52 / interval` and `every_n_months` is
+ * `12 / interval`, fractional for an interval that does not divide the year
+ * evenly. An absent or non-positive-integer interval defensively yields zero, so
+ * a caller must guard before dividing by the result. Dividing an annual figure by
+ * this count draws a per-period figure from an annual rate; `annualCents` goes the
+ * other way and multiplies before dividing, so the two are not exact inverses at
+ * the cent.
+ */
+export function periodsPerYear(frequency: Frequency, interval?: number): number {
+  if (frequency === 'every_n_weeks') {
+    return isValidInterval(interval) ? WEEKS_PER_YEAR / interval : 0
+  }
+  if (frequency === 'every_n_months') {
+    return isValidInterval(interval) ? MONTHS_PER_YEAR / interval : 0
+  }
+  return PERIODS_PER_YEAR[frequency]
+}
+
+/**
  * Annualises an amount to whole cents. Fixed frequencies multiply by their
  * periods per year, exactly. `every_n_weeks` — an amount received once every
  * `interval` weeks — is `round(amountCents × 52 / interval)`; `every_n_months` —

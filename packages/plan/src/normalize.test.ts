@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annualCents, fortnightlyCents } from './index'
+import { annualCents, fortnightlyCents, periodsPerYear } from './index'
 
 describe('annualCents', () => {
   it('annualises an amount across every frequency', () => {
@@ -9,6 +9,32 @@ describe('annualCents', () => {
     expect(annualCents(1_000_00, 'quarterly')).toBe(4_000_00)
     expect(annualCents(1_000_00, 'biannual')).toBe(2_000_00)
     expect(annualCents(1_000_00, 'annual')).toBe(1_000_00)
+  })
+})
+
+describe('periodsPerYear', () => {
+  it('counts the periods of every fixed frequency', () => {
+    expect(periodsPerYear('weekly')).toBe(52)
+    expect(periodsPerYear('fortnightly')).toBe(26)
+    expect(periodsPerYear('monthly')).toBe(12)
+    expect(periodsPerYear('quarterly')).toBe(4)
+    expect(periodsPerYear('biannual')).toBe(2)
+    expect(periodsPerYear('annual')).toBe(1)
+  })
+
+  it('divides the weeks or months in a year by an arbitrary cadence’s interval', () => {
+    expect(periodsPerYear('every_n_weeks', 2)).toBe(26)
+    expect(periodsPerYear('every_n_weeks', 4)).toBe(13)
+    expect(periodsPerYear('every_n_months', 3)).toBe(4)
+    // An interval that does not divide the year evenly gives a fractional count.
+    expect(periodsPerYear('every_n_weeks', 3)).toBeCloseTo(52 / 3)
+  })
+
+  it('counts no periods when an arbitrary cadence’s interval is missing or invalid', () => {
+    expect(periodsPerYear('every_n_weeks')).toBe(0)
+    expect(periodsPerYear('every_n_weeks', 0)).toBe(0)
+    expect(periodsPerYear('every_n_months')).toBe(0)
+    expect(periodsPerYear('every_n_months', 1.5)).toBe(0)
   })
 })
 

@@ -81,6 +81,13 @@ is CRUD over RLS.
 - **Plan engine** — pure `@nest/plan` package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry, and the `Frequency` type.
 - **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.
+- **Storage** — private buckets for the documents the household attaches:
+  `receipts` (deduction receipts) and `payslips` (payslip PDFs/images). The PWA
+  uploads directly and views a file through a short-lived signed URL it mints
+  itself; both calls are gated by the bucket's Storage RLS, so no edge function
+  brokers a file. Object keys lead with `<household_id>`, which is what the
+  policies match on — see *Security* and
+  [`data-model.md`](data-model.md#storage-buckets).
 
 ## Integrations
 
@@ -191,6 +198,13 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   co-member's endpoint is refused rather than silently reassigning their device.
   `service_role` holds only `select` (to send) and `delete` (to prune dead
   endpoints).
+- **Storage is gated by the same membership check.** Every bucket is private and
+  every object key starts with the owning `<household_id>`, so a
+  `for all to authenticated` policy on `storage.objects` matching that first path
+  segment against `household_ids_for_current_user()` is the whole boundary — no
+  signed-URL brokering and no service-role proxy. Payslips and receipts are
+  sensitive documents, and household membership, not individual authorship, is
+  what protects them.
 - Up tokens and webhook secrets encrypted at rest (Vault), as is the Web Push
   VAPID keypair — read only through the service-role-only `vapid_keys()`.
 
@@ -229,7 +243,11 @@ the workflow token is scoped `contents: read`:
   check. The `test` job `needs` the shards, so the required-check name stays green
   only when all six pass.
 - **rls** — Postgres service; applies the auth shim, every migration in order,
-  then the `supabase/tests/rls/` isolation assertions.
+  then the `supabase/tests/rls/` isolation assertions. The shim
+  (`setup_auth.sql`) stands in for the Supabase-only primitives the policies read
+  — `auth.uid()` / `auth.jwt()` and the API roles, Vault, and Storage
+  (`storage.buckets` / `storage.objects` / `storage.foldername`) — so the bucket
+  policies are exercised on plain Postgres alongside the table policies.
 - **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
   `supabase/functions` (the edge functions live outside the pnpm workspace, with
   their own Deno harness).

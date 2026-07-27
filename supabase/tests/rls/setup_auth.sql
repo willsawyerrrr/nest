@@ -78,3 +78,39 @@ as $$
     updated_at = now()
   where id = secret_id;
 $$;
+
+-- Shim of Supabase Storage. On plain Postgres the `storage` schema is absent, so
+-- each migration's guard skips its bucket and policy block; these objects stand in
+-- with the two relations, the columns, and the `foldername` helper those policies
+-- read, so the household-scoped Storage RLS is exercised alongside the table
+-- policies. Not applied to production (Supabase provides the real Storage there).
+create schema if not exists storage;
+
+create table if not exists storage.buckets (
+  id text primary key,
+  name text not null,
+  public boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists storage.objects (
+  id uuid primary key default gen_random_uuid(),
+  bucket_id text not null references storage.buckets (id),
+  name text not null,
+  owner uuid,
+  created_at timestamptz not null default now()
+);
+
+alter table storage.objects enable row level security;
+
+-- Mirrors Supabase's helper: an object key's folder segments, excluding the file
+-- name, so `(storage.foldername(name))[1]` is the leading path segment.
+create or replace function storage.foldername(name text) returns text[]
+  language sql immutable
+as $$
+  select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
+$$;
+
+grant usage on schema storage to anon, authenticated, service_role;
+grant select on storage.buckets to anon, authenticated, service_role;
+grant select, insert, update, delete on storage.objects to authenticated;

@@ -12,6 +12,7 @@ export {
   FORTNIGHTS_PER_YEAR,
   MONTHS_PER_YEAR,
   PERIODS_PER_YEAR,
+  periodsPerYear,
   WEEKS_PER_YEAR,
 } from './normalize'
 
@@ -55,6 +56,32 @@ export {
   roundCentsUpToStep,
 } from './splits'
 export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits'
+
+export {
+  annualInflowGrossCents,
+  expectedPeriodGrossCents,
+  financialYearDayCount,
+  isPeriodOnCadence,
+  latestReportedYearToDate,
+  paygWithheldByMember,
+  payslipVariance,
+  payslipYearToDate,
+  payslipYearToDateByMember,
+  periodFractionOfFinancialYear,
+  prorateAnnualToPeriod,
+} from './payslip'
+export type {
+  ExpectationBasis,
+  PayPeriod,
+  PayslipActuals,
+  PayslipExpectation,
+  PayslipTotals,
+  PayslipTotalsRow,
+  PayslipVariance,
+  PayslipYearToDateTotals,
+  ReconciledInflow,
+  SuperGuaranteeConfig,
+} from './payslip'
 
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number

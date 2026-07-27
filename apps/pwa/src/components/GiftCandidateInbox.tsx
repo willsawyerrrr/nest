@@ -14,7 +14,11 @@ import { useDisclosure } from '@mantine/hooks'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { GiftPurchaseInput } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
-import type { DismissedGiftCandidate, GiftBudgetChoice, GiftCandidate } from '../lib/giftCandidates'
+import type {
+  DismissedGiftCandidate,
+  GiftCandidate,
+  GiftLinkRecipient,
+} from '../lib/giftCandidates'
 import { AppCard } from './AppCard'
 import { FormShell } from './FormShell'
 import { MoneyText } from './MoneyText'
@@ -24,8 +28,8 @@ interface GiftCandidateInboxProps {
   candidates: GiftCandidate[]
   /** The candidates set aside as "not a gift", newest first. */
   dismissed: DismissedGiftCandidate[]
-  /** The gift budgets a candidate may be linked to (own-gift budgets excluded). */
-  budgetChoices: GiftBudgetChoice[]
+  /** The recipients a candidate may be linked to, with their occasions (own gifts excluded). */
+  recipientChoices: GiftLinkRecipient[]
   onLink: (input: GiftPurchaseInput) => Promise<void>
   onDismiss: (transactionId: string) => Promise<void>
   onRestore: (dismissalId: string) => Promise<void>
@@ -66,24 +70,54 @@ function CandidateSummary({ candidate }: { candidate: GiftCandidate }) {
 }
 
 /**
- * Links one candidate to a gift budget. The amount and date come from the
- * transaction and are not editable — a linked purchase follows its transaction's
- * amount as it settles — while the description starts from Up's wording and can
- * be reworded into something the gift log reads better.
+ * The recipient to start on: the only one, where there is only one, so a
+ * household with a single gift recipient does not choose from a list of one.
+ */
+function soleRecipient(choices: GiftLinkRecipient[]): GiftLinkRecipient | undefined {
+  return choices.length === 1 ? choices[0] : undefined
+}
+
+/**
+ * The budget to start on for a recipient: their only occasion's, where they have
+ * only one, so the common case of one gift per person stays a single choice.
+ * Blank where the recipient has several occasions, or none is chosen yet.
+ */
+function soleBudgetId(recipient: GiftLinkRecipient | undefined): string {
+  return recipient?.occasions.length === 1 ? recipient.occasions[0]!.value : ''
+}
+
+/**
+ * Links one candidate to a gift budget, choosing the recipient and then one of
+ * that recipient's budgeted occasions — which together name exactly one budget.
+ * The amount and date come from the transaction and are not editable — a linked
+ * purchase follows its transaction's amount as it settles — while the description
+ * starts from Up's wording and can be reworded into something the gift log reads
+ * better.
  */
 function GiftCandidateLinkForm({
   candidate,
-  budgetChoices,
+  recipientChoices,
   onSubmit,
   onCancel,
 }: {
   candidate: GiftCandidate
-  budgetChoices: GiftBudgetChoice[]
+  recipientChoices: GiftLinkRecipient[]
   onSubmit: (input: GiftPurchaseInput) => Promise<void>
   onCancel: () => void
 }) {
-  const [budgetId, setBudgetId] = useState(budgetChoices[0]?.value ?? '')
+  const initialRecipient = soleRecipient(recipientChoices)
+  const [recipientId, setRecipientId] = useState(initialRecipient?.value ?? '')
+  const [budgetId, setBudgetId] = useState(soleBudgetId(initialRecipient))
   const [description, setDescription] = useState(candidate.description)
+
+  const chosenRecipient = recipientChoices.find((choice) => choice.value === recipientId)
+
+  // A recipient's occasions are their own, so switching recipient starts the
+  // occasion afresh — on their sole occasion where they have one, else unset.
+  function chooseRecipient(value: string) {
+    setRecipientId(value)
+    setBudgetId(soleBudgetId(recipientChoices.find((choice) => choice.value === value)))
+  }
 
   const canSubmit = budgetId !== ''
 
@@ -109,13 +143,27 @@ function GiftCandidateLinkForm({
       submitLabel="Link purchase"
       onCancel={onCancel}
     >
+      {/* An unset select takes `null`, not `''`: a `Select` shows its placeholder
+          for the former and keeps its last label for the latter. */}
       <Select
-        label="Gift"
+        label="Recipient"
         size="sm"
-        data={budgetChoices}
-        value={budgetId}
+        placeholder="Choose a recipient"
+        data={recipientChoices.map(({ value, label }) => ({ value, label }))}
+        value={recipientId || null}
+        onChange={(value) => chooseRecipient(value ?? '')}
+        allowDeselect={false}
+      />
+
+      <Select
+        label="Occasion"
+        size="sm"
+        placeholder={chosenRecipient ? 'Choose an occasion' : 'Choose a recipient first'}
+        data={chosenRecipient?.occasions ?? []}
+        value={budgetId || null}
         onChange={(value) => setBudgetId(value ?? '')}
         allowDeselect={false}
+        disabled={!chosenRecipient}
       />
 
       <TextInput
@@ -144,7 +192,7 @@ function GiftCandidateLinkForm({
 export function GiftCandidateInbox({
   candidates,
   dismissed,
-  budgetChoices,
+  recipientChoices,
   onLink,
   onDismiss,
   onRestore,
@@ -168,7 +216,7 @@ export function GiftCandidateInbox({
           </Text>
         </Stack>
 
-        {candidates.length > 0 && budgetChoices.length === 0 && (
+        {candidates.length > 0 && recipientChoices.length === 0 && (
           <Text size="xs" c="dimmed">
             Add a gift budget to link these against.
           </Text>
@@ -181,7 +229,7 @@ export function GiftCandidateInbox({
               {linkingId === candidate.transactionId ? (
                 <GiftCandidateLinkForm
                   candidate={candidate}
-                  budgetChoices={budgetChoices}
+                  recipientChoices={recipientChoices}
                   onSubmit={async (input) => {
                     await onLink(input)
                     setLinkingId(null)
@@ -192,7 +240,7 @@ export function GiftCandidateInbox({
                 <Group gap="xs" grow>
                   <Button
                     variant="light"
-                    disabled={budgetChoices.length === 0}
+                    disabled={recipientChoices.length === 0}
                     onClick={() => setLinkingId(candidate.transactionId)}
                   >
                     Link to a gift

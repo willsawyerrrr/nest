@@ -583,12 +583,12 @@ describe('GiftsScreen card-spending inbox', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Link to a gift' }))
-    await user.click(screen.getByRole('combobox', { name: 'Gift' }))
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }))
 
-    // Their own gift's spend is hidden from them and RLS blocks the insert, so it
-    // is not offered at all.
-    expect(await screen.findByRole('option', { name: 'Alice — Christmas' })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: 'Me — Christmas' })).not.toBeInTheDocument()
+    // Their own gift's spend is hidden from them and RLS blocks the insert, so
+    // neither it nor — their every gift being hidden — they are offered at all.
+    expect(await screen.findByRole('option', { name: 'Alice' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Me' })).not.toBeInTheDocument()
   })
 
   it('marks a purchase that came from a card transaction', async () => {

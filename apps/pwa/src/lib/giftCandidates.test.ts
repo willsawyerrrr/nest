@@ -4,7 +4,7 @@ import {
   makeGiftTransaction,
   makeGiftTransactionDismissal,
 } from '../test/fixtures'
-import { dismissedGiftCandidates, giftCandidates, linkableGiftBudgets } from './giftCandidates'
+import { dismissedGiftCandidates, giftCandidates, linkableGiftRecipients } from './giftCandidates'
 import type { GiftBudget, GiftOccasion, GiftRecipient } from './gifts'
 
 const bookshop = makeGiftTransaction({ id: 't1', description: 'Bookshop', amount_cents: -45_00 })
@@ -109,8 +109,8 @@ function recipient(id: string, name: string, member_id: string | null = null): G
   return { id, name, member_id, household_id: 'h', created_at: '', updated_at: '' }
 }
 
-function occasion(id: string, name: string): GiftOccasion {
-  return { id, name, occasion_date: null, household_id: 'h', created_at: '', updated_at: '' }
+function occasion(id: string, name: string, occasion_date: string | null = null): GiftOccasion {
+  return { id, name, occasion_date, household_id: 'h', created_at: '', updated_at: '' }
 }
 
 function budget(id: string, recipient_id: string, occasion_id: string): GiftBudget {
@@ -126,41 +126,91 @@ function budget(id: string, recipient_id: string, occasion_id: string): GiftBudg
   }
 }
 
-describe('linkableGiftBudgets', () => {
+describe('linkableGiftRecipients', () => {
   const alice = recipient('r1', 'Alice')
   const me = recipient('r2', 'Me', 'm1')
-  const xmas = occasion('o1', 'Christmas')
+  const zoe = recipient('r3', 'Zoe')
+  const xmas = occasion('o1', 'Christmas', '2026-12-25')
+  const birthday = occasion('o2', 'Birthday', '2026-03-04')
+  const someday = occasion('o3', 'Someday')
   const aliceXmas = budget('b1', 'r1', 'o1')
   const myXmas = budget('b2', 'r2', 'o1')
+  const zoeXmas = budget('b3', 'r3', 'o1')
+  const aliceBirthday = budget('b4', 'r1', 'o2')
+  const aliceSomeday = budget('b5', 'r1', 'o3')
 
-  it('labels each budget by recipient and occasion, ordered by label', () => {
-    const zoe = recipient('r3', 'Zoe')
-    const zoeXmas = budget('b3', 'r3', 'o1')
-    expect(linkableGiftBudgets([zoeXmas, aliceXmas], [alice, zoe], [xmas], new Set())).toEqual([
-      { value: 'b1', label: 'Alice — Christmas' },
-      { value: 'b3', label: 'Zoe — Christmas' },
+  it('offers each budgeted recipient by name, ordered by name', () => {
+    expect(linkableGiftRecipients([zoeXmas, aliceXmas], [zoe, alice], [xmas], new Set())).toEqual([
+      { value: 'r1', label: 'Alice', occasions: [{ value: 'b1', label: 'Christmas' }] },
+      { value: 'r3', label: 'Zoe', occasions: [{ value: 'b3', label: 'Christmas' }] },
     ])
   })
 
-  it('orders two identically labelled gifts by budget id', () => {
-    // Two recipients can share a name, so the label alone is not a total order.
-    const otherAlice = recipient('r4', 'Alice')
-    const otherAliceXmas = budget('b0', 'r4', 'o1')
+  it('orders two identically named recipients by id', () => {
+    // Two recipients can share a name, so the name alone is not a total order.
+    const otherAlice = recipient('r0', 'Alice')
+    const otherAliceXmas = budget('b9', 'r0', 'o1')
     expect(
-      linkableGiftBudgets([aliceXmas, otherAliceXmas], [alice, otherAlice], [xmas], new Set()).map(
+      linkableGiftRecipients(
+        [aliceXmas, otherAliceXmas],
+        [alice, otherAlice],
+        [xmas],
+        new Set(),
+      ).map((choice) => choice.value),
+    ).toEqual(['r0', 'r1'])
+  })
+
+  it('omits a recipient with no gift budget', () => {
+    expect(
+      linkableGiftRecipients([aliceXmas], [alice, zoe], [xmas], new Set()).map(
         (choice) => choice.value,
       ),
-    ).toEqual(['b0', 'b1'])
+    ).toEqual(['r1'])
+  })
+
+  it("orders a recipient's occasions by date, undated last", () => {
+    expect(
+      linkableGiftRecipients(
+        [aliceSomeday, aliceXmas, aliceBirthday],
+        [alice],
+        [xmas, birthday, someday],
+        new Set(),
+      )[0]?.occasions,
+    ).toEqual([
+      { value: 'b4', label: 'Birthday' },
+      { value: 'b1', label: 'Christmas' },
+      { value: 'b5', label: 'Someday' },
+    ])
+  })
+
+  it("resolves a recipient and occasion to that pairing's budget id", () => {
+    const [aliceChoice] = linkableGiftRecipients(
+      [aliceXmas, aliceBirthday, zoeXmas],
+      [alice, zoe],
+      [xmas, birthday],
+      new Set(),
+    )
+    expect(
+      aliceChoice?.occasions.find((occasionChoice) => occasionChoice.label === 'Christmas')?.value,
+    ).toBe('b1')
   })
 
   it('excludes a gift whose spend is hidden from the signed-in member', () => {
-    expect(linkableGiftBudgets([aliceXmas, myXmas], [alice, me], [xmas], new Set(['b2']))).toEqual([
-      { value: 'b1', label: 'Alice — Christmas' },
-    ])
+    const myBirthday = budget('b6', 'r2', 'o2')
+    expect(
+      linkableGiftRecipients([myXmas, myBirthday], [me], [xmas, birthday], new Set(['b6']))[0]
+        ?.occasions,
+    ).toEqual([{ value: 'b2', label: 'Christmas' }])
+  })
+
+  it('drops a recipient whose every gift is hidden from the signed-in member', () => {
+    expect(
+      linkableGiftRecipients([aliceXmas, myXmas], [alice, me], [xmas], new Set(['b2'])),
+    ).toEqual([{ value: 'r1', label: 'Alice', occasions: [{ value: 'b1', label: 'Christmas' }] }])
   })
 
   it('skips a budget whose recipient or occasion is missing', () => {
-    expect(linkableGiftBudgets([aliceXmas], [], [xmas], new Set())).toEqual([])
-    expect(linkableGiftBudgets([aliceXmas], [alice], [], new Set())).toEqual([])
+    expect(linkableGiftRecipients([aliceXmas], [], [xmas], new Set())).toEqual([])
+    expect(linkableGiftRecipients([aliceXmas], [alice], [], new Set())).toEqual([])
   })
 })

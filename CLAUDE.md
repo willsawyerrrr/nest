@@ -133,12 +133,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   buyer (any other member) sees everything.
   A purchase is either hand-entered or linked from a synced Up card transaction:
   the Gifts tab's "From your card" inbox offers each unclaimed `gifts-and-charity`
-  transaction (see Ingestion) to link against a (recipient, occasion) budget — the
+  transaction (see Ingestion) to link against a gift budget — picked as a recipient
+  and then one of that recipient's occasions, two dependent selects that name the
+  one budget for the pair; the
   purchase takes the transaction's amount and its local posting date, with only the
   description editable — or to set aside as "not a gift"
   (`gift_transaction_dismissal`), Up's category covering charity too. The inbox
-  respects the spend privacy above from both directions: the budget picker omits
-  gifts for the signed-in member, whose purchases RLS refuses anyway, and the
+  respects the spend privacy above from both directions: the pickers omit
+  gifts for the signed-in member (and the recipient itself where their every gift is
+  one), whose purchases RLS refuses anyway, and the
   `transactions` policies withhold both a transaction outside the member's
   balance-visible accounts (`visible_balance_account_ids()`, so a gift bought on
   the buyer's own spending account is invisible to the recipient) and one already

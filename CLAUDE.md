@@ -11,6 +11,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Platform: one PWA for both iOS (installed via Safari) and web. No native app.
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
+  Schema migrations under `supabase/migrations/` auto-deploy to prod on merge to
+  `main` via `.github/workflows/deploy-migrations.yml` — nothing is applied by
+  hand (see [`docs/operations.md`](docs/operations.md#deployment)).
 - Frontend: React PWA (TypeScript); one frontend for iOS + web.
 - UI framework: Mantine (React components + theming) under a dark-first design
   system (custom brand/semantic colour scales, shared primitives, tokenised

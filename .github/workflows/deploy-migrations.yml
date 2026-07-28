@@ -1,0 +1,74 @@
+name: Deploy migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-migrations
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      COREPACK_HOME: ${{ github.workspace }}/.corepack
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Cache corepack pnpm binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.COREPACK_HOME }}
+          key: corepack-${{ runner.os }}-pnpm-11.14.0
+      - name: Enable corepack (provides pnpm@11.14.0)
+        run: |
+          corepack enable
+          for attempt in 1 2 3; do
+            corepack prepare pnpm@11.14.0 --activate && break
+            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
+            sleep 5
+          done
+          pnpm --version
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      # Deploy with the Supabase CLI the lockfile pins, so the binary that reads
+      # `supabase/config.toml` here is the one that reads it locally. A CLI
+      # resolved outside the lockfile can be older than the config's keys, and
+      # rejects the whole file before applying anything.
+      #
+      # `db push` takes the project from the linked-project file rather than a
+      # `--project-ref` flag, so `link` writes it first. Neither command needs a
+      # database password: the linked path mints a temporary login role through
+      # the Management API, for which the access token is the only credential.
+      - name: Link the production project
+        run: pnpm exec supabase link --project-ref dgfeittjtxjtgbretdkj
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # `--include-all` applies a migration whose version sorts below the head of
+      # the remote history. Without it `db push` refuses the whole batch, and its
+      # out-of-order files are skipped on every later run — so a migration merged
+      # behind one with a higher version would never reach prod.
+      #
+      # `--yes` answers the "push these migrations?" confirmation. Unattended, the
+      # prompt otherwise falls through to its default after a 100ms read of an
+      # empty stdin, which is the right answer for the wrong reason.
+      - name: Apply pending migrations
+        run: pnpm exec supabase db push --linked --include-all --yes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

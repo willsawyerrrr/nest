@@ -13,19 +13,35 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
 
 ## Deployment
 
-- **Migrations** auto-deploy to prod via the GitHub → Supabase integration on
-  merge to `main`. SQL migrations under `supabase/migrations/` are authoritative
-  for the schema.
+- **Migrations** auto-deploy on merge via
+  `.github/workflows/deploy-migrations.yml`: a push to `main` touching
+  `supabase/migrations/**` links the production project and runs
+  `pnpm exec supabase db push --linked --include-all --yes`. SQL migrations
+  under `supabase/migrations/` are authoritative for the schema. It
+  authenticates with the same `SUPABASE_ACCESS_TOKEN` GitHub Actions secret and
+  the same lockfile-pinned CLI as the function deploy below.
+  - No database password is involved. `db push --linked` mints a temporary login
+    role through the Management API, so the access token is the only credential
+    the workflow holds.
+  - `--include-all` applies a migration whose version sorts below the head of the
+    remote history. Without it `db push` refuses the whole batch and skips those
+    files on every later run, so a migration merged behind one with a higher
+    version would never reach prod.
+  - `--yes` answers the confirmation prompt, making the run deterministic rather
+    than dependent on an unattended prompt timing out into its default.
+  - `db push` reads the project from the linked-project file rather than a
+    `--project-ref` flag, which is why `supabase link --project-ref
+    dgfeittjtxjtgbretdkj` runs first.
+  - Like the function deploy, it takes `workflow_dispatch`
+    (`gh workflow run "Deploy migrations"`) and serialises runs through a
+    `deploy-migrations` concurrency group that queues rather than cancels — two
+    overlapping runs must never interleave against one migration history.
   - A migration's version — the 14 digits before the first underscore of its
     filename — is the primary key Supabase records it under in
-    `supabase_migrations.schema_migrations`, and it must be unique across the
-    directory and sort after every version already applied. `db push` applies
-    the files in version order and skips any version already recorded, silently
-    and without an error, so a duplicate or out-of-order version means a
-    migration merges green and never reaches prod. CI's `check` job asserts
-    uniqueness (`pnpm check:migrations`); ordering is on the author, so date a
-    new migration ahead of every version on `main` and of any that an open
-    branch already claims.
+    `supabase_migrations.schema_migrations`, so it must be unique across the
+    directory. A version already recorded is skipped without an error, so a
+    duplicate means one of the pair merges green and never applies; CI's `check`
+    job asserts uniqueness (`pnpm check:migrations`).
 - **Edge functions** auto-deploy on merge via
   `.github/workflows/deploy-functions.yml`: a push to `main` touching
   `supabase/functions/**` or `supabase/config.toml` runs
@@ -177,9 +193,11 @@ and local Postgres and only schedules on Supabase. To bring it up in prod:
    select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
    ```
 
-3. Re-run the migration (or `supabase db push`) once the secrets exist so the job
-   schedules. It unschedules any prior `up-sync-hourly` first, so it is safe to
-   re-run; absent the secrets it leaves the job unscheduled. Verify with:
+3. Replay the migration's SQL in the dashboard's SQL editor once the secrets
+   exist so the job schedules — the deploy already recorded that version in the
+   migration history, so it will not be applied a second time on its own. It
+   unschedules any prior `up-sync-hourly` first, so it is safe to re-run; absent
+   the secrets it leaves the job unscheduled. Verify with:
 
    ```sql
    select * from cron.job where jobname = 'up-sync-hourly';

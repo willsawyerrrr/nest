@@ -19,6 +19,7 @@ function inflow(overrides: Partial<Inflow> = {}): Inflow {
     household_id: 'h',
     name: 'Inflow',
     taxable: true,
+    attracts_super: true,
     member_id: null,
     type: 'other',
     schedule: 'weekly',

@@ -145,15 +145,19 @@ export function currentTaxConfig(): TaxYearConfig {
 }
 
 /**
- * Per-member annual gross salary from the household's taxable inflows, at the
- * steady rate (not FY-prorated by effective dates): percent-of-salary super
- * contributions apply to the current salary rate, not a part-year figure, and
- * this base also drives the co-contribution income test and employer SG.
+ * Per-member annual ordinary time earnings from the household's taxable inflows,
+ * at the steady rate (not FY-prorated by effective dates): percent-of-salary
+ * super contributions apply to the current salary rate, not a part-year figure,
+ * and this base also drives the co-contribution income test and employer SG. An
+ * inflow marked `attracts_super = false` — an allowance such as on-call — is
+ * excluded, because no super guarantee accrues on it and a percent-of-salary
+ * sacrifice is set against salary; the co-contribution income test reads the same
+ * base as its approximation of total income.
  */
 function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
   const grossByMember = new Map<string, number>()
   for (const inflow of inflows) {
-    if (!inflow.taxable) {
+    if (!inflow.taxable || !inflow.attracts_super) {
       continue
     }
     const income = toIncomeInput(inflow)

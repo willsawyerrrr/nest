@@ -133,9 +133,10 @@ describe('usePayslips', () => {
 
   it('inserts the row under the id its uploaded document is filed against', async () => {
     const result = await renderPayslips()
+    let created = ''
 
     await act(async () => {
-      await result.current.create(input, attachment)
+      created = await result.current.create(input, attachment)
     })
 
     expect(bucket.upload).not.toHaveBeenCalled()
@@ -145,6 +146,8 @@ describe('usePayslips', () => {
       file_path: 'h1/ps1/uuid-slip.pdf',
       household_id: 'h1',
     })
+    // Returned so the slip's earnings lines are written against the same id.
+    expect(created).toBe('ps1')
   })
 
   it('deletes an abandoned upload, and shrugs off a delete that fails', async () => {

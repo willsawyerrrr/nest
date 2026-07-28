@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Group, NumberInput, SegmentedControl, Select, TextInput } from '@mantine/core'
+import { Group, NumberInput, SegmentedControl, Select, Switch, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
@@ -38,6 +38,7 @@ const PERIOD_NOUN: Record<Frequency, string> = {
 export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [taxable, setTaxable] = useState(initial?.taxable ?? true)
+  const [attractsSuper, setAttractsSuper] = useState(initial?.attracts_super ?? true)
   const [memberId, setMemberId] = useState(initial?.member_id ?? members[0]?.id ?? '')
   const [type, setType] = useState<InflowType>(initial?.type ?? DEFAULT_TYPE.taxable)
   const [schedule, setSchedule] = useState<Frequency>(initial?.schedule ?? 'fortnightly')
@@ -80,6 +81,10 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       taxable,
       member_id: taxable ? memberId : null,
       type,
+      // Only a taxable inflow is ever part of an employer's super base; a
+      // non-taxable one is stored as ordinary time earnings so switching it back
+      // to taxable starts from the ordinary default.
+      attracts_super: taxable ? attractsSuper : true,
       schedule,
       interval_count: isEveryN ? Number(interval) : null,
       amount_cents: isWage ? null : dollarsToCents(amount),
@@ -205,6 +210,16 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           hideControls
           value={amount}
           onChange={setAmount}
+        />
+      )}
+
+      {taxable && (
+        <Switch
+          size="sm"
+          label="Employer super accrues on this"
+          description="On for ordinary time earnings — salary and wages, which the super guarantee is paid on. Off for an allowance paid on top, such as on-call: it is taxed in full, but no super accrues on it."
+          checked={attractsSuper}
+          onChange={(event) => setAttractsSuper(event.currentTarget.checked)}
         />
       )}
 

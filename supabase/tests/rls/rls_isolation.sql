@@ -1674,4 +1674,139 @@ end $$;
 rollback to savepoint payslip_member_delete;
 set local role authenticated;
 
+-- ── Payslip lines: household-wide CRUD, per-inflow grouping, and cascades ─────
+--
+-- A slip is itemised into earnings lines, each optionally drawing on a projected
+-- inflow. Several lines may draw on the same inflow — ordinary hours and annual
+-- leave both come off the salary — so there is no uniqueness on
+-- (payslip_id, source_inflow_id). The RLS boundary is the parent slip's: the
+-- household, not the member.
+
+-- An on-call allowance: taxed in full, but no employer super accrues on it.
+insert into public.inflows (household_id, member_id, name, type, schedule, amount_cents, attracts_super)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid,
+    'On-call (T1)', 'other', 'fortnightly', 450_00, false)
+  returning id as priv_on_call \gset
+select set_config('test.priv_on_call', :'priv_on_call', false);
+
+do $$ begin
+  assert (select attracts_super from public.inflows where id = current_setting('test.priv_bob_inflow')::uuid),
+    'an inflow should be ordinary time earnings unless it says otherwise';
+  assert not (select attracts_super from public.inflows where id = current_setting('test.priv_on_call')::uuid),
+    'an allowance should record that no super accrues on it';
+end $$;
+
+-- Alice itemises her co-member's slip: two lines on his salary, one on the
+-- allowance, and a negative correction reversing an overpayment.
+insert into public.payslip_line (household_id, payslip_id, source_inflow_id, label, amount_cents)
+  values
+    (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_payslip')::uuid,
+      current_setting('test.priv_bob_inflow')::uuid, 'Ordinary Hours', 3_200_00),
+    (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_payslip')::uuid,
+      current_setting('test.priv_bob_inflow')::uuid, 'Annual Leave', 800_00),
+    (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_payslip')::uuid,
+      current_setting('test.priv_on_call')::uuid, 'On-call', 495_50),
+    (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_payslip')::uuid,
+      null, 'Overpayment correction', -50_00);
+
+do $$ begin
+  assert (select count(*) from public.payslip_line
+    where source_inflow_id = current_setting('test.priv_bob_inflow')::uuid) = 2,
+    'many lines should be able to draw on the same inflow';
+  assert (select sum(amount_cents) from public.payslip_line
+    where payslip_id = current_setting('test.priv_bob_payslip')::uuid) = 4_445_50,
+    'a slip''s lines should sum with the negative correction included';
+  assert (select count(*) from public.payslip_line where source_inflow_id is null) = 1,
+    'a line need not draw on any inflow';
+end $$;
+
+-- Symmetry: Bob reads and edits the lines Alice entered on his slip.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+update public.payslip_line set amount_cents = 500_00 where label = 'On-call';
+do $$ begin
+  assert (select count(*) from public.payslip_line) = 4,
+    'Bob should see every line on his own slip';
+  assert (select amount_cents from public.payslip_line where label = 'On-call') = 500_00,
+    'Bob should be able to edit a line his co-member entered';
+end $$;
+
+-- A member of another household sees none of them, cannot write one, and their
+-- update and delete match no rows.
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@example.com"}', true);
+do $$
+declare v_count int;
+begin
+  assert (select count(*) from public.payslip_line) = 0,
+    'an outside household must not see the privacy household''s payslip lines';
+
+  update public.payslip_line set amount_cents = 1 where label = 'On-call';
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'an outside household''s update must match no payslip line';
+
+  delete from public.payslip_line where label = 'On-call';
+  get diagnostics v_count = row_count;
+  assert v_count = 0, 'an outside household''s delete must match no payslip line';
+end $$;
+
+do $$ begin
+  insert into public.payslip_line (household_id, payslip_id, label, amount_cents)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_payslip')::uuid,
+      'Sneaky', 1_00);
+  raise exception 'FAIL: an outside household inserted a payslip line';
+exception when insufficient_privilege then
+  raise notice 'PASS: an outside household blocked from inserting a payslip line';
+end $$;
+
+-- The composite foreign keys keep both references inside the household.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$
+declare v_hid uuid := current_setting('test.priv_hid')::uuid;
+begin
+  begin
+    insert into public.payslip_line (household_id, payslip_id, label, amount_cents)
+      values (v_hid, gen_random_uuid(), 'Orphan', 1_00);
+    raise exception 'FAIL: a payslip line hung off no payslip in the household';
+  exception when foreign_key_violation then
+    raise notice 'PASS: payslip_id must name a payslip in the same household';
+  end;
+
+  begin
+    insert into public.payslip_line (household_id, payslip_id, source_inflow_id, label, amount_cents)
+      values (v_hid, current_setting('test.priv_bob_payslip')::uuid, gen_random_uuid(), 'Orphan', 1_00);
+    raise exception 'FAIL: a payslip line drew on no inflow in the household';
+  exception when foreign_key_violation then
+    raise notice 'PASS: source_inflow_id must name an inflow in the same household';
+  end;
+end $$;
+
+-- Retiring the allowance clears the link and keeps the line's amount.
+savepoint payslip_line_inflow_delete;
+delete from public.inflows where id = current_setting('test.priv_on_call')::uuid;
+do $$ begin
+  assert (select amount_cents from public.payslip_line where label = 'On-call') = 500_00,
+    'deleting the inflow a line draws on must keep the line';
+  assert (select source_inflow_id from public.payslip_line where label = 'On-call') is null,
+    'deleting the inflow a line draws on should null source_inflow_id';
+end $$;
+rollback to savepoint payslip_line_inflow_delete;
+
+-- Deleting the slip takes its lines with it, as does deleting the member.
+savepoint payslip_line_cascade;
+delete from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid;
+do $$ begin
+  assert (select count(*) from public.payslip_line) = 0,
+    'deleting a payslip should cascade its earnings lines away';
+end $$;
+rollback to savepoint payslip_line_cascade;
+
+savepoint payslip_line_member_cascade;
+reset role;
+delete from public.members where id = current_setting('test.priv_bob_mid')::uuid;
+do $$ begin
+  assert (select count(*) from public.payslip_line) = 0,
+    'deleting a member should cascade their slips'' earnings lines away';
+end $$;
+rollback to savepoint payslip_line_member_cascade;
+set local role authenticated;
+
 rollback;

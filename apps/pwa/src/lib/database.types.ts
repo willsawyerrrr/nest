@@ -822,6 +822,7 @@ export type Database = {
       inflows: {
         Row: {
           amount_cents: number | null
+          attracts_super: boolean
           created_at: string
           ends_on: string | null
           hourly_rate_cents: number | null
@@ -839,6 +840,7 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number | null
+          attracts_super?: boolean
           created_at?: string
           ends_on?: string | null
           hourly_rate_cents?: number | null
@@ -856,6 +858,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number | null
+          attracts_super?: boolean
           created_at?: string
           ends_on?: string | null
           hourly_rate_cents?: number | null
@@ -1058,6 +1061,61 @@ export type Database = {
           },
           {
             foreignKeyName: 'payslip_source_inflow_id_household_id_fkey'
+            columns: ['source_inflow_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'inflows'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      payslip_line: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          label: string
+          payslip_id: string
+          source_inflow_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          household_id: string
+          id?: string
+          label: string
+          payslip_id: string
+          source_inflow_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          label?: string
+          payslip_id?: string
+          source_inflow_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payslip_line_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payslip_line_payslip_id_household_id_fkey'
+            columns: ['payslip_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'payslip'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'payslip_line_source_inflow_id_household_id_fkey'
             columns: ['source_inflow_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'inflows'

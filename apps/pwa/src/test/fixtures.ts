@@ -4,6 +4,7 @@ import type { GiftPurchase } from '../hooks/useGifts'
 import type { Goal } from '../hooks/useGoals'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
+import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipRow } from '../hooks/usePayslips'
 import type { Saver } from '../hooks/useSavers'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
@@ -36,6 +37,7 @@ export function makeInflow(overrides: Partial<Inflow> = {}): Inflow {
     member_id: 'm1',
     name: 'Day job',
     taxable: true,
+    attracts_super: true,
     type: 'salary',
     schedule: 'fortnightly',
     interval_count: null,
@@ -71,6 +73,21 @@ export function makePayslip(overrides: Partial<PayslipRow> = {}): PayslipRow {
     source_inflow_id: 'i1',
     file_path: null,
     note: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a payslip earnings line, defaulting to the default slip's salary line. */
+export function makePayslipLine(overrides: Partial<PayslipLineRow> = {}): PayslipLineRow {
+  return {
+    id: 'pl1',
+    household_id: 'h1',
+    payslip_id: 'ps1',
+    source_inflow_id: 'i1',
+    label: 'Ordinary Hours',
+    amount_cents: 5_000_00,
     created_at: '',
     updated_at: '',
     ...overrides,

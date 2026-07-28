@@ -14,6 +14,7 @@ vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
 const input: InflowInput = {
   name: 'Salary',
   taxable: true,
+  attracts_super: true,
   member_id: 'm1',
   type: 'salary',
   schedule: 'fortnightly',

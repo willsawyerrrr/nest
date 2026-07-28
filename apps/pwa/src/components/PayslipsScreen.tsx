@@ -1,12 +1,14 @@
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core'
-import type { PayslipVariance } from '@nest/plan'
+import type { PayslipLineGroupVariance, PayslipVariance } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
+import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
 import { moneyColor } from '../lib/money'
 import {
+  linesForPayslip,
   payslipTotalsFromRows,
   payslipVarianceFor,
   reportedYearToDateFromRows,
@@ -21,6 +23,8 @@ import { PayslipForm } from './PayslipForm'
 interface PayslipsScreenProps {
   members: Member[]
   payslips: PayslipRow[]
+  /** Every earnings line the household has; each slip picks out its own. */
+  lines: PayslipLineRow[]
   inflows: Inflow[]
   financialYear: number
   /** The household tax estimate the withholding and super expectations are read from. */
@@ -97,6 +101,78 @@ function FigureCell({
   )
 }
 
+/**
+ * One inflow's share of an itemised slip: the lines drawing on it named and
+ * summed, against what that projection expected for the period. A group mapped to
+ * no inflow — or to one since retired — has nothing to compare, which
+ * {@link VarianceNote} says rather than showing a zero.
+ */
+function LineGroupRow({
+  group,
+  inflowName,
+}: {
+  group: PayslipLineGroupVariance
+  inflowName?: string | undefined
+}) {
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="xs">
+      <Stack gap={0} style={{ minWidth: 0 }}>
+        <Text size="xs" fw={500}>
+          {inflowName ?? 'Not mapped to an inflow'}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {group.labels.join(', ')}
+        </Text>
+      </Stack>
+      <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+        <MoneyText cents={group.actualCents} size="xs" fw={600} />
+        <VarianceNote varianceCents={group.varianceCents} />
+      </Group>
+    </Group>
+  )
+}
+
+/**
+ * An itemised slip broken down by the inflow each earning draws on, so a steady
+ * salary's nil variance and a lumpy allowance's are read apart rather than summed
+ * into one gross figure. Gross the lines do not account for is called out: it is
+ * real earnings nobody has attributed, and it lands in the gross variance above.
+ */
+function LineGroups({
+  groups,
+  unallocatedCents,
+  inflowNames,
+}: {
+  groups: readonly PayslipLineGroupVariance[]
+  unallocatedCents: number
+  inflowNames: ReadonlyMap<string, string>
+}) {
+  return (
+    <Stack gap={2}>
+      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+        Earnings lines
+      </Text>
+      {groups.map((group) => (
+        <LineGroupRow
+          key={group.sourceInflowId ?? 'unmapped'}
+          group={group}
+          {...(group.sourceInflowId !== null && {
+            inflowName: inflowNames.get(group.sourceInflowId),
+          })}
+        />
+      ))}
+      {unallocatedCents !== 0 && (
+        <Text size="xs" c="dimmed">
+          <MoneyText span cents={Math.abs(unallocatedCents)} />{' '}
+          {unallocatedCents > 0
+            ? 'of the gross is not itemised.'
+            : 'more than the gross is itemised.'}
+        </Text>
+      )}
+    </Stack>
+  )
+}
+
 /** A link opening a payslip's stored document, which is fetched through a signed URL. */
 function DocumentLink({ path, onView }: { path: string; onView: (path: string) => void }) {
   return (
@@ -117,6 +193,8 @@ interface PayslipCardProps {
   variance: PayslipVariance
   /** The reconciled inflow's name, or undefined when the slip maps to none. */
   inflowName: string | undefined
+  /** Every inflow's name keyed by id, for naming each earnings-line group. */
+  inflowNames: ReadonlyMap<string, string>
   onEdit: () => void
   onDelete: () => void
   onViewDocument: (path: string) => void
@@ -124,17 +202,19 @@ interface PayslipCardProps {
 
 /**
  * One payslip: its pay period and the inflow it reconciles against, the gross /
- * withheld / super / net quartet each with its variance against the plan, and its
- * note and stored document. The figure grid reflows from two columns on a phone to
- * four from the `xs` breakpoint up — a payslip carries four figures and three
- * variances, more than a single dense row can hold. A period that is not one whole
- * turn of the inflow's cadence says so, since its expectations are apportioned by
- * calendar days and carry a proration remainder an on-cadence period does not.
+ * withheld / super / net quartet each with its variance against the plan, the
+ * per-inflow breakdown where the slip is itemised, and its note and stored
+ * document. The figure grid reflows from two columns on a phone to four from the
+ * `xs` breakpoint up — a payslip carries four figures and three variances, more
+ * than a single dense row can hold. A period that is not one whole turn of the
+ * inflow's cadence says so, since its expectations are apportioned by calendar
+ * days and carry a proration remainder an on-cadence period does not.
  */
 function PayslipCard({
   payslip,
   variance,
   inflowName,
+  inflowNames,
   onEdit,
   onDelete,
   onViewDocument,
@@ -183,6 +263,14 @@ function PayslipCard({
           />
           <FigureCell label="Net" cents={payslip.net_cents} />
         </SimpleGrid>
+
+        {variance.lineGroups.length > 0 && (
+          <LineGroups
+            groups={variance.lineGroups}
+            unallocatedCents={variance.unallocatedCents}
+            inflowNames={inflowNames}
+          />
+        )}
 
         {inflowName !== undefined && variance.basis === 'calendar_days' && (
           <Text size="xs" c="dimmed">
@@ -259,6 +347,7 @@ function MemberTotals({ payslips }: { payslips: readonly PayslipRow[] }) {
 function MemberPayslips({
   member,
   payslips,
+  lines,
   inflows,
   estimate,
   config,
@@ -270,6 +359,7 @@ function MemberPayslips({
 }: {
   member: Member
   payslips: PayslipRow[]
+  lines: PayslipLineRow[]
   inflows: Inflow[]
   estimate: HouseholdTaxEstimate
   config: TaxYearConfig
@@ -280,6 +370,7 @@ function MemberPayslips({
   signedUrl: (path: string) => Promise<string | null>
 }) {
   const memberEstimate = estimate.members.find((each) => each.memberId === member.id)
+  const inflowNames = new Map(inflows.map((inflow) => [inflow.id, inflow.name]))
 
   const viewDocument = async (path: string) => {
     const url = await signedUrl(path)
@@ -315,8 +406,9 @@ function MemberPayslips({
           return (
             <PayslipCard
               payslip={payslip}
-              variance={payslipVarianceFor(payslip, inflow, memberEstimate, config)}
+              variance={payslipVarianceFor(payslip, lines, inflows, memberEstimate, config)}
               inflowName={inflow?.name}
+              inflowNames={inflowNames}
               onEdit={onEdit}
               onDelete={onDeleteItem}
               onViewDocument={(path) => void viewDocument(path)}
@@ -327,6 +419,7 @@ function MemberPayslips({
           <PayslipForm
             member={member}
             inflows={inflows}
+            initialLines={initial === undefined ? [] : linesForPayslip(lines, initial.id)}
             attachments={attachments}
             initial={initial}
             onSubmit={onSubmit}
@@ -346,6 +439,7 @@ function MemberPayslips({
 export function PayslipsScreen({
   members,
   payslips,
+  lines,
   inflows,
   financialYear,
   estimate,
@@ -366,6 +460,7 @@ export function PayslipsScreen({
           key={member.id}
           member={member}
           payslips={payslips.filter((payslip) => payslip.member_id === member.id)}
+          lines={lines}
           inflows={inflows}
           estimate={estimate}
           config={config}

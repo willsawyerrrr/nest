@@ -4,6 +4,7 @@ import { useDeductions } from '../hooks/useDeductions'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
+import { usePayslipLines } from '../hooks/usePayslipLines'
 import { usePayslips } from '../hooks/usePayslips'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -13,6 +14,7 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
   const payslips = usePayslips(householdId)
+  const payslipLines = usePayslipLines(householdId)
   const taxProfiles = useTaxProfiles(householdId)
   const contributions = useSuperContributions(householdId)
   const helpDebts = useHelpDebts(householdId)
@@ -22,6 +24,7 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
     membersLoading ||
     inflows.loading ||
     payslips.loading ||
+    payslipLines.loading ||
     taxProfiles.loading ||
     contributions.loading ||
     helpDebts.loading ||
@@ -47,13 +50,22 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
     <PayslipsScreen
       members={members}
       payslips={payslips.payslips ?? []}
+      lines={payslipLines.lines ?? []}
       inflows={inflows.inflows ?? []}
       financialYear={payslips.financialYear}
       estimate={estimate}
       config={config}
       attachments={payslips.attachments}
-      onCreate={({ input, attachment }) => payslips.create(input, attachment)}
-      onUpdate={(id, { input, attachment }) => payslips.update(id, input, attachment)}
+      // The slip is written first: its lines hang off it, so they are replaced
+      // against the id the save lands under.
+      onCreate={async ({ input, lines, attachment }) => {
+        const id = await payslips.create(input, attachment)
+        await payslipLines.replace(id, lines)
+      }}
+      onUpdate={async (id, { input, lines, attachment }) => {
+        await payslips.update(id, input, attachment)
+        await payslipLines.replace(id, lines)
+      }}
       onDelete={payslips.remove}
       signedUrl={payslips.signedUrl}
     />

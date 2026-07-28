@@ -146,6 +146,7 @@ describe('NetWorthSection', () => {
           member_id: 'm1',
           name: 'Salary',
           taxable: true,
+          attracts_super: true,
           type: 'salary',
           schedule: 'annual',
           interval_count: null,

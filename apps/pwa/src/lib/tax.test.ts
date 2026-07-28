@@ -28,6 +28,7 @@ const baseInflow: Inflow = {
   member_id: 'm1',
   name: 'On-call',
   taxable: true,
+  attracts_super: true,
   type: 'salary',
   schedule: 'every_n_weeks',
   interval_count: 4,
@@ -585,6 +586,29 @@ describe('netAnnualSuperContributionFromRows', () => {
       netAnnualSuperContributionByMember([], new Map([['m1', 100_000_00]]), FY2027_CONFIG).get(
         'm1',
       ),
+    )
+  })
+
+  it('leaves an allowance that earns no super out of the employer SG base', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 100_000_00,
+    }
+    // Taxed in full, but no super guarantee accrues on it, so the SG base stays
+    // the $100k salary rather than rising to $113,000.
+    const onCall: Inflow = {
+      ...baseInflow,
+      id: 'i2',
+      name: 'On-call (T1)',
+      attracts_super: false,
+      schedule: 'fortnightly',
+      interval_count: null,
+      amount_cents: 500_00,
+    }
+    expect(netAnnualSuperContributionFromRows([salary, onCall], []).get('m1')).toBe(
+      Math.round(0.12 * 100_000_00 * 0.85),
     )
   })
 })

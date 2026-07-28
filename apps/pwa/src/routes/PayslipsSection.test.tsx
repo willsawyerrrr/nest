@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { PayslipInput, PayslipSubmission } from '../hooks/usePayslips'
-import { makeInflow, makePayslip } from '../test/fixtures'
+import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { PayslipsSection } from './PayslipsSection'
 
@@ -8,6 +8,7 @@ const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
   useInflows: vi.fn(),
   usePayslips: vi.fn(),
+  usePayslipLines: vi.fn(),
   useTaxProfiles: vi.fn(),
   useSuperContributions: vi.fn(),
   useHelpDebts: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock('../components/LoadingScreen', () => ({
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
 vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
+vi.mock('../hooks/usePayslipLines', () => ({ usePayslipLines: hooks.usePayslipLines }))
 vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles }))
 vi.mock('../hooks/useSuperContributions', () => ({
   useSuperContributions: hooks.useSuperContributions,
@@ -36,18 +38,25 @@ vi.mock('../components/PayslipsScreen', () => ({
 
 const submission: PayslipSubmission = {
   input: { member_id: 'm1' } as PayslipInput,
+  lines: [{ source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 }],
   attachment: { payslipId: 'ps1', path: 'h1/ps1/slip.pdf' },
 }
 
 /** Stubs every hook as loaded, returning the payslip hook's own mocks. */
 function stubHooks(payslips = [makePayslip()]) {
-  const create = vi.fn().mockResolvedValue(undefined)
+  const create = vi.fn().mockResolvedValue('new-ps')
   const update = vi.fn().mockResolvedValue(undefined)
   const remove = vi.fn().mockResolvedValue(undefined)
   const signedUrl = vi.fn()
   const attachments = { upload: vi.fn(), discard: vi.fn(), read: vi.fn() }
+  const replaceLines = vi.fn().mockResolvedValue(undefined)
   hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Will' }], loading: false })
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+  hooks.usePayslipLines.mockReturnValue({
+    loading: false,
+    lines: [makePayslipLine()],
+    replace: replaceLines,
+  })
   hooks.usePayslips.mockReturnValue({
     loading: false,
     payslips,
@@ -62,7 +71,7 @@ function stubHooks(payslips = [makePayslip()]) {
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
-  return { create, update, remove, signedUrl, attachments }
+  return { create, update, remove, signedUrl, attachments, replaceLines }
 }
 
 describe('PayslipsSection', () => {
@@ -80,6 +89,7 @@ describe('PayslipsSection', () => {
     expect(screen.getByTestId('payslips-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Will' }])
     expect(hooks.screenProps?.payslips).toEqual([makePayslip()])
+    expect(hooks.screenProps?.lines).toEqual([makePayslipLine()])
     expect(hooks.screenProps?.financialYear).toBe(2027)
     expect(hooks.screenProps?.signedUrl).toBe(signedUrl)
     expect(hooks.screenProps?.attachments).toBe(attachments)
@@ -88,8 +98,8 @@ describe('PayslipsSection', () => {
     expect(hooks.screenProps?.config).toMatchObject({ super: expect.any(Object) })
   })
 
-  it('saves and removes through the payslip hook, attachment included', async () => {
-    const { create, update, remove } = stubHooks()
+  it('saves and removes through the payslip hook, attachment and lines included', async () => {
+    const { create, update, remove, replaceLines } = stubHooks()
     render(<PayslipsSection householdId="h1" />)
 
     const onCreate = hooks.screenProps?.onCreate as (s: PayslipSubmission) => Promise<void>
@@ -102,6 +112,9 @@ describe('PayslipsSection', () => {
 
     expect(create).toHaveBeenCalledWith(submission.input, submission.attachment)
     expect(update).toHaveBeenCalledWith('ps1', submission.input, submission.attachment)
+    // The slip is written first, so its lines are replaced against the id it landed under.
+    expect(replaceLines).toHaveBeenCalledWith('new-ps', submission.lines)
+    expect(replaceLines).toHaveBeenCalledWith('ps1', submission.lines)
     expect(hooks.screenProps?.onDelete).toBe(remove)
   })
 })

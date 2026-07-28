@@ -9,6 +9,7 @@ import {
 } from '../lib/payslipExtraction'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
+import type { PayslipLineInput } from './usePayslipLines'
 
 export type PayslipRow = Tables<'payslip'>
 
@@ -49,11 +50,14 @@ export interface PayslipAttachment {
 }
 
 /**
- * What a payslip form saves: the row's fields and the document uploaded for it,
- * if any. A null `attachment` leaves any existing attachment as it is.
+ * What a payslip form saves: the row's fields, the slip's earnings lines, and the
+ * document uploaded for it, if any. A null `attachment` leaves any existing
+ * attachment as it is; `lines` is the slip's whole set, an empty list leaving it
+ * unitemised.
  */
 export interface PayslipSubmission {
   input: PayslipInput
+  lines: readonly PayslipLineInput[]
   attachment: PayslipAttachment | null
 }
 
@@ -90,8 +94,11 @@ export interface UsePayslipsResult {
   financialYear: number
   loading: boolean
   reload: () => Promise<void>
-  /** Records a payslip under the id its uploaded document is filed against. */
-  create: (input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
+  /**
+   * Records a payslip under the id its uploaded document is filed against, and
+   * returns that id so the slip's earnings lines can be written against it.
+   */
+  create: (input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<string>
   /**
    * Rewrites a payslip. A new `attachment` replaces the document — recorded
    * first, and only then is the superseded object dropped, best effort, so a
@@ -197,6 +204,7 @@ export function usePayslips(
       // it before the row exists, and here when no document was attached at all.
       const id = attachment?.payslipId ?? crypto.randomUUID()
       await create({ ...input, id, file_path: attachment?.path ?? null })
+      return id
     },
     [create],
   )

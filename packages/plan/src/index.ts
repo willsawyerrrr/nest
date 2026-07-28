@@ -75,6 +75,8 @@ export type {
   PayPeriod,
   PayslipActuals,
   PayslipExpectation,
+  PayslipLine,
+  PayslipLineGroupVariance,
   PayslipTotals,
   PayslipTotalsRow,
   PayslipVariance,

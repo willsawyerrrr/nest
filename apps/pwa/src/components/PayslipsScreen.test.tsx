@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
 import { estimateHouseholdTaxFromRows } from '../lib/tax'
-import { makeInflow, makeMember, makePayslip } from '../test/fixtures'
+import { makeInflow, makeMember, makePayslip, makePayslipLine } from '../test/fixtures'
 import { render, screen, waitFor, within } from '../test/render'
 import { PayslipsScreen } from './PayslipsScreen'
 
@@ -10,6 +10,13 @@ const config = FY2027_CONFIG
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 const sam = makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' })
 const inflow = makeInflow({ id: 'i1', name: 'Day job', amount_cents: 5_000_00 })
+/** An on-call allowance projected at $450 a fortnight, on which no super accrues. */
+const onCall = makeInflow({
+  id: 'i2',
+  name: 'On-call (T1)',
+  amount_cents: 450_00,
+  attracts_super: false,
+})
 const estimate = estimateHouseholdTaxFromRows([inflow], [], [], [], [], config)
 
 /** Employer super exactly on the year's guarantee rate for `grossCents`. */
@@ -21,6 +28,7 @@ function renderScreen(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> =
   const props = {
     members: [will],
     payslips: [makePayslip()],
+    lines: [],
     inflows: [inflow],
     financialYear: 2027,
     estimate,
@@ -34,6 +42,11 @@ function renderScreen(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> =
   }
   render(<PayslipsScreen {...props} />)
   return props
+}
+
+/** One earnings-line group's row, found by the line labels it lists. */
+function lineGroupRow(labels: string) {
+  return screen.getByText(labels).closest('div')!.parentElement as HTMLElement
 }
 
 /** One of a payslip card's figure cells, found by its label. */
@@ -208,6 +221,7 @@ describe('PayslipsScreen', () => {
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith({
         input: expect.objectContaining({ member_id: 'm1', gross_cents: 5_000_00 }),
+        lines: [],
         attachment: null,
       }),
     )
@@ -223,6 +237,7 @@ describe('PayslipsScreen', () => {
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith('ps1', {
         input: expect.objectContaining({ period_end: '2026-07-14' }),
+        lines: [],
         attachment: null,
       }),
     )
@@ -238,6 +253,85 @@ describe('PayslipsScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: /delete/i }))
 
     expect(onDelete).toHaveBeenCalledWith('ps1')
+  })
+
+  it('breaks an itemised slip down by the inflow each earning draws on', () => {
+    // The real Heidi slip: ordinary hours and annual leave both draw on the
+    // salary and land on plan, while the on-call allowance carries the variance.
+    renderScreen({
+      inflows: [inflow, onCall],
+      payslips: [makePayslip({ gross_cents: 5_495_50 })],
+      lines: [
+        makePayslipLine({ id: 'pl1', label: 'Ordinary Hours', amount_cents: 4_000_00 }),
+        makePayslipLine({ id: 'pl2', label: 'Annual Leave', amount_cents: 1_000_00 }),
+        makePayslipLine({
+          id: 'pl3',
+          label: 'On-call',
+          amount_cents: 495_50,
+          source_inflow_id: 'i2',
+        }),
+      ],
+    })
+
+    expect(screen.getByText('Earnings lines')).toBeInTheDocument()
+    // The salary group is on plan; the allowance's $45.50 overrun stands alone.
+    const salary = lineGroupRow('Ordinary Hours, Annual Leave')
+    expect(salary).toHaveTextContent('Day job')
+    expect(salary).toHaveTextContent('$5,000.00')
+    expect(salary).toHaveTextContent('On plan')
+    const allowance = lineGroupRow('On-call')
+    expect(allowance).toHaveTextContent('On-call (T1)')
+    expect(allowance).toHaveTextContent('$45.50 above plan')
+  })
+
+  it('names a group of lines mapped to no inflow as unmapped', () => {
+    renderScreen({
+      payslips: [makePayslip({ gross_cents: 5_495_50 })],
+      lines: [
+        makePayslipLine({ id: 'pl1', amount_cents: 5_000_00 }),
+        makePayslipLine({
+          id: 'pl2',
+          label: 'Bonus',
+          amount_cents: 495_50,
+          source_inflow_id: null,
+        }),
+      ],
+    })
+    expect(screen.getByText('Not mapped to an inflow')).toBeInTheDocument()
+    expect(screen.getAllByText('No projection to compare')).not.toHaveLength(0)
+  })
+
+  it('calls out gross the lines do not account for', () => {
+    renderScreen({
+      payslips: [makePayslip({ gross_cents: 5_495_50 })],
+      lines: [makePayslipLine({ amount_cents: 5_000_00 })],
+    })
+    expect(screen.getByText(/of the gross is not itemised/)).toHaveTextContent('$495.50')
+  })
+
+  it('calls out lines summing past the gross', () => {
+    renderScreen({ lines: [makePayslipLine({ amount_cents: 5_495_50 })] })
+    expect(screen.getByText(/more than the gross is itemised/)).toHaveTextContent('$495.50')
+  })
+
+  it('shows no breakdown for a slip nobody has itemised', () => {
+    renderScreen()
+    expect(screen.queryByText('Earnings lines')).not.toBeInTheDocument()
+  })
+
+  it('opens the edit form on the slip’s own lines', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      lines: [
+        makePayslipLine({ id: 'pl1', label: 'Ordinary Hours', amount_cents: 4_000_00 }),
+        makePayslipLine({ id: 'pl2', payslip_id: 'ps2', label: 'Someone else’s line' }),
+      ],
+    })
+
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+
+    expect(screen.getByLabelText('Line 1 name')).toHaveValue('Ordinary Hours')
+    expect(screen.queryByLabelText('Line 2 name')).not.toBeInTheDocument()
   })
 
   it('keeps each member’s slips under their own heading', () => {

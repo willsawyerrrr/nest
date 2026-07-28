@@ -20,7 +20,9 @@ tagged to them.
 - Surface variance the household can act on:
   - **Gross**: actual per-period gross vs the projected inflow for that member,
     prorated to the pay period. A persistent gap flags a stale inflow (a raise, a
-    changed roster, a bonus).
+    changed roster, a bonus). One payment routinely covers several projections at
+    once — salary plus one or two on-call allowances — so the gross is measured
+    **per inflow** where the slip is itemised into earnings lines.
   - **PAYG withheld**: actual withheld vs the estimate's implied per-period
     withholding. The tax estimate is annual-liability ÷ periods; comparing it to
     what the employer actually withholds is the leading indicator of a refund or a
@@ -93,7 +95,7 @@ manual goal balances before Up savers).
 
 ## Data model
 
-One household-scoped table, mirroring the conventions of `tax_profile` and
+Two household-scoped tables, mirroring the conventions of `tax_profile` and
 `super_contribution` (cents in `bigint`, RLS on household membership, composite FKs
 on `(id, household_id)`). The column list, constraints, and RLS boundary are
 canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
@@ -102,15 +104,60 @@ canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
   date, the gross / PAYG withheld / super / net quartet, the slip's optional
   salary sacrifice and YTD running totals, a `note`, and a `file_path` for the
   attached document.
-- **`source_inflow_id`** records which projected inflow the slip reconciles
-  against — an explicit picker, chosen by the household, nullable because a slip
-  need not map to one (a bonus, back-pay, a one-off). `on delete set null` on the
-  reference keeps the actuals when the inflow is retired.
-- **RLS is household-wide CRUD**, the same boundary as every other per-member tax
-  table. `member_id` is a tax/reporting attribution, not a privacy boundary: the
-  household's money is fully pooled, so each member manages their co-member's
-  slips. A payslip is a sensitive document, and the household — not the
-  individual member — is the trust boundary that protects it.
+- **payslip_line** — one earnings line on that slip, under the label the slip
+  prints, with the projected inflow it draws on. A slip owns many; itemising is
+  optional. `amount_cents` is signed, so a negative adjustment records, and the
+  lines need not sum to the slip's gross.
+- **`source_inflow_id`** on the slip is its **cadence anchor** — an explicit
+  picker, chosen by the household, nullable because a slip need not name one (a
+  bonus, back-pay, a one-off). `on delete set null` on the reference keeps the
+  actuals when the inflow is retired. The same nullable reference on a line
+  records which projection that earning draws on.
+- **RLS is household-wide CRUD** on both, the same boundary as every other
+  per-member tax table. `member_id` is a tax/reporting attribution, not a privacy
+  boundary: the household's money is fully pooled, so each member manages their
+  co-member's slips. A payslip is a sensitive document, and the household — not
+  the individual member — is the trust boundary that protects it.
+
+### Earnings lines and per-inflow variance
+
+One employer pays salary and on-call in a single payment, and the two are
+projected as separate inflows. A slip is therefore itemised the way it is
+printed: **one `payslip_line` per earnings line**, each naming the inflow it
+draws on. Four properties fall out of that shape.
+
+- **Many lines may draw on one inflow.** Ordinary hours and annual leave are two
+  lines of the same salary, so there is no uniqueness on
+  `(payslip_id, source_inflow_id)`. They are summed into one group, and a
+  fortnight that pays $4,000 ordinary plus $1,000 leave against a $130,000 salary
+  reads as exactly on plan.
+- **Variance is measured per group.** Each inflow's lines are summed and held
+  against that inflow's expectation for the period, on the same
+  cadence-or-calendar-days basis a whole slip uses. A lumpy allowance's variance
+  is its own, not smeared across a steady salary's.
+- **Nothing has to add up.** Gross the lines do not account for is
+  **unallocated** and shown as such; it reads as gross above plan, which is what
+  unexplained earnings are. Lines overshooting the gross read as a negative
+  remainder.
+- **A slip with no lines behaves as one figure.** Its whole gross is measured
+  against its cadence anchor, exactly as an unitemised slip always is.
+
+### Super is charged on ordinary time earnings only
+
+The employer super guarantee accrues on **ordinary time earnings**, not on an
+allowance paid on top of ordinary hours. An inflow records that in
+`inflows.attracts_super`, and the expected employer super for a slip is the
+guarantee rate on the slip's gross **less every line drawing on an inflow that
+earns no super**.
+
+The real case: a fortnight paying $5,000 salary and $495.50 on-call shows $600 of
+employer super, which is 12% of the $5,000 — not of the $5,495.50 gross, which
+would be $659.46. Charging the rate on the whole gross would read that slip as
+$59.46 of super below plan every fortnight, for nothing. Formulating the base as
+a subtraction is what keeps an unitemised slip's expectation identical: with no
+lines there is nothing to subtract, so the base stays the gross. The same
+exclusion applies to the annual SG and percent-of-salary bases, so a non-OTE
+allowance never inflates the modelled super balance either.
 
 No new config: payslips are data, not versioned parameters. The **`payslips`**
 Storage bucket is private, its objects keyed `<household_id>/<payslip_id>/<file>`
@@ -125,19 +172,26 @@ tab**:
 - **Entry & list**: a per-member payslips list (candidate home: the Household tab
   next to tax profiles and Up connection, or a dedicated section) showing each
   period's gross / withheld / super / net and its variance against the projection,
-  most recent first, with an "Add payslip" form.
+  most recent first, with an "Add payslip" form. An itemised slip lists its
+  earnings lines grouped by the inflow each draws on, with that group's total and
+  variance, and names any gross the lines do not account for. The form takes the
+  lines inline — a name, an amount, and the inflow it draws on per row — and
+  reports the unallocated remainder as it is typed.
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
-  - *Expected gross for the period* = the member's projected inflow annualised
-    (via the existing `annualGrossCents` / schedule normalisation) then prorated to
-    the payslip's period length. `gross_cents − expected` is the gross variance.
+  - *Expected gross for the period* = each inflow the slip's lines draw on,
+    annualised (via the existing `annualGrossCents` / schedule normalisation) then
+    prorated to the payslip's period length, summed. Per group, that group's sum
+    less its expectation is its variance; over the slip,
+    `gross_cents − expected` is the gross variance. A slip with no lines is
+    measured whole against its cadence anchor.
   - *Expected PAYG withheld for the period* = the member's annual estimated tax
     (from `estimateHouseholdTax`) ÷ periods per year, prorated to the period.
     `tax_withheld_cents − expected` is the withholding variance — the household's
     early read on whether the employer is over- or under-withholding versus the
     modelled liability.
   - *Expected super for the period* = modelled employer SG (`guarantee_rate ×`
-    period gross) plus any period-prorated concessional contribution;
-    `super_cents − expected` is the super variance.
+    the period's gross less its non-OTE lines) plus any period-prorated
+    concessional contribution; `super_cents − expected` is the super variance.
 - **Year-to-date refund/bill**: feed the summed actual `tax_withheld_cents` for the
   FY into the tax engine's `paygWithheldCents`, so the Tax tab's balance shows a
   concrete refund (negative) or amount owing (positive) from real withholding
@@ -153,9 +207,10 @@ the income side, and the two converge on the same year-end position.
 Smallest-useful-first, each stage independently shippable. **All three stages are
 built.**
 
-1. **Manual entry + variance.** The `payslip` table, the per-member entry
-   form and list, the pure variance math, and the Tax-tab withholding/refund
-   readout from summed actual withheld. Delivers the full correlation value.
+1. **Manual entry + variance.** The `payslip` and `payslip_line` tables, the
+   per-member entry form and list, the pure variance math (whole-slip and
+   per-inflow), and the Tax-tab withholding/refund readout from summed actual
+   withheld. Delivers the full correlation value.
 2. **File attachment.** The private `payslips` Storage bucket,
    membership-scoped Storage RLS, `payslip.file_path`, and upload/download in the
    form and list. The record carries an auditable source document; the figures are
@@ -340,10 +395,14 @@ Operator setup for the key is in
 
 ## Resolved decisions
 
-- **Mapping a slip to a projected inflow.** An explicit `source_inflow_id`
-  picker: the household chooses which inflow a slip reconciles against, rather
-  than auto-matching on amount and cadence. Nullable, so a bonus or back-pay slip
-  that matches no projection still records.
+- **Mapping a slip to a projected inflow.** Explicit pickers: the household
+  chooses which inflow the slip's cadence is read from and which each earnings
+  line draws on, rather than auto-matching on amount and cadence. Nullable
+  throughout, so a bonus or back-pay slip — or a line — that matches no
+  projection still records.
+- **Per-period totals, not shifts.** A line is one earnings line as the slip
+  prints it. There is no shift or roster entity: the app models what the payment
+  says, not the work behind it.
 - **One employer per member.** A member has a single slip stream, so there is no
   per-employer grouping. A mid-year job change is modelled the way a pay rise
   already is — the old inflow ends, a new dated one starts — and each slip points
@@ -352,10 +411,10 @@ Operator setup for the key is in
   `member_id` is a tax/reporting tag; the household is the trust boundary that
   protects the documents.
 - **Fields.** The gross / withheld / super / net quartet, plus salary sacrifice
-  and the slip's YTD running totals. Itemised deductions/allowances and leave
-  balances are out — they add entry effort and drive no variance the quartet does
-  not. YTD figures are stored rather than recomputed, so one recent slip anchors
-  the whole year.
+  and the slip's YTD running totals, and the slip's earnings lines. Post-tax
+  deductions and leave balances are out — they add entry effort and drive no
+  variance the quartet does not. YTD figures are stored rather than recomputed,
+  so one recent slip anchors the whole year.
 - **Extraction.** Built as stage 3 — the `payslip-extract` edge function reads an
   uploaded slip so the form opens pre-filled. It earns its API key by removing the
   only manual cost left, and it stays safe by writing nothing: the member confirms

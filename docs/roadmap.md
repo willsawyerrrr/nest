@@ -449,8 +449,8 @@ against the projected inflow and the tax estimate. Design and staging in
       actuals. One employer per member — no per-employer stream handling.
 - [x] File attachment: the private `payslips` Storage bucket keyed
       `<household_id>/<payslip_id>/<file>`, household-scoped Storage RLS, and
-      `payslip.file_path`. The figures are always typed; the file is an auditable
-      record, not a data source.
+      `payslip.file_path`. The figures are always the member's own; the file is an
+      auditable record, not a data source.
 - [x] Variance and readout: per-period actual vs expected gross, withholding, and
       super, and the FY's summed actual withheld feeding the tax engine's
       `paygWithheldCents` so the estimate's balance is a concrete refund or bill.
@@ -462,6 +462,13 @@ against the projected inflow and the tax estimate. Design and staging in
       the slip and are converted to integer cents in TypeScript, so no model
       arithmetic touches a tax figure, and an unset key answers
       `{ configured: false }` so manual entry still works.
+- [x] Extraction in the form: picking a document stores it under a freshly minted
+      payslip id and reads it, filling the fields the member has not typed and
+      showing back the literal text read for each, what the slip omits, and what
+      could not be converted safely. Every failure — unconfigured, not a payslip,
+      too large, unsupported type, rate limited, model error or timeout — reads as
+      its own inline note and falls back to manual entry without blocking the save,
+      and an upload the member clears, replaces, or abandons is deleted again.
 
 ## Later
 

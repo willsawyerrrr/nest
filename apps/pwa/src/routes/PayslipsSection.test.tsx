@@ -36,7 +36,7 @@ vi.mock('../components/PayslipsScreen', () => ({
 
 const submission: PayslipSubmission = {
   input: { member_id: 'm1' } as PayslipInput,
-  file: new File(['x'], 'slip.pdf'),
+  attachment: { payslipId: 'ps1', path: 'h1/ps1/slip.pdf' },
 }
 
 /** Stubs every hook as loaded, returning the payslip hook's own mocks. */
@@ -45,6 +45,7 @@ function stubHooks(payslips = [makePayslip()]) {
   const update = vi.fn().mockResolvedValue(undefined)
   const remove = vi.fn().mockResolvedValue(undefined)
   const signedUrl = vi.fn()
+  const attachments = { upload: vi.fn(), discard: vi.fn(), read: vi.fn() }
   hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Will' }], loading: false })
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
   hooks.usePayslips.mockReturnValue({
@@ -55,12 +56,13 @@ function stubHooks(payslips = [makePayslip()]) {
     update,
     remove,
     signedUrl,
+    attachments,
   })
   hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [] })
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
-  return { create, update, remove, signedUrl }
+  return { create, update, remove, signedUrl, attachments }
 }
 
 describe('PayslipsSection', () => {
@@ -72,7 +74,7 @@ describe('PayslipsSection', () => {
   })
 
   it('renders the screen with the members, payslips, inflows, and estimate', () => {
-    const { signedUrl } = stubHooks()
+    const { signedUrl, attachments } = stubHooks()
     render(<PayslipsSection householdId="h1" />)
 
     expect(screen.getByTestId('payslips-screen')).toBeInTheDocument()
@@ -80,6 +82,7 @@ describe('PayslipsSection', () => {
     expect(hooks.screenProps?.payslips).toEqual([makePayslip()])
     expect(hooks.screenProps?.financialYear).toBe(2027)
     expect(hooks.screenProps?.signedUrl).toBe(signedUrl)
+    expect(hooks.screenProps?.attachments).toBe(attachments)
     // The estimate the per-period expectations are prorated from.
     expect(hooks.screenProps?.estimate).toMatchObject({ annualGrossCents: expect.any(Number) })
     expect(hooks.screenProps?.config).toMatchObject({ super: expect.any(Object) })
@@ -97,8 +100,8 @@ describe('PayslipsSection', () => {
     await onCreate(submission)
     await onUpdate('ps1', submission)
 
-    expect(create).toHaveBeenCalledWith(submission.input, submission.file)
-    expect(update).toHaveBeenCalledWith('ps1', submission.input, submission.file)
+    expect(create).toHaveBeenCalledWith(submission.input, submission.attachment)
+    expect(update).toHaveBeenCalledWith('ps1', submission.input, submission.attachment)
     expect(hooks.screenProps?.onDelete).toBe(remove)
   })
 })

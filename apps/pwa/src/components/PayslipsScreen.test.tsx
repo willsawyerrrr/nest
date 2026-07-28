@@ -29,6 +29,7 @@ function renderScreen(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> =
     onUpdate: vi.fn().mockResolvedValue(undefined),
     onDelete: vi.fn().mockResolvedValue(undefined),
     signedUrl: vi.fn().mockResolvedValue('https://signed/url'),
+    attachments: { upload: vi.fn(), discard: vi.fn(), read: vi.fn() },
     ...overrides,
   }
   render(<PayslipsScreen {...props} />)
@@ -207,7 +208,7 @@ describe('PayslipsScreen', () => {
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith({
         input: expect.objectContaining({ member_id: 'm1', gross_cents: 5_000_00 }),
-        file: null,
+        attachment: null,
       }),
     )
   })
@@ -222,7 +223,7 @@ describe('PayslipsScreen', () => {
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith('ps1', {
         input: expect.objectContaining({ period_end: '2026-07-14' }),
-        file: null,
+        attachment: null,
       }),
     )
   })

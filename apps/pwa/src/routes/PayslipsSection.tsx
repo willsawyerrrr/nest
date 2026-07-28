@@ -51,8 +51,9 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
       financialYear={payslips.financialYear}
       estimate={estimate}
       config={config}
-      onCreate={({ input, file }) => payslips.create(input, file)}
-      onUpdate={(id, { input, file }) => payslips.update(id, input, file)}
+      attachments={payslips.attachments}
+      onCreate={({ input, attachment }) => payslips.create(input, attachment)}
+      onUpdate={(id, { input, attachment }) => payslips.update(id, input, attachment)}
       onDelete={payslips.remove}
       signedUrl={payslips.signedUrl}
     />

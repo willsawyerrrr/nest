@@ -1,6 +1,12 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { financialYearForDate } from '@nest/tax'
 import type { Tables } from '../lib/database.types'
+import {
+  EXTRACTION_FAILED_MESSAGE,
+  readExtraction,
+  readExtractionFailure,
+  type ExtractionOutcome,
+} from '../lib/payslipExtraction'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
 
@@ -9,8 +15,8 @@ export type PayslipRow = Tables<'payslip'>
 /**
  * The payslip fields a form supplies for a member; the household is set by the
  * hook and `financial_year` is derived from the pay period by the form. The
- * attached document is passed alongside as a `File` — the hook uploads it and
- * records the resulting object key in `file_path`.
+ * attached document is uploaded before the row is written, and its object key is
+ * recorded in `file_path`.
  */
 export interface PayslipInput {
   member_id: string
@@ -31,12 +37,43 @@ export interface PayslipInput {
 }
 
 /**
- * What a payslip form saves: the row's fields and the document newly attached to
- * it, if any. A null `file` leaves any existing attachment as it is.
+ * A payslip document already in the bucket: the payslip id it is filed under and
+ * the object key it landed at. The id travels with the path because the upload
+ * happens before the row exists — the document is what extraction reads, so it
+ * has to be stored first — and the row must then be written under that same id
+ * for the path to sit inside its own prefix.
+ */
+export interface PayslipAttachment {
+  payslipId: string
+  path: string
+}
+
+/**
+ * What a payslip form saves: the row's fields and the document uploaded for it,
+ * if any. A null `attachment` leaves any existing attachment as it is.
  */
 export interface PayslipSubmission {
   input: PayslipInput
-  file: File | null
+  attachment: PayslipAttachment | null
+}
+
+/**
+ * The document side of a payslip, which runs ahead of the row: the member picks
+ * a slip, it is uploaded, and only then can it be read. Extraction takes an
+ * object path, and the file is the auditable record whether or not the read
+ * succeeds, so the upload is never deferred to the save.
+ */
+export interface PayslipAttachments {
+  /** Uploads a chosen slip under `payslipId` and returns where it landed. */
+  upload: (payslipId: string, file: File) => Promise<PayslipAttachment>
+  /**
+   * Deletes an uploaded object no payslip references — one the member cleared,
+   * replaced, or walked away from. Best effort: a failure leaves an unreferenced
+   * object behind, which is not worth failing the form over.
+   */
+  discard: (path: string) => Promise<void>
+  /** Reads an uploaded slip through `payslip-extract` so the form can pre-fill. */
+  read: (path: string) => Promise<ExtractionOutcome>
 }
 
 /** The written row: the form's fields plus the id and object key the hook sets. */
@@ -53,18 +90,21 @@ export interface UsePayslipsResult {
   financialYear: number
   loading: boolean
   reload: () => Promise<void>
-  /** Records a payslip, first uploading `file` as its attachment when one is given. */
-  create: (input: PayslipInput, file?: File | null) => Promise<void>
+  /** Records a payslip under the id its uploaded document is filed against. */
+  create: (input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
   /**
-   * Rewrites a payslip. A new `file` replaces the attachment — uploaded, recorded,
-   * and only then is the superseded object removed; without one the existing
-   * attachment stands.
+   * Rewrites a payslip. A new `attachment` replaces the document — recorded
+   * first, and only then is the superseded object dropped, best effort, so a
+   * delete that fails cannot reject a save already written; without one the
+   * existing attachment stands.
    */
-  update: (id: string, input: PayslipInput, file?: File | null) => Promise<void>
+  update: (id: string, input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
   /** Removes a payslip and its stored attachment. */
   remove: (id: string) => Promise<void>
   /** A short-lived signed URL for viewing a stored attachment, or null on failure. */
   signedUrl: (path: string) => Promise<string | null>
+  /** Uploading, discarding, and reading the document a form attaches. */
+  attachments: PayslipAttachments
 }
 
 /**
@@ -90,13 +130,13 @@ export function usePayslips(
   })
 
   const uploadFile = useCallback(
-    async (payslipId: string, file: File) => {
+    async (payslipId: string, file: File): Promise<PayslipAttachment> => {
       const path = `${householdId}/${payslipId}/${crypto.randomUUID()}-${file.name}`
       const { error } = await supabase.storage.from(PAYSLIPS_BUCKET).upload(path, file)
       if (error) {
         throw error
       }
-      return path
+      return { payslipId, path }
     },
     [householdId],
   )
@@ -111,33 +151,73 @@ export function usePayslips(
     }
   }, [])
 
+  const discardFile = useCallback(
+    async (path: string) => {
+      try {
+        await removeFile(path)
+      } catch {
+        // An object nobody references is litter, not a failure the member can
+        // act on, so cleaning up never surfaces as a form error.
+      }
+    },
+    [removeFile],
+  )
+
+  const readUploaded = useCallback(async (path: string): Promise<ExtractionOutcome> => {
+    const { data, error, response } = await supabase.functions.invoke<unknown>('payslip-extract', {
+      body: { path },
+    })
+    if (error) {
+      // A non-2xx carries the function's own specific message as JSON; a
+      // transport failure carries no response at all.
+      const body = response ? await response.json().catch(() => null) : null
+      return readExtractionFailure(body)
+    }
+    // A 2xx body is read rather than trusted, so a reply the form cannot render
+    // reads as a plain failure instead of throwing partway through the note.
+    const extraction = readExtraction(data)
+    return extraction === null
+      ? { status: 'failed', message: EXTRACTION_FAILED_MESSAGE }
+      : { status: 'read', extraction }
+  }, [])
+
+  const attachments = useMemo<PayslipAttachments>(
+    () => ({ upload: uploadFile, discard: discardFile, read: readUploaded }),
+    [uploadFile, discardFile, readUploaded],
+  )
+
   const storedPath = useCallback(
     (id: string) => rows?.find((row) => row.id === id)?.file_path ?? null,
     [rows],
   )
 
   const createPayslip = useCallback(
-    async (input: PayslipInput, file?: File | null) => {
-      // The id is minted here rather than by the database default so the
-      // attachment can be filed under it before the row exists.
-      const id = crypto.randomUUID()
-      const filePath = file ? await uploadFile(id, file) : null
-      await create({ ...input, id, file_path: filePath })
+    async (input: PayslipInput, attachment?: PayslipAttachment | null) => {
+      // The id is minted with the attachment so the document can be filed under
+      // it before the row exists, and here when no document was attached at all.
+      const id = attachment?.payslipId ?? crypto.randomUUID()
+      await create({ ...input, id, file_path: attachment?.path ?? null })
     },
-    [create, uploadFile],
+    [create],
   )
 
   const updatePayslip = useCallback(
-    async (id: string, input: PayslipInput, file?: File | null) => {
-      if (!file) {
+    async (id: string, input: PayslipInput, attachment?: PayslipAttachment | null) => {
+      if (!attachment) {
         await update(id, input)
         return
       }
       const superseded = storedPath(id)
-      await update(id, { ...input, file_path: await uploadFile(id, file) })
-      await removeFile(superseded)
+      await update(id, { ...input, file_path: attachment.path })
+      // The row already points at the new object, so dropping the old one is
+      // tidying, not part of the save: it cannot fail the save that has
+      // happened, and it never touches the path the row now holds — which is
+      // what `superseded` reads as once a save is repeated over its own result.
+      if (superseded !== null && superseded !== attachment.path) {
+        await discardFile(superseded)
+      }
     },
-    [update, uploadFile, removeFile, storedPath],
+    [update, discardFile, storedPath],
   )
 
   const removePayslip = useCallback(
@@ -167,5 +247,6 @@ export function usePayslips(
     update: updatePayslip,
     remove: removePayslip,
     signedUrl,
+    attachments,
   }
 }

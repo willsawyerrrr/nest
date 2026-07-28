@@ -84,8 +84,8 @@ needs human confirmation before it counts. Built as
 function — which only ever pre-fills the same manual form.
 
 The app does **(a) manual entry** with **(b) optional file attachment**: the
-figures are always typed, and the slip may be kept alongside them. **(c)
-extraction** is a convenience that only ever pre-fills the same manual form, never
+figures are always the member's own, and the slip may be kept alongside them.
+**(c) extraction** is a convenience that only ever pre-fills that same form, never
 writing figures unconfirmed — see *Staging*. Manual entry alone delivers the entire
 correlation value; upload and extraction reduce effort but add no new analysis.
 This mirrors how the app favours smallest-useful-first (inflows before ingestion,
@@ -188,8 +188,26 @@ is the auditable record whether or not extraction succeeds — then posts the ob
 path:
 
 ```json
-{ "path": "<household_id>/<…>/payslip.pdf" }
+{ "path": "<household_id>/<payslip_id>/<uuid>-payslip.pdf" }
 ```
+
+Storing precedes reading, so the upload runs when the file is **picked**. The form
+mints the payslip id at that moment and files the object under it (a slip being
+edited already has its id), which puts the object at its final key with nothing to
+move on save — the row is then written under the id its document is already filed
+against. An object stored for a row that is never written would be litter that no
+payslip references, so it is deleted again as soon as the member clears the
+picker, chooses another file, or leaves the form; a successful save is what makes
+it permanent. A save while the store-and-read is still running is blocked for the
+same reason: it would send no attachment, filing the object under an id no row is
+written under.
+
+That cleanup is **best effort**. A delete that fails is swallowed rather than
+surfaced as a form error; closing the tab, refreshing, or killing the PWA runs
+none of it (there is no `beforeunload` handler); and an upload still in flight
+when the form goes is deleted only once it lands. Either way what survives is an
+object in a private bucket that no payslip references — invisible and cheap,
+which is the trade being made against failing a save over housekeeping.
 
 JWT-verified (the default posture): the caller is resolved to their own member and
 household from the Authorization JWT, never the body. The path is the client's, so
@@ -225,6 +243,43 @@ image block (JPEG, PNG, WebP); anything else is rejected before a request is bui
 - `unreadable` — fields whose text came back but could not be converted safely
   (a misread `4,12O.50`, a date that is not a real calendar date). Null, with the
   text kept so the member can correct it.
+
+### Pre-filling the form
+
+`fields` is keyed as the `payslip` columns are, so the entry form maps it on by
+name — ISO dates into the date pickers, integer cents into the dollar inputs.
+Four rules govern what the form does with it:
+
+- **A figure that is already the member's is never replaced.** Two kinds of value
+  count as theirs, and the form pre-fills only what is left.
+  - **One they typed in this form.** Edited-ness, not emptiness, is what the form
+    tracks: it opens with a pay period already defaulted to the fortnight ending
+    today, and a default is the form's guess (overwritable) while a typed value is
+    the member's (not). A field typed *while a read is in flight* counts too — a
+    read takes seconds, and the pre-fill is written field by field over live
+    state rather than over the snapshot it started from.
+  - **One the payslip being edited already holds.** Every non-blank figure on a
+    saved slip was confirmed when it was saved, so attaching a replacement
+    document reads the new slip without rewriting what was filed. Only the gaps —
+    a blank amount, an unset date — are open to it. The text read for a kept
+    field is still shown, so a figure the slip disagrees with can be corrected by
+    hand.
+- **A negative amount does not pre-fill.** Payroll systems print deductions as
+  accounting negatives (`(1,234.56)`, `45.00-`) and the parser reads them, but
+  every `payslip` amount column is checked `>= 0`. Rather than guess the sign, the
+  client treats a negative exactly as an `unreadable` field: nothing is filled in,
+  and the note shows the literal text printed so the member types the figure.
+- **What was read is shown back.** A note under the picker names each field it
+  filled beside the literal text it read for it (`Gross “4,120.50”`), the fields
+  it kept because they were already the member's — with their text too, so a
+  figure the slip disagrees with can be copied across by hand — the fields
+  `missing` from the slip, and the fields it saw but could not convert
+  (`unreadable`) and therefore left blank. Showing the text is the point: a
+  misread is caught here rather than confirmed blind.
+- **Nothing is confirmed by extraction.** Every figure stays editable and the
+  submit is untouched, so the form saves whatever the member leaves in it. The
+  reply is read rather than trusted, too: a body the form cannot render falls back
+  to the same plain failure note as an unreachable function.
 
 ### Money is converted in TypeScript, never by the model
 
@@ -266,6 +321,19 @@ Every failure is specific and none of them is a bug-shaped 500:
 | Upstream rate limit | `429`, so the client can back off |
 | Model API error / unusable output | `502` |
 | Model timeout | `504` |
+
+Each of these lands in the form as an inline note beside the still-editable
+figures, never as a blocked save. Two are singled out by their own flag rather
+than their status, because they read differently: `configured: false` is the
+feature being **off**, so it shows as a plain dimmed line ("Payslip extraction is
+not configured. Enter the figures by hand.") rather than an error the member could
+act on, and `notPayslip` shows the model's own `reason` so the member knows the
+file was wrong rather than the reader. Everything else shows the message the
+function sent, because that message is the specific one — the file's size against
+the limit, the types it takes, how long to back off — with a plain fallback for a
+transport failure that never reached the function at all. The document stays
+attached through any of them: it is the record, and the figures are typed either
+way.
 
 Operator setup for the key is in
 [`operations.md`](operations.md#anthropic_api_key-setup).

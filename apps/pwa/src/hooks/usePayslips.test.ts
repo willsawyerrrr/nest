@@ -4,11 +4,12 @@ import { makePayslip } from '../test/fixtures'
 import { makeWrapper } from '../test/queryWrapper'
 import { usePayslips, type PayslipInput } from './usePayslips'
 
-const { builder, bucket } = await vi.hoisted(async () => {
+const { builder, bucket, invoke } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
   return {
     builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']),
     bucket: { upload: vi.fn(), remove: vi.fn(), createSignedUrl: vi.fn() },
+    invoke: vi.fn(),
   }
 })
 
@@ -16,6 +17,7 @@ vi.mock('../lib/supabase', () => ({
   supabase: {
     from: vi.fn(() => builder),
     storage: { from: vi.fn(() => bucket) },
+    functions: { invoke },
   },
 }))
 
@@ -44,6 +46,18 @@ function slipFile() {
   return new File(['x'], 'slip.pdf', { type: 'application/pdf' })
 }
 
+/** A document already uploaded for a payslip, as a form would hand it over. */
+const attachment = { payslipId: 'ps1', path: 'h1/ps1/uuid-slip.pdf' }
+
+/** A non-2xx reply from `payslip-extract`, as `invoke` reports one. */
+function httpFailure(status: number, body: unknown) {
+  return {
+    data: null,
+    error: new Error(`status ${status}`),
+    response: new Response(JSON.stringify(body), { status }),
+  }
+}
+
 /** Renders the hook and waits for its first load to settle. */
 async function renderPayslips(financialYear?: number) {
   const { result } = renderHook(
@@ -60,6 +74,7 @@ beforeEach(() => {
   bucket.upload.mockResolvedValue({ data: {}, error: null })
   bucket.remove.mockResolvedValue({ data: {}, error: null })
   bucket.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/y' }, error: null })
+  invoke.mockResolvedValue({ data: null, error: null, response: undefined })
 })
 
 describe('usePayslips', () => {
@@ -96,28 +111,52 @@ describe('usePayslips', () => {
     })
   })
 
-  it('uploads the attachment under the household and payslip before inserting', async () => {
+  it('files an uploaded document under the household and payslip', async () => {
     const result = await renderPayslips()
     const file = slipFile()
 
-    await act(async () => {
-      await result.current.create(input, file)
-    })
+    const stored = await result.current.attachments.upload('ps9', file)
 
     const [path, uploaded] = bucket.upload.mock.calls[0]!
-    expect(path).toMatch(/^h1\/[\w-]+\/.*-slip\.pdf$/)
+    expect(path).toBe(stored.path)
+    expect(path).toMatch(/^h1\/ps9\/[\w-]+-slip\.pdf$/)
     expect(uploaded).toBe(file)
-    const inserted = builder.insert.mock.calls[0]![0] as { id: string; file_path: string }
-    expect(inserted.file_path).toBe(path)
-    expect(path).toContain(`h1/${inserted.id}/`)
+    expect(stored.payslipId).toBe('ps9')
   })
 
-  it('records no row when the attachment upload fails', async () => {
+  it('reports an upload failure rather than a path nothing was written to', async () => {
     bucket.upload.mockResolvedValue({ data: null, error: new Error('nope') })
     const result = await renderPayslips()
 
-    await expect(result.current.create(input, slipFile())).rejects.toThrow('nope')
-    expect(builder.insert).not.toHaveBeenCalled()
+    await expect(result.current.attachments.upload('ps9', slipFile())).rejects.toThrow('nope')
+  })
+
+  it('inserts the row under the id its uploaded document is filed against', async () => {
+    const result = await renderPayslips()
+
+    await act(async () => {
+      await result.current.create(input, attachment)
+    })
+
+    expect(bucket.upload).not.toHaveBeenCalled()
+    expect(builder.insert).toHaveBeenCalledWith({
+      ...input,
+      id: 'ps1',
+      file_path: 'h1/ps1/uuid-slip.pdf',
+      household_id: 'h1',
+    })
+  })
+
+  it('deletes an abandoned upload, and shrugs off a delete that fails', async () => {
+    const result = await renderPayslips()
+
+    await result.current.attachments.discard('h1/ps1/uuid-slip.pdf')
+    expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/uuid-slip.pdf'])
+
+    bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
+    await expect(
+      result.current.attachments.discard('h1/ps1/uuid-slip.pdf'),
+    ).resolves.toBeUndefined()
   })
 
   it('rewrites a payslip, leaving an existing attachment alone', async () => {
@@ -137,19 +176,47 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.update('ps1', input, slipFile())
+      await result.current.update('ps1', input, attachment)
     })
 
-    const [path] = bucket.upload.mock.calls[0]!
-    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: path })
+    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
     expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/old-slip.pdf'])
+  })
+
+  it('keeps a save that dropping the superseded document failed after', async () => {
+    // The row already points at the new object, so failing to tidy the old one
+    // must not reject a save that has happened — the form would then treat the
+    // stored document as an orphan and delete the one the row references.
+    bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
+    builder.result = { data: [makePayslip({ file_path: 'h1/ps1/old-slip.pdf' })], error: null }
+    const result = await renderPayslips()
+
+    await act(async () => {
+      await expect(result.current.update('ps1', input, attachment)).resolves.toBeUndefined()
+    })
+
+    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/old-slip.pdf'])
+  })
+
+  it('leaves the document alone when the same save runs a second time', async () => {
+    // A retry reads the path the first save committed as the superseded one.
+    builder.result = { data: [makePayslip({ file_path: attachment.path })], error: null }
+    const result = await renderPayslips()
+
+    await act(async () => {
+      await result.current.update('ps1', input, attachment)
+    })
+
+    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(bucket.remove).not.toHaveBeenCalled()
   })
 
   it('attaches a document to a payslip that had none', async () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.update('ps1', input, slipFile())
+      await result.current.update('ps1', input, attachment)
     })
 
     expect(builder.update).toHaveBeenCalled()
@@ -202,5 +269,143 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     expect(await result.current.signedUrl('h1/ps1/slip.pdf')).toBeNull()
+  })
+})
+
+describe('usePayslips attachment extraction', () => {
+  it('reads an uploaded slip through payslip-extract', async () => {
+    const extraction = {
+      model: 'claude-haiku-4-5-20251001',
+      fields: { gross_cents: 4_120_50 },
+      text: { gross: '4,120.50' },
+      missing: [],
+      unreadable: [],
+    }
+    invoke.mockResolvedValue({ data: extraction, error: null, response: undefined })
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'read',
+      extraction,
+    })
+    expect(invoke).toHaveBeenCalledWith('payslip-extract', {
+      body: { path: 'h1/ps1/slip.pdf' },
+    })
+  })
+
+  it('leaves a negative amount unfilled, reported as one it could not read', async () => {
+    invoke.mockResolvedValue({
+      data: {
+        model: 'claude-haiku-4-5-20251001',
+        fields: { gross_cents: 4_120_50, tax_withheld_cents: -1_048_00 },
+        text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
+        missing: [],
+        unreadable: [],
+      },
+      error: null,
+      response: undefined,
+    })
+    const result = await renderPayslips()
+
+    const outcome = await result.current.attachments.read('h1/ps1/slip.pdf')
+
+    expect(outcome).toEqual({
+      status: 'read',
+      extraction: {
+        model: 'claude-haiku-4-5-20251001',
+        fields: { gross_cents: 4_120_50 },
+        text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
+        missing: [],
+        unreadable: ['tax_withheld_cents'],
+      },
+    })
+  })
+
+  it('reads a 200 body the form could not render as a plain failure', async () => {
+    invoke.mockResolvedValue({ data: { unexpected: true }, error: null, response: undefined })
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'failed',
+      message: 'Could not read this payslip. Enter the figures by hand.',
+    })
+  })
+
+  it('reports an unset API key as the feature being off, not broken', async () => {
+    invoke.mockResolvedValue(
+      httpFailure(503, {
+        error: 'Payslip extraction is not configured. Enter the figures by hand.',
+        configured: false,
+      }),
+    )
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'not-configured',
+      message: 'Payslip extraction is not configured. Enter the figures by hand.',
+    })
+  })
+
+  it('passes on the model’s reason for refusing a file that is not a payslip', async () => {
+    invoke.mockResolvedValue(
+      httpFailure(422, {
+        error: 'That file does not look like a payslip.',
+        notPayslip: true,
+        reason: 'It is a bank statement.',
+      }),
+    )
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'not-payslip',
+      message: 'That file does not look like a payslip.',
+      reason: 'It is a bank statement.',
+    })
+  })
+
+  it('surfaces the function’s own message for a size, type, or model failure', async () => {
+    const result = await renderPayslips()
+
+    for (const [status, error] of [
+      [413, 'That file is too large to read (24.0 MB; the limit is 20.0 MB).'],
+      [415, 'That file type cannot be read. Upload a PDF, JPEG, PNG, or WebP.'],
+      [429, 'Reading payslips is rate limited right now. Try again shortly.'],
+      [502, 'The payslip could not be read. Enter the figures by hand.'],
+      [504, 'Reading the payslip took too long. Try again, or enter it by hand.'],
+    ] as const) {
+      invoke.mockResolvedValue(httpFailure(status, { error }))
+      expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+        status: 'failed',
+        message: error,
+      })
+    }
+  })
+
+  it('falls back to a plain message when the failure carries no readable body', async () => {
+    const result = await renderPayslips()
+
+    invoke.mockResolvedValue({
+      data: null,
+      error: new Error('bad gateway'),
+      response: new Response('<html>502</html>', { status: 502 }),
+    })
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'failed',
+      message: 'Could not read this payslip. Enter the figures by hand.',
+    })
+
+    // A network failure never reaches the function, so it carries no response.
+    invoke.mockResolvedValue({ data: null, error: new Error('offline'), response: undefined })
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'failed',
+      message: 'Could not read this payslip. Enter the figures by hand.',
+    })
+
+    // A 2xx with no body is no extraction either.
+    invoke.mockResolvedValue({ data: null, error: null, response: undefined })
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'failed',
+      message: 'Could not read this payslip. Enter the figures by hand.',
+    })
   })
 })

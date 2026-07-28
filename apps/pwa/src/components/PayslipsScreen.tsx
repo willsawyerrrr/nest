@@ -3,7 +3,7 @@ import type { PayslipVariance } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
-import type { PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
+import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
 import { moneyColor } from '../lib/money'
 import {
@@ -27,6 +27,8 @@ interface PayslipsScreenProps {
   estimate: HouseholdTaxEstimate
   /** The tax + super config for the financial year, supplying the super guarantee rate. */
   config: TaxYearConfig
+  /** Storing, discarding, and reading the document a form attaches. */
+  attachments: PayslipAttachments
   onCreate: (submission: PayslipSubmission) => Promise<void>
   onUpdate: (id: string, submission: PayslipSubmission) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -260,6 +262,7 @@ function MemberPayslips({
   inflows,
   estimate,
   config,
+  attachments,
   onCreate,
   onUpdate,
   onDelete,
@@ -270,6 +273,7 @@ function MemberPayslips({
   inflows: Inflow[]
   estimate: HouseholdTaxEstimate
   config: TaxYearConfig
+  attachments: PayslipAttachments
   onCreate: (submission: PayslipSubmission) => Promise<void>
   onUpdate: (id: string, submission: PayslipSubmission) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -323,6 +327,7 @@ function MemberPayslips({
           <PayslipForm
             member={member}
             inflows={inflows}
+            attachments={attachments}
             initial={initial}
             onSubmit={onSubmit}
             onCancel={onCancel}
@@ -345,6 +350,7 @@ export function PayslipsScreen({
   financialYear,
   estimate,
   config,
+  attachments,
   onCreate,
   onUpdate,
   onDelete,
@@ -363,6 +369,7 @@ export function PayslipsScreen({
           inflows={inflows}
           estimate={estimate}
           config={config}
+          attachments={attachments}
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}

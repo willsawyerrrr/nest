@@ -16,6 +16,16 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
 - **Migrations** auto-deploy to prod via the GitHub → Supabase integration on
   merge to `main`. SQL migrations under `supabase/migrations/` are authoritative
   for the schema.
+  - A migration's version — the 14 digits before the first underscore of its
+    filename — is the primary key Supabase records it under in
+    `supabase_migrations.schema_migrations`, and it must be unique across the
+    directory and sort after every version already applied. `db push` applies
+    the files in version order and skips any version already recorded, silently
+    and without an error, so a duplicate or out-of-order version means a
+    migration merges green and never reaches prod. CI's `check` job asserts
+    uniqueness (`pnpm check:migrations`); ordering is on the author, so date a
+    new migration ahead of every version on `main` and of any that an open
+    branch already claims.
 - **Edge functions** auto-deploy on merge via
   `.github/workflows/deploy-functions.yml`: a push to `main` touching
   `supabase/functions/**` or `supabase/config.toml` runs

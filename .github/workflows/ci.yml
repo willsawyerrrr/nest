@@ -36,6 +36,9 @@ jobs:
             sleep 5
           done
           pnpm --version
+      # Dependency-free and instant, so it runs ahead of the install and fails
+      # the build before anything slower gets a chance to pass.
+      - run: pnpm check:migrations
       - name: Locate pnpm store
         id: pnpm-store
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"

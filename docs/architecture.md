@@ -253,8 +253,9 @@ so overall wall-clock is the slowest single job, not the sum. A push supersedes
 an in-flight run for the same ref (`concurrency` with `cancel-in-progress`), and
 the workflow token is scoped `contents: read`:
 
-- **check** — lint / format / typecheck / build (~49s). Not the binding
-  constraint.
+- **check** — migration-version uniqueness (`scripts/check-migration-versions.js`,
+  ahead of the install so it fails in milliseconds), then lint / format /
+  typecheck / build (~49s). Not the binding constraint.
 - **test** — the Vitest workspace, sharded across six parallel runners with V8
   coverage. A `test-shard` matrix job runs
   `vitest run --shard=N/6 --coverage --reporter=blob` on six runners (each

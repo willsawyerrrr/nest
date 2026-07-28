@@ -56,16 +56,10 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
       estimate={estimate}
       config={config}
       attachments={payslips.attachments}
-      // The slip is written first: its lines hang off it, so they are replaced
-      // against the id the save lands under.
-      onCreate={async ({ input, lines, attachment }) => {
-        const id = await payslips.create(input, attachment)
-        await payslipLines.replace(id, lines)
-      }}
-      onUpdate={async (id, { input, lines, attachment }) => {
-        await payslips.update(id, input, attachment)
-        await payslipLines.replace(id, lines)
-      }}
+      // A slip and its lines go in one transaction, under the id the submission
+      // carries, so adding a slip and editing one take the very same path.
+      onCreate={payslips.save}
+      onUpdate={(_id, submission) => payslips.save(submission)}
       onDelete={payslips.remove}
       signedUrl={payslips.signedUrl}
     />

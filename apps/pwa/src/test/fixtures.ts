@@ -88,6 +88,7 @@ export function makePayslipLine(overrides: Partial<PayslipLineRow> = {}): Paysli
     source_inflow_id: 'i1',
     label: 'Ordinary Hours',
     amount_cents: 5_000_00,
+    attracts_super: true,
     created_at: '',
     updated_at: '',
     ...overrides,

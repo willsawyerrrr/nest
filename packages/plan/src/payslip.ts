@@ -66,6 +66,15 @@ export interface PayslipLine {
   readonly sourceInflowId: string | null
   readonly label: string
   readonly amountCents: Money
+  /**
+   * Whether the line is ordinary time earnings, taken from the inflow it draws
+   * on when the line was written. Absent reads as true, so only a line recorded
+   * as an allowance — on-call, taxed in full but earning no super — is left out
+   * of the super base. The decision is the line's own rather than its inflow's:
+   * a payslip is a historical record, so retiring or reclassifying the inflow
+   * cannot move the super an entered slip is measured against.
+   */
+  readonly attractsSuper?: boolean
 }
 
 /**
@@ -82,9 +91,9 @@ export interface PayslipActuals extends PayPeriod {
   readonly salarySacrificeCents?: Money | null
   /**
    * The slip's earnings lines, where it is itemised. Absent or empty leaves the
-   * slip one undifferentiated gross measured against `PayslipExpectation.inflow`,
-   * and the whole gross earning super. The lines need not sum to `grossCents`;
-   * what is left over is reported as `unallocatedCents`.
+   * slip one undifferentiated gross measured against `PayslipExpectation.inflow`
+   * — and earning super only if that anchor does. The lines need not sum to
+   * `grossCents`; what is left over is reported as `unallocatedCents`.
    */
   readonly lines?: readonly PayslipLine[]
 }
@@ -111,7 +120,9 @@ export interface ReconciledInflow {
    * Whether the inflow is ordinary time earnings, which the employer super
    * guarantee accrues on. Absent reads as true, so only an inflow marked
    * otherwise — an allowance such as on-call, taxed in full but earning no super
-   * — is left out of the super base.
+   * — is left out of the super base. Read as the cadence anchor of a slip with
+   * no lines, whose whole gross is that one projection; an itemised slip reads
+   * each line's own recorded decision instead.
    */
   readonly attractsSuper?: boolean
 }
@@ -132,8 +143,9 @@ export interface PayslipExpectation {
   /**
    * The slip's cadence anchor: the inflow whose schedule the withholding and
    * concessional-super expectations are divided by, and — for a slip carrying no
-   * lines — the one projection its whole gross is measured against. Absent or
-   * null leaves the slip no cadence to read, and no projected gross of its own.
+   * lines — the one projection its whole gross is measured against and the one
+   * that decides whether that gross earns super. Absent or null leaves the slip
+   * no cadence to read, and no projected gross of its own.
    */
   readonly inflow?: ReconciledInflow | null
   /**
@@ -211,8 +223,10 @@ export interface PayslipVariance {
   readonly taxWithheldVarianceCents: Money
   /**
    * The gross the expected super guarantee is charged on: the slip's gross less
-   * every line drawing on an inflow that earns no super. The slip's whole gross
-   * where nothing on it is marked non-OTE.
+   * every line recorded as earning no super, or — for a slip carrying no lines —
+   * the whole gross when its cadence anchor earns none. The slip's whole gross
+   * where nothing on it is non-OTE, and never below nil, since lines overshooting
+   * the gross are a typing mistake rather than negative super.
    */
   readonly superBaseCents: Money
   /** The employer guarantee component of the expected super. */
@@ -487,13 +501,14 @@ function lineGroupVariances(
  *
  * Expected PAYG withheld is the member's annual estimated tax for the period —
  * the withholding the estimate implies. Expected super is the versioned guarantee
- * rate on `superBaseCents` — the slip's actual gross less every line drawing on
- * an inflow that earns no super, so an allowance is left out of the base while
- * the guarantee stays a percentage of what was really earned, keeping the super
- * variance a rate check independent of the gross variance — plus the member's
- * annual concessional contributions for the period, compared against the
- * payslip's employer super plus its salary sacrifice, the matching total
- * concessional figure. Each variance is actual − expected.
+ * rate on `superBaseCents` — the slip's actual gross less every line recorded as
+ * earning no super, or, for a slip with no lines, less the whole gross when its
+ * cadence anchor earns none. An allowance is left out of the base while the
+ * guarantee stays a percentage of what was really earned, keeping the super
+ * variance a rate check independent of the gross variance. Added to it is the
+ * member's annual concessional contributions for the period, and the total is
+ * compared against the payslip's employer super plus its salary sacrifice, the
+ * matching total concessional figure. Each variance is actual − expected.
  *
  * Every per-period figure is rounded to the nearest cent on its own, halves up.
  * The remainder of an annual figure that does not divide evenly by its periods
@@ -530,14 +545,15 @@ export function payslipVariance(
   const itemised = lines.length > 0
   const expectedGrossCents = itemised ? groupedExpectedGrossCents : wholeSlipExpectedGrossCents
   const allocatedCents = lines.reduce((sum, line) => sum + line.amountCents, 0)
-  const nonOteCents = lines.reduce(
-    (sum, line) =>
-      inflowForLine(line.sourceInflowId, expectation.inflowsById)?.attractsSuper === false
-        ? sum + line.amountCents
-        : sum,
-    0,
-  )
-  const superBaseCents = payslip.grossCents - nonOteCents
+  // Itemised, the non-OTE earnings are the lines recorded as such; unitemised,
+  // the whole gross stands or falls with the cadence anchor it is measured
+  // against, so an allowance-only slip expects no guarantee at all.
+  const nonOteCents = itemised
+    ? lines.reduce((sum, line) => (line.attractsSuper === false ? sum + line.amountCents : sum), 0)
+    : inflow?.attractsSuper === false
+      ? payslip.grossCents
+      : 0
+  const superBaseCents = Math.max(0, payslip.grossCents - nonOteCents)
   const expectedTaxWithheldCents = expectedForPeriod(expectation.annualTaxCents)
   const expectedSuperGuaranteeCents = Math.round(
     superBaseCents * expectation.superConfig.guaranteeRate,

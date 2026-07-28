@@ -70,17 +70,10 @@ export function reportedYearToDateFromRows(
 /**
  * Maps an `inflows` row to the projection a payslip is measured against: the tax
  * engine's own income shape plus whether employer super accrues on it, which
- * decides if the inflow's lines count toward the slip's super base.
+ * decides whether an unitemised slip anchored to it earns any.
  */
 export function toReconciledInflow(inflow: Inflow): ReconciledInflow {
   return { ...toIncomeInput(inflow), attractsSuper: inflow.attracts_super }
-}
-
-/** Every inflow keyed by id, so a payslip line resolves the projection it draws on. */
-export function reconciledInflowsById(
-  inflows: readonly Inflow[],
-): ReadonlyMap<string, ReconciledInflow> {
-  return new Map(inflows.map((inflow) => [inflow.id, toReconciledInflow(inflow)]))
 }
 
 /** Maps a `payslip_line` row to the earnings line `@nest/plan` groups and sums. */
@@ -89,15 +82,43 @@ export function toPayslipLine(line: PayslipLineRow): PayslipLine {
     sourceInflowId: line.source_inflow_id,
     label: line.label,
     amountCents: line.amount_cents,
+    attractsSuper: line.attracts_super,
   }
 }
 
-/** The lines belonging to one payslip, in the order they were entered. */
-export function linesForPayslip(
+/**
+ * The household-wide lookups every payslip card reads. Built once for a screenful
+ * of slips rather than per card: each is a pass over the household's whole inflow
+ * or line list, which a per-slip rebuild turns into a scan per slip.
+ */
+export interface PayslipReconciliation {
+  /** Every inflow keyed by id, so a slip resolves the projection it draws on. */
+  readonly inflowsById: ReadonlyMap<string, ReconciledInflow>
+  /** Each payslip's own lines, in the order they were entered. */
+  readonly linesByPayslip: ReadonlyMap<string, PayslipLineRow[]>
+  /** Every inflow's name keyed by id, for naming a slip's earnings-line groups. */
+  readonly inflowNames: ReadonlyMap<string, string>
+}
+
+/** Builds the {@link PayslipReconciliation} lookups from the household's rows. */
+export function payslipReconciliation(
+  inflows: readonly Inflow[],
   lines: readonly PayslipLineRow[],
-  payslipId: string,
-): PayslipLineRow[] {
-  return lines.filter((line) => line.payslip_id === payslipId)
+): PayslipReconciliation {
+  const linesByPayslip = new Map<string, PayslipLineRow[]>()
+  for (const line of lines) {
+    const forPayslip = linesByPayslip.get(line.payslip_id)
+    if (forPayslip) {
+      forPayslip.push(line)
+    } else {
+      linesByPayslip.set(line.payslip_id, [line])
+    }
+  }
+  return {
+    inflowsById: new Map(inflows.map((inflow) => [inflow.id, toReconciledInflow(inflow)])),
+    linesByPayslip,
+    inflowNames: new Map(inflows.map((inflow) => [inflow.id, inflow.name])),
+  }
 }
 
 /**
@@ -105,18 +126,17 @@ export function linesForPayslip(
  * against the projection it draws on, its member's estimated tax as the implied
  * withholding, and the config's super guarantee — charged on the gross less every
  * non-OTE line — plus their modelled concessional contributions. A slip with no
- * lines is measured whole against the inflow its `source_inflow_id` names; either
- * way, nothing mapping to a projection leaves the gross expectation null, and an
- * absent member estimate expects nothing withheld or contributed.
+ * lines is measured whole against the inflow its `source_inflow_id` names, and
+ * earns super only if that inflow does; either way, nothing mapping to a
+ * projection leaves the gross expectation null, and an absent member estimate
+ * expects nothing withheld or contributed.
  */
 export function payslipVarianceFor(
   payslip: PayslipRow,
-  lines: readonly PayslipLineRow[],
-  inflows: readonly Inflow[],
+  { inflowsById, linesByPayslip }: PayslipReconciliation,
   estimate: MemberTaxEstimate | undefined,
   config: TaxYearConfig,
 ): PayslipVariance {
-  const inflowsById = reconciledInflowsById(inflows)
   return payslipVariance(
     {
       financialYear: payslip.financial_year,
@@ -126,7 +146,7 @@ export function payslipVarianceFor(
       taxWithheldCents: payslip.tax_withheld_cents,
       superCents: payslip.super_cents,
       salarySacrificeCents: payslip.salary_sacrifice_cents,
-      lines: linesForPayslip(lines, payslip.id).map(toPayslipLine),
+      lines: (linesByPayslip.get(payslip.id) ?? []).map(toPayslipLine),
     },
     {
       inflow:

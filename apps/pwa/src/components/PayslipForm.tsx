@@ -308,6 +308,9 @@ export function PayslipForm({
     // longer cleaned up as an object nothing references.
     onSuccess: slip.keep,
     buildInput: (): PayslipSubmission => ({
+      // The id the document is filed under, and the one the row is written
+      // under — the same one every time this form saves.
+      id: slip.payslipId,
       input: {
         member_id: member.id,
         financial_year: financialYearForPayPeriod(values.period_end!),
@@ -437,6 +440,7 @@ export function PayslipForm({
       <PayslipLinesField
         lines={lines}
         options={inflowOptions}
+        allocatedCents={allocatedCents}
         unallocatedCents={unallocatedCents}
         onChange={changeLine}
         onAdd={addLine}

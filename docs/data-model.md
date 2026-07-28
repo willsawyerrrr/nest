@@ -213,7 +213,7 @@ and so without the trigger.
   slip prints it, optionally drawing on a projected inflow. See
   [`payslips.md`](payslips.md).
   - `id`, `household_id`, `payslip_id`, `source_inflow_id` (nullable), `label`,
-    `amount_cents` (bigint), `created_at`, `updated_at`.
+    `amount_cents` (bigint), `attracts_super`, `created_at`, `updated_at`.
   - `amount_cents` is **signed**, unlike the slip's own totals: an earnings line
     may be a negative adjustment reversing an overpayment. The lines need not sum
     to the slip's `gross_cents` — the remainder is unallocated and surfaced as
@@ -227,10 +227,19 @@ and so without the trigger.
     and annual leave both come off the salary — so there is deliberately no
     uniqueness on `(payslip_id, source_inflow_id)`.
   - Variance is measured per inflow: the lines drawing on one inflow are summed
-    and held against that inflow's expectation for the period, and lines whose
-    inflow has `attracts_super = false` come off the base the expected employer
-    super guarantee is charged on.
-  - RLS is **household-wide CRUD**, exactly the parent slip's boundary.
+    and held against that inflow's expectation for the period, and the lines
+    recorded as earning no super come off the base the expected employer super
+    guarantee is charged on.
+  - `attracts_super` is that record, **snapshotted from the inflow** by a
+    `before insert` trigger (`snapshot_payslip_line_attracts_super`) when the
+    writer does not state it; a line naming no inflow is ordinary time earnings.
+    The column has no default, so an unstated value reaches the trigger as null.
+    Snapshotting is what makes a payslip a historical record: `source_inflow_id`
+    is `on delete set null`, so re-deriving the decision would silently put a
+    retired allowance back into every past slip's super base.
+  - RLS is **household-wide CRUD**, exactly the parent slip's boundary. Writes go
+    through `upsert_payslip_with_lines` (below) rather than direct inserts, so a
+    slip and its lines move together.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`tax.md`](tax.md).
 
@@ -640,6 +649,21 @@ not-yet-member can act past RLS in the narrow ways allowed:
   `transactions` read, update, and delete policies so the card spend behind a gift
   meant for the caller is withheld from them. SECURITY DEFINER precisely because
   the caller cannot read those `gift_purchase` rows themselves.
+
+One RPC is a plain **invoker** function, elevating nothing: it exists for the
+transaction, not for the privileges.
+
+- `upsert_payslip_with_lines(payslip jsonb, lines jsonb) returns uuid` — writes
+  one payslip and replaces its whole `payslip_line` set in a single call, and so
+  a single transaction. A slip and its lines are one thing the member saves, and
+  saving them as two calls leaves the pair half-written whenever the second
+  fails — worst of all on an edit, where the clearing delete lands and the insert
+  does not, taking every line with it. Keyed on the id the client mints, so
+  pressing Save again after a failure rewrites that same slip rather than adding
+  a second one to inflate the year-to-date totals. Running as the caller is the
+  point: the household policies on both tables gate every statement in it exactly
+  as they gate a direct write, and `household_id` is not updatable on conflict,
+  so a slip cannot be moved or hijacked across households.
 
 The Up token and VAPID RPCs are also `SECURITY DEFINER`, but granted to
 `service_role` alone (not `authenticated`) — they are the only path to secrets

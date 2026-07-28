@@ -16,6 +16,13 @@ export type ExtractionState =
   | ExtractionFailure
 
 export interface UsePayslipAttachmentResult {
+  /**
+   * The id the slip is filed under: the payslip being edited, or the one minted
+   * when the form opened. Stable for the life of the form, so the document's
+   * prefix and the row the save writes carry the same id however many times the
+   * member presses Save.
+   */
+  payslipId: string
   /** The chosen file, for the picker's own value. */
   file: File | null
   /** Where the chosen file landed, or null when nothing new is attached. */
@@ -151,6 +158,7 @@ export function usePayslipAttachment({
   }, [])
 
   return {
+    payslipId: id,
     file,
     attachment,
     state,

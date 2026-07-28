@@ -40,13 +40,14 @@ export interface CollectionConfig<T extends HouseholdTable> {
   /** Fields merged into every insert alongside `household_id` (e.g. a parent id). */
   insertDefaults?: Readonly<Record<string, ScopeValue>>
   /**
-   * Other tables a database trigger cross-updates whenever a row here changes.
-   * A write invalidates each one's `[table, householdId]` cache prefix too, so
-   * consumers reading those trigger-maintained rows refetch. The `budget_line`
-   * reconcile trigger, for instance, rewrites the derived lines when a
-   * `breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, or
-   * `gift_occasion` row changes, and the Pay splits tab reads those raw lines
-   * directly.
+   * Other tables written alongside this one whenever a row here changes — by a
+   * database trigger, or by an RPC that writes both in one transaction. A write
+   * invalidates each one's `[table, householdId]` cache prefix too, so consumers
+   * reading those rows refetch. The `budget_line` reconcile trigger, for
+   * instance, rewrites the derived lines when a `breakdown_item`, `breakdown`,
+   * `gift_budget`, `gift_recipient`, or `gift_occasion` row changes, and the Pay
+   * splits tab reads those raw lines directly; `upsert_payslip_with_lines`
+   * likewise writes a slip's `payslip_line` rows with the slip.
    */
   alsoInvalidate?: readonly HouseholdTable[]
 }

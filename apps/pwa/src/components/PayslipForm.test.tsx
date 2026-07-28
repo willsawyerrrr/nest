@@ -13,6 +13,8 @@ const inflows = [
   makeInflow({ id: 'i1', name: 'Day job' }),
   makeInflow({ id: 'i2', name: 'Side job', member_id: 'm2' }),
   makeInflow({ id: 'i3', name: 'Gift money', taxable: false }),
+  // Taxed in full, but no employer super accrues on it.
+  makeInflow({ id: 'i4', name: 'On-call (T1)', type: 'other', attracts_super: false }),
 ]
 
 /** What a slip's figures come back as when the model reads every one of them. */
@@ -124,6 +126,8 @@ describe('PayslipForm', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(submitted(onSubmit)).toEqual({
+      // The slip being edited keeps its own id, so a save rewrites it.
+      id: 'ps1',
       input: {
         member_id: 'm1',
         // Derived from the period's last day, not typed: 30 June falls in FY2026.
@@ -932,8 +936,29 @@ describe('PayslipForm earnings lines', () => {
     await user.click(screen.getByRole('combobox', { name: 'Line 1 draws on' }))
 
     expect(await screen.findByRole('option', { name: 'Day job' })).toBeInTheDocument()
+    // An allowance is offered like any other taxable inflow: it is taxed in
+    // full, and earning no super is the super side's business, not the picker's.
+    expect(screen.getByRole('option', { name: 'On-call (T1)' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Side job' })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Gift money' })).not.toBeInTheDocument()
+  })
+
+  it('draws a line on an allowance that earns no super', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderForm()
+
+    await fillQuartet(user, '5495.50')
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await fillLine(user, 1, 'Ordinary Hours', '5000', 'Day job')
+    await fillLine(user, 2, 'On-call (T1)', '495.50', 'On-call (T1)')
+    await user.click(screen.getByRole('button', { name: /^add payslip$/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).lines).toEqual([
+      { source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 },
+      { source_inflow_id: 'i4', label: 'On-call (T1)', amount_cents: 495_50 },
+    ])
   })
 
   it('says so when the member has no taxable inflow a line could draw on', async () => {
@@ -960,6 +985,44 @@ describe('PayslipForm earnings lines', () => {
     await user.clear(screen.getByLabelText('Line 1 amount'))
     await user.type(screen.getByLabelText('Line 1 amount'), '6000')
     expect(screen.getByText(/more than the gross is itemised/i)).toHaveTextContent('$504.50')
+  })
+
+  it('warns when more of the gross is left out than the mapped lines account for', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    // Itemising only the allowance and leaving the salary untyped collapses the
+    // expected gross to the allowance, giving a phantom variance the size of the
+    // salary — the trap this warning exists to catch.
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await fillLine(user, 1, 'On-call (T1)', '495.50', 'On-call (T1)')
+
+    expect(screen.getByText(/more of the gross is unitemised/i)).toHaveTextContent('$5,000.00')
+  })
+
+  it('leaves the warning off while the lines account for most of the gross', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await fillLine(user, 1, 'Ordinary Hours', '5000', 'Day job')
+
+    expect(screen.queryByText(/more of the gross is unitemised/i)).not.toBeInTheDocument()
+  })
+
+  it('leaves the warning off when no line names a projection to measure against', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    // Nothing maps to a projection, so the expected gross is null rather than
+    // understated: there is no phantom variance to warn about.
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await fillLine(user, 1, 'On-call (T1)', '495.50')
+
+    expect(screen.queryByText(/more of the gross is unitemised/i)).not.toBeInTheDocument()
   })
 
   it('says every dollar is itemised once the lines sum to the gross', async () => {

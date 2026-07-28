@@ -3,11 +3,10 @@ import { FY2027_CONFIG } from '@nest/tax'
 import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
 import {
   financialYearForPayPeriod,
-  linesForPayslip,
   paygWithheldFromRows,
+  payslipReconciliation,
   payslipTotalsFromRows,
   payslipVarianceFor,
-  reconciledInflowsById,
   reportedYearToDateFromRows,
   toPayslipLine,
   toPayslipTotalsRow,
@@ -123,36 +122,44 @@ describe('toReconciledInflow', () => {
   })
 })
 
-describe('reconciledInflowsById', () => {
-  it('keys each projection by its inflow id', () => {
-    const byId = reconciledInflowsById([inflow, ON_CALL])
-    expect(byId.get('i1')?.amountCents).toBe(5_000_00)
-    expect(byId.get('i2')?.amountCents).toBe(450_00)
+describe('payslipReconciliation', () => {
+  it('keys each projection and each inflow name by its inflow id', () => {
+    const { inflowsById, inflowNames } = payslipReconciliation([inflow, ON_CALL], [])
+    expect(inflowsById.get('i1')?.amountCents).toBe(5_000_00)
+    expect(inflowsById.get('i2')?.amountCents).toBe(450_00)
+    expect(inflowNames.get('i2')).toBe('On-call (T1)')
+  })
+
+  it('groups every line under the slip it belongs to', () => {
+    const mine = makePayslipLine()
+    const alsoMine = makePayslipLine({ id: 'pl2', label: 'Annual Leave' })
+    const theirs = makePayslipLine({ id: 'pl3', payslip_id: 'ps2' })
+    const { linesByPayslip } = payslipReconciliation([], [mine, alsoMine, theirs])
+    expect(linesByPayslip.get('ps1')).toEqual([mine, alsoMine])
+    expect(linesByPayslip.get('ps2')).toEqual([theirs])
   })
 })
 
 describe('toPayslipLine', () => {
   it('maps the row to the earnings line the plan groups', () => {
-    expect(toPayslipLine(makePayslipLine())).toEqual({
+    expect(toPayslipLine(makePayslipLine({ attracts_super: false }))).toEqual({
       sourceInflowId: 'i1',
       label: 'Ordinary Hours',
       amountCents: 5_000_00,
+      attractsSuper: false,
     })
-  })
-})
-
-describe('linesForPayslip', () => {
-  it('picks out only the lines belonging to the slip', () => {
-    const mine = makePayslipLine()
-    const theirs = makePayslipLine({ id: 'pl2', payslip_id: 'ps2' })
-    expect(linesForPayslip([mine, theirs], 'ps1')).toEqual([mine])
   })
 })
 
 describe('payslipVarianceFor', () => {
   it('measures the slip against its reconciled inflow and the member’s estimate', () => {
     const payslip = makePayslip()
-    const variance = payslipVarianceFor(payslip, [], [inflow], memberEstimate, config)
+    const variance = payslipVarianceFor(
+      payslip,
+      payslipReconciliation([inflow], []),
+      memberEstimate,
+      config,
+    )
 
     // A whole fortnight of a fortnightly inflow is one turn of its cadence, so
     // the expectation is the per-period pay itself and the slip matches it.
@@ -170,16 +177,16 @@ describe('payslipVarianceFor', () => {
 
   it('counts salary sacrifice as part of the slip’s super', () => {
     const payslip = makePayslip({ salary_sacrifice_cents: 100_00 })
-    expect(payslipVarianceFor(payslip, [], [inflow], memberEstimate, config).actualSuperCents).toBe(
-      700_00,
-    )
+    expect(
+      payslipVarianceFor(payslip, payslipReconciliation([inflow], []), memberEstimate, config)
+        .actualSuperCents,
+    ).toBe(700_00)
   })
 
   it('has no gross expectation when the slip reconciles against no inflow', () => {
     const variance = payslipVarianceFor(
       makePayslip({ source_inflow_id: null }),
-      [],
-      [inflow],
+      payslipReconciliation([inflow], []),
       memberEstimate,
       config,
     )
@@ -189,13 +196,23 @@ describe('payslipVarianceFor', () => {
   })
 
   it('has no gross expectation when the reconciled inflow has been retired', () => {
-    const variance = payslipVarianceFor(makePayslip(), [], [], memberEstimate, config)
+    const variance = payslipVarianceFor(
+      makePayslip(),
+      payslipReconciliation([], []),
+      memberEstimate,
+      config,
+    )
     expect(variance.expectedGrossCents).toBeNull()
     expect(variance.basis).toBe('calendar_days')
   })
 
   it('expects nothing withheld for a member with no estimate', () => {
-    const variance = payslipVarianceFor(makePayslip(), [], [inflow], undefined, config)
+    const variance = payslipVarianceFor(
+      makePayslip(),
+      payslipReconciliation([inflow], []),
+      undefined,
+      config,
+    )
     expect(variance.expectedTaxWithheldCents).toBe(0)
     expect(variance.taxWithheldVarianceCents).toBe(1_000_00)
   })
@@ -222,9 +239,15 @@ describe('payslipVarianceFor', () => {
         label: 'On-call (T1)',
         amount_cents: 495_50,
         source_inflow_id: 'i2',
+        attracts_super: false,
       }),
     ]
-    const variance = payslipVarianceFor(payslip, lines, [inflow, ON_CALL], memberEstimate, config)
+    const variance = payslipVarianceFor(
+      payslip,
+      payslipReconciliation([inflow, ON_CALL], lines),
+      memberEstimate,
+      config,
+    )
 
     expect(variance.lineGroups).toEqual([
       {
@@ -248,9 +271,9 @@ describe('payslipVarianceFor', () => {
     expect(variance.expectedGrossCents).toBe(5_450_00)
   })
 
-  // The bug this feature exists to fix: the employer paid super on the $5,000
-  // salary, not on the $5,495.50 that includes on-call. 12% of $5,495.50 would be
-  // $659.46, and the slip would read $59.46 below plan for no reason.
+  // The employer pays super on the $5,000 salary, not on the $5,495.50 that
+  // includes on-call: 12% of $5,495.50 is $659.46, which reads a correct slip as
+  // $59.46 below plan.
   it('charges the expected super guarantee on the gross less the non-OTE lines', () => {
     const payslip = makePayslip({ gross_cents: 5_495_50, super_cents: 600_00 })
     const lines = [
@@ -261,12 +284,60 @@ describe('payslipVarianceFor', () => {
         label: 'On-call (T1)',
         amount_cents: 495_50,
         source_inflow_id: 'i2',
+        attracts_super: false,
       }),
     ]
-    const variance = payslipVarianceFor(payslip, lines, [inflow, ON_CALL], memberEstimate, config)
+    const variance = payslipVarianceFor(
+      payslip,
+      payslipReconciliation([inflow, ON_CALL], lines),
+      memberEstimate,
+      config,
+    )
 
     expect(variance.superBaseCents).toBe(5_000_00)
     expect(variance.expectedSuperGuaranteeCents).toBe(600_00)
     expect(variance.superVarianceCents).toBe(0)
+  })
+
+  it('keeps the super base where the allowance the line drew on has been retired', () => {
+    const payslip = makePayslip({ gross_cents: 5_495_50, super_cents: 600_00 })
+    const lines = [
+      makePayslipLine({ id: 'pl1', label: 'Ordinary Hours', amount_cents: 5_000_00 }),
+      makePayslipLine({
+        id: 'pl2',
+        label: 'On-call (T1)',
+        amount_cents: 495_50,
+        source_inflow_id: null,
+        attracts_super: false,
+      }),
+    ]
+    // The inflow is gone and the line's link with it, but the line still records
+    // that it earned no super, so the slip is measured as it always was.
+    const variance = payslipVarianceFor(
+      payslip,
+      payslipReconciliation([inflow], lines),
+      memberEstimate,
+      config,
+    )
+
+    expect(variance.superBaseCents).toBe(5_000_00)
+    expect(variance.superVarianceCents).toBe(0)
+  })
+
+  it('expects no guarantee on an unitemised slip anchored to an allowance', () => {
+    const payslip = makePayslip({
+      gross_cents: 495_50,
+      super_cents: 0,
+      source_inflow_id: 'i2',
+    })
+    const variance = payslipVarianceFor(
+      payslip,
+      payslipReconciliation([inflow, ON_CALL], []),
+      memberEstimate,
+      config,
+    )
+
+    expect(variance.superBaseCents).toBe(0)
+    expect(variance.expectedSuperGuaranteeCents).toBe(0)
   })
 })

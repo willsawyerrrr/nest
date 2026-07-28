@@ -37,6 +37,7 @@ vi.mock('../components/PayslipsScreen', () => ({
 }))
 
 const submission: PayslipSubmission = {
+  id: 'ps1',
   input: { member_id: 'm1' } as PayslipInput,
   lines: [{ source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 }],
   attachment: { payslipId: 'ps1', path: 'h1/ps1/slip.pdf' },
@@ -44,25 +45,18 @@ const submission: PayslipSubmission = {
 
 /** Stubs every hook as loaded, returning the payslip hook's own mocks. */
 function stubHooks(payslips = [makePayslip()]) {
-  const create = vi.fn().mockResolvedValue('new-ps')
-  const update = vi.fn().mockResolvedValue(undefined)
+  const save = vi.fn().mockResolvedValue(undefined)
   const remove = vi.fn().mockResolvedValue(undefined)
   const signedUrl = vi.fn()
   const attachments = { upload: vi.fn(), discard: vi.fn(), read: vi.fn() }
-  const replaceLines = vi.fn().mockResolvedValue(undefined)
   hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Will' }], loading: false })
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
-  hooks.usePayslipLines.mockReturnValue({
-    loading: false,
-    lines: [makePayslipLine()],
-    replace: replaceLines,
-  })
+  hooks.usePayslipLines.mockReturnValue({ loading: false, lines: [makePayslipLine()] })
   hooks.usePayslips.mockReturnValue({
     loading: false,
     payslips,
     financialYear: 2027,
-    create,
-    update,
+    save,
     remove,
     signedUrl,
     attachments,
@@ -71,7 +65,7 @@ function stubHooks(payslips = [makePayslip()]) {
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
-  return { create, update, remove, signedUrl, attachments, replaceLines }
+  return { save, remove, signedUrl, attachments }
 }
 
 describe('PayslipsSection', () => {
@@ -98,8 +92,8 @@ describe('PayslipsSection', () => {
     expect(hooks.screenProps?.config).toMatchObject({ super: expect.any(Object) })
   })
 
-  it('saves and removes through the payslip hook, attachment and lines included', async () => {
-    const { create, update, remove, replaceLines } = stubHooks()
+  it('saves the slip and its lines in one call, adding or editing alike', async () => {
+    const { save, remove } = stubHooks()
     render(<PayslipsSection householdId="h1" />)
 
     const onCreate = hooks.screenProps?.onCreate as (s: PayslipSubmission) => Promise<void>
@@ -110,11 +104,11 @@ describe('PayslipsSection', () => {
     await onCreate(submission)
     await onUpdate('ps1', submission)
 
-    expect(create).toHaveBeenCalledWith(submission.input, submission.attachment)
-    expect(update).toHaveBeenCalledWith('ps1', submission.input, submission.attachment)
-    // The slip is written first, so its lines are replaced against the id it landed under.
-    expect(replaceLines).toHaveBeenCalledWith('new-ps', submission.lines)
-    expect(replaceLines).toHaveBeenCalledWith('ps1', submission.lines)
+    // Both paths hand the whole submission — figures, lines, and attachment —
+    // to the one save, under the id the submission carries.
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save).toHaveBeenNthCalledWith(1, submission)
+    expect(save).toHaveBeenNthCalledWith(2, submission)
     expect(hooks.screenProps?.onDelete).toBe(remove)
   })
 })

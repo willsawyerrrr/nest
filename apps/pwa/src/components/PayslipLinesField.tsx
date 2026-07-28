@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core'
+import { ActionIcon, Alert, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { formatCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
@@ -104,6 +104,38 @@ function AllocationNote({ unallocatedCents }: { unallocatedCents: number }) {
 }
 
 /**
+ * Half-itemising is the trap this warns about: itemise the on-call allowance,
+ * leave the salary paid beside it untyped, and the expected gross collapses to
+ * the allowance's projection while the actual gross is the whole payment — a
+ * phantom variance the size of the salary. The signal is a remainder larger than
+ * everything itemised, with at least one line naming a projection to be measured
+ * against: that is a missing line, not a rounding gap.
+ */
+function PartialItemisationNote({
+  unallocatedCents,
+  allocatedCents,
+  hasMappedLine,
+}: {
+  unallocatedCents: number
+  allocatedCents: number
+  hasMappedLine: boolean
+}) {
+  if (!hasMappedLine || unallocatedCents <= allocatedCents) {
+    return null
+  }
+  return (
+    <Alert color="warning" variant="light" p="xs">
+      <Text size="xs">
+        More of the gross is unitemised ({formatCents(unallocatedCents)}) than itemised. Expected
+        gross counts only the lines above, so the rest reads as a gross variance that large. Itemise
+        the earnings that are missing, or remove the lines to measure the whole gross against one
+        inflow.
+      </Text>
+    </Alert>
+  )
+}
+
+/**
  * A payslip's earnings lines. Itemising is optional: with no lines the whole
  * gross is measured against the single inflow the slip reconciles against, and
  * with them each inflow's lines are summed and measured against that inflow on
@@ -114,6 +146,7 @@ function AllocationNote({ unallocatedCents }: { unallocatedCents: number }) {
 export function PayslipLinesField({
   lines,
   options,
+  allocatedCents,
   unallocatedCents,
   onChange,
   onAdd,
@@ -121,6 +154,8 @@ export function PayslipLinesField({
 }: {
   lines: readonly LineDraft[]
   options: readonly InflowOption[]
+  /** Every line on the slip summed, as the form has them typed. */
+  allocatedCents: number
   /** The slip's gross less every line on it, as the form has them typed. */
   unallocatedCents: number
   onChange: (id: number, changes: Partial<LineDraft>) => void
@@ -164,6 +199,12 @@ export function PayslipLinesField({
         </Button>
         {lines.length > 0 && <AllocationNote unallocatedCents={unallocatedCents} />}
       </Group>
+
+      <PartialItemisationNote
+        unallocatedCents={unallocatedCents}
+        allocatedCents={allocatedCents}
+        hasMappedLine={lines.some((line) => line.sourceInflowId !== null)}
+      />
     </Stack>
   )
 }

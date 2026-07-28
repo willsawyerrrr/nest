@@ -1071,6 +1071,7 @@ export type Database = {
       payslip_line: {
         Row: {
           amount_cents: number
+          attracts_super: boolean
           created_at: string
           household_id: string
           id: string
@@ -1081,6 +1082,7 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          attracts_super: boolean
           created_at?: string
           household_id: string
           id?: string
@@ -1091,6 +1093,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          attracts_super?: boolean
           created_at?: string
           household_id?: string
           id?: string
@@ -1614,6 +1617,10 @@ export type Database = {
         Returns: undefined
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
+      upsert_payslip_with_lines: {
+        Args: { p_lines: Json; p_payslip: Json }
+        Returns: string
+      }
       upsert_up_accounts: { Args: { rows: Json }; Returns: undefined }
     }
     Enums: {

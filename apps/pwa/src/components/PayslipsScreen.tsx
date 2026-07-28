@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core'
 import type { PayslipLineGroupVariance, PayslipVariance } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
@@ -8,10 +9,11 @@ import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks
 import { formatIsoDate } from '../lib/dates'
 import { moneyColor } from '../lib/money'
 import {
-  linesForPayslip,
+  payslipReconciliation,
   payslipTotalsFromRows,
   payslipVarianceFor,
   reportedYearToDateFromRows,
+  type PayslipReconciliation,
 } from '../lib/payslips'
 import { AppCard } from './AppCard'
 import { EditableList } from './EditableList'
@@ -347,7 +349,7 @@ function MemberTotals({ payslips }: { payslips: readonly PayslipRow[] }) {
 function MemberPayslips({
   member,
   payslips,
-  lines,
+  reconciliation,
   inflows,
   estimate,
   config,
@@ -359,7 +361,7 @@ function MemberPayslips({
 }: {
   member: Member
   payslips: PayslipRow[]
-  lines: PayslipLineRow[]
+  reconciliation: PayslipReconciliation
   inflows: Inflow[]
   estimate: HouseholdTaxEstimate
   config: TaxYearConfig
@@ -370,7 +372,6 @@ function MemberPayslips({
   signedUrl: (path: string) => Promise<string | null>
 }) {
   const memberEstimate = estimate.members.find((each) => each.memberId === member.id)
-  const inflowNames = new Map(inflows.map((inflow) => [inflow.id, inflow.name]))
 
   const viewDocument = async (path: string) => {
     const url = await signedUrl(path)
@@ -402,13 +403,16 @@ function MemberPayslips({
         onUpdate={onUpdate}
         onDelete={onDelete}
         renderItem={(payslip, { onEdit, onDelete: onDeleteItem }) => {
-          const inflow = inflows.find((each) => each.id === payslip.source_inflow_id)
+          const inflowName =
+            payslip.source_inflow_id === null
+              ? undefined
+              : reconciliation.inflowNames.get(payslip.source_inflow_id)
           return (
             <PayslipCard
               payslip={payslip}
-              variance={payslipVarianceFor(payslip, lines, inflows, memberEstimate, config)}
-              inflowName={inflow?.name}
-              inflowNames={inflowNames}
+              variance={payslipVarianceFor(payslip, reconciliation, memberEstimate, config)}
+              inflowName={inflowName}
+              inflowNames={reconciliation.inflowNames}
               onEdit={onEdit}
               onDelete={onDeleteItem}
               onViewDocument={(path) => void viewDocument(path)}
@@ -419,7 +423,9 @@ function MemberPayslips({
           <PayslipForm
             member={member}
             inflows={inflows}
-            initialLines={initial === undefined ? [] : linesForPayslip(lines, initial.id)}
+            initialLines={
+              initial === undefined ? [] : (reconciliation.linesByPayslip.get(initial.id) ?? [])
+            }
             attachments={attachments}
             initial={initial}
             onSubmit={onSubmit}
@@ -450,6 +456,10 @@ export function PayslipsScreen({
   onDelete,
   signedUrl,
 }: PayslipsScreenProps) {
+  // Household-wide and read by every card, so built once for the whole screen
+  // rather than per member and per slip.
+  const reconciliation = useMemo(() => payslipReconciliation(inflows, lines), [inflows, lines])
+
   return (
     <PageSection
       title={`Payslips (FY${financialYear})`}
@@ -460,7 +470,7 @@ export function PayslipsScreen({
           key={member.id}
           member={member}
           payslips={payslips.filter((payslip) => payslip.member_id === member.id)}
-          lines={lines}
+          reconciliation={reconciliation}
           inflows={inflows}
           estimate={estimate}
           config={config}

@@ -220,6 +220,7 @@ describe('PayslipsScreen', () => {
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith({
+        id: expect.any(String),
         input: expect.objectContaining({ member_id: 'm1', gross_cents: 5_000_00 }),
         lines: [],
         attachment: null,
@@ -236,6 +237,8 @@ describe('PayslipsScreen', () => {
 
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith('ps1', {
+        // The slip's own id, so the save rewrites it rather than adding another.
+        id: 'ps1',
         input: expect.objectContaining({ period_end: '2026-07-14' }),
         lines: [],
         attachment: null,
@@ -269,6 +272,7 @@ describe('PayslipsScreen', () => {
           label: 'On-call',
           amount_cents: 495_50,
           source_inflow_id: 'i2',
+          attracts_super: false,
         }),
       ],
     })
@@ -282,6 +286,9 @@ describe('PayslipsScreen', () => {
     const allowance = lineGroupRow('On-call')
     expect(allowance).toHaveTextContent('On-call (T1)')
     expect(allowance).toHaveTextContent('$45.50 above plan')
+    // The employer's $600 is 12% of the $5,000 salary, not of the $5,495.50
+    // gross: charging the rate on the allowance too would read $59.46 below plan.
+    expect(figureCell('Super')).toHaveTextContent('On plan')
   })
 
   it('names a group of lines mapped to no inflow as unmapped', () => {

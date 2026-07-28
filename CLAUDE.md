@@ -53,8 +53,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (`attracts_super`, default true). An allowance paid on top of ordinary hours —
   on-call or standby pay, each tier its own inflow — is taxed in full but earns
   no employer super, so it is excluded from the SG and percent-of-salary bases
-  and from a payslip's expected super. The flag touches super only; taxability is
-  unaffected.
+  and from a payslip's expected super. It is NOT excluded from the super
+  co-contribution's income test, which is on total assessable income: an
+  allowance is assessable in full, so the two bases are computed separately and
+  leaving it out would over-state the entitlement. The flag touches super only;
+  taxability is unaffected.
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
@@ -95,10 +98,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   inflow's expectation for the period, keeping a steady salary's variance at nil
   while a lumpy allowance's stands on its own. The lines need not sum to the
   slip's gross; the remainder is unallocated and surfaced, not absorbed. Expected
-  employer super is charged on the gross less every line whose inflow has
-  `attracts_super = false`, so an on-call allowance never inflates it. A slip with
-  no lines is measured whole against its cadence anchor. Itemisation is
-  per-period totals only — there is no shift or roster entity. Each slip may carry
+  employer super is charged on the gross less every line recorded as earning
+  none, so an on-call allowance never inflates it; each line snapshots that
+  decision from its inflow when it is written, because a payslip is a historical
+  record and retiring the inflow must not move what a past slip was measured
+  against. A slip with no lines is measured whole against its cadence anchor,
+  which decides its super too. The slip and its lines are written by one RPC
+  (`upsert_payslip_with_lines`) keyed on the id the form mints, so a save is one
+  transaction and a retry rewrites the same slip rather than duplicating it.
+  Itemisation is per-period totals only — there is no shift or roster entity. Each slip may carry
   an attached document, the file held in a
   private Supabase Storage bucket (`payslips`) laid out under
   `<household_id>/<payslip_id>/…` so Storage RLS gates access by household

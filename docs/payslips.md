@@ -105,9 +105,17 @@ canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
   salary sacrifice and YTD running totals, a `note`, and a `file_path` for the
   attached document.
 - **payslip_line** — one earnings line on that slip, under the label the slip
-  prints, with the projected inflow it draws on. A slip owns many; itemising is
-  optional. `amount_cents` is signed, so a negative adjustment records, and the
-  lines need not sum to the slip's gross.
+  prints, with the projected inflow it draws on and whether it is ordinary time
+  earnings. A slip owns many; itemising is optional. `amount_cents` is signed, so
+  a negative adjustment records, and the lines need not sum to the slip's gross.
+- A slip and its lines are written by one RPC,
+  **`upsert_payslip_with_lines`** — one transaction, keyed on the id the form
+  mints. Saving them as two calls would leave the pair half-written whenever the
+  second failed: a slip with no lines on a create, and on an edit no lines at all
+  once the clearing delete landed and the insert did not. Keying on the form's
+  own id is what makes a retry idempotent — pressing Save again rewrites that
+  slip instead of adding a second one to the year-to-date totals and the
+  withholding the tax estimate nets against the liability.
 - **`source_inflow_id`** on the slip is its **cadence anchor** — an explicit
   picker, chosen by the household, nullable because a slip need not name one (a
   bonus, back-pay, a one-off). `on delete set null` on the reference keeps the
@@ -140,7 +148,16 @@ draws on. Four properties fall out of that shape.
   unexplained earnings are. Lines overshooting the gross read as a negative
   remainder.
 - **A slip with no lines behaves as one figure.** Its whole gross is measured
-  against its cadence anchor, exactly as an unitemised slip always is.
+  against its cadence anchor, in every respect: that one projection decides both
+  what the gross should have been and whether it earned any super, so a slip
+  anchored to an allowance expects no guarantee at all rather than the rate on
+  the whole payment.
+- **Half-itemising is a trap the form warns about.** Itemise the on-call
+  allowance and leave the salary paid beside it untyped, and the expected gross
+  collapses to the allowance's projection while the actual gross is the whole
+  payment — a phantom variance the size of the salary. The form says so when the
+  unitemised remainder is larger than everything itemised and at least one line
+  names a projection: that is a missing line, not a rounding gap.
 
 ### Super is charged on ordinary time earnings only
 
@@ -154,10 +171,24 @@ The real case: a fortnight paying $5,000 salary and $495.50 on-call shows $600 o
 employer super, which is 12% of the $5,000 — not of the $5,495.50 gross, which
 would be $659.46. Charging the rate on the whole gross would read that slip as
 $59.46 of super below plan every fortnight, for nothing. Formulating the base as
-a subtraction is what keeps an unitemised slip's expectation identical: with no
-lines there is nothing to subtract, so the base stays the gross. The same
-exclusion applies to the annual SG and percent-of-salary bases, so a non-OTE
-allowance never inflates the modelled super balance either.
+a subtraction is what keeps an itemised slip of ordinary earnings unchanged: with
+nothing marked non-OTE there is nothing to subtract, so the base stays the gross.
+The base never falls below nil, so a mistyped line overshooting the gross reads
+as a typing mistake rather than negative super. The same exclusion applies to the
+annual SG and percent-of-salary bases, so a non-OTE allowance never inflates the
+modelled super balance either. It is **not** excluded from the co-contribution
+income test, which is on total assessable income: an allowance is assessable in
+full, and leaving it out over-states the entitlement.
+
+The decision is **snapshotted on the line** at write time — `payslip_line`
+carries its own `attracts_super`, taken from the inflow by a database trigger
+when the line is written — rather than read back through the inflow when the slip
+is displayed. `source_inflow_id` is `on delete set null`, so re-deriving it would
+mean retiring an on-call inflow silently put every historical slip's allowance
+back into the super base: a $5,000 base jumps to $5,495.50, the expected
+guarantee from $600 to $659.46, and a year of correct slips starts reading "$59.46
+below plan". A payslip is a historical record, and the OTE decision travels with
+it exactly as every other actual on the slip does.
 
 No new config: payslips are data, not versioned parameters. The **`payslips`**
 Storage bucket is private, its objects keyed `<household_id>/<payslip_id>/<file>`
@@ -190,8 +221,9 @@ tab**:
     early read on whether the employer is over- or under-withholding versus the
     modelled liability.
   - *Expected super for the period* = modelled employer SG (`guarantee_rate ×`
-    the period's gross less its non-OTE lines) plus any period-prorated
-    concessional contribution; `super_cents − expected` is the super variance.
+    the period's gross less its non-OTE lines, or nil where an unitemised slip's
+    cadence anchor earns no super) plus any period-prorated concessional
+    contribution; `super_cents − expected` is the super variance.
 - **Year-to-date refund/bill**: feed the summed actual `tax_withheld_cents` for the
   FY into the tax engine's `paygWithheldCents`, so the Tax tab's balance shows a
   concrete refund (negative) or amount owing (positive) from real withholding

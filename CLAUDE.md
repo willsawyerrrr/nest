@@ -49,6 +49,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `ends_on`); the FY tax estimate prorates each rate by its active share of the
   year (by calendar days), so income that changes mid-year — a pay rise modelled
   as the old rate ending and a new dated inflow starting — is estimated correctly.
+  A taxable inflow also records whether it is ordinary time earnings
+  (`attracts_super`, default true). An allowance paid on top of ordinary hours —
+  on-call or standby pay, each tier its own inflow — is taxed in full but earns
+  no employer super, so it is excluded from the SG and percent-of-salary bases
+  and from a payslip's expected super. It is NOT excluded from the super
+  co-contribution's income test, which is on total assessable income: an
+  allowance is assessable in full, so the two bases are computed separately and
+  leaving it out would over-state the entitlement. The flag touches super only;
+  taxability is unaffected.
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
@@ -76,12 +85,29 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, PAYG withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. The figures are
-  always confirmed by the member; a slip records which projected inflow it
-  reconciles against via an
+  always confirmed by the member; a slip names its cadence anchor via an
   explicit picker (`source_inflow_id`, nullable — a bonus or back-pay slip maps to
   none) and one employer per member, so there is no per-employer stream handling —
   a job change is modelled the way a pay rise is, the old inflow ending and a new
-  dated one starting. Each slip may carry an attached document, the file held in a
+  dated one starting. One payment routinely covers several projections at once —
+  salary plus one or two on-call allowances — so a slip is itemised into earnings
+  lines (`payslip_line`), each an amount under the label the slip prints, drawing
+  on the projected inflow it comes from. Many lines may draw on the SAME inflow
+  (ordinary hours and annual leave both come off the salary), so gross variance is
+  measured per inflow: each inflow's lines are summed and held against that
+  inflow's expectation for the period, keeping a steady salary's variance at nil
+  while a lumpy allowance's stands on its own. The lines need not sum to the
+  slip's gross; the remainder is unallocated and surfaced, not absorbed. Expected
+  employer super is charged on the gross less every line recorded as earning
+  none, so an on-call allowance never inflates it; each line snapshots that
+  decision from its inflow when it is written, because a payslip is a historical
+  record and retiring the inflow must not move what a past slip was measured
+  against. A slip with no lines is measured whole against its cadence anchor,
+  which decides its super too. The slip and its lines are written by one RPC
+  (`upsert_payslip_with_lines`) keyed on the id the form mints, so a save is one
+  transaction and a retry rewrites the same slip rather than duplicating it.
+  Itemisation is per-period totals only — there is no shift or roster entity. Each slip may carry
+  an attached document, the file held in a
   private Supabase Storage bucket (`payslips`) laid out under
   `<household_id>/<payslip_id>/…` so Storage RLS gates access by household
   membership. Picking that document is what triggers **extraction pre-fill**: the

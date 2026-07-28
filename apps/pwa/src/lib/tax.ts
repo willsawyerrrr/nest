@@ -145,24 +145,46 @@ export function currentTaxConfig(): TaxYearConfig {
 }
 
 /**
- * Per-member annual gross salary from the household's taxable inflows, at the
- * steady rate (not FY-prorated by effective dates): percent-of-salary super
- * contributions apply to the current salary rate, not a part-year figure, and
- * this base also drives the co-contribution income test and employer SG.
+ * Sums each member's annual income from the taxable inflows `include` accepts, at
+ * the steady rate (not FY-prorated by effective dates): a super base is set
+ * against the current rate, not a part-year figure.
  */
-function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
-  const grossByMember = new Map<string, number>()
+function annualByMemberFromInflows(
+  inflows: readonly Inflow[],
+  include: (inflow: Inflow) => boolean,
+): Map<string, number> {
+  const byMember = new Map<string, number>()
   for (const inflow of inflows) {
-    if (!inflow.taxable) {
+    if (!inflow.taxable || !include(inflow)) {
       continue
     }
     const income = toIncomeInput(inflow)
-    grossByMember.set(
-      income.memberId,
-      (grossByMember.get(income.memberId) ?? 0) + annualGrossCents(income),
-    )
+    byMember.set(income.memberId, (byMember.get(income.memberId) ?? 0) + annualGrossCents(income))
   }
-  return grossByMember
+  return byMember
+}
+
+/**
+ * Per-member annual ordinary time earnings: the base the employer super guarantee
+ * is charged on, and the salary a percent-of-salary contribution is a percentage
+ * of. An inflow marked `attracts_super = false` — an allowance such as on-call —
+ * is excluded from both, because no guarantee accrues on it and a sacrifice set
+ * as a percentage of salary is not set against an allowance.
+ */
+function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
+  return annualByMemberFromInflows(inflows, (inflow) => inflow.attracts_super)
+}
+
+/**
+ * Per-member annual assessable income: every taxable inflow, whether or not super
+ * accrues on it. This is the co-contribution income test's base, which is the
+ * member's total income — an allowance is assessable in full, so leaving it out
+ * over-states the entitlement. On $45,000 of salary plus $12,000 of on-call, the
+ * ordinary-time base alone reads $45,000 and awards the whole $500 where the
+ * taper on $57,000 allows $243.10.
+ */
+function assessableByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
+  return annualByMemberFromInflows(inflows, () => true)
 }
 
 /**
@@ -183,16 +205,19 @@ export interface SuperCapSummary {
 }
 
 /**
- * Builds each member's `SuperCapSummary` from their annual contributions, super
- * profile, and annual assessable income. An entry is produced for every member
- * with a contribution or a super profile. The concessional cap adds the profile's
- * `carry_forward_cap_cents`; the co-contribution uses the member's annual gross
- * (from taxable inflows) as their approximate total income.
+ * Builds each member's `SuperCapSummary` from their annual contributions and
+ * super profile. An entry is produced for every member with a contribution or a
+ * super profile. The concessional cap adds the profile's
+ * `carry_forward_cap_cents`. The two income bases are distinct: `grossByMember`
+ * is ordinary time earnings, the salary a percent-mode contribution is set
+ * against, while `assessableByMember` is total assessable income, which the
+ * co-contribution's income test is on.
  */
 export function superCapSummaryByMember(
   contributions: readonly SuperContribution[],
   profiles: readonly SuperProfile[],
   grossByMember: ReadonlyMap<string, number>,
+  assessableByMember: ReadonlyMap<string, number>,
   config: TaxYearConfig,
 ): Map<string, SuperCapSummary> {
   const concessional = concessionalByMember(contributions, grossByMember)
@@ -221,7 +246,7 @@ export function superCapSummaryByMember(
       nonConcessionalOverCap: nonConcessionalCents > nonConcessionalCapCents,
       coContributionCents: superCoContribution(
         nonConcessionalCents,
-        grossByMember.get(memberId) ?? 0,
+        assessableByMember.get(memberId) ?? 0,
         config,
       ),
     })
@@ -232,8 +257,8 @@ export function superCapSummaryByMember(
 /**
  * Resolves each member's `SuperCapSummary` from raw inflow, profile, and
  * contribution rows, using `config` (defaulting to the current financial year,
- * falling back to FY2027). Annual gross salary drives both percent-mode
- * contributions and the co-contribution income test.
+ * falling back to FY2027). Annual ordinary time earnings drive percent-mode
+ * contributions; total assessable income drives the co-contribution income test.
  */
 export function superCapSummaryFromRows(
   inflows: readonly Inflow[],
@@ -241,7 +266,13 @@ export function superCapSummaryFromRows(
   contributions: readonly SuperContribution[],
   config: TaxYearConfig = currentTaxConfig(),
 ): Map<string, SuperCapSummary> {
-  return superCapSummaryByMember(contributions, profiles, grossByMemberFromInflows(inflows), config)
+  return superCapSummaryByMember(
+    contributions,
+    profiles,
+    grossByMemberFromInflows(inflows),
+    assessableByMemberFromInflows(inflows),
+    config,
+  )
 }
 
 /**
@@ -252,10 +283,15 @@ export function superCapSummaryFromRows(
  * are made from after-tax money and so are not taxed again in the fund. An entry
  * is produced for every member with a contribution or gross salary. This feeds
  * the retirement projection as the annual amount added to their balance.
+ *
+ * `grossByMember` is ordinary time earnings — the base employer SG is charged on
+ * and a percent-mode contribution is set against — while `assessableByMember` is
+ * total assessable income, which the co-contribution's income test is on.
  */
 export function netAnnualSuperContributionByMember(
   contributions: readonly SuperContribution[],
   grossByMember: ReadonlyMap<string, number>,
+  assessableByMember: ReadonlyMap<string, number>,
   config: TaxYearConfig,
 ): Map<string, number> {
   const concessional = concessionalByMember(contributions, grossByMember)
@@ -273,7 +309,11 @@ export function netAnnualSuperContributionByMember(
     const employerSgCents = config.super.guaranteeRate * grossCents
     const afterTaxConcessional =
       (concessionalCents + employerSgCents) * (1 - config.super.contributionsTaxRate)
-    const coContributionCents = superCoContribution(nonConcessionalCents, grossCents, config)
+    const coContributionCents = superCoContribution(
+      nonConcessionalCents,
+      assessableByMember.get(memberId) ?? 0,
+      config,
+    )
     netByMember.set(
       memberId,
       Math.round(afterTaxConcessional) + nonConcessionalCents + coContributionCents,
@@ -285,8 +325,9 @@ export function netAnnualSuperContributionByMember(
 /**
  * Resolves each member's net annual super contribution from raw inflow and
  * contribution rows, using the config for the current financial year (falling
- * back to FY2027). Annual gross salary drives employer SG, percent-mode
- * contributions, and the co-contribution income test.
+ * back to FY2027). Annual ordinary time earnings drive employer SG and
+ * percent-mode contributions; total assessable income drives the co-contribution
+ * income test.
  */
 export function netAnnualSuperContributionFromRows(
   inflows: readonly Inflow[],
@@ -296,6 +337,7 @@ export function netAnnualSuperContributionFromRows(
   return netAnnualSuperContributionByMember(
     contributions,
     grossByMemberFromInflows(inflows),
+    assessableByMemberFromInflows(inflows),
     config,
   )
 }

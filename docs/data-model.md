@@ -60,10 +60,10 @@ and so without the trigger.
 - **inflows** — projected recurring money in, split by taxability.
   - `id`, `household_id`, `member_id` (nullable), `name`,
     `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
-    `taxable` (default true), `schedule`, `interval_count` (nullable),
-    `amount_cents` (nullable), `hourly_rate_cents` (nullable),
-    `hours_per_period` (nullable), `starts_on` (date, nullable), `ends_on`
-    (date, nullable), `created_at`, `updated_at`.
+    `taxable` (default true), `attracts_super` (default true), `schedule`,
+    `interval_count` (nullable), `amount_cents` (nullable),
+    `hourly_rate_cents` (nullable), `hours_per_period` (nullable), `starts_on`
+    (date, nullable), `ends_on` (date, nullable), `created_at`, `updated_at`.
   - `starts_on` / `ends_on` bound when the rate applies; both null means the
     whole year. A CHECK (`inflows_effective_dates`) requires
     `ends_on >= starts_on` where both are set. The tax estimate prorates each
@@ -75,6 +75,13 @@ and so without the trigger.
     non-taxable inflows (reimbursement, hobby income, gift, or other) add to
     available cash and may omit it. For non-taxable inflows `type` is a reporting
     label only — taxability, not type, decides whether an inflow is taxed.
+  - `attracts_super` marks the inflow as ordinary time earnings, the base the
+    employer super guarantee accrues on. It is false for an allowance paid on
+    top of ordinary hours — an on-call or standby payment — which is taxed in
+    full but earns no super. It drives the super side only: a non-OTE inflow is
+    left out of the annual SG and percent-of-salary bases, and out of a
+    payslip's expected employer super via the `payslip_line` rows drawing on it
+    (see [`payslips.md`](payslips.md)).
   - `schedule` is the shared `frequency` enum: `weekly`, `fortnightly`,
     `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`,
     `every_n_months`. For `every_n_weeks` and `every_n_months`, `interval_count`
@@ -186,12 +193,14 @@ and so without the trigger.
     constraint (a mid-year employer change or an out-of-order entry breaks that
     relation legitimately).
   - Composite FK on `(member_id, household_id)` → `members` `on delete cascade`,
-    so a removed member's slips go with them. `source_inflow_id` is the projected
-    inflow the slip reconciles against, picked by the household: composite FK
+    so a removed member's slips go with them. `source_inflow_id` is the slip's
+    **cadence anchor**, picked by the household: composite FK
     `(source_inflow_id, household_id)` → `inflows (id, household_id)`
     `on delete set null (source_inflow_id)`, so removing the inflow clears the
-    link and keeps the actuals. Nullable throughout — a slip need not map to an
-    inflow.
+    link and keeps the actuals. Its schedule is what the withholding and
+    concessional-super expectations are divided by, and for a slip carrying no
+    `payslip_line` rows it is also the one projection the whole gross is measured
+    against. Nullable throughout — a slip need not map to an inflow.
   - `file_path` is the object key of an attached slip in the private `payslips`
     bucket (see **Storage buckets**); null under figures-only entry.
   - RLS is **household-wide CRUD** — the same boundary as `tax_profile`,
@@ -200,6 +209,37 @@ and so without the trigger.
     fully pooled, so each member manages their co-member's slips. A payslip is a
     sensitive document and the household, not the individual member, is the trust
     boundary that protects it. Deliberate, not an oversight.
+- **payslip_line** — per payslip; many rows per slip. One earnings line as the
+  slip prints it, optionally drawing on a projected inflow. See
+  [`payslips.md`](payslips.md).
+  - `id`, `household_id`, `payslip_id`, `source_inflow_id` (nullable), `label`,
+    `amount_cents` (bigint), `attracts_super`, `created_at`, `updated_at`.
+  - `amount_cents` is **signed**, unlike the slip's own totals: an earnings line
+    may be a negative adjustment reversing an overpayment. The lines need not sum
+    to the slip's `gross_cents` — the remainder is unallocated and surfaced as
+    such rather than silently absorbed.
+  - Composite FK on `(payslip_id, household_id)` → `payslip (id, household_id)`
+    `on delete cascade`, so a line goes with the slip it hangs off (and with the
+    member, through the slip). Composite FK on
+    `(source_inflow_id, household_id)` → `inflows (id, household_id)`
+    `on delete set null (source_inflow_id)`, so retiring the inflow keeps the
+    line's amount. **Many lines may draw on the same inflow** — ordinary hours
+    and annual leave both come off the salary — so there is deliberately no
+    uniqueness on `(payslip_id, source_inflow_id)`.
+  - Variance is measured per inflow: the lines drawing on one inflow are summed
+    and held against that inflow's expectation for the period, and the lines
+    recorded as earning no super come off the base the expected employer super
+    guarantee is charged on.
+  - `attracts_super` is that record, **snapshotted from the inflow** by a
+    `before insert` trigger (`snapshot_payslip_line_attracts_super`) when the
+    writer does not state it; a line naming no inflow is ordinary time earnings.
+    The column has no default, so an unstated value reaches the trigger as null.
+    Snapshotting is what makes a payslip a historical record: `source_inflow_id`
+    is `on delete set null`, so re-deriving the decision would silently put a
+    retired allowance back into every past slip's super base.
+  - RLS is **household-wide CRUD**, exactly the parent slip's boundary. Writes go
+    through `upsert_payslip_with_lines` (below) rather than direct inserts, so a
+    slip and its lines move together.
 - Versioned AU tax parameters (rates, thresholds) live in config, not a table —
   see [`tax.md`](tax.md).
 
@@ -609,6 +649,21 @@ not-yet-member can act past RLS in the narrow ways allowed:
   `transactions` read, update, and delete policies so the card spend behind a gift
   meant for the caller is withheld from them. SECURITY DEFINER precisely because
   the caller cannot read those `gift_purchase` rows themselves.
+
+One RPC is a plain **invoker** function, elevating nothing: it exists for the
+transaction, not for the privileges.
+
+- `upsert_payslip_with_lines(payslip jsonb, lines jsonb) returns uuid` — writes
+  one payslip and replaces its whole `payslip_line` set in a single call, and so
+  a single transaction. A slip and its lines are one thing the member saves, and
+  saving them as two calls leaves the pair half-written whenever the second
+  fails — worst of all on an edit, where the clearing delete lands and the insert
+  does not, taking every line with it. Keyed on the id the client mints, so
+  pressing Save again after a failure rewrites that same slip rather than adding
+  a second one to inflate the year-to-date totals. Running as the caller is the
+  point: the household policies on both tables gate every statement in it exactly
+  as they gate a direct write, and `household_id` is not updatable on conflict,
+  so a slip cannot be moved or hijacked across households.
 
 The Up token and VAPID RPCs are also `SECURITY DEFINER`, but granted to
 `service_role` alone (not `authenticated`) — they are the only path to secrets

@@ -28,6 +28,7 @@ const baseInflow: Inflow = {
   member_id: 'm1',
   name: 'On-call',
   taxable: true,
+  attracts_super: true,
   type: 'salary',
   schedule: 'every_n_weeks',
   interval_count: 4,
@@ -434,6 +435,7 @@ describe('superCapSummaryByMember', () => {
       [concessional],
       [{ ...baseProfile, carry_forward_cap_cents: 10_000_00 }],
       new Map(),
+      new Map(),
       FY2027_CONFIG,
     ).get('m1')!
     // Config cap $32,500 + $10,000 carry-forward = $42,500; $40,000 is under it.
@@ -443,6 +445,7 @@ describe('superCapSummaryByMember', () => {
     const noCarry = superCapSummaryByMember(
       [concessional],
       [baseProfile],
+      new Map(),
       new Map(),
       FY2027_CONFIG,
     ).get('m1')!
@@ -462,6 +465,7 @@ describe('superCapSummaryByMember', () => {
       [over],
       [baseProfile],
       new Map([['m1', 40_000_00]]),
+      new Map([['m1', 40_000_00]]),
       FY2027_CONFIG,
     ).get('m1')!
     expect(summary.nonConcessionalCapCents).toBe(130_000_00)
@@ -471,7 +475,13 @@ describe('superCapSummaryByMember', () => {
   })
 
   it('produces a zero-usage entry for a member with only a profile', () => {
-    const summary = superCapSummaryByMember([], [baseProfile], new Map(), FY2027_CONFIG).get('m1')!
+    const summary = superCapSummaryByMember(
+      [],
+      [baseProfile],
+      new Map(),
+      new Map(),
+      FY2027_CONFIG,
+    ).get('m1')!
     expect(summary.concessionalCents).toBe(0)
     expect(summary.nonConcessionalCents).toBe(0)
     expect(summary.coContributionCents).toBe(0)
@@ -491,10 +501,30 @@ describe('superCapSummaryByMember', () => {
       [contribution],
       [{ ...baseProfile, member_id: 'm1' }],
       new Map(),
+      new Map(),
       FY2027_CONFIG,
     )
     expect(summaries.get('m2')!.concessionalCapCents).toBe(32_500_00)
     expect(summaries.get('m2')!.concessionalCents).toBe(5_000_00)
+  })
+
+  it('tests the co-contribution against assessable income, not ordinary time earnings', () => {
+    const contribution: SuperContribution = {
+      ...baseContribution,
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 1_000_00,
+    }
+    const summary = superCapSummaryByMember(
+      [contribution],
+      [baseProfile],
+      new Map([['m1', 45_000_00]]),
+      new Map([['m1', 57_000_00]]),
+      FY2027_CONFIG,
+    ).get('m1')!
+    // The taper on $57,000 of assessable income. The $45,000 ordinary-time base
+    // alone sits under the lower threshold and would award the whole $500.
+    expect(summary.coContributionCents).toBe(243_10)
   })
 })
 
@@ -517,6 +547,40 @@ describe('superCapSummaryFromRows', () => {
     // At the lower threshold the max still applies; 50% × $1,000 = $500 is not the binder.
     expect(summary.coContributionCents).toBe(500_00)
   })
+
+  it('counts an allowance that earns no super toward the co-contribution income test', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 45_000_00,
+    }
+    // An allowance is assessable in full, so the income test is on $57,000, not
+    // on the $45,000 the super guarantee is charged on.
+    const onCall: Inflow = {
+      ...baseInflow,
+      id: 'i2',
+      name: 'On-call (T1)',
+      attracts_super: false,
+      type: 'other',
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 12_000_00,
+    }
+    const contribution: SuperContribution = {
+      ...baseContribution,
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 1_000_00,
+    }
+    const summary = superCapSummaryFromRows(
+      [salary, onCall],
+      [baseProfile],
+      [contribution],
+      FY2027_CONFIG,
+    ).get('m1')!
+    expect(summary.coContributionCents).toBe(243_10)
+  })
 })
 
 describe('netAnnualSuperContributionByMember', () => {
@@ -526,6 +590,7 @@ describe('netAnnualSuperContributionByMember', () => {
     const grossByMember = new Map([['m1', 100_000_00]])
     const result = netAnnualSuperContributionByMember(
       [baseContribution],
+      grossByMember,
       grossByMember,
       FY2027_CONFIG,
     )
@@ -543,20 +608,35 @@ describe('netAnnualSuperContributionByMember', () => {
       amount_cents: 1_000_00,
     }
     const sgAfterTax = Math.round(0.12 * 49_293_00 * 0.85)
-    const result = netAnnualSuperContributionByMember([contribution], grossByMember, FY2027_CONFIG)
+    const result = netAnnualSuperContributionByMember(
+      [contribution],
+      grossByMember,
+      grossByMember,
+      FY2027_CONFIG,
+    )
     expect(result.get('m1')).toBe(sgAfterTax + 1_000_00 + 500_00)
   })
 
   it('produces an entry from gross salary alone (employer SG, after tax)', () => {
     const grossByMember = new Map([['m1', 80_000_00]])
-    const result = netAnnualSuperContributionByMember([], grossByMember, FY2027_CONFIG)
+    const result = netAnnualSuperContributionByMember(
+      [],
+      grossByMember,
+      grossByMember,
+      FY2027_CONFIG,
+    )
     expect(result.get('m1')).toBe(Math.round(0.12 * 80_000_00 * 0.85))
   })
 
   it('taxes a contribution with no gross salary, contributing no employer SG', () => {
     // The member contributes but has no gross salary on record, so there is no
     // employer SG; only the salary sacrifice is taxed at 15% in the fund.
-    const result = netAnnualSuperContributionByMember([baseContribution], new Map(), FY2027_CONFIG)
+    const result = netAnnualSuperContributionByMember(
+      [baseContribution],
+      new Map(),
+      new Map(),
+      FY2027_CONFIG,
+    )
     expect(result.get('m1')).toBe(Math.round(13_000_00 * 0.85))
   })
 })
@@ -582,9 +662,65 @@ describe('netAnnualSuperContributionFromRows', () => {
     // on the $100k salary using the current financial year's config (FY2027).
     const result = netAnnualSuperContributionFromRows([salary, nonTaxable], [])
     expect(result.get('m1')).toBe(
-      netAnnualSuperContributionByMember([], new Map([['m1', 100_000_00]]), FY2027_CONFIG).get(
-        'm1',
-      ),
+      netAnnualSuperContributionByMember(
+        [],
+        new Map([['m1', 100_000_00]]),
+        new Map([['m1', 100_000_00]]),
+        FY2027_CONFIG,
+      ).get('m1'),
+    )
+  })
+
+  it('leaves an allowance that earns no super out of the employer SG base', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 100_000_00,
+    }
+    // Taxed in full, but no super guarantee accrues on it, so the SG base stays
+    // the $100k salary rather than rising to $113,000.
+    const onCall: Inflow = {
+      ...baseInflow,
+      id: 'i2',
+      name: 'On-call (T1)',
+      attracts_super: false,
+      schedule: 'fortnightly',
+      interval_count: null,
+      amount_cents: 500_00,
+    }
+    expect(netAnnualSuperContributionFromRows([salary, onCall], []).get('m1')).toBe(
+      Math.round(0.12 * 100_000_00 * 0.85),
+    )
+  })
+
+  it('counts an allowance that earns no super toward the co-contribution income test', () => {
+    const salary: Inflow = {
+      ...baseInflow,
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 45_000_00,
+    }
+    const onCall: Inflow = {
+      ...baseInflow,
+      id: 'i2',
+      name: 'On-call (T1)',
+      attracts_super: false,
+      type: 'other',
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 12_000_00,
+    }
+    const contribution: SuperContribution = {
+      ...baseContribution,
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 1_000_00,
+    }
+    // SG on the $45,000 salary alone, plus the after-tax contribution and the
+    // co-contribution the $57,000 income test tapers to $243.10.
+    expect(netAnnualSuperContributionFromRows([salary, onCall], [contribution]).get('m1')).toBe(
+      Math.round(0.12 * 45_000_00 * 0.85) + 1_000_00 + 243_10,
     )
   })
 })

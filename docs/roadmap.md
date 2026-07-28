@@ -522,15 +522,16 @@ Recurring shorthand:
 
 #### 1. incident.io on-call schedule → on-call pay forecasting
 
-- **What / value.** The user's on-call payment is currently modelled as an
-  `every_n_weeks` inflow with N ≈ the team rotation size — a rough proxy that
-  drifts as soon as a shift is swapped, a public holiday shifts a rotation, or
-  the roster changes. Integrating incident.io's schedules/on-call API reads the
-  _actual_ rotation, so the app can show a concrete **"next on-call payment:
-  <date>, ~$X"** instead of an averaged cadence. It sharpens near-term
-  cash-flow accuracy (the buffer knows exactly which fortnight the money lands
-  in) and, once ingestion works, lets expected on-call pay be reconciled
-  against what actually hit the Up account.
+- **What / value.** On-call pay is modelled as its own inflow per tier, taxed
+  in full and marked as earning no super, and each payslip's on-call earnings
+  line is measured against it (see [`payslips.md`](payslips.md)) — so what was
+  actually paid is reconciled per period. What the projection cannot say is
+  _when_: it carries a cadence, not the roster. Integrating incident.io's
+  schedules/on-call API reads the _actual_ rotation, so the app can show a
+  concrete **"next on-call payment: <date>, ~$X"** instead of an averaged
+  cadence. It sharpens near-term cash-flow accuracy (the buffer knows exactly
+  which fortnight the money lands in) and, once ingestion works, lets expected
+  on-call pay be reconciled against what actually hit the Up account.
 - **Effort.** M — one edge function + a small schedule-derived inflow type and
   a read-only "upcoming on-call" panel. The forecasting math is easy; the
   fiddly part is mapping rotation entries to pay events and pay dates (shift
@@ -839,9 +840,9 @@ Ranked for value-to-effort against this specific household's setup:
    the remaining slice extends the same real-balance linking to Temporary items.
    Small, high roadmap alignment, and the saver balances it needs are already
    synced.
-2. **incident.io on-call pay forecasting (1)** — solves a real modelling gap
-   (the `every_n_weeks` proxy) with a concrete dated forecast; distinctive and
-   directly useful to this user. Provider-abstract it (PagerDuty/Opsgenie).
+2. **incident.io on-call pay forecasting (1)** — turns an averaged on-call
+   cadence into a concrete dated forecast; distinctive and directly useful to
+   this user. Provider-abstract it (PagerDuty/Opsgenie).
 3. **Push notification triggers (8)** — the subscription store, VAPID keys, and
    send path are shipped (a device can opt in and receive a test push), so what is
    left is the evaluation layer that makes the installed PWA proactive (negative

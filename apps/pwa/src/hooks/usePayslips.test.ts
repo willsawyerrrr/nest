@@ -2,14 +2,15 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makePayslip } from '../test/fixtures'
 import { makeWrapper } from '../test/queryWrapper'
-import { usePayslips, type PayslipInput } from './usePayslips'
+import { usePayslips, type PayslipInput, type PayslipSubmission } from './usePayslips'
 
-const { builder, bucket, invoke } = await vi.hoisted(async () => {
+const { builder, bucket, invoke, rpc } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
   return {
     builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']),
     bucket: { upload: vi.fn(), remove: vi.fn(), createSignedUrl: vi.fn() },
     invoke: vi.fn(),
+    rpc: vi.fn(),
   }
 })
 
@@ -18,6 +19,7 @@ vi.mock('../lib/supabase', () => ({
     from: vi.fn(() => builder),
     storage: { from: vi.fn(() => bucket) },
     functions: { invoke },
+    rpc,
   },
 }))
 
@@ -49,6 +51,22 @@ function slipFile() {
 /** A document already uploaded for a payslip, as a form would hand it over. */
 const attachment = { payslipId: 'ps1', path: 'h1/ps1/uuid-slip.pdf' }
 
+/** One itemised slip as a form submits it, under the id the form minted. */
+const submission: PayslipSubmission = {
+  id: 'ps1',
+  input,
+  lines: [{ source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 }],
+  attachment: null,
+}
+
+/** What the RPC should have been sent for `submission`, with `file_path` on top. */
+function rpcArgs(filePath: string | null) {
+  return {
+    p_payslip: { ...input, id: 'ps1', household_id: 'h1', file_path: filePath },
+    p_lines: [...submission.lines],
+  }
+}
+
 /** A non-2xx reply from `payslip-extract`, as `invoke` reports one. */
 function httpFailure(status: number, body: unknown) {
   return {
@@ -75,6 +93,7 @@ beforeEach(() => {
   bucket.remove.mockResolvedValue({ data: {}, error: null })
   bucket.createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/y' }, error: null })
   invoke.mockResolvedValue({ data: null, error: null, response: undefined })
+  rpc.mockResolvedValue({ data: 'ps1', error: null })
 })
 
 describe('usePayslips', () => {
@@ -95,20 +114,42 @@ describe('usePayslips', () => {
     expect(builder.eq).toHaveBeenCalledWith('financial_year', 2025)
   })
 
-  it('inserts a payslip under the household with no attachment', async () => {
+  it('writes a payslip and its earnings lines in one call', async () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.create(input)
+      await result.current.save(submission)
     })
 
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(null))
     expect(bucket.upload).not.toHaveBeenCalled()
-    expect(builder.insert).toHaveBeenCalledWith({
-      ...input,
-      id: expect.any(String),
-      file_path: null,
-      household_id: 'h1',
+  })
+
+  it('surfaces a failed save without writing the lines separately', async () => {
+    // The slip and its lines move together or not at all: a rejection is one
+    // failed call, never a slip left behind without the lines it was saved with.
+    rpc.mockResolvedValue({ data: null, error: new Error('nope') })
+    const result = await renderPayslips()
+
+    await expect(result.current.save(submission)).rejects.toThrow('nope')
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('rewrites the same slip when a failed save is retried', async () => {
+    // The id is the submission's, so pressing Save again after a failure lands
+    // on the row the first attempt would have written, not a second one beside it.
+    rpc.mockResolvedValueOnce({ data: null, error: new Error('nope') })
+    const result = await renderPayslips()
+
+    await expect(result.current.save(submission)).rejects.toThrow('nope')
+    await act(async () => {
+      await result.current.save(submission)
     })
+
+    expect(
+      rpc.mock.calls.map(([, args]) => (args as { p_payslip: { id: string } }).p_payslip.id),
+    ).toEqual(['ps1', 'ps1'])
   })
 
   it('files an uploaded document under the household and payslip', async () => {
@@ -131,20 +172,15 @@ describe('usePayslips', () => {
     await expect(result.current.attachments.upload('ps9', slipFile())).rejects.toThrow('nope')
   })
 
-  it('inserts the row under the id its uploaded document is filed against', async () => {
+  it('writes the row under the id its uploaded document is filed against', async () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.create(input, attachment)
+      await result.current.save({ ...submission, attachment })
     })
 
     expect(bucket.upload).not.toHaveBeenCalled()
-    expect(builder.insert).toHaveBeenCalledWith({
-      ...input,
-      id: 'ps1',
-      file_path: 'h1/ps1/uuid-slip.pdf',
-      household_id: 'h1',
-    })
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(attachment.path))
   })
 
   it('deletes an abandoned upload, and shrugs off a delete that fails', async () => {
@@ -163,10 +199,11 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.update('ps1', input)
+      await result.current.save(submission)
     })
 
-    expect(builder.update).toHaveBeenCalledWith(input)
+    // A null path is what leaves the stored document in place.
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(null))
     expect(bucket.upload).not.toHaveBeenCalled()
     expect(bucket.remove).not.toHaveBeenCalled()
   })
@@ -176,10 +213,10 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.update('ps1', input, attachment)
+      await result.current.save({ ...submission, attachment })
     })
 
-    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(attachment.path))
     expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/old-slip.pdf'])
   })
 
@@ -192,10 +229,10 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await expect(result.current.update('ps1', input, attachment)).resolves.toBeUndefined()
+      await expect(result.current.save({ ...submission, attachment })).resolves.toBeUndefined()
     })
 
-    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(attachment.path))
     expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/old-slip.pdf'])
   })
 
@@ -205,10 +242,10 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.update('ps1', input, attachment)
+      await result.current.save({ ...submission, attachment })
     })
 
-    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(attachment.path))
     expect(bucket.remove).not.toHaveBeenCalled()
   })
 
@@ -216,10 +253,10 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     await act(async () => {
-      await result.current.update('ps1', input, attachment)
+      await result.current.save({ ...submission, attachment })
     })
 
-    expect(builder.update).toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('upsert_payslip_with_lines', rpcArgs(attachment.path))
     expect(bucket.remove).not.toHaveBeenCalled()
   })
 

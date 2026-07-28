@@ -304,8 +304,11 @@ describe('payslipVariance on cadence', () => {
       periodFraction: 14 / 365,
       expectedGrossCents: CADENCE_GROSS,
       grossVarianceCents: 0,
+      lineGroups: [],
+      unallocatedCents: 0,
       expectedTaxWithheldCents: CADENCE_WITHHELD,
       taxWithheldVarianceCents: 0,
+      superBaseCents: CADENCE_GROSS,
       expectedSuperGuaranteeCents: CADENCE_SUPER,
       expectedConcessionalCents: 0,
       expectedSuperCents: CADENCE_SUPER,
@@ -660,5 +663,230 @@ describe('latestReportedYearToDate', () => {
   it('reports nothing when no payslip carries running totals', () => {
     expect(latestReportedYearToDate([row(), row({ periodEnd: '2026-07-28' })])).toBeNull()
     expect(latestReportedYearToDate([])).toBeNull()
+  })
+})
+
+/**
+ * The real slip this grouping exists for: one Heidi Health fortnight of a
+ * $130,000 salary, split across ordinary hours and annual leave, plus a
+ * $495.50 on-call allowance that is taxed in full but earns no super.
+ */
+const HEIDI_PERIOD = period('2026-06-27', '2026-07-10')
+
+/** The on-call allowance, projected at $450 a fortnight and outside the super base. */
+const ON_CALL: ReconciledInflow = {
+  type: 'other',
+  schedule: 'fortnightly',
+  amountCents: 450_00,
+  attractsSuper: false,
+}
+
+/** The projections a Heidi slip's lines draw on, keyed as the expectation reads them. */
+const HEIDI_INFLOWS = new Map<string, ReconciledInflow>([
+  ['salary', SALARY],
+  ['on-call', ON_CALL],
+])
+
+/**
+ * The slip's three earnings lines: two on the salary, one on the allowance, each
+ * carrying the ordinary-time-earnings decision recorded when it was written.
+ */
+const HEIDI_LINES = [
+  { sourceInflowId: 'salary', label: 'Ordinary Hours', amountCents: 4_000_00 },
+  { sourceInflowId: 'salary', label: 'Annual Leave', amountCents: 1_000_00 },
+  { sourceInflowId: 'on-call', label: 'On-call (T1)', amountCents: 495_50, attractsSuper: false },
+] as const
+
+/** That slip's actuals: $5,495.50 gross, $1,850 tax, $600 super. */
+function heidiPayslip(overrides: Partial<PayslipActuals> = {}): PayslipActuals {
+  return payslip({
+    ...HEIDI_PERIOD,
+    grossCents: 5_495_50,
+    taxWithheldCents: 1_850_00,
+    superCents: 600_00,
+    lines: HEIDI_LINES,
+    ...overrides,
+  })
+}
+
+/** That slip's expectation: the salary as its cadence anchor, both inflows resolvable. */
+function heidiExpectation(overrides: Partial<PayslipExpectation> = {}): PayslipExpectation {
+  return expectation({ inflowsById: HEIDI_INFLOWS, ...overrides })
+}
+
+describe('payslipVariance with earnings lines', () => {
+  it('sums the lines drawing on one inflow into a single group in slip order', () => {
+    expect(payslipVariance(heidiPayslip(), heidiExpectation()).lineGroups).toEqual([
+      {
+        sourceInflowId: 'salary',
+        labels: ['Ordinary Hours', 'Annual Leave'],
+        actualCents: 5_000_00,
+        // $130,000 ÷ 26 exactly, so the two salary lines land dead on plan.
+        expectedCents: 5_000_00,
+        varianceCents: 0,
+        basis: 'cadence',
+      },
+      {
+        sourceInflowId: 'on-call',
+        labels: ['On-call (T1)'],
+        actualCents: 495_50,
+        expectedCents: 450_00,
+        varianceCents: 45_50,
+        basis: 'cadence',
+      },
+    ])
+  })
+
+  it('keeps the allowance’s lumpiness out of the salary’s variance', () => {
+    const [salary, onCall] = payslipVariance(heidiPayslip(), heidiExpectation()).lineGroups
+    expect(salary?.varianceCents).toBe(0)
+    expect(onCall?.varianceCents).toBe(45_50)
+  })
+
+  // The employer pays 12% of the $5,000 salary, not of the $5,495.50 gross:
+  // 12% of the whole gross expects $659.46 and reads a correct slip as $59.46
+  // below plan.
+  it('charges the expected super guarantee on the gross less the non-OTE lines', () => {
+    const variance = payslipVariance(heidiPayslip(), heidiExpectation())
+    expect(variance.superBaseCents).toBe(5_000_00)
+    expect(variance.expectedSuperGuaranteeCents).toBe(600_00)
+    expect(variance.expectedSuperGuaranteeCents).not.toBe(659_46)
+    expect(variance.superVarianceCents).toBe(0)
+  })
+
+  it('counts a line that says nothing about super toward the super base', () => {
+    const variance = payslipVariance(
+      heidiPayslip({
+        lines: HEIDI_LINES.map(({ sourceInflowId, label, amountCents }) => ({
+          sourceInflowId,
+          label,
+          amountCents,
+        })),
+      }),
+      heidiExpectation(),
+    )
+    expect(variance.superBaseCents).toBe(5_495_50)
+  })
+
+  it('never charges the guarantee on a base below nil', () => {
+    // A mistyped allowance overshooting the gross would otherwise expect
+    // negative super and read the slip as far above plan.
+    const variance = payslipVariance(
+      heidiPayslip({
+        grossCents: 495_50,
+        lines: [
+          {
+            sourceInflowId: 'on-call',
+            label: 'On-call',
+            amountCents: 4_955_00,
+            attractsSuper: false,
+          },
+        ],
+      }),
+      heidiExpectation(),
+    )
+    expect(variance.superBaseCents).toBe(0)
+    expect(variance.expectedSuperGuaranteeCents).toBe(0)
+  })
+
+  it('sums the group expectations into the slip’s expected gross', () => {
+    const variance = payslipVariance(heidiPayslip(), heidiExpectation())
+    expect(variance.expectedGrossCents).toBe(5_450_00)
+    expect(variance.grossVarianceCents).toBe(45_50)
+  })
+
+  it('reports the gross the lines do not account for', () => {
+    const variance = payslipVariance(heidiPayslip({ grossCents: 5_600_00 }), heidiExpectation())
+    expect(variance.unallocatedCents).toBe(104_50)
+  })
+
+  it('reports lines overshooting the gross as a negative remainder', () => {
+    const variance = payslipVariance(heidiPayslip({ grossCents: 5_000_00 }), heidiExpectation())
+    expect(variance.unallocatedCents).toBe(-495_50)
+  })
+
+  it('leaves a line mapped to no inflow with nothing to compare', () => {
+    const variance = payslipVariance(
+      heidiPayslip({
+        lines: [
+          { sourceInflowId: 'salary', label: 'Ordinary Hours', amountCents: 5_000_00 },
+          { sourceInflowId: null, label: 'Bonus', amountCents: 495_50 },
+        ],
+      }),
+      heidiExpectation(),
+    )
+    expect(variance.lineGroups[1]).toEqual({
+      sourceInflowId: null,
+      labels: ['Bonus'],
+      actualCents: 495_50,
+      expectedCents: null,
+      varianceCents: null,
+      basis: 'calendar_days',
+    })
+    // The bonus is real earnings the plan never projected, so it reads as gross
+    // above plan rather than vanishing from the comparison.
+    expect(variance.expectedGrossCents).toBe(5_000_00)
+    expect(variance.grossVarianceCents).toBe(495_50)
+  })
+
+  it('treats a line naming a retired inflow as mapped to none', () => {
+    const variance = payslipVariance(
+      heidiPayslip(),
+      heidiExpectation({ inflowsById: new Map([['salary', SALARY]]) }),
+    )
+    expect(variance.lineGroups[1]?.expectedCents).toBeNull()
+    // The line's own record of earning no super stands whatever became of the
+    // inflow, so a retired allowance cannot re-inflate a past slip's super base.
+    expect(variance.superBaseCents).toBe(5_000_00)
+    expect(variance.expectedSuperGuaranteeCents).toBe(600_00)
+  })
+
+  it('has no gross expectation when nothing on the slip maps to a projection', () => {
+    const variance = payslipVariance(
+      heidiPayslip({
+        lines: [{ sourceInflowId: null, label: 'Bonus', amountCents: 5_495_50 }],
+      }),
+      heidiExpectation(),
+    )
+    expect(variance.expectedGrossCents).toBeNull()
+    expect(variance.grossVarianceCents).toBeNull()
+  })
+
+  it('apportions a group by calendar days when the period is not one turn of its cadence', () => {
+    const group = payslipVariance(
+      heidiPayslip({ ...period('2026-06-27', '2026-07-03') }),
+      heidiExpectation(),
+    ).lineGroups[0]
+    expect(group?.basis).toBe('calendar_days')
+    // $130,000 × 7/365, the same proration a whole part-period slip gets.
+    expect(group?.expectedCents).toBe(2_493_15)
+  })
+
+  it('reads the withholding basis from the slip’s cadence anchor, not its lines', () => {
+    // Every line is on the fortnightly allowance, but the anchor is still the
+    // fortnightly salary, so the withholding stays a per-cadence division.
+    const variance = payslipVariance(heidiPayslip(), heidiExpectation())
+    expect(variance.basis).toBe('cadence')
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
+  })
+
+  it('leaves an unitemised slip measured whole, with no groups and nothing unallocated', () => {
+    const variance = payslipVariance(payslip({ lines: [] }), heidiExpectation())
+    expect(variance.lineGroups).toEqual([])
+    expect(variance.unallocatedCents).toBe(0)
+    expect(variance.expectedGrossCents).toBe(CADENCE_GROSS)
+    expect(variance.superBaseCents).toBe(CADENCE_GROSS)
+  })
+
+  it('expects no guarantee on an unitemised slip anchored to an allowance', () => {
+    // The whole gross is that one allowance, so charging the rate on it would
+    // expect super the employer never owed.
+    const variance = payslipVariance(
+      payslip({ grossCents: 495_50, superCents: 0, lines: [] }),
+      heidiExpectation({ inflow: ON_CALL }),
+    )
+    expect(variance.superBaseCents).toBe(0)
+    expect(variance.expectedSuperGuaranteeCents).toBe(0)
+    expect(variance.superVarianceCents).toBe(0)
   })
 })

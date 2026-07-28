@@ -33,6 +33,7 @@ describe('InflowForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'Day job',
         taxable: true,
+        attracts_super: true,
         member_id: 'm1',
         type: 'salary',
         schedule: 'fortnightly',
@@ -61,6 +62,7 @@ describe('InflowForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'Shifts',
         taxable: true,
+        attracts_super: true,
         member_id: 'm1',
         type: 'wage',
         schedule: 'fortnightly',
@@ -90,6 +92,7 @@ describe('InflowForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'Travel reimbursement',
         taxable: false,
+        attracts_super: true,
         member_id: null,
         type: 'reimbursement',
         schedule: 'fortnightly',
@@ -143,6 +146,63 @@ describe('InflowForm', () => {
     )
   })
 
+  it('submits an allowance the employer pays no super on', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'On-call (T1)')
+    await user.type(screen.getByLabelText(/amount/i), '495.50')
+    await user.click(screen.getByRole('switch', { name: /employer super accrues on this/i }))
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'On-call (T1)', taxable: true, attracts_super: false }),
+      ),
+    )
+  })
+
+  it('explains that an allowance is taxed in full but earns no super', () => {
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+    expect(screen.getByText(/taxed in full, but no super accrues on it/i)).toBeInTheDocument()
+  })
+
+  it('keeps a saved allowance switched off when editing, and hides the switch when non-taxable', () => {
+    const onCall = makeInflow({ id: 'i2', name: 'On-call (T1)', attracts_super: false })
+    const { unmount } = render(<InflowForm members={members} initial={onCall} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('switch', { name: /employer super/i })).not.toBeChecked()
+    unmount()
+
+    // Super never accrues on a non-taxable inflow, so there is nothing to ask.
+    render(
+      <InflowForm
+        members={members}
+        initial={makeInflow({ id: 'i3', taxable: false, member_id: null, type: 'gift' })}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('switch', { name: /employer super/i })).not.toBeInTheDocument()
+  })
+
+  it('stores a non-taxable inflow as ordinary time earnings whatever was switched before', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByRole('switch', { name: /employer super/i }))
+    await user.click(screen.getByText('Non-taxable inflow'))
+    await user.type(screen.getByLabelText(/name/i), 'Rebate')
+    await user.type(screen.getByLabelText(/amount/i), '50')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxable: false, attracts_super: true }),
+      ),
+    )
+  })
+
   it('preselects a saved non-taxable type when editing', () => {
     const inflow = makeInflow({
       id: 'i2',
@@ -181,6 +241,7 @@ describe('InflowForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'On-call',
         taxable: true,
+        attracts_super: true,
         member_id: 'm1',
         type: 'salary',
         schedule: 'every_n_weeks',
@@ -217,6 +278,7 @@ describe('InflowForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'Quarterly bonus',
         taxable: true,
+        attracts_super: true,
         member_id: 'm1',
         type: 'salary',
         schedule: 'every_n_months',

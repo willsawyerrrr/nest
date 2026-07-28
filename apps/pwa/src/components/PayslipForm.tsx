@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Alert,
   FileInput,
@@ -15,6 +15,7 @@ import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow } from '../hooks/useInflows'
 import { usePayslipAttachment, type ExtractionState } from '../hooks/usePayslipAttachment'
 import { usePayslipFields } from '../hooks/usePayslipFields'
+import type { PayslipLineInput, PayslipLineRow } from '../hooks/usePayslipLines'
 import type {
   PayslipAttachments,
   PayslipInput,
@@ -32,6 +33,7 @@ import {
 import { financialYearForPayPeriod } from '../lib/payslips'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
+import { PayslipLinesField, type LineDraft } from './PayslipLinesField'
 
 /** Days a fortnightly pay period spans, less the inclusive end day. */
 const FORTNIGHT_SPAN_DAYS = 13
@@ -40,6 +42,8 @@ interface PayslipFormProps {
   member: { id: string; name: string }
   /** Every household inflow; only this member's taxable ones are offered as the source. */
   inflows: readonly Inflow[]
+  /** The earnings lines already on the payslip being edited; empty when adding. */
+  initialLines?: readonly PayslipLineRow[]
   /** Storing, discarding, and reading the document the member attaches. */
   attachments: PayslipAttachments
   initial?: PayslipRow | undefined
@@ -193,7 +197,8 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * Presentational add/edit form for one payslip, tagged to the member the section
  * belongs to. The financial year is not typed: it is derived from the pay period
  * and shown back. The source inflow is an explicit choice from the member's own
- * taxable inflows.
+ * taxable inflows, and the slip may be itemised into earnings lines each drawing
+ * on one of those same inflows.
  *
  * Attaching a document stores it and reads it: the figures it finds pre-fill the
  * fields that are not already the member's own — typed here, or saved on the
@@ -208,6 +213,7 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
 export function PayslipForm({
   member,
   inflows,
+  initialLines = [],
   attachments,
   initial,
   onSubmit,
@@ -241,9 +247,38 @@ export function PayslipForm({
     initial?.source_inflow_id ?? null,
   )
   const [note, setNote] = useState(initial?.note ?? '')
+  const nextLineId = useRef(initialLines.length)
+  const [lines, setLines] = useState<LineDraft[]>(() =>
+    initialLines.map((line, index) => ({
+      id: index,
+      label: line.label,
+      amount: centsToDollars(line.amount_cents),
+      sourceInflowId: line.source_inflow_id,
+    })),
+  )
+
+  const changeLine = (id: number, changes: Partial<LineDraft>) =>
+    setLines((current) => current.map((line) => (line.id === id ? { ...line, ...changes } : line)))
+  const addLine = () =>
+    setLines((current) => [
+      ...current,
+      { id: nextLineId.current++, label: '', amount: '', sourceInflowId: null },
+    ])
+  const removeLine = (id: number) => setLines((current) => current.filter((line) => line.id !== id))
 
   const { values } = fields
   const memberInflows = inflows.filter((inflow) => inflow.taxable && inflow.member_id === member.id)
+  const inflowOptions = memberInflows.map((inflow) => ({ value: inflow.id, label: inflow.name }))
+  // A row left entirely blank is the member starting one and thinking better of
+  // it, so it is dropped on save rather than blocking it; a half-filled row is a
+  // mistake worth catching.
+  const enteredLines = lines.filter((line) => line.label.trim() !== '' || line.amount !== '')
+  const linesComplete = enteredLines.every((line) => line.label.trim() !== '' && line.amount !== '')
+  const allocatedCents = enteredLines.reduce(
+    (sum, line) => sum + (dollarsToCents(line.amount) ?? 0),
+    0,
+  )
+  const unallocatedCents = (dollarsToCents(values.gross_cents) ?? 0) - allocatedCents
   const periodInverted =
     values.period_start !== null &&
     values.period_end !== null &&
@@ -260,6 +295,7 @@ export function PayslipForm({
     values.period_end !== null &&
     !periodInverted &&
     quartetEntered &&
+    linesComplete &&
     !slip.busy
   const financialYear =
     values.period_end === null ? null : financialYearForPayPeriod(values.period_end)
@@ -272,6 +308,9 @@ export function PayslipForm({
     // longer cleaned up as an object nothing references.
     onSuccess: slip.keep,
     buildInput: (): PayslipSubmission => ({
+      // The id the document is filed under, and the one the row is written
+      // under — the same one every time this form saves.
+      id: slip.payslipId,
       input: {
         member_id: member.id,
         financial_year: financialYearForPayPeriod(values.period_end!),
@@ -289,6 +328,11 @@ export function PayslipForm({
         source_inflow_id: sourceInflowId,
         note: note.trim() === '' ? null : note.trim(),
       } satisfies PayslipInput,
+      lines: enteredLines.map((line): PayslipLineInput => ({
+        source_inflow_id: line.sourceInflowId,
+        label: line.label.trim(),
+        amount_cents: dollarsToCents(line.amount) ?? 0,
+      })),
       attachment: slip.attachment,
     }),
   })
@@ -355,9 +399,9 @@ export function PayslipForm({
         <Select
           label="Reconciles against"
           size="sm"
-          description="The projected inflow this pay period is measured against."
+          description="The inflow this slip's pay cycle is read from, and — with no earnings lines below — the projection its whole gross is measured against."
           placeholder={memberInflows.length === 0 ? 'No taxable inflows' : 'No projected inflow'}
-          data={memberInflows.map((inflow) => ({ value: inflow.id, label: inflow.name }))}
+          data={inflowOptions}
           value={sourceInflowId}
           onChange={setSourceInflowId}
           clearable
@@ -392,6 +436,16 @@ export function PayslipForm({
           onChange={(value) => fields.setAmount('net_cents', value)}
         />
       </SimpleGrid>
+
+      <PayslipLinesField
+        lines={lines}
+        options={inflowOptions}
+        allocatedCents={allocatedCents}
+        unallocatedCents={unallocatedCents}
+        onChange={changeLine}
+        onAdd={addLine}
+        onRemove={removeLine}
+      />
 
       <AmountField
         label="Salary sacrifice"

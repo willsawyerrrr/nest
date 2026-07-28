@@ -3,13 +3,16 @@ import {
   paygWithheldByMember,
   payslipVariance,
   payslipYearToDate,
+  type PayslipLine,
   type PayslipTotals,
   type PayslipTotalsRow,
   type PayslipVariance,
   type PayslipYearToDateTotals,
+  type ReconciledInflow,
 } from '@nest/plan'
 import { financialYearForDate, type MemberTaxEstimate, type TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
+import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipRow } from '../hooks/usePayslips'
 import { toIncomeInput } from './tax'
 
@@ -65,16 +68,72 @@ export function reportedYearToDateFromRows(
 }
 
 /**
- * Measures one payslip row against the plan: its reconciled inflow's projected
- * gross for the period, its member's estimated tax as the implied withholding,
- * and the config's super guarantee plus their modelled concessional
- * contributions. An absent inflow leaves the gross expectation null — there is no
- * projection to compare — and an absent member estimate expects nothing withheld
- * or contributed.
+ * Maps an `inflows` row to the projection a payslip is measured against: the tax
+ * engine's own income shape plus whether employer super accrues on it, which
+ * decides whether an unitemised slip anchored to it earns any.
+ */
+export function toReconciledInflow(inflow: Inflow): ReconciledInflow {
+  return { ...toIncomeInput(inflow), attractsSuper: inflow.attracts_super }
+}
+
+/** Maps a `payslip_line` row to the earnings line `@nest/plan` groups and sums. */
+export function toPayslipLine(line: PayslipLineRow): PayslipLine {
+  return {
+    sourceInflowId: line.source_inflow_id,
+    label: line.label,
+    amountCents: line.amount_cents,
+    attractsSuper: line.attracts_super,
+  }
+}
+
+/**
+ * The household-wide lookups every payslip card reads. Built once for a screenful
+ * of slips rather than per card: each is a pass over the household's whole inflow
+ * or line list, which a per-slip rebuild turns into a scan per slip.
+ */
+export interface PayslipReconciliation {
+  /** Every inflow keyed by id, so a slip resolves the projection it draws on. */
+  readonly inflowsById: ReadonlyMap<string, ReconciledInflow>
+  /** Each payslip's own lines, in the order they were entered. */
+  readonly linesByPayslip: ReadonlyMap<string, PayslipLineRow[]>
+  /** Every inflow's name keyed by id, for naming a slip's earnings-line groups. */
+  readonly inflowNames: ReadonlyMap<string, string>
+}
+
+/** Builds the {@link PayslipReconciliation} lookups from the household's rows. */
+export function payslipReconciliation(
+  inflows: readonly Inflow[],
+  lines: readonly PayslipLineRow[],
+): PayslipReconciliation {
+  const linesByPayslip = new Map<string, PayslipLineRow[]>()
+  for (const line of lines) {
+    const forPayslip = linesByPayslip.get(line.payslip_id)
+    if (forPayslip) {
+      forPayslip.push(line)
+    } else {
+      linesByPayslip.set(line.payslip_id, [line])
+    }
+  }
+  return {
+    inflowsById: new Map(inflows.map((inflow) => [inflow.id, toReconciledInflow(inflow)])),
+    linesByPayslip,
+    inflowNames: new Map(inflows.map((inflow) => [inflow.id, inflow.name])),
+  }
+}
+
+/**
+ * Measures one payslip row against the plan: each of its earnings lines held
+ * against the projection it draws on, its member's estimated tax as the implied
+ * withholding, and the config's super guarantee — charged on the gross less every
+ * non-OTE line — plus their modelled concessional contributions. A slip with no
+ * lines is measured whole against the inflow its `source_inflow_id` names, and
+ * earns super only if that inflow does; either way, nothing mapping to a
+ * projection leaves the gross expectation null, and an absent member estimate
+ * expects nothing withheld or contributed.
  */
 export function payslipVarianceFor(
   payslip: PayslipRow,
-  inflow: Inflow | undefined,
+  { inflowsById, linesByPayslip }: PayslipReconciliation,
   estimate: MemberTaxEstimate | undefined,
   config: TaxYearConfig,
 ): PayslipVariance {
@@ -87,9 +146,14 @@ export function payslipVarianceFor(
       taxWithheldCents: payslip.tax_withheld_cents,
       superCents: payslip.super_cents,
       salarySacrificeCents: payslip.salary_sacrifice_cents,
+      lines: (linesByPayslip.get(payslip.id) ?? []).map(toPayslipLine),
     },
     {
-      inflow: inflow ? toIncomeInput(inflow) : null,
+      inflow:
+        payslip.source_inflow_id === null
+          ? null
+          : (inflowsById.get(payslip.source_inflow_id) ?? null),
+      inflowsById,
       annualTaxCents: estimate?.annualTaxCents ?? 0,
       annualConcessionalContributionsCents: estimate?.annualConcessionalContributionsCents ?? 0,
       superConfig: config.super,

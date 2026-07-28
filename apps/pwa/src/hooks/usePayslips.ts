@@ -9,6 +9,7 @@ import {
 } from '../lib/payslipExtraction'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
+import type { PayslipLineInput } from './usePayslipLines'
 
 export type PayslipRow = Tables<'payslip'>
 
@@ -49,11 +50,21 @@ export interface PayslipAttachment {
 }
 
 /**
- * What a payslip form saves: the row's fields and the document uploaded for it,
- * if any. A null `attachment` leaves any existing attachment as it is.
+ * What a payslip form saves: the id it saves under, the row's fields, the slip's
+ * earnings lines, and the document uploaded for it, if any. A null `attachment`
+ * leaves any existing attachment as it is; `lines` is the slip's whole set, an
+ * empty list leaving it unitemised.
+ *
+ * The id is the form's own, minted when it opened and unchanged however many
+ * times the member presses Save: a slip being edited keeps its id, and a new one
+ * is written under the id its document is already filed against. That is what
+ * makes a retry after a failed save rewrite the same slip rather than adding a
+ * second one alongside it.
  */
 export interface PayslipSubmission {
+  id: string
   input: PayslipInput
+  lines: readonly PayslipLineInput[]
   attachment: PayslipAttachment | null
 }
 
@@ -76,9 +87,6 @@ export interface PayslipAttachments {
   read: (path: string) => Promise<ExtractionOutcome>
 }
 
-/** The written row: the form's fields plus the id and object key the hook sets. */
-type PayslipWrite = PayslipInput & { id?: string; file_path?: string | null }
-
 /** The private Storage bucket payslip documents live in. */
 const PAYSLIPS_BUCKET = 'payslips'
 
@@ -90,15 +98,18 @@ export interface UsePayslipsResult {
   financialYear: number
   loading: boolean
   reload: () => Promise<void>
-  /** Records a payslip under the id its uploaded document is filed against. */
-  create: (input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
   /**
-   * Rewrites a payslip. A new `attachment` replaces the document — recorded
-   * first, and only then is the superseded object dropped, best effort, so a
-   * delete that fails cannot reject a save already written; without one the
-   * existing attachment stands.
+   * Writes a payslip and its earnings lines together, under the id the
+   * submission carries — a new slip and an edited one take the same path. The
+   * two land in one transaction, so a failure leaves the slip and its lines
+   * exactly as they were, and repeating the save rewrites that same slip rather
+   * than duplicating it.
+   *
+   * A new `attachment` replaces the document — recorded first, and only then is
+   * the superseded object dropped, best effort, so a delete that fails cannot
+   * reject a save already written; without one the existing attachment stands.
    */
-  update: (id: string, input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
+  save: (submission: PayslipSubmission) => Promise<void>
   /** Removes a payslip and its stored attachment. */
   remove: (id: string) => Promise<void>
   /** A short-lived signed URL for viewing a stored attachment, or null on failure. */
@@ -118,15 +129,14 @@ export function usePayslips(
   householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UsePayslipsResult {
-  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
-    'payslip',
-    PayslipWrite,
-    Partial<PayslipWrite>
-  >(householdId, {
+  const { rows, loading, reload, remove } = useHouseholdCollection<'payslip', never>(householdId, {
     table: 'payslip',
     match: { financial_year: financialYear },
     orderBy: 'period_end',
     descending: true,
+    // A save writes the slip's earnings lines in the same call, so the lines
+    // collection is refetched alongside this one.
+    alsoInvalidate: ['payslip_line'],
   })
 
   const uploadFile = useCallback(
@@ -191,33 +201,28 @@ export function usePayslips(
     [rows],
   )
 
-  const createPayslip = useCallback(
-    async (input: PayslipInput, attachment?: PayslipAttachment | null) => {
-      // The id is minted with the attachment so the document can be filed under
-      // it before the row exists, and here when no document was attached at all.
-      const id = attachment?.payslipId ?? crypto.randomUUID()
-      await create({ ...input, id, file_path: attachment?.path ?? null })
-    },
-    [create],
-  )
-
-  const updatePayslip = useCallback(
-    async (id: string, input: PayslipInput, attachment?: PayslipAttachment | null) => {
-      if (!attachment) {
-        await update(id, input)
-        return
-      }
+  const savePayslip = useCallback(
+    async ({ id, input, lines, attachment }: PayslipSubmission) => {
       const superseded = storedPath(id)
-      await update(id, { ...input, file_path: attachment.path })
+      const { error } = await supabase.rpc('upsert_payslip_with_lines', {
+        // An absent path leaves the document already filed against the slip in
+        // place, which is what a save carrying no new attachment means.
+        p_payslip: { ...input, id, household_id: householdId, file_path: attachment?.path ?? null },
+        p_lines: lines.map((line) => ({ ...line })),
+      })
+      if (error) {
+        throw error
+      }
       // The row already points at the new object, so dropping the old one is
       // tidying, not part of the save: it cannot fail the save that has
       // happened, and it never touches the path the row now holds — which is
       // what `superseded` reads as once a save is repeated over its own result.
-      if (superseded !== null && superseded !== attachment.path) {
+      if (attachment && superseded !== null && superseded !== attachment.path) {
         await discardFile(superseded)
       }
+      await reload()
     },
-    [update, discardFile, storedPath],
+    [householdId, storedPath, discardFile, reload],
   )
 
   const removePayslip = useCallback(
@@ -243,8 +248,7 @@ export function usePayslips(
     financialYear,
     loading,
     reload,
-    create: createPayslip,
-    update: updatePayslip,
+    save: savePayslip,
     remove: removePayslip,
     signedUrl,
     attachments,

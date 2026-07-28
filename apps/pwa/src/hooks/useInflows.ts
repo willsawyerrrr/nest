@@ -11,6 +11,8 @@ export interface InflowInput {
   taxable: boolean
   member_id: string | null
   type: InflowType
+  /** Whether employer super accrues on the inflow; false for a non-OTE allowance. */
+  attracts_super: boolean
   schedule: Frequency
   interval_count: number | null
   amount_cents: number | null

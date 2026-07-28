@@ -4,6 +4,7 @@ import { useDeductions } from '../hooks/useDeductions'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
+import { usePayslipLines } from '../hooks/usePayslipLines'
 import { usePayslips } from '../hooks/usePayslips'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -13,6 +14,7 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
   const payslips = usePayslips(householdId)
+  const payslipLines = usePayslipLines(householdId)
   const taxProfiles = useTaxProfiles(householdId)
   const contributions = useSuperContributions(householdId)
   const helpDebts = useHelpDebts(householdId)
@@ -22,6 +24,7 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
     membersLoading ||
     inflows.loading ||
     payslips.loading ||
+    payslipLines.loading ||
     taxProfiles.loading ||
     contributions.loading ||
     helpDebts.loading ||
@@ -47,13 +50,16 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
     <PayslipsScreen
       members={members}
       payslips={payslips.payslips ?? []}
+      lines={payslipLines.lines ?? []}
       inflows={inflows.inflows ?? []}
       financialYear={payslips.financialYear}
       estimate={estimate}
       config={config}
       attachments={payslips.attachments}
-      onCreate={({ input, attachment }) => payslips.create(input, attachment)}
-      onUpdate={(id, { input, attachment }) => payslips.update(id, input, attachment)}
+      // A slip and its lines go in one transaction, under the id the submission
+      // carries, so adding a slip and editing one take the very same path.
+      onCreate={payslips.save}
+      onUpdate={(_id, submission) => payslips.save(submission)}
       onDelete={payslips.remove}
       signedUrl={payslips.signedUrl}
     />

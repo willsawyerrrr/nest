@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PayslipAttachments, PayslipSubmission } from '../hooks/usePayslips'
@@ -65,6 +66,34 @@ function submitted(onSubmit: ReturnType<typeof vi.fn>): PayslipSubmission {
 /** The form's file picker, which has no accessible label of its own. */
 function filePicker() {
   return document.querySelector('input[type="file"]') as HTMLInputElement
+}
+
+/**
+ * The form as its list renders it: the save is awaited and the form then closed,
+ * which is what makes the attachment permanent. `keep()` runs after that close is
+ * asked for, so the ordering — a close that is only scheduled, not yet flushed —
+ * is what stops the unmount cleanup deleting the document the saved row points at.
+ */
+function ClosingPayslipForm({
+  onSaved,
+}: {
+  onSaved: (submission: PayslipSubmission) => Promise<void>
+}) {
+  const [open, setOpen] = useState(true)
+  if (!open) {
+    return <p>Saved</p>
+  }
+  return (
+    <PayslipForm
+      member={member}
+      inflows={inflows}
+      attachments={attachments}
+      onSubmit={async (submission) => {
+        await onSaved(submission)
+        setOpen(false)
+      }}
+    />
+  )
 }
 
 /** Attaches a slip and waits for the store-and-read to settle. */
@@ -455,7 +484,9 @@ describe('PayslipForm extraction', () => {
     await attach(user)
 
     expect(screen.getByLabelText('Gross')).toHaveValue('$5,000.00')
-    expect(screen.getByText(/Kept what you had already typed for Gross\./)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Kept what you already had; the slip reads Gross “4,120.50”\./),
+    ).toBeInTheDocument()
     // The figures the member left alone are still filled from the slip.
     expect(screen.getByLabelText('Net')).toHaveValue('$3,072.50')
 
@@ -678,6 +709,148 @@ describe('PayslipForm extraction', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     unmount()
 
+    expect(discard).not.toHaveBeenCalled()
+  })
+
+  it('keeps the stored document when the save closes the form itself', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn().mockResolvedValue(undefined)
+    render(<ClosingPayslipForm onSaved={onSaved} />)
+
+    await attach(user)
+    await user.click(screen.getByRole('button', { name: /add payslip/i }))
+
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    expect(onSaved).toHaveBeenCalled()
+    expect(discard).not.toHaveBeenCalled()
+  })
+
+  it('keeps a figure typed while the slip was still being read', async () => {
+    const user = userEvent.setup()
+    let finishRead!: (outcome: ExtractionOutcome) => void
+    read.mockReturnValue(
+      new Promise<ExtractionOutcome>((resolve) => {
+        finishRead = resolve
+      }),
+    )
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.upload(filePicker(), new File(['x'], 'slip.pdf', { type: 'application/pdf' }))
+    expect(await screen.findByText('Reading the slip…')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Net'), '3072')
+
+    // The slip does not print a net, so the read has nothing to say about it.
+    finishRead({
+      status: 'read',
+      extraction: extraction({ fields: { ...extraction().fields, net_cents: null } }),
+    })
+    await waitFor(() => expect(screen.queryByText('Reading the slip…')).not.toBeInTheDocument())
+
+    expect(screen.getByLabelText('Net')).toHaveValue('$3,072.00')
+    expect(screen.getByLabelText('Gross')).toHaveValue('$4,120.50')
+  })
+
+  it('blocks a save while the document is still being stored', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    let finishUpload!: (stored: { payslipId: string; path: string }) => void
+    upload.mockImplementation(
+      async (payslipId: string) =>
+        await new Promise<{ payslipId: string; path: string }>((resolve) => {
+          finishUpload = () => resolve({ payslipId, path: `h1/${payslipId}/uuid-slip.pdf` })
+        }),
+    )
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText('Gross'), '1000')
+    await user.type(screen.getByLabelText('Tax withheld'), '200')
+    await user.type(screen.getByLabelText('Super'), '120')
+    await user.type(screen.getByLabelText('Net'), '800')
+    await user.upload(filePicker(), new File(['x'], 'slip.pdf', { type: 'application/pdf' }))
+
+    // Submitting here would save no attachment, orphaning the object being
+    // stored under the id the row would then never be written under.
+    const submit = await screen.findByRole('button', { name: /add payslip/i })
+    expect(submit).toBeDisabled()
+    await user.click(submit)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    finishUpload({ payslipId: 'ps1', path: 'h1/ps1/uuid-slip.pdf' })
+    await waitFor(() => expect(submit).not.toBeDisabled())
+    await user.click(submit)
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).attachment).not.toBeNull()
+  })
+
+  it('leaves the figures a saved payslip already holds alone', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        initial={makePayslip({ salary_sacrifice_cents: null })}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await attach(user)
+
+    // Every figure on the row was confirmed when it was saved, so a replacement
+    // document is read without rewriting any of them.
+    expect(screen.getByLabelText('Gross')).toHaveValue('$5,000.00')
+    expect(screen.getByLabelText('Net')).toHaveValue('$4,000.00')
+    expect(screen.getByLabelText('Period end')).toHaveValue('14 Jul 2026')
+    // The text read is still shown for a field it left alone, so a figure the
+    // slip disagrees with can be corrected by hand.
+    expect(
+      screen.getByText(/Kept what you already had; the slip reads .*Gross “4,120.50”/),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input.gross_cents).toBe(5_000_00)
+  })
+
+  it('files a replacement document under the payslip being edited', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        initial={makePayslip({ id: 'ps1', file_path: 'h1/ps1/old-slip.pdf' })}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await attach(user, 'new-slip.pdf')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(upload).toHaveBeenCalledWith('ps1', expect.any(File))
+    expect(submitted(onSubmit).attachment).toEqual({
+      payslipId: 'ps1',
+      path: 'h1/ps1/uuid-new-slip.pdf',
+    })
+    // The superseded object is the caller's to drop, once the row points past it.
     expect(discard).not.toHaveBeenCalled()
   })
 })

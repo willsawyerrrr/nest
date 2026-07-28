@@ -2,9 +2,10 @@ import { useCallback, useMemo } from 'react'
 import { financialYearForDate } from '@nest/tax'
 import type { Tables } from '../lib/database.types'
 import {
+  EXTRACTION_FAILED_MESSAGE,
+  readExtraction,
   readExtractionFailure,
   type ExtractionOutcome,
-  type PayslipExtraction,
 } from '../lib/payslipExtraction'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
@@ -93,7 +94,8 @@ export interface UsePayslipsResult {
   create: (input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
   /**
    * Rewrites a payslip. A new `attachment` replaces the document — recorded
-   * first, and only then is the superseded object removed; without one the
+   * first, and only then is the superseded object dropped, best effort, so a
+   * delete that fails cannot reject a save already written; without one the
    * existing attachment stands.
    */
   update: (id: string, input: PayslipInput, attachment?: PayslipAttachment | null) => Promise<void>
@@ -162,17 +164,21 @@ export function usePayslips(
   )
 
   const readUploaded = useCallback(async (path: string): Promise<ExtractionOutcome> => {
-    const { data, error, response } = await supabase.functions.invoke<PayslipExtraction>(
-      'payslip-extract',
-      { body: { path } },
-    )
-    if (error || !data) {
+    const { data, error, response } = await supabase.functions.invoke<unknown>('payslip-extract', {
+      body: { path },
+    })
+    if (error) {
       // A non-2xx carries the function's own specific message as JSON; a
       // transport failure carries no response at all.
       const body = response ? await response.json().catch(() => null) : null
       return readExtractionFailure(body)
     }
-    return { status: 'read', extraction: data }
+    // A 2xx body is read rather than trusted, so a reply the form cannot render
+    // reads as a plain failure instead of throwing partway through the note.
+    const extraction = readExtraction(data)
+    return extraction === null
+      ? { status: 'failed', message: EXTRACTION_FAILED_MESSAGE }
+      : { status: 'read', extraction }
   }, [])
 
   const attachments = useMemo<PayslipAttachments>(
@@ -203,9 +209,15 @@ export function usePayslips(
       }
       const superseded = storedPath(id)
       await update(id, { ...input, file_path: attachment.path })
-      await removeFile(superseded)
+      // The row already points at the new object, so dropping the old one is
+      // tidying, not part of the save: it cannot fail the save that has
+      // happened, and it never touches the path the row now holds — which is
+      // what `superseded` reads as once a save is repeated over its own result.
+      if (superseded !== null && superseded !== attachment.path) {
+        await discardFile(superseded)
+      }
     },
-    [update, removeFile, storedPath],
+    [update, discardFile, storedPath],
   )
 
   const removePayslip = useCallback(

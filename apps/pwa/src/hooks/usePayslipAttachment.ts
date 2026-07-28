@@ -42,14 +42,14 @@ interface UsePayslipAttachmentOptions {
  *
  * The document is stored **before** it is read, because extraction takes an
  * object path and because the file is the auditable record whether or not the
- * read succeeds. That inverts the usual order — the upload runs when the file is
- * picked, not when the form is saved — so the payslip id is minted here and the
- * object filed under it straight away, leaving nothing to move on save.
+ * read succeeds. So the upload runs when the file is picked: the payslip id is
+ * minted here and the object filed under it straight away, which puts it at its
+ * final key with nothing to move on save.
  *
- * An object stored for a row that is never written would be litter no payslip
- * references, so one is deleted as soon as the member clears it, replaces it, or
- * leaves the form. `keep` is what makes it permanent, called once the save that
- * references it succeeds.
+ * An object stored for a row that is never written would be litter that no
+ * payslip references, so one is deleted as soon as the member clears it,
+ * replaces it, or leaves the form. Cleanup is best effort — a delete that fails
+ * is swallowed, and a closed tab runs none of it.
  *
  * Nothing here can stop a save: every failure resolves into a state the form
  * shows beside the still-editable figures.
@@ -69,11 +69,19 @@ export function usePayslipAttachment({
   // The object stored but not yet referenced by a saved row. Held in a ref so
   // unmount cleanup sees the latest one without re-running on every change.
   const orphan = useRef<string | null>(null)
+  // Set once the form is gone, so an upload that lands afterwards is deleted
+  // rather than left behind: until it resolves there is no path to clean up.
+  const gone = useRef(false)
   const discard = useRef(attachments.discard)
   discard.current = attachments.discard
+  // Held the same way, so memoising `choose` is real rather than defeated by a
+  // caller whose callback changes identity every render.
+  const extracted = useRef(onExtracted)
+  extracted.current = onExtracted
 
   useEffect(
     () => () => {
+      gone.current = true
       const abandoned = orphan.current
       orphan.current = null
       if (abandoned !== null) {
@@ -109,6 +117,12 @@ export function usePayslipAttachment({
         setState({ status: 'failed', message: UPLOAD_FAILED_MESSAGE })
         return
       }
+      if (gone.current) {
+        // The form left while the upload was in flight, so its cleanup found no
+        // path to delete; this one is that object, and nothing will reference it.
+        void discard.current(stored.path)
+        return
+      }
       orphan.current = stored.path
       setAttachment(stored)
       setState({ status: 'reading' })
@@ -116,6 +130,9 @@ export function usePayslipAttachment({
       // A read that fails leaves the document attached: it is the record, and
       // the figures are typed either way.
       const outcome = await attachments.read(stored.path)
+      if (gone.current) {
+        return
+      }
       if (outcome.status !== 'read') {
         setState(outcome)
         return
@@ -123,10 +140,10 @@ export function usePayslipAttachment({
       setState({
         status: 'read',
         extraction: outcome.extraction,
-        ...onExtracted(outcome.extraction),
+        ...extracted.current(outcome.extraction),
       })
     },
-    [attachments, id, onExtracted, release],
+    [attachments, id, release],
   )
 
   const keep = useCallback(() => {

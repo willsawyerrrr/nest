@@ -463,12 +463,15 @@ against the projected inflow and the tax estimate. Design and staging in
       arithmetic touches a tax figure, and an unset key answers
       `{ configured: false }` so manual entry still works.
 - [x] Extraction in the form: picking a document stores it under a freshly minted
-      payslip id and reads it, filling the fields the member has not typed and
-      showing back the literal text read for each, what the slip omits, and what
+      payslip id and reads it, filling the fields that are not already the
+      member's — typed here, or saved on the payslip being edited — and showing
+      back the literal text read for each, what the slip omits, and what
       could not be converted safely. Every failure — unconfigured, not a payslip,
       too large, unsupported type, rate limited, model error or timeout — reads as
       its own inline note and falls back to manual entry without blocking the save,
-      and an upload the member clears, replaces, or abandons is deleted again.
+      and an upload the member clears, replaces, or abandons is deleted again where
+      the form is there to do it: cleanup is best effort, swallowing a failed
+      delete and running not at all when the tab is closed.
 
 ## Later
 

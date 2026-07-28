@@ -191,14 +191,23 @@ path:
 { "path": "<household_id>/<payslip_id>/<uuid>-payslip.pdf" }
 ```
 
-Storing before reading inverts the usual order: the upload runs when the file is
-**picked**, not when the form is saved. So the form mints the payslip id at that
-moment and files the object under it (a slip being edited already has its id),
-which puts the object at its final key with nothing to move on save — the row is
-then written under the id its document is already filed against. An object stored
-for a row that is never written would be litter no payslip references, so it is
-deleted again as soon as the member clears the picker, chooses another file, or
-leaves the form; a successful save is what makes it permanent.
+Storing precedes reading, so the upload runs when the file is **picked**. The form
+mints the payslip id at that moment and files the object under it (a slip being
+edited already has its id), which puts the object at its final key with nothing to
+move on save — the row is then written under the id its document is already filed
+against. An object stored for a row that is never written would be litter that no
+payslip references, so it is deleted again as soon as the member clears the
+picker, chooses another file, or leaves the form; a successful save is what makes
+it permanent. A save while the store-and-read is still running is blocked for the
+same reason: it would send no attachment, filing the object under an id no row is
+written under.
+
+That cleanup is **best effort**. A delete that fails is swallowed rather than
+surfaced as a form error; closing the tab, refreshing, or killing the PWA runs
+none of it (there is no `beforeunload` handler); and an upload still in flight
+when the form goes is deleted only once it lands. Either way what survives is an
+object in a private bucket that no payslip references — invisible and cheap,
+which is the trade being made against failing a save over housekeeping.
 
 JWT-verified (the default posture): the caller is resolved to their own member and
 household from the Authorization JWT, never the body. The path is the client's, so
@@ -239,21 +248,38 @@ image block (JPEG, PNG, WebP); anything else is rejected before a request is bui
 
 `fields` is keyed as the `payslip` columns are, so the entry form maps it on by
 name — ISO dates into the date pickers, integer cents into the dollar inputs.
-Three rules govern what the form does with it:
+Four rules govern what the form does with it:
 
-- **A typed figure is never replaced.** The form tracks which fields the member
-  has edited and pre-fills only the rest. Edited-ness, not emptiness, is what it
-  tracks: the form opens with a pay period already defaulted to the fortnight
-  ending today, and a default is the form's guess (overwritable) while a typed
-  value is the member's (not).
+- **A figure that is already the member's is never replaced.** Two kinds of value
+  count as theirs, and the form pre-fills only what is left.
+  - **One they typed in this form.** Edited-ness, not emptiness, is what the form
+    tracks: it opens with a pay period already defaulted to the fortnight ending
+    today, and a default is the form's guess (overwritable) while a typed value is
+    the member's (not). A field typed *while a read is in flight* counts too — a
+    read takes seconds, and the pre-fill is written field by field over live
+    state rather than over the snapshot it started from.
+  - **One the payslip being edited already holds.** Every non-blank figure on a
+    saved slip was confirmed when it was saved, so attaching a replacement
+    document reads the new slip without rewriting what was filed. Only the gaps —
+    a blank amount, an unset date — are open to it. The text read for a kept
+    field is still shown, so a figure the slip disagrees with can be corrected by
+    hand.
+- **A negative amount does not pre-fill.** Payroll systems print deductions as
+  accounting negatives (`(1,234.56)`, `45.00-`) and the parser reads them, but
+  every `payslip` amount column is checked `>= 0`. Rather than guess the sign, the
+  client treats a negative exactly as an `unreadable` field: nothing is filled in,
+  and the note shows the literal text printed so the member types the figure.
 - **What was read is shown back.** A note under the picker names each field it
   filled beside the literal text it read for it (`Gross “4,120.50”`), the fields
-  it kept because they were already typed, the fields `missing` from the slip, and
-  the fields it saw but could not convert (`unreadable`) and therefore left blank.
-  Showing the text is the point: a misread is caught here rather than confirmed
-  blind.
+  it kept because they were already the member's — with their text too, so a
+  figure the slip disagrees with can be copied across by hand — the fields
+  `missing` from the slip, and the fields it saw but could not convert
+  (`unreadable`) and therefore left blank. Showing the text is the point: a
+  misread is caught here rather than confirmed blind.
 - **Nothing is confirmed by extraction.** Every figure stays editable and the
-  submit is untouched, so the form saves whatever the member leaves in it.
+  submit is untouched, so the form saves whatever the member leaves in it. The
+  reply is read rather than trusted, too: a body the form cannot render falls back
+  to the same plain failure note as an unreachable function.
 
 ### Money is converted in TypeScript, never by the model
 

@@ -90,12 +90,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   object path), then reads it with Claude Haiku 4.5 and fills in the figures it
   found — showing back the literal text it read for each, so a misread is caught
   rather than confirmed blind. Extraction writes nothing: it never overwrites a
-  figure the member has already typed, every field stays editable, and the member's
+  figure that is already the member's — one they typed here, or one the payslip
+  being edited already holds — every field stays editable, and the member's
   own save is what persists. An unconfigured key, a file that is not a payslip, an
   unsupported type or size, a rate limit, and a model failure each read as their own
   inline note and fall back to manual entry; none blocks the save. A stored document
-  the member clears, replaces, or walks away from is deleted again, so no object is
-  left that no payslip references. Payslips drive per-period
+  the member clears, replaces, or walks away from is deleted again, best effort: a
+  delete that fails is swallowed rather than surfaced, and a closed tab, a refresh,
+  or a killed PWA runs no cleanup at all, so an object no payslip references can
+  survive. Payslips drive per-period
   variance against the projection (gross, withholding, super) and the FY's summed
   actual withheld feeds the tax engine's `paygWithheldCents`, turning the estimate's
   balance into a concrete refund or bill. RLS is household-wide, exactly as for the

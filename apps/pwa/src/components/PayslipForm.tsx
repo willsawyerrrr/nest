@@ -93,10 +93,12 @@ function fieldNamesAsRead(
 
 /**
  * What a successful read did, in the model's own words: which figures it filled
- * and the literal text it read for each, which it left because the member had
- * already typed them, which the slip does not show, and which it saw but could
- * not convert. Every figure above stays editable — the point of showing the text
- * is that a misread can be caught here rather than confirmed blind.
+ * and the literal text it read for each, which it left because they were already
+ * the member's own, which the slip does not show, and which it saw but could not
+ * convert. Every figure above stays editable — the point of showing the text is
+ * that a misread can be caught here rather than confirmed blind. A field it left
+ * alone shows its text too, so a figure the slip disagrees with can be copied
+ * across by hand.
  */
 function ReadFromSlip({
   extraction,
@@ -120,7 +122,7 @@ function ReadFromSlip({
         )}
         {kept.length > 0 && (
           <Text size="xs" c="dimmed">
-            Kept what you had already typed for {fieldNames(kept)}.
+            Kept what you already had; the slip reads {fieldNamesAsRead(kept, extraction)}.
           </Text>
         )}
         {extraction.missing.length > 0 && (
@@ -194,10 +196,11 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * taxable inflows.
  *
  * Attaching a document stores it and reads it: the figures it finds pre-fill the
- * fields the member has not already typed, and the text it read is shown back so
- * a misread can be caught. Nothing is confirmed by extraction — every figure is
- * editable and the member's own save is what persists — so an extraction that is
- * unconfigured, refused, or broken only leaves the fields as they were.
+ * fields that are not already the member's own — typed here, or saved on the
+ * payslip being edited — and the text it read is shown back so a misread can be
+ * caught. Nothing is confirmed by extraction — every figure is editable and the
+ * member's own save is what persists — so an extraction that is unconfigured,
+ * refused, or broken only leaves the fields as they were.
  *
  * An inverted pay period (ending before it starts) blocks submission, so the
  * database's own period check is never reached. Persistence lives in the caller.
@@ -210,19 +213,25 @@ export function PayslipForm({
   onSubmit,
   onCancel,
 }: PayslipFormProps) {
-  const fields = usePayslipFields({
-    period_start: initial?.period_start ?? isoDaysBefore(todayIso(), FORTNIGHT_SPAN_DAYS),
-    period_end: initial?.period_end ?? todayIso(),
-    paid_on: initial?.paid_on ?? null,
-    gross_cents: centsToDollars(initial?.gross_cents),
-    tax_withheld_cents: centsToDollars(initial?.tax_withheld_cents),
-    super_cents: centsToDollars(initial?.super_cents),
-    net_cents: centsToDollars(initial?.net_cents),
-    salary_sacrifice_cents: centsToDollars(initial?.salary_sacrifice_cents),
-    ytd_gross_cents: centsToDollars(initial?.ytd_gross_cents),
-    ytd_tax_withheld_cents: centsToDollars(initial?.ytd_tax_withheld_cents),
-    ytd_super_cents: centsToDollars(initial?.ytd_super_cents),
-  })
+  const fields = usePayslipFields(
+    {
+      period_start: initial?.period_start ?? isoDaysBefore(todayIso(), FORTNIGHT_SPAN_DAYS),
+      period_end: initial?.period_end ?? todayIso(),
+      paid_on: initial?.paid_on ?? null,
+      gross_cents: centsToDollars(initial?.gross_cents),
+      tax_withheld_cents: centsToDollars(initial?.tax_withheld_cents),
+      super_cents: centsToDollars(initial?.super_cents),
+      net_cents: centsToDollars(initial?.net_cents),
+      salary_sacrifice_cents: centsToDollars(initial?.salary_sacrifice_cents),
+      ytd_gross_cents: centsToDollars(initial?.ytd_gross_cents),
+      ytd_tax_withheld_cents: centsToDollars(initial?.ytd_tax_withheld_cents),
+      ytd_super_cents: centsToDollars(initial?.ytd_super_cents),
+    },
+    // An existing payslip's figures are the member's own, confirmed when they
+    // saved them; a new one holds only a defaulted pay period, which is the
+    // form's guess and a read may replace.
+    initial !== undefined,
+  )
   const slip = usePayslipAttachment({
     attachments,
     payslipId: initial?.id ?? null,
@@ -244,8 +253,14 @@ export function PayslipForm({
     values.tax_withheld_cents !== '' &&
     values.super_cents !== '' &&
     values.net_cents !== ''
+  // A save while the document is still being stored or read would send no
+  // attachment, leaving the object filed under an id no row is written under.
   const canSubmit =
-    values.period_start !== null && values.period_end !== null && !periodInverted && quartetEntered
+    values.period_start !== null &&
+    values.period_end !== null &&
+    !periodInverted &&
+    quartetEntered &&
+    !slip.busy
   const financialYear =
     values.period_end === null ? null : financialYearForPayPeriod(values.period_end)
 

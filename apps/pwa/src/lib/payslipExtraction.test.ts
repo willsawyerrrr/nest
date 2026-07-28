@@ -3,10 +3,12 @@ import {
   EXTRACTED_AMOUNT_FIELDS,
   EXTRACTED_DATE_FIELDS,
   EXTRACTED_FIELD_LABELS,
+  EXTRACTED_TEXT_KEYS,
   extractedTextKey,
   EXTRACTION_FAILED_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
   NOT_PAYSLIP_MESSAGE,
+  readExtraction,
   readExtractionFailure,
 } from './payslipExtraction'
 
@@ -23,6 +25,91 @@ describe('EXTRACTED_FIELD_LABELS', () => {
     for (const field of [...EXTRACTED_DATE_FIELDS, ...EXTRACTED_AMOUNT_FIELDS]) {
       expect(EXTRACTED_FIELD_LABELS[field]).toBeTruthy()
     }
+  })
+
+  it('gives every field a text key the reply reports under', () => {
+    for (const field of [...EXTRACTED_DATE_FIELDS, ...EXTRACTED_AMOUNT_FIELDS]) {
+      expect(EXTRACTED_TEXT_KEYS).toContain(extractedTextKey(field))
+    }
+  })
+})
+
+describe('readExtraction', () => {
+  /** A full reply, as the function sends one. */
+  function body(overrides: Record<string, unknown> = {}) {
+    return {
+      model: 'claude-haiku-4-5-20251001',
+      fields: { period_start: '2026-07-06', gross_cents: 4_120_50, net_cents: null },
+      text: { period_start: '06/07/2026', gross: '4,120.50', net: null },
+      missing: ['net_cents'],
+      unreadable: [],
+      ...overrides,
+    }
+  }
+
+  it('keeps the fields, text, and lists a reply actually carries', () => {
+    expect(readExtraction(body())).toEqual({
+      model: 'claude-haiku-4-5-20251001',
+      fields: { period_start: '2026-07-06', gross_cents: 4_120_50 },
+      text: { period_start: '06/07/2026', gross: '4,120.50' },
+      missing: ['net_cents'],
+      unreadable: [],
+    })
+  })
+
+  it('reads a negative amount as unreadable rather than pre-filling it', () => {
+    // A slip printing tax withheld as a deduction parses to a negative, which
+    // the column's own `>= 0` check would reject at save.
+    const extraction = readExtraction(
+      body({
+        fields: { tax_withheld_cents: -1_048_00, gross_cents: 4_120_50 },
+        text: { tax_withheld: '(1,048.00)' },
+        missing: [],
+      }),
+    )
+
+    expect(extraction!.fields.tax_withheld_cents).toBeUndefined()
+    expect(extraction!.unreadable).toEqual(['tax_withheld_cents'])
+    // The printed text survives, so the member can read the figure back off it.
+    expect(extraction!.text.tax_withheld).toBe('(1,048.00)')
+    expect(extraction!.fields.gross_cents).toBe(4_120_50)
+  })
+
+  it('drops anything that is not a field it can pre-fill', () => {
+    const extraction = readExtraction(
+      body({
+        fields: { gross_cents: '4120.50', period_start: 6, bogus_cents: 100 },
+        text: { gross: 12, bogus: 'x' },
+        missing: ['net_cents', 'bogus_cents', 7],
+        unreadable: ['gross_cents'],
+      }),
+    )
+
+    expect(extraction).toEqual({
+      model: 'claude-haiku-4-5-20251001',
+      fields: {},
+      text: {},
+      missing: ['net_cents'],
+      unreadable: ['gross_cents'],
+    })
+  })
+
+  it('reads a reply the form could not render as no extraction at all', () => {
+    for (const malformed of [
+      null,
+      undefined,
+      'not json',
+      {},
+      { model: 7, fields: {}, text: {}, missing: [], unreadable: [] },
+    ]) {
+      expect(readExtraction(malformed)).toBeNull()
+    }
+  })
+
+  it('takes a reply missing its parts as one carrying nothing', () => {
+    expect(
+      readExtraction({ model: 'm', fields: 'x', text: null, missing: 1, unreadable: 2 }),
+    ).toEqual({ model: 'm', fields: {}, text: {}, missing: [], unreadable: [] })
   })
 })
 
@@ -69,6 +156,15 @@ describe('readExtractionFailure', () => {
   it('falls back to a plain message when the body carries none', () => {
     for (const body of [null, undefined, '<html>502</html>', { error: 502 }]) {
       expect(readExtractionFailure(body)).toEqual({
+        status: 'failed',
+        message: EXTRACTION_FAILED_MESSAGE,
+      })
+    }
+  })
+
+  it('does not read the function’s own internals back to the member', () => {
+    for (const error of ['No household membership for this user', 'Could not resolve household']) {
+      expect(readExtractionFailure({ error })).toEqual({
         status: 'failed',
         message: EXTRACTION_FAILED_MESSAGE,
       })

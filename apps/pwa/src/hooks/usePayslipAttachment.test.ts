@@ -117,6 +117,59 @@ describe('usePayslipAttachment', () => {
     expect(discard).not.toHaveBeenCalled()
   })
 
+  it('deletes an upload that lands after the form has gone', async () => {
+    let finishUpload!: (stored: { payslipId: string; path: string }) => void
+    upload.mockReturnValue(
+      new Promise<{ payslipId: string; path: string }>((resolve) => {
+        finishUpload = resolve
+      }),
+    )
+    const { result, unmount } = renderAttachment()
+
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.choose(slip())
+    })
+    // Nothing is stored yet, so unmount cleanup has no path to delete.
+    unmount()
+    expect(discard).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishUpload({ payslipId: 'ps1', path: 'h1/ps1/uuid-slip.pdf' })
+      await pending
+    })
+
+    expect(discard).toHaveBeenCalledWith('h1/ps1/uuid-slip.pdf')
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('pre-fills nothing from a read that lands after the form has gone', async () => {
+    let finishRead!: (outcome: ExtractionOutcome) => void
+    read.mockReturnValue(
+      new Promise<ExtractionOutcome>((resolve) => {
+        finishRead = resolve
+      }),
+    )
+    const { result, unmount } = renderAttachment()
+
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.choose(slip())
+    })
+    await waitFor(() => expect(read).toHaveBeenCalled())
+    const stored = result.current.attachment!
+    unmount()
+
+    await act(async () => {
+      finishRead({ status: 'read', extraction })
+      await pending
+    })
+
+    // The document went with the form, so there is nothing to pre-fill into.
+    expect(discard).toHaveBeenCalledWith(stored.path)
+    expect(onExtracted).not.toHaveBeenCalled()
+  })
+
   it('deletes nothing when no document was ever attached', () => {
     const { unmount } = renderAttachment()
     unmount()

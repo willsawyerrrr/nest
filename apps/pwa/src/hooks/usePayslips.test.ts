@@ -183,6 +183,35 @@ describe('usePayslips', () => {
     expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/old-slip.pdf'])
   })
 
+  it('keeps a save that dropping the superseded document failed after', async () => {
+    // The row already points at the new object, so failing to tidy the old one
+    // must not reject a save that has happened — the form would then treat the
+    // stored document as an orphan and delete the one the row references.
+    bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
+    builder.result = { data: [makePayslip({ file_path: 'h1/ps1/old-slip.pdf' })], error: null }
+    const result = await renderPayslips()
+
+    await act(async () => {
+      await expect(result.current.update('ps1', input, attachment)).resolves.toBeUndefined()
+    })
+
+    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(bucket.remove).toHaveBeenCalledWith(['h1/ps1/old-slip.pdf'])
+  })
+
+  it('leaves the document alone when the same save runs a second time', async () => {
+    // A retry reads the path the first save committed as the superseded one.
+    builder.result = { data: [makePayslip({ file_path: attachment.path })], error: null }
+    const result = await renderPayslips()
+
+    await act(async () => {
+      await result.current.update('ps1', input, attachment)
+    })
+
+    expect(builder.update).toHaveBeenCalledWith({ ...input, file_path: attachment.path })
+    expect(bucket.remove).not.toHaveBeenCalled()
+  })
+
   it('attaches a document to a payslip that had none', async () => {
     const result = await renderPayslips()
 
@@ -261,6 +290,44 @@ describe('usePayslips attachment extraction', () => {
     })
     expect(invoke).toHaveBeenCalledWith('payslip-extract', {
       body: { path: 'h1/ps1/slip.pdf' },
+    })
+  })
+
+  it('leaves a negative amount unfilled, reported as one it could not read', async () => {
+    invoke.mockResolvedValue({
+      data: {
+        model: 'claude-haiku-4-5-20251001',
+        fields: { gross_cents: 4_120_50, tax_withheld_cents: -1_048_00 },
+        text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
+        missing: [],
+        unreadable: [],
+      },
+      error: null,
+      response: undefined,
+    })
+    const result = await renderPayslips()
+
+    const outcome = await result.current.attachments.read('h1/ps1/slip.pdf')
+
+    expect(outcome).toEqual({
+      status: 'read',
+      extraction: {
+        model: 'claude-haiku-4-5-20251001',
+        fields: { gross_cents: 4_120_50 },
+        text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
+        missing: [],
+        unreadable: ['tax_withheld_cents'],
+      },
+    })
+  })
+
+  it('reads a 200 body the form could not render as a plain failure', async () => {
+    invoke.mockResolvedValue({ data: { unexpected: true }, error: null, response: undefined })
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'failed',
+      message: 'Could not read this payslip. Enter the figures by hand.',
     })
   })
 

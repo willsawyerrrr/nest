@@ -105,4 +105,60 @@ describe('usePayslipFields', () => {
     expect(result.current.values.paid_on).toBeNull()
     expect(summary.kept).toEqual(['paid_on'])
   })
+
+  it('keeps a figure typed while the read was still running', () => {
+    const { result } = renderHook(() => usePayslipFields(blank))
+
+    // One batch: the typing has not reached `values` by the time the read
+    // lands, exactly as it has not when the pre-fill runs after an await.
+    let summary!: PrefillSummary
+    act(() => {
+      result.current.setAmount('net_cents', 3_072.5)
+      summary = result.current.prefill(extraction({ fields: { gross_cents: 4_120_50 } }))
+    })
+
+    expect(result.current.values.net_cents).toBe(3_072.5)
+    expect(result.current.values.gross_cents).toBe(4_120.5)
+    expect(summary.kept).toEqual([])
+  })
+
+  it('treats every figure a saved payslip holds as the member’s own', () => {
+    const saved = {
+      ...blank,
+      paid_on: '2026-07-15',
+      gross_cents: 5_000,
+      tax_withheld_cents: 1_000,
+      super_cents: 600,
+      net_cents: 4_000,
+    }
+    const { result } = renderHook(() => usePayslipFields(saved, true))
+
+    const summary = prefill(result)
+
+    expect(result.current.values).toMatchObject(saved)
+    expect(summary.filled).toEqual([])
+    expect(summary.kept).toEqual([
+      'period_start',
+      'period_end',
+      'paid_on',
+      'gross_cents',
+      'tax_withheld_cents',
+      'super_cents',
+      'net_cents',
+    ])
+  })
+
+  it('still fills the gaps a saved payslip left blank', () => {
+    const { result } = renderHook(() => usePayslipFields({ ...blank, gross_cents: 5_000 }, true))
+
+    const summary = prefill(
+      result,
+      extraction({ fields: { gross_cents: 4_120_50, net_cents: 3_072_50, paid_on: '2026-07-22' } }),
+    )
+
+    expect(result.current.values.gross_cents).toBe(5_000)
+    expect(result.current.values.net_cents).toBe(3_072.5)
+    expect(result.current.values.paid_on).toBe('2026-07-22')
+    expect(summary.filled).toEqual(['paid_on', 'net_cents'])
+  })
 })

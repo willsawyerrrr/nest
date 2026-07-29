@@ -3,11 +3,15 @@
 The plan-only app **projects** income (from inflows) and **estimates** tax (the
 `@nest/tax` engine over each member's taxable inflows and `tax_profile`). Both are
 forward models: they say what a member *should* earn and *should* be withheld.
-A **payslip** carries the actuals — gross, PAYG withheld, super, deductions, net,
-for one pay period, plus year-to-date running totals. Capturing payslips lets the
-household reconcile actuals against the projection, per member, per pay period, and
-surface variance: actual gross vs projected inflow, actual PAYG withheld vs the
+A **payslip** carries the actuals — gross, total tax withheld, super, deductions,
+net, for one pay period, plus year-to-date running totals. Capturing payslips lets
+the household reconcile actuals against the projection, per member, per pay period,
+and surface variance: actual gross vs projected inflow, actual tax withheld vs the
 estimate's implied withholding, actual super vs the modelled contribution.
+
+The withheld figure is the slip's **tax total** — PAYG income tax plus any STSL
+study-loan component — never the PAYG line alone. See
+[Tax withheld is the slip's tax total](#tax-withheld-is-the-slips-tax-total).
 
 Amounts are integer minor units (cents), as everywhere. Reconciliation is
 per-member because AU tax is assessed per person and each member's income is
@@ -23,14 +27,16 @@ tagged to them.
     changed roster, a bonus). One payment routinely covers several projections at
     once — salary plus one or two on-call allowances — so the gross is measured
     **per inflow** where the slip is itemised into earnings lines.
-  - **PAYG withheld**: actual withheld vs the estimate's implied per-period
-    withholding. The tax estimate is annual-liability ÷ periods; comparing it to
-    what the employer actually withholds is the leading indicator of a refund or a
-    bill at year end.
+  - **Tax withheld**: actual withheld — the slip's whole tax total — vs the
+    estimate's implied per-period withholding. The tax estimate is
+    annual-liability ÷ periods, and that liability includes the compulsory HELP
+    repayment the slip's STSL component pays, so the two sides only line up when
+    the withheld figure is the total. Comparing them is the leading indicator of a
+    refund or a bill at year end.
   - **Super**: actual employer SG (and any salary sacrifice shown on the slip) vs
     the modelled super guarantee and concessional contributions, which feed the
     super balance accrual and the concessional-cap tracker.
-- Feed **actual** PAYG withheld into the year-end position. The tax engine accepts
+- Feed **actual** tax withheld into the year-end position. The tax engine accepts
   `paygWithheldCents` and returns `balanceCents` (positive = owing, negative =
   refund); summed actual withholding from payslips is the real input to that field,
   turning the estimate's abstract liability into a concrete refund/bill projection
@@ -45,16 +51,50 @@ In practice a slip carries:
 
 - **Pay period**: start and end dates (and often the payment date).
 - **Gross** for the period, and **YTD gross**.
-- **PAYG tax withheld** for the period, and **YTD withheld**.
+- **Tax withheld** for the period, and **YTD withheld** — a total that may itemise
+  PAYG income tax and an STSL study-loan component beneath it.
 - **Superannuation guarantee** for the period (employer SG), and often **YTD
   super**; **salary sacrifice** super shown separately when arranged.
 - **Deductions** (pre- and post-tax) and **allowances**, itemised.
 - **Net pay** for the period.
 - **Leave balances** (not financially relevant here).
 
-The must-have quartet for reconciliation is **gross, PAYG withheld, super, net**
+The must-have quartet for reconciliation is **gross, tax withheld, super, net**
 for the pay period; YTD figures are valuable as a cross-check (they let a single
 recent payslip anchor the whole year without entering every prior slip).
+
+### Tax withheld is the slip's tax total
+
+A slip withholds two amounts under one TAX section: **PAYG** income tax, and an
+**STSL** (study and training support loan) component — the withholding that pays
+down HELP/HECS. A real fortnight prints:
+
+| Line | Amount |
+| --- | --- |
+| PAYG | $1,416.00 |
+| STSL | $434.00 |
+| **TAX** | **$1,850.00** |
+
+and net pay reconciles against the total: $5,495.50 gross − $1,850.00 =
+$3,645.50.
+
+`payslip.tax_withheld_cents` holds that **total**, and `ytd_tax_withheld_cents`
+the year-to-date total on the same basis. That is what the tax engine needs. Its
+`totalLiabilityCents` is income tax less offsets, plus the Medicare levy and
+surcharge, **plus the compulsory HELP repayment**, plus Division 293; the balance
+it reports is that liability less `paygWithheldCents`. Because the liability side
+already carries the HELP repayment, the withheld side must carry the STSL that
+pays it — record the PAYG line alone and the estimated bill is overstated by every
+dollar of STSL withheld ($434 a fortnight, over $11,000 a year on this slip). The
+same holds for the per-period variance, which measures withholding against that
+same annual liability.
+
+So the total is what every surface asks for: the extraction prompt tells the model
+to report the printed tax total rather than the PAYG line (and to read the printed
+total, never sum the components — it is barred from deriving figures by
+arithmetic), the entry form says so beneath the quartet, and both column comments
+say so in the schema. Where a slip prints one tax figure and no total — a member
+with no study loan — that figure *is* the total, and nothing changes.
 
 ### Privacy
 
@@ -67,7 +107,7 @@ work: the numbers alone drive every variance.
 
 ## Capture options
 
-**(a) Manual entry form.** A member types the key fields (pay period, gross, PAYG
+**(a) Manual entry form.** A member types the key fields (pay period, gross, tax
 withheld, super, net) into a form; nothing is uploaded. Simplest to build, no
 Storage, no parsing, works offline in the PWA. The figures are exactly what
 reconciliation needs. Downside: manual transcription each pay period.
@@ -101,7 +141,7 @@ on `(id, household_id)`). The column list, constraints, and RLS boundary are
 canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
 
 - **payslip** — one actual pay event for a member: the pay period and payment
-  date, the gross / PAYG withheld / super / net quartet, the slip's optional
+  date, the gross / tax withheld / super / net quartet, the slip's optional
   salary sacrifice and YTD running totals, a `note`, and a `file_path` for the
   attached document.
 - **payslip_line** — one earnings line on that slip, under the label the slip
@@ -215,7 +255,7 @@ tab**:
     less its expectation is its variance; over the slip,
     `gross_cents − expected` is the gross variance. A slip with no lines is
     measured whole against its cadence anchor.
-  - *Expected PAYG withheld for the period* = the member's annual estimated tax
+  - *Expected tax withheld for the period* = the member's annual estimated tax
     (from `estimateHouseholdTax`) ÷ periods per year, prorated to the period.
     `tax_withheld_cents − expected` is the withholding variance — the household's
     early read on whether the employer is over- or under-withholding versus the
@@ -447,6 +487,11 @@ Operator setup for the key is in
   deductions and leave balances are out — they add entry effort and drive no
   variance the quartet does not. YTD figures are stored rather than recomputed,
   so one recent slip anchors the whole year.
+- **Withheld is one total, not two components.** The slip's PAYG and STSL lines
+  are stored summed, as the slip's own tax total, rather than in a column each.
+  Nothing reads them apart: the estimate nets one withheld figure against a
+  liability that already includes the HELP repayment, so splitting them would add
+  a column two surfaces have to keep adding back up.
 - **Extraction.** Built as stage 3 — the `payslip-extract` edge function reads an
   uploaded slip so the form opens pre-filled. It earns its API key by removing the
   only manual cost left, and it stays safe by writing nothing: the member confirms

@@ -177,6 +177,22 @@ describe('PayslipForm', () => {
     expect(screen.getByText(/filed under fy2027/i)).toBeInTheDocument()
   })
 
+  it('says the withheld figure is the slip’s tax total, STSL included', () => {
+    // A slip prints PAYG and STSL separately under one tax total; the estimate's
+    // liability already carries the HELP repayment the STSL pays, so typing the
+    // PAYG line alone overstates the bill by the STSL.
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/slip’s tax total/i)).toHaveTextContent(/STSL/)
+    expect(screen.getByText(/slip’s tax total/i)).toHaveTextContent(/not the PAYG line alone/i)
+  })
+
   it('offers only the member’s own taxable inflows to reconcile against', async () => {
     const user = userEvent.setup()
     render(

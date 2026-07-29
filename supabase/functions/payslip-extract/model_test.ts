@@ -1,4 +1,5 @@
-import { assertEquals } from '@std/assert'
+import { assertEquals, assertStringIncludes } from '@std/assert'
+import { toExtraction } from './fields.ts'
 import {
   anthropicExtractor,
   MAX_IMAGE_BYTES,
@@ -89,6 +90,53 @@ Deno.test('the extractor sends a photographed slip as an image block', async () 
   const content = (requests[0].messages as { content: Record<string, unknown>[] }[])[0].content
   assertEquals(content[0].type, 'image')
   assertEquals((content[0].source as Record<string, unknown>).media_type, 'image/jpeg')
+})
+
+Deno.test('a slip splitting PAYG from STSL is read at its tax total', async () => {
+  // The real slip: a TAX section printing PAYG 1,416.00 and STSL 434.00 over a
+  // total of 1,850.00. The total is what net pay reconciles against, and what the
+  // estimate's liability — which already carries the HELP repayment the STSL pays
+  // — has to be netted against.
+  const { requests, fetchImpl } = stub(() =>
+    toolResponse({
+      ...FIELDS,
+      gross: '5,495.50',
+      tax_withheld: '1,850.00',
+      net: '3,645.50',
+      ytd_tax_withheld: '5,550.00',
+    })
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1, 2, 3]),
+  })
+
+  assertEquals(result.ok, true)
+  const fields = result.ok ? toExtraction(result.fields).fields : null
+  // The total, not the 141_600 PAYG line. Net reconciles against it:
+  // 549_550 − 185_000 = 364_550, where the PAYG line alone leaves 407_950.
+  assertEquals(fields?.tax_withheld_cents, 185_000)
+  assertEquals(fields?.ytd_tax_withheld_cents, 555_000)
+  assertEquals(fields?.gross_cents, 549_550)
+  assertEquals(fields?.net_cents, 364_550)
+
+  // What steers the model to the total: the field descriptions the request carries.
+  const schema = (requests[0].tools as {
+    input_schema: { properties: Record<string, { description: string }> }
+  }[])[0].input_schema
+  assertStringIncludes(schema.properties.tax_withheld.description, 'Total tax withheld')
+  assertStringIncludes(
+    schema.properties.tax_withheld.description,
+    'total of the slip’s tax section',
+  )
+  assertStringIncludes(schema.properties.tax_withheld.description, 'STSL')
+  // Read the printed total: the system prompt forbids deriving a figure by adding.
+  assertStringIncludes(
+    schema.properties.tax_withheld.description,
+    'never one you work out from the components',
+  )
+  assertStringIncludes(String(requests[0].system), 'Never derive a figure by adding')
+  assertStringIncludes(schema.properties.ytd_tax_withheld.description, 'not the PAYG line alone')
 })
 
 Deno.test('every extracted field is nullable in the tool schema', () => {

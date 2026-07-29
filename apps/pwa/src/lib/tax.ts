@@ -352,8 +352,9 @@ export function netAnnualSuperContributionFromRows(
  * contributions, when supplied, reduce each member's taxable income and
  * after-tax cash; deductions, when supplied, reduce each member's taxable
  * income only (so tax falls and after-tax cash rises). `paygWithheld`, when
- * supplied, gives each member's actual PAYG withheld for the year — summed from
- * their payslips — which the engine nets against their liability as
+ * supplied, gives each member's actual tax withheld for the year — summed from
+ * their payslips, each slip's tax total including any STSL — which the engine nets
+ * against their liability as
  * `breakdown.balanceCents` (positive owing, negative a refund). It changes no tax
  * figure: omitting it leaves every liability and after-tax total identical.
  */

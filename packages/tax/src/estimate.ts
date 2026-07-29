@@ -199,9 +199,10 @@ interface MemberIncome {
  * `deductionsByMember`, when supplied, gives each member's annual work-related
  * deductions — reducing taxable income only, so tax falls and after-tax cash
  * rises; the diverted cash of a concessional contribution has no counterpart here.
- * `paygWithheldByMember`, when supplied, gives each member's actual PAYG withheld
- * for the year — summed from their payslips — which the engine nets against their
- * liability as `breakdown.balanceCents` (positive owing, negative a refund); a
+ * `paygWithheldByMember`, when supplied, gives each member's actual tax withheld
+ * for the year — summed from their payslips, each slip's tax total including any
+ * STSL study-loan component — which the engine nets against their liability as
+ * `breakdown.balanceCents` (positive owing, negative a refund); a
  * member absent from the map is taken as having nil withheld, leaving their
  * liability unoffset. It changes no tax calculation: liability, after-tax cash,
  * and every household total are the same with or without it.

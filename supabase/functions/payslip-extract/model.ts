@@ -135,12 +135,19 @@ const FIELD_PROMPTS: Record<string, string> = {
   period_end: 'Last day of the pay period.',
   paid_on: 'Date the pay was made, when the slip shows one separately.',
   gross: 'Gross pay for this pay period, as printed.',
-  tax_withheld: 'PAYG tax withheld for this pay period, as printed.',
+  tax_withheld:
+    'Total tax withheld for this pay period, as printed: the total of the slip’s tax section, ' +
+    'which covers PAYG income tax together with any STSL (study and training support loan) ' +
+    'component. Report the printed total, never one you work out from the components; where ' +
+    'the slip prints a single tax figure and no total, that figure is the total.',
   super: 'Employer superannuation (the super guarantee) for this pay period, as printed.',
   net: 'Net pay for this pay period, as printed.',
   salary_sacrifice: 'Salary-sacrificed superannuation for this pay period, as printed.',
   ytd_gross: 'Year-to-date gross pay, as printed.',
-  ytd_tax_withheld: 'Year-to-date PAYG tax withheld, as printed.',
+  ytd_tax_withheld:
+    'Year-to-date total tax withheld, as printed, on the same basis as the period figure: the ' +
+    'printed year-to-date tax total, covering PAYG together with any STSL component, not the ' +
+    'PAYG line alone.',
   ytd_super: 'Year-to-date superannuation, as printed.',
 }
 

@@ -86,7 +86,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   files held in a private Supabase Storage bucket (`receipts`) laid out under
   `<household_id>/…` so Storage RLS gates access by household membership.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
-  per pay event, carrying the actuals — gross, PAYG withheld, super, net, plus the
+  per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. The figures are
   always confirmed by the member; a slip names its cadence anchor via an
   explicit picker (`source_inflow_id`, nullable — a bonus or back-pay slip maps to
@@ -130,9 +130,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   survive. Payslips drive per-period
   variance against the projection (gross, withholding, super) and the FY's summed
   actual withheld feeds the tax engine's `paygWithheldCents`, turning the estimate's
-  balance into a concrete refund or bill. RLS is household-wide, exactly as for the
-  other per-member tax tables: `member_id` is a tax attribution, not a privacy
-  boundary.
+  balance into a concrete refund or bill. The withheld figure — per period and
+  year to date — is the slip's whole tax total, PAYG income tax plus any STSL
+  study-loan component, because the liability it nets against already includes the
+  compulsory HELP repayment that STSL pays; the extraction prompt, the entry form,
+  the column comments, and `docs/payslips.md` all say so. RLS is household-wide,
+  exactly as for the other per-member tax tables: `member_id` is a tax attribution,
+  not a privacy boundary.
 - Superannuation: modelled in full per person. Concessional contributions reduce
   taxable income and are taxed at 15% in the fund, with Division 293 for high
   earners; contribution caps (with manual carry-forward) and the government

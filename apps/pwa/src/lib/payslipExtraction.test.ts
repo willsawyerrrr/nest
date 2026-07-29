@@ -6,6 +6,7 @@ import {
   EXTRACTED_TEXT_KEYS,
   extractedTextKey,
   EXTRACTION_FAILED_MESSAGE,
+  EXTRACTION_OUT_OF_CREDIT_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
   NOT_PAYSLIP_MESSAGE,
   readExtraction,
@@ -126,6 +127,15 @@ describe('readExtractionFailure', () => {
     })
   })
 
+  it('reads an exhausted credit balance as its own switched-off state', () => {
+    expect(
+      readExtractionFailure({
+        error: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+        outOfCredit: true,
+      }),
+    ).toEqual({ status: 'out-of-credit', message: EXTRACTION_OUT_OF_CREDIT_MESSAGE })
+  })
+
   it('keeps the model’s reason for a file that is not a payslip', () => {
     expect(
       readExtractionFailure({
@@ -176,5 +186,17 @@ describe('readExtractionFailure', () => {
       status: 'not-configured',
       message: EXTRACTION_UNCONFIGURED_MESSAGE,
     })
+    expect(readExtractionFailure({ outOfCredit: true })).toEqual({
+      status: 'out-of-credit',
+      message: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+    })
+  })
+
+  it('keeps an unset key and an empty account apart, since the fix differs', () => {
+    // Both mean reading is off, but one is a Vault secret to set and the other an
+    // account to top up, so neither is ever read as the other.
+    expect(readExtractionFailure({ configured: false }).status).toBe('not-configured')
+    expect(readExtractionFailure({ outOfCredit: true }).status).toBe('out-of-credit')
+    expect(EXTRACTION_OUT_OF_CREDIT_MESSAGE).not.toBe(EXTRACTION_UNCONFIGURED_MESSAGE)
   })
 })

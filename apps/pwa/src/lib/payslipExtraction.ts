@@ -84,6 +84,7 @@ export interface PayslipExtraction {
 export type ExtractionOutcome =
   | { status: 'read'; extraction: PayslipExtraction }
   | { status: 'not-configured'; message: string }
+  | { status: 'out-of-credit'; message: string }
   | { status: 'not-payslip'; message: string; reason: string | null }
   | { status: 'failed'; message: string }
 
@@ -93,6 +94,15 @@ export type ExtractionFailure = Exclude<ExtractionOutcome, { status: 'read' }>
 /** What the form says when the operator has not set the extraction API key. */
 export const EXTRACTION_UNCONFIGURED_MESSAGE =
   'Payslip extraction is not configured. Enter the figures by hand.'
+
+/**
+ * What the form says when the account paying for extraction has run out of
+ * credit. Reading is off until an operator tops it up, so the note says whose
+ * fault it is not and points at hand entry rather than at a retry that cannot
+ * work.
+ */
+export const EXTRACTION_OUT_OF_CREDIT_MESSAGE =
+  'Payslip reading is off until the Anthropic account is topped up. Nothing is wrong with your file — enter the figures by hand.'
 
 /** What the form says when the model reports the file is not a payslip. */
 export const NOT_PAYSLIP_MESSAGE = 'That file does not look like a payslip.'
@@ -196,13 +206,21 @@ const INTERNAL_MESSAGES: ReadonlySet<string> = new Set([
  * that never reached the function) or when the one it carried is about the
  * function's own internals.
  *
- * The two outcomes the form treats differently are picked out by their own
- * flags: `configured: false` is the feature being off rather than broken, and
- * `notPayslip` is the model saying so rather than hallucinating a slip.
+ * The outcomes the form treats differently are picked out by their own flags:
+ * `configured: false` and `outOfCredit: true` are both the feature being off
+ * rather than broken — kept apart because the fix differs, a key to set against
+ * an account to top up — and `notPayslip` is the model saying so rather than
+ * hallucinating a slip.
  */
 export function readExtractionFailure(body: unknown): ExtractionFailure {
   const detail = body as
-    | { error?: unknown; configured?: unknown; notPayslip?: unknown; reason?: unknown }
+    | {
+        error?: unknown
+        configured?: unknown
+        outOfCredit?: unknown
+        notPayslip?: unknown
+        reason?: unknown
+      }
     | null
     | undefined
   const message =
@@ -210,6 +228,9 @@ export function readExtractionFailure(body: unknown): ExtractionFailure {
 
   if (detail?.configured === false) {
     return { status: 'not-configured', message: message ?? EXTRACTION_UNCONFIGURED_MESSAGE }
+  }
+  if (detail?.outOfCredit === true) {
+    return { status: 'out-of-credit', message: message ?? EXTRACTION_OUT_OF_CREDIT_MESSAGE }
   }
   if (detail?.notPayslip === true) {
     return {

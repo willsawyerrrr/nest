@@ -2,7 +2,12 @@ import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PayslipAttachments, PayslipSubmission } from '../hooks/usePayslips'
-import type { ExtractionOutcome, PayslipExtraction } from '../lib/payslipExtraction'
+import {
+  EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+  EXTRACTION_UNCONFIGURED_MESSAGE,
+  type ExtractionOutcome,
+  type PayslipExtraction,
+} from '../lib/payslipExtraction'
 import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { PayslipForm } from './PayslipForm'
@@ -605,6 +610,44 @@ describe('PayslipForm extraction', () => {
     expect(submitted(onSubmit).attachment).not.toBeNull()
   })
 
+  it('reads an account out of credit as reading being off, not as a broken read', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    read.mockResolvedValue({
+      status: 'out-of-credit',
+      message: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+    } satisfies ExtractionOutcome)
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await attach(user)
+
+    // The same plain note an unset key gets, not the warning alert a failure the
+    // member could act on is shown in.
+    const note = screen.getByText(EXTRACTION_OUT_OF_CREDIT_MESSAGE)
+    expect(note.closest('[role="alert"]')).toBeNull()
+    // And never the unset-key note: topping up an account is a different fix.
+    expect(screen.queryByText(EXTRACTION_UNCONFIGURED_MESSAGE)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Gross'), '1000')
+    await user.type(screen.getByLabelText('Tax withheld'), '200')
+    await user.type(screen.getByLabelText('Super'), '120')
+    await user.type(screen.getByLabelText('Net'), '800')
+    await user.click(screen.getByRole('button', { name: /add payslip/i }))
+
+    // The save is untouched: the figures are typed by hand exactly as before, and
+    // the document stays attached.
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input.gross_cents).toBe(1_000_00)
+    expect(submitted(onSubmit).attachment).not.toBeNull()
+  })
+
   it('passes on the model’s reason for a file that is not a payslip', async () => {
     const user = userEvent.setup()
     read.mockResolvedValue({
@@ -670,7 +713,11 @@ describe('PayslipForm extraction', () => {
 
     await attach(user)
 
-    expect(screen.getByText(/24\.0 MB; the limit is 20\.0 MB/)).toBeInTheDocument()
+    // A failure the member can act on is a warning alert, unlike the plain note
+    // the switched-off states get.
+    expect(
+      screen.getByText(/24\.0 MB; the limit is 20\.0 MB/).closest('[role="alert"]'),
+    ).not.toBeNull()
     expect(screen.getByRole('button', { name: /add payslip/i })).toBeDisabled()
   })
 

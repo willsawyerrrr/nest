@@ -175,8 +175,26 @@ function megabytes(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1)
 }
 
+/** What a failure no retry can fix says: the figures are typed by hand instead. */
+const UNREADABLE_MESSAGE = 'The payslip could not be read. Enter the figures by hand.'
+
 /** Maps a model failure to a status the client can act on. */
 function modelFailure(result: Extract<ModelResult, { ok: false }>): FlowResult {
+  if (result.failure === 'no_credit') {
+    // The same `503` shape as an unset key, because it is the same thing from
+    // the member's side: reading is switched off pending an operator, not broken
+    // and not their file. Retrying cannot help, so it is not offered. The flag is
+    // its own rather than `configured: false` because the operator's fix differs
+    // — top up the account, not set a Vault secret — and the client says which.
+    return {
+      status: 503,
+      body: {
+        error:
+          'Payslip reading is off until the Anthropic account is topped up. Nothing is wrong with your file — enter the figures by hand.',
+        outOfCredit: true,
+      },
+    }
+  }
   if (result.failure === 'timeout') {
     return {
       status: 504,
@@ -184,10 +202,7 @@ function modelFailure(result: Extract<ModelResult, { ok: false }>): FlowResult {
     }
   }
   if (result.failure === 'malformed') {
-    return {
-      status: 502,
-      body: { error: 'The payslip could not be read. Enter the figures by hand.' },
-    }
+    return { status: 502, body: { error: UNREADABLE_MESSAGE } }
   }
   if (result.failure === 'refused') {
     // Nothing is wrong with the server: the model would not read this file.
@@ -196,15 +211,25 @@ function modelFailure(result: Extract<ModelResult, { ok: false }>): FlowResult {
       body: { error: 'That file could not be read. Enter the figures by hand.' },
     }
   }
-  // A rate limit is worth passing through so the client can back off; anything
-  // else upstream is a bad gateway from the caller's point of view.
-  const status = result.status === 429 ? 429 : 502
+  // A rate limit is worth passing through so the client can back off.
+  if (result.status === 429) {
+    return {
+      status: 429,
+      body: { error: 'Reading payslips is rate limited right now. Try again shortly.' },
+    }
+  }
+  // Anything else upstream is a bad gateway from the caller's point of view, but
+  // whether a retry can help depends on which side the fault is on: a `5xx` or a
+  // request that never landed is a bad moment, while a `4xx` none of the cases
+  // above claimed is a request the API rejected and will reject identically next
+  // time, so that one is not invited to retry.
+  const transient = result.status === undefined || result.status >= 500
   return {
-    status,
+    status: 502,
     body: {
-      error: status === 429
-        ? 'Reading payslips is rate limited right now. Try again shortly.'
-        : 'The payslip could not be read right now. Try again, or enter it by hand.',
+      error: transient
+        ? 'The payslip could not be read right now. Try again, or enter it by hand.'
+        : UNREADABLE_MESSAGE,
     },
   }
 }

@@ -10,7 +10,7 @@
  * is, so the request this builds can be asserted against a stub.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import Anthropic, { type APIError } from '@anthropic-ai/sdk'
 import { encodeBase64 } from '@std/encoding/base64'
 import { DATE_FIELDS, MONEY_FIELDS, type RawPayslipFields, readRawFields } from './fields.ts'
 
@@ -72,10 +72,12 @@ export interface ModelSuccess {
 export interface ModelFailure {
   ok: false
   /**
-   * Why the call yielded no fields: the model API, or the model declining, or an
-   * unusable answer.
+   * Why the call yielded no fields: the account being out of credit, any other
+   * model-API failure, the model declining, or an unusable answer. `no_credit`
+   * is its own case because it is the only one an operator has to fix — every
+   * other failure is the file, the answer, or a bad moment.
    */
-  failure: 'api_error' | 'timeout' | 'refused' | 'malformed'
+  failure: 'no_credit' | 'api_error' | 'timeout' | 'refused' | 'malformed'
   message: string
   /** The upstream HTTP status, when the API returned one. */
   status?: number
@@ -211,6 +213,43 @@ function fileBlock(file: PayslipFile): Anthropic.ContentBlockParam {
   return { type: 'image', source: { type: 'base64', media_type: file.mediaType, data } }
 }
 
+/** The API's own machine-readable code for a billing failure. */
+const BILLING_ERROR_TYPE = 'billing_error'
+
+/**
+ * The sentence the API sends when an account's credit is exhausted: "Your credit
+ * balance is too low to access the Anthropic API. Please go to Plans & Billing to
+ * upgrade or purchase credits."
+ */
+const CREDIT_EXHAUSTED_MESSAGE = 'credit balance is too low'
+
+/**
+ * Whether an API error is the account being out of credit rather than a fault in
+ * the request that was sent.
+ *
+ * An exhausted balance arrives as a `400` under `invalid_request_error` — the
+ * same `error.type` every genuinely malformed request carries — so the message is
+ * the only signal separating the two. Requiring that status *and* that type
+ * *and* that one sentence is what keeps every other bad request reading as the
+ * server fault it is: a malformed tool schema or an oversized document cannot
+ * match. `billing_error` is checked first, being the API's own code for the same
+ * class of problem wherever it sends it.
+ *
+ * A spend limit that arrives as a `429` is deliberately not matched. The API
+ * reports it exactly as it reports a request-rate limit, with the same status and
+ * the same `rate_limit_error` type, so the two cannot be told apart — and reading
+ * a rate limit as an empty account would be the worse mistake, since waiting
+ * fixes it.
+ */
+function outOfCredit(error: APIError): boolean {
+  if (error.type === BILLING_ERROR_TYPE) return true
+  if (error.status !== 400 || error.type !== 'invalid_request_error') return false
+  const body = error.error as { error?: { message?: unknown } } | undefined
+  const message = body?.error?.message
+  return typeof message === 'string' &&
+    message.toLowerCase().includes(CREDIT_EXHAUSTED_MESSAGE)
+}
+
 async function extractWithClient(
   client: Anthropic,
   file: PayslipFile,
@@ -239,7 +278,7 @@ async function extractWithClient(
     if (error instanceof Anthropic.APIError) {
       return {
         ok: false,
-        failure: 'api_error',
+        failure: outOfCredit(error) ? 'no_credit' : 'api_error',
         message: error.message,
         ...(typeof error.status === 'number' ? { status: error.status } : {}),
       }

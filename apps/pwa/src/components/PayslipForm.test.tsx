@@ -110,7 +110,7 @@ async function attach(user: ReturnType<typeof userEvent.setup>, name = 'slip.pdf
 }
 
 describe('PayslipForm', () => {
-  it('submits the quartet in cents with the financial year derived from the pay period', async () => {
+  it('submits the quartet in cents with the financial year derived from the payment date', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(
@@ -121,6 +121,7 @@ describe('PayslipForm', () => {
         initial={makePayslip({
           period_start: '2026-06-17',
           period_end: '2026-06-30',
+          paid_on: '2026-07-01',
           source_inflow_id: null,
         })}
         onSubmit={onSubmit}
@@ -135,11 +136,12 @@ describe('PayslipForm', () => {
       id: 'ps1',
       input: {
         member_id: 'm1',
-        // Derived from the period's last day, not typed: 30 June falls in FY2026.
-        financial_year: 2026,
+        // Derived from the payment date, not typed: the fortnight was worked to
+        // 30 June but the pay landed on 1 July, which is FY2027.
+        financial_year: 2027,
         period_start: '2026-06-17',
         period_end: '2026-06-30',
-        paid_on: '2026-07-15',
+        paid_on: '2026-07-01',
         gross_cents: 5_000_00,
         tax_withheld_cents: 1_000_00,
         super_cents: 600_00,
@@ -156,30 +158,44 @@ describe('PayslipForm', () => {
     })
   })
 
-  it('shows the derived financial year and offers no field to type it in', () => {
+  it('names the date the derived financial year came from and offers no field to type it in', () => {
+    // No payment date: the pay period end decides, and the note says to enter one.
     const { unmount } = render(
       <PayslipForm
         member={member}
         inflows={inflows}
         attachments={attachments}
-        initial={makePayslip({ period_start: '2026-06-17', period_end: '2026-06-30' })}
+        initial={makePayslip({
+          period_start: '2026-06-17',
+          period_end: '2026-06-30',
+          paid_on: null,
+        })}
         onSubmit={vi.fn()}
       />,
     )
-    expect(screen.getByText(/filed under fy2026/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/filed under fy2026, derived from the pay period end\./i),
+    ).toHaveTextContent(/entering a payment date files the slip by that instead/i)
     expect(screen.queryByLabelText(/financial year/i)).not.toBeInTheDocument()
     unmount()
 
+    // The same fortnight, paid 1 July: the payment date carries it into FY2027.
     render(
       <PayslipForm
         member={member}
         inflows={inflows}
         attachments={attachments}
-        initial={makePayslip({ period_start: '2026-07-01', period_end: '2026-07-14' })}
+        initial={makePayslip({
+          period_start: '2026-06-17',
+          period_end: '2026-06-30',
+          paid_on: '2026-07-01',
+        })}
         onSubmit={vi.fn()}
       />,
     )
-    expect(screen.getByText(/filed under fy2027/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/filed under fy2027, derived from the payment date/i),
+    ).toBeInTheDocument()
   })
 
   it('says the withheld figure is the slip’s tax total, STSL included', () => {
@@ -389,8 +405,11 @@ describe('PayslipForm', () => {
         Date.parse(`${input.period_start}T00:00:00Z`)) /
       86_400_000
     expect(days).toBe(13)
+    // Nothing was typed into "Paid on", so the defaulted period end files the slip.
     expect(
-      screen.getByText(`Filed under FY${input.financial_year}, derived from the pay period.`),
+      screen.getByText(
+        new RegExp(`Filed under FY${input.financial_year}, derived from the pay period end\\.`),
+      ),
     ).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /cancel/i }))

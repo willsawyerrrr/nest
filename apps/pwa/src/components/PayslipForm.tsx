@@ -30,7 +30,7 @@ import {
   type ExtractedField,
   type PayslipExtraction,
 } from '../lib/payslipExtraction'
-import { financialYearForPayPeriod } from '../lib/payslips'
+import { financialYearForPayslip } from '../lib/payslips'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 import { PayslipLinesField, type LineDraft } from './PayslipLinesField'
@@ -196,10 +196,11 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
 
 /**
  * Presentational add/edit form for one payslip, tagged to the member the section
- * belongs to. The financial year is not typed: it is derived from the pay period
- * and shown back. The source inflow is an explicit choice from the member's own
- * taxable inflows, and the slip may be itemised into earnings lines each drawing
- * on one of those same inflows.
+ * belongs to. The financial year is not typed: it is derived from the payment
+ * date — or the pay period's end where the slip states none — and shown back with
+ * the date that decided it. The source inflow is an explicit choice from the
+ * member's own taxable inflows, and the slip may be itemised into earnings lines
+ * each drawing on one of those same inflows.
  *
  * Attaching a document stores it and reads it: the figures it finds pre-fill the
  * fields that are not already the member's own — typed here, or saved on the
@@ -299,7 +300,9 @@ export function PayslipForm({
     linesComplete &&
     !slip.busy
   const financialYear =
-    values.period_end === null ? null : financialYearForPayPeriod(values.period_end)
+    values.period_end === null
+      ? null
+      : financialYearForPayslip({ paidOn: values.paid_on, periodEnd: values.period_end })
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
@@ -314,7 +317,7 @@ export function PayslipForm({
       id: slip.payslipId,
       input: {
         member_id: member.id,
-        financial_year: financialYearForPayPeriod(values.period_end!),
+        financial_year: financialYear!,
         period_start: values.period_start!,
         period_end: values.period_end!,
         paid_on: values.paid_on,
@@ -411,7 +414,9 @@ export function PayslipForm({
 
       {financialYear !== null && (
         <Text size="xs" c="dimmed">
-          Filed under FY{financialYear}, derived from the pay period.
+          {values.paid_on === null
+            ? `Filed under FY${financialYear}, derived from the pay period end. Pay is taxed in the year it lands, so entering a payment date files the slip by that instead.`
+            : `Filed under FY${financialYear}, derived from the payment date — pay is taxed in the year it lands, whatever period earned it.`}
         </Text>
       )}
 

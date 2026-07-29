@@ -1,8 +1,10 @@
 import {
   latestReportedYearToDate,
   paygWithheldByMember,
+  payslipAttributionDate,
   payslipVariance,
   payslipYearToDate,
+  type PayslipAttribution,
   type PayslipLine,
   type PayslipTotals,
   type PayslipTotalsRow,
@@ -17,19 +19,22 @@ import type { PayslipRow } from '../hooks/usePayslips'
 import { toIncomeInput } from './tax'
 
 /**
- * The AU financial year a pay period is filed under, labelled by its ending year:
- * the year the period's last day (an ISO `YYYY-MM-DD` date) falls in, so a period
- * straddling 30 June belongs to the year it ends in. The date is read as a UTC
- * instant, matching the engine's own UTC financial-year bounds.
+ * The AU financial year a payslip is filed under, labelled by its ending year:
+ * the year the slip's attribution date falls in — the date the pay landed, or the
+ * pay period's last day where the slip states no payment date. Salary and wages
+ * are assessed in the year they are paid, so a fortnight worked to 28 June and
+ * paid 1 July is filed under the later year. The date is read as a UTC instant,
+ * matching the engine's own UTC financial-year bounds.
  */
-export function financialYearForPayPeriod(periodEnd: string): number {
-  return financialYearForDate(new Date(`${periodEnd}T00:00:00Z`))
+export function financialYearForPayslip(payslip: PayslipAttribution): number {
+  return financialYearForDate(new Date(`${payslipAttributionDate(payslip)}T00:00:00Z`))
 }
 
 /** Maps a `payslip` row to the aggregation shape `@nest/plan` reads. */
 export function toPayslipTotalsRow(payslip: PayslipRow): PayslipTotalsRow {
   return {
     memberId: payslip.member_id,
+    paidOn: payslip.paid_on,
     periodEnd: payslip.period_end,
     grossCents: payslip.gross_cents,
     taxWithheldCents: payslip.tax_withheld_cents,

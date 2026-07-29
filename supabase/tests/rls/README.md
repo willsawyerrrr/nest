@@ -1,7 +1,9 @@
-# RLS tests
+# SQL assertions
 
-Automated proof that Row-Level Security isolates households. These run in CI (the
-`rls` job) against a plain Postgres instance and can also be run locally.
+Automated proof that the schema behaves as designed: Row-Level Security isolates
+households, the derived-line triggers match the client reconciler, and a payslip
+is filed under the financial year its pay landed in. These run in CI (the `rls`
+job) against a plain Postgres instance and can also be run locally.
 
 ## Files
 
@@ -17,21 +19,35 @@ Automated proof that Row-Level Security isolates households. These run in CI (th
   the generic-breakdown and gift lifecycles (add/update/remove items and budgets,
   routing preservation, buyer-account funding, member add/rename/remove, and
   idempotency).
+- `payslip_financial_year.sql` — the assertions that `payslip.financial_year` is
+  the year the pay landed in: the derivation at the 30 June boundary, the backfill
+  migration moving exactly the rows that disagree with it and rewriting nothing on
+  a second pass, and the check constraint refusing a slip filed by the year its
+  work fell in. It runs the backfill from the migration file itself (`\ir`), so
+  the assertions cover the shipped SQL rather than a copy of it.
 
 ## What runs
 
 `setup_auth.sql` → every file in `supabase/migrations/` in order →
-`rls_isolation.sql` → `derived_line_triggers.sql`. Because the real migrations
-and policies are applied, the assertions test the actual security boundary and
-trigger behaviour, not a reimplementation.
+`rls_isolation.sql` → `derived_line_triggers.sql` →
+`payslip_financial_year.sql`. Because the real migrations and policies are
+applied, the assertions test the actual security boundary and trigger behaviour,
+not a reimplementation.
 
 ## Run locally
+
+`payslip_financial_year.sql` includes a migration by a path relative to its own
+location, so run the scripts by path with a client on the host rather than piping
+them into the container on stdin.
 
 ```sh
 docker run -d --rm --name pba-rls -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:17
 until docker exec pba-rls pg_isready -U postgres -q; do sleep 1; done
-docker exec -i pba-rls psql -U postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/rls/setup_auth.sql
-for f in supabase/migrations/*.sql; do docker exec -i pba-rls psql -U postgres -v ON_ERROR_STOP=1 -f - < "$f"; done
-docker exec -i pba-rls psql -U postgres -v ON_ERROR_STOP=1 -f - < supabase/tests/rls/rls_isolation.sql
+export PGHOST=localhost PGPORT=55432 PGUSER=postgres PGPASSWORD=postgres
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/setup_auth.sql
+for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/rls_isolation.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/derived_line_triggers.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_financial_year.sql
 docker rm -f pba-rls
 ```

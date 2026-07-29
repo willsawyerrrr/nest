@@ -6,6 +6,7 @@ import {
   isPeriodOnCadence,
   latestReportedYearToDate,
   paygWithheldByMember,
+  payslipAttributionDate,
   payslipVariance,
   payslipYearToDate,
   payslipYearToDateByMember,
@@ -91,6 +92,20 @@ function period(periodStart: string, periodEnd: string): PayPeriod {
   return { periodStart, periodEnd }
 }
 
+describe('payslipAttributionDate', () => {
+  it('takes the date the pay landed where the slip states one', () => {
+    // Worked to 28 June, paid 1 July: the money landed in the later year.
+    expect(payslipAttributionDate({ paidOn: '2026-07-01', periodEnd: '2026-06-28' })).toBe(
+      '2026-07-01',
+    )
+  })
+
+  it('falls back to the period end where the slip states no payment date', () => {
+    expect(payslipAttributionDate({ paidOn: null, periodEnd: '2026-06-28' })).toBe('2026-06-28')
+    expect(payslipAttributionDate({ periodEnd: '2026-06-28' })).toBe('2026-06-28')
+  })
+})
+
 describe('financialYearDayCount', () => {
   it('counts 365 days in a financial year ending in a non-leap year', () => {
     expect(financialYearDayCount(2027)).toBe(365)
@@ -109,6 +124,16 @@ describe('periodFractionOfFinancialYear', () => {
 
   it('counts every day of a period straddling 30 June', () => {
     expect(periodFractionOfFinancialYear(period('2027-06-24', '2027-07-07'), FY)).toBe(14 / 365)
+  })
+
+  it('counts every day of a straddling period against the year its pay landed in', () => {
+    // Worked 24 June – 7 July 2027 and paid in July, so filed under FY2028 rather
+    // than the FY2027 its first week fell in. The period is not clipped either
+    // way: all 14 days count, and the year it is filed under only chooses the
+    // denominator — 366 for the leap FY2028 against FY2027's 365.
+    const straddling = period('2027-06-24', '2027-07-07')
+    expect(periodFractionOfFinancialYear(straddling, 2028)).toBe(14 / 366)
+    expect(periodFractionOfFinancialYear(straddling, FY)).toBe(14 / 365)
   })
 
   it('covers nothing for a period ending before it starts', () => {
@@ -466,6 +491,26 @@ describe('payslipVariance off cadence', () => {
     expect(variance.taxWithheldVarianceCents).toBe(0)
   })
 
+  it('measures a straddling period whole against the year its pay landed in', () => {
+    // Worked 24 June – 8 July 2027 and paid in July, so filed under FY2028 rather
+    // than the FY2027 its first week fell in. All 15 days count either way — the
+    // period is never clipped to the year — and the year decides only the
+    // denominator, 366 for the leap FY2028 against FY2027's 365.
+    const straddling = period('2027-06-24', '2027-07-08')
+    const paidYear = payslipVariance(payslip({ financialYear: 2028, ...straddling }), expectation())
+    expect(paidYear.periodDays).toBe(15)
+    expect(paidYear.financialYearDays).toBe(366)
+    // $130,000 × 15/366 and $36,400 × 15/366.
+    expect(paidYear.expectedGrossCents).toBe(5_327_87)
+    expect(paidYear.expectedTaxWithheldCents).toBe(1_491_80)
+
+    const earnedYear = payslipVariance(payslip({ financialYear: FY, ...straddling }), expectation())
+    expect(earnedYear.periodDays).toBe(15)
+    // $130,000 × 15/365 and $36,400 × 15/365.
+    expect(earnedYear.expectedGrossCents).toBe(5_342_47)
+    expect(earnedYear.expectedTaxWithheldCents).toBe(1_495_89)
+  })
+
   it('switches basis between a whole fortnight and one a day short of it', () => {
     const whole = payslipVariance(payslip(), expectation())
     expect(whole.basis).toBe('cadence')
@@ -663,6 +708,49 @@ describe('latestReportedYearToDate', () => {
   it('reports nothing when no payslip carries running totals', () => {
     expect(latestReportedYearToDate([row(), row({ periodEnd: '2026-07-28' })])).toBeNull()
     expect(latestReportedYearToDate([])).toBeNull()
+  })
+
+  it('ranks by the date the pay landed, not by the period it covered', () => {
+    // Back-pay for a September period, paid after the regular October slip: the
+    // employer's running totals include it, so its figures are the later ones.
+    expect(
+      latestReportedYearToDate([
+        row({
+          periodEnd: '2026-10-13',
+          paidOn: '2026-10-15',
+          ytdGrossCents: 40_000_00,
+          ytdTaxWithheldCents: 11_200_00,
+          ytdSuperCents: 4_800_00,
+        }),
+        row({
+          periodEnd: '2026-09-15',
+          paidOn: '2026-10-29',
+          ytdGrossCents: 42_500_00,
+          ytdTaxWithheldCents: 12_000_00,
+          ytdSuperCents: 5_100_00,
+        }),
+      ]),
+    ).toEqual({ grossCents: 42_500_00, taxWithheldCents: 12_000_00, superCents: 5_100_00 })
+  })
+
+  it('ranks a slip stating no payment date by its period end', () => {
+    expect(
+      latestReportedYearToDate([
+        row({
+          periodEnd: '2026-07-28',
+          ytdGrossCents: 10_000_00,
+          ytdTaxWithheldCents: 2_800_00,
+          ytdSuperCents: 1_200_00,
+        }),
+        row({
+          periodEnd: '2026-07-14',
+          paidOn: '2026-07-16',
+          ytdGrossCents: 5_000_00,
+          ytdTaxWithheldCents: 1_400_00,
+          ytdSuperCents: 600_00,
+        }),
+      ]),
+    ).toEqual({ grossCents: 10_000_00, taxWithheldCents: 2_800_00, superCents: 1_200_00 })
   })
 })
 

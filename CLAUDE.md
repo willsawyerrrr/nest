@@ -90,7 +90,19 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `<household_id>/…` so Storage RLS gates access by household membership.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
-  slip's optional salary sacrifice and year-to-date running totals. The figures are
+  slip's optional salary sacrifice and year-to-date running totals. A slip is filed
+  under the financial year its pay LANDED in — derived from `paid_on`, falling back
+  to the pay period's last day where the slip states none — because the ATO assesses
+  salary and wages in the year they are paid, so a fortnight worked to 28 June and
+  paid 1 July counts in the later year. The form derives that year and shows back
+  which date decided it, and the `payslip_financial_year` check constraint holds the
+  same rule in the database, `financial_year` staying a plain writable column rather
+  than a generated one. The pay period is never clipped to that year: a straddling
+  period counts all of its own days, and the year only supplies the 365/366
+  denominator an off-cadence period's expectations are apportioned over. A slip's
+  own YTD figures rank by payment date too, so the anchor slip is whichever pay
+  landed last, while the LIST stays ordered by pay period — every slip has one,
+  `paid_on` is optional. The figures are
   always confirmed by the member; a slip names its cadence anchor via an
   explicit picker (`source_inflow_id`, nullable — a bonus or back-pay slip maps to
   none) and one employer per member, so there is no per-employer stream handling —

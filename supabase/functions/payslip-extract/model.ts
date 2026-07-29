@@ -6,12 +6,14 @@
  * every field in that schema is nullable, so a slip that omits super — or a
  * figure the model cannot find — comes back null instead of invented. The model
  * reports amounts as the literal text printed on the slip; `money.ts` converts
- * them. Alongside the section totals it reports each printed line the sections are
- * made up of, and for a tax line which part of the liability the slip says it
- * pays — never which projected inflow an earnings line draws on, which is the
- * household's own data and no part of what a model can see. The HTTP transport is
- * injectable, exactly as `_shared/up.ts`'s client is, so the request this builds
- * can be asserted against a stub.
+ * them. Alongside the section totals it reports each printed row the sections are
+ * made up of — each row's amount in this period's column and in the year-to-date
+ * column named separately, so `fields.ts` can tell a row of this pay from one the
+ * slip carries year to date alone — and for a tax line which part of the liability
+ * the slip says it pays, never which projected inflow an earnings line draws on,
+ * which is the household's own data and no part of what a model can see. The HTTP
+ * transport is injectable, exactly as `_shared/up.ts`'s client is, so the request
+ * this builds can be asserted against a stub.
  */
 
 import Anthropic, { type APIError } from '@anthropic-ai/sdk'
@@ -145,6 +147,15 @@ const SYSTEM_PROMPT = [
   'row as a line — each section’s total is its own field, so a total reported',
   'again as a line would count that money twice.',
   '',
+  'These sections print a column for the current pay period beside a year-to-date',
+  'column. Report each row’s two amounts separately, each from its own column, and',
+  'never carry a year-to-date figure across into the period amount: where a row',
+  'shows an amount only in the year-to-date column, its period amount is null,',
+  'because that money was paid in earlier periods and reporting it as part of this',
+  'pay would count it again. Where the two columns show the same amount — as they',
+  'do on the first pay of a financial year — report that amount in both, as',
+  'printed: matching columns are a real line of this pay, not a repetition.',
+  '',
   'If the document is not a payslip, set is_payslip to false, say why in',
   'not_payslip_reason, and report null for every field.',
 ].join('\n')
@@ -169,12 +180,13 @@ const FIELD_PROMPTS: Record<string, string> = {
     'printed year-to-date tax total, covering PAYG together with any STSL component, not the ' +
     'PAYG line alone.',
   ytd_super: 'Year-to-date superannuation, as printed.',
-  earnings_lines: 'Every line printed in the earnings section — the salary, wage, leave, and ' +
+  earnings_lines: 'Every row printed in the earnings section — the salary, wage, leave, and ' +
     'allowance rows the gross is made up of — one entry each, in the order printed, label and ' +
-    'amount as printed. Not the section’s TOTAL row, and not a line you have worked out yourself.',
-  tax_lines: 'Every line printed in the tax section, one entry each, in the order printed, ' +
-    'label and amount as printed, each saying which part of the tax it pays. Not the ' +
-    'section’s TOTAL row.',
+    'each column’s amount as printed. Not the section’s TOTAL row, and not a line you have ' +
+    'worked out yourself.',
+  tax_lines: 'Every row printed in the tax section, one entry each, in the order printed, ' +
+    'label and each column’s amount as printed, each saying which part of the tax it pays. ' +
+    'Not the section’s TOTAL row.',
 }
 
 /** A nullable string property: every field is optional on a real payslip. */
@@ -191,8 +203,30 @@ const LINE_LABEL = {
   description: 'The line’s description exactly as the slip prints it, e.g. “Ordinary Hours”.',
 }
 
-/** A line's amount, read as printed exactly as the section totals are. */
-const LINE_AMOUNT = nullableString('The line’s amount, as printed.')
+/**
+ * A row's amount for the current pay period, read as printed exactly as the section
+ * totals are. Null is a positive answer — the row is printed but this period's
+ * column holds nothing for it — because a payslip's tables run this period beside
+ * the year to date, and a year-to-date figure carried across would report money
+ * from earlier pays as part of this one.
+ */
+const LINE_PERIOD_AMOUNT = nullableString(
+  'The row’s amount in the CURRENT PAY PERIOD’s column, as printed. Null when that column ' +
+    'holds nothing for this row — an amount printed only in the year-to-date column is money ' +
+    'paid in earlier periods, so it never becomes this figure. Where the two columns print the ' +
+    'same amount, as on the first pay of a financial year, report it here as printed.',
+)
+
+/**
+ * The same row's year-to-date amount. Asked for by name so each printed figure is
+ * attributed to the column it came from, which is what keeps the year-to-date one
+ * out of the period amount, and so a row left out of this pay is left out on the
+ * model's own evidence rather than on its having quietly said nothing.
+ */
+const LINE_YTD_AMOUNT = nullableString(
+  'The same row’s amount in the YEAR-TO-DATE column, as printed, reported here and never as ' +
+    'the period amount.',
+)
 
 /**
  * Which part of the liability a tax line pays. Nullable on purpose: an AU slip
@@ -248,11 +282,13 @@ export const PAYSLIP_TOOL: Anthropic.Tool = {
       ),
       earnings_lines: nullableLines(FIELD_PROMPTS.earnings_lines, {
         label: LINE_LABEL,
-        amount: LINE_AMOUNT,
+        period_amount: LINE_PERIOD_AMOUNT,
+        ytd_amount: LINE_YTD_AMOUNT,
       }),
       tax_lines: nullableLines(FIELD_PROMPTS.tax_lines, {
         label: LINE_LABEL,
-        amount: LINE_AMOUNT,
+        period_amount: LINE_PERIOD_AMOUNT,
+        ytd_amount: LINE_YTD_AMOUNT,
         component: LINE_COMPONENT,
       }),
     },

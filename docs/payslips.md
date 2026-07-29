@@ -214,8 +214,8 @@ One employer pays salary and on-call in a single payment, and the two are
 projected as separate inflows. A slip is therefore itemised the way it is
 printed: **one `payslip_line` per earnings line**, each naming the inflow it
 draws on. Attaching a document itemises it for the member — extraction reads the
-printed lines and fills them in, matching each label to an inflow where it names one
-unambiguously (see
+lines printed for that period and fills them in, matching each label to an inflow
+where it names one unambiguously (see
 [Stage 3](#which-inflow-an-earnings-line-draws-on-is-matched-here-not-read)) — and
 every line stays theirs to edit. Five properties fall out of that shape.
 
@@ -443,11 +443,13 @@ image block (JPEG, PNG, WebP); anything else is rejected before a request is bui
   integer cents, keyed as the `payslip` columns are, null where unavailable.
 - `text` — the literal text read for each field, so the form can show what the
   model saw and the member can spot a misread rather than confirming one blind.
-- `lines` — the slip's own itemisation in printed order, one entry per printed row:
-  the `label` as printed, the `amount` as printed, and `amount_cents` converted from
-  it. A **section TOTAL row is never a line** — the totals are `fields` — so summing
-  the lines and reading the total never counts the same money twice; the system
-  prompt and both field descriptions say so. A tax line also carries `component`,
+- `lines` — the slip's own itemisation of **this pay** in printed order, one entry
+  per printed row: the `label` as printed, the `amount` as printed, and
+  `amount_cents` converted from it. A **section TOTAL row is never a line** — the
+  totals are `fields` — so summing the lines and reading the total never counts the
+  same money twice; the system prompt and both field descriptions say so. Neither is
+  a row printed only in the year-to-date column
+  ([below](#only-this-pays-lines-are-read)). A tax line also carries `component`,
   `"payg"` or `"stsl"`, which the model reads off the slip's own words, and `null`
   where those words do not say which of the two a line pays. An earnings line
   carries no inflow: the household's inflows are not on the slip and are no part of
@@ -458,8 +460,41 @@ image block (JPEG, PNG, WebP); anything else is rejected before a request is bui
   partial extraction is a success; the member fills the gaps.
 - `unreadable` — fields whose text came back but could not be converted safely
   (a misread `4,12O.50`, a date that is not a real calendar date). Null, with the
-  text kept so the member can correct it. A **line** whose printed amount could not
-  be converted comes back with `amount_cents: null` and its label and text intact.
+  text kept so the member can correct it. A **line** whose printed period amount
+  could not be converted comes back with `amount_cents: null` and its label and text
+  intact, which is the gap it is; a row printing nothing for this period is a
+  different thing and is simply absent.
+
+#### Only this pay's lines are read
+
+A payslip's earnings and tax tables print a column for the pay period beside a
+year-to-date column, and a row may carry a figure in one, the other, or both. Each
+row is reported per column — `period_amount` and `ytd_amount`, both named in the
+tool schema and required on every row — and a row whose `period_amount` is null is
+**left out of `lines`**, being money earlier pays already carried. Reported as a line
+of this pay, an `Other Previous Earnings $1,000.00` row printed year to date alone
+would inflate the itemised earnings, and with them the per-inflow gross variance, the
+unallocated remainder, and the OTE base expected employer super is charged on. The
+same holds in the tax section: a component withheld this year but not this period is
+no part of this period's withholding, and would corrupt the per-component variance
+just as an earnings row corrupts gross.
+
+The two columns are **never compared** to decide it. On the first pay of a financial
+year they legitimately match — `Ordinary Hours 60.8000 $65.7895 $4,000.00
+$4,000.00` — and an equality test would throw away every line of that slip. The
+model reads each column and reports what it finds there; TypeScript excludes on the
+period figure being absent, exactly as it decides everything else the model's
+literal text means. Reporting the year-to-date figure too is what makes the
+exclusion evidence rather than silence: the row comes back with its year-to-date
+amount and no period amount, which is the model saying it read the row and found
+that column empty.
+
+The exclusion is **quiet**. A row this pay does not carry is not a gap for the
+member to fill, so it is neither `missing` nor `unreadable` and nothing about it
+reaches the client at all. A period amount that was printed but could not be
+converted is the opposite case and is kept — the line comes back with its label, its
+printed text, and `amount_cents: null` — because that one is a figure the member has
+to read off the slip themselves, which a dropped row would give them no way to do.
 
 ### Pre-filling the form
 

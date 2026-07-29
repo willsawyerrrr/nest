@@ -472,6 +472,7 @@ Every failure is specific and none of them is a bug-shaped 500:
 | --- | --- |
 | API key unset | `503` `{ configured: false }` — the feature is off, not broken; the form still takes the figures by hand |
 | API account out of credit | `503` `{ outOfCredit: true }` — off in the same way, pending an operator topping the account up; no retry is offered because none can succeed |
+| API key refused (`401 authentication_error` / `403 permission_error`) | `503` `{ keyRejected: true }` — off in the same way again, pending an operator rotating the key; no retry is offered because the same key would be refused identically |
 | Path outside the caller's household | `403` |
 | Object missing from Storage / empty | `404` / `400` |
 | Unsupported file type | `415`, naming the types it takes |
@@ -483,15 +484,21 @@ Every failure is specific and none of them is a bug-shaped 500:
 | Model timeout | `504` |
 
 Each of these lands in the form as an inline note beside the still-editable
-figures, never as a blocked save. Three are singled out by their own flag rather
-than their status, because they read differently. `configured: false` and
-`outOfCredit: true` are both the feature being **off**, so each shows as a plain
-dimmed line rather than an error the member could act on — "Payslip extraction is
-not configured. Enter the figures by hand." for the first, and for the second
-"Payslip reading is off until the Anthropic account is topped up. Nothing is wrong
-with your file — enter the figures by hand.", which names neither a retry (none can
-work) nor a fault of the member's. They stay separate flags because the operator's
-fix differs: a Vault secret to set, against an account to top up. `notPayslip`
+figures, never as a blocked save. Four are singled out by their own flag rather
+than their status, because they read differently. `configured: false`,
+`outOfCredit: true`, and `keyRejected: true` are all the feature being **off**, so
+each shows as a plain dimmed line rather than an error the member could act on:
+
+- "Payslip extraction is not configured. Enter the figures by hand."
+- "Payslip reading is off until the Anthropic account is topped up. Nothing is
+  wrong with your file — enter the figures by hand."
+- "Payslip reading is off until the Anthropic API key is fixed. Nothing is wrong
+  with your file — enter the figures by hand."
+
+None names a retry (none can work) or a fault of the member's. They stay three
+flags because the operator's fix is three different things — a Vault secret to set,
+an account to top up, a key to rotate — and
+[`operations.md`](operations.md#anthropic_api_key-setup) covers each. `notPayslip`
 shows the model's own `reason` so the member knows the file was wrong rather than
 the reader.
 Everything else shows the message the function sent, because that message is the
@@ -501,19 +508,29 @@ function at all. The document stays attached through any of them: it is the reco
 and the figures are typed either way.
 
 **Retry advice is only given where a retry can work.** A timeout and an upstream
-`5xx` are bad moments, so both say to try again. An exhausted balance, an
-unreadable model answer, and a request the API rejected outright are not: each says
-to enter the figures by hand instead, because the same request would fail the same
-way. Telling the two apart at the source is what makes the advice true: an
-exhausted balance arrives as a `400 invalid_request_error` — the type every
-malformed request carries — so it is recognised by that status, that type, **and**
-the credit-balance sentence together, leaving every other bad request to read as
-the server fault it is. A spend limit reached is not distinguished from a
-request-rate limit, since the API reports them identically; both stay a `429`
-telling the member to wait.
+`5xx` are bad moments, so both say to try again. An exhausted balance, a refused
+key, an unreadable model answer, and a request the API rejected outright are not:
+each says to enter the figures by hand instead, because the same request would fail
+the same way. Telling them apart at the source is what makes the advice true, and
+each match is only as wide as the API's own verdict:
 
-Operator setup for the key, and what to do when its account runs out of credit,
-are in [`operations.md`](operations.md#anthropic_api_key-setup).
+- An **exhausted balance** arrives as a `400 invalid_request_error` — the type every
+  malformed request carries — so it is recognised by that status, that type, **and**
+  the credit-balance sentence together, leaving every other bad request to read as
+  the server fault it is.
+- A **refused key** is recognised by the status paired with that status's own
+  `error.type` from the response body: `401` with `authentication_error`, or `403`
+  with `permission_error`. A `401` from a proxy in front of the API carries no
+  Anthropic error body and so no type, and stays a generic upstream failure; a `403`
+  over billing is claimed as an exhausted balance first, an account to top up being
+  no key to rotate.
+- A **spend limit reached** is not distinguished from a request-rate limit, since
+  the API reports them identically; both stay a `429` telling the member to wait.
+
+The `401` and the `403` share one flag because nothing downstream would act
+differently on them: the member can act on neither, and the operator rotates the
+key for both. The upstream status and type reach the function logs verbatim, which
+is where the two are told apart.
 
 ## Resolved decisions
 

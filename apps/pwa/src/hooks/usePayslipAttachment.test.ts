@@ -192,6 +192,7 @@ describe('usePayslipAttachment', () => {
     for (const outcome of [
       { status: 'not-configured', message: 'Not configured.' },
       { status: 'out-of-credit', message: 'Out of credit.' },
+      { status: 'key-rejected', message: 'Key refused.' },
       { status: 'not-payslip', message: 'Not a payslip.', reason: 'A bank statement.' },
       { status: 'failed', message: 'Rate limited.' },
     ] satisfies ExtractionOutcome[]) {

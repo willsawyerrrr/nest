@@ -72,12 +72,13 @@ export interface ModelSuccess {
 export interface ModelFailure {
   ok: false
   /**
-   * Why the call yielded no fields: the account being out of credit, any other
-   * model-API failure, the model declining, or an unusable answer. `no_credit`
-   * is its own case because it is the only one an operator has to fix — every
-   * other failure is the file, the answer, or a bad moment.
+   * Why the call yielded no fields: the account being out of credit, the key
+   * being refused, any other model-API failure, the model declining, or an
+   * unusable answer. `no_credit` and `key_rejected` are their own cases because
+   * they are the ones an operator has to fix — every other failure is the file,
+   * the answer, or a bad moment.
    */
-  failure: 'no_credit' | 'api_error' | 'timeout' | 'refused' | 'malformed'
+  failure: 'no_credit' | 'key_rejected' | 'api_error' | 'timeout' | 'refused' | 'malformed'
   message: string
   /** The upstream HTTP status, when the API returned one. */
   status?: number
@@ -250,6 +251,36 @@ function outOfCredit(error: APIError): boolean {
     message.toLowerCase().includes(CREDIT_EXHAUSTED_MESSAGE)
 }
 
+/**
+ * Whether an API error is the key itself being refused rather than anything about
+ * the request or the moment.
+ *
+ * A key that is wrong, revoked, or of the wrong kind arrives as `401`
+ * `authentication_error`; a key the API accepts but will not let make this call
+ * arrives as `403` `permission_error`. Both the status *and* that status's own
+ * `error.type` are required, and the type is what the SDK read straight out of
+ * the response body's `error.type`, so only the API's own verdict matches: a
+ * `401` from a proxy or gateway in front of the API carries no Anthropic error
+ * body and therefore no type, and stays the generic upstream failure it is.
+ * Nothing else can slip in either, because no other status is looked at — a
+ * `500`, a `429`, or a `400` is never a refused key.
+ *
+ * Checked after {@linkcode outOfCredit}, which claims `billing_error` at any
+ * status: a `403` over billing is an account to top up, not a key to rotate.
+ */
+function keyRejected(error: APIError): boolean {
+  if (error.status === 401) return error.type === 'authentication_error'
+  if (error.status === 403) return error.type === 'permission_error'
+  return false
+}
+
+/** Which operator-shaped failure an API error is, if it is one at all. */
+function apiFailure(error: APIError): ModelFailure['failure'] {
+  if (outOfCredit(error)) return 'no_credit'
+  if (keyRejected(error)) return 'key_rejected'
+  return 'api_error'
+}
+
 async function extractWithClient(
   client: Anthropic,
   file: PayslipFile,
@@ -278,7 +309,7 @@ async function extractWithClient(
     if (error instanceof Anthropic.APIError) {
       return {
         ok: false,
-        failure: outOfCredit(error) ? 'no_credit' : 'api_error',
+        failure: apiFailure(error),
         message: error.message,
         ...(typeof error.status === 'number' ? { status: error.status } : {}),
       }

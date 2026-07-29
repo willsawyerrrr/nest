@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PayslipAttachments, PayslipSubmission } from '../hooks/usePayslips'
 import {
+  EXTRACTION_KEY_REJECTED_MESSAGE,
   EXTRACTION_OUT_OF_CREDIT_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
   type ExtractionOutcome,
@@ -653,6 +654,46 @@ describe('PayslipForm extraction', () => {
     expect(note.closest('[role="alert"]')).toBeNull()
     // And never the unset-key note: topping up an account is a different fix.
     expect(screen.queryByText(EXTRACTION_UNCONFIGURED_MESSAGE)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Gross'), '1000')
+    await user.type(screen.getByLabelText('Tax withheld'), '200')
+    await user.type(screen.getByLabelText('Super'), '120')
+    await user.type(screen.getByLabelText('Net'), '800')
+    await user.click(screen.getByRole('button', { name: /add payslip/i }))
+
+    // The save is untouched: the figures are typed by hand exactly as before, and
+    // the document stays attached.
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input.gross_cents).toBe(1_000_00)
+    expect(submitted(onSubmit).attachment).not.toBeNull()
+  })
+
+  it('reads a refused API key as reading being off, not as a broken read', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    read.mockResolvedValue({
+      status: 'key-rejected',
+      message: EXTRACTION_KEY_REJECTED_MESSAGE,
+    } satisfies ExtractionOutcome)
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await attach(user)
+
+    // The same plain note the other switched-off states get, not the warning alert
+    // a failure the member could act on is shown in.
+    const note = screen.getByText(EXTRACTION_KEY_REJECTED_MESSAGE)
+    expect(note.closest('[role="alert"]')).toBeNull()
+    // And never either other note: rotating a key is neither setting one for the
+    // first time nor topping an account up.
+    expect(screen.queryByText(EXTRACTION_UNCONFIGURED_MESSAGE)).not.toBeInTheDocument()
+    expect(screen.queryByText(EXTRACTION_OUT_OF_CREDIT_MESSAGE)).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Gross'), '1000')
     await user.type(screen.getByLabelText('Tax withheld'), '200')

@@ -6,6 +6,7 @@ import {
   EXTRACTED_TEXT_KEYS,
   extractedTextKey,
   EXTRACTION_FAILED_MESSAGE,
+  EXTRACTION_KEY_REJECTED_MESSAGE,
   EXTRACTION_OUT_OF_CREDIT_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
   NOT_PAYSLIP_MESSAGE,
@@ -136,6 +137,15 @@ describe('readExtractionFailure', () => {
     ).toEqual({ status: 'out-of-credit', message: EXTRACTION_OUT_OF_CREDIT_MESSAGE })
   })
 
+  it('reads a refused API key as its own switched-off state', () => {
+    expect(
+      readExtractionFailure({
+        error: EXTRACTION_KEY_REJECTED_MESSAGE,
+        keyRejected: true,
+      }),
+    ).toEqual({ status: 'key-rejected', message: EXTRACTION_KEY_REJECTED_MESSAGE })
+  })
+
   it('keeps the model’s reason for a file that is not a payslip', () => {
     expect(
       readExtractionFailure({
@@ -190,13 +200,24 @@ describe('readExtractionFailure', () => {
       status: 'out-of-credit',
       message: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
     })
+    expect(readExtractionFailure({ keyRejected: true })).toEqual({
+      status: 'key-rejected',
+      message: EXTRACTION_KEY_REJECTED_MESSAGE,
+    })
   })
 
-  it('keeps an unset key and an empty account apart, since the fix differs', () => {
-    // Both mean reading is off, but one is a Vault secret to set and the other an
-    // account to top up, so neither is ever read as the other.
+  it('keeps the three switched-off states apart, since each fix differs', () => {
+    // All three mean reading is off, but one is a Vault secret to set, one an
+    // account to top up, and one a key to rotate, so none is ever read as another.
     expect(readExtractionFailure({ configured: false }).status).toBe('not-configured')
     expect(readExtractionFailure({ outOfCredit: true }).status).toBe('out-of-credit')
-    expect(EXTRACTION_OUT_OF_CREDIT_MESSAGE).not.toBe(EXTRACTION_UNCONFIGURED_MESSAGE)
+    expect(readExtractionFailure({ keyRejected: true }).status).toBe('key-rejected')
+    expect(
+      new Set([
+        EXTRACTION_UNCONFIGURED_MESSAGE,
+        EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+        EXTRACTION_KEY_REJECTED_MESSAGE,
+      ]).size,
+    ).toBe(3)
   })
 })

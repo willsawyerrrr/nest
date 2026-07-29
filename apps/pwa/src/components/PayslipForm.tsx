@@ -1,11 +1,16 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Alert, FileInput, Group, Loader, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow } from '../hooks/useInflows'
 import { usePayslipAttachment, type ExtractionState } from '../hooks/usePayslipAttachment'
 import { usePayslipFields } from '../hooks/usePayslipFields'
-import type { PayslipLineInput, PayslipLineKind, PayslipLineRow } from '../hooks/usePayslipLines'
+import {
+  usePayslipLineDrafts,
+  type LineDraft,
+  type LinePrefillSummary,
+} from '../hooks/usePayslipLineDrafts'
+import type { PayslipLineInput, PayslipLineRow } from '../hooks/usePayslipLines'
 import type {
   PayslipAttachments,
   PayslipInput,
@@ -18,16 +23,13 @@ import {
   EXTRACTED_FIELD_LABELS,
   extractedTextKey,
   type ExtractedField,
+  type ExtractedLine,
   type PayslipExtraction,
 } from '../lib/payslipExtraction'
 import { financialYearForPayslip } from '../lib/payslips'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
-import {
-  PayslipEarningsLinesField,
-  PayslipTaxLinesField,
-  type LineDraft,
-} from './PayslipLinesField'
+import { PayslipEarningsLinesField, PayslipTaxLinesField } from './PayslipLinesField'
 
 /** Days a fortnightly pay period spans, less the inclusive end day. */
 const FORTNIGHT_SPAN_DAYS = 13
@@ -89,24 +91,63 @@ function fieldNamesAsRead(
     .join(', ')
 }
 
+/** How a line kind is named back to the member. */
+const LINE_KIND_LABELS: Record<LineDraft['kind'], string> = {
+  earning: 'earnings lines',
+  tax: 'tax lines',
+}
+
+/** Whether a read line carries an amount to fill in. */
+function hasAmount(line: ExtractedLine): boolean {
+  return line.amount_cents !== null
+}
+
+/** Lines with the literal text read for each, e.g. `Ordinary Hours “$4,000.00”`. */
+function linesAsRead(lines: readonly ExtractedLine[]): string {
+  return lines
+    .map((line) => (line.amount == null ? line.label : `${line.label} “${line.amount}”`))
+    .join(', ')
+}
+
+/**
+ * What the note has to say about the slip's own itemisation: the sections a read
+ * itemised, the printed lines whose amount could not be converted (left out
+ * entirely, exactly as an unreadable total is left blank), and the tax lines it
+ * filled in whose component the slip never stated — each of which needs a member's
+ * answer, since a component guessed at nets against the wrong half of the
+ * liability.
+ */
+function itemisation(extraction: PayslipExtraction, summary: LinePrefillSummary) {
+  const read = summary.filledLines.map((kind) => ({
+    kind,
+    lines: kind === 'earning' ? extraction.lines.earnings : extraction.lines.tax,
+  }))
+  return {
+    sections: read.map(({ kind, lines }) => ({ kind, lines: lines.filter(hasAmount) })),
+    unread: read.flatMap(({ lines }) => lines.filter((line) => !hasAmount(line))),
+    unnamed: (summary.filledLines.includes('tax') ? extraction.lines.tax : []).filter(
+      (line) => hasAmount(line) && line.component === null,
+    ),
+  }
+}
+
 /**
  * What a successful read did, in the model's own words: which figures it filled
- * and the literal text it read for each, which it left because they were already
- * the member's own, which the slip does not show, and which it saw but could not
- * convert. Every figure above stays editable — the point of showing the text is
- * that a misread can be caught here rather than confirmed blind. A field it left
- * alone shows its text too, so a figure the slip disagrees with can be copied
- * across by hand.
+ * and the literal text it read for each, how it itemised the slip's earnings and
+ * tax sections, which of both it left because they were already the member's own,
+ * which the slip does not show, and which it saw but could not convert. Everything
+ * above stays editable — the point of showing the text is that a misread can be
+ * caught here rather than confirmed blind. A field it left alone shows its text
+ * too, so a figure the slip disagrees with can be copied across by hand.
+ *
+ * An earnings line's inflow is the one thing here the slip does not state: it is
+ * matched from the printed label where that names exactly one of the member's
+ * inflows, so the note says which lines were matched that way and leaves the rest
+ * to be picked.
  */
-function ReadFromSlip({
-  extraction,
-  filled,
-  kept,
-}: {
-  extraction: PayslipExtraction
-  filled: readonly ExtractedField[]
-  kept: readonly ExtractedField[]
-}) {
+function ReadFromSlip({ state }: { state: Extract<ExtractionState, { status: 'read' }> }) {
+  const { extraction, filled, kept, keptLines, matchedLines } = state
+  const { sections, unread, unnamed } = itemisation(extraction, state)
   return (
     <Alert color="info" variant="light" p="xs" title="Read from the slip">
       <Stack gap={4}>
@@ -118,9 +159,26 @@ function ReadFromSlip({
         ) : (
           <Text size="xs">Filled in: {fieldNamesAsRead(filled, extraction)}.</Text>
         )}
+        {sections.map(({ kind, lines }) => (
+          <Text key={kind} size="xs">
+            Itemised the {LINE_KIND_LABELS[kind]}: {linesAsRead(lines)}.
+          </Text>
+        ))}
+        {matchedLines.length > 0 && (
+          <Text size="xs" c="dimmed">
+            Matched to an inflow by name: {matchedLines.join(', ')}. Every other line’s inflow is
+            yours to pick.
+          </Text>
+        )}
         {kept.length > 0 && (
           <Text size="xs" c="dimmed">
             Kept what you already had; the slip reads {fieldNamesAsRead(kept, extraction)}.
+          </Text>
+        )}
+        {keptLines.length > 0 && (
+          <Text size="xs" c="dimmed">
+            Kept the {keptLines.map((kind) => LINE_KIND_LABELS[kind]).join(' and ')} you already
+            had.
           </Text>
         )}
         {extraction.missing.length > 0 && (
@@ -132,6 +190,17 @@ function ReadFromSlip({
           <Text size="xs" c="warning">
             Could not be read safely, so left blank:{' '}
             {fieldNamesAsRead(extraction.unreadable, extraction)}.
+          </Text>
+        )}
+        {unread.length > 0 && (
+          <Text size="xs" c="warning">
+            Could not read the amount on {linesAsRead(unread)}, so that line is not itemised.
+          </Text>
+        )}
+        {unnamed.length > 0 && (
+          <Text size="xs" c="warning">
+            The slip does not say which part of the tax {linesAsRead(unnamed)} pays — say which
+            before saving.
           </Text>
         )}
       </Stack>
@@ -190,7 +259,7 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
       </Alert>
     )
   }
-  return <ReadFromSlip extraction={state.extraction} filled={state.filled} kept={state.kept} />
+  return <ReadFromSlip state={state} />
 }
 
 /**
@@ -204,10 +273,14 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  *
  * Attaching a document stores it and reads it: the figures it finds pre-fill the
  * fields that are not already the member's own — typed here, or saved on the
- * payslip being edited — and the text it read is shown back so a misread can be
- * caught. Nothing is confirmed by extraction — every figure is editable and the
- * member's own save is what persists — so an extraction that is unconfigured,
- * refused, or broken only leaves the fields as they were.
+ * payslip being edited — and its itemisation fills the earnings and tax lines on
+ * the same footing, a kind at a time. An earnings line's inflow is matched from the
+ * printed label where that names exactly one of the member's inflows and left unset
+ * otherwise, since the slip never names an inflow. The text read is shown back for
+ * every figure and every line, so a misread can be caught. Nothing is confirmed by
+ * extraction — everything is editable and the member's own save is what persists —
+ * so an extraction that is unconfigured, refused, or broken only leaves the form as
+ * it was.
  *
  * An inverted pay period (ending before it starts) blocks submission, so the
  * database's own period check is never reached. Persistence lives in the caller.
@@ -221,6 +294,8 @@ export function PayslipForm({
   onSubmit,
   onCancel,
 }: PayslipFormProps) {
+  const memberInflows = inflows.filter((inflow) => inflow.taxable && inflow.member_id === member.id)
+  const inflowOptions = memberInflows.map((inflow) => ({ value: inflow.id, label: inflow.name }))
   const fields = usePayslipFields(
     {
       period_start: initial?.period_start ?? isoDaysBefore(todayIso(), FORTNIGHT_SPAN_DAYS),
@@ -240,43 +315,21 @@ export function PayslipForm({
     // form's guess and a read may replace.
     initial !== undefined,
   )
+  const drafts = usePayslipLineDrafts(initialLines)
   const slip = usePayslipAttachment({
     attachments,
     payslipId: initial?.id ?? null,
-    onExtracted: fields.prefill,
+    // One read fills the figures and the itemisation together, each under its own
+    // rule about what is already the member's.
+    onExtracted: (extraction) => ({
+      ...fields.prefill(extraction),
+      ...drafts.prefill(extraction, inflowOptions),
+    }),
   })
   const [note, setNote] = useState(initial?.note ?? '')
-  const nextLineId = useRef(initialLines.length)
-  const [lines, setLines] = useState<LineDraft[]>(() =>
-    initialLines.map((line, index) => ({
-      id: index,
-      kind: line.kind,
-      label: line.label,
-      amount: centsToDollars(line.amount_cents),
-      sourceInflowId: line.source_inflow_id,
-      component: line.tax_component,
-    })),
-  )
-
-  const changeLine = (id: number, changes: Partial<LineDraft>) =>
-    setLines((current) => current.map((line) => (line.id === id ? { ...line, ...changes } : line)))
-  const addLine = (kind: PayslipLineKind) =>
-    setLines((current) => [
-      ...current,
-      {
-        id: nextLineId.current++,
-        kind,
-        label: '',
-        amount: '',
-        sourceInflowId: null,
-        component: null,
-      },
-    ])
-  const removeLine = (id: number) => setLines((current) => current.filter((line) => line.id !== id))
 
   const { values } = fields
-  const memberInflows = inflows.filter((inflow) => inflow.taxable && inflow.member_id === member.id)
-  const inflowOptions = memberInflows.map((inflow) => ({ value: inflow.id, label: inflow.name }))
+  const { lines } = drafts
   const earningDrafts = lines.filter((line) => line.kind === 'earning')
   const taxDrafts = lines.filter((line) => line.kind === 'tax')
   // A row left entirely blank is the member starting one and thinking better of
@@ -460,17 +513,17 @@ export function PayslipForm({
         options={inflowOptions}
         allocatedCents={allocatedCents}
         unallocatedCents={unallocatedCents}
-        onChange={changeLine}
-        onAdd={() => addLine('earning')}
-        onRemove={removeLine}
+        onChange={drafts.change}
+        onAdd={() => drafts.add('earning')}
+        onRemove={drafts.remove}
       />
 
       <PayslipTaxLinesField
         lines={taxDrafts}
         unallocatedCents={unallocatedTaxCents}
-        onChange={changeLine}
-        onAdd={() => addLine('tax')}
-        onRemove={removeLine}
+        onChange={drafts.change}
+        onAdd={() => drafts.add('tax')}
+        onRemove={drafts.remove}
       />
 
       <AmountField

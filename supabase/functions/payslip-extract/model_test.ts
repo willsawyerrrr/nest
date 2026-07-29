@@ -139,6 +139,121 @@ Deno.test('a slip splitting PAYG from STSL is read at its tax total', async () =
   assertStringIncludes(schema.properties.ytd_tax_withheld.description, 'not the PAYG line alone')
 })
 
+Deno.test('the real slip comes back itemised, each line as printed', async () => {
+  // The slip in full: three earnings rows over a TOTAL of 5,495.50, and a TAX
+  // section splitting PAYG from STSL over a total of 1,850.00.
+  const { requests, fetchImpl } = stub(() =>
+    toolResponse({
+      ...FIELDS,
+      period_start: '2026-06-27',
+      period_end: '2026-07-10',
+      paid_on: '2026-07-13',
+      gross: '5,495.50',
+      tax_withheld: '1,850.00',
+      super: '600.00',
+      net: '3,645.50',
+      earnings_lines: [
+        { label: 'Ordinary Hours', amount: '$4,000.00' },
+        { label: 'Annual Leave', amount: '$1,000.00' },
+        { label: 'On-call (T1)', amount: '$495.50' },
+      ],
+      tax_lines: [
+        { label: 'PAYG', amount: '$1,416.00', component: 'payg' },
+        { label: 'STSL Component', amount: '$434.00', component: 'stsl' },
+      ],
+    })
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1, 2, 3]),
+  })
+
+  assertEquals(result.ok, true)
+  const extraction = result.ok ? toExtraction(result.fields) : null
+  assertEquals(extraction?.lines.earnings, [
+    { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+    { label: 'Annual Leave', amount: '$1,000.00', amount_cents: 1_000_00 },
+    { label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 },
+  ])
+  assertEquals(extraction?.lines.tax, [
+    { label: 'PAYG', amount: '$1,416.00', amount_cents: 1_416_00, component: 'payg' },
+    { label: 'STSL Component', amount: '$434.00', amount_cents: 434_00, component: 'stsl' },
+  ])
+  // The section totals stay the scalar fields, so nothing is counted twice: the
+  // three lines sum to the gross, which the TOTAL row coming through as a fourth
+  // line would double.
+  assertEquals(extraction?.fields.gross_cents, 549_550)
+  assertEquals(extraction?.fields.tax_withheld_cents, 185_000)
+  assertEquals(
+    extraction?.lines.earnings.reduce((sum, line) => sum + (line.amount_cents ?? 0), 0),
+    549_550,
+  )
+
+  // What keeps a TOTAL row out of the lines, and every line amount the printed text.
+  const system = String(requests[0].system)
+  assertStringIncludes(system, 'Never report a TOTAL or subtotal')
+  assertStringIncludes(system, 'count that money twice')
+  assertStringIncludes(system, 'Never derive a figure by adding')
+})
+
+Deno.test('a tax line the model could not place comes back unnamed, never PAYG', async () => {
+  const { fetchImpl } = stub(() =>
+    toolResponse({
+      ...FIELDS,
+      tax_withheld: '1,048.00',
+      tax_lines: [{ label: 'Tax deducted', amount: '$1,048.00', component: null }],
+    })
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  const extraction = result.ok ? toExtraction(result.fields) : null
+  assertEquals(extraction?.lines.tax, [
+    { label: 'Tax deducted', amount: '$1,048.00', amount_cents: 1_048_00, component: null },
+  ])
+})
+
+Deno.test('the tool schema asks for the printed lines and forbids the TOTAL rows', () => {
+  const schema = PAYSLIP_TOOL.input_schema as {
+    properties: Record<string, {
+      anyOf?: {
+        type: string
+        items?: { properties: Record<string, unknown>; required: string[] }
+      }[]
+      description: string
+    }>
+    required: string[]
+  }
+
+  for (const name of ['earnings_lines', 'tax_lines']) {
+    const property = schema.properties[name]
+    // Required but nullable, exactly as every scalar field is: a slip printing no
+    // line detail is a valid answer.
+    assertEquals(schema.required.includes(name), true)
+    assertEquals(property.anyOf?.some((option) => option.type === 'null'), true)
+    assertStringIncludes(property.description, 'as printed')
+    assertStringIncludes(property.description, 'in the order printed')
+    // Reporting a section's total again as a line would double the section.
+    assertStringIncludes(property.description, 'TOTAL row')
+  }
+
+  const items = schema.properties.tax_lines.anyOf?.[0].items
+  assertEquals(items?.required, ['label', 'amount', 'component'])
+  // Only the two parts of the liability, and null for a line the slip does not place.
+  assertEquals((items?.properties.component as { anyOf: unknown[] }).anyOf, [
+    { type: 'string', enum: ['payg', 'stsl'] },
+    { type: 'null' },
+  ])
+  // An earnings line is never asked which inflow it draws on: the household's
+  // inflows are not on the slip, so attribution is the client's own job.
+  assertEquals(
+    Object.keys(schema.properties.earnings_lines.anyOf?.[0].items?.properties ?? {}),
+    ['label', 'amount'],
+  )
+})
+
 Deno.test('every extracted field is nullable in the tool schema', () => {
   const schema = PAYSLIP_TOOL.input_schema as {
     properties: Record<string, { anyOf?: { type: string }[]; type?: string }>

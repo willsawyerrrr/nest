@@ -1,7 +1,9 @@
 /**
  * The client half of payslip extraction: the shape the `payslip-extract` edge
- * function answers with, and the reading of its failures into states the entry
- * form can show honestly.
+ * function answers with, the reading of its failures into states the entry form
+ * can show honestly, and the attribution of an itemised earnings line to the
+ * inflow its printed label names — which is the client's own job, the household's
+ * inflows being nothing the model can see.
  *
  * Nothing here writes a payslip figure. Extraction only ever pre-fills the
  * manual entry form — the member confirms every value and their own save is what
@@ -61,18 +63,51 @@ export const EXTRACTED_FIELD_LABELS: Record<ExtractedField, string> = {
   ytd_super_cents: 'YTD super',
 }
 
+/** The parts of the liability a tax line pays, as the slip states them. */
+export const EXTRACTED_TAX_COMPONENTS = ['payg', 'stsl'] as const
+
+export type ExtractedTaxComponent = (typeof EXTRACTED_TAX_COMPONENTS)[number]
+
+/**
+ * One line read off the slip, ready for a line row in the form: the label as
+ * printed, the amount as printed so a misread can be caught, and that amount in
+ * cents.
+ *
+ * `amount_cents` is **signed**, unlike every scalar figure here.
+ * `payslip_line.amount_cents` carries no `>= 0` check — a line may be a negative
+ * adjustment reversing an overpayment — so a negative line amount pre-fills as
+ * printed, where a negative total is treated as unreadable.
+ */
+export interface ExtractedLine {
+  label: string
+  amount: string | null
+  /** Null when the printed amount could not be converted, so nothing is filled in. */
+  amount_cents: number | null
+}
+
+/** A tax line, carrying the component the slip says it pays, or null when it does not. */
+export interface ExtractedTaxLine extends ExtractedLine {
+  component: ExtractedTaxComponent | null
+}
+
 /**
  * A successful read. `fields` is column-shaped — ISO dates and integer cents,
  * converted server-side in TypeScript rather than by the model — and `text` is
  * the literal text printed on the slip, so the form can show what was seen and
- * the member can spot a misread rather than confirming one blind. `missing`
- * names fields the slip does not show and `unreadable` those whose text came
- * back but could not be converted safely; both are `fields` keys.
+ * the member can spot a misread rather than confirming one blind. `lines` is the
+ * slip's own itemisation in printed order, the section totals staying in `fields`
+ * so nothing is counted twice. `missing` names fields the slip does not show and
+ * `unreadable` those whose text came back but could not be converted safely; both
+ * are `fields` keys.
  */
 export interface PayslipExtraction {
   model: string
   fields: Partial<Record<ExtractedField, string | number | null>>
   text: Partial<Record<ExtractedTextKey, string | null>>
+  lines: {
+    earnings: ExtractedLine[]
+    tax: ExtractedTaxLine[]
+  }
   missing: ExtractedField[]
   unreadable: ExtractedField[]
 }
@@ -141,18 +176,102 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Reads one itemised line, or null when it is not one the form could show. A line
+ * needs a label to be a row at all; an amount that did not convert leaves
+ * `amount_cents` null, which the form names rather than filling in.
+ */
+function readLine(raw: Record<string, unknown>): ExtractedLine | null {
+  if (typeof raw.label !== 'string' || raw.label.trim() === '') {
+    return null
+  }
+  return {
+    label: raw.label,
+    amount: typeof raw.amount === 'string' ? raw.amount : null,
+    // Cents are integers by construction; anything else is not a figure to fill in.
+    amount_cents: Number.isInteger(raw.amount_cents) ? (raw.amount_cents as number) : null,
+  }
+}
+
+/**
+ * Reads one tax line. An unrecognised component reads as null, never as `payg`:
+ * the two pay different parts of the liability, so an unnamed one is left for the
+ * member to pick rather than defaulted into the more common of the two.
+ */
+function readTaxLine(raw: Record<string, unknown>): ExtractedTaxLine | null {
+  const line = readLine(raw)
+  if (line === null) {
+    return null
+  }
+  return {
+    ...line,
+    component: EXTRACTED_TAX_COMPONENTS.find((component) => component === raw.component) ?? null,
+  }
+}
+
+/** Reads a reported section's lines, dropping anything that is not a usable line. */
+function readLines<L>(raw: unknown, read: (item: Record<string, unknown>) => L | null): L[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  const lines: L[] = []
+  for (const item of raw) {
+    const line = isRecord(item) ? read(item) : null
+    if (line !== null) {
+      lines.push(line)
+    }
+  }
+  return lines
+}
+
+/**
+ * Collapses a printed label or an inflow name to the form the two are compared in:
+ * case folded, with surrounding and repeated whitespace gone.
+ */
+function normaliseLabel(text: string): string {
+  return text.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+/**
+ * The inflow an earnings line's printed label names, or null when nothing names it
+ * exactly once.
+ *
+ * The model is never asked which inflow a line draws on — the household's inflows
+ * are not on the slip and are no part of what it can see — so attribution is this
+ * one deterministic rule instead: the whole label must equal one inflow's whole
+ * name, ignoring case and whitespace. A partial, prefix, or fuzzy match is never
+ * taken, and neither is a label two inflows answer to, because a line attributed to
+ * the wrong inflow moves the measured variance of both without saying so. Anything
+ * short of a single exact match leaves the line's inflow unset for the member.
+ */
+export function matchInflowByLabel(
+  label: string,
+  options: readonly { value: string; label: string }[],
+): string | null {
+  const wanted = normaliseLabel(label)
+  if (wanted === '') {
+    return null
+  }
+  const matched = options.filter((option) => normaliseLabel(option.label) === wanted)
+  return matched.length === 1 ? matched[0]!.value : null
+}
+
+/**
  * Reads a successful reply into the extraction the form pre-fills from, or null
  * when the body is not one. The body comes from the household's own edge
  * function, but it is still read rather than trusted: a shape the form cannot
  * render is a failure it can state plainly instead of a crash mid-render.
  *
- * A **negative** amount is moved to `unreadable` on the way through. The
+ * A **negative** total is moved to `unreadable` on the way through. The
  * function parses the accounting negatives payroll systems print — `(1,234.56)`,
  * `45.00-` — so a slip listing tax withheld as a deduction reads as a negative,
  * and every `payslip` amount column is checked `>= 0`, which would reject the
  * save behind a generic failure. The sign is not guessed at either way: the
  * field reads exactly as one that could not be converted safely, its printed
  * text shown so the member types the figure themselves.
+ *
+ * A negative **line** amount is kept exactly as read. `payslip_line.amount_cents`
+ * carries no such check, deliberately, so a line reversing an overpayment is a
+ * figure to fill in rather than one to drop.
  */
 export function readExtraction(body: unknown): PayslipExtraction | null {
   if (!isRecord(body) || typeof body.model !== 'string') {
@@ -189,10 +308,16 @@ export function readExtraction(body: unknown): PayslipExtraction | null {
     }
   }
 
+  const rawLines = isRecord(body.lines) ? body.lines : {}
+
   return {
     model: body.model,
     fields,
     text,
+    lines: {
+      earnings: readLines(rawLines.earnings, readLine),
+      tax: readLines(rawLines.tax, readTaxLine),
+    },
     missing: Array.isArray(body.missing) ? body.missing.filter(isExtractedField) : [],
     unreadable,
   }

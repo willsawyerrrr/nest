@@ -30,14 +30,19 @@ export interface InflowOption {
   readonly label: string
 }
 
-/** What a line pre-fill did, so the form can say what the slip's itemisation gave. */
+/** What a line pre-fill did, so the form can say whether a read gave it anything. */
 export interface LinePrefillSummary {
   /** Line kinds the read itemised. */
   filledLines: PayslipLineKind[]
-  /** Line kinds left exactly as the member already had them. */
-  keptLines: PayslipLineKind[]
-  /** Labels whose inflow was matched from the printed label, so they can be checked. */
-  matchedLines: string[]
+}
+
+/**
+ * Whether a row has anything typed in it. A row left entirely blank is the member
+ * starting one and thinking better of it, so it is dropped on save rather than
+ * blocking it; one with anything in it has to be complete.
+ */
+export function lineEntered(line: LineDraft): boolean {
+  return line.label.trim() !== '' || line.amount !== ''
 }
 
 export interface PayslipLineDrafts {
@@ -48,7 +53,7 @@ export interface PayslipLineDrafts {
   remove: (id: number) => void
   /**
    * Itemises the form from a read slip, for each kind the member has not made
-   * their own, and reports which those were.
+   * their own, and reports which kinds it filled.
    */
   prefill: (extraction: PayslipExtraction, options: readonly InflowOption[]) => LinePrefillSummary
 }
@@ -148,16 +153,12 @@ export function usePayslipLineDrafts(initial: readonly PayslipLineRow[]): Paysli
 
   const prefill = useCallback(
     (extraction: PayslipExtraction, options: readonly InflowOption[]): LinePrefillSummary => {
-      const summary: LinePrefillSummary = { filledLines: [], keptLines: [], matchedLines: [] }
+      const summary: LinePrefillSummary = { filledLines: [] }
       const replaced = new Set<PayslipLineKind>()
       const drafts: LineDraft[] = []
 
       for (const section of offered(extraction)) {
-        if (section.lines.length === 0) {
-          continue
-        }
-        if (claimed.has(section.kind)) {
-          summary.keptLines.push(section.kind)
+        if (section.lines.length === 0 || claimed.has(section.kind)) {
           continue
         }
         summary.filledLines.push(section.kind)
@@ -167,9 +168,6 @@ export function usePayslipLineDrafts(initial: readonly PayslipLineRow[]): Paysli
           // where it names exactly one of the member's own.
           const sourceInflowId =
             section.kind === 'earning' ? matchInflowByLabel(line.label, options) : null
-          if (sourceInflowId !== null) {
-            summary.matchedLines.push(line.label)
-          }
           drafts.push({
             id: nextId.current++,
             kind: section.kind,

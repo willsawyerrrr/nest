@@ -33,10 +33,7 @@ function extraction(overrides: Partial<PayslipExtraction> = {}): PayslipExtracti
       ytd_tax_withheld_cents: null,
       ytd_super_cents: null,
     },
-    text: { gross: '4,120.50' },
     lines: { earnings: [], tax: [] },
-    missing: ['salary_sacrifice_cents'],
-    unreadable: [],
     ...overrides,
   }
 }
@@ -69,7 +66,6 @@ describe('usePayslipFields', () => {
       net_cents: 3_072.5,
     })
     expect(summary.filled).toContain('gross_cents')
-    expect(summary.kept).toEqual([])
   })
 
   it('leaves a field the slip does not show, rather than blanking it', () => {
@@ -79,10 +75,9 @@ describe('usePayslipFields', () => {
 
     expect(result.current.values.salary_sacrifice_cents).toBe(50)
     expect(summary.filled).not.toContain('salary_sacrifice_cents')
-    expect(summary.kept).not.toContain('salary_sacrifice_cents')
   })
 
-  it('keeps a figure the member typed and says so', () => {
+  it('keeps a figure the member typed rather than counting it as filled', () => {
     const { result } = renderHook(() => usePayslipFields(blank))
 
     act(() => result.current.setAmount('gross_cents', 5_000))
@@ -91,8 +86,8 @@ describe('usePayslipFields', () => {
 
     expect(result.current.values.gross_cents).toBe(5_000)
     expect(result.current.values.period_end).toBe('2026-06-30')
-    expect(summary.kept).toEqual(['period_end', 'gross_cents'])
     expect(summary.filled).not.toContain('gross_cents')
+    expect(summary.filled).not.toContain('period_end')
     // The fields around the typed one are still filled.
     expect(result.current.values.net_cents).toBe(3_072.5)
   })
@@ -104,7 +99,7 @@ describe('usePayslipFields', () => {
     const summary = prefill(result)
 
     expect(result.current.values.paid_on).toBeNull()
-    expect(summary.kept).toEqual(['paid_on'])
+    expect(summary.filled).not.toContain('paid_on')
   })
 
   it('keeps a figure typed while the read was still running', () => {
@@ -120,7 +115,7 @@ describe('usePayslipFields', () => {
 
     expect(result.current.values.net_cents).toBe(3_072.5)
     expect(result.current.values.gross_cents).toBe(4_120.5)
-    expect(summary.kept).toEqual([])
+    expect(summary.filled).toEqual(['gross_cents'])
   })
 
   it('treats every figure a saved payslip holds as the member’s own', () => {
@@ -138,15 +133,6 @@ describe('usePayslipFields', () => {
 
     expect(result.current.values).toMatchObject(saved)
     expect(summary.filled).toEqual([])
-    expect(summary.kept).toEqual([
-      'period_start',
-      'period_end',
-      'paid_on',
-      'gross_cents',
-      'tax_withheld_cents',
-      'super_cents',
-      'net_cents',
-    ])
   })
 
   it('still fills the gaps a saved payslip left blank', () => {

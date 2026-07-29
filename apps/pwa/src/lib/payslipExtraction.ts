@@ -13,55 +13,21 @@
 /** The `payslip` date columns extraction reads, keyed as the columns are. */
 export const EXTRACTED_DATE_FIELDS = ['period_start', 'period_end', 'paid_on'] as const
 
-/**
- * The payslip amounts extraction reads, named as the slip prints them. Each one
- * is both a `<name>_cents` column and a `text` key, so the column names and the
- * text keys are derived from this single list rather than restated beside it —
- * a name that drifts out of step with its label or its key is a type error.
- */
-export const EXTRACTED_MONEY_FIELDS = [
-  'gross',
-  'tax_withheld',
-  'super',
-  'net',
-  'salary_sacrifice',
-  'ytd_gross',
-  'ytd_tax_withheld',
-  'ytd_super',
+/** The `payslip` amount columns extraction reads, in integer cents. */
+export const EXTRACTED_AMOUNT_FIELDS = [
+  'gross_cents',
+  'tax_withheld_cents',
+  'super_cents',
+  'net_cents',
+  'salary_sacrifice_cents',
+  'ytd_gross_cents',
+  'ytd_tax_withheld_cents',
+  'ytd_super_cents',
 ] as const
 
 export type ExtractedDateField = (typeof EXTRACTED_DATE_FIELDS)[number]
-export type ExtractedMoneyField = (typeof EXTRACTED_MONEY_FIELDS)[number]
-/** The `payslip` amount columns extraction reads, in integer cents. */
-export type ExtractedAmountField = `${ExtractedMoneyField}_cents`
+export type ExtractedAmountField = (typeof EXTRACTED_AMOUNT_FIELDS)[number]
 export type ExtractedField = ExtractedDateField | ExtractedAmountField
-/** A `text` key: a date column, or an amount column without its `_cents` suffix. */
-export type ExtractedTextKey = ExtractedDateField | ExtractedMoneyField
-
-export const EXTRACTED_AMOUNT_FIELDS: readonly ExtractedAmountField[] = EXTRACTED_MONEY_FIELDS.map(
-  (field) => `${field}_cents` as const,
-)
-
-/** Every key the literal text read off a slip is reported under. */
-export const EXTRACTED_TEXT_KEYS: readonly ExtractedTextKey[] = [
-  ...EXTRACTED_DATE_FIELDS,
-  ...EXTRACTED_MONEY_FIELDS,
-]
-
-/** How each extracted field is named back to the member, matching its form label. */
-export const EXTRACTED_FIELD_LABELS: Record<ExtractedField, string> = {
-  period_start: 'Period start',
-  period_end: 'Period end',
-  paid_on: 'Paid on',
-  gross_cents: 'Gross',
-  tax_withheld_cents: 'Tax withheld',
-  super_cents: 'Super',
-  net_cents: 'Net',
-  salary_sacrifice_cents: 'Salary sacrifice',
-  ytd_gross_cents: 'YTD gross',
-  ytd_tax_withheld_cents: 'YTD tax withheld',
-  ytd_super_cents: 'YTD super',
-}
 
 /** The parts of the liability a tax line pays, as the slip states them. */
 export const EXTRACTED_TAX_COMPONENTS = ['payg', 'stsl'] as const
@@ -70,18 +36,16 @@ export type ExtractedTaxComponent = (typeof EXTRACTED_TAX_COMPONENTS)[number]
 
 /**
  * One line read off the slip, ready for a line row in the form: the label as
- * printed, the amount as printed so a misread can be caught, and that amount in
- * cents.
+ * printed, and the printed amount in cents.
  *
  * `amount_cents` is **signed**, unlike every scalar figure here.
  * `payslip_line.amount_cents` carries no `>= 0` check — a line may be a negative
  * adjustment reversing an overpayment — so a negative line amount pre-fills as
- * printed, where a negative total is treated as unreadable.
+ * printed, where a negative total is left for the member to type.
  */
 export interface ExtractedLine {
   label: string
-  amount: string | null
-  /** Null when the printed amount could not be converted, so nothing is filled in. */
+  /** Null when the printed amount could not be converted, so the line is left out. */
   amount_cents: number | null
 }
 
@@ -91,25 +55,26 @@ export interface ExtractedTaxLine extends ExtractedLine {
 }
 
 /**
- * A successful read. `fields` is column-shaped — ISO dates and integer cents,
- * converted server-side in TypeScript rather than by the model — and `text` is
- * the literal text printed on the slip, so the form can show what was seen and
- * the member can spot a misread rather than confirming one blind. `lines` is the
- * slip's own itemisation in printed order, the section totals staying in `fields`
- * so nothing is counted twice. `missing` names fields the slip does not show and
- * `unreadable` those whose text came back but could not be converted safely; both
- * are `fields` keys.
+ * A successful read, as the form pre-fills from it. `fields` is column-shaped —
+ * ISO dates and integer cents, converted server-side in TypeScript rather than by
+ * the model — carrying only the figures there is something to fill in for; a field
+ * the slip does not show, or one whose printed text could not be converted safely,
+ * is absent and left blank for the member. `lines` is the slip's own itemisation in
+ * printed order, the section totals staying in `fields` so nothing is counted twice.
+ *
+ * The function's reply says more than this — the literal text read for each figure,
+ * and which fields were missing against which were unreadable — and that reply is
+ * the auditable record of what was read. The form does not restate any of it: every
+ * figure it fills is visible in the field it filled, so what the member checks
+ * against the document is the form itself.
  */
 export interface PayslipExtraction {
   model: string
   fields: Partial<Record<ExtractedField, string | number | null>>
-  text: Partial<Record<ExtractedTextKey, string | null>>
   lines: {
     earnings: ExtractedLine[]
     tax: ExtractedTaxLine[]
   }
-  missing: ExtractedField[]
-  unreadable: ExtractedField[]
 }
 
 /**
@@ -155,21 +120,6 @@ export const NOT_PAYSLIP_MESSAGE = 'That file does not look like a payslip.'
 /** What the form says when a failure carried no message of its own. */
 export const EXTRACTION_FAILED_MESSAGE = 'Could not read this payslip. Enter the figures by hand.'
 
-/** The suffix an amount column carries over the name printed on the slip. */
-const CENTS_SUFFIX = '_cents'
-
-/** The `text` key for a field: an amount's column name without its `_cents` suffix. */
-export function extractedTextKey(field: ExtractedField): ExtractedTextKey {
-  return field.endsWith(CENTS_SUFFIX)
-    ? (field.slice(0, -CENTS_SUFFIX.length) as ExtractedMoneyField)
-    : (field as ExtractedDateField)
-}
-
-/** Whether `value` names a field the form can pre-fill. */
-function isExtractedField(value: unknown): value is ExtractedField {
-  return typeof value === 'string' && value in EXTRACTED_FIELD_LABELS
-}
-
 /** Whether `value` is a plain object whose keys can be read. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -178,7 +128,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Reads one itemised line, or null when it is not one the form could show. A line
  * needs a label to be a row at all; an amount that did not convert leaves
- * `amount_cents` null, which the form names rather than filling in.
+ * `amount_cents` null, which leaves the line out of the itemisation rather than
+ * filling in a row half-way.
  */
 function readLine(raw: Record<string, unknown>): ExtractedLine | null {
   if (typeof raw.label !== 'string' || raw.label.trim() === '') {
@@ -186,7 +137,6 @@ function readLine(raw: Record<string, unknown>): ExtractedLine | null {
   }
   return {
     label: raw.label,
-    amount: typeof raw.amount === 'string' ? raw.amount : null,
     // Cents are integers by construction; anything else is not a figure to fill in.
     amount_cents: Number.isInteger(raw.amount_cents) ? (raw.amount_cents as number) : null,
   }
@@ -261,13 +211,12 @@ export function matchInflowByLabel(
  * function, but it is still read rather than trusted: a shape the form cannot
  * render is a failure it can state plainly instead of a crash mid-render.
  *
- * A **negative** total is moved to `unreadable` on the way through. The
- * function parses the accounting negatives payroll systems print — `(1,234.56)`,
- * `45.00-` — so a slip listing tax withheld as a deduction reads as a negative,
- * and every `payslip` amount column is checked `>= 0`, which would reject the
- * save behind a generic failure. The sign is not guessed at either way: the
- * field reads exactly as one that could not be converted safely, its printed
- * text shown so the member types the figure themselves.
+ * A **negative** total is dropped on the way through. The function parses the
+ * accounting negatives payroll systems print — `(1,234.56)`, `45.00-` — so a slip
+ * listing tax withheld as a deduction reads as a negative, and every `payslip`
+ * amount column is checked `>= 0`, which would reject the save behind a generic
+ * failure. The sign is not guessed at either way: the field is left blank, exactly
+ * as one that could not be converted is, for the member to type from the document.
  *
  * A negative **line** amount is kept exactly as read. `payslip_line.amount_cents`
  * carries no such check, deliberately, so a line reversing an overpayment is a
@@ -278,10 +227,8 @@ export function readExtraction(body: unknown): PayslipExtraction | null {
     return null
   }
   const raw = isRecord(body.fields) ? body.fields : {}
-  const rawText = isRecord(body.text) ? body.text : {}
 
   const fields: PayslipExtraction['fields'] = {}
-  const unreadable = Array.isArray(body.unreadable) ? body.unreadable.filter(isExtractedField) : []
   for (const field of EXTRACTED_DATE_FIELDS) {
     const value = raw[field]
     if (typeof value === 'string') {
@@ -290,21 +237,8 @@ export function readExtraction(body: unknown): PayslipExtraction | null {
   }
   for (const field of EXTRACTED_AMOUNT_FIELDS) {
     const value = raw[field]
-    if (typeof value !== 'number') {
-      continue
-    }
-    if (value < 0) {
-      unreadable.push(field)
-    } else {
+    if (typeof value === 'number' && value >= 0) {
       fields[field] = value
-    }
-  }
-
-  const text: PayslipExtraction['text'] = {}
-  for (const key of EXTRACTED_TEXT_KEYS) {
-    const value = rawText[key]
-    if (typeof value === 'string') {
-      text[key] = value
     }
   }
 
@@ -313,13 +247,10 @@ export function readExtraction(body: unknown): PayslipExtraction | null {
   return {
     model: body.model,
     fields,
-    text,
     lines: {
       earnings: readLines(rawLines.earnings, readLine),
       tax: readLines(rawLines.tax, readTaxLine),
     },
-    missing: Array.isArray(body.missing) ? body.missing.filter(isExtractedField) : [],
-    unreadable,
   }
 }
 

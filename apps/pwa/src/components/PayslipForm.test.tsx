@@ -37,19 +37,9 @@ function extraction(overrides: Partial<PayslipExtraction> = {}): PayslipExtracti
       net_cents: 3_072_50,
       salary_sacrifice_cents: null,
     },
-    text: {
-      period_start: '06/07/2026',
-      gross: '4,120.50',
-      tax_withheld: '1,048.00',
-      super: '473.86',
-      net: '3,072.50',
-      ytd_super: '4,12O.50',
-    },
     // The slip's own itemisation, which most of these tests do not exercise: a slip
     // printing no line detail still yields its totals.
     lines: { earnings: [], tax: [] },
-    missing: ['salary_sacrifice_cents'],
-    unreadable: [],
     ...overrides,
   }
 }
@@ -444,14 +434,13 @@ describe('PayslipForm extraction', () => {
     expect(read).toHaveBeenCalledWith(submission.attachment!.path)
   })
 
-  it('shows the text it read, what the slip omits, and what it could not convert', async () => {
+  it('says the figures were extracted and asks for a check, without restating them', async () => {
     const user = userEvent.setup()
     read.mockResolvedValue({
       status: 'read',
-      extraction: extraction({
-        fields: { gross_cents: 4_120_50 },
-        unreadable: ['ytd_super_cents'],
-      }),
+      // Only the gross came back: the slip shows no salary sacrifice, and a misread
+      // YTD super could not be converted safely.
+      extraction: extraction({ fields: { gross_cents: 4_120_50 } }),
     })
     render(
       <PayslipForm
@@ -464,21 +453,23 @@ describe('PayslipForm extraction', () => {
 
     await attach(user)
 
-    expect(screen.getByText(/Filled in: Gross “4,120.50”\./)).toBeInTheDocument()
-    expect(screen.getByText(/Not shown on the slip: Salary sacrifice\./)).toBeInTheDocument()
-    expect(screen.getByText(/left blank: YTD super “4,12O.50”\./)).toBeInTheDocument()
+    const note = screen.getByText(/extracted from the document by AI/i)
+    expect(note).toHaveTextContent(/check them against it before saving/i)
+    // Each figure is on screen in the field it filled, so the note names none of
+    // them and repeats none of the text the model read: what the member checks the
+    // document against is the form itself.
+    expect(note).not.toHaveTextContent(/Gross/i)
+    expect(note).not.toHaveTextContent(/4,120\.50/)
+    expect(screen.getByLabelText('Gross')).toHaveValue('$4,120.50')
+    // A figure the slip does not show, and one that could not be read safely, are
+    // both left blank rather than guessed at.
+    expect(screen.getByLabelText('Salary sacrifice')).toHaveValue('')
+    expect(screen.getByLabelText('YTD super')).toHaveValue('')
   })
 
   it('says plainly when a slip yielded nothing to fill in', async () => {
     const user = userEvent.setup()
-    read.mockResolvedValue({
-      status: 'read',
-      extraction: extraction({
-        fields: {},
-        missing: ['gross_cents', 'net_cents'],
-        unreadable: ['period_start', 'period_end'],
-      }),
-    })
+    read.mockResolvedValue({ status: 'read', extraction: extraction({ fields: {} }) })
     render(
       <PayslipForm
         member={member}
@@ -491,11 +482,8 @@ describe('PayslipForm extraction', () => {
     await attach(user)
 
     expect(screen.getByText(/Nothing on the slip could be filled in for you\./)).toBeInTheDocument()
-    expect(screen.getByText(/Not shown on the slip: Gross, Net\./)).toBeInTheDocument()
-    // The one with no text at all is named on its own; the misread shows what was seen.
-    expect(
-      screen.getByText(/left blank: Period start “06\/07\/2026”, Period end\./),
-    ).toBeInTheDocument()
+    // Nothing was filled, so nothing is claimed to have been.
+    expect(screen.queryByText(/extracted from the document by AI/i)).not.toBeInTheDocument()
   })
 
   it('keeps a figure the member typed rather than replacing it with a read one', async () => {
@@ -514,9 +502,6 @@ describe('PayslipForm extraction', () => {
     await attach(user)
 
     expect(screen.getByLabelText('Gross')).toHaveValue('$5,000.00')
-    expect(
-      screen.getByText(/Kept what you already had; the slip reads Gross “4,120.50”\./),
-    ).toBeInTheDocument()
     // The figures the member left alone are still filled from the slip.
     expect(screen.getByLabelText('Net')).toHaveValue('$3,072.50')
 
@@ -929,11 +914,9 @@ describe('PayslipForm extraction', () => {
     expect(screen.getByLabelText('Gross')).toHaveValue('$5,000.00')
     expect(screen.getByLabelText('Net')).toHaveValue('$4,000.00')
     expect(screen.getByLabelText('Period end')).toHaveValue('14 Jul 2026')
-    // The text read is still shown for a field it left alone, so a figure the
-    // slip disagrees with can be corrected by hand.
-    expect(
-      screen.getByText(/Kept what you already had; the slip reads .*Gross “4,120.50”/),
-    ).toBeInTheDocument()
+    // So the read filled nothing, and the note says exactly that rather than
+    // claiming figures it did not write.
+    expect(screen.getByText(/Nothing on the slip could be filled in for you\./)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
@@ -1294,9 +1277,13 @@ describe('PayslipForm tax lines', () => {
     await fillTaxLine(user, 1, 'PAYG', '1850')
 
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeDisabled()
+    // The picker holding the save is the one that asks for the answer.
+    expect(screen.getByText('Say which part this pays.')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Tax line 1 pays' })).toBeInvalid()
 
     await user.click(screen.getByRole('combobox', { name: 'Tax line 1 pays' }))
     await user.click(await screen.findByRole('option', { name: 'PAYG income tax' }))
+    expect(screen.queryByText('Say which part this pays.')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
   })
 
@@ -1353,13 +1340,13 @@ describe('PayslipForm extracted lines', () => {
     return extraction({
       lines: {
         earnings: [
-          { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
-          { label: 'Annual Leave', amount: '$1,000.00', amount_cents: 1_000_00 },
-          { label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 },
+          { label: 'Ordinary Hours', amount_cents: 4_000_00 },
+          { label: 'Annual Leave', amount_cents: 1_000_00 },
+          { label: 'On-call (T1)', amount_cents: 495_50 },
         ],
         tax: [
-          { label: 'PAYG', amount: '$1,416.00', amount_cents: 1_416_00, component: 'payg' },
-          { label: 'STSL Component', amount: '$434.00', amount_cents: 434_00, component: 'stsl' },
+          { label: 'PAYG', amount_cents: 1_416_00, component: 'payg' },
+          { label: 'STSL Component', amount_cents: 434_00, component: 'stsl' },
         ],
         ...overrides,
       },
@@ -1406,25 +1393,22 @@ describe('PayslipForm extracted lines', () => {
     ])
   })
 
-  it('shows each line as it was printed, and which inflow a label matched', async () => {
+  it('shows a matched inflow on the line’s own picker, never in the note', async () => {
     const user = userEvent.setup()
     reads()
     renderForm()
 
     await attach(user)
 
-    expect(
-      screen.getByText(
-        /Itemised the earnings lines: Ordinary Hours “\$4,000\.00”, Annual Leave “\$1,000\.00”, On-call \(T1\) “\$495\.50”\./,
-      ),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/Itemised the tax lines: PAYG “\$1,416\.00”, STSL Component “\$434\.00”\./),
-    ).toBeInTheDocument()
-    // Attribution is a guess off the label, so it is named rather than assumed.
-    expect(screen.getByText(/Matched to an inflow by name: On-call \(T1\)\./)).toHaveTextContent(
-      /Every other line’s inflow is yours to pick/,
+    // Attribution is a guess off the printed label, so it is shown where it can be
+    // changed rather than named in a paragraph beside the rows.
+    expect(screen.getByRole('combobox', { name: 'Earnings line 3 draws on' })).toHaveValue(
+      'On-call (T1)',
     )
+    expect(screen.getByRole('combobox', { name: 'Earnings line 1 draws on' })).toHaveValue('')
+    const note = screen.getByText(/extracted from the document by AI/i)
+    expect(note).not.toHaveTextContent(/On-call/)
+    expect(note).not.toHaveTextContent(/Ordinary Hours/)
   })
 
   it('pre-selects the inflow a label names exactly, and nothing on a near miss', async () => {
@@ -1433,9 +1417,9 @@ describe('PayslipForm extracted lines', () => {
       earnings: [
         // Case is normalised away; the whole label must match the whole name, so a
         // prefix and a suffix both come back unset.
-        { label: 'ON-CALL (t1)', amount: '$495.50', amount_cents: 495_50 },
-        { label: 'On-call', amount: '$100.00', amount_cents: 100_00 },
-        { label: 'On-call (T1) allowance', amount: '$100.00', amount_cents: 100_00 },
+        { label: 'ON-CALL (t1)', amount_cents: 495_50 },
+        { label: 'On-call', amount_cents: 100_00 },
+        { label: 'On-call (T1) allowance', amount_cents: 100_00 },
       ],
     })
     renderForm()
@@ -1447,13 +1431,11 @@ describe('PayslipForm extracted lines', () => {
     )
     expect(screen.getByRole('combobox', { name: 'Earnings line 2 draws on' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Earnings line 3 draws on' })).toHaveValue('')
-    // Named back exactly as the slip printed it, not as the inflow is named.
-    expect(screen.getByText(/Matched to an inflow by name: ON-CALL \(t1\)\./)).toBeInTheDocument()
   })
 
   it('leaves a label two inflows answer to for the member to pick', async () => {
     const user = userEvent.setup()
-    reads({ earnings: [{ label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 }] })
+    reads({ earnings: [{ label: 'On-call (T1)', amount_cents: 495_50 }] })
     renderForm({
       inflows: [...inflows, makeInflow({ id: 'i5', name: 'On-call (T1)', type: 'other' })],
     })
@@ -1462,7 +1444,6 @@ describe('PayslipForm extracted lines', () => {
 
     // Attributing it to either would move the measured variance of both.
     expect(screen.getByRole('combobox', { name: 'Earnings line 1 draws on' })).toHaveValue('')
-    expect(screen.queryByText(/Matched to an inflow by name/)).not.toBeInTheDocument()
   })
 
   it('keeps the lines the member has typed, and fills the section they left alone', async () => {
@@ -1477,7 +1458,6 @@ describe('PayslipForm extracted lines', () => {
 
     expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Overtime')
     expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
-    expect(screen.getByText(/Kept the earnings lines you already had\./)).toBeInTheDocument()
     // The tax section was never theirs, so its itemisation is still filled in.
     expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('PAYG')
 
@@ -1509,9 +1489,9 @@ describe('PayslipForm extracted lines', () => {
     expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('Tax')
     expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Tax line 2 name')).not.toBeInTheDocument()
-    expect(
-      screen.getByText(/Kept the earnings lines and tax lines you already had\./),
-    ).toBeInTheDocument()
+    // Every figure and both sections were already theirs, so the read filled
+    // nothing and the note says so rather than claiming otherwise.
+    expect(screen.getByText(/Nothing on the slip could be filled in for you\./)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
@@ -1521,28 +1501,33 @@ describe('PayslipForm extracted lines', () => {
     ])
   })
 
-  it('leaves a tax line the slip does not place for the member to say', async () => {
+  it('asks on the row itself which part of the tax a line the slip does not place pays', async () => {
     const user = userEvent.setup()
     reads({
-      tax: [{ label: 'Tax deducted', amount: '$1,850.00', amount_cents: 185_000, component: null }],
+      tax: [
+        { label: 'PAYG', amount_cents: 1_416_00, component: 'payg' },
+        { label: 'Tax deducted', amount_cents: 434_00, component: null },
+      ],
     })
     renderForm()
 
     await attach(user)
 
-    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('Tax deducted')
+    expect(screen.getByLabelText('Tax line 2 name')).toHaveValue('Tax deducted')
     // Never quietly PAYG: the two pay different parts of the liability, so the save
     // waits on the member rather than filing a guess.
-    expect(screen.getByRole('combobox', { name: 'Tax line 1 pays' })).toHaveValue('')
-    expect(
-      screen.getByText(
-        /does not say which part of the tax Tax deducted “\$1,850\.00” pays — say which before saving\./,
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Tax line 2 pays' })).toHaveValue('')
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeDisabled()
+    // The row that needs the answer is the one that asks for it, so the blocked
+    // save has a visible cause the member can act on where it is.
+    expect(screen.getByText('Say which part this pays.')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Tax line 2 pays' })).toBeInvalid()
+    // And only that row: the line the slip did place is not flagged.
+    expect(screen.getByRole('combobox', { name: 'Tax line 1 pays' })).toBeValid()
 
-    await user.click(screen.getByRole('combobox', { name: 'Tax line 1 pays' }))
+    await user.click(screen.getByRole('combobox', { name: 'Tax line 2 pays' }))
     await user.click(await screen.findByRole('option', { name: 'PAYG income tax' }))
+    expect(screen.queryByText('Say which part this pays.')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
   })
 
@@ -1550,25 +1535,23 @@ describe('PayslipForm extracted lines', () => {
     const user = userEvent.setup()
     reads({
       earnings: [
-        { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
-        { label: 'Overtime', amount: '4,9S.50', amount_cents: null },
-        { label: 'Bonus', amount: null, amount_cents: null },
+        { label: 'Ordinary Hours', amount_cents: 4_000_00 },
+        { label: 'Overtime', amount_cents: null },
+        { label: 'Bonus', amount_cents: null },
       ],
     })
     renderForm()
 
     await attach(user)
 
-    // A half-filled row would block the save, so an unreadable line is left out and
-    // named instead — as an unreadable total is left blank with its text shown.
+    // A half-filled row would block the save, so a line whose amount could not be
+    // read is left out entirely, as an unreadable total is left blank.
     expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
     expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
-    expect(
-      screen.getByText(
-        /Could not read the amount on Overtime “4,9S\.50”, Bonus, so that line is not itemised\./,
-      ),
-    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
+    // What is left out shows where it counts: the gross the rows do not account for
+    // is reported against the lines themselves.
+    expect(screen.getByText(/of the gross is not itemised/i)).toHaveTextContent('$120.50')
   })
 
   it('itemises nothing when the read fails, and saves the lines typed by hand', async () => {

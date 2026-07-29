@@ -16,7 +16,7 @@ export type ExtractionState =
   | { status: 'idle' }
   | { status: 'uploading' }
   | { status: 'reading' }
-  | ({ status: 'read'; extraction: PayslipExtraction } & PayslipPrefillSummary)
+  | ({ status: 'read' } & PayslipPrefillSummary)
   | ExtractionFailure
 
 export interface UsePayslipAttachmentResult {
@@ -148,11 +148,7 @@ export function usePayslipAttachment({
         setState(outcome)
         return
       }
-      setState({
-        status: 'read',
-        extraction: outcome.extraction,
-        ...extracted.current(outcome.extraction),
-      })
+      setState({ status: 'read', ...extracted.current(outcome.extraction) })
     },
     [attachments, id, release],
   )

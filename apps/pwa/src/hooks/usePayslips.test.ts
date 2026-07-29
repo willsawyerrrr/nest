@@ -318,30 +318,39 @@ describe('usePayslips', () => {
 
 describe('usePayslips attachment extraction', () => {
   it('reads an uploaded slip through payslip-extract', async () => {
-    const extraction = {
-      model: 'claude-haiku-4-5-20251001',
-      fields: { gross_cents: 4_120_50 },
-      text: { gross: '4,120.50' },
-      lines: {
-        earnings: [{ label: 'Ordinary Hours', amount: '$4,120.50', amount_cents: 4_120_50 }],
-        tax: [],
+    invoke.mockResolvedValue({
+      data: {
+        model: 'claude-haiku-4-5-20251001',
+        fields: { gross_cents: 4_120_50 },
+        // The reply's record of what was read: the form pre-fills from the fields
+        // and the lines, and carries none of the rest in.
+        text: { gross: '4,120.50' },
+        lines: {
+          earnings: [{ label: 'Ordinary Hours', amount: '$4,120.50', amount_cents: 4_120_50 }],
+          tax: [],
+        },
+        missing: [],
+        unreadable: [],
       },
-      missing: [],
-      unreadable: [],
-    }
-    invoke.mockResolvedValue({ data: extraction, error: null, response: undefined })
+      error: null,
+      response: undefined,
+    })
     const result = await renderPayslips()
 
     expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
       status: 'read',
-      extraction,
+      extraction: {
+        model: 'claude-haiku-4-5-20251001',
+        fields: { gross_cents: 4_120_50 },
+        lines: { earnings: [{ label: 'Ordinary Hours', amount_cents: 4_120_50 }], tax: [] },
+      },
     })
     expect(invoke).toHaveBeenCalledWith('payslip-extract', {
       body: { path: 'h1/ps1/slip.pdf' },
     })
   })
 
-  it('leaves a negative amount unfilled, reported as one it could not read', async () => {
+  it('leaves a negative amount unfilled, for the member to type off the slip', async () => {
     invoke.mockResolvedValue({
       data: {
         model: 'claude-haiku-4-5-20251001',
@@ -367,13 +376,7 @@ describe('usePayslips attachment extraction', () => {
       extraction: {
         model: 'claude-haiku-4-5-20251001',
         fields: { gross_cents: 4_120_50 },
-        text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
-        lines: {
-          earnings: [{ label: 'Overpayment recovery', amount: '($120.00)', amount_cents: -120_00 }],
-          tax: [],
-        },
-        missing: [],
-        unreadable: ['tax_withheld_cents'],
+        lines: { earnings: [{ label: 'Overpayment recovery', amount_cents: -120_00 }], tax: [] },
       },
     })
   })

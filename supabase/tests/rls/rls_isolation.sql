@@ -1496,12 +1496,11 @@ select set_config('test.priv_bob_inflow', :'priv_bob_inflow', false);
 insert into public.payslip
     (household_id, member_id, financial_year, period_start, period_end, paid_on,
      gross_cents, tax_withheld_cents, super_cents, net_cents, salary_sacrifice_cents,
-     ytd_gross_cents, ytd_tax_withheld_cents, ytd_super_cents, source_inflow_id, file_path, note)
+     ytd_gross_cents, ytd_tax_withheld_cents, ytd_super_cents, file_path, note)
   values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_mid')::uuid, 2027,
     '2026-07-01', '2026-07-14', '2026-07-16',
     4_000_00, 900_00, 460_00, 3_100_00, 100_00,
     4_000_00, 900_00, 460_00,
-    current_setting('test.priv_bob_inflow')::uuid,
     current_setting('test.priv_hid') || '/slips/bob-july.pdf', 'First slip of the FY')
   returning id as priv_bob_payslip \gset
 select set_config('test.priv_bob_payslip', :'priv_bob_payslip', false);
@@ -1511,9 +1510,6 @@ select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-4444444
 do $$ begin
   assert (select gross_cents from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid) = 4_000_00,
     'Alice should read her co-member''s payslip figures';
-  assert (select source_inflow_id from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid)
-    = current_setting('test.priv_bob_inflow')::uuid,
-    'a payslip should link to the projected inflow it reconciles against';
 end $$;
 
 update public.payslip set note = 'Checked against the estimate'
@@ -1649,14 +1645,13 @@ do $$ begin
 end $$;
 rollback to savepoint payslip_objects;
 
--- Removing the projected inflow clears the link and keeps the actuals.
+-- Removing a projected inflow keeps the actuals: a slip carries no reference of
+-- its own, and its lines' references are cleared rather than cascaded (below).
 savepoint payslip_inflow_delete;
 delete from public.inflows where id = current_setting('test.priv_bob_inflow')::uuid;
 do $$ begin
   assert exists (select 1 from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid),
-    'deleting the source inflow must keep the payslip';
-  assert (select source_inflow_id from public.payslip where id = current_setting('test.priv_bob_payslip')::uuid) is null,
-    'deleting the source inflow should null source_inflow_id';
+    'deleting an inflow the slip''s lines drew on must keep the payslip';
 end $$;
 rollback to savepoint payslip_inflow_delete;
 
@@ -1680,7 +1675,8 @@ set local role authenticated;
 -- inflow. Several lines may draw on the same inflow — ordinary hours and annual
 -- leave both come off the salary — so there is no uniqueness on
 -- (payslip_id, source_inflow_id). The RLS boundary is the parent slip's: the
--- household, not the member.
+-- household, not the member. The line kinds and the pairing they are held to are
+-- asserted in `payslip_lines.sql`.
 
 -- An on-call allowance: taxed in full, but no employer super accrues on it.
 insert into public.inflows (household_id, member_id, name, type, schedule, amount_cents, attracts_super)

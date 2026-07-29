@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
-import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
+import { makeInflow, makePayslip, makePayslipLine, makePayslipTaxLine } from '../test/fixtures'
 import {
   financialYearForPayslip,
   paygWithheldFromRows,
@@ -18,6 +18,25 @@ import { estimateHouseholdTaxFromRows } from './tax'
 const config = FY2027_CONFIG
 const inflow = makeInflow({ amount_cents: 5_000_00, schedule: 'fortnightly' })
 const memberEstimate = estimateHouseholdTaxFromRows([inflow], [], [], [], [], config).members[0]!
+
+/** The same member with a HELP debt, so their liability carries a compulsory repayment. */
+const withHelpDebt = estimateHouseholdTaxFromRows(
+  [inflow],
+  [],
+  [],
+  [
+    {
+      id: 'hd1',
+      household_id: 'h1',
+      member_id: 'm1',
+      balance_cents: 40_000_00,
+      created_at: '',
+      updated_at: '',
+    },
+  ],
+  [],
+  config,
+).members[0]!
 
 /** The real slip driving per-inflow variance: $130,000 salary plus an on-call allowance. */
 const ON_CALL = makeInflow({
@@ -184,22 +203,40 @@ describe('payslipReconciliation', () => {
 })
 
 describe('toPayslipLine', () => {
-  it('maps the row to the earnings line the plan groups', () => {
+  it('maps an earnings row to the line the plan groups by inflow', () => {
     expect(toPayslipLine(makePayslipLine({ attracts_super: false }))).toEqual({
+      kind: 'earning',
       sourceInflowId: 'i1',
       label: 'Ordinary Hours',
       amountCents: 5_000_00,
       attractsSuper: false,
     })
   })
+
+  it('maps a tax row to the line the plan groups by component', () => {
+    expect(
+      toPayslipLine(
+        makePayslipTaxLine({
+          label: 'STSL Component',
+          tax_component: 'stsl',
+          amount_cents: 434_00,
+        }),
+      ),
+    ).toEqual({
+      kind: 'tax',
+      component: 'stsl',
+      label: 'STSL Component',
+      amountCents: 434_00,
+    })
+  })
 })
 
 describe('payslipVarianceFor', () => {
-  it('measures the slip against its reconciled inflow and the member’s estimate', () => {
+  it('measures the slip against the inflow its lines draw on and the member’s estimate', () => {
     const payslip = makePayslip()
     const variance = payslipVarianceFor(
       payslip,
-      payslipReconciliation([inflow], []),
+      payslipReconciliation([inflow], [makePayslipLine()]),
       memberEstimate,
       config,
     )
@@ -221,27 +258,32 @@ describe('payslipVarianceFor', () => {
   it('counts salary sacrifice as part of the slip’s super', () => {
     const payslip = makePayslip({ salary_sacrifice_cents: 100_00 })
     expect(
-      payslipVarianceFor(payslip, payslipReconciliation([inflow], []), memberEstimate, config)
-        .actualSuperCents,
+      payslipVarianceFor(
+        payslip,
+        payslipReconciliation([inflow], [makePayslipLine()]),
+        memberEstimate,
+        config,
+      ).actualSuperCents,
     ).toBe(700_00)
   })
 
-  it('has no gross expectation when the slip reconciles against no inflow', () => {
+  it('has no gross expectation when no line on the slip names an inflow', () => {
     const variance = payslipVarianceFor(
-      makePayslip({ source_inflow_id: null }),
-      payslipReconciliation([inflow], []),
+      makePayslip(),
+      payslipReconciliation([inflow], [makePayslipLine({ source_inflow_id: null })]),
       memberEstimate,
       config,
     )
     expect(variance.expectedGrossCents).toBeNull()
     expect(variance.grossVarianceCents).toBeNull()
+    expect(variance.cadenceInflowId).toBeNull()
     expect(variance.basis).toBe('calendar_days')
   })
 
-  it('has no gross expectation when the reconciled inflow has been retired', () => {
+  it('has no gross expectation when the inflow the lines drew on has been retired', () => {
     const variance = payslipVarianceFor(
       makePayslip(),
-      payslipReconciliation([], []),
+      payslipReconciliation([], [makePayslipLine()]),
       memberEstimate,
       config,
     )
@@ -252,7 +294,7 @@ describe('payslipVarianceFor', () => {
   it('expects nothing withheld for a member with no estimate', () => {
     const variance = payslipVarianceFor(
       makePayslip(),
-      payslipReconciliation([inflow], []),
+      payslipReconciliation([inflow], [makePayslipLine()]),
       undefined,
       config,
     )
@@ -367,20 +409,37 @@ describe('payslipVarianceFor', () => {
     expect(variance.superVarianceCents).toBe(0)
   })
 
-  it('expects no guarantee on an unitemised slip anchored to an allowance', () => {
-    const payslip = makePayslip({
-      gross_cents: 495_50,
-      super_cents: 0,
-      source_inflow_id: 'i2',
-    })
+  it('measures each tax line against the component of the liability it pays', () => {
+    // The member's estimate carries a compulsory HELP repayment, so the STSL line
+    // is held against the period's share of that and the PAYG line against the
+    // rest of the liability — and the two together against the printed total.
+    const payslip = makePayslip({ tax_withheld_cents: 1_850_00 })
+    const lines = [
+      makePayslipLine(),
+      makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 1_416_00 }),
+      makePayslipTaxLine({
+        id: 'pt2',
+        label: 'STSL Component',
+        tax_component: 'stsl',
+        amount_cents: 434_00,
+      }),
+    ]
     const variance = payslipVarianceFor(
       payslip,
-      payslipReconciliation([inflow, ON_CALL], []),
-      memberEstimate,
+      payslipReconciliation([inflow], lines),
+      withHelpDebt,
       config,
     )
 
-    expect(variance.superBaseCents).toBe(0)
-    expect(variance.expectedSuperGuaranteeCents).toBe(0)
+    const help = withHelpDebt.breakdown.helpRepaymentCents
+    expect(help).toBeGreaterThan(0)
+    expect(variance.taxGroups.map((group) => group.component)).toEqual(['payg', 'stsl'])
+    expect(variance.taxGroups[1]?.expectedCents).toBe(Math.round(help / 26))
+    expect(variance.taxGroups[0]?.expectedCents).toBe(
+      Math.round((withHelpDebt.annualTaxCents - help) / 26),
+    )
+    // The lines account for every dollar of the printed total, which is what the
+    // year's withholding is summed from either way.
+    expect(variance.unallocatedTaxCents).toBe(0)
   })
 })

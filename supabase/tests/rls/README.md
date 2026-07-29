@@ -1,9 +1,10 @@
 # SQL assertions
 
 Automated proof that the schema behaves as designed: Row-Level Security isolates
-households, the derived-line triggers match the client reconciler, and a payslip
-is filed under the financial year its pay landed in. These run in CI (the `rls`
-job) against a plain Postgres instance and can also be run locally.
+households, the derived-line triggers match the client reconciler, a payslip is
+filed under the financial year its pay landed in, and its lines carry the whole of
+its reconciliation. These run in CI (the `rls` job) against a plain Postgres
+instance and can also be run locally.
 
 ## Files
 
@@ -30,15 +31,15 @@ job) against a plain Postgres instance and can also be run locally.
 
 `setup_auth.sql` → every file in `supabase/migrations/` in order →
 `rls_isolation.sql` → `derived_line_triggers.sql` →
-`payslip_financial_year.sql`. Because the real migrations and policies are
-applied, the assertions test the actual security boundary and trigger behaviour,
-not a reimplementation.
+`payslip_financial_year.sql` → `payslip_lines.sql`. Because the real migrations
+and policies are applied, the assertions test the actual security boundary and
+trigger behaviour, not a reimplementation.
 
 ## Run locally
 
-`payslip_financial_year.sql` includes a migration by a path relative to its own
-location, so run the scripts by path with a client on the host rather than piping
-them into the container on stdin.
+`payslip_financial_year.sql` and `payslip_lines.sql` include migrations by paths
+relative to their own location, so run the scripts by path with a client on the
+host rather than piping them into the container on stdin.
 
 ```sh
 docker run -d --rm --name pba-rls -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:17
@@ -49,5 +50,6 @@ for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/rls_isolation.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/derived_line_triggers.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_financial_year.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_lines.sql
 docker rm -f pba-rls
 ```

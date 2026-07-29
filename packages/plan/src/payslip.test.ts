@@ -12,9 +12,12 @@ import {
   payslipYearToDateByMember,
   periodFractionOfFinancialYear,
   prorateAnnualToPeriod,
+  type Money,
   type PayPeriod,
   type PayslipActuals,
+  type PayslipEarningLine,
   type PayslipExpectation,
+  type PayslipTaxLine,
   type PayslipTotalsRow,
   type ReconciledInflow,
   type SuperGuaranteeConfig,
@@ -53,9 +56,18 @@ const DAY_PRORATED_WITHHELD = 1_396_16
 /** A monthly $10,000 salary — $120,000 annualised. */
 const MONTHLY: ReconciledInflow = { type: 'salary', schedule: 'monthly', amountCents: 10_000_00 }
 
-/** A payslip on cadence and matching the plan exactly, before any override. */
+/** One earnings line drawing on the salary, which every default slip is itemised as. */
+function salaryLine(amountCents: Money): PayslipEarningLine {
+  return { kind: 'earning', sourceInflowId: 'salary', label: 'Ordinary Hours', amountCents }
+}
+
+/**
+ * A payslip on cadence and matching the plan exactly, before any override.
+ * Itemised as one salary line for its whole gross unless the override says
+ * otherwise, since the lines are what a slip is measured through.
+ */
 function payslip(overrides: Partial<PayslipActuals> = {}): PayslipActuals {
-  return {
+  const slip = {
     financialYear: FY,
     ...FORTNIGHT,
     grossCents: CADENCE_GROSS,
@@ -63,16 +75,22 @@ function payslip(overrides: Partial<PayslipActuals> = {}): PayslipActuals {
     superCents: CADENCE_SUPER,
     ...overrides,
   }
+  return { ...slip, lines: overrides.lines ?? [salaryLine(slip.grossCents)] }
 }
 
 /** The plan's expectation for that payslip, before any override. */
 function expectation(overrides: Partial<PayslipExpectation> = {}): PayslipExpectation {
   return {
-    inflow: SALARY,
+    inflowsById: new Map([['salary', SALARY]]),
     annualTaxCents: ANNUAL_TAX,
     superConfig: SUPER_CONFIG,
     ...overrides,
   }
+}
+
+/** The one-inflow map an expectation reads, keyed as the slip's lines name it. */
+function inflowsById(inflow: ReconciledInflow): ReadonlyMap<string, ReconciledInflow> {
+  return new Map([['salary', inflow]])
 }
 
 /** A payslip row for year-to-date aggregation. */
@@ -324,15 +342,27 @@ describe('payslipVariance on cadence', () => {
   it('reports exactly zero variance for a fortnightly payslip matching the projection', () => {
     expect(payslipVariance(payslip(), expectation())).toEqual({
       basis: 'cadence',
+      cadenceInflowId: 'salary',
       periodDays: 14,
       financialYearDays: 365,
       periodFraction: 14 / 365,
       expectedGrossCents: CADENCE_GROSS,
       grossVarianceCents: 0,
-      lineGroups: [],
+      lineGroups: [
+        {
+          sourceInflowId: 'salary',
+          labels: ['Ordinary Hours'],
+          actualCents: CADENCE_GROSS,
+          expectedCents: CADENCE_GROSS,
+          varianceCents: 0,
+          basis: 'cadence',
+        },
+      ],
       unallocatedCents: 0,
       expectedTaxWithheldCents: CADENCE_WITHHELD,
       taxWithheldVarianceCents: 0,
+      taxGroups: [],
+      unallocatedTaxCents: 0,
       superBaseCents: CADENCE_GROSS,
       expectedSuperGuaranteeCents: CADENCE_SUPER,
       expectedConcessionalCents: 0,
@@ -351,7 +381,9 @@ describe('payslipVariance on cadence', () => {
         taxWithheldCents: 700_00,
         superCents: 300_00,
       }),
-      expectation({ inflow: { type: 'salary', schedule: 'weekly', amountCents: 2_500_00 } }),
+      expectation({
+        inflowsById: inflowsById({ type: 'salary', schedule: 'weekly', amountCents: 2_500_00 }),
+      }),
     )
     expect(variance.basis).toBe('cadence')
     expect(variance.expectedGrossCents).toBe(2_500_00)
@@ -369,21 +401,23 @@ describe('payslipVariance on cadence', () => {
       taxWithheldCents: 3_033_33,
       superCents: 1_200_00,
     })
-    expect(payslipVariance(july, expectation({ inflow: MONTHLY }))).toMatchObject({
-      basis: 'cadence',
-      periodDays: 31,
-      expectedGrossCents: 10_000_00,
-      grossVarianceCents: 0,
-      expectedTaxWithheldCents: 3_033_33,
-      taxWithheldVarianceCents: 0,
-      superVarianceCents: 0,
-    })
+    expect(payslipVariance(july, expectation({ inflowsById: inflowsById(MONTHLY) }))).toMatchObject(
+      {
+        basis: 'cadence',
+        periodDays: 31,
+        expectedGrossCents: 10_000_00,
+        grossVarianceCents: 0,
+        expectedTaxWithheldCents: 3_033_33,
+        taxWithheldVarianceCents: 0,
+        superVarianceCents: 0,
+      },
+    )
 
     // February's 28 days are a whole month too, so the same figures are expected of
     // it — a shorter month is not a shortfall.
     const february = payslipVariance(
       payslip({ ...july, ...period('2027-02-01', '2027-02-28') }),
-      expectation({ inflow: MONTHLY }),
+      expectation({ inflowsById: inflowsById(MONTHLY) }),
     )
     expect(february.basis).toBe('cadence')
     expect(february.periodDays).toBe(28)
@@ -402,7 +436,12 @@ describe('payslipVariance on cadence', () => {
         superCents: 720_00,
       }),
       expectation({
-        inflow: { type: 'salary', schedule: 'every_n_weeks', amountCents: 6_000_00, interval: 3 },
+        inflowsById: inflowsById({
+          type: 'salary',
+          schedule: 'every_n_weeks',
+          amountCents: 6_000_00,
+          interval: 3,
+        }),
       }),
     )
     expect(variance.basis).toBe('cadence')
@@ -528,7 +567,7 @@ describe('payslipVariance off cadence', () => {
     const forPeriod = (periodStart: string, periodEnd: string) =>
       payslipVariance(
         payslip({ ...period(periodStart, periodEnd), grossCents: 10_000_00 }),
-        expectation({ inflow: MONTHLY }),
+        expectation({ inflowsById: inflowsById(MONTHLY) }),
       )
 
     // 28 days is February, a whole month; 27 days is no month at all.
@@ -546,30 +585,39 @@ describe('payslipVariance off cadence', () => {
     expect(long.expectedGrossCents).toBe(10_520_55)
   })
 
-  it('expects no gross for a payslip reconciled against no inflow', () => {
-    const unmapped = payslipVariance(payslip(), expectation({ inflow: null }))
+  it('expects no gross for a payslip whose lines name no inflow', () => {
+    const unmapped = payslipVariance(
+      payslip({
+        lines: [{ kind: 'earning', sourceInflowId: null, label: 'Bonus', amountCents: 0 }],
+      }),
+      expectation(),
+    )
     expect(unmapped.expectedGrossCents).toBeNull()
     expect(unmapped.grossVarianceCents).toBeNull()
-    // With no inflow there is no cadence to read, so the member-level expectations
-    // fall to calendar days: withholding from their annual estimated tax, and the
-    // guarantee from the slip's own gross.
+    // With no projection named there is no cadence to read, so the member-level
+    // expectations fall to calendar days: withholding from their annual estimated
+    // tax, and the guarantee from the slip's own gross.
+    expect(unmapped.cadenceInflowId).toBeNull()
     expect(unmapped.basis).toBe('calendar_days')
     expect(unmapped.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
     expect(unmapped.expectedSuperCents).toBe(CADENCE_SUPER)
 
+    // An expectation carrying no inflows at all reads the same way, since a line
+    // naming one it does not hold resolves to nothing either.
     const absent = payslipVariance(payslip(), {
       annualTaxCents: ANNUAL_TAX,
       superConfig: SUPER_CONFIG,
     })
     expect(absent.expectedGrossCents).toBeNull()
     expect(absent.grossVarianceCents).toBeNull()
+    expect(absent.cadenceInflowId).toBeNull()
     expect(absent.basis).toBe('calendar_days')
   })
 
   it('apportions by days when the inflow’s effective dates clip the period', () => {
     const variance = payslipVariance(
       payslip({ grossCents: 2_493_15 }),
-      expectation({ inflow: { ...SALARY, startsOn: '2026-07-08' } }),
+      expectation({ inflowsById: inflowsById({ ...SALARY, startsOn: '2026-07-08' }) }),
     )
     expect(variance.basis).toBe('calendar_days')
     expect(variance.expectedGrossCents).toBe(2_493_15)
@@ -779,11 +827,23 @@ const HEIDI_INFLOWS = new Map<string, ReconciledInflow>([
  * The slip's three earnings lines: two on the salary, one on the allowance, each
  * carrying the ordinary-time-earnings decision recorded when it was written.
  */
-const HEIDI_LINES = [
-  { sourceInflowId: 'salary', label: 'Ordinary Hours', amountCents: 4_000_00 },
-  { sourceInflowId: 'salary', label: 'Annual Leave', amountCents: 1_000_00 },
-  { sourceInflowId: 'on-call', label: 'On-call (T1)', amountCents: 495_50, attractsSuper: false },
-] as const
+const HEIDI_LINES: readonly PayslipEarningLine[] = [
+  { kind: 'earning', sourceInflowId: 'salary', label: 'Ordinary Hours', amountCents: 4_000_00 },
+  { kind: 'earning', sourceInflowId: 'salary', label: 'Annual Leave', amountCents: 1_000_00 },
+  {
+    kind: 'earning',
+    sourceInflowId: 'on-call',
+    label: 'On-call (T1)',
+    amountCents: 495_50,
+    attractsSuper: false,
+  },
+]
+
+/** The same slip's TAX section: PAYG $1,416.00 and STSL $434.00 over a $1,850.00 total. */
+const HEIDI_TAX_LINES: readonly PayslipTaxLine[] = [
+  { kind: 'tax', component: 'payg', label: 'PAYG', amountCents: 1_416_00 },
+  { kind: 'tax', component: 'stsl', label: 'STSL Component', amountCents: 434_00 },
+]
 
 /** That slip's actuals: $5,495.50 gross, $1,850 tax, $600 super. */
 function heidiPayslip(overrides: Partial<PayslipActuals> = {}): PayslipActuals {
@@ -797,7 +857,7 @@ function heidiPayslip(overrides: Partial<PayslipActuals> = {}): PayslipActuals {
   })
 }
 
-/** That slip's expectation: the salary as its cadence anchor, both inflows resolvable. */
+/** That slip's expectation: both the inflows its lines draw on, resolvable. */
 function heidiExpectation(overrides: Partial<PayslipExpectation> = {}): PayslipExpectation {
   return expectation({ inflowsById: HEIDI_INFLOWS, ...overrides })
 }
@@ -846,6 +906,7 @@ describe('payslipVariance with earnings lines', () => {
     const variance = payslipVariance(
       heidiPayslip({
         lines: HEIDI_LINES.map(({ sourceInflowId, label, amountCents }) => ({
+          kind: 'earning' as const,
           sourceInflowId,
           label,
           amountCents,
@@ -864,6 +925,7 @@ describe('payslipVariance with earnings lines', () => {
         grossCents: 495_50,
         lines: [
           {
+            kind: 'earning',
             sourceInflowId: 'on-call',
             label: 'On-call',
             amountCents: 4_955_00,
@@ -897,8 +959,8 @@ describe('payslipVariance with earnings lines', () => {
     const variance = payslipVariance(
       heidiPayslip({
         lines: [
-          { sourceInflowId: 'salary', label: 'Ordinary Hours', amountCents: 5_000_00 },
-          { sourceInflowId: null, label: 'Bonus', amountCents: 495_50 },
+          salaryLine(5_000_00),
+          { kind: 'earning', sourceInflowId: null, label: 'Bonus', amountCents: 495_50 },
         ],
       }),
       heidiExpectation(),
@@ -932,7 +994,7 @@ describe('payslipVariance with earnings lines', () => {
   it('has no gross expectation when nothing on the slip maps to a projection', () => {
     const variance = payslipVariance(
       heidiPayslip({
-        lines: [{ sourceInflowId: null, label: 'Bonus', amountCents: 5_495_50 }],
+        lines: [{ kind: 'earning', sourceInflowId: null, label: 'Bonus', amountCents: 5_495_50 }],
       }),
       heidiExpectation(),
     )
@@ -950,31 +1012,286 @@ describe('payslipVariance with earnings lines', () => {
     expect(group?.expectedCents).toBe(2_493_15)
   })
 
-  it('reads the withholding basis from the slip’s cadence anchor, not its lines', () => {
-    // Every line is on the fortnightly allowance, but the anchor is still the
-    // fortnightly salary, so the withholding stays a per-cadence division.
+  it('reads the withholding basis from the largest group’s cadence', () => {
+    // The salary makes up most of the payment, so its fortnightly cadence is the
+    // cycle the withholding is divided by — not the allowance's.
     const variance = payslipVariance(heidiPayslip(), heidiExpectation())
+    expect(variance.cadenceInflowId).toBe('salary')
     expect(variance.basis).toBe('cadence')
     expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
   })
 
-  it('leaves an unitemised slip measured whole, with no groups and nothing unallocated', () => {
+  it('measures a slip with no lines against nothing, on calendar days', () => {
+    // Nothing on it names a projection, so there is no gross to expect and no
+    // cycle to read; the printed totals are still held against the year's own
+    // figures, apportioned by the days the period covers.
     const variance = payslipVariance(payslip({ lines: [] }), heidiExpectation())
     expect(variance.lineGroups).toEqual([])
+    expect(variance.taxGroups).toEqual([])
     expect(variance.unallocatedCents).toBe(0)
-    expect(variance.expectedGrossCents).toBe(CADENCE_GROSS)
+    expect(variance.unallocatedTaxCents).toBe(0)
+    expect(variance.expectedGrossCents).toBeNull()
+    expect(variance.grossVarianceCents).toBeNull()
+    expect(variance.cadenceInflowId).toBeNull()
+    expect(variance.basis).toBe('calendar_days')
+    expect(variance.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
+    // Nothing on the slip says any of its gross is other than ordinary time
+    // earnings, so the guarantee is charged on all of it.
     expect(variance.superBaseCents).toBe(CADENCE_GROSS)
+    expect(variance.expectedSuperGuaranteeCents).toBe(CADENCE_SUPER)
+
+    // A slip stating no lines at all — an aggregation reading only the row's own
+    // figures — reads exactly as an empty set of them.
+    expect(
+      payslipVariance(
+        {
+          financialYear: FY,
+          ...FORTNIGHT,
+          grossCents: CADENCE_GROSS,
+          taxWithheldCents: CADENCE_WITHHELD,
+          superCents: CADENCE_SUPER,
+        },
+        heidiExpectation(),
+      ),
+    ).toEqual(variance)
+  })
+})
+
+describe('payslipVariance cadence derivation', () => {
+  /** A fortnightly $2,000 bonus-shaped inflow, and an annual $26,000 one. */
+  const SECOND_FORTNIGHTLY: ReconciledInflow = {
+    type: 'other',
+    schedule: 'fortnightly',
+    amountCents: 2_000_00,
+  }
+  const ANNUAL_BONUS: ReconciledInflow = {
+    type: 'other',
+    schedule: 'annual',
+    amountCents: 26_000_00,
+  }
+
+  /** A slip of two earnings lines, the second drawing on `second`. */
+  function twoLineSlip(firstCents: Money, secondCents: Money): PayslipActuals {
+    return payslip({
+      grossCents: firstCents + secondCents,
+      lines: [
+        salaryLine(firstCents),
+        { kind: 'earning', sourceInflowId: 'second', label: 'Other', amountCents: secondCents },
+      ],
+    })
+  }
+
+  /** Both inflows, keyed as those two lines name them. */
+  function twoInflows(second: ReconciledInflow): ReadonlyMap<string, ReconciledInflow> {
+    return new Map([
+      ['salary', SALARY],
+      ['second', second],
+    ])
+  }
+
+  it('reads the cadence from the largest earnings group, whichever line came first', () => {
+    // The smaller line is printed first, and the larger group still decides.
+    const variance = payslipVariance(
+      payslip({
+        grossCents: 5_500_00,
+        lines: [
+          { kind: 'earning', sourceInflowId: 'second', label: 'Other', amountCents: 500_00 },
+          salaryLine(5_000_00),
+        ],
+      }),
+      expectation({ inflowsById: twoInflows(SECOND_FORTNIGHTLY) }),
+    )
+    expect(variance.cadenceInflowId).toBe('salary')
   })
 
-  it('expects no guarantee on an unitemised slip anchored to an allowance', () => {
-    // The whole gross is that one allowance, so charging the rate on it would
-    // expect super the employer never owed.
+  it('keeps the group the slip printed first when two are equal', () => {
     const variance = payslipVariance(
-      payslip({ grossCents: 495_50, superCents: 0, lines: [] }),
-      heidiExpectation({ inflow: ON_CALL }),
+      twoLineSlip(2_500_00, 2_500_00),
+      expectation({ inflowsById: twoInflows(SECOND_FORTNIGHTLY) }),
     )
-    expect(variance.superBaseCents).toBe(0)
-    expect(variance.expectedSuperGuaranteeCents).toBe(0)
-    expect(variance.superVarianceCents).toBe(0)
+    expect(variance.cadenceInflowId).toBe('salary')
+  })
+
+  it('takes the largest group’s cadence even where the groups disagree', () => {
+    // An annual bonus paid beside the fortnightly salary: the fortnight is still a
+    // whole turn of the cycle that paid most of it, so the withholding is still
+    // divided by 26 rather than apportioned across a bonus's year.
+    const variance = payslipVariance(
+      twoLineSlip(5_000_00, 1_000_00),
+      expectation({ inflowsById: twoInflows(ANNUAL_BONUS) }),
+    )
+    expect(variance.cadenceInflowId).toBe('salary')
+    expect(variance.basis).toBe('cadence')
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
+  })
+
+  it('falls to calendar days when the largest group’s cadence does not fit the period', () => {
+    // The bonus is the bulk of this payment, so its annual cadence is what the
+    // slip reads — and a fortnight is no turn of a year, which is what makes the
+    // pick self-correcting rather than wrong.
+    const variance = payslipVariance(
+      twoLineSlip(1_000_00, 20_000_00),
+      expectation({ inflowsById: twoInflows(ANNUAL_BONUS) }),
+    )
+    expect(variance.cadenceInflowId).toBe('second')
+    expect(variance.basis).toBe('calendar_days')
+    expect(variance.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
+  })
+
+  it('reads no cadence from a group naming an inflow the expectation has lost', () => {
+    // Every line draws on an inflow since retired, so there is nothing to read a
+    // cycle from — and nothing to expect a gross from either.
+    const variance = payslipVariance(payslip(), expectation({ inflowsById: new Map() }))
+    expect(variance.cadenceInflowId).toBeNull()
+    expect(variance.basis).toBe('calendar_days')
+    expect(variance.expectedGrossCents).toBeNull()
+  })
+
+  it('ignores tax lines when reading the cadence', () => {
+    // Tax is withheld from earnings, not earned, so a tax line larger than every
+    // earnings line does not become the slip's pay cycle.
+    const variance = payslipVariance(
+      payslip({
+        grossCents: 5_000_00,
+        taxWithheldCents: 1_850_00,
+        lines: [salaryLine(5_000_00), ...HEIDI_TAX_LINES],
+      }),
+      expectation(),
+    )
+    expect(variance.cadenceInflowId).toBe('salary')
+    expect(variance.basis).toBe('cadence')
+  })
+})
+
+/**
+ * The estimate behind the same real slip: a $48,100 liability for the year, of
+ * which $11,284 is the compulsory HELP repayment the STSL component pays. Over 26
+ * fortnights that is $1,850.00 withheld a period — $1,416.00 of PAYG and $434.00
+ * of STSL, exactly what the slip prints.
+ */
+const ANNUAL_LIABILITY = 48_100_00
+const ANNUAL_HELP = 11_284_00
+const CADENCE_PAYG = 1_416_00
+const CADENCE_STSL = 434_00
+
+/** That slip, with its TAX section itemised, against that estimate. */
+function taxItemisedVariance(
+  taxLines: readonly PayslipTaxLine[] = HEIDI_TAX_LINES,
+  overrides: Partial<PayslipActuals> = {},
+) {
+  return payslipVariance(
+    heidiPayslip({ lines: [...HEIDI_LINES, ...taxLines], ...overrides }),
+    heidiExpectation({
+      annualTaxCents: ANNUAL_LIABILITY,
+      annualHelpRepaymentCents: ANNUAL_HELP,
+    }),
+  )
+}
+
+describe('payslipVariance with tax lines', () => {
+  it('measures each component against the part of the liability it pays', () => {
+    expect(taxItemisedVariance().taxGroups).toEqual([
+      {
+        component: 'payg',
+        labels: ['PAYG'],
+        actualCents: CADENCE_PAYG,
+        expectedCents: CADENCE_PAYG,
+        varianceCents: 0,
+      },
+      {
+        component: 'stsl',
+        labels: ['STSL Component'],
+        actualCents: CADENCE_STSL,
+        expectedCents: CADENCE_STSL,
+        varianceCents: 0,
+      },
+    ])
+  })
+
+  it('isolates a study-loan component that is short from income tax that is over', () => {
+    // The printed total is right to the cent, so measuring the slip's tax as one
+    // lump reads it as perfectly on plan. Per component, $84 of the study loan was
+    // never withheld and $84 too much income tax was.
+    const variance = taxItemisedVariance([
+      { kind: 'tax', component: 'payg', label: 'PAYG', amountCents: 1_500_00 },
+      { kind: 'tax', component: 'stsl', label: 'STSL Component', amountCents: 350_00 },
+    ])
+    expect(variance.taxWithheldVarianceCents).toBe(0)
+    expect(variance.taxGroups.map((group) => group.varianceCents)).toEqual([84_00, -84_00])
+  })
+
+  it('sums several lines paying one component into a single group in slip order', () => {
+    const variance = taxItemisedVariance([
+      { kind: 'tax', component: 'payg', label: 'PAYG', amountCents: 1_400_00 },
+      { kind: 'tax', component: 'stsl', label: 'STSL Component', amountCents: 434_00 },
+      { kind: 'tax', component: 'payg', label: 'PAYG adjustment', amountCents: 16_00 },
+    ])
+    expect(variance.taxGroups[0]).toEqual({
+      component: 'payg',
+      labels: ['PAYG', 'PAYG adjustment'],
+      actualCents: CADENCE_PAYG,
+      expectedCents: CADENCE_PAYG,
+      varianceCents: 0,
+    })
+    expect(variance.taxGroups[1]?.labels).toEqual(['STSL Component'])
+  })
+
+  it('reports the withheld tax the lines do not account for', () => {
+    expect(
+      taxItemisedVariance(HEIDI_TAX_LINES, { taxWithheldCents: 1_900_00 }).unallocatedTaxCents,
+    ).toBe(50_00)
+    expect(
+      taxItemisedVariance(HEIDI_TAX_LINES, { taxWithheldCents: 1_800_00 }).unallocatedTaxCents,
+    ).toBe(-50_00)
+    expect(taxItemisedVariance().unallocatedTaxCents).toBe(0)
+    // A slip that itemises only its earnings has no tax remainder to report.
+    expect(taxItemisedVariance([]).unallocatedTaxCents).toBe(0)
+  })
+
+  it('holds a PAYG line against the whole liability for a member with no study loan', () => {
+    // No HELP debt means no compulsory repayment inside the liability, so every
+    // dollar of it is what the PAYG line is expected to pay.
+    const variance = payslipVariance(
+      heidiPayslip({ lines: [...HEIDI_LINES, HEIDI_TAX_LINES[0]!] }),
+      heidiExpectation({ annualTaxCents: ANNUAL_LIABILITY }),
+    )
+    expect(variance.taxGroups).toEqual([
+      {
+        component: 'payg',
+        labels: ['PAYG'],
+        actualCents: CADENCE_PAYG,
+        expectedCents: 1_850_00,
+        varianceCents: CADENCE_PAYG - 1_850_00,
+      },
+    ])
+  })
+
+  it('apportions each component by calendar days off cadence', () => {
+    // Half the fortnight: 7 of the year's 365 days, each component prorated on the
+    // same basis as the slip's own withholding expectation.
+    const variance = taxItemisedVariance(HEIDI_TAX_LINES, {
+      ...period('2026-06-27', '2026-07-03'),
+    })
+    expect(variance.basis).toBe('calendar_days')
+    // $36,816 × 7/365 and $11,284 × 7/365.
+    expect(variance.taxGroups[0]?.expectedCents).toBe(706_06)
+    expect(variance.taxGroups[1]?.expectedCents).toBe(216_41)
+  })
+
+  it('keeps the year’s withheld total the printed total, every component included', () => {
+    // The estimate nets one withheld figure against a liability that already
+    // carries the HELP repayment, so the year counts the whole of each slip's tax
+    // — never the PAYG lines alone, which would understate it by every dollar of
+    // STSL withheld.
+    const slip = taxItemisedVariance()
+    const linedTotal = slip.taxGroups.reduce((sum, group) => sum + group.actualCents, 0)
+    expect(linedTotal).toBe(1_850_00)
+
+    const withheld = paygWithheldByMember([
+      row({ taxWithheldCents: 1_850_00 }),
+      row({ periodEnd: '2026-07-24', taxWithheldCents: 1_850_00 }),
+    ])
+    expect(withheld.get('alex')).toBe(2 * linedTotal)
+    expect(withheld.get('alex')).not.toBe(2 * CADENCE_PAYG)
   })
 })

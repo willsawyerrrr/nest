@@ -1,21 +1,11 @@
 import { useRef, useState } from 'react'
-import {
-  Alert,
-  FileInput,
-  Group,
-  Loader,
-  Select,
-  SimpleGrid,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core'
+import { Alert, FileInput, Group, Loader, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow } from '../hooks/useInflows'
 import { usePayslipAttachment, type ExtractionState } from '../hooks/usePayslipAttachment'
 import { usePayslipFields } from '../hooks/usePayslipFields'
-import type { PayslipLineInput, PayslipLineRow } from '../hooks/usePayslipLines'
+import type { PayslipLineInput, PayslipLineKind, PayslipLineRow } from '../hooks/usePayslipLines'
 import type {
   PayslipAttachments,
   PayslipInput,
@@ -33,16 +23,20 @@ import {
 import { financialYearForPayslip } from '../lib/payslips'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
-import { PayslipLinesField, type LineDraft } from './PayslipLinesField'
+import {
+  PayslipEarningsLinesField,
+  PayslipTaxLinesField,
+  type LineDraft,
+} from './PayslipLinesField'
 
 /** Days a fortnightly pay period spans, less the inclusive end day. */
 const FORTNIGHT_SPAN_DAYS = 13
 
 interface PayslipFormProps {
   member: { id: string; name: string }
-  /** Every household inflow; only this member's taxable ones are offered as the source. */
+  /** Every household inflow; only this member's taxable ones are offered to a line. */
   inflows: readonly Inflow[]
-  /** The earnings lines already on the payslip being edited; empty when adding. */
+  /** The lines already on the payslip being edited; empty when adding. */
   initialLines?: readonly PayslipLineRow[]
   /** Storing, discarding, and reading the document the member attaches. */
   attachments: PayslipAttachments
@@ -203,9 +197,10 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * Presentational add/edit form for one payslip, tagged to the member the section
  * belongs to. The financial year is not typed: it is derived from the payment
  * date — or the pay period's end where the slip states none — and shown back with
- * the date that decided it. The source inflow is an explicit choice from the
- * member's own taxable inflows, and the slip may be itemised into earnings lines
- * each drawing on one of those same inflows.
+ * the date that decided it. The slip is itemised into lines: earnings lines each
+ * drawing on one of the member's own taxable inflows, and tax lines each naming
+ * the part of the liability they pay. The printed totals stay the member's own
+ * figures, an independent cross-check the lines need not sum to.
  *
  * Attaching a document stores it and reads it: the figures it finds pre-fill the
  * fields that are not already the member's own — typed here, or saved on the
@@ -250,42 +245,57 @@ export function PayslipForm({
     payslipId: initial?.id ?? null,
     onExtracted: fields.prefill,
   })
-  const [sourceInflowId, setSourceInflowId] = useState<string | null>(
-    initial?.source_inflow_id ?? null,
-  )
   const [note, setNote] = useState(initial?.note ?? '')
   const nextLineId = useRef(initialLines.length)
   const [lines, setLines] = useState<LineDraft[]>(() =>
     initialLines.map((line, index) => ({
       id: index,
+      kind: line.kind,
       label: line.label,
       amount: centsToDollars(line.amount_cents),
       sourceInflowId: line.source_inflow_id,
+      component: line.tax_component,
     })),
   )
 
   const changeLine = (id: number, changes: Partial<LineDraft>) =>
     setLines((current) => current.map((line) => (line.id === id ? { ...line, ...changes } : line)))
-  const addLine = () =>
+  const addLine = (kind: PayslipLineKind) =>
     setLines((current) => [
       ...current,
-      { id: nextLineId.current++, label: '', amount: '', sourceInflowId: null },
+      {
+        id: nextLineId.current++,
+        kind,
+        label: '',
+        amount: '',
+        sourceInflowId: null,
+        component: null,
+      },
     ])
   const removeLine = (id: number) => setLines((current) => current.filter((line) => line.id !== id))
 
   const { values } = fields
   const memberInflows = inflows.filter((inflow) => inflow.taxable && inflow.member_id === member.id)
   const inflowOptions = memberInflows.map((inflow) => ({ value: inflow.id, label: inflow.name }))
+  const earningDrafts = lines.filter((line) => line.kind === 'earning')
+  const taxDrafts = lines.filter((line) => line.kind === 'tax')
   // A row left entirely blank is the member starting one and thinking better of
   // it, so it is dropped on save rather than blocking it; a half-filled row is a
-  // mistake worth catching.
-  const enteredLines = lines.filter((line) => line.label.trim() !== '' || line.amount !== '')
-  const linesComplete = enteredLines.every((line) => line.label.trim() !== '' && line.amount !== '')
-  const allocatedCents = enteredLines.reduce(
-    (sum, line) => sum + (dollarsToCents(line.amount) ?? 0),
-    0,
+  // mistake worth catching, and so is a tax line naming nothing it pays.
+  const entered = (line: LineDraft) => line.label.trim() !== '' || line.amount !== ''
+  const enteredLines = lines.filter(entered)
+  const linesComplete = enteredLines.every(
+    (line) =>
+      line.label.trim() !== '' &&
+      line.amount !== '' &&
+      (line.kind === 'earning' || line.component !== null),
   )
+  const sumOfDrafts = (drafts: readonly LineDraft[]) =>
+    drafts.reduce((sum, line) => sum + (dollarsToCents(line.amount) ?? 0), 0)
+  const allocatedCents = sumOfDrafts(earningDrafts.filter(entered))
   const unallocatedCents = (dollarsToCents(values.gross_cents) ?? 0) - allocatedCents
+  const unallocatedTaxCents =
+    (dollarsToCents(values.tax_withheld_cents) ?? 0) - sumOfDrafts(taxDrafts.filter(entered))
   const periodInverted =
     values.period_start !== null &&
     values.period_end !== null &&
@@ -334,11 +344,14 @@ export function PayslipForm({
         ytd_gross_cents: dollarsToCents(values.ytd_gross_cents),
         ytd_tax_withheld_cents: dollarsToCents(values.ytd_tax_withheld_cents),
         ytd_super_cents: dollarsToCents(values.ytd_super_cents),
-        source_inflow_id: sourceInflowId,
         note: note.trim() === '' ? null : note.trim(),
       } satisfies PayslipInput,
+      // Each kind carries only the reference that means anything for it, which is
+      // what the stored line's own check constraint requires.
       lines: enteredLines.map((line): PayslipLineInput => ({
-        source_inflow_id: line.sourceInflowId,
+        kind: line.kind,
+        source_inflow_id: line.kind === 'earning' ? line.sourceInflowId : null,
+        tax_component: line.kind === 'tax' ? line.component : null,
         label: line.label.trim(),
         amount_cents: dollarsToCents(line.amount) ?? 0,
       })),
@@ -375,7 +388,7 @@ export function PayslipForm({
 
       <ExtractionNote state={slip.state} />
 
-      <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
+      <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
         <DateInput
           label="Period start"
           size="sm"
@@ -393,9 +406,6 @@ export function PayslipForm({
           onChange={(value) => fields.setDate('period_end', value)}
           {...(periodInverted && { error: 'Must be on or after the period start.' })}
         />
-      </SimpleGrid>
-
-      <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
         <DateInput
           label="Paid on"
           size="sm"
@@ -404,16 +414,6 @@ export function PayslipForm({
           placeholder="When the pay landed"
           value={values.paid_on}
           onChange={(value) => fields.setDate('paid_on', value)}
-        />
-        <Select
-          label="Reconciles against"
-          size="sm"
-          description="The inflow this slip's pay cycle is read from, and — with no earnings lines below — the projection its whole gross is measured against."
-          placeholder={memberInflows.length === 0 ? 'No taxable inflows' : 'No projected inflow'}
-          data={inflowOptions}
-          value={sourceInflowId}
-          onChange={setSourceInflowId}
-          clearable
         />
       </SimpleGrid>
 
@@ -451,16 +451,25 @@ export function PayslipForm({
       <Text size="xs" c="dimmed">
         Tax withheld — here and year to date — is the slip’s tax total: PAYG income tax plus any
         STSL study-loan component, not the PAYG line alone. The estimate’s liability already
-        includes the HELP repayment that STSL pays, so only the total nets against it.
+        includes the HELP repayment that STSL pays, so only the total nets against it. Split it into
+        its components under Tax lines below.
       </Text>
 
-      <PayslipLinesField
-        lines={lines}
+      <PayslipEarningsLinesField
+        lines={earningDrafts}
         options={inflowOptions}
         allocatedCents={allocatedCents}
         unallocatedCents={unallocatedCents}
         onChange={changeLine}
-        onAdd={addLine}
+        onAdd={() => addLine('earning')}
+        onRemove={removeLine}
+      />
+
+      <PayslipTaxLinesField
+        lines={taxDrafts}
+        unallocatedCents={unallocatedTaxCents}
+        onChange={changeLine}
+        onAdd={() => addLine('tax')}
         onRemove={removeLine}
       />
 

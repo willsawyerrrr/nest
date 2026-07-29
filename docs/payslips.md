@@ -11,7 +11,9 @@ estimate's implied withholding, actual super vs the modelled contribution.
 
 The withheld figure is the slip's **tax total** — PAYG income tax plus any STSL
 study-loan component — never the PAYG line alone. See
-[Tax withheld is the slip's tax total](#tax-withheld-is-the-slips-tax-total).
+[Tax withheld is the slip's tax total](#tax-withheld-is-the-slips-tax-total). The
+components are itemised beside it as tax lines, which splits how the variance
+reads without changing what the year counts as withheld.
 
 Amounts are integer minor units (cents), as everywhere. Reconciliation is
 per-member because AU tax is assessed per person and each member's income is
@@ -32,7 +34,9 @@ tagged to them.
     annual-liability ÷ periods, and that liability includes the compulsory HELP
     repayment the slip's STSL component pays, so the two sides only line up when
     the withheld figure is the total. Comparing them is the leading indicator of a
-    refund or a bill at year end.
+    refund or a bill at year end. Where the slip's TAX section is itemised, each
+    component is **also** measured against the part of the liability it pays, so a
+    study-loan component that is short cannot hide behind income tax that is over.
   - **Super**: actual employer SG (and any salary sacrifice shown on the slip) vs
     the modelled super guarantee and concessional contributions, which feed the
     super balance accrual and the concessional-cap tracker.
@@ -144,10 +148,12 @@ canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
   date, the gross / tax withheld / super / net quartet, the slip's optional
   salary sacrifice and YTD running totals, a `note`, and a `file_path` for the
   attached document.
-- **payslip_line** — one earnings line on that slip, under the label the slip
-  prints, with the projected inflow it draws on and whether it is ordinary time
-  earnings. A slip owns many; itemising is optional. `amount_cents` is signed, so
-  a negative adjustment records, and the lines need not sum to the slip's gross.
+- **payslip_line** — one line on that slip, under the label the slip prints. Its
+  `kind` says what it is and so what it is measured against: an `earning`, naming
+  the projected inflow it draws on and whether it is ordinary time earnings, or a
+  `tax` line, naming the component of the liability it pays (`payg` or `stsl`). A
+  slip owns many. `amount_cents` is signed, so a negative adjustment records, and
+  the lines need not sum to the printed totals.
 - A slip and its lines are written by one RPC,
   **`upsert_payslip_with_lines`** — one transaction, keyed on the id the form
   mints. Saving them as two calls would leave the pair half-written whenever the
@@ -156,11 +162,11 @@ canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
   own id is what makes a retry idempotent — pressing Save again rewrites that
   slip instead of adding a second one to the year-to-date totals and the
   withholding the tax estimate nets against the liability.
-- **`source_inflow_id`** on the slip is its **cadence anchor** — an explicit
-  picker, chosen by the household, nullable because a slip need not name one (a
-  bonus, back-pay, a one-off). `on delete set null` on the reference keeps the
-  actuals when the inflow is retired. The same nullable reference on a line
-  records which projection that earning draws on.
+- **The lines are the whole of the reconciliation.** The slip carries no
+  `source_inflow_id` of its own: an earnings line's nullable reference records
+  which projection that earning draws on (nullable because a bonus or back-pay
+  line matches none), and `on delete set null` keeps the line's amount when the
+  inflow is retired.
 - **RLS is household-wide CRUD** on both, the same boundary as every other
   per-member tax table. `member_id` is a tax/reporting attribution, not a privacy
   boundary: the household's money is fully pooled, so each member manages their
@@ -219,11 +225,11 @@ draws on. Four properties fall out of that shape.
   **unallocated** and shown as such; it reads as gross above plan, which is what
   unexplained earnings are. Lines overshooting the gross read as a negative
   remainder.
-- **A slip with no lines behaves as one figure.** Its whole gross is measured
-  against its cadence anchor, in every respect: that one projection decides both
-  what the gross should have been and whether it earned any super, so a slip
-  anchored to an allowance expects no guarantee at all rather than the rate on
-  the whole payment.
+- **A slip with no lines is measured against nothing.** There is no projection
+  for its gross and no pay cycle to read, so the gross expectation is null and its
+  printed totals are held against the year's own figures apportioned by calendar
+  days. Nothing on it says any of its gross is other than ordinary time earnings,
+  so the guarantee is charged on all of it.
 - **Half-itemising is a trap the form warns about.** Itemise the on-call
   allowance and leave the salary paid beside it untyped, and the expected gross
   collapses to the allowance's projection while the actual gross is the whole
@@ -252,11 +258,12 @@ modelled super balance either. It is **not** excluded from the co-contribution
 income test, which is on total assessable income: an allowance is assessable in
 full, and leaving it out over-states the entitlement.
 
-The decision is **snapshotted on the line** at write time — `payslip_line`
-carries its own `attracts_super`, taken from the inflow by a database trigger
-when the line is written — rather than read back through the inflow when the slip
-is displayed. `source_inflow_id` is `on delete set null`, so re-deriving it would
-mean retiring an on-call inflow silently put every historical slip's allowance
+The decision is **snapshotted on the earnings line** at write time —
+`payslip_line` carries its own `attracts_super`, taken from the inflow by a
+database trigger when the line is written — rather than read back through the
+inflow when the slip is displayed. `source_inflow_id` is `on delete set null`, so
+re-deriving it would mean retiring an on-call inflow silently put every
+historical slip's allowance
 back into the super base: a $5,000 base jumps to $5,495.50, the expected
 guarantee from $600 to $659.46, and a year of correct slips starts reading "$59.46
 below plan". A payslip is a historical record, and the OTE decision travels with
@@ -275,27 +282,28 @@ tab**:
 - **Entry & list**: a per-member payslips list (candidate home: the Household tab
   next to tax profiles and Up connection, or a dedicated section) showing each
   period's gross / withheld / super / net and its variance against the projection,
-  most recent first, with an "Add payslip" form. An itemised slip lists its
-  earnings lines grouped by the inflow each draws on, with that group's total and
-  variance, and names any gross the lines do not account for. The form takes the
-  lines inline — a name, an amount, and the inflow it draws on per row — and
-  reports the unallocated remainder as it is typed.
+  most recent first, with an "Add payslip" form. A slip lists its earnings lines
+  grouped by the inflow each draws on and its tax lines grouped by the component
+  each pays, with every group's total and variance, and names any gross or
+  withheld tax the lines do not account for. The form takes both sets of lines
+  inline — a name, an amount, and either the inflow it draws on or the component
+  it pays per row — and reports each unallocated remainder as it is typed.
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
-  - *Expected gross for the period* = each inflow the slip's lines draw on,
-    annualised (via the existing `annualGrossCents` / schedule normalisation) then
-    prorated to the payslip's period length, summed. Per group, that group's sum
-    less its expectation is its variance; over the slip,
-    `gross_cents − expected` is the gross variance. A slip with no lines is
-    measured whole against its cadence anchor.
+  - *Expected gross for the period* = each inflow the slip's earnings lines draw
+    on, annualised (via the existing `annualGrossCents` / schedule normalisation)
+    then prorated to the payslip's period length, summed. Per group, that group's
+    sum less its expectation is its variance; over the slip,
+    `gross_cents − expected` is the gross variance. A slip whose lines name no
+    projection has no gross expectation at all.
   - *Expected tax withheld for the period* = the member's annual estimated tax
     (from `estimateHouseholdTax`) ÷ periods per year, prorated to the period.
     `tax_withheld_cents − expected` is the withholding variance — the household's
     early read on whether the employer is over- or under-withholding versus the
-    modelled liability.
+    modelled liability. Per tax line group, the same division of that liability's
+    HELP repayment (for `stsl`) or of the rest of it (for `payg`).
   - *Expected super for the period* = modelled employer SG (`guarantee_rate ×`
-    the period's gross less its non-OTE lines, or nil where an unitemised slip's
-    cadence anchor earns no super) plus any period-prorated concessional
-    contribution; `super_cents − expected` is the super variance.
+    the period's gross less its non-OTE lines) plus any period-prorated
+    concessional contribution; `super_cents − expected` is the super variance.
 - **Year-to-date refund/bill**: the summed actual `tax_withheld_cents` for the FY
   feeds the tax engine's `paygWithheldCents`, so the balance reads as a concrete
   refund (negative) or amount owing (positive) from real withholding. Both the Tax
@@ -315,9 +323,9 @@ Smallest-useful-first, each stage independently shippable. **All three stages ar
 built.**
 
 1. **Manual entry + variance.** The `payslip` and `payslip_line` tables, the
-   per-member entry form and list, the pure variance math (whole-slip and
-   per-inflow), and the Tax-tab withholding/refund readout from summed actual
-   withheld. Delivers the full correlation value.
+   per-member entry form and list, the pure variance math (whole-slip,
+   per-inflow, and per-tax-component), and the Tax-tab withholding/refund readout
+   from summed actual withheld. Delivers the full correlation value.
 2. **File attachment.** The private `payslips` Storage bucket,
    membership-scoped Storage RLS, `payslip.file_path`, and upload/download in the
    form and list. The record carries an auditable source document; the figures are
@@ -537,11 +545,14 @@ is where the two are told apart.
 
 ## Resolved decisions
 
-- **Mapping a slip to a projected inflow.** Explicit pickers: the household
-  chooses which inflow the slip's cadence is read from and which each earnings
-  line draws on, rather than auto-matching on amount and cadence. Nullable
-  throughout, so a bonus or back-pay slip — or a line — that matches no
-  projection still records.
+- **Mapping a slip to a projected inflow.** An explicit picker per earnings line:
+  the household chooses which inflow that earning draws on, rather than
+  auto-matching on amount and cadence. Nullable, so a bonus or back-pay line that
+  matches no projection still records. There is no slip-wide picker beside them —
+  one payment routinely covers several projections, so a slip-wide pick would
+  either duplicate the largest line's inflow or contradict it, with nothing able to
+  say which; the pay cycle is derived from the lines instead (see
+  [The pay cycle is read from the largest earnings group](#the-pay-cycle-is-read-from-the-largest-earnings-group)).
 - **Filed by payment date.** A slip's financial year comes from `paid_on`, with
   `period_end` as the fallback for a slip that states none, matching how the ATO
   assesses salary and wages. `financial_year` stays a stored, writable column with
@@ -564,11 +575,13 @@ is where the two are told apart.
   deductions and leave balances are out — they add entry effort and drive no
   variance the quartet does not. YTD figures are stored rather than recomputed,
   so one recent slip anchors the whole year.
-- **Withheld is one total, not two components.** The slip's PAYG and STSL lines
-  are stored summed, as the slip's own tax total, rather than in a column each.
-  Nothing reads them apart: the estimate nets one withheld figure against a
-  liability that already includes the HELP repayment, so splitting them would add
-  a column two surfaces have to keep adding back up.
+- **Withheld is one printed total, itemised by line.** `tax_withheld_cents` holds
+  the slip's own tax total rather than a column per component, and the components
+  are `tax` lines beside it — the same shape the earnings side already had, so a
+  third component would need no column. The total is what the year nets against
+  the liability; the lines are what say which component is off. Lines need not sum
+  to it, and the remainder is surfaced rather than reconciled away, so the printed
+  total stays an independent cross-check against a misread.
 - **Extraction.** Built as stage 3 — the `payslip-extract` edge function reads an
   uploaded slip so the form opens pre-filled. It earns its API key by removing the
   only manual cost left, and it stays safe by writing nothing: the member confirms

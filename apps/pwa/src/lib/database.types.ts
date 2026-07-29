@@ -992,7 +992,6 @@ export type Database = {
           period_end: string
           period_start: string
           salary_sacrifice_cents: number | null
-          source_inflow_id: string | null
           super_cents: number
           tax_withheld_cents: number
           updated_at: string
@@ -1014,7 +1013,6 @@ export type Database = {
           period_end: string
           period_start: string
           salary_sacrifice_cents?: number | null
-          source_inflow_id?: string | null
           super_cents: number
           tax_withheld_cents: number
           updated_at?: string
@@ -1036,7 +1034,6 @@ export type Database = {
           period_end?: string
           period_start?: string
           salary_sacrifice_cents?: number | null
-          source_inflow_id?: string | null
           super_cents?: number
           tax_withheld_cents?: number
           updated_at?: string
@@ -1059,47 +1056,46 @@ export type Database = {
             referencedRelation: 'members'
             referencedColumns: ['id', 'household_id']
           },
-          {
-            foreignKeyName: 'payslip_source_inflow_id_household_id_fkey'
-            columns: ['source_inflow_id', 'household_id']
-            isOneToOne: false
-            referencedRelation: 'inflows'
-            referencedColumns: ['id', 'household_id']
-          },
         ]
       }
       payslip_line: {
         Row: {
           amount_cents: number
-          attracts_super: boolean
+          attracts_super: boolean | null
           created_at: string
           household_id: string
           id: string
+          kind: Database['public']['Enums']['payslip_line_kind']
           label: string
           payslip_id: string
           source_inflow_id: string | null
+          tax_component: Database['public']['Enums']['payslip_tax_component'] | null
           updated_at: string
         }
         Insert: {
           amount_cents: number
-          attracts_super: boolean
+          attracts_super?: boolean | null
           created_at?: string
           household_id: string
           id?: string
+          kind?: Database['public']['Enums']['payslip_line_kind']
           label: string
           payslip_id: string
           source_inflow_id?: string | null
+          tax_component?: Database['public']['Enums']['payslip_tax_component'] | null
           updated_at?: string
         }
         Update: {
           amount_cents?: number
-          attracts_super?: boolean
+          attracts_super?: boolean | null
           created_at?: string
           household_id?: string
           id?: string
+          kind?: Database['public']['Enums']['payslip_line_kind']
           label?: string
           payslip_id?: string
           source_inflow_id?: string | null
+          tax_component?: Database['public']['Enums']['payslip_tax_component'] | null
           updated_at?: string
         }
         Relationships: [
@@ -1643,6 +1639,8 @@ export type Database = {
         | 'every_n_months'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
       ledger_source: 'up' | 'manual'
+      payslip_line_kind: 'earning' | 'tax'
+      payslip_tax_component: 'payg' | 'stsl'
       super_contribution_kind:
         'salary_sacrifice' | 'personal_deductible' | 'personal_non_concessional' | 'spouse'
       super_contribution_mode: 'amount' | 'percent'

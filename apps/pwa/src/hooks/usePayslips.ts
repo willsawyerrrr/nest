@@ -35,7 +35,6 @@ export interface PayslipInput {
   ytd_gross_cents: number | null
   ytd_tax_withheld_cents: number | null
   ytd_super_cents: number | null
-  source_inflow_id: string | null
   note: string | null
 }
 
@@ -53,9 +52,9 @@ export interface PayslipAttachment {
 
 /**
  * What a payslip form saves: the id it saves under, the row's fields, the slip's
- * earnings lines, and the document uploaded for it, if any. A null `attachment`
- * leaves any existing attachment as it is; `lines` is the slip's whole set, an
- * empty list leaving it unitemised.
+ * earnings and tax lines, and the document uploaded for it, if any. A null
+ * `attachment` leaves any existing attachment as it is; `lines` is the slip's
+ * whole set, an empty list leaving it unitemised.
  *
  * The id is the form's own, minted when it opened and unchanged however many
  * times the member presses Save: a slip being edited keeps its id, and a new one
@@ -101,11 +100,10 @@ export interface UsePayslipsResult {
   loading: boolean
   reload: () => Promise<void>
   /**
-   * Writes a payslip and its earnings lines together, under the id the
-   * submission carries — a new slip and an edited one take the same path. The
-   * two land in one transaction, so a failure leaves the slip and its lines
-   * exactly as they were, and repeating the save rewrites that same slip rather
-   * than duplicating it.
+   * Writes a payslip and its lines together, under the id the submission carries
+   * — a new slip and an edited one take the same path. The two land in one
+   * transaction, so a failure leaves the slip and its lines exactly as they were,
+   * and repeating the save rewrites that same slip rather than duplicating it.
    *
    * A new `attachment` replaces the document — recorded first, and only then is
    * the superseded object dropped, best effort, so a delete that fails cannot
@@ -141,8 +139,8 @@ export function usePayslips(
     // paid late sorts beside the period it covers rather than above the year.
     orderBy: 'period_end',
     descending: true,
-    // A save writes the slip's earnings lines in the same call, so the lines
-    // collection is refetched alongside this one.
+    // A save writes the slip's lines in the same call, so the lines collection is
+    // refetched alongside this one.
     alsoInvalidate: ['payslip_line'],
   })
 

@@ -52,7 +52,7 @@ export function makeInflow(overrides: Partial<Inflow> = {}): Inflow {
   }
 }
 
-/** Builds a payslip row for one fortnight, reconciled against the default inflow. */
+/** Builds a payslip row for one fortnight of the default inflow's pay. */
 export function makePayslip(overrides: Partial<PayslipRow> = {}): PayslipRow {
   return {
     id: 'ps1',
@@ -70,7 +70,6 @@ export function makePayslip(overrides: Partial<PayslipRow> = {}): PayslipRow {
     ytd_gross_cents: null,
     ytd_tax_withheld_cents: null,
     ytd_super_cents: null,
-    source_inflow_id: 'i1',
     file_path: null,
     note: null,
     created_at: '',
@@ -85,7 +84,9 @@ export function makePayslipLine(overrides: Partial<PayslipLineRow> = {}): Paysli
     id: 'pl1',
     household_id: 'h1',
     payslip_id: 'ps1',
+    kind: 'earning',
     source_inflow_id: 'i1',
+    tax_component: null,
     label: 'Ordinary Hours',
     amount_cents: 5_000_00,
     attracts_super: true,
@@ -93,6 +94,24 @@ export function makePayslipLine(overrides: Partial<PayslipLineRow> = {}): Paysli
     updated_at: '',
     ...overrides,
   }
+}
+
+/**
+ * Builds a payslip tax line, defaulting to the PAYG component. A tax line names
+ * no inflow and carries no super decision, exactly as the stored line's pairing
+ * check constraint requires.
+ */
+export function makePayslipTaxLine(overrides: Partial<PayslipLineRow> = {}): PayslipLineRow {
+  return makePayslipLine({
+    id: 'pt1',
+    kind: 'tax',
+    source_inflow_id: null,
+    tax_component: 'payg',
+    label: 'PAYG',
+    amount_cents: 1_000_00,
+    attracts_super: null,
+    ...overrides,
+  })
 }
 
 /** Builds a savings-goal row with a manual balance and no linked saver. */

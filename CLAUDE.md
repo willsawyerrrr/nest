@@ -109,25 +109,38 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   own YTD figures rank by payment date too, so the anchor slip is whichever pay
   landed last, while the LIST stays ordered by pay period — every slip has one,
   `paid_on` is optional. The figures are
-  always confirmed by the member; a slip names its cadence anchor via an
-  explicit picker (`source_inflow_id`, nullable — a bonus or back-pay slip maps to
-  none) and one employer per member, so there is no per-employer stream handling —
-  a job change is modelled the way a pay rise is, the old inflow ending and a new
-  dated one starting. One payment routinely covers several projections at once —
-  salary plus one or two on-call allowances — so a slip is itemised into earnings
-  lines (`payslip_line`), each an amount under the label the slip prints, drawing
-  on the projected inflow it comes from. Many lines may draw on the SAME inflow
+  always confirmed by the member, and one employer per member means there is no
+  per-employer stream handling — a job change is modelled the way a pay rise is,
+  the old inflow ending and a new dated one starting. A slip carries NO inflow of
+  its own: its LINES (`payslip_line`) are the whole of its reconciliation, each an
+  amount under the label the slip prints, and each stating its `kind`. An
+  `earning` names the projected inflow it draws on (nullable — a bonus or back-pay
+  line maps to none); a `tax` line names the component of the liability it pays
+  (`payg` or `stsl`) and no inflow, a check constraint holding each kind to its own
+  columns. One payment routinely covers several projections at once — salary plus
+  one or two on-call allowances — and many lines may draw on the SAME inflow
   (ordinary hours and annual leave both come off the salary), so gross variance is
   measured per inflow: each inflow's lines are summed and held against that
   inflow's expectation for the period, keeping a steady salary's variance at nil
-  while a lumpy allowance's stands on its own. The lines need not sum to the
-  slip's gross; the remainder is unallocated and surfaced, not absorbed. Expected
-  employer super is charged on the gross less every line recorded as earning
+  while a lumpy allowance's stands on its own. A slip's tax is measured per
+  component the same way — STSL against the compulsory HELP repayment inside the
+  liability, PAYG against the rest — so a study-loan component that is short cannot
+  hide behind income tax that is over. The pay cycle the slip's OWN expectations
+  (withholding, concessional super) are divided by is derived from the largest
+  earnings group's inflow; where the lines name no projection there is no cycle and
+  every figure is apportioned by calendar days, which a disagreement among the
+  groups is deliberately NOT — the cadence check still requires the period to be
+  one whole turn of the chosen cycle, so a wrong pick costs the proration and
+  never a wrong division. The lines need not sum to the printed gross or tax
+  total; each remainder is unallocated and surfaced, not absorbed, which keeps the
+  printed totals an independent cross-check against a misread. Expected employer
+  super is charged on the gross less every earnings line recorded as earning
   none, so an on-call allowance never inflates it; each line snapshots that
   decision from its inflow when it is written, because a payslip is a historical
   record and retiring the inflow must not move what a past slip was measured
-  against. A slip with no lines is measured whole against its cadence anchor,
-  which decides its super too. The slip and its lines are written by one RPC
+  against. A slip with no lines has nothing to be measured against, so it expects
+  no gross and charges the guarantee on all of it. The slip and its lines are
+  written by one RPC
   (`upsert_payslip_with_lines`) keyed on the id the form mints, so a save is one
   transaction and a retry rewrites the same slip rather than duplicating it.
   Itemisation is per-period totals only — there is no shift or roster entity. Each slip may carry
@@ -152,10 +165,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   variance against the projection (gross, withholding, super) and the FY's summed
   actual withheld feeds the tax engine's `paygWithheldCents`, turning the estimate's
   balance into a concrete refund or bill. The withheld figure — per period and
-  year to date — is the slip's whole tax total, PAYG income tax plus any STSL
-  study-loan component, because the liability it nets against already includes the
-  compulsory HELP repayment that STSL pays; the extraction prompt, the entry form,
-  the column comments, and `docs/payslips.md` all say so. RLS is household-wide,
+  year to date — is the slip's whole PRINTED tax total, PAYG income tax plus any
+  STSL study-loan component, because the liability it nets against already includes
+  the compulsory HELP repayment that STSL pays; the extraction prompt, the entry
+  form, the column comments, and `docs/payslips.md` all say so. Itemising the two
+  as tax lines splits how the variance READS, never what the year counts as
+  withheld: that stays the sum of every slip's printed total. RLS is household-wide,
   exactly as for the other per-member tax tables: `member_id` is a tax attribution,
   not a privacy boundary.
 - Superannuation: modelled in full per person. Concessional contributions reduce

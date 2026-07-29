@@ -388,23 +388,32 @@ what-if that weighs private hospital cover against the surcharge it avoids.
 ### EOFY summary (complete)
 
 A read-only filing-prep rollup of the household's already-tracked tax data,
-gathered from across the Tax, Deductions, Super, and HELP debt tabs into one
-per-member view for a financial year the household picks.
+gathered from across the Tax, Payslips, Deductions, Super, and HELP debt tabs into
+one per-member view for a financial year the household picks.
 
 - [x] `/eofy` tab with a financial-year selector built from `@nest/tax`'s
       `configsByYear`, so the mechanism scales as future FY configs are added
       without a code change.
-- [x] `useTaxProfiles`, `useDeductions`, `useSuperProfiles`, and
-      `useSuperContributions` take an optional financial year, defaulting to the
-      current one, so the same hooks serve both their own tab and the EOFY
-      selector.
+- [x] `useTaxProfiles`, `useDeductions`, `useSuperProfiles`,
+      `useSuperContributions`, and `usePayslips` take an optional financial year,
+      defaulting to the current one, so the same hooks serve both their own tab and
+      the EOFY selector.
+- [x] The selected year's payslips feed the estimate's `paygWithheldCents`, so the
+      balance on the one screen meant for preparing a return is that year's real
+      refund or bill — identical to the Tax tab's for the same rows, since both
+      net the same summed withholding against the same liability.
 - [x] Per member: condensed tax figures (taxable income, tax payable, the
       Medicare levy and its surcharge, the HELP repayment estimate, Division 293
-      when it applies, and net take-home), claimed deductions with their receipts,
+      when it applies, and net take-home), the withholding position in the Tax
+      tab's own words (shared `WithholdingPosition`) with the number of payslips
+      the withheld total is summed from, claimed deductions with their receipts,
       super contributions against their caps (reusing the Super tab's over-cap
       warning), and standing HELP balance with the year's estimated repayment.
-      Nothing on the tab is editable; it links out to the Tax, Deductions, Super,
-      and HELP debt tabs where each figure is entered.
+      A member with no payslips for the year gets a note saying so instead of a
+      position, since nothing withheld and nothing recorded read alike in the
+      figures and mean opposite things at filing time. Nothing on the tab is
+      editable; it links out to the Tax, Payslips, Deductions, Super, and HELP
+      debt tabs where each figure is entered.
 
 ### Push notifications — delivery infrastructure
 

@@ -126,6 +126,7 @@ function renderScreen(props: Partial<Parameters<typeof EofyScreen>[0]> = {}) {
         helpDebts={[]}
         helpPayoff={new Map()}
         deductions={[]}
+        payslipCounts={new Map()}
         receipts={[]}
         signedUrl={vi.fn()}
         {...props}
@@ -198,6 +199,70 @@ describe('EofyScreen', () => {
     renderScreen({ estimate: makeEstimate([]) })
     const card = screen.getByRole('region', { name: 'Alex' })
     expect(within(card).getByText(/no income to estimate yet/i)).toBeInTheDocument()
+  })
+
+  it("shows the year's withholding position and how many payslips it came from", () => {
+    renderScreen({
+      estimate: makeEstimate([
+        makeMemberEstimate({
+          memberId: 'm1',
+          breakdown: makeBreakdown({
+            totalLiabilityCents: 25_000_00,
+            paygWithheldCents: 30_000_00,
+            balanceCents: -5_000_00,
+          }),
+        }),
+      ]),
+      payslipCounts: new Map([['m1', 3]]),
+    })
+
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(card).toHaveTextContent('Withheld so far $30,000.00 of $25,000.00 estimated tax.')
+    expect(card).toHaveTextContent('Tracking toward a $5,000.00 refund.')
+    expect(card).toHaveTextContent('Withholding summed from 3 payslips.')
+  })
+
+  it('reports a bill from a single slip that withheld nothing', () => {
+    renderScreen({
+      estimate: makeEstimate([
+        makeMemberEstimate({
+          memberId: 'm1',
+          breakdown: makeBreakdown({
+            totalLiabilityCents: 25_000_00,
+            paygWithheldCents: 0,
+            balanceCents: 25_000_00,
+          }),
+        }),
+      ]),
+      payslipCounts: new Map([['m1', 1]]),
+    })
+
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(card).toHaveTextContent('Tracking toward a $25,000.00 bill.')
+    expect(card).toHaveTextContent('Withholding summed from 1 payslip.')
+  })
+
+  it('says a member recorded no payslips rather than showing nothing withheld', () => {
+    renderScreen({
+      financialYear: 2027,
+      estimate: makeEstimate([
+        makeMemberEstimate({
+          memberId: 'm1',
+          breakdown: makeBreakdown({
+            totalLiabilityCents: 25_000_00,
+            balanceCents: 25_000_00,
+          }),
+        }),
+      ]),
+      payslipCounts: new Map(),
+    })
+
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(
+      within(card).getByText(/No payslips recorded for FY2027, so no withholding is netted/),
+    ).toBeInTheDocument()
+    expect(within(card).queryByText(/withheld so far/i)).toBeNull()
+    expect(within(card).queryByText(/tracking toward/i)).toBeNull()
   })
 
   it("lists a member's claimed deductions with their total and receipts", async () => {
@@ -274,9 +339,10 @@ describe('EofyScreen', () => {
     expect(within(card).getByText(/no help\/hecs debt on file/i)).toBeInTheDocument()
   })
 
-  it('links out to the Tax, Deductions, Super, and HELP debt tabs', () => {
+  it('links out to the Tax, Payslips, Deductions, Super, and HELP debt tabs', () => {
     renderScreen()
     expect(screen.getByRole('link', { name: 'Tax' })).toHaveAttribute('href', '/tax')
+    expect(screen.getByRole('link', { name: 'Payslips' })).toHaveAttribute('href', '/payslips')
     expect(screen.getByRole('link', { name: 'Deductions' })).toHaveAttribute('href', '/deductions')
     expect(screen.getByRole('link', { name: 'Super' })).toHaveAttribute('href', '/super')
     expect(screen.getByRole('link', { name: 'HELP debt' })).toHaveAttribute('href', '/help-debt')

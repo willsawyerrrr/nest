@@ -207,6 +207,15 @@ and so without the trigger.
     entered and are not cross-checked against the per-period columns in a
     constraint (a mid-year employer change or an out-of-order entry breaks that
     relation legitimately).
+  - `financial_year` is derived from the pay period's last day on entry and stored,
+    and it is the FY scope every read filters on, so the Payslips tab and the EOFY
+    tab for a year see only that year's slips.
+  - **In the estimate.** Each member's `tax_withheld_cents` for the year are summed
+    into their `TaxInput.paygWithheldCents`, which the engine subtracts from their
+    total liability as `balanceCents` — the year's refund or amount owing. It changes
+    no tax figure, only the position. Both the Tax tab (current year) and the EOFY
+    tab (its selected year) render that position, and the slip count is what tells a
+    year that withheld nothing from a year with no slips entered.
   - Composite FK on `(member_id, household_id)` → `members` `on delete cascade`,
     so a removed member's slips go with them. `source_inflow_id` is the slip's
     **cadence anchor**, picked by the household: composite FK

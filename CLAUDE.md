@@ -71,12 +71,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   edited on its own HELP debt tab, that feeds the tax estimate and counts as a
   net-worth liability.
 - EOFY summary: a read-only filing-prep tab (`/eofy`) that gathers the
-  household's already-tracked tax data — the tax estimate, deductions, super
-  contributions, and HELP debt — into one per-member view for a financial year
-  picked from a selector built from the tax engine's published configs, so the
-  selector scales as future FY configs are added. It aggregates existing data
+  household's already-tracked tax data — the tax estimate, the payslips' actual
+  PAYG withheld, deductions, super contributions, and HELP debt — into one
+  per-member view for a financial year picked from a selector built from the tax
+  engine's published configs, so the selector scales as future FY configs are
+  added. Every source is scoped to the selected year, payslips included, so the
+  estimate's balance is that year's real refund or bill rather than a liability
+  with nothing paid against it — the same figure the Tax tab shows for the same
+  rows, in the same words. It aggregates existing data
   only: no new tables, no actual-paid-tax tracking, and no checklist state. Each
-  member's card condenses their filing-relevant tax figures, lists their claimed
+  member's card condenses their filing-relevant tax figures, states the withheld
+  total and the number of payslips behind it (a year with no payslips says so,
+  rather than reading as a year that withheld nothing), lists their claimed
   deductions with receipts, shows their super contributions against the same
   cap warnings as the Super tab, and shows their standing HELP balance with the
   year's estimated repayment; nothing on the tab is editable.

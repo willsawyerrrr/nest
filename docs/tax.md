@@ -246,6 +246,16 @@ they were considered. Because the surcharge is a household assessment, each
 member's surcharge line already reflects the combined-income family tier. A
 footnote reiterates that the estimate excludes capital gains tax.
 
+The **withholding position** (`WithholdingPosition`) names where the year's actual
+withholding sits against that liability: what the member's payslips withheld, of
+the estimated tax, and the refund or bill the two imply — the refund direction in
+the positive tone, the bill direction in the negative one. It is shared with the
+EOFY tab so both name the position in the same words. The Tax tab shows it once a
+payslip has recorded withholding; the EOFY tab shows it whenever the selected year
+has any slips at all, and otherwise says none were recorded, because on a
+filing-prep screen a year with no actuals must not read as a year that withheld
+nothing.
+
 Above the build-up tables, the breakdown opens with a **waterfall** of the same
 figures (`taxWaterfallSteps` / `TaxWaterfall`): gross income at full width, then
 deductions, the concessional-super diversion, and each tax component stepping down

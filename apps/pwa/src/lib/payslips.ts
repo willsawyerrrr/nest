@@ -4,6 +4,7 @@ import {
   payslipAttributionDate,
   payslipVariance,
   payslipYearToDate,
+  payslipYearToDateByMember,
   type PayslipAttribution,
   type PayslipLine,
   type PayslipTotals,
@@ -55,6 +56,21 @@ export function toPayslipTotalsRow(payslip: PayslipRow): PayslipTotalsRow {
  */
 export function paygWithheldFromRows(payslips: readonly PayslipRow[]): ReadonlyMap<string, number> {
   return paygWithheldByMember(payslips.map(toPayslipTotalsRow))
+}
+
+/**
+ * How many payslips each member has among `payslips`, keyed by member id. A
+ * member with none is absent, which is what separates a year whose slips are all
+ * entered and withheld nothing from a year with no slips entered at all — the two
+ * both sum to nil withholding, and only one of them means the estimate's balance
+ * is a real refund or bill.
+ */
+export function payslipCountByMember(payslips: readonly PayslipRow[]): ReadonlyMap<string, number> {
+  return new Map(
+    [...payslipYearToDateByMember(payslips.map(toPayslipTotalsRow))].map(
+      ([memberId, totals]) => [memberId, totals.payslipCount] as const,
+    ),
+  )
 }
 
 /** The actual totals summed from `payslips` — the year-to-date source of truth. */

@@ -296,11 +296,14 @@ tab**:
     the period's gross less its non-OTE lines, or nil where an unitemised slip's
     cadence anchor earns no super) plus any period-prorated concessional
     contribution; `super_cents − expected` is the super variance.
-- **Year-to-date refund/bill**: feed the summed actual `tax_withheld_cents` for the
-  FY into the tax engine's `paygWithheldCents`, so the Tax tab's balance shows a
-  concrete refund (negative) or amount owing (positive) from real withholding
-  rather than the current nil assumption. YTD-withheld from the latest slip is an
-  equivalent shortcut when per-slip entry is incomplete.
+- **Year-to-date refund/bill**: the summed actual `tax_withheld_cents` for the FY
+  feeds the tax engine's `paygWithheldCents`, so the balance reads as a concrete
+  refund (negative) or amount owing (positive) from real withholding. Both the Tax
+  tab and the EOFY tab show it, through the shared `WithholdingPosition` component,
+  so the two name the same position in the same words — the Tax tab for the current
+  year, the EOFY tab for whichever year its selector is on, each loading that year's
+  slips by `financial_year`. YTD-withheld from the latest slip is an equivalent
+  shortcut when per-slip entry is incomplete.
 
 This sits naturally beside the Up ledger phase (which reconciles actual **tax
 paid** from the spend/transfer side): payslips give the withholding actuals from

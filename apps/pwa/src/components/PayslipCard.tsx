@@ -1,7 +1,12 @@
 import { Anchor, Collapse, Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
-import type { PayslipLineGroupVariance, PayslipTaxGroupVariance, PayslipVariance } from '@nest/plan'
+import type {
+  PartCycleReason,
+  PayslipLineGroupVariance,
+  PayslipTaxGroupVariance,
+  PayslipVariance,
+} from '@nest/plan'
 import type { PayslipRow } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
 import { moneyColor } from '../lib/money'
@@ -141,6 +146,23 @@ function LineGroups({
       )}
     </Stack>
   )
+}
+
+/**
+ * What to make of plan figures that are a share of a pay period rather than a whole
+ * one, one note per reason they are — because the two readings could hardly be
+ * further apart. A period that is not a whole turn of the cycle really does carry a
+ * fraction of a period's pay, so its figures are worth reading as approximate. A
+ * whole period whose projection changed partway through is the opposite: each share
+ * is exact and the shares sum back to the whole, so a variance against one of them
+ * is a real gap rather than an artefact of the split, and saying "only part of a
+ * turn" there would talk a member out of trusting a figure that is precisely right.
+ */
+const PART_CYCLE_NOTES: Readonly<Record<PartCycleReason, string>> = {
+  part_period:
+    'This period is only part of a turn of the pay cycle its earnings are drawn on, so the plan figures are that share of a whole pay period.',
+  inflow_dates:
+    'This period is a whole turn of the pay cycle, but the projection behind it changed partway through — usually a pay rise, entered as the old rate ending and the new one starting — so each rate’s plan figures are exactly its share, and the shares add up to a whole pay period.',
 }
 
 /** What a tax line pays, as the slip's own TAX section names it. */
@@ -299,9 +321,12 @@ interface PayslipCardProps {
  * and stored document. The figure grid reflows from two columns on a phone to four
  * from the `xs` breakpoint up — a payslip carries four figures and three variances,
  * more than a single dense row can hold — and the headline gives way to it, since
- * the grid states the same gross and variance in full. A period that is only part
- * of a turn of the pay cycle its lines are drawn on says so, since its expectations
- * are that share of a whole pay period rather than the full one.
+ * the grid states the same gross and variance in full. Expectations that are a share
+ * of a pay period rather than the whole of one carry the note for the reason they are
+ * — see {@link PART_CYCLE_NOTES} — read from the cycle the slip's own withholding and
+ * super expectations rest on, since those are the figures the note is about. An
+ * earnings group on some other cadence carries its own reason on its variance, and
+ * its row already shows the variance that reason produced.
  *
  * Editing and deleting sit outside the disclosure: correcting a slip is no reason
  * to read it. Expansion is per card and lasts as long as the tab is open, which is
@@ -389,10 +414,9 @@ export function PayslipCard({
               />
             )}
 
-            {variance.basis === 'part_cycle' && (
+            {variance.partCycleReason !== null && (
               <Text size="xs" c="dimmed">
-                This period is only part of a turn of the pay cycle its earnings are drawn on, so
-                the plan figures are that share of a whole pay period.
+                {PART_CYCLE_NOTES[variance.partCycleReason]}
               </Text>
             )}
 

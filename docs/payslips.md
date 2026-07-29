@@ -223,12 +223,13 @@ reported on the variance as `basis`.
 - **`cadence`** — the period is one whole turn of the cycle its earnings are drawn
   on: annual ÷ periods per year, the way the employer pays it. A $130,000 salary
   paid fortnightly expects $5,000.00.
-- **`part_cycle`** — the period is part of a turn: that same per-period amount
-  × days measured ÷ days one whole turn spans. Seven days of a fortnight expects
-  exactly $2,500.00. Because a whole turn's days over a whole turn's days is one,
-  the two bases give the **same figure** at the boundary — there is no jump between
-  a 14-day period and a 13-day one, and no arithmetic remainder for a full period
-  to carry.
+- **`part_cycle`** — the figure is measured over part of a turn: that same
+  per-period amount × days measured ÷ days one whole turn spans. Seven days of a
+  fortnight expects exactly $2,500.00. Because a whole turn's days over a whole
+  turn's days is one, the two bases give the **same figure** at the boundary —
+  there is no jump between a 14-day period and a 13-day one, and no arithmetic
+  remainder for a full period to carry. Which of the two things put a figure here
+  is reported alongside as `partCycleReason` (below).
 - **`calendar_days`** — the only case with no pay cycle to scale against: nothing
   on the slip names a projection, or the cadence it names states no usable
   interval. With no period unit there is nothing but the year, so the figure is
@@ -248,6 +249,43 @@ rather than an error; and because a monthly period is accepted as whole anywhere
 the 28-to-31-day range, a 30-day July period is on the `cadence` basis and expects
 a whole month while a 27-day one is scaled over 31 — the step at that boundary is
 the permissiveness of the whole-month test, not the scaling.
+
+#### Two ways a figure is part of a cycle, and only one is a fraction of a period
+
+`part_cycle` is reached two materially different ways, reported as
+`partCycleReason` on both the slip and each earnings-line group, and shown to the
+member as two different notes — because what a reader should make of the figure is
+opposite in each.
+
+- **`part_period`** — the pay period itself is not one whole turn of the cycle: a
+  first or last slip in a job, an off-cycle or back-pay slip, or a cadence whose
+  turn the period does not fit. The figures genuinely are a fraction of a period's
+  pay, and the card says so: _"This period is only part of a turn of the pay cycle
+  its earnings are drawn on, so the plan figures are that share of a whole pay
+  period."_
+- **`inflow_dates`** — the period **is** one whole turn, and it is the inflow that
+  runs for only part of it, its effective dates clipping the days measured. A pay
+  rise modelled the documented way — the old rate ending, a new dated one starting
+  — puts both of a fortnight's groups here: over 11–24 July, an old wage ending 22
+  July covers 12 of the 14 days and the new one covers 2. **Nothing is
+  approximated.** Each share is exact, the two sum to the fortnight at the blended
+  rate, and the slip's own withholding and super expectations are a whole period's
+  (14 days over a 14-day turn is one), so a variance against either share is real
+  pay off plan rather than proration noise. The card says the opposite thing: _"This
+  period is a whole turn of the pay cycle, but the projection behind it changed
+  partway through — usually a pay rise, entered as the old rate ending and the new
+  one starting — so each rate's plan figures are exactly its share, and the shares
+  add up to a whole pay period."_
+
+A period that is neither a whole turn nor fully covered reads as `part_period`: the
+period's own length is the more fundamental fact, and the one that makes the figure
+a fraction of a period rather than a whole one.
+
+**A card carries one note, read from the slip's own cycle** — the cadence inflow,
+which is the inflow the slip's withholding and super expectations are actually
+divided by, so the note describes the figures it sits under. A group drawn on some
+other cadence reports its own reason on its variance, and its row already shows the
+variance that reason produced; the note is not repeated per group.
 
 ### Earnings lines and per-inflow variance
 

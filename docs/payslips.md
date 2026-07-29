@@ -167,6 +167,38 @@ canonical in [`data-model.md`](data-model.md#tax-inputs); the shape in brief:
   co-member's slips. A payslip is a sensitive document, and the household — not
   the individual member — is the trust boundary that protects it.
 
+### A payslip belongs to the year its pay landed in
+
+The ATO assesses salary and wages in the financial year the money is **paid**, not
+the year the work that earned it fell in. `payslip.financial_year` is therefore
+derived from `paid_on`, falling back to the pay period's last day (`period_end`)
+where the slip states no payment date — a slip needs *some* date to be filed by,
+and its period end is the closest thing to the payment. A fortnight worked to
+28 June and paid 1 July is filed under the later year, so its gross and its
+withheld tax land in the year the estimate assesses them, on both sides of the
+boundary.
+
+- **The form derives it, never asks for it.** The financial year is shown back
+  under the dates with the date that decided it named, so a slip crossing 30 June
+  reads as filed by its payment date rather than looking like a mistake. Entering
+  a payment date on a slip that had none moves the year on the spot.
+- **The database holds the same rule.** `public.payslip_financial_year(paid_on,
+  period_end)` is the derivation in SQL, and a check constraint of the same name
+  requires `financial_year` to equal it. The column stays a plain writable
+  integer, so the RPC keeps inserting it and the loader keeps filtering on it,
+  while the database — not the client — decides whether the value is right.
+- **The pay period is not clipped to that year.** A period straddling 30 June
+  counts every one of its own days when its expectations are apportioned; the
+  financial year only supplies the denominator (365 days, or 366 in a leap year).
+  The variance for such a slip is measured against the projection and estimate for
+  the year the pay landed in, which is the year that will assess it.
+- **The slip's YTD figures rank by payment date too.** The running totals printed
+  on a slip are the employer's own totals as at that payment, so the anchor slip
+  is the one whose pay landed last — back-pay for an old period, paid most
+  recently, reports the further-advanced figures. The **list** still orders by pay
+  period: every slip carries a period end, so it orders totally, whereas `paid_on`
+  is optional and a descending sort would float the slips lacking one to the top.
+
 ### Earnings lines and per-inflow variance
 
 One employer pays salary and on-call in a single payment, and the two are
@@ -490,6 +522,13 @@ are in [`operations.md`](operations.md#anthropic_api_key-setup).
   line draws on, rather than auto-matching on amount and cadence. Nullable
   throughout, so a bonus or back-pay slip — or a line — that matches no
   projection still records.
+- **Filed by payment date.** A slip's financial year comes from `paid_on`, with
+  `period_end` as the fallback for a slip that states none, matching how the ATO
+  assesses salary and wages. `financial_year` stays a stored, writable column with
+  a check constraint holding that rule, rather than a generated column: a generated
+  column would have to be dropped and re-added, and `upsert_payslip_with_lines`
+  could no longer insert the field at all, for the same guarantee the constraint
+  gives.
 - **Per-period totals, not shifts.** A line is one earnings line as the slip
   prints it. There is no shift or roster entity: the app models what the payment
   says, not the work behind it.

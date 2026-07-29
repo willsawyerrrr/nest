@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
 import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
 import {
-  financialYearForPayPeriod,
+  financialYearForPayslip,
   paygWithheldFromRows,
   payslipReconciliation,
   payslipTotalsFromRows,
@@ -26,13 +26,22 @@ const ON_CALL = makeInflow({
   attracts_super: false,
 })
 
-describe('financialYearForPayPeriod', () => {
-  it('files a period ending on 1 July under the year the financial year ends in', () => {
-    expect(financialYearForPayPeriod('2026-07-01')).toBe(2027)
+describe('financialYearForPayslip', () => {
+  it('files a fortnight worked to 28 June and paid 1 July under the later year', () => {
+    expect(financialYearForPayslip({ paidOn: '2026-07-01', periodEnd: '2026-06-28' })).toBe(2027)
   })
 
-  it('files a period ending on 30 June under that same year', () => {
-    expect(financialYearForPayPeriod('2026-06-30')).toBe(2026)
+  it('files a period worked into July but paid by 30 June under the earlier year', () => {
+    expect(financialYearForPayslip({ paidOn: '2026-06-30', periodEnd: '2026-07-14' })).toBe(2026)
+  })
+
+  it('leaves a period earned and paid inside one year in that year', () => {
+    expect(financialYearForPayslip({ paidOn: '2026-07-16', periodEnd: '2026-07-14' })).toBe(2027)
+  })
+
+  it('falls back to the period end where the slip states no payment date', () => {
+    expect(financialYearForPayslip({ paidOn: null, periodEnd: '2026-07-01' })).toBe(2027)
+    expect(financialYearForPayslip({ paidOn: null, periodEnd: '2026-06-30' })).toBe(2026)
   })
 })
 
@@ -44,6 +53,7 @@ describe('toPayslipTotalsRow', () => {
       ),
     ).toEqual({
       memberId: 'm1',
+      paidOn: '2026-07-15',
       periodEnd: '2026-07-14',
       grossCents: 5_000_00,
       taxWithheldCents: 1_000_00,
@@ -91,7 +101,7 @@ describe('payslipTotalsFromRows', () => {
 })
 
 describe('reportedYearToDateFromRows', () => {
-  it('reads the running totals off the latest slip that carries all three', () => {
+  it('reads the running totals off the slip whose pay landed last', () => {
     expect(
       reportedYearToDateFromRows([
         makePayslip({
@@ -102,12 +112,23 @@ describe('reportedYearToDateFromRows', () => {
         makePayslip({
           id: 'ps2',
           period_end: '2026-07-28',
+          paid_on: '2026-07-29',
           ytd_gross_cents: 10_000_00,
           ytd_tax_withheld_cents: 2_000_00,
           ytd_super_cents: 1_200_00,
         }),
+        // Back-pay for the first fortnight, paid after both: the employer's own
+        // running totals include it, so its figures are the further-advanced ones.
+        makePayslip({
+          id: 'ps3',
+          period_end: '2026-07-14',
+          paid_on: '2026-08-12',
+          ytd_gross_cents: 11_000_00,
+          ytd_tax_withheld_cents: 2_400_00,
+          ytd_super_cents: 1_320_00,
+        }),
       ]),
-    ).toEqual({ grossCents: 10_000_00, taxWithheldCents: 2_000_00, superCents: 1_200_00 })
+    ).toEqual({ grossCents: 11_000_00, taxWithheldCents: 2_400_00, superCents: 1_320_00 })
   })
 
   it('is null when no slip reports a complete set', () => {

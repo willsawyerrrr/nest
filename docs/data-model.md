@@ -190,6 +190,15 @@ and so without the trigger.
     estimate's liability includes the compulsory HELP repayment the STSL pays, so
     only the total nets against it; see
     [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total).
+  - `financial_year` is the year the pay **landed** in, derived from `paid_on` and
+    falling back to `period_end` where the slip states no payment date — salary and
+    wages are assessed in the year they are paid, so a fortnight worked to 28 June
+    and paid 1 July is filed under the later year.
+    `payslip_financial_year(paid_on, period_end)` is that derivation in SQL, and
+    the `payslip_financial_year` check constraint requires the column to equal it,
+    so no client can file a slip under the year its work fell in. The column stays
+    plain and writable rather than generated, so `upsert_payslip_with_lines` still
+    inserts it and the loader still filters on it.
   - `period_end >= period_start` (`payslip_period`). The money columns are
     non-negative rather than positive: `tax_withheld_cents` is legitimately zero
     below the tax-free threshold, and `super_cents` is zero on a slip that omits

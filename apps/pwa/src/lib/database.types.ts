@@ -1598,6 +1598,10 @@ export type Database = {
         Args: { p_code: string; p_member_name: string }
         Returns: string
       }
+      payslip_financial_year: {
+        Args: { paid_on: string; period_end: string }
+        Returns: number
+      }
       revoke_invite_code: { Args: never; Returns: undefined }
       set_household_pay_account: {
         Args: { p_account_id: string | null }

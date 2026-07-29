@@ -37,8 +37,10 @@ which apply to the current rate rather than the part-year figure.
 - Concessional (pre-tax) super contributions — salary sacrifice and personal
   deductible.
 - Tax withheld to date (from payslips) — each slip's whole tax total, PAYG income
-  tax plus any STSL study-loan component. See
-  [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total).
+  tax plus any STSL study-loan component; see
+  [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total). A slip counts
+  toward the year its pay **landed** in, not the year the work fell in — see
+  [`payslips.md`](payslips.md#a-payslip-belongs-to-the-year-its-pay-landed-in).
 
 ## Computation pipeline
 

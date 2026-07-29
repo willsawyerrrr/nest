@@ -18,6 +18,12 @@
  * naming one inflow are summed and held against that inflow's expectation on the
  * same basis rule, keeping a steady salary's variance at nil while a lumpy
  * allowance's stands on its own.
+ *
+ * Which financial year a slip belongs to is the year its pay landed in, not the
+ * year the work fell in — see {@link payslipAttributionDate}. The year reaches
+ * this module as a caller-supplied label on {@link PayslipActuals}, and enters the
+ * math only as the day count an off-cadence period is apportioned over, so a
+ * period straddling 30 June still counts every one of its own days.
  */
 
 import type { Frequency, Money } from './index'
@@ -56,6 +62,26 @@ export interface PayPeriod {
   readonly periodEnd: string
 }
 
+/** The dates a payslip is attributed by, both ISO (`YYYY-MM-DD`). */
+export interface PayslipAttribution {
+  /** The date the pay landed; absent or null on a slip that states none. */
+  readonly paidOn?: string | null
+  /** The pay period's last day, which every slip carries. */
+  readonly periodEnd: string
+}
+
+/**
+ * The date a payslip is attributed to: the date the pay landed, or the pay
+ * period's last day for a slip that states none. Salary and wages are assessed in
+ * the year the money is **paid** rather than the year the work that earned it
+ * fell in, so this is the date that decides which financial year a slip is filed
+ * under — a fortnight worked to 28 June and paid 1 July belongs to the later year
+ * — and which of two slips reports the further-advanced year-to-date totals.
+ */
+export function payslipAttributionDate({ paidOn, periodEnd }: PayslipAttribution): string {
+  return isEntered(paidOn) ? paidOn : periodEnd
+}
+
 /**
  * One earnings line a payslip itemises: an amount under the label the slip
  * prints, and the projected inflow it draws on. Several lines may name the same
@@ -83,7 +109,10 @@ export interface PayslipLine {
  * separately; together they are the slip's total concessional super.
  */
 export interface PayslipActuals extends PayPeriod {
-  /** AU financial year, labelled by its ending year (FY2027 = 1 Jul 2026 – 30 Jun 2027). */
+  /**
+   * The AU financial year the slip's pay landed in, labelled by its ending year
+   * (FY2027 = 1 Jul 2026 – 30 Jun 2027) — see {@link payslipAttributionDate}.
+   */
   readonly financialYear: number
   readonly grossCents: Money
   /**
@@ -244,11 +273,12 @@ export interface PayslipVariance {
   readonly superVarianceCents: Money
 }
 
-/** A payslip's stored figures, as an aggregation reads them. */
-export interface PayslipTotalsRow {
+/**
+ * A payslip's stored figures, as an aggregation reads them, carrying the dates
+ * that rank it against the household's other slips.
+ */
+export interface PayslipTotalsRow extends PayslipAttribution {
   readonly memberId: string
-  /** ISO date (`YYYY-MM-DD`) the pay period ends, which orders the timeline. */
-  readonly periodEnd: string
   readonly grossCents: Money
   readonly taxWithheldCents: Money
   readonly superCents: Money
@@ -297,8 +327,12 @@ function periodDayCount(period: PayPeriod): number {
 /**
  * The share of the financial year a pay period covers: its inclusive calendar-day
  * count over the financial year's. A pay period straddling 30 June counts all of
- * its own days — the period is not clipped to the year it is filed under. An
- * inverted period (ending before it starts) covers nothing.
+ * its own days — the period is not clipped to the year it is filed under, which is
+ * the year its pay landed in, so a fortnight worked to 28 June and paid 1 July is
+ * measured whole against the later year. The year supplies only the denominator,
+ * 365 days or 366, so filing such a period by its payment date rather than its own
+ * last day moves the fraction by at most a leap day. An inverted period (ending
+ * before it starts) covers nothing.
  */
 export function periodFractionOfFinancialYear(period: PayPeriod, financialYear: number): number {
   return periodDayCount(period) / financialYearDayCount(financialYear)
@@ -653,22 +687,31 @@ export function paygWithheldByMember(
  * The running totals reported by the latest payslip that carries all three — an
  * anchor for a financial year whose earlier slips were never entered, since a
  * slip's own year-to-date figures already account for them. Null when no row
- * reports a complete set; rows are ranked by `periodEnd`.
+ * reports a complete set.
+ *
+ * Rows are ranked by {@link payslipAttributionDate}, not by pay period: the
+ * running totals printed on a slip are the employer's own totals as at that
+ * payment, so a back-pay slip covering an old period but paid most recently
+ * reports the further-advanced figures even though its period ended first.
  */
 export function latestReportedYearToDate(
   payslips: readonly PayslipTotalsRow[],
 ): PayslipYearToDateTotals | null {
-  let latest: { readonly periodEnd: string; readonly totals: PayslipYearToDateTotals } | null = null
+  let latest: {
+    readonly attributedOn: string
+    readonly totals: PayslipYearToDateTotals
+  } | null = null
   for (const payslip of payslips) {
     const { ytdGrossCents, ytdTaxWithheldCents, ytdSuperCents } = payslip
     if (!isEntered(ytdGrossCents) || !isEntered(ytdTaxWithheldCents) || !isEntered(ytdSuperCents)) {
       continue
     }
-    if (latest !== null && payslip.periodEnd <= latest.periodEnd) {
+    const attributedOn = payslipAttributionDate(payslip)
+    if (latest !== null && attributedOn <= latest.attributedOn) {
       continue
     }
     latest = {
-      periodEnd: payslip.periodEnd,
+      attributedOn,
       totals: {
         grossCents: ytdGrossCents,
         taxWithheldCents: ytdTaxWithheldCents,

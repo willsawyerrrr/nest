@@ -15,9 +15,11 @@ export type PayslipRow = Tables<'payslip'>
 
 /**
  * The payslip fields a form supplies for a member; the household is set by the
- * hook and `financial_year` is derived from the pay period by the form. The
- * attached document is uploaded before the row is written, and its object key is
- * recorded in `file_path`.
+ * hook and `financial_year` is derived by the form from `paid_on`, or from
+ * `period_end` where the slip states no payment date. The database holds that same
+ * rule as a check constraint, so a figure derived any other way is rejected rather
+ * than filed under the wrong year. The attached document is uploaded before the row
+ * is written, and its object key is recorded in `file_path`.
  */
 export interface PayslipInput {
   member_id: string
@@ -132,6 +134,11 @@ export function usePayslips(
   const { rows, loading, reload, remove } = useHouseholdCollection<'payslip', never>(householdId, {
     table: 'payslip',
     match: { financial_year: financialYear },
+    // Ordered by pay period, not by the payment date the year is filed by: every
+    // row carries a period end, so it orders the list totally, while `paid_on` is
+    // optional and a descending sort would float the slips lacking one to the top.
+    // Within one filed year the two advance together anyway, and a back-pay slip
+    // paid late sorts beside the period it covers rather than above the year.
     orderBy: 'period_end',
     descending: true,
     // A save writes the slip's earnings lines in the same call, so the lines

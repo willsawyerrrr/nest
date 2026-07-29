@@ -11,6 +11,7 @@ import { EmptyState } from './EmptyState'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { SuperCapsSummary } from './SuperCapsSummary'
+import { WithholdingPosition } from './WithholdingPosition'
 
 interface EofyScreenProps {
   members: Member[]
@@ -25,6 +26,12 @@ interface EofyScreenProps {
   /** Each member's HELP/HECS payoff projection, keyed by member id (positive debts only). */
   helpPayoff: ReadonlyMap<string, HelpPayoffProjection>
   deductions: readonly DeductionRow[]
+  /**
+   * How many payslips each member has entered for the selected year, keyed by
+   * member id; a member with none is absent. It is what tells a year with nothing
+   * withheld from a year with no actuals recorded at all.
+   */
+  payslipCounts: ReadonlyMap<string, number>
   /** The selected FY's deductions' receipts; the caller has already filtered out any other year's. */
   receipts: readonly DeductionReceiptRow[]
   signedUrl: (path: string) => Promise<string | null>
@@ -61,9 +68,22 @@ function FigureLine({
  * A member's filing-relevant tax figures, condensed from the full Tax tab
  * breakdown: taxable income, tax payable, the Medicare levy and its surcharge
  * (when it applies), the HELP repayment estimate, Division 293 (when it
- * applies), total liability, and net take-home.
+ * applies), total liability, and net take-home. Beneath them sits the year's
+ * withholding position — the tax the member's payslips actually withheld and the
+ * refund or bill it leaves — in the Tax tab's own words, with the number of slips
+ * it is summed from. A member with no payslips for the year gets a note saying so
+ * instead: nothing withheld and nothing recorded read the same in the figures but
+ * mean opposite things at filing time.
  */
-function EofyTaxSummary({ estimate }: { estimate: MemberTaxEstimate | undefined }) {
+function EofyTaxSummary({
+  estimate,
+  financialYear,
+  payslipCount,
+}: {
+  estimate: MemberTaxEstimate | undefined
+  financialYear: number
+  payslipCount: number
+}) {
   if (!estimate) {
     return <EmptyState>No income to estimate yet.</EmptyState>
   }
@@ -83,6 +103,19 @@ function EofyTaxSummary({ estimate }: { estimate: MemberTaxEstimate | undefined 
       )}
       <FigureLine label="Total tax liability" cents={breakdown.totalLiabilityCents} fw={700} />
       <FigureLine label="Net take-home" cents={estimate.annualAfterTaxCents} fw={700} colored />
+      {payslipCount === 0 ? (
+        <Text size="xs" c="dimmed" fs="italic">
+          No payslips recorded for FY{financialYear}, so no withholding is netted against this
+          liability.
+        </Text>
+      ) : (
+        <Stack gap={2}>
+          <WithholdingPosition breakdown={breakdown} />
+          <Text size="xs" c="dimmed">
+            Withholding summed from {payslipCount} payslip{payslipCount === 1 ? '' : 's'}.
+          </Text>
+        </Stack>
+      )}
     </Stack>
   )
 }
@@ -219,14 +252,16 @@ function SubsectionTitle({ children }: { children: string }) {
 }
 
 /**
- * One member's filing-prep summary for the financial year: their tax estimate,
- * claimed deductions, super contributions, and HELP debt, gathered from across
- * the Tax, Deductions, Super, and HELP debt tabs.
+ * One member's filing-prep summary for the financial year: their tax estimate
+ * (net of what their payslips withheld), claimed deductions, super contributions,
+ * and HELP debt, gathered from across the Tax, Payslips, Deductions, Super, and
+ * HELP debt tabs.
  */
 function EofyMemberCard({
   member,
   financialYear,
   memberEstimate,
+  payslipCount,
   capSummary,
   helpDebt,
   helpPayoffProjection,
@@ -237,6 +272,7 @@ function EofyMemberCard({
   member: Member
   financialYear: number
   memberEstimate: MemberTaxEstimate | undefined
+  payslipCount: number
   capSummary: SuperCapSummary | undefined
   helpDebt: HelpDebt | undefined
   helpPayoffProjection: HelpPayoffProjection | undefined
@@ -253,7 +289,11 @@ function EofyMemberCard({
 
         <Stack gap="xs">
           <SubsectionTitle>Tax estimate</SubsectionTitle>
-          <EofyTaxSummary estimate={memberEstimate} />
+          <EofyTaxSummary
+            estimate={memberEstimate}
+            financialYear={financialYear}
+            payslipCount={payslipCount}
+          />
         </Stack>
 
         <Stack gap="xs">
@@ -312,10 +352,10 @@ function FinancialYearSelect({
 
 /**
  * Presentational EOFY summary: a financial-year selector over a read-only,
- * per-member rollup of that year's tax estimate, claimed deductions, super
- * contributions, and HELP debt — gathered from across the Tax, Deductions,
- * Super, and HELP debt tabs into one filing-prep view. Nothing here is editable;
- * the linked tabs are where each figure is entered.
+ * per-member rollup of that year's tax estimate and withholding position, claimed
+ * deductions, super contributions, and HELP debt — gathered from across the Tax,
+ * Payslips, Deductions, Super, and HELP debt tabs into one filing-prep view.
+ * Nothing here is editable; the linked tabs are where each figure is entered.
  */
 export function EofyScreen({
   members,
@@ -327,6 +367,7 @@ export function EofyScreen({
   helpDebts,
   helpPayoff,
   deductions,
+  payslipCounts,
   receipts,
   signedUrl,
 }: EofyScreenProps) {
@@ -335,7 +376,7 @@ export function EofyScreen({
   return (
     <PageSection
       title={`EOFY summary (FY${financialYear})`}
-      intro="Each member’s tax estimate, deductions, super contributions, and HELP debt for the selected financial year, gathered in one place for tax-return prep."
+      intro="Each member’s tax estimate — net of the tax their payslips actually withheld — plus their deductions, super contributions, and HELP debt for the selected financial year, gathered in one place for tax-return prep."
     >
       <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
         <FinancialYearSelect
@@ -346,6 +387,9 @@ export function EofyScreen({
         <Group gap="md" wrap="wrap">
           <Anchor component={Link} to="/tax" size="sm">
             Tax
+          </Anchor>
+          <Anchor component={Link} to="/payslips" size="sm">
+            Payslips
           </Anchor>
           <Anchor component={Link} to="/deductions" size="sm">
             Deductions
@@ -368,6 +412,7 @@ export function EofyScreen({
             member={member}
             financialYear={financialYear}
             memberEstimate={estimate.members.find((candidate) => candidate.memberId === member.id)}
+            payslipCount={payslipCounts.get(member.id) ?? 0}
             capSummary={capSummaries.get(member.id)}
             helpDebt={helpDebtByMember.get(member.id)}
             helpPayoffProjection={helpPayoff.get(member.id)}
@@ -379,7 +424,7 @@ export function EofyScreen({
       )}
 
       <Text size="xs" c="dimmed">
-        This estimate excludes capital gains tax and actual PAYG withheld, which are not tracked.
+        This estimate excludes capital gains tax, which is not tracked.
       </Text>
     </PageSection>
   )

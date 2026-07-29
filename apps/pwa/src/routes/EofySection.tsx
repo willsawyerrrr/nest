@@ -7,9 +7,11 @@ import { useDeductions } from '../hooks/useDeductions'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
+import { usePayslips } from '../hooks/usePayslips'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
+import { paygWithheldFromRows, payslipCountByMember } from '../lib/payslips'
 import {
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
@@ -33,6 +35,7 @@ export function EofySection({ householdId }: { householdId: string }) {
   const helpDebts = useHelpDebts(householdId)
   const deductions = useDeductions(householdId, financialYear)
   const receipts = useDeductionReceipts(householdId)
+  const payslips = usePayslips(householdId, financialYear)
 
   if (
     membersLoading ||
@@ -43,6 +46,7 @@ export function EofySection({ householdId }: { householdId: string }) {
     helpDebts.loading ||
     deductions.loading ||
     receipts.loading ||
+    payslips.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -52,6 +56,10 @@ export function EofySection({ householdId }: { householdId: string }) {
   // resolvable; falling back to the current year's config is defensive only.
   const config = configsByYear[financialYear] ?? currentTaxConfig()
   const deductionRows = deductions.deductions ?? []
+  // The selected year's payslips carry the tax actually withheld, which nets
+  // against each member's liability so the balance this filing-prep view reports
+  // is the real refund or bill — the same figure the Tax tab shows for the year.
+  const payslipRows = payslips.payslips ?? []
   const estimate = estimateHouseholdTaxFromRows(
     inflows.inflows ?? [],
     taxProfiles.profiles ?? [],
@@ -59,6 +67,7 @@ export function EofySection({ householdId }: { householdId: string }) {
     helpDebts.helpDebts ?? [],
     deductionRows,
     config,
+    paygWithheldFromRows(payslipRows),
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],
@@ -86,6 +95,7 @@ export function EofySection({ householdId }: { householdId: string }) {
       helpDebts={helpDebts.helpDebts ?? []}
       helpPayoff={helpPayoff}
       deductions={deductionRows}
+      payslipCounts={payslipCountByMember(payslipRows)}
       receipts={receiptRows}
       signedUrl={receipts.signedUrl}
     />

@@ -1,8 +1,10 @@
 import { act } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { financialYearForDate } from '@nest/tax'
+import { financialYearForDate, type HouseholdTaxEstimate } from '@nest/tax'
+import { makeInflow, makePayslip } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { EofySection } from './EofySection'
+import { TaxSection } from './TaxSection'
 
 // The real `configsByYear` publishes only FY2027 today, so a plain import
 // would never exercise the descending sort with more than one entry. A second
@@ -28,7 +30,9 @@ const hooks = vi.hoisted(() => ({
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
   useDeductionReceipts: vi.fn(),
+  usePayslips: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
+  taxViewProps: null as Record<string, unknown> | null,
 }))
 
 vi.mock('../components/LoadingScreen', () => ({
@@ -46,10 +50,19 @@ vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions })
 vi.mock('../hooks/useDeductionReceipts', () => ({
   useDeductionReceipts: hooks.useDeductionReceipts,
 }))
+vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
 vi.mock('../components/EofyScreen', () => ({
   EofyScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
     return <div data-testid="eofy-screen" />
+  },
+}))
+// The Tax tab is rendered from the same mocked hooks to hold its estimate against
+// the EOFY tab's for identical rows.
+vi.mock('../components/TaxEstimateView', () => ({
+  TaxEstimateView: (props: Record<string, unknown>) => {
+    hooks.taxViewProps = props
+    return <div data-testid="tax-view" />
   },
 }))
 
@@ -58,12 +71,18 @@ const currentFy = financialYearForDate(new Date())
 function mockLoaded() {
   hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
-  hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [] })
+  hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: currentFy })
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
   hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [], signedUrl: vi.fn() })
+  hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+}
+
+/** The member estimate the mocked screen was handed, which every test has one of. */
+function memberEstimate(props: Record<string, unknown> | null) {
+  return (props!.estimate as HouseholdTaxEstimate).members[0]!
 }
 
 describe('EofySection', () => {
@@ -76,6 +95,14 @@ describe('EofySection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false })
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false })
+    hooks.usePayslips.mockReturnValue({ loading: false })
+    render(<EofySection householdId="h1" />)
+    expect(screen.getByTestId('loading')).toBeInTheDocument()
+  })
+
+  it("waits for the selected year's payslips before estimating", () => {
+    mockLoaded()
+    hooks.usePayslips.mockReturnValue({ loading: true, payslips: null })
     render(<EofySection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -89,6 +116,7 @@ describe('EofySection', () => {
     expect(hooks.useSuperContributions).toHaveBeenCalledWith('h1', currentFy)
     expect(hooks.useSuperProfiles).toHaveBeenCalledWith('h1', currentFy)
     expect(hooks.useDeductions).toHaveBeenCalledWith('h1', currentFy)
+    expect(hooks.usePayslips).toHaveBeenCalledWith('h1', currentFy)
     expect(hooks.useHelpDebts).toHaveBeenCalledWith('h1')
 
     expect(hooks.screenProps?.financialYear).toBe(currentFy)
@@ -113,7 +141,79 @@ describe('EofySection', () => {
     expect(hooks.useSuperContributions).toHaveBeenCalledWith('h1', 2025)
     expect(hooks.useSuperProfiles).toHaveBeenCalledWith('h1', 2025)
     expect(hooks.useDeductions).toHaveBeenCalledWith('h1', 2025)
+    expect(hooks.usePayslips).toHaveBeenCalledWith('h1', 2025)
     expect(hooks.screenProps?.financialYear).toBe(2025)
+  })
+
+  it("nets the selected year's withheld tax against the estimate", () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.usePayslips.mockReturnValue({
+      loading: false,
+      payslips: [
+        makePayslip({ id: 'ps1', tax_withheld_cents: 18_000_00 }),
+        makePayslip({ id: 'ps2', tax_withheld_cents: 12_000_00 }),
+      ],
+    })
+
+    render(<EofySection householdId="h1" />)
+
+    const member = memberEstimate(hooks.screenProps)
+    expect(member.breakdown.paygWithheldCents).toBe(30_000_00)
+    expect(member.breakdown.balanceCents).toBe(member.breakdown.totalLiabilityCents - 30_000_00)
+    expect(hooks.screenProps?.payslipCounts).toEqual(new Map([['m1', 2]]))
+  })
+
+  it('reports no payslips for a year with none, leaving the estimate unoffset', () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+
+    render(<EofySection householdId="h1" />)
+
+    const member = memberEstimate(hooks.screenProps)
+    expect(member.breakdown.paygWithheldCents).toBe(0)
+    expect(member.breakdown.balanceCents).toBe(member.breakdown.totalLiabilityCents)
+    expect(hooks.screenProps?.payslipCounts).toEqual(new Map())
+  })
+
+  it('counts only the selected year’s slips when the year changes', () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.usePayslips.mockImplementation((_householdId: string, financialYear: number) => ({
+      loading: false,
+      // Stands in for the hook's own `financial_year` filter: only FY2027 has slips.
+      payslips: financialYear === currentFy ? [makePayslip({ tax_withheld_cents: 30_000_00 })] : [],
+    }))
+
+    render(<EofySection householdId="h1" />)
+    expect(memberEstimate(hooks.screenProps).breakdown.paygWithheldCents).toBe(30_000_00)
+
+    const onFinancialYearChange = hooks.screenProps?.onFinancialYearChange as (
+      financialYear: number,
+    ) => void
+    act(() => onFinancialYearChange(2025))
+
+    expect(memberEstimate(hooks.screenProps).breakdown.paygWithheldCents).toBe(0)
+    expect(hooks.screenProps?.payslipCounts).toEqual(new Map())
+  })
+
+  it('reports the same refund or bill as the Tax tab for the same rows', () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.usePayslips.mockReturnValue({
+      loading: false,
+      payslips: [makePayslip({ tax_withheld_cents: 30_000_00 })],
+    })
+
+    render(<EofySection householdId="h1" />)
+    render(<TaxSection householdId="h1" />)
+
+    const eofy = memberEstimate(hooks.screenProps).breakdown
+    const tax = memberEstimate(hooks.taxViewProps).breakdown
+    expect(eofy.paygWithheldCents).toBe(tax.paygWithheldCents)
+    expect(eofy.balanceCents).toBe(tax.balanceCents)
+    // Not a pair of zeroes agreeing: the withholding really did move the balance.
+    expect(eofy.balanceCents).toBe(eofy.totalLiabilityCents - 30_000_00)
   })
 
   it("filters deduction receipts to the selected FY's loaded deductions", () => {

@@ -4,6 +4,7 @@ import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
 import {
   financialYearForPayslip,
   paygWithheldFromRows,
+  payslipCountByMember,
   payslipReconciliation,
   payslipTotalsFromRows,
   payslipVarianceFor,
@@ -80,6 +81,27 @@ describe('paygWithheldFromRows', () => {
 
   it('is empty with no payslips', () => {
     expect(paygWithheldFromRows([]).size).toBe(0)
+  })
+})
+
+describe('payslipCountByMember', () => {
+  it('counts each member’s slips and omits members with none', () => {
+    const counts = payslipCountByMember([
+      makePayslip(),
+      makePayslip({ id: 'ps2' }),
+      makePayslip({ id: 'ps3', member_id: 'm2' }),
+    ])
+    expect(counts.get('m1')).toBe(2)
+    expect(counts.get('m2')).toBe(1)
+    expect(counts.has('m3')).toBe(false)
+  })
+
+  it('separates a slip that withheld nothing from no slips at all', () => {
+    const rows = [makePayslip({ tax_withheld_cents: 0 })]
+    // Both cases sum to nil withholding; only the count tells them apart.
+    expect(paygWithheldFromRows(rows).get('m1')).toBe(0)
+    expect(payslipCountByMember(rows).get('m1')).toBe(1)
+    expect(payslipCountByMember([]).size).toBe(0)
   })
 })
 

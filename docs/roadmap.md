@@ -474,8 +474,10 @@ staging in [`payslips.md`](payslips.md).
       the FY's summed actual withheld, every component included, feeding the tax
       engine's `paygWithheldCents` so the estimate's balance is a concrete refund
       or bill. The pay cycle the slip's own expectations are divided by is the
-      largest earnings group's inflow, falling back to a calendar-day
-      apportionment where no line names a projection.
+      largest measurable earnings group's inflow, falling back to a calendar-day
+      apportionment where no line names one. An inflow arriving in only some pay
+      periods is measured across the year rather than against any period, and is
+      never that cycle.
 - [x] Extraction pre-fill: the `payslip-extract` edge function reads an uploaded
       slip with Claude Haiku 4.5 (pinned to its dated snapshot, its Vault-held key
       read only by the service-role-only `anthropic_api_key()`) and returns the
@@ -544,16 +546,19 @@ Recurring shorthand:
 
 #### 1. incident.io on-call schedule → on-call pay forecasting
 
-- **What / value.** On-call pay is modelled as its own inflow per tier, taxed
-  in full and marked as earning no super, and each payslip's on-call earnings
-  line is measured against it (see [`payslips.md`](payslips.md)) — so what was
-  actually paid is reconciled per period. What the projection cannot say is
-  _when_: it carries a cadence, not the roster. Integrating incident.io's
-  schedules/on-call API reads the _actual_ rotation, so the app can show a
-  concrete **"next on-call payment: <date>, ~$X"** instead of an averaged
-  cadence. It sharpens near-term cash-flow accuracy (the buffer knows exactly
-  which fortnight the money lands in) and, once ingestion works, lets expected
-  on-call pay be reconciled against what actually hit the Up account.
+- **What / value.** On-call pay is modelled as its own inflow per tier, taxed in
+  full, marked as earning no super, and marked as arriving in only some pay periods
+  — so the year's projection stands while no single fortnight is held against a
+  share of it, and each payslip's on-call earnings line is reported as unmeasured
+  for the period and measured across the year instead (see
+  [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods)). What the
+  projection still cannot say is _when_: it carries a cadence and a year's total,
+  not the roster. Integrating incident.io's schedules/on-call API reads the _actual_
+  rotation, so the app can name a concrete **"next on-call payment: <date>, ~$X"**
+  and hold that fortnight's slip against a real per-period figure rather than none
+  at all. It sharpens near-term cash-flow accuracy (the buffer knows exactly which
+  fortnight the money lands in) and, once ingestion works, lets expected on-call pay
+  be reconciled against what actually hit the Up account.
 - **Effort.** M — one edge function + a small schedule-derived inflow type and
   a read-only "upcoming on-call" panel. The forecasting math is easy; the
   fiddly part is mapping rotation entries to pay events and pay dates (shift

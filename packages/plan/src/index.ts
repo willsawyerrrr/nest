@@ -58,14 +58,15 @@ export {
 } from './splits'
 export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits'
 
-export { financialYearDayCount, prorateAnnualToPeriod } from './payPeriod'
+export { financialYearDayCount, financialYearPeriod, prorateAnnualToPeriod } from './payPeriod'
 export type { PayPeriod } from './payPeriod'
 
+export { annualInflowGrossCents, expectedPeriodGrossCents, isPeriodOnCadence } from './payCadence'
+export type { ExpectationBasis, PartCycleReason, ReconciledInflow } from './payCadence'
+
 export {
-  annualInflowGrossCents,
-  expectedPeriodGrossCents,
-  isPeriodOnCadence,
   latestReportedYearToDate,
+  occasionalInflowPositions,
   paygWithheldByMember,
   payslipAttributionDate,
   payslipVariance,
@@ -73,8 +74,8 @@ export {
   payslipYearToDateByMember,
 } from './payslip'
 export type {
-  ExpectationBasis,
-  PartCycleReason,
+  OccasionalInflowPosition,
+  OccasionalPositionRow,
   PayslipActuals,
   PayslipAttribution,
   PayslipEarningLine,
@@ -89,7 +90,6 @@ export type {
   PayslipTotalsRow,
   PayslipVariance,
   PayslipYearToDateTotals,
-  ReconciledInflow,
   SuperGuaranteeConfig,
 } from './payslip'
 

@@ -40,6 +40,7 @@ describe('InflowForm', () => {
         interval_count: null,
         pay_schedule: null,
         pay_interval_count: null,
+        arrives_every_pay_period: true,
         amount_cents: 123456,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -71,6 +72,7 @@ describe('InflowForm', () => {
         interval_count: null,
         pay_schedule: null,
         pay_interval_count: null,
+        arrives_every_pay_period: true,
         amount_cents: null,
         hourly_rate_cents: 4500,
         hours_per_period: 38,
@@ -103,6 +105,7 @@ describe('InflowForm', () => {
         interval_count: null,
         pay_schedule: null,
         pay_interval_count: null,
+        arrives_every_pay_period: true,
         amount_cents: 8000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -191,6 +194,66 @@ describe('InflowForm', () => {
     expect(screen.queryByRole('switch', { name: /employer super/i })).not.toBeInTheDocument()
   })
 
+  it('submits an allowance that lands in only some pay periods', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'On-call (T1)')
+    await user.type(screen.getByLabelText(/amount/i), '6600')
+    await user.click(screen.getByRole('switch', { name: /arrives in every pay period/i }))
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'On-call (T1)', arrives_every_pay_period: false }),
+      ),
+    )
+  })
+
+  it('says the yearly figure still counts in full', () => {
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+    expect(screen.getByText(/yearly figure still counts in full/i)).toBeInTheDocument()
+  })
+
+  it('keeps a saved occasional inflow switched off when editing, and hides it when non-taxable', () => {
+    const onCall = makeInflow({ id: 'i4', name: 'On-call (T1)', arrives_every_pay_period: false })
+    const { unmount } = render(<InflowForm members={members} initial={onCall} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('switch', { name: /arrives in every pay period/i })).not.toBeChecked()
+    unmount()
+
+    // A non-taxable inflow is never reconciled against a payslip, so no period ever
+    // expects it and there is nothing to ask.
+    render(
+      <InflowForm
+        members={members}
+        initial={makeInflow({ id: 'i5', taxable: false, member_id: null, type: 'gift' })}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('switch', { name: /arrives in every pay period/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('stores a non-taxable inflow as arriving every period whatever was switched before', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByRole('switch', { name: /arrives in every pay period/i }))
+    await user.click(screen.getByText('Non-taxable inflow'))
+    await user.type(screen.getByLabelText(/name/i), 'Rebate')
+    await user.type(screen.getByLabelText(/amount/i), '50')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxable: false, arrives_every_pay_period: true }),
+      ),
+    )
+  })
+
   it('stores a non-taxable inflow as ordinary time earnings whatever was switched before', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
@@ -254,6 +317,7 @@ describe('InflowForm', () => {
         interval_count: 4,
         pay_schedule: null,
         pay_interval_count: null,
+        arrives_every_pay_period: true,
         amount_cents: 30000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -293,6 +357,7 @@ describe('InflowForm', () => {
         interval_count: 3,
         pay_schedule: null,
         pay_interval_count: null,
+        arrives_every_pay_period: true,
         amount_cents: 90000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -592,6 +657,21 @@ describe('InflowForm', () => {
         }),
       ),
     )
+  })
+
+  it('says nothing about a per-payment figure for pay that lands in only some periods', async () => {
+    const user = userEvent.setup()
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+
+    await selectOption(user, /frequency/i, 'Annually')
+    await user.type(screen.getByLabelText(/amount per year/i), '6600')
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+    expect(screen.getByText(/That is \$253\.85 each fortnight\./)).toBeInTheDocument()
+
+    // No fortnight is held against $253.85 once the money lands in only some of
+    // them, so stating the figure would name a share nothing expects.
+    await user.click(screen.getByRole('switch', { name: /arrives in every pay period/i }))
+    expect(screen.queryByText(/That is/)).not.toBeInTheDocument()
   })
 
   it('says nothing when the money arrives on the very period the amount covers', async () => {

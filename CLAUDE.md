@@ -80,7 +80,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   co-contribution's income test, which is on total assessable income: an
   allowance is assessable in full, so the two bases are computed separately and
   leaving it out would over-state the entitlement. The flag touches super only;
-  taxability is unaffected.
+  taxability is unaffected. A taxable inflow also records whether its money lands
+  in EVERY turn of its pay cadence (`arrives_every_pay_period`, default true). On-call
+  pay is paid on the fortnightly payrun but only for the fortnights a shift was
+  worked, which no cadence can say — a cadence claims the money arrives every turn —
+  so a smoothed per-period figure reports pay off plan in whichever direction the
+  fortnight fell, neither being real. The household chose per-period payslip totals
+  and no roster, so the app cannot know which fortnights carry a shift and stops
+  pretending it does. Projections are untouched: on-call worth $6,600 a year is
+  $6,600 of assessable income and $253.85 a fortnight of projected cash either way.
+  What changes is a payslip period, which holds NO expectation for such an inflow
+  (see Payslips).
 - Tax: full AU income tax, versioned per financial year; estimate-only
   (actual-paid tracking deferred), per-person, modelling HELP debt and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
@@ -156,18 +166,37 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (ordinary hours and annual leave both come off the salary), so gross variance is
   measured per inflow: each inflow's lines are summed and held against that
   inflow's expectation for the period, keeping a steady salary's variance at nil
-  while a lumpy allowance's stands on its own. A slip's tax is measured per
-  component the same way — STSL against the compulsory HELP repayment inside the
-  liability, PAYG against the rest — so a study-loan component that is short cannot
-  hide behind income tax that is over. The pay cycle the slip's OWN expectations
+  while a lumpy allowance's stands on its own. A group drawing on an inflow that
+  arrives in only SOME pay periods is not measured against the period at all: it
+  reports a null expectation and variance on an `occasional` basis and the card says
+  "Not measured per period" rather than "No projection to compare", the projection
+  existing and being annual. The slip's whole gross expectation goes null too, with
+  the amount named, because summing only the measurable groups would hold the WHOLE
+  gross against part of it and read an ordinary on-call fortnight as above plan by
+  the whole allowance; an unmapped line still reads as gross above plan, its earnings
+  genuinely being unexplained. Withholding STAYS the year's liability spread evenly —
+  the liability is one figure over all of a member's income and marginal rates make
+  it no sum of per-inflow parts — so a period carrying the allowance withholds more
+  than that, which the card says. Such an inflow is read across the YEAR instead: one
+  row per occasional inflow above the member's list, its actual so far against the
+  projection for the share of the year the latest pay reaches, shown once rather than
+  on every card where it would read as the per-period comparison it is not.
+  A slip's tax is measured per component the same way — STSL against the
+  compulsory HELP repayment inside the liability, PAYG against the rest — so a
+  study-loan component that is short cannot hide behind income tax that is over.
+  The pay cycle the slip's OWN expectations
   (withholding, concessional super) are divided by is derived from the largest
-  earnings group's inflow; where the lines name no projection there is no cycle and
-  every figure is apportioned by calendar days of the year, which a disagreement
-  among the groups is deliberately NOT — the cadence check still requires the period
-  to be one whole turn of the chosen cycle, so a wrong pick costs the scaling and
-  never a wrong division. The lines need not sum to the printed gross or tax
-  total; each remainder is unallocated and surfaced, not absorbed, which keeps the
-  printed totals an independent cross-check against a misread. Expected employer
+  MEASURABLE earnings group's inflow; where the lines name no such projection there
+  is no cycle and every figure is apportioned by calendar days of the year, which a
+  disagreement among the groups is deliberately NOT — the cadence check still requires
+  the period to be one whole turn of the chosen cycle, so a wrong pick costs the
+  scaling and never a wrong division. An occasional inflow is never that anchor
+  however large its group: its cadence says which turns the money could land on, not
+  how many times a year it does, and it rides the steady inflow's payrun, which is the
+  cycle the employer really withholds on. The lines need not sum to the printed
+  gross or tax total; each remainder is unallocated and surfaced, not absorbed,
+  which keeps the printed totals an independent cross-check against a misread.
+  Expected employer
   super is charged on the gross less every earnings line recorded as earning
   none, so an on-call allowance never inflates it; each line snapshots that
   decision from its inflow when it is written, because a payslip is a historical

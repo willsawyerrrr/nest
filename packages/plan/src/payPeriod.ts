@@ -43,12 +43,21 @@ export interface PayPeriod {
 }
 
 /**
+ * An AU financial year as an inclusive period, labelled by its ending year: 1 July
+ * of the year before the label through 30 June of the label year. The same shape a
+ * pay period has, so anything that measures an inflow's effective window against a
+ * period measures it against a whole year unchanged.
+ */
+export function financialYearPeriod(financialYear: number): PayPeriod {
+  return { periodStart: `${financialYear - 1}-07-01`, periodEnd: `${financialYear}-06-30` }
+}
+
+/**
  * The inclusive calendar-day count of an AU financial year, labelled by its
- * ending year: 1 July of the year before the label through 30 June of the label
- * year, so 365 days or 366 when the label year is a leap year.
+ * ending year: 365 days, or 366 when the label year is a leap year.
  */
 export function financialYearDayCount(financialYear: number): number {
-  return inclusiveDayCount(Date.UTC(financialYear - 1, 6, 1), Date.UTC(financialYear, 5, 30))
+  return periodDayCount(financialYearPeriod(financialYear))
 }
 
 /** The inclusive calendar days a pay period spans; nil for a period ending before it starts. */

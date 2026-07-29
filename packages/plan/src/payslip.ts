@@ -14,25 +14,32 @@
  * compulsory repayment and the PAYG against the income tax and levies that are
  * the rest.
  *
- * Expected figures rest on one of three bases, each scaling an annual figure by
- * the unit it is really paid in. A pay period that is one whole turn of the pay
- * cycle the slip's lines are drawn on — the ordinary case — divides the annual
- * figure by the cadence's periods per year, the way an employer pays it, so a slip
- * that matches the projection shows nil variance. A part turn of that cycle takes
- * the same per-period amount and scales it by the days being measured over the days
- * one whole turn spans: a fortnightly wage is paid 26 times a year, not the 26.07 a
- * calendar-day share of the year implies, so a whole turn yields the per-period
- * amount exactly whichever way it is reached and half a turn yields half of it.
- * Only a slip with no pay cycle to read at all — nothing on it names a projection,
- * or the cadence it names states no interval — apportions by inclusive calendar
- * days in the period over inclusive calendar days in the financial year, there
- * being no period unit to scale.
+ * Expected figures rest on one of the bases {@link ExpectationBasis} names, each
+ * scaling an annual figure by the unit it is really paid in. A pay period that is
+ * one whole turn of the pay cycle the slip's lines are drawn on — the ordinary case
+ * — divides the annual figure by the cadence's periods per year, the way an employer
+ * pays it, so a slip that matches the projection shows nil variance. A part turn of
+ * that cycle takes the same per-period amount and scales it by the days being
+ * measured over the days one whole turn spans: a fortnightly wage is paid 26 times a
+ * year, not the 26.07 a calendar-day share of the year implies, so a whole turn
+ * yields the per-period amount exactly whichever way it is reached and half a turn
+ * yields half of it. Only a slip with no pay cycle to read at all — nothing on it
+ * names a projection, or the cadence it names states no interval — apportions by
+ * inclusive calendar days in the period over inclusive calendar days in the financial
+ * year, there being no period unit to scale.
  *
  * That middle basis is reached two materially different ways, told apart by
  * {@link PartCycleReason}: the pay period is not a whole turn of the cycle, or it
  * is one and the dated inflow behind it covers only part of it. The arithmetic is
  * the same either way; what differs is what a reader should make of the figure,
  * since the second is an exact share whose siblings sum back to a whole period.
+ *
+ * An inflow that arrives only in SOME pay periods is measured on none of them. It
+ * has no per-period figure to hold a slip against, so its group reports no
+ * expectation and no variance, the slip's gross expectation goes null rather than
+ * quietly treating that group as expecting nothing, and the reading that answers
+ * "am I getting the on-call I projected?" is the year's —
+ * {@link occasionalInflowPositions}.
  *
  * Which financial year a slip belongs to is the year its pay landed in, not the
  * year the work fell in — see {@link payslipAttributionDate}. The year reaches
@@ -42,29 +49,29 @@
  * is known reads the same whichever year it is filed under.
  */
 
-import type { Frequency, Money } from './index'
-import { annualCents, periodsPerYear } from './normalize'
+import type { Money } from './index'
 import {
-  cadenceSpan,
-  cadenceTurnDays,
-  DAYS_PER_WEEK,
+  activeDaysInPeriod,
+  annualInflowGrossCents,
+  arrivesOnlySomePayPeriods,
+  expectedPeriodGrossCents,
+  isEntered,
+  isPeriodOnCadence,
+  payCadencePeriodsPerYear,
+  payCycleUnit,
+  readBasis,
+  type ExpectationBasis,
+  type PartCycleReason,
+  type ReconciledInflow,
+} from './payCadence'
+import {
   financialYearDayCount,
+  financialYearPeriod,
   financialYearUnit,
-  inclusiveDayCount,
-  isoDateMs,
-  MAX_DAYS_PER_MONTH,
-  MIN_DAYS_PER_MONTH,
   periodDayCount,
   prorateAnnualAcrossUnit,
-  type CadenceSpan,
   type PayPeriod,
-  type ProrationUnit,
 } from './payPeriod'
-
-/** Whether a nullable stored value — a figure or an effective date — was entered. */
-function isEntered<T>(value: T | null | undefined): value is T {
-  return value != null
-}
 
 /** The dates a payslip is attributed by, both ISO (`YYYY-MM-DD`). */
 export interface PayslipAttribution {
@@ -172,49 +179,6 @@ export interface PayslipActuals extends PayPeriod {
 }
 
 /**
- * The projected taxable inflow a payslip's earnings lines draw on. A `wage`
- * inflow's per-period gross is `hourlyRateCents × hoursPerPeriod`; `salary` and
- * `other` carry it in `amountCents`. `startsOn`/`endsOn` are the inflow's
- * effective dates, which clip the share of the pay period it is active for.
- * Structurally satisfied by `@nest/tax`'s `IncomeInput`, so a caller passes the
- * same object it feeds the tax estimate.
- *
- * Two frequencies live here and they answer different questions. `schedule` (with
- * `interval`) is the period the amount is EXPRESSED over — a salary defined as
- * $130,000 a year is `annual`, and that is what annualising divides by.
- * `paySchedule` (with `payInterval`) is the cadence the money ARRIVES on, which is
- * what a pay period is measured against; absent, the two are the same.
- */
-export interface ReconciledInflow {
-  readonly type: 'salary' | 'wage' | 'other'
-  readonly schedule: Frequency
-  readonly amountCents?: Money
-  readonly hourlyRateCents?: Money
-  readonly hoursPerPeriod?: number
-  /** The interval N for the `every_n_weeks`/`every_n_months` cadences. */
-  readonly interval?: number
-  /**
-   * The cadence the money arrives on, where it differs from the one the amount is
-   * expressed in. Absent or null means they are the same, so an inflow that says
-   * nothing here behaves exactly as it always has.
-   */
-  readonly paySchedule?: Frequency | null
-  /** The interval N for an `every_n_weeks`/`every_n_months` pay cadence. */
-  readonly payInterval?: number | null
-  readonly startsOn?: string | null
-  readonly endsOn?: string | null
-  /**
-   * Whether the inflow is ordinary time earnings, which the employer super
-   * guarantee accrues on. Absent reads as true, so only an inflow marked
-   * otherwise — an allowance such as on-call, taxed in full but earning no super
-   * — is left out of the super base. A slip's own super base reads each line's
-   * recorded decision rather than this one, which a line snapshots when it is
-   * written.
-   */
-  readonly attractsSuper?: boolean
-}
-
-/**
  * The versioned per-financial-year super parameters an expectation reads.
  * Structurally satisfied by `@nest/tax`'s `TaxYearConfig['super']`, so a caller
  * passes `config.super` straight in and the guarantee rate is always the year's
@@ -255,43 +219,14 @@ export interface PayslipExpectation {
 }
 
 /**
- * Which basis an expected figure was computed on. `cadence` divides the annual
- * figure by the inflow cadence's periods per year, the period being one whole turn
- * of it. `part_cycle` scales that same per-period amount by the days measured over
- * the days one whole turn spans. `calendar_days` apportions the annual figure by
- * the period's share of the financial year, the only basis left where there is no
- * pay cycle to scale against — no inflow at all, or one whose cadence states no
- * usable interval.
- */
-export type ExpectationBasis = 'cadence' | 'part_cycle' | 'calendar_days'
-
-/**
- * Which of the two things put an expectation on the `part_cycle` basis, so that a
- * reader is told which one they are looking at. Null on either other basis.
- *
- * - `part_period` — the pay period itself is not one whole turn of the cycle: a
- *   first or last slip in a job, an off-cycle or back-pay slip, or a cadence whose
- *   turn the period does not fit. The figures are genuinely a fraction of a
- *   period's pay.
- * - `inflow_dates` — the period IS one whole turn, and it is the inflow that runs
- *   for only part of it, its effective dates clipping the days measured. A pay rise
- *   modelled the documented way — the old rate ending, a new dated one starting —
- *   puts both of a fortnight's groups here. Nothing is approximated: each share is
- *   exact and the shares over the period sum to one whole period at the blended
- *   rate, so a variance against one of them is real rather than proration noise.
- *
- * A period that is neither a whole turn nor fully covered reads as `part_period`:
- * the period's own length is the more fundamental fact, and it is the one that makes
- * the figure a fraction of a period rather than a whole one.
- */
-export type PartCycleReason = 'part_period' | 'inflow_dates'
-
-/**
  * One inflow's share of an itemised payslip: the lines drawing on it summed and
  * measured against that inflow's projection for the period. `sourceInflowId` is
  * null for the lines mapped to no inflow, which — like a line naming an inflow
  * the expectation does not carry — have no projection to compare and so report a
- * null expectation and variance.
+ * null expectation and variance. A group whose inflow arrives only in some pay
+ * periods reports the same pair of nulls for a different reason, told apart by its
+ * `occasional` basis: the projection exists, and it is annual rather than
+ * per-period.
  */
 export interface PayslipLineGroupVariance {
   readonly sourceInflowId: string | null
@@ -303,7 +238,7 @@ export interface PayslipLineGroupVariance {
   readonly varianceCents: Money | null
   /** Which basis `expectedCents` was computed on; `calendar_days` with no inflow. */
   readonly basis: ExpectationBasis
-  /** Which of the two things put the group on `part_cycle`; null on either other basis. */
+  /** Which of the two things put the group on `part_cycle`; null on every other basis. */
   readonly partCycleReason: PartCycleReason | null
 }
 
@@ -339,15 +274,15 @@ export interface PayslipVariance {
   readonly basis: ExpectationBasis
   /**
    * Which of the two things put those expectations on `part_cycle`, read from the
-   * same cycle and the same inflow's effective dates as `basis`; null on either
+   * same cycle and the same inflow's effective dates as `basis`; null on every
    * other basis. A group whose own inflow is dated differently reports its own
    * reason, so this speaks only for the slip's own figures.
    */
   readonly partCycleReason: PartCycleReason | null
   /**
    * The inflow whose pay cycle `basis` was read from — the slip's largest
-   * earnings group — or null when no earnings line resolves to a projection,
-   * which leaves the slip no cycle to read.
+   * measurable earnings group — or null when no earnings line resolves to a
+   * projection that arrives every period, which leaves the slip no cycle to read.
    */
   readonly cadenceInflowId: string | null
   /** Inclusive calendar days in the pay period. */
@@ -367,6 +302,21 @@ export interface PayslipVariance {
   readonly financialYearDays: number
   readonly expectedGrossCents: Money | null
   readonly grossVarianceCents: Money | null
+  /**
+   * Whether part of the slip's gross is pay no per-period figure covers — earnings
+   * drawing on an inflow that arrives only in some pay periods. True is what makes
+   * `expectedGrossCents` null even where the slip's other groups do have
+   * expectations: summing only those would hold the slip's WHOLE gross against part
+   * of it, reading an ordinary on-call fortnight as above plan by the whole
+   * allowance. The groups that are measurable still carry their own variances, so
+   * nothing is lost — only the total stops claiming to be one.
+   */
+  readonly grossPartlyUnmeasured: boolean
+  /**
+   * The occasional groups' lines summed — how much of the gross is the pay
+   * `grossPartlyUnmeasured` is about. Nil where nothing on the slip is occasional.
+   */
+  readonly unmeasuredGrossCents: Money
   /**
    * The slip's earnings lines grouped by the inflow they draw on, each summed and
    * measured against that inflow's projection, in the order the inflows first
@@ -442,178 +392,6 @@ export interface PayslipYearToDateTotals {
   readonly superCents: Money
 }
 
-/**
- * The cadence the inflow's money arrives on: the pay cadence where it states one,
- * else the cadence its amount is expressed in. Everything about the pay cycle — how
- * long one turn runs, how many turns a year holds, whether a period is one whole
- * turn — reads this, and nothing about annualising an amount does. A $130,000
- * salary expressed annually and paid fortnightly resolves here to `fortnightly`, so
- * a 14-day period is a whole turn worth the annual figure over 26, not part of a
- * 365-day one.
- */
-function payCadence(inflow: ReconciledInflow): {
-  readonly frequency: Frequency
-  readonly interval: number | undefined
-} {
-  return isEntered(inflow.paySchedule)
-    ? { frequency: inflow.paySchedule, interval: inflow.payInterval ?? undefined }
-    : { frequency: inflow.schedule, interval: inflow.interval }
-}
-
-/** How many turns of the inflow's pay cadence a year holds — the on-cadence divisor. */
-function payCadencePeriodsPerYear(inflow: ReconciledInflow): number {
-  const { frequency, interval } = payCadence(inflow)
-  return periodsPerYear(frequency, interval)
-}
-
-/**
- * One whole turn of the inflow's pay cycle as a proration unit, measured from the
- * pay period's first day. Null for a cadence with no nominal length, which leaves
- * the caller nothing but the financial year to apportion over.
- */
-function payCycleUnit(inflow: ReconciledInflow, period: PayPeriod): ProrationUnit | null {
-  const { frequency, interval } = payCadence(inflow)
-  const span = cadenceSpan(frequency, interval)
-  return span === null
-    ? null
-    : {
-        perYear: periodsPerYear(frequency, interval),
-        unitDays: cadenceTurnDays(span, period.periodStart),
-      }
-}
-
-/** The inclusive days of `period` the inflow's effective window covers. */
-function activeDaysInPeriod(inflow: ReconciledInflow, period: PayPeriod): number {
-  const periodStartMs = isoDateMs(period.periodStart)
-  const periodEndMs = isoDateMs(period.periodEnd)
-  const windowStartMs = isEntered(inflow.startsOn) ? isoDateMs(inflow.startsOn) : periodStartMs
-  const windowEndMs = isEntered(inflow.endsOn) ? isoDateMs(inflow.endsOn) : periodEndMs
-  return inclusiveDayCount(
-    Math.max(periodStartMs, windowStartMs),
-    Math.min(periodEndMs, windowEndMs),
-  )
-}
-
-/**
- * Whether a day count is the nominal length of one turn of `span`: exactly seven
- * days a week for a week-based cadence, and 28 to 31 days a month for a month-based
- * one, since a calendar month varies. This is the period's own length alone — what
- * the inflow behind it is effective for is a separate question.
- */
-function spansWholeCadenceTurn(span: CadenceSpan, days: number): boolean {
-  if (span.unit === 'weeks') {
-    return days === Math.round(DAYS_PER_WEEK * span.count)
-  }
-  const months = Math.round(span.count)
-  return days >= MIN_DAYS_PER_MONTH * months && days <= MAX_DAYS_PER_MONTH * months
-}
-
-/**
- * Whether a pay period is one whole turn of the inflow's pay cadence, and so
- * measurable against the annual figure divided by periods per year rather than
- * scaled to part of a turn. It is when the period's day count is that cadence's
- * nominal length and the inflow is effective for every day of it. The cadence read
- * is the one the money arrives on, so a fortnight is a whole turn of a $130,000
- * salary paid fortnightly however the amount is expressed. A period the inflow's
- * effective dates clip is a part period however well its length fits, as is one on
- * a cadence with no usable interval.
- */
-export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): boolean {
-  const { frequency, interval } = payCadence(inflow)
-  const span = cadenceSpan(frequency, interval)
-  const days = periodDayCount(period)
-  return (
-    span !== null &&
-    activeDaysInPeriod(inflow, period) === days &&
-    spansWholeCadenceTurn(span, days)
-  )
-}
-
-/** Which basis an expectation rests on, and — on `part_cycle` — which case it is. */
-interface BasisReading {
-  readonly basis: ExpectationBasis
-  readonly partCycleReason: PartCycleReason | null
-}
-
-/**
- * Which basis an expectation drawn from `inflow` rests on for `period`: the
- * `cadence` for one whole turn of its pay cycle, `part_cycle` for part of one — with
- * the reason it is part of one, since a short period and a dated inflow read very
- * differently to whoever is looking at the variance — and `calendar_days` only where
- * there is no cycle to scale against, no inflow at all or one whose cadence states
- * no usable interval. The cycle read is the one the money arrives on, so this agrees
- * with {@link isPeriodOnCadence} however the inflow's amount is expressed.
- */
-function readBasis(inflow: ReconciledInflow | undefined, period: PayPeriod): BasisReading {
-  if (inflow === undefined) {
-    return { basis: 'calendar_days', partCycleReason: null }
-  }
-  const { frequency, interval } = payCadence(inflow)
-  const span = cadenceSpan(frequency, interval)
-  if (span === null) {
-    return { basis: 'calendar_days', partCycleReason: null }
-  }
-  const days = periodDayCount(period)
-  if (!spansWholeCadenceTurn(span, days)) {
-    return { basis: 'part_cycle', partCycleReason: 'part_period' }
-  }
-  if (activeDaysInPeriod(inflow, period) !== days) {
-    return { basis: 'part_cycle', partCycleReason: 'inflow_dates' }
-  }
-  return { basis: 'cadence', partCycleReason: null }
-}
-
-/**
- * Annualises an inflow's steady per-period gross to whole cents. The per-period
- * gross is `hourlyRateCents × hoursPerPeriod` rounded to whole cents for a
- * `wage` and `amountCents` for a `salary` or `other`, with missing figures taken
- * as zero; the amount's own `schedule` is normalised by `annualCents` — the pay
- * cadence has no part in it, the amount meaning what it says over the period it
- * names — so an `every_n_weeks`/`every_n_months` inflow with no usable interval
- * annualises to zero. The inflow's effective dates are not applied here — this is
- * the full-year rate a period's expectation is drawn from.
- */
-export function annualInflowGrossCents(inflow: ReconciledInflow): Money {
-  const perPeriodCents =
-    inflow.type === 'wage'
-      ? Math.round((inflow.hourlyRateCents ?? 0) * (inflow.hoursPerPeriod ?? 0))
-      : (inflow.amountCents ?? 0)
-  return annualCents(perPeriodCents, inflow.schedule, inflow.interval)
-}
-
-/**
- * The gross the plan projects for one pay period. A period on the inflow's pay
- * cadence gets the annualised gross divided by that cadence's periods per year,
- * rounded to the nearest cent — the steady amount the employer pays each period, so
- * a $130,000 salary paid fortnightly expects $5,000.00 exactly. The remainder of an
- * annual figure that does not divide evenly is dropped rather than spread, this
- * being a per-period rate to hold one slip against and not an allocation that has
- * to sum back to the year. Any other period takes that same per-period amount and
- * scales it by the days of the period the inflow is effective for, over the days one
- * whole turn of the cadence spans: a window that covers none of the period projects
- * nothing, half a fortnight projects half a fortnight's pay, and a mid-period pay
- * rise modelled as one dated inflow ending and another starting has the two
- * part-period expectations sum to exactly the whole period's amount. The financial
- * year is the unit only for a cadence with no nominal length at all.
- */
-export function expectedPeriodGrossCents(
-  inflow: ReconciledInflow,
-  period: PayPeriod,
-  financialYear: number,
-): Money {
-  const annualGrossCents = annualInflowGrossCents(inflow)
-  // A cadence with no usable interval is never on-cadence, so periods per year is
-  // never the zero it returns for one.
-  if (isPeriodOnCadence(inflow, period)) {
-    return Math.round(annualGrossCents / payCadencePeriodsPerYear(inflow))
-  }
-  return prorateAnnualAcrossUnit(
-    annualGrossCents,
-    activeDaysInPeriod(inflow, period),
-    payCycleUnit(inflow, period) ?? financialYearUnit(financialYear),
-  )
-}
-
 /** The projection a line draws on, or undefined for one mapped to none the expectation carries. */
 function inflowForLine(
   sourceInflowId: string | null,
@@ -637,7 +415,8 @@ function isTaxLine(line: PayslipLine): line is PayslipTaxLine {
  * order the inflows first appear — and measures each group's sum against that
  * inflow's expectation for the period, on the same basis a whole slip is measured
  * on. A group whose inflow is unknown reports a null expectation: there is nothing
- * to compare its lines to.
+ * to compare its lines to. So does one whose inflow arrives only in some pay
+ * periods, this period being no more expected to carry it than any other.
  */
 function lineGroupVariances(
   lines: readonly PayslipEarningLine[],
@@ -691,6 +470,16 @@ function lineGroupVariances(
  * be one whole turn of the chosen cadence with the inflow effective throughout, so
  * a cadence the slip's period does not fit scales across that cadence's own turn
  * anyway.
+ *
+ * An inflow arriving only in some pay periods is **never** the anchor, however
+ * large its group. Its cadence says which turns the money *could* land on, not how
+ * many times a year it does, so dividing an annual figure by that cadence's periods
+ * per year would be dividing by a count the inflow does not keep. It also rides
+ * someone else's payrun: on-call is paid alongside the fortnightly salary, so the
+ * cycle the employer really withholds on is the steady inflow's — which is what the
+ * pick lands on when the allowance is skipped, even on a slip the allowance
+ * dominates. A slip whose every group is occasional falls back to the calendar-day
+ * basis, exactly as one naming no projection at all does.
  */
 function cadenceInflowFor(
   lineGroups: readonly PayslipLineGroupVariance[],
@@ -703,7 +492,11 @@ function cadenceInflowFor(
   } | null = null
   for (const group of lineGroups) {
     const inflow = inflowForLine(group.sourceInflowId, inflowsById)
-    if (group.sourceInflowId === null || inflow === undefined) {
+    if (
+      group.sourceInflowId === null ||
+      inflow === undefined ||
+      arrivesOnlySomePayPeriods(inflow)
+    ) {
       continue
     }
     if (largest === null || group.actualCents > largest.actualCents) {
@@ -711,6 +504,41 @@ function cadenceInflowFor(
     }
   }
   return largest
+}
+
+/** The gross a slip's earnings groups expect, and the part of it nothing expects. */
+interface GrossExpectation {
+  readonly expectedGrossCents: Money | null
+  readonly grossPartlyUnmeasured: boolean
+  readonly unmeasuredGrossCents: Money
+}
+
+/**
+ * Sums a slip's group expectations into the slip's own, and separates out the pay no
+ * per-period figure covers. An occasional group forfeits the total rather than
+ * counting as nil: the gross it is subtracted from is the slip's whole gross, so
+ * treating the group as expecting nothing would report the allowance it paid as
+ * gross above plan. A group with no resolvable inflow is a different case and is
+ * still skipped — its earnings really are unexplained, which is what a gross above
+ * plan says.
+ */
+function grossExpectation(lineGroups: readonly PayslipLineGroupVariance[]): GrossExpectation {
+  let expectedGrossCents: Money | null = null
+  let grossPartlyUnmeasured = false
+  let unmeasuredGrossCents = 0
+  for (const group of lineGroups) {
+    if (group.basis === 'occasional') {
+      grossPartlyUnmeasured = true
+      unmeasuredGrossCents += group.actualCents
+    } else if (group.expectedCents !== null) {
+      expectedGrossCents = (expectedGrossCents ?? 0) + group.expectedCents
+    }
+  }
+  return {
+    expectedGrossCents: grossPartlyUnmeasured ? null : expectedGrossCents,
+    grossPartlyUnmeasured,
+    unmeasuredGrossCents,
+  }
 }
 
 /**
@@ -757,7 +585,9 @@ function taxGroupVariances(
  * Expected gross comes from the slip's earnings lines: each inflow's lines are
  * summed and held against that inflow's projection for the period, and those group
  * expectations sum to the slip's, which is null when nothing on the slip maps to a
- * projection. The gross the lines do not account for is reported as
+ * projection — or when any of it draws on an inflow arriving only in some pay
+ * periods, reported as `grossPartlyUnmeasured` with the amount in
+ * `unmeasuredGrossCents`. The gross the lines do not account for is reported as
  * `unallocatedCents` and reads as gross above plan, which is what unexplained
  * earnings are.
  *
@@ -769,6 +599,14 @@ function taxGroupVariances(
  * questions: the total says whether the year is heading for a refund or a bill,
  * and the components say which of the two withholdings is off. The tax the lines
  * do not account for is `unallocatedTaxCents`, exactly as for earnings.
+ *
+ * The withholding expectation stays the year's liability spread evenly over the pay
+ * cycle even on a slip carrying occasional pay, because the liability is one figure
+ * over the whole of a member's income and marginal rates make it no sum of
+ * per-inflow parts. So a period that happens to carry an on-call allowance withholds
+ * more than the smoothed figure and a period without one less, and the year's summed
+ * withholding — the figure the refund or bill is worked out from — is unaffected
+ * either way.
  *
  * Expected super is the versioned guarantee rate on `superBaseCents` — the slip's
  * actual gross less every earnings line recorded as earning no super. An allowance
@@ -810,12 +648,7 @@ export function payslipVariance(
           cadenceUnit ?? financialYearUnit(payslip.financialYear),
         )
       : Math.round(annualAmountCents / cadencePeriodsPerYear)
-  let expectedGrossCents: Money | null = null
-  for (const group of lineGroups) {
-    if (group.expectedCents !== null) {
-      expectedGrossCents = (expectedGrossCents ?? 0) + group.expectedCents
-    }
-  }
+  const gross = grossExpectation(lineGroups)
   const allocatedCents = earningLines.reduce((sum, line) => sum + line.amountCents, 0)
   const nonOteCents = earningLines.reduce(
     (sum, line) => (line.attractsSuper === false ? sum + line.amountCents : sum),
@@ -838,9 +671,11 @@ export function payslipVariance(
     periodDays,
     cadencePeriodDays: cadenceUnit === null ? null : cadenceUnit.unitDays,
     financialYearDays,
-    expectedGrossCents,
+    expectedGrossCents: gross.expectedGrossCents,
     grossVarianceCents:
-      expectedGrossCents === null ? null : payslip.grossCents - expectedGrossCents,
+      gross.expectedGrossCents === null ? null : payslip.grossCents - gross.expectedGrossCents,
+    grossPartlyUnmeasured: gross.grossPartlyUnmeasured,
+    unmeasuredGrossCents: gross.unmeasuredGrossCents,
     lineGroups,
     unallocatedCents: earningLines.length === 0 ? 0 : payslip.grossCents - allocatedCents,
     expectedTaxWithheldCents,
@@ -964,4 +799,106 @@ export function latestReportedYearToDate(
     }
   }
   return latest === null ? null : latest.totals
+}
+
+/**
+ * One payslip as a year's reading of its occasional pay takes it: the dates that
+ * rank the slip, and the measurement its own card renders.
+ *
+ * The measurement rather than the lines, because the occasional groups it carries are
+ * already summed there. The figure the year adds up is therefore the very figure the
+ * card shows, so the two cannot disagree — the same one-measurement guarantee the
+ * year-to-date positions rest on.
+ */
+export interface OccasionalPositionRow extends PayslipAttribution {
+  readonly variance: PayslipVariance
+}
+
+/**
+ * One occasional inflow's position across a financial year — the reading that
+ * answers "am I getting the on-call I projected?", which no single period can.
+ *
+ * The comparison is against the share of the year already run through rather than
+ * the whole year's projection, because half a year of on-call is not short by half
+ * the year's allowance. It runs to the member's latest pay rather than to today: the
+ * actuals only reach as far as the slips entered, so measuring past them would report
+ * every household that has not yet entered this fortnight's slip as behind plan.
+ */
+export interface OccasionalInflowPosition {
+  readonly sourceInflowId: string
+  /** Every line drawing on the inflow, across the slips given, summed. */
+  readonly actualCents: Money
+  /** The inflow's projection for the days of the year run through by `asAt`. */
+  readonly expectedCents: Money
+  /** `actualCents − expectedCents`, positive where the year is ahead of plan. */
+  readonly varianceCents: Money
+  /** The inflow's projection for the whole year, its effective dates applied. */
+  readonly annualExpectedCents: Money
+  /** The date the position runs to: the latest {@link payslipAttributionDate} given. */
+  readonly asAt: string
+}
+
+/**
+ * Each occasional inflow the given payslips draw on, measured across the financial
+ * year. Pass one member's measured slips for `financialYear` — the inflows are picked
+ * out by what those slips actually name, so a co-member's occasional inflows in the
+ * same `inflowsById` map are never reported here. Empty for slips that name none, and
+ * for no slips at all.
+ *
+ * Each inflow's actual is its occasional groups summed straight off the slips'
+ * measurements, never their lines re-read, so a row here is the sum of the very
+ * figures the cards below it show.
+ *
+ * Inflows come back in the order their first group appears, matching how a slip's own
+ * groups are ordered.
+ */
+export function occasionalInflowPositions(
+  rows: readonly OccasionalPositionRow[],
+  inflowsById: ReadonlyMap<string, ReconciledInflow> | undefined,
+  financialYear: number,
+): readonly OccasionalInflowPosition[] {
+  const occasional = new Map<string, { inflow: ReconciledInflow; actualCents: Money }>()
+  let asAt = ''
+  for (const row of rows) {
+    const attributedOn = payslipAttributionDate(row)
+    if (attributedOn > asAt) {
+      asAt = attributedOn
+    }
+    for (const group of row.variance.lineGroups) {
+      const { sourceInflowId, actualCents } = group
+      const inflow = inflowForLine(sourceInflowId, inflowsById)
+      if (sourceInflowId === null || inflow === undefined || !arrivesOnlySomePayPeriods(inflow)) {
+        continue
+      }
+      const found = occasional.get(sourceInflowId)
+      if (found === undefined) {
+        occasional.set(sourceInflowId, { inflow, actualCents })
+      } else {
+        found.actualCents += actualCents
+      }
+    }
+  }
+  const year = financialYearPeriod(financialYear)
+  const unit = financialYearUnit(financialYear)
+  const toDate = { periodStart: year.periodStart, periodEnd: asAt }
+  return [...occasional].map(([sourceInflowId, { inflow, actualCents }]) => {
+    const annualGrossCents = annualInflowGrossCents(inflow)
+    const expectedCents = prorateAnnualAcrossUnit(
+      annualGrossCents,
+      activeDaysInPeriod(inflow, toDate),
+      unit,
+    )
+    return {
+      sourceInflowId,
+      actualCents,
+      expectedCents,
+      varianceCents: actualCents - expectedCents,
+      annualExpectedCents: prorateAnnualAcrossUnit(
+        annualGrossCents,
+        activeDaysInPeriod(inflow, year),
+        unit,
+      ),
+      asAt,
+    }
+  })
 }

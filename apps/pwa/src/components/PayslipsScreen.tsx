@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core'
-import type { PayslipVariance, PayslipYearPosition } from '@nest/plan'
+import type { OccasionalInflowPosition, PayslipVariance, PayslipYearPosition } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
+import { formatIsoDate } from '../lib/dates'
 import {
+  occasionalPositionsFor,
   payslipReconciliation,
   payslipTotalsFromRows,
   payslipVariancesById,
@@ -18,7 +20,7 @@ import {
 import { EditableList } from './EditableList'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
-import { FigureCell, PayslipCard } from './PayslipCard'
+import { FigureCell, PayslipCard, VarianceNote } from './PayslipCard'
 import { PayslipForm } from './PayslipForm'
 
 interface PayslipsScreenProps {
@@ -72,7 +74,7 @@ function ReportedYearToDateNote({
  * across 3 of 4 slips" — so the two lines are one sentence.
  *
  * Null where every slip is covered, there being nothing to qualify, and null where
- * none is: the variance above already says there is no projection to compare, and
+ * none is: the variance above already says why the figure is not measured, and
  * "across 0 of 4 slips" would only dress that up as a shortfall.
  */
 function coverageNote({ coveredCount, payslipCount }: PayslipYearPosition): string | null {
@@ -83,9 +85,53 @@ function coverageNote({ coveredCount, payslipCount }: PayslipYearPosition): stri
 }
 
 /**
+ * Each inflow whose money lands in only some pay periods, measured across the year
+ * rather than against any one period: what the slips have paid against it, and how
+ * that stands against the share of the year their latest pay reaches.
+ *
+ * This is where "am I getting the on-call I projected?" is answered, and it is a
+ * year's reading that belongs to the year — one figure per inflow, shown once above
+ * the list rather than repeated on all 26 cards, where it would read as exactly the
+ * per-period comparison the whole point is that it is not.
+ */
+function OccasionalPositions({
+  positions,
+  inflowNames,
+}: {
+  positions: readonly OccasionalInflowPosition[]
+  inflowNames: ReadonlyMap<string, string>
+}) {
+  return (
+    <Stack gap={2}>
+      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+        Occasional pay, year to date
+      </Text>
+      {positions.map((position) => (
+        <Group key={position.sourceInflowId} justify="space-between" wrap="nowrap" gap="xs">
+          <Stack gap={0} style={{ minWidth: 0 }}>
+            <Text size="xs" fw={500}>
+              {inflowNames.get(position.sourceInflowId)}
+            </Text>
+            <Text size="xs" c="dimmed">
+              <MoneyText span cents={position.expectedCents} /> projected to{' '}
+              {formatIsoDate(position.asAt)},{' '}
+              <MoneyText span cents={position.annualExpectedCents} /> for the year
+            </Text>
+          </Stack>
+          <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+            <MoneyText cents={position.actualCents} size="xs" fw={600} />
+            <VarianceNote varianceCents={position.varianceCents} />
+          </Group>
+        </Group>
+      ))}
+    </Stack>
+  )
+}
+
+/**
  * A member's year-to-date actuals summed from the payslips entered, each held
  * against the plan, with the running totals printed on their latest slip as a
- * cross-check.
+ * cross-check and the year's position on any pay that lands in only some periods.
  *
  * The three figures carry three positions rather than one headline because they
  * answer three questions — whether the pay came through, whether the withholding
@@ -98,17 +144,35 @@ function coverageNote({ coveredCount, payslipCount }: PayslipYearPosition): stri
  * Super is the whole concessional total — employer super plus salary sacrifice —
  * because that is the figure a card shows and the figure the expectation is built
  * to match, so the year and the slips under it name the same thing.
+ *
+ * Both readings are drawn from `variances`, the one measurement per slip the cards
+ * render, so neither the grid nor the occasional block can drift from a card.
+ * Occasional pay is where they meet: such a slip carries no gross expectation, so it
+ * is left out of the gross position and the coverage note says so — and where every
+ * slip carries it, the gross position has nothing at all to compare, which the cell
+ * blames on the pay being occasional rather than on a missing projection, pointing at
+ * the block below where it really is measured.
+ *
+ * The occasional block sits under the reported-year-to-date cross-check rather than
+ * between it and the grid: that cross-check is a footnote to the gross figure
+ * immediately above it, while the block is a section of its own with a row per
+ * inflow.
  */
 function MemberTotals({
   payslips,
   variances,
+  reconciliation,
+  financialYear,
 }: {
   payslips: readonly PayslipRow[]
   variances: ReadonlyMap<string, PayslipVariance>
+  reconciliation: PayslipReconciliation
+  financialYear: number
 }) {
   const totals = payslipTotalsFromRows(payslips)
   const reported = reportedYearToDateFromRows(payslips)
   const positions = payslipYearPositionsFromRows(payslips, variances)
+  const occasional = occasionalPositionsFor(payslips, variances, reconciliation, financialYear)
 
   return (
     <Stack gap={2}>
@@ -118,6 +182,7 @@ function MemberTotals({
           cents={totals.grossCents}
           varianceCents={positions.gross.varianceCents}
           note={coverageNote(positions.gross)}
+          {...(occasional.length > 0 && { nullNote: 'Occasional pay is measured below' })}
         />
         <FigureCell
           label="YTD withheld"
@@ -138,6 +203,9 @@ function MemberTotals({
           summedGrossCents={totals.grossCents}
         />
       )}
+      {occasional.length > 0 && (
+        <OccasionalPositions positions={occasional} inflowNames={reconciliation.inflowNames} />
+      )}
     </Stack>
   )
 }
@@ -148,6 +216,7 @@ function MemberPayslips({
   payslips,
   reconciliation,
   inflows,
+  financialYear,
   estimate,
   config,
   attachments,
@@ -160,6 +229,7 @@ function MemberPayslips({
   payslips: PayslipRow[]
   reconciliation: PayslipReconciliation
   inflows: Inflow[]
+  financialYear: number
   estimate: HouseholdTaxEstimate
   config: TaxYearConfig
   attachments: PayslipAttachments
@@ -170,7 +240,7 @@ function MemberPayslips({
 }) {
   const memberEstimate = estimate.members.find((each) => each.memberId === member.id)
   // Measured once for the member: each card reads its own slip's measurement out
-  // of this, and the year-to-date position sums the very same ones.
+  // of this, and both year-to-date readings sum the very same ones.
   const variances = payslipVariancesById(payslips, reconciliation, memberEstimate, config)
 
   const viewDocument = async (path: string) => {
@@ -189,7 +259,14 @@ function MemberPayslips({
         </Text>
       </Group>
 
-      {payslips.length > 0 && <MemberTotals payslips={payslips} variances={variances} />}
+      {payslips.length > 0 && (
+        <MemberTotals
+          payslips={payslips}
+          variances={variances}
+          reconciliation={reconciliation}
+          financialYear={financialYear}
+        />
+      )}
 
       <EditableList<PayslipRow, PayslipSubmission>
         items={payslips}
@@ -234,7 +311,8 @@ function MemberPayslips({
  * Presentational payslips manager: one list per household member, most recent pay
  * period first, each slip's actual gross / withheld / super / net measured against
  * what the plan projected for that period, under the member's year to date measured
- * the same way — the slips' own expectations summed. Persistence lives in the caller.
+ * the same way — the slips' own expectations summed, plus the year's position on any
+ * pay that lands in only some periods. Persistence lives in the caller.
  */
 export function PayslipsScreen({
   members,
@@ -266,6 +344,7 @@ export function PayslipsScreen({
           payslips={payslips.filter((payslip) => payslip.member_id === member.id)}
           reconciliation={reconciliation}
           inflows={inflows}
+          financialYear={financialYear}
           estimate={estimate}
           config={config}
           attachments={attachments}

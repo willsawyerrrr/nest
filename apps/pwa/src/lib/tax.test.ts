@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FY2027_CONFIG, type TaxBreakdown } from '@nest/tax'
+import { fortnightlyCents } from '@nest/plan'
+import { annualGrossCents, FY2027_CONFIG, type TaxBreakdown } from '@nest/tax'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
@@ -20,6 +21,7 @@ import {
   nonConcessionalByMember,
   superCapSummaryByMember,
   superCapSummaryFromRows,
+  toIncomeInput,
 } from './tax'
 
 const baseInflow: Inflow = {
@@ -34,6 +36,7 @@ const baseInflow: Inflow = {
   interval_count: 4,
   pay_schedule: null,
   pay_interval_count: null,
+  arrives_every_pay_period: true,
   amount_cents: 300_00,
   hourly_rate_cents: null,
   hours_per_period: null,
@@ -268,6 +271,66 @@ describe('estimateHouseholdTaxFromRows', () => {
     )
     expect(everyTwoWeeks.annualGrossCents).toBe(fortnightly.annualGrossCents)
     expect(everyTwoWeeks.annualTaxCents).toBe(fortnightly.annualTaxCents)
+  })
+})
+
+describe('estimateHouseholdTaxFromRows for pay arriving in only some periods', () => {
+  /** The household's on-call tier: $6,600 a year, landing in only some fortnights. */
+  const onCall: Inflow = {
+    ...baseInflow,
+    id: 'i2',
+    name: 'On-call (T1)',
+    type: 'other',
+    schedule: 'annual',
+    interval_count: null,
+    amount_cents: 6_600_00,
+    pay_schedule: 'fortnightly',
+    arrives_every_pay_period: false,
+    attracts_super: false,
+  }
+
+  it('counts the whole year’s projection whether or not it lands every period', () => {
+    // The flag is about WHEN the money lands, never whether it is expected: an
+    // allowance worth $6,600 a year is assessable income of $6,600 either way.
+    const occasional = estimateHouseholdTaxFromRows([onCall], [profile])
+    const everyPeriod = estimateHouseholdTaxFromRows(
+      [{ ...onCall, arrives_every_pay_period: true }],
+      [profile],
+    )
+    expect(occasional.annualGrossCents).toBe(6_600_00)
+    expect(occasional.annualGrossCents).toBe(everyPeriod.annualGrossCents)
+    expect(occasional.annualTaxCents).toBe(everyPeriod.annualTaxCents)
+    expect(occasional.members[0]!.breakdown).toEqual(everyPeriod.members[0]!.breakdown)
+  })
+
+  it('keeps the super bases and the co-contribution income test unchanged', () => {
+    // The allowance earns no super either way, and is assessable in full either way,
+    // so the two bases the flag could have moved are identical.
+    const rows: [Inflow[], Inflow[]] = [
+      [
+        { ...baseInflow, schedule: 'annual', interval_count: null, amount_cents: 90_000_00 },
+        onCall,
+      ],
+      [
+        { ...baseInflow, schedule: 'annual', interval_count: null, amount_cents: 90_000_00 },
+        { ...onCall, arrives_every_pay_period: true },
+      ],
+    ]
+    const [occasional, everyPeriod] = rows.map((inflows) =>
+      superCapSummaryFromRows(inflows, [baseProfile], []).get('m1')!,
+    )
+    expect(occasional).toEqual(everyPeriod)
+  })
+
+  it('normalises to the same fortnightly and annual figures the plan reads', () => {
+    // The figure the inflow list and the budget's normalisation show: $6,600 a year
+    // spread over the year, which is what the plan projects.
+    const annual = annualGrossCents(toIncomeInput(onCall))
+    expect(annual).toBe(6_600_00)
+    expect(annual).toBe(
+      annualGrossCents(toIncomeInput({ ...onCall, arrives_every_pay_period: true })),
+    )
+    expect(fortnightlyCents(annual, 'annual')).toBe(253_85)
   })
 })
 

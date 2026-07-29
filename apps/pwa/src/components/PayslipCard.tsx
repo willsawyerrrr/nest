@@ -15,11 +15,16 @@ import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { MoneyText } from './MoneyText'
 
+/** What a figure with no variance to show says, where nothing more specific applies. */
+const NO_PROJECTION_NOTE = 'No projection to compare'
+
 /**
  * A figure's variance against the plan: its size in the app's sign colouring with
- * the direction spelled out, so a tint is never read alone. `null` means nothing
- * on the payslip maps to a projection, which is stated rather than shown as a
- * zero or a bare dash.
+ * the direction spelled out, so a tint is never read alone. `null` means there is
+ * nothing to compare against, which is stated rather than shown as a zero or a bare
+ * dash — and `nullNote` says which of the reasons it is, since a figure mapped to no
+ * projection and one whose projection is annual rather than per-period are different
+ * things to read.
  *
  * Colour follows the money sign of the variance itself: above plan reads
  * positive, below plan negative. That is the right reading for withholding too —
@@ -27,11 +32,17 @@ import { MoneyText } from './MoneyText'
  * not a problem, while withholding less than the liability is what leaves a bill
  * to pay.
  */
-function VarianceNote({ varianceCents }: { varianceCents: number | null }) {
+export function VarianceNote({
+  varianceCents,
+  nullNote = NO_PROJECTION_NOTE,
+}: {
+  varianceCents: number | null
+  nullNote?: string
+}) {
   if (varianceCents === null) {
     return (
       <Text size="xs" c="dimmed">
-        No projection to compare
+        {nullNote}
       </Text>
     )
   }
@@ -60,15 +71,19 @@ export function FigureCell({
   label,
   cents,
   varianceCents,
+  nullNote,
   note,
 }: {
   label: string
   cents: number
   varianceCents?: number | null
+  /** Which reason a null variance has, passed straight to {@link VarianceNote}. */
+  nullNote?: string
   /**
    * A qualifier read under the variance, for a variance that measures less than
    * the figure above it — which is how a year-to-date cell says how much of the
-   * year its position covers.
+   * year its position covers. Nothing to qualify where the variance is null, since
+   * `nullNote` has already said the figure is not measured.
    */
   note?: string | null
 }) {
@@ -78,7 +93,9 @@ export function FigureCell({
         {label}
       </Text>
       <MoneyText cents={cents} fw={600} size="sm" />
-      {varianceCents !== undefined && <VarianceNote varianceCents={varianceCents} />}
+      {varianceCents !== undefined && (
+        <VarianceNote varianceCents={varianceCents} {...(nullNote !== undefined && { nullNote })} />
+      )}
       {note != null && (
         <Text size="xs" c="dimmed">
           {note}
@@ -93,6 +110,12 @@ export function FigureCell({
  * summed, against what that projection expected for the period. A group mapped to
  * no inflow — or to one since retired — has nothing to compare, which
  * {@link VarianceNote} says rather than showing a zero.
+ *
+ * A group whose inflow arrives in only some pay periods reads differently again: its
+ * projection is real and annual, and this period was never expected to carry any
+ * particular share of it, so the row says the figure is not measured here rather than
+ * implying a projection is missing. Where it stands instead is the member's
+ * year-to-date position, above the list.
  */
 function LineGroupRow({
   group,
@@ -113,7 +136,10 @@ function LineGroupRow({
       </Stack>
       <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <MoneyText cents={group.actualCents} size="xs" fw={600} />
-        <VarianceNote varianceCents={group.varianceCents} />
+        <VarianceNote
+          varianceCents={group.varianceCents}
+          {...(group.basis === 'occasional' && { nullNote: 'Not measured per period' })}
+        />
       </Group>
     </Group>
   )
@@ -175,6 +201,37 @@ const PART_CYCLE_NOTES: Readonly<Record<PartCycleReason, string>> = {
     'This period is only part of a turn of the pay cycle its earnings are drawn on, so the plan figures are that share of a whole pay period.',
   inflow_dates:
     'This period is a whole turn of the pay cycle, but the projection behind it changed partway through — usually a pay rise, entered as the old rate ending and the new one starting — so each rate’s plan figures are exactly its share, and the shares add up to a whole pay period.',
+}
+
+/**
+ * What a null gross variance on this slip means. Nothing on it mapping to a
+ * projection is one thing; the slip carrying pay that lands in only some periods is
+ * another, and reading the second as the first would suggest a projection is missing
+ * when it is only annual.
+ */
+function grossNullNote(variance: PayslipVariance): string {
+  return variance.grossPartlyUnmeasured ? 'Not measured this period' : NO_PROJECTION_NOTE
+}
+
+/**
+ * Why the slip's gross is not measured against the plan: part of it is pay that lands
+ * in only some periods, so no per-period figure covers it. The measured groups above
+ * still carry their own variances — the salary's nil variance is right there — and
+ * only the total stops claiming to be one, since holding the whole gross against part
+ * of it would read an ordinary on-call fortnight as above plan by the whole
+ * allowance. The withholding expectation is named too: the year's tax is one figure
+ * over all of a member's income, so it is spread evenly and a period carrying this
+ * pay withholds more than its share.
+ */
+function UnmeasuredGrossNote({ unmeasuredCents }: { unmeasuredCents: number }) {
+  return (
+    <Text size="xs" c="dimmed">
+      <MoneyText span cents={unmeasuredCents} /> of the gross is pay that lands in only some pay
+      periods, so this period expects no figure for it and the gross is not measured against the
+      plan — its year-to-date position is above the list. Tax withheld still expects the year’s
+      liability spread evenly, so a period carrying this pay withholds more than that.
+    </Text>
+  )
 }
 
 /** What a tax line pays, as the slip's own TAX section names it. */
@@ -250,7 +307,8 @@ function DocumentLink({ path, onView }: { path: string; onView: (path: string) =
  * largest of the slip's three by size, so a withholding or super gap on a slip
  * whose gross landed on plan is noticed without opening it. Gross wins a tie, so a
  * slip on plan throughout reads against the figure the projection projects — and a
- * slip mapped to no projection at all says so, since nothing else outranks it.
+ * slip with no gross variance to show says which of the two reasons it has, since
+ * nothing else outranks it.
  *
  * Neither unallocated remainder competes here. Gross the earnings lines miss is
  * already in the gross variance, and tax the tax lines miss does not change the
@@ -304,7 +362,7 @@ function HeadlineVarianceNote({ variance }: { variance: PayslipVariance }) {
           {headline.label}
         </Text>
       )}
-      <VarianceNote varianceCents={headline.varianceCents} />
+      <VarianceNote varianceCents={headline.varianceCents} nullNote={grossNullNote(variance)} />
     </Group>
   )
 }
@@ -338,7 +396,9 @@ interface PayslipCardProps {
  * — see {@link PART_CYCLE_NOTES} — read from the cycle the slip's own withholding and
  * super expectations rest on, since those are the figures the note is about. An
  * earnings group on some other cadence carries its own reason on its variance, and
- * its row already shows the variance that reason produced.
+ * its row already shows the variance that reason produced. A slip part of whose gross
+ * lands in only some periods carries {@link UnmeasuredGrossNote} instead of a gross
+ * variance, that pay being measured across the year rather than against this period.
  *
  * Editing and deleting sit outside the disclosure: correcting a slip is no reason
  * to read it. Expansion is per card and lasts as long as the tab is open, which is
@@ -397,6 +457,7 @@ export function PayslipCard({
                 label="Gross"
                 cents={payslip.gross_cents}
                 varianceCents={variance.grossVarianceCents}
+                nullNote={grossNullNote(variance)}
               />
               <FigureCell
                 label="Tax withheld"
@@ -424,6 +485,10 @@ export function PayslipCard({
                 groups={variance.taxGroups}
                 unallocatedCents={variance.unallocatedTaxCents}
               />
+            )}
+
+            {variance.grossPartlyUnmeasured && (
+              <UnmeasuredGrossNote unmeasuredCents={variance.unmeasuredGrossCents} />
             )}
 
             {variance.partCycleReason !== null && (

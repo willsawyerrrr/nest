@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { expectedPeriodGrossCents } from '@nest/plan'
 import { FY2027_CONFIG } from '@nest/tax'
+import type { Inflow } from '../hooks/useInflows'
+import type { PayslipLineRow } from '../hooks/usePayslipLines'
+import type { PayslipRow } from '../hooks/usePayslips'
 import { makeInflow, makePayslip, makePayslipLine, makePayslipTaxLine } from '../test/fixtures'
 import {
   financialYearForPayslip,
+  occasionalPositionsFor,
   paygWithheldFromRows,
   payslipCountByMember,
   payslipReconciliation,
@@ -46,6 +50,18 @@ const ON_CALL = makeInflow({
   id: 'i2',
   name: 'On-call (T1)',
   amount_cents: 450_00,
+  attracts_super: false,
+})
+
+/** An on-call allowance projected at $6,600 a year, landing in only some fortnights. */
+const OCCASIONAL_ON_CALL = makeInflow({
+  id: 'i3',
+  name: 'On-call (T1)',
+  type: 'other',
+  schedule: 'annual',
+  amount_cents: 6_600_00,
+  pay_schedule: 'fortnightly',
+  arrives_every_pay_period: false,
   attracts_super: false,
 })
 
@@ -215,6 +231,86 @@ describe('toReconciledInflow', () => {
   it('leaves the pay cadence off a row arriving on the amount’s own frequency', () => {
     expect(toReconciledInflow(inflow).paySchedule).toBeUndefined()
     expect(toReconciledInflow(inflow).payInterval).toBeUndefined()
+  })
+
+  it('carries whether the money lands on every turn of that cadence', () => {
+    expect(toReconciledInflow(inflow).arrivesEveryPayPeriod).toBe(true)
+    expect(toReconciledInflow(OCCASIONAL_ON_CALL).arrivesEveryPayPeriod).toBe(false)
+    // No period is owed a share of an inflow that lands in only some of them.
+    expect(
+      expectedPeriodGrossCents(
+        toReconciledInflow(OCCASIONAL_ON_CALL),
+        { periodStart: '2026-07-01', periodEnd: '2026-07-14' },
+        2027,
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('occasionalPositionsFor', () => {
+  const shiftSlip = makePayslip({ gross_cents: 5_480_00, paid_on: '2026-07-15' })
+  const quietSlip = makePayslip({
+    id: 'ps2',
+    period_start: '2026-07-15',
+    period_end: '2026-07-28',
+    paid_on: '2026-07-29',
+  })
+  const lines = [
+    makePayslipLine(),
+    makePayslipLine({
+      id: 'pl2',
+      source_inflow_id: 'i3',
+      label: 'On-call (T1)',
+      amount_cents: 480_00,
+      attracts_super: false,
+    }),
+    makePayslipLine({ id: 'pl3', payslip_id: 'ps2' }),
+  ]
+
+  /** One member's slips measured once, exactly as their cards and their year read them. */
+  function measured(
+    payslips: readonly PayslipRow[],
+    inflows: readonly Inflow[],
+    rows: readonly PayslipLineRow[] = lines,
+  ) {
+    const reconciliation = payslipReconciliation(inflows, rows)
+    return {
+      reconciliation,
+      variances: payslipVariancesById(payslips, reconciliation, memberEstimate, config),
+    }
+  }
+
+  it('measures the year’s on-call against the projection to the latest pay', () => {
+    const payslips = [shiftSlip, quietSlip]
+    const { reconciliation, variances } = measured(payslips, [inflow, OCCASIONAL_ON_CALL])
+    // 1–29 July is 29 of FY2027's 365 days: $6,600 × 29/365 = $524.38.
+    expect(occasionalPositionsFor(payslips, variances, reconciliation, 2027)).toEqual([
+      {
+        sourceInflowId: 'i3',
+        actualCents: 480_00,
+        expectedCents: 524_38,
+        varianceCents: -44_38,
+        annualExpectedCents: 6_600_00,
+        asAt: '2026-07-29',
+      },
+    ])
+  })
+
+  it('sums the very group figures the member’s cards show', () => {
+    const payslips = [shiftSlip, quietSlip]
+    const { reconciliation, variances } = measured(payslips, [inflow, OCCASIONAL_ON_CALL])
+    const group = variances.get('ps1')!.lineGroups.find((each) => each.sourceInflowId === 'i3')
+
+    expect(group?.basis).toBe('occasional')
+    expect(occasionalPositionsFor(payslips, variances, reconciliation, 2027)[0]?.actualCents).toBe(
+      group?.actualCents,
+    )
+  })
+
+  it('reports nothing where no line draws on an occasional inflow', () => {
+    const payslips = [shiftSlip]
+    const { reconciliation, variances } = measured(payslips, [inflow], [makePayslipLine()])
+    expect(occasionalPositionsFor(payslips, variances, reconciliation, 2027)).toEqual([])
   })
 })
 

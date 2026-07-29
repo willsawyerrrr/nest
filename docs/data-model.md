@@ -62,7 +62,8 @@ and so without the trigger.
     `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
     `taxable` (default true), `attracts_super` (default true), `schedule`,
     `interval_count` (nullable), `pay_schedule` (nullable),
-    `pay_interval_count` (nullable), `amount_cents` (nullable),
+    `pay_interval_count` (nullable), `arrives_every_pay_period` (default true),
+    `amount_cents` (nullable),
     `hourly_rate_cents` (nullable), `hours_per_period` (nullable), `starts_on`
     (date, nullable), `ends_on` (date, nullable), `created_at`, `updated_at`.
   - `starts_on` / `ends_on` bound when the rate applies; both null means the
@@ -115,6 +116,20 @@ and so without the trigger.
     annual ÷ the pay cadence's periods per year, rounded to the nearest cent — so
     a year of payments may sit a few cents either side of the annual figure, which
     the inflow form names when it does.
+  - `arrives_every_pay_period` says whether the money lands on **every** turn of
+    that cadence. False for pay arriving in only some of them — on-call paid on the
+    fortnightly payrun, but only for the fortnights a shift was worked — which a
+    cadence alone cannot express, since any cadence claims the money arrives every
+    turn. Like the pay cadence it touches one thing: a payslip period holds no
+    expectation for such an inflow, so its earnings-line group reports a null
+    expectation and variance on the `occasional` basis, the slip's gross expectation
+    goes null rather than counting that group as nil, and the inflow is never the
+    slip's cadence anchor. Annualisation and every projection drawn from it are
+    unaffected — the flag is about **when** the money lands, not whether it is
+    expected — and the household reads such an inflow across the financial year
+    instead; see [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods).
+    Like `attracts_super` it is a taxable-inflow concern, only a taxable inflow being
+    reconciled against a payslip, and is stored true for a non-taxable one.
   - Amount shape by `type`: `wage` carries `hourly_rate_cents` ×
     `hours_per_period` (and null `amount_cents`); every other type carries a
     flat `amount_cents` per period. Either shape may carry a pay cadence: 38
@@ -291,9 +306,11 @@ and so without the trigger.
   - Earnings variance is measured per inflow: the lines drawing on one inflow are
     summed and held against that inflow's expectation for the period, and the
     lines recorded as earning no super come off the base the expected employer
-    super guarantee is charged on. The **largest earnings group's** inflow is also
-    the pay cycle the slip's own withholding and concessional-super expectations
-    are divided by — the slip carries no cadence of its own.
+    super guarantee is charged on. A group drawing on an inflow that arrives in only
+    some pay periods is not measured against the period at all. The **largest
+    measurable earnings group's** inflow is the pay cycle the slip's own withholding
+    and concessional-super expectations are divided by — the slip carries no cadence
+    of its own, and an occasional inflow is never that anchor.
   - Tax variance is measured per component: `stsl` against the compulsory HELP
     repayment inside the liability and `payg` against the rest of it.
   - `attracts_super` is the ordinary-time-earnings record, **snapshotted from the

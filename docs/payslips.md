@@ -28,7 +28,9 @@ tagged to them.
     prorated to the pay period. A persistent gap flags a stale inflow (a raise, a
     changed roster, a bonus). One payment routinely covers several projections at
     once — salary plus one or two on-call allowances — so the gross is measured
-    **per inflow** where the slip is itemised into earnings lines.
+    **per inflow** where the slip is itemised into earnings lines. An inflow that
+    lands in only some periods is measured across the **year** instead, no period
+    being owed a share of it.
   - **Tax withheld**: actual withheld — the slip's whole tax total — vs the
     estimate's implied per-period withholding. The tax estimate is
     annual-liability ÷ periods, and that liability includes the compulsory HELP
@@ -234,6 +236,10 @@ reported on the variance as `basis`.
   on the slip names a projection, or the cadence it names states no usable
   interval. With no period unit there is nothing but the year, so the figure is
   annual × the period's days ÷ the year's 365 or 366.
+- **`occasional`** — the money lands in only some turns of the cycle
+  (`inflows.arrives_every_pay_period` false), so **no figure is computed at all**:
+  the expectation and variance are null, and the reading moves to the year. See
+  [Pay that lands in only some periods](#pay-that-lands-in-only-some-periods).
 
 The cycle all three read is the cadence the inflow's money **arrives** on —
 `inflows.pay_schedule` (with `pay_interval_count`) where the row states one, and
@@ -307,6 +313,98 @@ divided by, so the note describes the figures it sits under. A group drawn on so
 other cadence reports its own reason on its variance, and its row already shows the
 variance that reason produced; the note is not repeated per group.
 
+#### The pay cycle is read from the largest earnings group
+
+A slip carries no cadence of its own: it states one only through the projections its
+earnings draw on. The cycle its **own** expectations — withholding and concessional
+super — are divided by is therefore the inflow behind its **largest earnings group**
+(`cadenceInflowId`). That is the best evidence available: an employer pays every line
+of one payment on one cycle, so the earning making up most of the payment is the one
+whose projection is most likely modelled on it. Groups are read in printed order and
+the comparison is strict, so equal groups keep the first.
+
+A disagreement among the groups' cadences is deliberately **not** a reason to leave the
+cadence basis. An annual bonus paid beside a fortnightly salary is an ordinary slip, and
+apportioning a whole fortnight for the sake of the smaller line would move its
+expectations off the cycle that really paid it. The pick is self-correcting instead: the
+period must still be one whole turn of the chosen cadence with the inflow effective
+throughout, so a cadence the period does not fit scales across that cadence's own turn
+anyway.
+
+Two inflows are skipped when picking. A group naming no projection has no cadence to
+offer, and an inflow arriving in only some pay periods is never the anchor (below). A
+slip with no eligible group at all falls back to the `calendar_days` basis.
+
+### Pay that lands in only some periods
+
+On-call pay is paid alongside the fortnightly payrun, but only for the fortnights a
+shift was actually worked. A cadence cannot say that — any cadence claims the money
+arrives every turn — so a smoothed per-period figure reports pay off plan in whichever
+direction the fortnight happened to fall, neither being a real discrepancy. The app
+models per-period slip totals and **no roster**, so it cannot know which fortnights
+carry a shift; `inflows.arrives_every_pay_period` false is how it stops pretending it
+does.
+
+**The projection does not change.** `schedule` + `amount_cents` still say what the
+money comes to over a period, and everything that annualises them is untouched: the FY
+tax estimate and its effective-date proration, the super guarantee and
+percent-of-salary bases, the co-contribution income test, the budget's
+fortnightly/annual normalisation, the summary's available cash, and the pay splits
+drawn from it. On-call worth $6,600 a year is $6,600 of assessable income and $253.85 a
+fortnight of projected cash either way. The flag is about **when** the money lands,
+never whether it is expected.
+
+What changes is the per-period reading, in four places.
+
+- **The group reports nothing.** Its expectation and variance are null on the
+  `occasional` basis, and the card says _"Not measured per period"_ rather than "No
+  projection to compare" — the projection exists, and it is annual. A fortnight the
+  allowance skipped carries no line for it at all, so nothing is expected and the
+  slip's other groups read exactly as they always did: the salary's nil variance is
+  still nil.
+- **The slip's gross variance goes null**, reported as `grossPartlyUnmeasured` with
+  the amount in `unmeasuredGrossCents`. Excluding the group from the total would hold
+  the slip's **whole** gross against part of it, reading an ordinary on-call fortnight
+  as above plan by the whole allowance — the very error being removed. This is not the
+  same as the unmapped-line case, which still reads as gross above plan: an unmapped
+  line's earnings really are unexplained, whereas an occasional group's are explained
+  and simply not per-period.
+- **It is never the cadence anchor**, however large its group. Its cadence says which
+  turns the money *could* land on, not how many times a year it does, so dividing an
+  annual figure by that cadence's periods per year divides by a count the inflow does
+  not keep — and it rides someone else's payrun anyway, so skipping it lands the pick
+  on the steady inflow whose cycle the employer really withholds on, even on a slip
+  the allowance dominates. A slip whose every group is occasional falls back to
+  `calendar_days`, exactly as one naming no projection does.
+- **Withholding stays smoothed, and says so.** The year's liability is one figure over
+  all of a member's income and marginal rates make it no sum of per-inflow parts, so
+  there is no honest way to take the allowance out of a period's expected
+  withholding. It stays annual ÷ the pay cycle, which means a period carrying the
+  allowance withholds more than that and one without it less. The card names this
+  rather than leaving it to be discovered. The year's summed withholding — what the
+  refund or bill is worked out from — is unaffected either way.
+
+**The year is where such an inflow is read.** Above the member's list, "Occasional pay,
+year to date" gives one row per occasional inflow the slips draw on: the total those
+slips paid against it, and the projection for the part of the year already run
+through. The comparison is against the elapsed share rather than the whole year,
+because half a year of on-call is not short by half the year's allowance; and it runs
+to the member's **latest pay** rather than to today, because the actuals only reach as
+far as the slips entered, so measuring past them would report a household that has not
+yet entered this fortnight's slip as behind plan. It is shown once, for the year,
+rather than on each of 26 cards — repeated per card it would read as exactly the
+per-period comparison the whole change is that it is not.
+
+Each row's actual is that inflow's occasional groups summed straight off the slips'
+**measurements**, never their lines re-read, so a row here and the group figures on
+the cards under it are one measurement read twice — the same guarantee the [three
+year-to-date positions](#the-year-to-date-is-the-slips-own-expectations-summed) rest
+on, and where that section says what such a slip does to the year's gross.
+
+Super needs nothing here. The guarantee is charged on the slip's **actual** gross less
+its non-OTE lines, so it never involved a projection; an on-call allowance is already
+out of the base by earning no super.
+
 ### Earnings lines and per-inflow variance
 
 One employer pays salary and on-call in a single payment, and the two are
@@ -332,6 +430,10 @@ every line stays theirs to edit. Five properties fall out of that shape.
   **unallocated** and shown as such; it reads as gross above plan, which is what
   unexplained earnings are. Lines overshooting the gross read as a negative
   remainder.
+- **A group whose inflow lands in only some periods is not measured here at all** —
+  see [Pay that lands in only some
+  periods](#pay-that-lands-in-only-some-periods). Its projection is annual, so the
+  year is where it is read.
 - **A slip with no lines is measured against nothing.** There is no projection
   for its gross and no pay cycle to read, so the gross expectation is null and its
   printed totals are held against the year's own figures apportioned by calendar
@@ -395,6 +497,8 @@ position.
 
 It is also **one measurement read twice**. The `PayslipVariance` a card renders is
 the very object the year sums, so a total and the figures under it cannot disagree.
+The occasional-pay block beside these positions is summed from the same objects, for
+the same reason.
 
 **A slip with no expectation is left out of both sides.** Where a figure has no
 expectation for a slip — nothing on it names a projection, or the projection has
@@ -407,10 +511,18 @@ qualifier shown only where the two counts differ. Where **no** slip carries an
 expectation the position says "No projection to compare", the same words a card
 uses, rather than dressing nil coverage up as a shortfall.
 
+[Pay that lands in only some periods](#pay-that-lands-in-only-some-periods) reaches
+the gross position through that same path: such a slip has no gross expectation, so
+it is left out of both sides and the coverage note counts it out. Where **every** slip
+carries that pay the gross position has nothing to compare at all, and the cell blames
+the pay for being occasional and points at the block below rather than saying "No
+projection to compare" — the projection exists, and it is annual.
+
 The three are counted **separately**, because a slip may carry one figure's
 expectation and not another's: a slip mapped to no projection has no gross to
 expect, while its withholding is still apportioned out of the member's estimated
-liability by calendar days.
+liability by calendar days. So is a slip's withholding where an occasional allowance
+took its gross out of the reckoning.
 
 The figure above each position stays the **whole** year's actual over every slip
 entered — it is what feeds the tax engine's `paygWithheldCents` — so the figure and
@@ -464,14 +576,19 @@ tab**:
   the `xs` breakpoint up, the way a card's quartet does; a figure with a variance and
   a coverage note under it needs more than a third of a phone's width. How the
   position is worked out, and what it does with a slip the plan cannot speak for, is
-  [above](#the-year-to-date-is-the-slips-own-expectations-summed).
+  [above](#the-year-to-date-is-the-slips-own-expectations-summed). Under the grid comes
+  the cross-check against the running totals printed on the latest slip — a footnote to
+  the gross figure right above it — and under that, in a block of its own, the year's
+  position on any pay that lands in only some periods, one row per such inflow: see
+  [Pay that lands in only some periods](#pay-that-lands-in-only-some-periods).
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
   - *Expected gross for the period* = each inflow the slip's earnings lines draw
     on, annualised (via the existing `annualGrossCents` / schedule normalisation)
     then scaled to the payslip's period on the bases above, summed. Per group, that
     group's sum less its expectation is its variance; over the slip,
     `gross_cents − expected` is the gross variance. A slip whose lines name no
-    projection has no gross expectation at all.
+    projection has no gross expectation at all, and neither has one part of whose
+    gross draws on an inflow arriving in only some periods.
   - *Expected tax withheld for the period* = the member's annual estimated tax
     (from `estimateHouseholdTax`) ÷ periods per year of the slip's pay cycle,
     scaled by the share of one period it covers. `tax_withheld_cents − expected` is

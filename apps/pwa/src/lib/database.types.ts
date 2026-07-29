@@ -822,6 +822,7 @@ export type Database = {
       inflows: {
         Row: {
           amount_cents: number | null
+          arrives_every_pay_period: boolean
           attracts_super: boolean
           created_at: string
           ends_on: string | null
@@ -842,6 +843,7 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number | null
+          arrives_every_pay_period?: boolean
           attracts_super?: boolean
           created_at?: string
           ends_on?: string | null
@@ -862,6 +864,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number | null
+          arrives_every_pay_period?: boolean
           attracts_super?: boolean
           created_at?: string
           ends_on?: string | null

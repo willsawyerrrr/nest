@@ -122,6 +122,10 @@ function describePerPayment(
  * what makes the two agree in advance. Each payment rounds to the nearest cent on its
  * own, so a year of them can land either side of the annual figure the amount states;
  * where it does the gap is named, rather than left to be discovered on a slip.
+ *
+ * Money arriving in only some pay periods has no such figure — no slip is held
+ * against one — so the note is not shown for it at all rather than stating a share
+ * nothing expects.
  */
 function PerPaymentNote({ perPayment }: { perPayment: PerPayment }) {
   const gap = perPayment.annualCents - perPayment.statedAnnualCents
@@ -166,6 +170,9 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
   const [paySchedule, setPaySchedule] = useState<Frequency | null>(initial?.pay_schedule ?? null)
   const [payInterval, setPayInterval] = useState<number | string>(initial?.pay_interval_count ?? '')
+  const [arrivesEveryPeriod, setArrivesEveryPeriod] = useState(
+    initial?.arrives_every_pay_period ?? true,
+  )
   const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
   const [hourlyRate, setHourlyRate] = useState<number | string>(
     centsToDollars(initial?.hourly_rate_cents),
@@ -197,6 +204,10 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const payIntervalUnit = payCadence === 'every_n_months' ? 'months' : 'weeks'
   const payIntervalValid = isIntervalValid(payInterval)
   const payIntervalCount = isPayEveryN && payIntervalValid ? Number(payInterval) : undefined
+  // Whether the money lands every period is a taxable-inflow concern for the same
+  // reason the pay cadence is: it exists to keep a payslip period from expecting pay
+  // that only lands in some, and only a taxable inflow is reconciled against a slip.
+  const arrivesEvery = taxable ? arrivesEveryPeriod : true
   const amountEntered = isWage ? hourlyRate !== '' && hours !== '' : amount !== ''
 
   // The annual total the amount states, by the very arithmetic the payslip expectation
@@ -252,6 +263,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       interval_count: isEveryN ? Number(interval) : null,
       pay_schedule: payCadence,
       pay_interval_count: isPayEveryN ? Number(payInterval) : null,
+      arrives_every_pay_period: arrivesEvery,
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
@@ -403,9 +415,19 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         />
       )}
 
-      {perPayment && <PerPaymentNote perPayment={perPayment} />}
+      {perPayment && arrivesEvery && <PerPaymentNote perPayment={perPayment} />}
 
       {arrivesAnnually && <AnnualArrivalNote />}
+
+      {taxable && (
+        <Switch
+          size="sm"
+          label="Arrives in every pay period"
+          description="On for pay that lands every cycle. Off for pay that lands in only some of them — an on-call allowance paid on the fortnightly payrun, but only for the fortnights a shift was worked. The yearly figure still counts in full in the tax estimate, the budget, and available cash; a payslip simply stops expecting a share of it every period, and the year is where you read whether it is tracking."
+          checked={arrivesEveryPeriod}
+          onChange={(event) => setArrivesEveryPeriod(event.currentTarget.checked)}
+        />
+      )}
 
       {taxable && (
         <Switch

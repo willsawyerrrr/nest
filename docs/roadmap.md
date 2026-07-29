@@ -439,8 +439,11 @@ The income side of actual-vs-plan: each pay event's real figures, reconciled
 against the projected inflow and the tax estimate. Design and staging in
 [`payslips.md`](payslips.md).
 
-- [x] `payslip` schema: per member, FY-scoped, with the gross / PAYG withheld /
-      super / net quartet, optional salary sacrifice and the slip's YTD running
+- [x] `payslip` schema: per member, FY-scoped, with the gross / tax withheld /
+      super / net quartet — withheld being the slip's whole tax total, PAYG plus
+      any STSL study-loan component, since the liability it nets against already
+      includes the HELP repayment the STSL pays — optional salary sacrifice and
+      the slip's YTD running
       totals, `period_end >= period_start` and non-negative money constraints, and
       household-wide RLS (the same boundary as the other per-member tax tables —
       `member_id` is a tax attribution, not a privacy boundary).

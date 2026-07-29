@@ -6,7 +6,7 @@ liability, plan spending, and track savings goals.
 ## Goals
 
 - **Income tracking** — record each person's income (salary, other) with gross,
-  PAYG withheld, and super.
+  tax withheld, and super.
 - **Tax** — estimate full AU income tax liability per person per financial year
   (marginal brackets, Medicare levy + surcharge, HECS/HELP, offsets) and compare
   against tax already withheld.

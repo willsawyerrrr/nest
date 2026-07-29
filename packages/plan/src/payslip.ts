@@ -86,6 +86,11 @@ export interface PayslipActuals extends PayPeriod {
   /** AU financial year, labelled by its ending year (FY2027 = 1 Jul 2026 – 30 Jun 2027). */
   readonly financialYear: number
   readonly grossCents: Money
+  /**
+   * The slip's tax total: PAYG income tax plus any STSL study-loan withholding,
+   * never the PAYG line alone. The annual liability it is measured against
+   * includes the compulsory HELP repayment the STSL pays.
+   */
   readonly taxWithheldCents: Money
   readonly superCents: Money
   readonly salarySacrificeCents?: Money | null
@@ -499,16 +504,20 @@ function lineGroupVariances(
  * account for is reported as `unallocatedCents` and reads as gross above plan,
  * which is what unexplained earnings are.
  *
- * Expected PAYG withheld is the member's annual estimated tax for the period —
- * the withholding the estimate implies. Expected super is the versioned guarantee
- * rate on `superBaseCents` — the slip's actual gross less every line recorded as
- * earning no super, or, for a slip with no lines, less the whole gross when its
- * cadence anchor earns none. An allowance is left out of the base while the
- * guarantee stays a percentage of what was really earned, keeping the super
- * variance a rate check independent of the gross variance. Added to it is the
- * member's annual concessional contributions for the period, and the total is
- * compared against the payslip's employer super plus its salary sacrifice, the
- * matching total concessional figure. Each variance is actual − expected.
+ * Expected tax withheld is the member's annual estimated tax for the period — the
+ * withholding the estimate implies. That estimate is the whole liability, HELP
+ * repayment included, so it is held against the slip's whole tax total (PAYG plus
+ * any STSL), which is what `taxWithheldCents` carries.
+ *
+ * Expected super is the versioned guarantee rate on `superBaseCents` — the slip's
+ * actual gross less every line recorded as earning no super, or, for a slip with
+ * no lines, less the whole gross when its cadence anchor earns none. An allowance
+ * is left out of the base while the guarantee stays a percentage of what was
+ * really earned, keeping the super variance a rate check independent of the gross
+ * variance. Added to it is the member's annual concessional contributions for the
+ * period, and the total is compared against the payslip's employer super plus its
+ * salary sacrifice, the matching total concessional figure. Each variance is
+ * actual − expected.
  *
  * Every per-period figure is rounded to the nearest cent on its own, halves up.
  * The remainder of an annual figure that does not divide evenly by its periods
@@ -624,11 +633,11 @@ export function payslipYearToDateByMember(
 }
 
 /**
- * Each member's summed actual PAYG withheld, keyed by member id — the map
- * `estimateHouseholdTax` takes as its per-member withholding, turning the
- * estimate's liability into a refund or amount owing. Pass one financial year's
- * rows; a member with no payslips is absent, so their estimate keeps its nil
- * withholding.
+ * Each member's summed actual tax withheld — every slip's tax total, PAYG plus
+ * any STSL — keyed by member id. This is the map `estimateHouseholdTax` takes as
+ * its per-member withholding, turning the estimate's liability into a refund or
+ * amount owing. Pass one financial year's rows; a member with no payslips is
+ * absent, so their estimate keeps its nil withholding.
  */
 export function paygWithheldByMember(
   payslips: readonly PayslipTotalsRow[],

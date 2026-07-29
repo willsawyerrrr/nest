@@ -42,10 +42,11 @@ export function toPayslipTotalsRow(payslip: PayslipRow): PayslipTotalsRow {
 }
 
 /**
- * Each member's summed actual PAYG withheld from their payslip rows, keyed by
- * member id — the map the tax estimate nets against each member's liability to
- * report a refund or an amount owing. A member with no payslips is absent, so
- * their estimate keeps its nil withholding.
+ * Each member's summed actual tax withheld from their payslip rows — every slip's
+ * tax total, PAYG plus any STSL — keyed by member id. This is the map the tax
+ * estimate nets against each member's liability to report a refund or an amount
+ * owing. A member with no payslips is absent, so their estimate keeps its nil
+ * withholding.
  */
 export function paygWithheldFromRows(payslips: readonly PayslipRow[]): ReadonlyMap<string, number> {
   return paygWithheldByMember(payslips.map(toPayslipTotalsRow))

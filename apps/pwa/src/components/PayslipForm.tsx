@@ -437,6 +437,12 @@ export function PayslipForm({
         />
       </SimpleGrid>
 
+      <Text size="xs" c="dimmed">
+        Tax withheld — here and year to date — is the slip’s tax total: PAYG income tax plus any
+        STSL study-loan component, not the PAYG line alone. The estimate’s liability already
+        includes the HELP repayment that STSL pays, so only the total nets against it.
+      </Text>
+
       <PayslipLinesField
         lines={lines}
         options={inflowOptions}

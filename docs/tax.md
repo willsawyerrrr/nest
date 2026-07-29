@@ -36,7 +36,9 @@ which apply to the current rate rather than the part-year figure.
   `help_debt` table (edited on the HELP debt tab), not the tax profile.
 - Concessional (pre-tax) super contributions — salary sacrifice and personal
   deductible.
-- PAYG tax withheld to date (from payslips).
+- Tax withheld to date (from payslips) — each slip's whole tax total, PAYG income
+  tax plus any STSL study-loan component. See
+  [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total).
 
 ## Computation pipeline
 
@@ -73,8 +75,11 @@ which apply to the current rate rather than the part-year figure.
    (taxable income + concessional contributions) exceeds the $250,000 threshold.
 8. **Total liability** = income tax − offsets + Medicare levy + surcharge +
    HELP repayment + Division 293.
-9. **Balance** = total liability − PAYG withheld. Positive = amount owing;
-   negative = estimated refund.
+9. **Balance** = total liability − tax withheld. Positive = amount owing;
+   negative = estimated refund. The liability at step 8 includes the HELP
+   repayment, so the withheld figure netted against it is the slip's tax total —
+   PAYG **and** the STSL component that pays that repayment. Netting the PAYG line
+   alone would overstate the amount owing by every dollar of STSL withheld.
 
 > **Super-income simplification.** Surcharge, HELP repayment, and Division 293
 > income are taken as taxable income plus concessional contributions; reportable

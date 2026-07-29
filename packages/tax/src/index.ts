@@ -173,6 +173,13 @@ export interface TaxInput {
   /** Whether private hospital cover is held; exempts the surcharge when true. */
   readonly privateHospitalCover: boolean
   readonly helpDebtCents: Money
+  /**
+   * Tax withheld against the year's liability, summed from the member's payslips:
+   * each slip's whole tax total, PAYG income tax **plus** any STSL study-loan
+   * withholding. `totalLiabilityCents` includes the compulsory HELP repayment the
+   * STSL pays, so netting the PAYG line alone would overstate `balanceCents` by
+   * every dollar of STSL withheld.
+   */
   readonly paygWithheldCents: Money
   /**
    * Annual concessional (pre-tax) super contributions — salary sacrifice plus

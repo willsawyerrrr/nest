@@ -184,6 +184,12 @@ and so without the trigger.
     `ytd_tax_withheld_cents`, `ytd_super_cents` (nullable, `>= 0`),
     `source_inflow_id` (nullable), `file_path` (nullable), `note` (nullable),
     `created_at`, `updated_at`.
+  - `tax_withheld_cents` is the slip's **tax total** — PAYG income tax plus any
+    STSL study-loan component, not the PAYG line alone — and
+    `ytd_tax_withheld_cents` the year-to-date total on the same basis. The tax
+    estimate's liability includes the compulsory HELP repayment the STSL pays, so
+    only the total nets against it; see
+    [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total).
   - `period_end >= period_start` (`payslip_period`). The money columns are
     non-negative rather than positive: `tax_withheld_cents` is legitimately zero
     below the tax-free threshold, and `super_cents` is zero on a slip that omits

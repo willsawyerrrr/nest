@@ -7,19 +7,9 @@
 // branch merged green, which makes uniqueness a build-time invariant rather than
 // a review-time one.
 
-import { readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { FILENAME, listMigrationFiles } from './lib/migration-files.js'
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations')
-
-// Supabase parses the version as the digits before the first underscore; the
-// rest is a human label. A name that does not match has no parseable version.
-const FILENAME = /^(\d{14})_[a-z0-9_]+\.sql$/
-
-const files = readdirSync(MIGRATIONS_DIR)
-  .filter((name) => name.endsWith('.sql'))
-  .sort()
+const files = listMigrationFiles()
 
 const errors = []
 const byVersion = new Map()

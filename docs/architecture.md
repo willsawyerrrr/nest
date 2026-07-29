@@ -249,6 +249,12 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   `supabase/functions/**` or `supabase/config.toml`. Both authenticate with the
   `SUPABASE_ACCESS_TOKEN` secret and the lockfile-pinned CLI — see
   [`operations.md`](operations.md#deployment).
+- `.github/workflows/check-migration-drift.yml` closes the loop on the migration
+  deploy: on a six-hourly schedule (and on `workflow_dispatch`) it fails if prod
+  has not applied every migration in `supabase/migrations/`, whether or not a
+  push ever triggered a deploy for them. The deploy workflow runs the same check
+  as a post-push assertion — see
+  [`operations.md`](operations.md#deployment).
 
 ## CI
 
@@ -284,6 +290,13 @@ the workflow token is scoped `contents: read`:
 
 A `ci-status` job `needs` all four and is the single required `CI Status` check
 (squash-only, no bypass).
+
+`check`'s migration assertion is the half of the migration contract a pull
+request can prove: the directory's versions are unique. The other half — prod
+having applied them — needs a credential and a network round trip, so it lives in
+`check-migration-drift.yml` on a schedule rather than in `ci.yml`, outside the
+sub-minute budget and off the required-check path. It is nonetheless quick
+(checkout, pnpm install, `link`, one query).
 
 Each pnpm job (`check`, `test-shard`, `test`) sets up the toolchain the same way:
 `actions/setup-node` installs Node, then `corepack enable` /

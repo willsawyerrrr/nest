@@ -22,6 +22,8 @@ function fields(overrides: Partial<RawPayslipFields> = {}): RawPayslipFields {
     ytd_gross: '12,361.50',
     ytd_tax_withheld: '3,144.00',
     ytd_super: '1,421.58',
+    earnings_lines: [],
+    tax_lines: [],
     ...overrides,
   }
 }

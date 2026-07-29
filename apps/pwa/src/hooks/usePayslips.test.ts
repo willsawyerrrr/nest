@@ -322,6 +322,10 @@ describe('usePayslips attachment extraction', () => {
       model: 'claude-haiku-4-5-20251001',
       fields: { gross_cents: 4_120_50 },
       text: { gross: '4,120.50' },
+      lines: {
+        earnings: [{ label: 'Ordinary Hours', amount: '$4,120.50', amount_cents: 4_120_50 }],
+        tax: [],
+      },
       missing: [],
       unreadable: [],
     }
@@ -343,6 +347,11 @@ describe('usePayslips attachment extraction', () => {
         model: 'claude-haiku-4-5-20251001',
         fields: { gross_cents: 4_120_50, tax_withheld_cents: -1_048_00 },
         text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
+        lines: {
+          // A line reversing an overpayment keeps its sign: the column takes one.
+          earnings: [{ label: 'Overpayment recovery', amount: '($120.00)', amount_cents: -120_00 }],
+          tax: [],
+        },
         missing: [],
         unreadable: [],
       },
@@ -359,6 +368,10 @@ describe('usePayslips attachment extraction', () => {
         model: 'claude-haiku-4-5-20251001',
         fields: { gross_cents: 4_120_50 },
         text: { gross: '4,120.50', tax_withheld: '(1,048.00)' },
+        lines: {
+          earnings: [{ label: 'Overpayment recovery', amount: '($120.00)', amount_cents: -120_00 }],
+          tax: [],
+        },
         missing: [],
         unreadable: ['tax_withheld_cents'],
       },

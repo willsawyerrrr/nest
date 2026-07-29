@@ -9,6 +9,7 @@ import {
   EXTRACTION_KEY_REJECTED_MESSAGE,
   EXTRACTION_OUT_OF_CREDIT_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
+  matchInflowByLabel,
   NOT_PAYSLIP_MESSAGE,
   readExtraction,
   readExtractionFailure,
@@ -54,6 +55,7 @@ describe('readExtraction', () => {
       model: 'claude-haiku-4-5-20251001',
       fields: { period_start: '2026-07-06', gross_cents: 4_120_50 },
       text: { period_start: '06/07/2026', gross: '4,120.50' },
+      lines: { earnings: [], tax: [] },
       missing: ['net_cents'],
       unreadable: [],
     })
@@ -91,6 +93,7 @@ describe('readExtraction', () => {
       model: 'claude-haiku-4-5-20251001',
       fields: {},
       text: {},
+      lines: { earnings: [], tax: [] },
       missing: ['net_cents'],
       unreadable: ['gross_cents'],
     })
@@ -111,7 +114,164 @@ describe('readExtraction', () => {
   it('takes a reply missing its parts as one carrying nothing', () => {
     expect(
       readExtraction({ model: 'm', fields: 'x', text: null, missing: 1, unreadable: 2 }),
-    ).toEqual({ model: 'm', fields: {}, text: {}, missing: [], unreadable: [] })
+    ).toEqual({
+      model: 'm',
+      fields: {},
+      text: {},
+      lines: { earnings: [], tax: [] },
+      missing: [],
+      unreadable: [],
+    })
+  })
+
+  it('keeps the slip’s itemisation, each line with the text read for it', () => {
+    const extraction = readExtraction(
+      body({
+        lines: {
+          earnings: [
+            { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+            { label: 'Annual Leave', amount: '$1,000.00', amount_cents: 1_000_00 },
+            { label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 },
+          ],
+          tax: [
+            { label: 'PAYG', amount: '$1,416.00', amount_cents: 1_416_00, component: 'payg' },
+            {
+              label: 'STSL Component',
+              amount: '$434.00',
+              amount_cents: 434_00,
+              component: 'stsl',
+            },
+          ],
+        },
+      }),
+    )
+
+    expect(extraction!.lines.earnings).toEqual([
+      { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+      { label: 'Annual Leave', amount: '$1,000.00', amount_cents: 1_000_00 },
+      { label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 },
+    ])
+    expect(extraction!.lines.tax).toEqual([
+      { label: 'PAYG', amount: '$1,416.00', amount_cents: 1_416_00, component: 'payg' },
+      { label: 'STSL Component', amount: '$434.00', amount_cents: 434_00, component: 'stsl' },
+    ])
+  })
+
+  it('keeps a negative line amount, where a negative total is unreadable', () => {
+    // `payslip_line.amount_cents` carries no `>= 0` check, deliberately: a line
+    // reversing an overpayment is a figure to fill in rather than one to drop.
+    const extraction = readExtraction(
+      body({
+        fields: { tax_withheld_cents: -1_048_00 },
+        lines: {
+          earnings: [{ label: 'Overpayment recovery', amount: '($120.00)', amount_cents: -120_00 }],
+          tax: [],
+        },
+        missing: [],
+      }),
+    )
+
+    expect(extraction!.lines.earnings[0]!.amount_cents).toBe(-120_00)
+    expect(extraction!.fields.tax_withheld_cents).toBeUndefined()
+    expect(extraction!.unreadable).toEqual(['tax_withheld_cents'])
+  })
+
+  it('leaves a tax component it does not recognise unnamed rather than PAYG', () => {
+    const extraction = readExtraction(
+      body({
+        lines: {
+          earnings: [],
+          tax: [
+            { label: 'Withholding', amount: '$1,850.00', amount_cents: 185_000, component: null },
+            { label: 'Adjustment', amount: '$12.00', amount_cents: 12_00, component: 'other' },
+            { label: 'Extra tax', amount: '$50.00', amount_cents: 50_00 },
+            // No label, so no row to show: dropped as an earnings line would be.
+            { amount: '$1.00', amount_cents: 100, component: 'payg' },
+          ],
+        },
+      }),
+    )
+
+    // The two pay different parts of the liability, so an unnamed one is the
+    // member's to pick, never defaulted to the commoner of the two.
+    expect(extraction!.lines.tax.map((line) => line.label)).toEqual([
+      'Withholding',
+      'Adjustment',
+      'Extra tax',
+    ])
+    expect(extraction!.lines.tax.map((line) => line.component)).toEqual([null, null, null])
+  })
+
+  it('drops anything that is not a line the form could show as a row', () => {
+    const extraction = readExtraction(
+      body({
+        lines: {
+          earnings: [
+            { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+            // No usable label: nothing to show as a row.
+            { amount: '$1.00', amount_cents: 100 },
+            { label: '  ', amount: '$1.00', amount_cents: 100 },
+            // Cents are integers; anything else is not a figure to fill in.
+            { label: 'Bonus', amount: '$1.005', amount_cents: 100.5 },
+            { label: 'Overtime', amount: 12, amount_cents: '500' },
+            'Ordinary Hours',
+            null,
+          ],
+          // Not an array: the section reads as unitemised rather than as a failure.
+          tax: { label: 'PAYG', amount_cents: 185_000 },
+        },
+      }),
+    )
+
+    expect(extraction!.lines.earnings).toEqual([
+      { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+      // The label and text survive an amount that could not be converted; the form
+      // names such a line rather than filling it in.
+      { label: 'Bonus', amount: '$1.005', amount_cents: null },
+      { label: 'Overtime', amount: null, amount_cents: null },
+    ])
+    expect(extraction!.lines.tax).toEqual([])
+  })
+
+  it('reads a reply whose lines are not an object as an unitemised slip', () => {
+    expect(readExtraction(body({ lines: 'earnings' }))!.lines).toEqual({ earnings: [], tax: [] })
+  })
+})
+
+describe('matchInflowByLabel', () => {
+  const options = [
+    { value: 'i1', label: 'Day job' },
+    { value: 'i4', label: 'On-call (T1)' },
+    { value: 'i5', label: 'On-call (T2)' },
+  ]
+
+  it('matches a printed label naming exactly one inflow, whatever its case or spacing', () => {
+    expect(matchInflowByLabel('On-call (T1)', options)).toBe('i4')
+    expect(matchInflowByLabel('  day JOB  ', options)).toBe('i1')
+    expect(matchInflowByLabel('On-call\n  (T1)', options)).toBe('i4')
+  })
+
+  it('leaves a label no inflow answers to unmatched', () => {
+    expect(matchInflowByLabel('Ordinary Hours', options)).toBeNull()
+    expect(matchInflowByLabel('   ', options)).toBeNull()
+    expect(matchInflowByLabel('Day job', [])).toBeNull()
+  })
+
+  it('never matches on part of a name, however close', () => {
+    // A line attributed to the wrong inflow moves the measured variance of both
+    // without saying so, so only the whole label against the whole name counts.
+    expect(matchInflowByLabel('On-call', options)).toBeNull()
+    expect(matchInflowByLabel('On-call (T1) allowance', options)).toBeNull()
+    expect(matchInflowByLabel('Day', options)).toBeNull()
+  })
+
+  it('leaves a label two inflows answer to unmatched', () => {
+    expect(
+      matchInflowByLabel('On-call', [
+        { value: 'i4', label: 'On-call' },
+        { value: 'i5', label: 'ON-CALL' },
+      ]),
+    ).toBeNull()
   })
 })
 

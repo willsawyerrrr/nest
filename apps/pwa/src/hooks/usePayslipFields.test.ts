@@ -34,6 +34,7 @@ function extraction(overrides: Partial<PayslipExtraction> = {}): PayslipExtracti
       ytd_super_cents: null,
     },
     text: { gross: '4,120.50' },
+    lines: { earnings: [], tax: [] },
     missing: ['salary_sacrifice_cents'],
     unreadable: [],
     ...overrides,

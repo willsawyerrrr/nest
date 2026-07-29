@@ -45,6 +45,9 @@ function extraction(overrides: Partial<PayslipExtraction> = {}): PayslipExtracti
       net: '3,072.50',
       ytd_super: '4,12O.50',
     },
+    // The slip's own itemisation, which most of these tests do not exercise: a slip
+    // printing no line detail still yields its totals.
+    lines: { earnings: [], tax: [] },
     missing: ['salary_sacrifice_cents'],
     unreadable: [],
     ...overrides,
@@ -975,6 +978,17 @@ function earningLine(sourceInflowId: string | null, label: string, amountCents: 
   }
 }
 
+/** The submitted shape of one tax line: no inflow, as the schema requires. */
+function taxLine(component: string, label: string, amountCents: number) {
+  return {
+    kind: 'tax',
+    source_inflow_id: null,
+    tax_component: component,
+    label,
+    amount_cents: amountCents,
+  }
+}
+
 /** Renders an add form for the member, returning its `onSubmit` spy. */
 function renderForm(props: Partial<Parameters<typeof PayslipForm>[0]> = {}) {
   const onSubmit = vi.fn()
@@ -1330,5 +1344,254 @@ describe('PayslipForm tax lines', () => {
     expect(screen.queryByLabelText('Tax line 2 name')).not.toBeInTheDocument()
     // Removing a tax line leaves the earnings lines untouched.
     expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
+  })
+})
+
+describe('PayslipForm extracted lines', () => {
+  /** The real slip's itemisation, as a read reports it. */
+  function itemised(overrides: Partial<PayslipExtraction['lines']> = {}): PayslipExtraction {
+    return extraction({
+      lines: {
+        earnings: [
+          { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+          { label: 'Annual Leave', amount: '$1,000.00', amount_cents: 1_000_00 },
+          { label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 },
+        ],
+        tax: [
+          { label: 'PAYG', amount: '$1,416.00', amount_cents: 1_416_00, component: 'payg' },
+          { label: 'STSL Component', amount: '$434.00', amount_cents: 434_00, component: 'stsl' },
+        ],
+        ...overrides,
+      },
+    })
+  }
+
+  /** Reads a slip whose itemisation is `overrides` over the real slip's. */
+  function reads(overrides: Partial<PayslipExtraction['lines']> = {}) {
+    read.mockResolvedValue({
+      status: 'read',
+      extraction: itemised(overrides),
+    } satisfies ExtractionOutcome)
+  }
+
+  it('itemises the slip into both sections and saves the lines it read', async () => {
+    const user = userEvent.setup()
+    reads()
+    const onSubmit = renderForm()
+
+    await attach(user)
+
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
+    expect(screen.getByLabelText('Earnings line 1 amount')).toHaveValue('$4,000.00')
+    expect(screen.getByLabelText('Earnings line 2 name')).toHaveValue('Annual Leave')
+    expect(screen.getByLabelText('Earnings line 3 amount')).toHaveValue('$495.50')
+    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('PAYG')
+    expect(screen.getByLabelText('Tax line 2 amount')).toHaveValue('$434.00')
+    // Each component comes from the slip's own words, which name it plainly.
+    expect(screen.getByRole('combobox', { name: 'Tax line 1 pays' })).toHaveValue('PAYG income tax')
+    expect(screen.getByRole('combobox', { name: 'Tax line 2 pays' })).toHaveValue(
+      'STSL (study loan)',
+    )
+
+    await user.click(screen.getByRole('button', { name: /^add payslip$/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).lines).toEqual([
+      earningLine(null, 'Ordinary Hours', 4_000_00),
+      earningLine(null, 'Annual Leave', 1_000_00),
+      // The one printed label naming exactly one of the member's inflows.
+      earningLine('i4', 'On-call (T1)', 495_50),
+      taxLine('payg', 'PAYG', 1_416_00),
+      taxLine('stsl', 'STSL Component', 434_00),
+    ])
+  })
+
+  it('shows each line as it was printed, and which inflow a label matched', async () => {
+    const user = userEvent.setup()
+    reads()
+    renderForm()
+
+    await attach(user)
+
+    expect(
+      screen.getByText(
+        /Itemised the earnings lines: Ordinary Hours “\$4,000\.00”, Annual Leave “\$1,000\.00”, On-call \(T1\) “\$495\.50”\./,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Itemised the tax lines: PAYG “\$1,416\.00”, STSL Component “\$434\.00”\./),
+    ).toBeInTheDocument()
+    // Attribution is a guess off the label, so it is named rather than assumed.
+    expect(screen.getByText(/Matched to an inflow by name: On-call \(T1\)\./)).toHaveTextContent(
+      /Every other line’s inflow is yours to pick/,
+    )
+  })
+
+  it('pre-selects the inflow a label names exactly, and nothing on a near miss', async () => {
+    const user = userEvent.setup()
+    reads({
+      earnings: [
+        // Case is normalised away; the whole label must match the whole name, so a
+        // prefix and a suffix both come back unset.
+        { label: 'ON-CALL (t1)', amount: '$495.50', amount_cents: 495_50 },
+        { label: 'On-call', amount: '$100.00', amount_cents: 100_00 },
+        { label: 'On-call (T1) allowance', amount: '$100.00', amount_cents: 100_00 },
+      ],
+    })
+    renderForm()
+
+    await attach(user)
+
+    expect(screen.getByRole('combobox', { name: 'Earnings line 1 draws on' })).toHaveValue(
+      'On-call (T1)',
+    )
+    expect(screen.getByRole('combobox', { name: 'Earnings line 2 draws on' })).toHaveValue('')
+    expect(screen.getByRole('combobox', { name: 'Earnings line 3 draws on' })).toHaveValue('')
+    // Named back exactly as the slip printed it, not as the inflow is named.
+    expect(screen.getByText(/Matched to an inflow by name: ON-CALL \(t1\)\./)).toBeInTheDocument()
+  })
+
+  it('leaves a label two inflows answer to for the member to pick', async () => {
+    const user = userEvent.setup()
+    reads({ earnings: [{ label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 }] })
+    renderForm({
+      inflows: [...inflows, makeInflow({ id: 'i5', name: 'On-call (T1)', type: 'other' })],
+    })
+
+    await attach(user)
+
+    // Attributing it to either would move the measured variance of both.
+    expect(screen.getByRole('combobox', { name: 'Earnings line 1 draws on' })).toHaveValue('')
+    expect(screen.queryByText(/Matched to an inflow by name/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the lines the member has typed, and fills the section they left alone', async () => {
+    const user = userEvent.setup()
+    reads()
+    const onSubmit = renderForm()
+
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await user.type(screen.getByLabelText('Earnings line 1 name'), 'Overtime')
+    await user.type(screen.getByLabelText('Earnings line 1 amount'), '5495.50')
+    await attach(user)
+
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Overtime')
+    expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
+    expect(screen.getByText(/Kept the earnings lines you already had\./)).toBeInTheDocument()
+    // The tax section was never theirs, so its itemisation is still filled in.
+    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('PAYG')
+
+    await user.click(screen.getByRole('button', { name: /^add payslip$/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).lines).toEqual([
+      earningLine(null, 'Overtime', 5_495_50),
+      taxLine('payg', 'PAYG', 1_416_00),
+      taxLine('stsl', 'STSL Component', 434_00),
+    ])
+  })
+
+  it('leaves the lines a saved payslip already holds alone', async () => {
+    const user = userEvent.setup()
+    reads()
+    const onSubmit = renderForm({
+      initial: makePayslip(),
+      initialLines: [
+        makePayslipLine({ label: 'Base salary', amount_cents: 5_000_00 }),
+        makePayslipTaxLine({ label: 'Tax', amount_cents: 1_000_00 }),
+      ],
+    })
+
+    await attach(user)
+
+    // Each was confirmed when the slip was saved, so a replacement document is read
+    // without rewriting the itemisation on file.
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Base salary')
+    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('Tax')
+    expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Tax line 2 name')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/Kept the earnings lines and tax lines you already had\./),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).lines).toEqual([
+      earningLine('i1', 'Base salary', 5_000_00),
+      taxLine('payg', 'Tax', 1_000_00),
+    ])
+  })
+
+  it('leaves a tax line the slip does not place for the member to say', async () => {
+    const user = userEvent.setup()
+    reads({
+      tax: [{ label: 'Tax deducted', amount: '$1,850.00', amount_cents: 185_000, component: null }],
+    })
+    renderForm()
+
+    await attach(user)
+
+    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('Tax deducted')
+    // Never quietly PAYG: the two pay different parts of the liability, so the save
+    // waits on the member rather than filing a guess.
+    expect(screen.getByRole('combobox', { name: 'Tax line 1 pays' })).toHaveValue('')
+    expect(
+      screen.getByText(
+        /does not say which part of the tax Tax deducted “\$1,850\.00” pays — say which before saving\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeDisabled()
+
+    await user.click(screen.getByRole('combobox', { name: 'Tax line 1 pays' }))
+    await user.click(await screen.findByRole('option', { name: 'PAYG income tax' }))
+    expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
+  })
+
+  it('does not itemise a line whose printed amount could not be read', async () => {
+    const user = userEvent.setup()
+    reads({
+      earnings: [
+        { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
+        { label: 'Overtime', amount: '4,9S.50', amount_cents: null },
+        { label: 'Bonus', amount: null, amount_cents: null },
+      ],
+    })
+    renderForm()
+
+    await attach(user)
+
+    // A half-filled row would block the save, so an unreadable line is left out and
+    // named instead — as an unreadable total is left blank with its text shown.
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
+    expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Could not read the amount on Overtime “4,9S\.50”, Bonus, so that line is not itemised\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
+  })
+
+  it('itemises nothing when the read fails, and saves the lines typed by hand', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'failed',
+      message: 'Could not read this payslip. Enter the figures by hand.',
+    } satisfies ExtractionOutcome)
+    const onSubmit = renderForm()
+
+    await attach(user)
+
+    expect(screen.queryByLabelText('Earnings line 1 name')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Tax line 1 name')).not.toBeInTheDocument()
+
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add earnings line/i }))
+    await user.type(screen.getByLabelText('Earnings line 1 name'), 'Ordinary Hours')
+    await user.type(screen.getByLabelText('Earnings line 1 amount'), '5495.50')
+    await user.click(screen.getByRole('button', { name: /^add payslip$/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).lines).toEqual([earningLine(null, 'Ordinary Hours', 5_495_50)])
+    expect(submitted(onSubmit).attachment).not.toBeNull()
   })
 })

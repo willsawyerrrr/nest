@@ -6,13 +6,24 @@
  * every field in that schema is nullable, so a slip that omits super — or a
  * figure the model cannot find — comes back null instead of invented. The model
  * reports amounts as the literal text printed on the slip; `money.ts` converts
- * them. The HTTP transport is injectable, exactly as `_shared/up.ts`'s client
- * is, so the request this builds can be asserted against a stub.
+ * them. Alongside the section totals it reports each printed line the sections are
+ * made up of, and for a tax line which part of the liability the slip says it
+ * pays — never which projected inflow an earnings line draws on, which is the
+ * household's own data and no part of what a model can see. The HTTP transport is
+ * injectable, exactly as `_shared/up.ts`'s client is, so the request this builds
+ * can be asserted against a stub.
  */
 
 import Anthropic, { type APIError } from '@anthropic-ai/sdk'
 import { encodeBase64 } from '@std/encoding/base64'
-import { DATE_FIELDS, MONEY_FIELDS, type RawPayslipFields, readRawFields } from './fields.ts'
+import {
+  DATE_FIELDS,
+  LINE_FIELDS,
+  MONEY_FIELDS,
+  type RawPayslipFields,
+  readRawFields,
+  TAX_COMPONENTS,
+} from './fields.ts'
 
 /**
  * The pinned model: Claude Haiku 4.5, whose dated snapshot id is the pin
@@ -128,6 +139,12 @@ const SYSTEM_PROMPT = [
   'Report dates as YYYY-MM-DD, converting the slip’s format (Australian slips',
   'write DD/MM/YYYY).',
   '',
+  'Where the slip itemises a section, report each printed line as well as the',
+  'section total: every line in the earnings section, and every line in the tax',
+  'section, in the order the slip prints them. Never report a TOTAL or subtotal',
+  'row as a line — each section’s total is its own field, so a total reported',
+  'again as a line would count that money twice.',
+  '',
   'If the document is not a payslip, set is_payslip to false, say why in',
   'not_payslip_reason, and report null for every field.',
 ].join('\n')
@@ -152,6 +169,12 @@ const FIELD_PROMPTS: Record<string, string> = {
     'printed year-to-date tax total, covering PAYG together with any STSL component, not the ' +
     'PAYG line alone.',
   ytd_super: 'Year-to-date superannuation, as printed.',
+  earnings_lines: 'Every line printed in the earnings section — the salary, wage, leave, and ' +
+    'allowance rows the gross is made up of — one entry each, in the order printed, label and ' +
+    'amount as printed. Not the section’s TOTAL row, and not a line you have worked out yourself.',
+  tax_lines: 'Every line printed in the tax section, one entry each, in the order printed, ' +
+    'label and amount as printed, each saying which part of the tax it pays. Not the ' +
+    'section’s TOTAL row.',
 }
 
 /** A nullable string property: every field is optional on a real payslip. */
@@ -159,6 +182,49 @@ function nullableString(description: string) {
   return {
     anyOf: [{ type: 'string' }, { type: 'null' }],
     description: `${description} Null when the slip does not show it.`,
+  }
+}
+
+/** A line's label, the one part of a line the slip always prints. */
+const LINE_LABEL = {
+  type: 'string',
+  description: 'The line’s description exactly as the slip prints it, e.g. “Ordinary Hours”.',
+}
+
+/** A line's amount, read as printed exactly as the section totals are. */
+const LINE_AMOUNT = nullableString('The line’s amount, as printed.')
+
+/**
+ * Which part of the liability a tax line pays. Nullable on purpose: an AU slip
+ * names the two plainly ("PAYG", "STSL Component"), but a line whose words do not
+ * say has to come back unnamed so the member picks it, because a component guessed
+ * at would measure the withholding against the wrong half of the liability.
+ */
+const LINE_COMPONENT = {
+  anyOf: [{ type: 'string', enum: [...TAX_COMPONENTS] }, { type: 'null' }],
+  description: 'Which part of the tax this line pays, in the slip’s own words: “payg” for PAYG ' +
+    'income tax withholding, “stsl” for a study and training support loan component ' +
+    '(STSL, HELP, HECS, or SFSS). Null when the slip does not say which of the two it ' +
+    'is — an unnamed component is filled in by hand, while a guess sends the ' +
+    'withholding against the wrong part of the liability.',
+}
+
+/** A nullable array of itemised lines: a slip printing no line detail reports null. */
+function nullableLines(description: string, properties: Record<string, unknown>) {
+  return {
+    anyOf: [
+      {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties,
+          required: Object.keys(properties),
+          additionalProperties: false,
+        },
+      },
+      { type: 'null' },
+    ],
+    description: `${description} Null when the slip prints no such lines.`,
   }
 }
 
@@ -180,8 +246,23 @@ export const PAYSLIP_TOOL: Anthropic.Tool = {
           name,
         ) => [name, nullableString(FIELD_PROMPTS[name])]),
       ),
+      earnings_lines: nullableLines(FIELD_PROMPTS.earnings_lines, {
+        label: LINE_LABEL,
+        amount: LINE_AMOUNT,
+      }),
+      tax_lines: nullableLines(FIELD_PROMPTS.tax_lines, {
+        label: LINE_LABEL,
+        amount: LINE_AMOUNT,
+        component: LINE_COMPONENT,
+      }),
     },
-    required: ['is_payslip', 'not_payslip_reason', ...DATE_FIELDS, ...MONEY_FIELDS],
+    required: [
+      'is_payslip',
+      'not_payslip_reason',
+      ...DATE_FIELDS,
+      ...MONEY_FIELDS,
+      ...LINE_FIELDS,
+    ],
     additionalProperties: false,
   },
 }
@@ -193,6 +274,14 @@ export const PAYSLIP_TOOL: Anthropic.Tool = {
  */
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_RETRIES = 0
+
+/**
+ * Room for the whole answer. The scalar figures are a couple of hundred tokens and
+ * the itemised lines are the rest, so a slip printing a dozen earnings rows beside
+ * its tax components still fits several times over — which matters because a tool
+ * call cut off mid-object arrives as an unreadable answer rather than a short one.
+ */
+const MAX_OUTPUT_TOKENS = 2048
 
 /** Builds the extractor, with the HTTP transport injectable for tests. */
 export function anthropicExtractor(apiKey: string, fetchImpl?: typeof fetch): PayslipExtractor {
@@ -289,7 +378,7 @@ async function extractWithClient(
   try {
     message = await client.messages.create({
       model: PAYSLIP_MODEL,
-      max_tokens: 1024,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system: SYSTEM_PROMPT,
       tools: [PAYSLIP_TOOL],
       // Forcing the tool is what guarantees a structured answer rather than prose.

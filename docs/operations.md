@@ -328,8 +328,9 @@ first, since an account to top up is not a key to rotate.
 
 **Cost.** Haiku 4.5 is $1 per million input tokens and $5 per million output. One
 payslip is a page or two: a few thousand input tokens (the page image plus its
-extracted text, the system prompt, and the tool schema) and a few hundred output
-tokens — well under a cent per slip. At a fortnightly slip for each of two members
+extracted text, the system prompt, and the tool schema — which asks for the slip's
+totals and each printed earnings and tax line) and a few hundred output tokens —
+well under a cent per slip. At a fortnightly slip for each of two members
 (~104 a year) the whole feature costs cents a year, which is why the cheapest
 capable model is the right one here.
 

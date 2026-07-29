@@ -1,31 +1,10 @@
 import type { ReactNode } from 'react'
 import { ActionIcon, Alert, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
-import type { PayslipLineKind, PayslipTaxComponent } from '../hooks/usePayslipLines'
+import type { InflowOption, LineDraft } from '../hooks/usePayslipLineDrafts'
+import type { PayslipTaxComponent } from '../hooks/usePayslipLines'
 import { formatCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
-
-/**
- * One line being edited: its amount held as a dollars input value. The two
- * references are exclusive, as the stored line's own check constraint requires —
- * an earnings line carries the inflow it draws on and a tax line the component it
- * pays — and the unused one is dropped on save.
- */
-export interface LineDraft {
-  /** Stable across removals, so a row keeps its inputs as its siblings go. */
-  readonly id: number
-  readonly kind: PayslipLineKind
-  readonly label: string
-  readonly amount: number | string
-  readonly sourceInflowId: string | null
-  readonly component: PayslipTaxComponent | null
-}
-
-/** An option per inflow an earnings line may draw on. */
-export interface InflowOption {
-  readonly value: string
-  readonly label: string
-}
 
 /** The parts of the liability a tax line may pay, as the slip names them. */
 const TAX_COMPONENT_OPTIONS: readonly { value: PayslipTaxComponent; label: string }[] = [
@@ -174,7 +153,7 @@ export function PayslipEarningsLinesField({
   allocatedCents: number
   /** The slip's gross less every earnings line on it, as the form has them typed. */
   unallocatedCents: number
-  onChange: (id: number, changes: Partial<LineDraft>) => void
+  onChange: (line: LineDraft, changes: Partial<LineDraft>) => void
   onAdd: () => void
   onRemove: (id: number) => void
 }) {
@@ -198,7 +177,7 @@ export function PayslipEarningsLinesField({
           line={line}
           position={index + 1}
           kindLabel="Earnings line"
-          onChange={(changes) => onChange(line.id, changes)}
+          onChange={(changes) => onChange(line, changes)}
           onRemove={() => onRemove(line.id)}
         >
           <Select
@@ -209,7 +188,7 @@ export function PayslipEarningsLinesField({
             style={{ flex: 1, minWidth: 0 }}
             clearable
             value={line.sourceInflowId}
-            onChange={(value) => onChange(line.id, { sourceInflowId: value })}
+            onChange={(value) => onChange(line, { sourceInflowId: value })}
           />
         </LineFields>
       ))}
@@ -260,7 +239,7 @@ export function PayslipTaxLinesField({
   lines: readonly LineDraft[]
   /** The slip's printed tax total less every tax line on it, as the form has them typed. */
   unallocatedCents: number
-  onChange: (id: number, changes: Partial<LineDraft>) => void
+  onChange: (line: LineDraft, changes: Partial<LineDraft>) => void
   onAdd: () => void
   onRemove: (id: number) => void
 }) {
@@ -284,7 +263,7 @@ export function PayslipTaxLinesField({
           line={line}
           position={index + 1}
           kindLabel="Tax line"
-          onChange={(changes) => onChange(line.id, changes)}
+          onChange={(changes) => onChange(line, changes)}
           onRemove={() => onRemove(line.id)}
         >
           <Select
@@ -294,9 +273,7 @@ export function PayslipTaxLinesField({
             data={TAX_COMPONENT_OPTIONS as { value: string; label: string }[]}
             style={{ flex: 1, minWidth: 0 }}
             value={line.component}
-            onChange={(value) =>
-              onChange(line.id, { component: value as PayslipTaxComponent | null })
-            }
+            onChange={(value) => onChange(line, { component: value as PayslipTaxComponent | null })}
           />
         </LineFields>
       ))}

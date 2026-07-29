@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ExtractionFailure, PayslipExtraction } from '../lib/payslipExtraction'
 import type { PrefillSummary } from './usePayslipFields'
+import type { LinePrefillSummary } from './usePayslipLineDrafts'
 import type { PayslipAttachment, PayslipAttachments } from './usePayslips'
 
 /** What the form says when the document itself could not be stored. */
 export const UPLOAD_FAILED_MESSAGE =
   'Could not upload this document. Try again, or enter the figures by hand.'
 
+/** What one read did, across the slip's own figures and its itemised lines. */
+export type PayslipPrefillSummary = PrefillSummary & LinePrefillSummary
+
 /** Where attaching a slip and reading it has got to. */
 export type ExtractionState =
   | { status: 'idle' }
   | { status: 'uploading' }
   | { status: 'reading' }
-  | ({ status: 'read'; extraction: PayslipExtraction } & PrefillSummary)
+  | ({ status: 'read'; extraction: PayslipExtraction } & PayslipPrefillSummary)
   | ExtractionFailure
 
 export interface UsePayslipAttachmentResult {
@@ -40,8 +44,8 @@ interface UsePayslipAttachmentOptions {
   attachments: PayslipAttachments
   /** The payslip being edited, or null for one not yet created. */
   payslipId: string | null
-  /** Applies a successful read to the form's fields and reports what it did. */
-  onExtracted: (extraction: PayslipExtraction) => PrefillSummary
+  /** Applies a successful read to the form's fields and lines, reporting what it did. */
+  onExtracted: (extraction: PayslipExtraction) => PayslipPrefillSummary
 }
 
 /**

@@ -1,25 +1,35 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExtractionOutcome, PayslipExtraction } from '../lib/payslipExtraction'
-import { UPLOAD_FAILED_MESSAGE, usePayslipAttachment } from './usePayslipAttachment'
-import type { PrefillSummary } from './usePayslipFields'
+import {
+  UPLOAD_FAILED_MESSAGE,
+  usePayslipAttachment,
+  type PayslipPrefillSummary,
+} from './usePayslipAttachment'
 import type { PayslipAttachments } from './usePayslips'
 
 const extraction: PayslipExtraction = {
   model: 'claude-haiku-4-5-20251001',
   fields: { gross_cents: 4_120_50 },
   text: { gross: '4,120.50' },
+  lines: { earnings: [], tax: [] },
   missing: [],
   unreadable: [],
 }
 
-const summary: PrefillSummary = { filled: ['gross_cents'], kept: [] }
+const summary: PayslipPrefillSummary = {
+  filled: ['gross_cents'],
+  kept: [],
+  filledLines: [],
+  keptLines: [],
+  matchedLines: [],
+}
 
 const upload = vi.fn()
 const discard = vi.fn()
 const read = vi.fn()
 const attachments: PayslipAttachments = { upload, discard, read }
-const onExtracted = vi.fn<(value: PayslipExtraction) => PrefillSummary>()
+const onExtracted = vi.fn<(value: PayslipExtraction) => PayslipPrefillSummary>()
 
 function slip(name = 'slip.pdf') {
   return new File(['x'], name, { type: 'application/pdf' })

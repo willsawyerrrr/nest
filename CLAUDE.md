@@ -152,10 +152,29 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the auditable record either way, and the `payslip-extract` edge function takes an
   object path), then reads it with Claude Haiku 4.5 and fills in the figures it
   found — showing back the literal text it read for each, so a misread is caught
-  rather than confirmed blind. Extraction writes nothing: it never overwrites a
+  rather than confirmed blind. It reads the slip's ITEMISATION the same way: each
+  printed earnings line and each printed tax line, label and amount as printed, a
+  section TOTAL row never among them because each total is a scalar figure already.
+  A tax line's component comes from the model, the slip stating it plainly, and a
+  line whose words do not say comes back unnamed rather than quietly `payg` — that
+  line fills in with its component unset and the save waits until the member says
+  which. Which INFLOW an earnings line draws on is never asked of the model, the
+  household's inflows being nothing the slip shows: the client matches the printed
+  label against the member's own taxable inflow names, whole label to whole name
+  ignoring case and whitespace, pre-selects only on a single exact match, names the
+  lines matched that way, and leaves every other line's inflow to be picked.
+  Extraction writes nothing: it never overwrites a
   figure that is already the member's — one they typed here, or one the payslip
-  being edited already holds — every field stays editable, and the member's
-  own save is what persists. An unconfigured key, a file that is not a payslip, an
+  being edited already holds — nor lines that are, a section at a time: the earnings
+  lines and the tax lines are each the member's own once any row of that section was
+  edited here or came off the saved slip, so a read itemises only the sections left
+  alone and stands its lines in for the untouched rows there. Every field and every
+  line stays editable, and the member's
+  own save is what persists. A negative LINE amount pre-fills as printed, where a
+  negative total reads as unreadable — `payslip_line.amount_cents` is signed and the
+  slip's own totals are not — and a line whose printed amount cannot be converted is
+  left out and named rather than filled in half-way.
+  An unconfigured key, a file that is not a payslip, an
   unsupported type or size, a rate limit, and a model failure each read as their own
   inline note and fall back to manual entry; none blocks the save. A stored document
   the member clears, replaces, or walks away from is deleted again, best effort: a

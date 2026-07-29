@@ -261,7 +261,80 @@ Deno.test('the extractor reads a billing error as an empty account whatever its 
     bytes: new Uint8Array([1]),
   })
 
+  // The `403` this arrives on is also the refused-key status, so the API's own
+  // type is what keeps them apart: topping an account up is not rotating a key.
   assertEquals(!result.ok && result.failure, 'no_credit')
+})
+
+Deno.test('the extractor reads a refused key as its own failure', async () => {
+  const { fetchImpl } = stub(() =>
+    Response.json(
+      { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } },
+      { status: 401 },
+    )
+  )
+  const result = await anthropicExtractor('sk-ant-wrong', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  assertEquals(!result.ok && result.failure, 'key_rejected')
+  assertEquals(!result.ok && result.status, 401)
+})
+
+Deno.test('the extractor reads a key without permission as the same refused key', async () => {
+  const { fetchImpl } = stub(() =>
+    Response.json(
+      {
+        type: 'error',
+        error: { type: 'permission_error', message: 'this key lacks permission for that request' },
+      },
+      { status: 403 },
+    )
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  // Nothing the member can act on either way, and one operator fix: a key that is
+  // valid but not permitted is replaced exactly as a wrong one is.
+  assertEquals(!result.ok && result.failure, 'key_rejected')
+  assertEquals(!result.ok && result.status, 403)
+})
+
+Deno.test('the extractor keeps a 401 carrying no API verdict out of the refused-key case', async () => {
+  const { fetchImpl } = stub(() =>
+    // A proxy or gateway in front of the API: a 401 with no Anthropic error body,
+    // so nothing says the key itself was refused.
+    new Response('<html>401 Unauthorized</html>', {
+      status: 401,
+      headers: { 'content-type': 'text/html' },
+    })
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  assertEquals(!result.ok && result.failure, 'api_error')
+  assertEquals(!result.ok && result.status, 401)
+})
+
+Deno.test('the extractor keeps a server failure out of the refused-key case', async () => {
+  const { fetchImpl } = stub(() =>
+    Response.json(
+      { type: 'error', error: { type: 'api_error', message: 'internal server error' } },
+      { status: 500 },
+    )
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  assertEquals(!result.ok && result.failure, 'api_error')
+  assertEquals(!result.ok && result.status, 500)
 })
 
 Deno.test('the extractor surfaces a rate limit as its own status', async () => {

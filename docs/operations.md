@@ -281,24 +281,50 @@ Until the secret is set, extraction returns `503` with `{ configured: false }` a
 the UI falls back to manual entry with an honest "not configured" note, so the
 payslip feature works without it.
 
-**When the account runs out of credit.** A key that is set but whose account has
-no credit is the other operator-shaped failure, and it is not the same one. The API
-answers `400 invalid_request_error` with "Your credit balance is too low to access
-the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
-which the function reads as its own case: `503` with `{ outOfCredit: true }`. The
-form shows the same plain "reading is off" note it shows for an unset key, worded
-to say that nothing is wrong with the member's file and not to retry — no retry
-can succeed until the balance is positive, and the figures are typed by hand
-meanwhile. The fix is to top the account up at [Plans &
-Billing](https://console.anthropic.com/settings/billing); nothing needs
-redeploying or rotating, and the next read succeeds. The two flags are distinct
-precisely because the fixes are: `configured: false` means set the Vault secret,
-`outOfCredit: true` means add credit to the account the key belongs to.
+**Three switched-off states, three fixes.** Extraction answers `503` for each
+failure only an operator can clear, and carries its own flag in each so the fix is
+never guessed at. All three read to the member as one plain "reading is off" note —
+nothing is wrong with their file, no retry is offered, and the figures are typed by
+hand meanwhile — but the operator's work differs:
+
+| Flag on the `503` | What happened | The fix |
+| --- | --- | --- |
+| `configured: false` | No `anthropic_api_key` secret exists | Set it, per the `vault.create_secret` above |
+| `outOfCredit: true` | The key's account has no credit left | Top it up at [Plans & Billing](https://console.anthropic.com/settings/billing) |
+| `keyRejected: true` | The API refuses the key that is set | Rotate it, per the `vault.update_secret` above |
+
+**When the account runs out of credit.** The API answers `400
+invalid_request_error` with "Your credit balance is too low to access the Anthropic
+API. Please go to Plans & Billing to upgrade or purchase credits.", which the
+function reads as `outOfCredit`. Topping the account up is the whole fix: nothing
+needs redeploying or rotating, and the next read succeeds.
 
 A monthly spend limit reached reads instead as a plain rate limit (`429`, "try
 again shortly"), because the API reports it identically to a request-rate limit and
 the two cannot be told apart. So if reading keeps failing that way with no traffic
 to explain it, check the organisation's spend limit alongside its balance.
+
+**When the key itself is refused.** A key that is wrong, revoked, or pasted with a
+stray character comes back as `401 authentication_error`; a key the API accepts but
+will not let call Messages — the wrong kind of key, or one whose workspace
+permissions were narrowed — comes back as `403 permission_error`. The function
+reads both as `keyRejected`, because the operator does the same thing either way:
+rotate `anthropic_api_key` with `vault.update_secret` (above) to a key from the
+right workspace with access to the Messages API. Nothing needs redeploying, and
+`anthropic_api_key()` is read per request, so the next read picks the new key up.
+
+The two upstream statuses are not distinguished in the response, because nothing
+downstream would act differently on them and the member's note is not a diagnostic
+channel. The function logs are: each carries the upstream status and `error.type`
+verbatim, so a `401` (a bad key) and a `403` (a key without permission) are told
+apart there, alongside this section.
+
+Every other upstream failure stays a `502`/`429`/`504`, deliberately. Only the
+API's own verdict on the key matches `keyRejected` — the status **and** that
+status's own `error.type` from the response body together — so a `401` from a proxy
+in front of the API, which carries no Anthropic error body, still reads as the
+generic upstream failure it is. A `403` over billing is claimed by `outOfCredit`
+first, since an account to top up is not a key to rotate.
 
 **Cost.** Haiku 4.5 is $1 per million input tokens and $5 per million output. One
 payslip is a page or two: a few thousand input tokens (the page image plus its

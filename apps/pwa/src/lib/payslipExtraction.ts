@@ -85,6 +85,7 @@ export type ExtractionOutcome =
   | { status: 'read'; extraction: PayslipExtraction }
   | { status: 'not-configured'; message: string }
   | { status: 'out-of-credit'; message: string }
+  | { status: 'key-rejected'; message: string }
   | { status: 'not-payslip'; message: string; reason: string | null }
   | { status: 'failed'; message: string }
 
@@ -103,6 +104,15 @@ export const EXTRACTION_UNCONFIGURED_MESSAGE =
  */
 export const EXTRACTION_OUT_OF_CREDIT_MESSAGE =
   'Payslip reading is off until the Anthropic account is topped up. Nothing is wrong with your file — enter the figures by hand.'
+
+/**
+ * What the form says when the API refuses the key extraction is configured with —
+ * wrong, revoked, or not permitted to make the call. Reading is off until an
+ * operator rotates it, so the note reads as the out-of-credit one does: whose
+ * fault it is not, and hand entry rather than a retry the same key would fail.
+ */
+export const EXTRACTION_KEY_REJECTED_MESSAGE =
+  'Payslip reading is off until the Anthropic API key is fixed. Nothing is wrong with your file — enter the figures by hand.'
 
 /** What the form says when the model reports the file is not a payslip. */
 export const NOT_PAYSLIP_MESSAGE = 'That file does not look like a payslip.'
@@ -207,10 +217,10 @@ const INTERNAL_MESSAGES: ReadonlySet<string> = new Set([
  * function's own internals.
  *
  * The outcomes the form treats differently are picked out by their own flags:
- * `configured: false` and `outOfCredit: true` are both the feature being off
- * rather than broken — kept apart because the fix differs, a key to set against
- * an account to top up — and `notPayslip` is the model saying so rather than
- * hallucinating a slip.
+ * `configured: false`, `outOfCredit: true`, and `keyRejected: true` are all the
+ * feature being off rather than broken — kept apart because the fix differs, a
+ * key to set against an account to top up against a key to rotate — and
+ * `notPayslip` is the model saying so rather than hallucinating a slip.
  */
 export function readExtractionFailure(body: unknown): ExtractionFailure {
   const detail = body as
@@ -218,6 +228,7 @@ export function readExtractionFailure(body: unknown): ExtractionFailure {
         error?: unknown
         configured?: unknown
         outOfCredit?: unknown
+        keyRejected?: unknown
         notPayslip?: unknown
         reason?: unknown
       }
@@ -231,6 +242,9 @@ export function readExtractionFailure(body: unknown): ExtractionFailure {
   }
   if (detail?.outOfCredit === true) {
     return { status: 'out-of-credit', message: message ?? EXTRACTION_OUT_OF_CREDIT_MESSAGE }
+  }
+  if (detail?.keyRejected === true) {
+    return { status: 'key-rejected', message: message ?? EXTRACTION_KEY_REJECTED_MESSAGE }
   }
   if (detail?.notPayslip === true) {
     return {

@@ -165,9 +165,14 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
       </Group>
     )
   }
-  if (state.status === 'not-configured' || state.status === 'out-of-credit') {
-    // Off, not broken — a key never set, or an account out of credit. Either way
-    // an honest note rather than an error the member could act on.
+  if (
+    state.status === 'not-configured' ||
+    state.status === 'out-of-credit' ||
+    state.status === 'key-rejected'
+  ) {
+    // Off, not broken — a key never set, an account out of credit, or a key the
+    // API refuses. Each is an honest note rather than an error the member could
+    // act on, and each names its own cause so the operator's fix is clear.
     return (
       <Text size="xs" c="dimmed">
         {state.message}

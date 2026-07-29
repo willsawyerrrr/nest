@@ -195,6 +195,22 @@ function modelFailure(result: Extract<ModelResult, { ok: false }>): FlowResult {
       },
     }
   }
+  if (result.failure === 'key_rejected') {
+    // The third `503`, for the third thing only an operator can fix. A key that
+    // is wrong, revoked, or not permitted reads to the member exactly as an unset
+    // one does — reading is off, not broken, and not their file — so no retry is
+    // offered, since the same key would be refused identically. Its own flag
+    // again, because the fix is its own: rotate the Vault secret, rather than set
+    // it for the first time or top the account up.
+    return {
+      status: 503,
+      body: {
+        error:
+          'Payslip reading is off until the Anthropic API key is fixed. Nothing is wrong with your file — enter the figures by hand.',
+        keyRejected: true,
+      },
+    }
+  }
   if (result.failure === 'timeout') {
     return {
       status: 504,

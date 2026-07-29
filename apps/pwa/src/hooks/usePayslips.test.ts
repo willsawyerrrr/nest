@@ -395,6 +395,18 @@ describe('usePayslips attachment extraction', () => {
     })
   })
 
+  it('reports a refused API key as its own switched-off state', async () => {
+    const message =
+      'Payslip reading is off until the Anthropic API key is fixed. Nothing is wrong with your file — enter the figures by hand.'
+    invoke.mockResolvedValue(httpFailure(503, { error: message, keyRejected: true }))
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'key-rejected',
+      message,
+    })
+  })
+
   it('passes on the model’s reason for refusing a file that is not a payslip', async () => {
     invoke.mockResolvedValue(
       httpFailure(422, {

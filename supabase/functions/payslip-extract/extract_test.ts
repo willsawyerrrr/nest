@@ -161,9 +161,11 @@ Deno.test('runExtract degrades to manual entry when the API key is unset', async
     body.error,
     'Payslip extraction is not configured. Enter the figures by hand.',
   )
-  // The two "switched off" outcomes never carry each other's flag: the operator
-  // sets a Vault secret for one and tops up an account for the other.
+  // The three "switched off" outcomes never carry each other's flag: the operator
+  // sets a Vault secret for this one, tops an account up for the second, and
+  // rotates the secret for the third.
   assertEquals(body.outOfCredit, undefined)
+  assertEquals(body.keyRejected, undefined)
   // Nothing is downloaded or sent when the feature is not configured.
   assertEquals(d.calls, ['resolveHousehold', 'apiKey'])
 })
@@ -185,12 +187,42 @@ Deno.test('runExtract reports an exhausted credit balance as reading being off, 
   assertEquals(result.status, 503)
   const body = result.body as Record<string, unknown>
   assertEquals(body.outOfCredit, true)
-  // Not the unset-key flag: the fix is an operator topping up, not setting a key.
+  // Not either other switched-off flag: the fix is an operator topping up, not
+  // setting a key for the first time or rotating one the API refuses.
   assertEquals(body.configured, undefined)
+  assertEquals(body.keyRejected, undefined)
   const error = String(body.error)
   assertEquals(error.includes('topped up'), true)
   assertEquals(error.includes('Nothing is wrong with your file'), true)
   // No retry is offered, because no retry can succeed.
+  assertEquals(error.toLowerCase().includes('try again'), false)
+})
+
+Deno.test('runExtract reports a refused key as reading being off, not broken', async () => {
+  const result = await runExtract(
+    PATH,
+    deps({
+      extract: () =>
+        Promise.resolve({
+          ok: false as const,
+          failure: 'key_rejected' as const,
+          message: '401 invalid x-api-key',
+          status: 401,
+        }),
+    }),
+  )
+
+  assertEquals(result.status, 503)
+  const body = result.body as Record<string, unknown>
+  assertEquals(body.keyRejected, true)
+  // Neither of the other two switched-off flags: this key is rotated, not set for
+  // the first time, and the account behind it is funded.
+  assertEquals(body.configured, undefined)
+  assertEquals(body.outOfCredit, undefined)
+  const error = String(body.error)
+  assertEquals(error.includes('API key is fixed'), true)
+  assertEquals(error.includes('Nothing is wrong with your file'), true)
+  // No retry is offered: the same key would be refused identically.
   assertEquals(error.toLowerCase().includes('try again'), false)
 })
 

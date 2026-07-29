@@ -60,6 +60,24 @@ function figureCell(label: string) {
   return screen.getByText(label).parentElement as HTMLElement
 }
 
+/** A payslip card's disclosure button, found by the pay period it heads. */
+function cardToggle(period = '1 July 2026 – 14 July 2026') {
+  return screen.getByRole('button', { name: new RegExp(period) })
+}
+
+/** The detail region a card's toggle controls, found via its `aria-controls` target. */
+function cardDetail(period?: string) {
+  const id = cardToggle(period).getAttribute('aria-controls') ?? ''
+  return document.getElementById(id) as HTMLElement
+}
+
+/** Cards start collapsed, so a test reading a slip's detail expands them first. */
+async function expandCards(user: ReturnType<typeof userEvent.setup>) {
+  for (const toggle of screen.getAllByRole('button', { expanded: false })) {
+    await user.click(toggle)
+  }
+}
+
 afterEach(() => vi.restoreAllMocks())
 
 describe('PayslipsScreen', () => {
@@ -74,8 +92,76 @@ describe('PayslipsScreen', () => {
     expect(screen.getAllByText(/no payslips yet/i)).toHaveLength(2)
   })
 
-  it('lists each period’s quartet with the pay period it covers', () => {
+  it('heads a collapsed card with its pay period, payment date, and gross', () => {
     renderScreen()
+    const toggle = cardToggle()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveTextContent('1 July 2026 – 14 July 2026')
+    expect(toggle).toHaveTextContent('Paid 15 July 2026')
+    expect(toggle).toHaveTextContent('Gross')
+    expect(toggle).toHaveTextContent('$5,000.00')
+  })
+
+  it('heads a slip that states no payment date on its pay period alone', async () => {
+    const user = userEvent.setup()
+    renderScreen({ payslips: [makePayslip({ paid_on: null })] })
+
+    expect(cardToggle()).not.toHaveTextContent(/Paid/)
+    expect(cardToggle()).toHaveTextContent('Gross')
+
+    await user.click(cardToggle())
+    expect(cardToggle()).not.toHaveTextContent(/Paid/)
+  })
+
+  it('keeps a slip’s figures and breakdowns behind its toggle until it is expanded', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    expect(cardDetail()).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Net')).not.toBeVisible()
+    expect(screen.getByText('Earnings lines')).not.toBeVisible()
+
+    await user.click(cardToggle())
+
+    expect(cardToggle()).toHaveAttribute('aria-expanded', 'true')
+    expect(cardDetail()).toHaveAttribute('aria-hidden', 'false')
+    expect(screen.getByText('Net')).toBeVisible()
+    expect(screen.getByText('Earnings lines')).toBeVisible()
+  })
+
+  it('folds a card away again, restoring its headline', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await user.click(cardToggle())
+    await user.click(cardToggle())
+
+    expect(cardToggle()).toHaveAttribute('aria-expanded', 'false')
+    expect(cardDetail()).toHaveAttribute('aria-hidden', 'true')
+    // The summary the expanded grid had taken over is back in the header.
+    expect(cardToggle()).toHaveTextContent('Gross')
+  })
+
+  it('expands each card on its own', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      payslips: [
+        makePayslip(),
+        makePayslip({ id: 'ps2', period_start: '2026-07-15', period_end: '2026-07-28' }),
+      ],
+    })
+
+    await user.click(cardToggle('15 July 2026 – 28 July 2026'))
+
+    expect(cardToggle('15 July 2026 – 28 July 2026')).toHaveAttribute('aria-expanded', 'true')
+    expect(cardToggle()).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('lists each period’s quartet with the pay period it covers', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+    await expandCards(user)
+
     expect(screen.getByText('1 July 2026 – 14 July 2026')).toBeInTheDocument()
     expect(screen.getByText(/paid 15 July 2026/i)).toBeInTheDocument()
     expect(figureCell('Gross')).toHaveTextContent('$5,000.00')
@@ -83,23 +169,42 @@ describe('PayslipsScreen', () => {
     expect(figureCell('Net')).toHaveTextContent('$4,000.00')
   })
 
-  it('reads a slip that earned and withheld more than the plan as above plan', () => {
+  it('reads a slip that earned and withheld more than the plan as above plan', async () => {
+    const user = userEvent.setup()
     renderScreen({
       payslips: [makePayslip({ gross_cents: 20_000_00, tax_withheld_cents: 9_000_00 })],
     })
+
+    // The gross overrun dwarfs the others, so it is what the collapsed card leads
+    // with — unnamed, since the figure above it is the gross itself.
+    expect(cardToggle()).toHaveTextContent(/above plan/)
+    expect(cardToggle()).not.toHaveTextContent(/Tax withheld/)
+
+    await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent(/above plan/)
     expect(figureCell('Tax withheld')).toHaveTextContent(/above plan/)
   })
 
-  it('reads a slip that earned and withheld less than the plan as below plan', () => {
+  it('reads a slip that earned and withheld less than the plan as below plan', async () => {
+    const user = userEvent.setup()
     renderScreen({
       payslips: [makePayslip({ gross_cents: 1_000_00, tax_withheld_cents: 0 })],
     })
+    await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent(/below plan/)
     expect(figureCell('Tax withheld')).toHaveTextContent(/below plan/)
   })
 
-  it('reads super paid at the guarantee rate as on plan, sacrifice included', () => {
+  it('names the figure when a collapsed card leads with a variance other than gross', () => {
+    // The slip's gross is exactly the projection, so the withholding shortfall is
+    // the only thing off plan — and the one thing worth noticing from the outside.
+    renderScreen()
+    expect(cardToggle()).toHaveTextContent('Tax withheld')
+    expect(cardToggle()).toHaveTextContent(/below plan/)
+  })
+
+  it('reads super paid at the guarantee rate as on plan, sacrifice included', async () => {
+    const user = userEvent.setup()
     renderScreen({
       payslips: [
         makePayslip({
@@ -109,21 +214,27 @@ describe('PayslipsScreen', () => {
         }),
       ],
     })
+    await expandCards(user)
     expect(figureCell('Super')).toHaveTextContent('On plan')
   })
 
-  it('reads a fortnight matching the inflow its lines draw on as on plan', () => {
+  it('reads a fortnight matching the inflow its lines draw on as on plan', async () => {
+    const user = userEvent.setup()
     renderScreen()
+    await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('On plan')
     expect(screen.queryByText(/apportioned by calendar days/i)).not.toBeInTheDocument()
   })
 
-  it('says when a part period’s expectations are apportioned by calendar days', () => {
+  it('says when a part period’s expectations are apportioned by calendar days', async () => {
+    const user = userEvent.setup()
     renderScreen({ payslips: [makePayslip({ period_end: '2026-07-07' })] })
-    expect(screen.getByText(/apportioned by calendar days/i)).toBeInTheDocument()
+    await expandCards(user)
+    expect(screen.getByText(/apportioned by calendar days/i)).toBeVisible()
   })
 
-  it('measures each tax line against the component of the liability it pays', () => {
+  it('measures each tax line against the component of the liability it pays', async () => {
+    const user = userEvent.setup()
     // The estimate's liability carries no HELP repayment for this member, so the
     // PAYG line is held against the whole of it and the STSL against nothing.
     renderScreen({
@@ -139,8 +250,9 @@ describe('PayslipsScreen', () => {
         }),
       ],
     })
+    await expandCards(user)
 
-    expect(screen.getByText('Tax lines')).toBeInTheDocument()
+    expect(screen.getByText('Tax lines')).toBeVisible()
     expect(lineGroupRow('PAYG')).toHaveTextContent('PAYG income tax')
     expect(lineGroupRow('PAYG')).toHaveTextContent('$1,416.00')
     const stsl = lineGroupRow('STSL Component')
@@ -148,33 +260,41 @@ describe('PayslipsScreen', () => {
     expect(stsl).toHaveTextContent('$434.00 above plan')
   })
 
-  it('calls out withheld tax the tax lines do not account for', () => {
+  it('calls out withheld tax the tax lines do not account for', async () => {
+    const user = userEvent.setup()
     renderScreen({
       lines: [
         makePayslipLine(),
         makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 900_00 }),
       ],
     })
+    await expandCards(user)
     expect(screen.getByText(/of the tax withheld is not itemised/)).toHaveTextContent('$100.00')
   })
 
-  it('calls out tax lines summing past the withheld total', () => {
+  it('calls out tax lines summing past the withheld total', async () => {
+    const user = userEvent.setup()
     renderScreen({
       lines: [
         makePayslipLine(),
         makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 1_100_00 }),
       ],
     })
+    await expandCards(user)
     expect(screen.getByText(/more than the tax withheld is itemised/)).toHaveTextContent('$100.00')
   })
 
-  it('shows no tax breakdown for a slip whose tax nobody has itemised', () => {
+  it('shows no tax breakdown for a slip whose tax nobody has itemised', async () => {
+    const user = userEvent.setup()
     renderScreen()
+    await expandCards(user)
     expect(screen.queryByText('Tax lines')).not.toBeInTheDocument()
   })
 
-  it('says there is no projection to compare when no line names one', () => {
+  it('says there is no projection to compare when no line names one', async () => {
+    const user = userEvent.setup()
     renderScreen({ lines: [makePayslipLine({ source_inflow_id: null })] })
+    await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
     // With no pay cycle to read there is no cadence a period could be off, so the
     // calendar-days note says nothing rather than stating the obvious.
@@ -231,9 +351,11 @@ describe('PayslipsScreen', () => {
     expect(screen.queryByText(/the slips entered here/i)).not.toBeInTheDocument()
   })
 
-  it('shows a slip’s note', () => {
+  it('shows a slip’s note', async () => {
+    const user = userEvent.setup()
     renderScreen({ payslips: [makePayslip({ note: 'Includes back-pay' })] })
-    expect(screen.getByText('Includes back-pay')).toBeInTheDocument()
+    await expandCards(user)
+    expect(screen.getByText('Includes back-pay')).toBeVisible()
   })
 
   it('opens a stored document in a new tab via its signed URL', async () => {
@@ -242,6 +364,7 @@ describe('PayslipsScreen', () => {
     const { signedUrl } = renderScreen({
       payslips: [makePayslip({ file_path: 'h1/ps1/slip.pdf' })],
     })
+    await expandCards(user)
 
     await user.click(screen.getByRole('button', { name: /view payslip document/i }))
 
@@ -258,6 +381,7 @@ describe('PayslipsScreen', () => {
       payslips: [makePayslip({ file_path: 'h1/ps1/slip.pdf' })],
       signedUrl: vi.fn().mockResolvedValue(null),
     })
+    await expandCards(user)
 
     await user.click(screen.getByRole('button', { name: /view payslip document/i }))
 
@@ -289,6 +413,7 @@ describe('PayslipsScreen', () => {
     const user = userEvent.setup()
     const { onUpdate } = renderScreen()
 
+    // Edit sits outside the disclosure, so correcting a slip takes no expanding.
     await user.click(screen.getByRole('button', { name: /edit/i }))
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
@@ -316,6 +441,7 @@ describe('PayslipsScreen', () => {
     const user = userEvent.setup()
     const { onDelete } = renderScreen()
 
+    // Delete sits outside the disclosure too, beside the edit pencil.
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('1 July 2026 – 14 July 2026')).toBeInTheDocument()
@@ -324,7 +450,8 @@ describe('PayslipsScreen', () => {
     expect(onDelete).toHaveBeenCalledWith('ps1')
   })
 
-  it('breaks an itemised slip down by the inflow each earning draws on', () => {
+  it('breaks an itemised slip down by the inflow each earning draws on', async () => {
+    const user = userEvent.setup()
     // The real Heidi slip: ordinary hours and annual leave both draw on the
     // salary and land on plan, while the on-call allowance carries the variance.
     renderScreen({
@@ -342,8 +469,9 @@ describe('PayslipsScreen', () => {
         }),
       ],
     })
+    await expandCards(user)
 
-    expect(screen.getByText('Earnings lines')).toBeInTheDocument()
+    expect(screen.getByText('Earnings lines')).toBeVisible()
     // The salary group is on plan; the allowance's $45.50 overrun stands alone.
     const salary = lineGroupRow('Ordinary Hours, Annual Leave')
     expect(salary).toHaveTextContent('Day job')
@@ -357,7 +485,8 @@ describe('PayslipsScreen', () => {
     expect(figureCell('Super')).toHaveTextContent('On plan')
   })
 
-  it('names a group of lines mapped to no inflow as unmapped', () => {
+  it('names a group of lines mapped to no inflow as unmapped', async () => {
+    const user = userEvent.setup()
     renderScreen({
       payslips: [makePayslip({ gross_cents: 5_495_50 })],
       lines: [
@@ -370,25 +499,32 @@ describe('PayslipsScreen', () => {
         }),
       ],
     })
-    expect(screen.getByText('Not mapped to an inflow')).toBeInTheDocument()
+    await expandCards(user)
+    expect(screen.getByText('Not mapped to an inflow')).toBeVisible()
     expect(screen.getAllByText('No projection to compare')).not.toHaveLength(0)
   })
 
-  it('calls out gross the lines do not account for', () => {
+  it('calls out gross the lines do not account for', async () => {
+    const user = userEvent.setup()
     renderScreen({
       payslips: [makePayslip({ gross_cents: 5_495_50 })],
       lines: [makePayslipLine({ amount_cents: 5_000_00 })],
     })
+    await expandCards(user)
     expect(screen.getByText(/of the gross is not itemised/)).toHaveTextContent('$495.50')
   })
 
-  it('calls out earnings lines summing past the gross', () => {
+  it('calls out earnings lines summing past the gross', async () => {
+    const user = userEvent.setup()
     renderScreen({ lines: [makePayslipLine({ amount_cents: 5_495_50 })] })
+    await expandCards(user)
     expect(screen.getByText(/more than the gross is itemised/)).toHaveTextContent('$495.50')
   })
 
-  it('shows no breakdown for a slip nobody has itemised', () => {
+  it('shows no breakdown for a slip nobody has itemised', async () => {
+    const user = userEvent.setup()
     renderScreen({ lines: [] })
+    await expandCards(user)
     expect(screen.queryByText('Earnings lines')).not.toBeInTheDocument()
     expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
   })
@@ -416,7 +552,11 @@ describe('PayslipsScreen', () => {
     expect(screen.getByText('Will')).toBeInTheDocument()
     expect(screen.getByText('Sam')).toBeInTheDocument()
     expect(screen.getAllByText('1 payslip')).toHaveLength(2)
-    // Sam's own gross, and their year-to-date gross summed from that one slip.
-    expect(screen.getAllByText('$900.00')).toHaveLength(2)
+    // Sam's card heads with their own gross, and their year-to-date gross sums to
+    // it. Will's slip is on the same period, so the two cards are told apart by
+    // the order their members render in.
+    const [, samCard] = screen.getAllByRole('button', { expanded: false })
+    expect(samCard).toHaveTextContent('$900.00')
+    expect(screen.getAllByText('YTD gross')[1]!.parentElement).toHaveTextContent('$900.00')
   })
 })

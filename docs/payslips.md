@@ -295,6 +295,24 @@ tab**:
   withheld tax the lines do not account for. The form takes both sets of lines
   inline — a name, an amount, and either the inflow it draws on or the component
   it pays per row — and reports each unallocated remainder as it is typed.
+- **A card is collapsed to a row and expands to its detail.** A year of
+  fortnightly slips is 26 cards, so each settles at a row naming the pay period,
+  the date the pay landed, and the gross with the slip's **most notable variance**
+  — the largest of gross, withholding, and super by size, named where it is not
+  the gross one, so a withholding gap on a slip whose gross landed on plan is seen
+  without opening anything. Gross wins a tie, so a slip on plan throughout reads
+  against the figure the plan projects, and a slip mapped to no projection says so.
+  Tapping the row reveals the quartet with every variance, the per-inflow and
+  per-component breakdowns, the unallocated remainders, the calendar-days note, the
+  slip's own note, and the document link; the headline gives way to the quartet,
+  which states the same gross in full. Neither remainder competes for the headline:
+  gross the earnings lines miss is already inside the gross variance, and tax the
+  tax lines miss leaves the printed total the refund or bill is worked out from
+  untouched, so both are itemisation gaps rather than pay off plan. Editing and
+  deleting sit outside the disclosure — correcting a slip is no reason to read it —
+  and expansion is per card, held in component state, so every card is collapsed
+  again on the next visit. The member's year-to-date totals sit above the list,
+  outside any card.
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
   - *Expected gross for the period* = each inflow the slip's earnings lines draw
     on, annualised (via the existing `annualGrossCents` / schedule normalisation)

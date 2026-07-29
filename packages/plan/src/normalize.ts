@@ -1,6 +1,7 @@
 /**
- * Schedule normalization: any frequency to a whole-cent annual total and to the
- * plan's primary fortnightly figure.
+ * Schedule normalization: any frequency to a whole-cent annual total, an annual
+ * total back out to a per-period figure on any cadence, and either to the plan's
+ * primary fortnightly figure.
  */
 
 import type { Frequency, Money } from './index'
@@ -76,6 +77,24 @@ export function annualCents(amountCents: Money, frequency: Frequency, interval?:
 }
 
 /**
+ * Draws a per-period figure from an annual total: the annual divided by the
+ * periods of `frequency` in a year, rounded to whole cents — so the rounding lands
+ * on the per-period figure and the annual it came from is untouched. An absent or
+ * non-positive-integer interval on `every_n_weeks` / `every_n_months` counts no
+ * periods and defensively yields zero. `annualCents` goes the other way and
+ * multiplies, so the two are not exact inverses at the cent: re-annualising a
+ * per-period figure gives what that figure actually adds up to, which may differ
+ * from the annual it was drawn from.
+ */
+export function perPeriodCents(annual: Money, frequency: Frequency, interval?: number): Money {
+  const periods = periodsPerYear(frequency, interval)
+  if (periods === 0) {
+    return 0
+  }
+  return Math.round(annual / periods)
+}
+
+/**
  * Normalises an amount to its per-fortnight share: the annual total divided by
  * 26, rounded to whole cents.
  */
@@ -84,5 +103,5 @@ export function fortnightlyCents(
   frequency: Frequency,
   interval?: number,
 ): Money {
-  return Math.round(annualCents(amountCents, frequency, interval) / FORTNIGHTS_PER_YEAR)
+  return perPeriodCents(annualCents(amountCents, frequency, interval), 'fortnightly')
 }

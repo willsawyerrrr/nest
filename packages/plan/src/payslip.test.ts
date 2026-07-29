@@ -326,6 +326,107 @@ describe('expectedPeriodGrossCents', () => {
   })
 })
 
+describe('a pay cadence apart from the amount’s own frequency', () => {
+  /** The household's case: a $130,000 salary defined per year and paid fortnightly. */
+  const YEARLY_PAID_FORTNIGHTLY: ReconciledInflow = {
+    type: 'salary',
+    schedule: 'annual',
+    amountCents: 130_000_00,
+    paySchedule: 'fortnightly',
+  }
+
+  it('annualises on the amount’s own frequency, the pay cadence changing nothing', () => {
+    expect(annualInflowGrossCents(YEARLY_PAID_FORTNIGHTLY)).toBe(130_000_00)
+    expect(annualInflowGrossCents({ ...YEARLY_PAID_FORTNIGHTLY, paySchedule: null })).toBe(
+      130_000_00,
+    )
+  })
+
+  it('makes a fortnight one whole turn of the cycle, not part of a year', () => {
+    expect(isPeriodOnCadence(YEARLY_PAID_FORTNIGHTLY, FORTNIGHT)).toBe(true)
+    // Without the pay cadence the annual schedule is read as the arrival cadence, and a
+    // fortnight is only part of its 365-day turn.
+    expect(isPeriodOnCadence({ ...YEARLY_PAID_FORTNIGHTLY, paySchedule: null }, FORTNIGHT)).toBe(
+      false,
+    )
+  })
+
+  it('expects the annual figure over 26 for a fortnight, not its calendar-day share', () => {
+    expect(expectedPeriodGrossCents(YEARLY_PAID_FORTNIGHTLY, FORTNIGHT, FY)).toBe(5_000_00)
+    // $130,000 × 14/365 — what reading the annual schedule as the pay cycle produced.
+    expect(
+      expectedPeriodGrossCents({ ...YEARLY_PAID_FORTNIGHTLY, paySchedule: null }, FORTNIGHT, FY),
+    ).toBe(4_986_30)
+  })
+
+  it('holds a part period against a turn of the pay cadence, not of the amount’s frequency', () => {
+    // Seven of the fortnight's fourteen days: half a fortnight's pay, not half a year's
+    // 14/365 share.
+    expect(
+      expectedPeriodGrossCents(
+        { ...YEARLY_PAID_FORTNIGHTLY, startsOn: '2026-07-08' },
+        FORTNIGHT,
+        FY,
+      ),
+    ).toBe(2_500_00)
+  })
+
+  it('reads an arbitrary pay cadence through its own interval', () => {
+    const everyFourWeeks: ReconciledInflow = {
+      type: 'salary',
+      schedule: 'annual',
+      amountCents: 13_000_00,
+      paySchedule: 'every_n_weeks',
+      payInterval: 4,
+    }
+    const fourWeeks = period('2026-07-01', '2026-07-28')
+    expect(isPeriodOnCadence(everyFourWeeks, fourWeeks)).toBe(true)
+    // 13 payments a year: $13,000 ÷ 13.
+    expect(expectedPeriodGrossCents(everyFourWeeks, fourWeeks, FY)).toBe(1_000_00)
+    // The amount's own `interval` belongs to `schedule` and is not borrowed here: an
+    // arbitrary pay cadence stating no interval has no pay cycle at all.
+    expect(
+      isPeriodOnCadence({ ...everyFourWeeks, payInterval: null, interval: 4 }, fourWeeks),
+    ).toBe(false)
+  })
+
+  it('divides a wage’s rate × hours over the cadence the money lands on', () => {
+    // $45 × 38 hours a week = $1,710 a week, $88,920 a year, $3,420.00 a fortnight.
+    const weeklyHoursPaidFortnightly: ReconciledInflow = {
+      type: 'wage',
+      schedule: 'weekly',
+      hourlyRateCents: 45_00,
+      hoursPerPeriod: 38,
+      paySchedule: 'fortnightly',
+    }
+    expect(annualInflowGrossCents(weeklyHoursPaidFortnightly)).toBe(88_920_00)
+    expect(expectedPeriodGrossCents(weeklyHoursPaidFortnightly, FORTNIGHT, FY)).toBe(3_420_00)
+  })
+
+  it('drops the remainder of an annual figure that will not divide evenly', () => {
+    const uneven: ReconciledInflow = {
+      type: 'salary',
+      schedule: 'annual',
+      amountCents: 100_000_00,
+      paySchedule: 'fortnightly',
+    }
+    // $100,000 ÷ 26 = 3_846.1538 → $3,846.15; 26 of those come to $99,999.90. The
+    // expectation is a rate to hold one slip against, not an allocation summing to the year.
+    expect(expectedPeriodGrossCents(uneven, FORTNIGHT, FY)).toBe(3_846_15)
+  })
+
+  it('divides a fortnightly payslip’s withholding and super by the pay cadence too', () => {
+    const variance = payslipVariance(
+      payslip(),
+      expectation({ inflowsById: inflowsById(YEARLY_PAID_FORTNIGHTLY) }),
+    )
+    expect(variance.basis).toBe('cadence')
+    expect(variance.expectedGrossCents).toBe(5_000_00)
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
+    expect(variance.expectedSuperCents).toBe(CADENCE_SUPER)
+  })
+})
+
 describe('payslipVariance on cadence', () => {
   it('reports exactly zero variance for a fortnightly payslip matching the projection', () => {
     expect(payslipVariance(payslip(), expectation())).toEqual({

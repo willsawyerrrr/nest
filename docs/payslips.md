@@ -235,6 +235,26 @@ reported on the variance as `basis`.
   interval. With no period unit there is nothing but the year, so the figure is
   annual × the period's days ÷ the year's 365 or 366.
 
+The cycle all three read is the cadence the inflow's money **arrives** on —
+`inflows.pay_schedule` (with `pay_interval_count`) where the row states one, and
+`inflows.schedule` otherwise (see [`data-model.md`](data-model.md#inflows)). That
+is a different question from the one annualising asks. A salary defined as
+$130,000 a year and paid fortnightly is `schedule = 'annual'`,
+`amount_cents = 13_000_000`, `pay_schedule = 'fortnightly'`: annualising divides
+by nothing and yields $130,000, while the pay cycle is a 14-day turn taken 26
+times a year, so a fortnight is one whole turn on the `cadence` basis expecting
+exactly $5,000.00. Were the amount's own frequency read as the arrival cadence,
+every such fortnight would instead be a `part_cycle` of a 365-day turn expecting
+$130,000 × 14 ÷ 365 = $4,986.30, and an exactly-correct $5,000.00 slip would read
+$13.70 above plan.
+
+An expected per-period figure is a **rate to hold one slip against**, not an
+allocation that has to sum back to the year, so a remainder is dropped rather than
+spread: $100,000 a year paid fortnightly expects $3,846.15, and 26 of those come
+to $99,999.90. The inflow form derives and shows that same figure, by the same
+arithmetic, as soon as a pay cadence is set — so what a slip will be measured
+against is on screen before the inflow is saved.
+
 "Days one whole turn spans" is exact for a week-based cadence (7 × weeks) and is
 the **real calendar length** of the months a turn runs through for a month-based
 one, measured from the pay period's first day: a monthly turn from 1 July is 31

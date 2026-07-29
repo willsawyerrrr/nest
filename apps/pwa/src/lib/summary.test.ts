@@ -24,6 +24,8 @@ function inflow(overrides: Partial<Inflow> = {}): Inflow {
     type: 'other',
     schedule: 'weekly',
     interval_count: null,
+    pay_schedule: null,
+    pay_interval_count: null,
     amount_cents: 100_00,
     hourly_rate_cents: null,
     hours_per_period: null,

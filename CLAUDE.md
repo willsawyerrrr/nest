@@ -51,6 +51,23 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tagged to a member
   for tax) and non-taxable inflows (reimbursement, hobby income, gift, or other —
   the type is a reporting label, excluded from tax and added to available cash).
+  **How an amount is expressed and how often it arrives are separate facts, and
+  both are stored.** `schedule` + `amount_cents` are the amount and the period it
+  covers, so a salary defined as an annual number is `annual` + `130_000_00`
+  losslessly however often it is paid; the nullable `pay_schedule` +
+  `pay_interval_count` carry the cadence the money lands on, null meaning it lands
+  on the frequency the amount is expressed in. The form asks the two questions
+  separately, defaulting the second to the first so the simple case is unchanged,
+  and shows back the per-payment figure it derives. Annualising always reads
+  `schedule` — the FY tax estimate, its effective-date proration, the budget's
+  fortnightly/annual normalisation, and pay splits all do. The pay cadence sets
+  only the pay cycle a payslip's period is measured against, so a 14-day slip
+  against a fortnightly-paid $130,000 salary is one whole turn expecting exactly
+  $5,000.00 rather than part of a 365-day turn expecting $4,986.30. A per-payment
+  figure is derived, never stored, and rounds to the nearest cent, so a year of
+  payments can sit a few cents either side of the annual figure; the form names
+  the gap where there is one. Salary or wage money arriving once a year draws an
+  advisory note pointing at the pay-cadence picker, which never blocks a save.
   An inflow may carry optional effective-from/until dates (`starts_on` /
   `ends_on`); the FY tax estimate prorates each rate by its active share of the
   year (by calendar days), so income that changes mid-year — a pay rise modelled
@@ -111,7 +128,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   26.07 a calendar-day share of the year implies, so a part period is the per-period
   amount times its days over the days one whole turn of the cycle spans (7 × weeks
   for a week-based cadence, the real calendar length of the months a turn runs
-  through from the period's first day for a month-based one). A whole period
+  through from the period's first day for a month-based one). The cycle read is the
+  inflow's PAY cadence — `pay_schedule` where the row states one, `schedule`
+  otherwise — never the frequency its amount is merely expressed in. A whole period
   therefore yields the per-period amount exactly on either basis, so there is no jump
   at the boundary and no proration remainder to excuse. A figure lands on that part
   basis two materially different ways and the card SAYS WHICH: either the period is

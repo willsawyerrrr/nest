@@ -13,8 +13,15 @@ export interface InflowInput {
   type: InflowType
   /** Whether employer super accrues on the inflow; false for a non-OTE allowance. */
   attracts_super: boolean
+  /** The period `amount_cents` covers — the frequency the amount is expressed in. */
   schedule: Frequency
   interval_count: number | null
+  /**
+   * The cadence the money arrives on; null when it arrives on the frequency the
+   * amount is expressed in. Sets the pay cycle a payslip period is measured against.
+   */
+  pay_schedule: Frequency | null
+  pay_interval_count: number | null
   amount_cents: number | null
   hourly_rate_cents: number | null
   hours_per_period: number | null

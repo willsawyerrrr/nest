@@ -832,6 +832,8 @@ export type Database = {
           interval_count: number | null
           member_id: string | null
           name: string
+          pay_interval_count: number | null
+          pay_schedule: Database['public']['Enums']['frequency'] | null
           schedule: Database['public']['Enums']['frequency']
           starts_on: string | null
           taxable: boolean
@@ -850,6 +852,8 @@ export type Database = {
           interval_count?: number | null
           member_id?: string | null
           name: string
+          pay_interval_count?: number | null
+          pay_schedule?: Database['public']['Enums']['frequency'] | null
           schedule: Database['public']['Enums']['frequency']
           starts_on?: string | null
           taxable?: boolean
@@ -868,6 +872,8 @@ export type Database = {
           interval_count?: number | null
           member_id?: string | null
           name?: string
+          pay_interval_count?: number | null
+          pay_schedule?: Database['public']['Enums']['frequency'] | null
           schedule?: Database['public']['Enums']['frequency']
           starts_on?: string | null
           taxable?: boolean

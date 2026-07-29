@@ -178,6 +178,12 @@ export interface PayslipActuals extends PayPeriod {
  * effective dates, which clip the share of the pay period it is active for.
  * Structurally satisfied by `@nest/tax`'s `IncomeInput`, so a caller passes the
  * same object it feeds the tax estimate.
+ *
+ * Two frequencies live here and they answer different questions. `schedule` (with
+ * `interval`) is the period the amount is EXPRESSED over — a salary defined as
+ * $130,000 a year is `annual`, and that is what annualising divides by.
+ * `paySchedule` (with `payInterval`) is the cadence the money ARRIVES on, which is
+ * what a pay period is measured against; absent, the two are the same.
  */
 export interface ReconciledInflow {
   readonly type: 'salary' | 'wage' | 'other'
@@ -187,6 +193,14 @@ export interface ReconciledInflow {
   readonly hoursPerPeriod?: number
   /** The interval N for the `every_n_weeks`/`every_n_months` cadences. */
   readonly interval?: number
+  /**
+   * The cadence the money arrives on, where it differs from the one the amount is
+   * expressed in. Absent or null means they are the same, so an inflow that says
+   * nothing here behaves exactly as it always has.
+   */
+  readonly paySchedule?: Frequency | null
+  /** The interval N for an `every_n_weeks`/`every_n_months` pay cadence. */
+  readonly payInterval?: number | null
   readonly startsOn?: string | null
   readonly endsOn?: string | null
   /**
@@ -429,16 +443,41 @@ export interface PayslipYearToDateTotals {
 }
 
 /**
+ * The cadence the inflow's money arrives on: the pay cadence where it states one,
+ * else the cadence its amount is expressed in. Everything about the pay cycle — how
+ * long one turn runs, how many turns a year holds, whether a period is one whole
+ * turn — reads this, and nothing about annualising an amount does. A $130,000
+ * salary expressed annually and paid fortnightly resolves here to `fortnightly`, so
+ * a 14-day period is a whole turn worth the annual figure over 26, not part of a
+ * 365-day one.
+ */
+function payCadence(inflow: ReconciledInflow): {
+  readonly frequency: Frequency
+  readonly interval: number | undefined
+} {
+  return isEntered(inflow.paySchedule)
+    ? { frequency: inflow.paySchedule, interval: inflow.payInterval ?? undefined }
+    : { frequency: inflow.schedule, interval: inflow.interval }
+}
+
+/** How many turns of the inflow's pay cadence a year holds — the on-cadence divisor. */
+function payCadencePeriodsPerYear(inflow: ReconciledInflow): number {
+  const { frequency, interval } = payCadence(inflow)
+  return periodsPerYear(frequency, interval)
+}
+
+/**
  * One whole turn of the inflow's pay cycle as a proration unit, measured from the
  * pay period's first day. Null for a cadence with no nominal length, which leaves
  * the caller nothing but the financial year to apportion over.
  */
 function payCycleUnit(inflow: ReconciledInflow, period: PayPeriod): ProrationUnit | null {
-  const span = cadenceSpan(inflow.schedule, inflow.interval)
+  const { frequency, interval } = payCadence(inflow)
+  const span = cadenceSpan(frequency, interval)
   return span === null
     ? null
     : {
-        perYear: periodsPerYear(inflow.schedule, inflow.interval),
+        perYear: periodsPerYear(frequency, interval),
         unitDays: cadenceTurnDays(span, period.periodStart),
       }
 }
@@ -470,15 +509,18 @@ function spansWholeCadenceTurn(span: CadenceSpan, days: number): boolean {
 }
 
 /**
- * Whether a pay period is one whole turn of the inflow's cadence, and so
+ * Whether a pay period is one whole turn of the inflow's pay cadence, and so
  * measurable against the annual figure divided by periods per year rather than
- * scaled to part of a turn. It is when the period's day count is the cadence's
- * nominal length and the inflow is effective for every day of it. A period the
- * inflow's effective dates clip is a part period however well its length fits, as
- * is one on a cadence with no usable interval.
+ * scaled to part of a turn. It is when the period's day count is that cadence's
+ * nominal length and the inflow is effective for every day of it. The cadence read
+ * is the one the money arrives on, so a fortnight is a whole turn of a $130,000
+ * salary paid fortnightly however the amount is expressed. A period the inflow's
+ * effective dates clip is a part period however well its length fits, as is one on
+ * a cadence with no usable interval.
  */
 export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): boolean {
-  const span = cadenceSpan(inflow.schedule, inflow.interval)
+  const { frequency, interval } = payCadence(inflow)
+  const span = cadenceSpan(frequency, interval)
   const days = periodDayCount(period)
   return (
     span !== null &&
@@ -499,11 +541,16 @@ interface BasisReading {
  * the reason it is part of one, since a short period and a dated inflow read very
  * differently to whoever is looking at the variance — and `calendar_days` only where
  * there is no cycle to scale against, no inflow at all or one whose cadence states
- * no usable interval.
+ * no usable interval. The cycle read is the one the money arrives on, so this agrees
+ * with {@link isPeriodOnCadence} however the inflow's amount is expressed.
  */
 function readBasis(inflow: ReconciledInflow | undefined, period: PayPeriod): BasisReading {
-  const span = inflow === undefined ? null : cadenceSpan(inflow.schedule, inflow.interval)
-  if (inflow === undefined || span === null) {
+  if (inflow === undefined) {
+    return { basis: 'calendar_days', partCycleReason: null }
+  }
+  const { frequency, interval } = payCadence(inflow)
+  const span = cadenceSpan(frequency, interval)
+  if (span === null) {
     return { basis: 'calendar_days', partCycleReason: null }
   }
   const days = periodDayCount(period)
@@ -520,10 +567,11 @@ function readBasis(inflow: ReconciledInflow | undefined, period: PayPeriod): Bas
  * Annualises an inflow's steady per-period gross to whole cents. The per-period
  * gross is `hourlyRateCents × hoursPerPeriod` rounded to whole cents for a
  * `wage` and `amountCents` for a `salary` or `other`, with missing figures taken
- * as zero; the schedule's cadence is normalised by `annualCents`, so an
- * `every_n_weeks`/`every_n_months` inflow with no usable interval annualises to
- * zero. The inflow's effective dates are not applied here — this is the
- * full-year rate a period's expectation is drawn from.
+ * as zero; the amount's own `schedule` is normalised by `annualCents` — the pay
+ * cadence has no part in it, the amount meaning what it says over the period it
+ * names — so an `every_n_weeks`/`every_n_months` inflow with no usable interval
+ * annualises to zero. The inflow's effective dates are not applied here — this is
+ * the full-year rate a period's expectation is drawn from.
  */
 export function annualInflowGrossCents(inflow: ReconciledInflow): Money {
   const perPeriodCents =
@@ -534,17 +582,19 @@ export function annualInflowGrossCents(inflow: ReconciledInflow): Money {
 }
 
 /**
- * The gross the plan projects for one pay period. A period on the inflow's
- * cadence gets the annualised gross divided by the cadence's periods per year,
- * rounded to the nearest cent — the steady amount the employer pays each period.
- * Any other period takes that same per-period amount and scales it by the days of
- * the period the inflow is effective for, over the days one whole turn of the
- * cadence spans: a window that covers none of the period projects nothing, half a
- * fortnight projects half a fortnight's pay, and a mid-period pay rise modelled as
- * one dated inflow ending and another starting has the two part-period
- * expectations sum to exactly the whole period's amount. The financial year is the
- * unit only for a cadence with no nominal length at all, which is also one that
- * annualises to nothing.
+ * The gross the plan projects for one pay period. A period on the inflow's pay
+ * cadence gets the annualised gross divided by that cadence's periods per year,
+ * rounded to the nearest cent — the steady amount the employer pays each period, so
+ * a $130,000 salary paid fortnightly expects $5,000.00 exactly. The remainder of an
+ * annual figure that does not divide evenly is dropped rather than spread, this
+ * being a per-period rate to hold one slip against and not an allocation that has
+ * to sum back to the year. Any other period takes that same per-period amount and
+ * scales it by the days of the period the inflow is effective for, over the days one
+ * whole turn of the cadence spans: a window that covers none of the period projects
+ * nothing, half a fortnight projects half a fortnight's pay, and a mid-period pay
+ * rise modelled as one dated inflow ending and another starting has the two
+ * part-period expectations sum to exactly the whole period's amount. The financial
+ * year is the unit only for a cadence with no nominal length at all.
  */
 export function expectedPeriodGrossCents(
   inflow: ReconciledInflow,
@@ -555,7 +605,7 @@ export function expectedPeriodGrossCents(
   // A cadence with no usable interval is never on-cadence, so periods per year is
   // never the zero it returns for one.
   if (isPeriodOnCadence(inflow, period)) {
-    return Math.round(annualGrossCents / periodsPerYear(inflow.schedule, inflow.interval))
+    return Math.round(annualGrossCents / payCadencePeriodsPerYear(inflow))
   }
   return prorateAnnualAcrossUnit(
     annualGrossCents,
@@ -750,7 +800,7 @@ export function payslipVariance(
   const cadenceUnit = cadence === null ? null : payCycleUnit(cadence.inflow, payslip)
   const cadencePeriodsPerYear =
     cadence !== null && isPeriodOnCadence(cadence.inflow, payslip)
-      ? periodsPerYear(cadence.inflow.schedule, cadence.inflow.interval)
+      ? payCadencePeriodsPerYear(cadence.inflow)
       : null
   const expectedForPeriod = (annualAmountCents: Money): Money =>
     cadencePeriodsPerYear === null

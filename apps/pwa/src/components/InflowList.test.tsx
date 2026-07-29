@@ -103,6 +103,43 @@ describe('InflowList', () => {
     expect(screen.getByText(/\/ fn/)).toBeInTheDocument()
   })
 
+  it('captions the cycle a yearly-amount inflow’s money actually lands on', () => {
+    renderList([
+      makeInflow({
+        id: 'i8',
+        name: 'Day job',
+        schedule: 'annual',
+        amount_cents: 130_000_00,
+        pay_schedule: 'fortnightly',
+      }),
+    ])
+
+    // The badge names the period the $130,000 covers; the caption says how it arrives, so
+    // the row does not read as one payment a year.
+    expect(screen.getByText('Annually')).toBeInTheDocument()
+    expect(screen.getByText('Paid fortnightly')).toBeInTheDocument()
+  })
+
+  it('captions an arbitrary pay cadence with its interval, beside the effective dates', () => {
+    renderList([
+      makeInflow({
+        id: 'i9',
+        name: 'On-call',
+        schedule: 'annual',
+        pay_schedule: 'every_n_weeks',
+        pay_interval_count: 4,
+        starts_on: '2026-09-15',
+      }),
+    ])
+    expect(screen.getByText('Paid every 4 weeks · from 15 Sept 2026')).toBeInTheDocument()
+  })
+
+  it('says nothing about the pay cycle where the frequency badge already names it', () => {
+    // The same cadence stated twice is the same fact, and the badge has said it.
+    renderList([makeInflow({ id: 'i10', pay_schedule: 'fortnightly' })])
+    expect(screen.queryByText(/^Paid /)).not.toBeInTheDocument()
+  })
+
   it('captions an inflow with both effective dates as a date range', () => {
     renderList([datedSalary])
     expect(screen.getByText('1 July 2026 – 14 Sept 2099')).toBeInTheDocument()

@@ -100,11 +100,19 @@ export function reportedYearToDateFromRows(
 
 /**
  * Maps an `inflows` row to the projection a payslip's earnings lines are measured
- * against: the tax engine's own income shape plus whether employer super accrues
- * on it, which a line snapshots when it is written.
+ * against: the tax engine's own income shape, whether employer super accrues on it
+ * (which a line snapshots when it is written), and the cadence the money arrives on.
+ * That last is the one thing the tax engine has no use for — it annualises the
+ * amount over the frequency the amount is expressed in — and the one thing a pay
+ * period is measured against, so it is added here rather than to `IncomeInput`.
  */
 export function toReconciledInflow(inflow: Inflow): ReconciledInflow {
-  return { ...toIncomeInput(inflow), attractsSuper: inflow.attracts_super }
+  return {
+    ...toIncomeInput(inflow),
+    attractsSuper: inflow.attracts_super,
+    ...(inflow.pay_schedule != null && { paySchedule: inflow.pay_schedule }),
+    ...(inflow.pay_interval_count != null && { payInterval: inflow.pay_interval_count }),
+  }
 }
 
 /**

@@ -237,6 +237,25 @@ Until the secret is set, extraction returns `503` with `{ configured: false }` a
 the UI falls back to manual entry with an honest "not configured" note, so the
 payslip feature works without it.
 
+**When the account runs out of credit.** A key that is set but whose account has
+no credit is the other operator-shaped failure, and it is not the same one. The API
+answers `400 invalid_request_error` with "Your credit balance is too low to access
+the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+which the function reads as its own case: `503` with `{ outOfCredit: true }`. The
+form shows the same plain "reading is off" note it shows for an unset key, worded
+to say that nothing is wrong with the member's file and not to retry — no retry
+can succeed until the balance is positive, and the figures are typed by hand
+meanwhile. The fix is to top the account up at [Plans &
+Billing](https://console.anthropic.com/settings/billing); nothing needs
+redeploying or rotating, and the next read succeeds. The two flags are distinct
+precisely because the fixes are: `configured: false` means set the Vault secret,
+`outOfCredit: true` means add credit to the account the key belongs to.
+
+A monthly spend limit reached reads instead as a plain rate limit (`429`, "try
+again shortly"), because the API reports it identically to a request-rate limit and
+the two cannot be told apart. So if reading keeps failing that way with no traffic
+to explain it, check the organisation's spend limit alongside its balance.
+
 **Cost.** Haiku 4.5 is $1 per million input tokens and $5 per million output. One
 payslip is a page or two: a few thousand input tokens (the page image plus its
 extracted text, the system prompt, and the tool schema) and a few hundred output

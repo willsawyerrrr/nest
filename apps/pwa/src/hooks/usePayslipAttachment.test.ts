@@ -191,6 +191,7 @@ describe('usePayslipAttachment', () => {
   it('keeps the document attached when the read fails, and pre-fills nothing', async () => {
     for (const outcome of [
       { status: 'not-configured', message: 'Not configured.' },
+      { status: 'out-of-credit', message: 'Out of credit.' },
       { status: 'not-payslip', message: 'Not a payslip.', reason: 'A bank statement.' },
       { status: 'failed', message: 'Rate limited.' },
     ] satisfies ExtractionOutcome[]) {

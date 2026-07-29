@@ -172,8 +172,48 @@ Deno.test('the extractor surfaces an API error with its status', async () => {
     bytes: new Uint8Array([1]),
   })
 
+  // A genuinely malformed request carries the same status and type as an
+  // exhausted balance, so this is the case the credit match must not swallow.
   assertEquals(!result.ok && result.failure, 'api_error')
   assertEquals(!result.ok && result.status, 400)
+})
+
+Deno.test('the extractor reads an exhausted credit balance as its own failure', async () => {
+  const { fetchImpl } = stub(() =>
+    Response.json(
+      {
+        type: 'error',
+        error: {
+          type: 'invalid_request_error',
+          message:
+            'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+        },
+      },
+      { status: 400 },
+    )
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  assertEquals(!result.ok && result.failure, 'no_credit')
+  assertEquals(!result.ok && result.status, 400)
+})
+
+Deno.test('the extractor reads a billing error as an empty account whatever its status', async () => {
+  const { fetchImpl } = stub(() =>
+    Response.json(
+      { type: 'error', error: { type: 'billing_error', message: 'billing is not in order' } },
+      { status: 403 },
+    )
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1]),
+  })
+
+  assertEquals(!result.ok && result.failure, 'no_credit')
 })
 
 Deno.test('the extractor surfaces a rate limit as its own status', async () => {
@@ -189,6 +229,9 @@ Deno.test('the extractor surfaces a rate limit as its own status', async () => {
   })
 
   assertEquals(!result.ok && result.status, 429)
+  // A spend limit is reported exactly as a request-rate limit, so a 429 is never
+  // read as an empty account: waiting is the right advice for both.
+  assertEquals(!result.ok && result.failure, 'api_error')
 })
 
 Deno.test('the extractor surfaces a transport failure without throwing', async () => {

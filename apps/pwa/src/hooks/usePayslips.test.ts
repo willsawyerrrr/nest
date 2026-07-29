@@ -383,6 +383,18 @@ describe('usePayslips attachment extraction', () => {
     })
   })
 
+  it('reports an account out of credit as its own switched-off state', async () => {
+    const message =
+      'Payslip reading is off until the Anthropic account is topped up. Nothing is wrong with your file — enter the figures by hand.'
+    invoke.mockResolvedValue(httpFailure(503, { error: message, outOfCredit: true }))
+    const result = await renderPayslips()
+
+    expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
+      status: 'out-of-credit',
+      message,
+    })
+  })
+
   it('passes on the model’s reason for refusing a file that is not a payslip', async () => {
     invoke.mockResolvedValue(
       httpFailure(422, {

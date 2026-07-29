@@ -161,8 +161,37 @@ Deno.test('runExtract degrades to manual entry when the API key is unset', async
     body.error,
     'Payslip extraction is not configured. Enter the figures by hand.',
   )
+  // The two "switched off" outcomes never carry each other's flag: the operator
+  // sets a Vault secret for one and tops up an account for the other.
+  assertEquals(body.outOfCredit, undefined)
   // Nothing is downloaded or sent when the feature is not configured.
   assertEquals(d.calls, ['resolveHousehold', 'apiKey'])
+})
+
+Deno.test('runExtract reports an exhausted credit balance as reading being off, not broken', async () => {
+  const result = await runExtract(
+    PATH,
+    deps({
+      extract: () =>
+        Promise.resolve({
+          ok: false as const,
+          failure: 'no_credit' as const,
+          message: '400 Your credit balance is too low to access the Anthropic API.',
+          status: 400,
+        }),
+    }),
+  )
+
+  assertEquals(result.status, 503)
+  const body = result.body as Record<string, unknown>
+  assertEquals(body.outOfCredit, true)
+  // Not the unset-key flag: the fix is an operator topping up, not setting a key.
+  assertEquals(body.configured, undefined)
+  const error = String(body.error)
+  assertEquals(error.includes('topped up'), true)
+  assertEquals(error.includes('Nothing is wrong with your file'), true)
+  // No retry is offered, because no retry can succeed.
+  assertEquals(error.toLowerCase().includes('try again'), false)
 })
 
 Deno.test('runExtract reports a file that is not in the bucket', async () => {
@@ -277,7 +306,7 @@ Deno.test('runExtract reports a model refusal as a content problem, not a server
   )
 })
 
-Deno.test('runExtract maps a model API failure to a bad gateway', async () => {
+Deno.test('runExtract maps a model API failure to a bad gateway, offering a retry when one could work', async () => {
   const result = await runExtract(
     PATH,
     deps({
@@ -292,6 +321,33 @@ Deno.test('runExtract maps a model API failure to a bad gateway', async () => {
   )
 
   assertEquals(result.status, 502)
+  assertEquals(
+    (result.body as Record<string, unknown>).error,
+    'The payslip could not be read right now. Try again, or enter it by hand.',
+  )
+})
+
+Deno.test('runExtract still reads an unrelated bad request as a server fault, with no retry', async () => {
+  const result = await runExtract(
+    PATH,
+    deps({
+      extract: () =>
+        Promise.resolve({
+          ok: false as const,
+          failure: 'api_error' as const,
+          message: '400 messages.0.content.1: unexpected block',
+          status: 400,
+        }),
+    }),
+  )
+
+  // A malformed request is the server's fault, not a billing problem, and it
+  // would be rejected identically on a retry, so none is invited.
+  assertEquals(result.status, 502)
+  assertEquals(
+    (result.body as Record<string, unknown>).error,
+    'The payslip could not be read. Enter the figures by hand.',
+  )
 })
 
 Deno.test('runExtract passes an upstream rate limit through so the client can back off', async () => {

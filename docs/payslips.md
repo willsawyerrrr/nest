@@ -197,16 +197,57 @@ boundary.
   integer, so the RPC keeps inserting it and the loader keeps filtering on it,
   while the database — not the client — decides whether the value is right.
 - **The pay period is not clipped to that year.** A period straddling 30 June
-  counts every one of its own days when its expectations are apportioned; the
-  financial year only supplies the denominator (365 days, or 366 in a leap year).
-  The variance for such a slip is measured against the projection and estimate for
-  the year the pay landed in, which is the year that will assess it.
+  counts every one of its own days when its expectations are scaled. Where the pay
+  cycle is known the year's own length does not enter the arithmetic at all, so such
+  a slip reads the same whichever side of 30 June it is filed under; only a slip
+  with no cycle to read takes the year as its denominator (365 days, or 366 in a
+  leap year). The variance for such a slip is measured against the projection and
+  estimate for the year the pay landed in, which is the year that will assess it.
 - **The slip's YTD figures rank by payment date too.** The running totals printed
   on a slip are the employer's own totals as at that payment, so the anchor slip
   is the one whose pay landed last — back-pay for an old period, paid most
   recently, reports the further-advanced figures. The **list** still orders by pay
   period: every slip carries a period end, so it orders totally, whereas `paid_on`
   is optional and a descending sort would float the slips lacking one to the top.
+
+### How an expected figure is scaled
+
+Every expected figure is an annual one — an annualised inflow, the year's estimated
+liability, the year's concessional contributions — brought down to one pay period.
+The unit it is brought down to is the unit it is really paid in: **a fortnightly
+wage is paid 26 times a year, not the 26.07 times a 364-day-over-365 share of the
+year implies.** So a period is measured as a fraction of one **pay period**, never
+of the year, wherever the pay cycle is known. Three bases fall out of that, each
+reported on the variance as `basis`.
+
+- **`cadence`** — the period is one whole turn of the cycle its earnings are drawn
+  on: annual ÷ periods per year, the way the employer pays it. A $130,000 salary
+  paid fortnightly expects $5,000.00.
+- **`part_cycle`** — the period is part of a turn: that same per-period amount
+  × days measured ÷ days one whole turn spans. Seven days of a fortnight expects
+  exactly $2,500.00. Because a whole turn's days over a whole turn's days is one,
+  the two bases give the **same figure** at the boundary — there is no jump between
+  a 14-day period and a 13-day one, and no arithmetic remainder for a full period
+  to carry.
+- **`calendar_days`** — the only case with no pay cycle to scale against: nothing
+  on the slip names a projection, or the cadence it names states no usable
+  interval. With no period unit there is nothing but the year, so the figure is
+  annual × the period's days ÷ the year's 365 or 366.
+
+"Days one whole turn spans" is exact for a week-based cadence (7 × weeks) and is
+the **real calendar length** of the months a turn runs through for a month-based
+one, measured from the pay period's first day: a monthly turn from 1 July is 31
+days, from 1 February 28. That is what makes a whole month expect exactly annual ÷
+12 and half of February exactly half a month's pay, and what makes a month split
+across two dated inflows sum to exactly one month rather than overshoot it — none
+of which a fixed 365 ÷ 12 would give. Where the turn's start day does not exist in
+the month it ends in, it is clamped to that month's last day (a monthly turn from
+31 January runs to 27 February, 28 days). Two edge costs follow, both accepted: the
+same 15 days is a larger share of February than of July, which is true of pay
+rather than an error; and because a monthly period is accepted as whole anywhere in
+the 28-to-31-day range, a 30-day July period is on the `cadence` basis and expects
+a whole month while a 27-day one is scaled over 31 — the step at that boundary is
+the permissiveness of the whole-month test, not the scaling.
 
 ### Earnings lines and per-inflow variance
 
@@ -225,9 +266,10 @@ every line stays theirs to edit. Five properties fall out of that shape.
   fortnight that pays $4,000 ordinary plus $1,000 leave against a $130,000 salary
   reads as exactly on plan.
 - **Variance is measured per group.** Each inflow's lines are summed and held
-  against that inflow's expectation for the period, on the same
-  cadence-or-calendar-days basis a whole slip uses. A lumpy allowance's variance
-  is its own, not smeared across a steady salary's.
+  against that inflow's expectation for the period, on the same basis a whole slip
+  uses (see [How an expected figure is
+  scaled](#how-an-expected-figure-is-scaled)). A lumpy allowance's variance is its
+  own, not smeared across a steady salary's.
 - **Nothing has to add up.** Gross the lines do not account for is
   **unallocated** and shown as such; it reads as gross above plan, which is what
   unexplained earnings are. Lines overshooting the gross read as a negative
@@ -303,7 +345,7 @@ tab**:
   without opening anything. Gross wins a tie, so a slip on plan throughout reads
   against the figure the plan projects, and a slip mapped to no projection says so.
   Tapping the row reveals the quartet with every variance, the per-inflow and
-  per-component breakdowns, the unallocated remainders, the calendar-days note, the
+  per-component breakdowns, the unallocated remainders, the part-period note, the
   slip's own note, and the document link; the headline gives way to the quartet,
   which states the same gross in full. Neither remainder competes for the headline:
   gross the earnings lines miss is already inside the gross variance, and tax the
@@ -316,19 +358,21 @@ tab**:
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
   - *Expected gross for the period* = each inflow the slip's earnings lines draw
     on, annualised (via the existing `annualGrossCents` / schedule normalisation)
-    then prorated to the payslip's period length, summed. Per group, that group's
-    sum less its expectation is its variance; over the slip,
+    then scaled to the payslip's period on the bases above, summed. Per group, that
+    group's sum less its expectation is its variance; over the slip,
     `gross_cents − expected` is the gross variance. A slip whose lines name no
     projection has no gross expectation at all.
   - *Expected tax withheld for the period* = the member's annual estimated tax
-    (from `estimateHouseholdTax`) ÷ periods per year, prorated to the period.
-    `tax_withheld_cents − expected` is the withholding variance — the household's
-    early read on whether the employer is over- or under-withholding versus the
-    modelled liability. Per tax line group, the same division of that liability's
-    HELP repayment (for `stsl`) or of the rest of it (for `payg`).
+    (from `estimateHouseholdTax`) ÷ periods per year of the slip's pay cycle,
+    scaled by the share of one period it covers. `tax_withheld_cents − expected` is
+    the withholding variance — the household's early read on whether the employer
+    is over- or under-withholding versus the modelled liability. Per tax line
+    group, the same division of that liability's HELP repayment (for `stsl`) or of
+    the rest of it (for `payg`).
   - *Expected super for the period* = modelled employer SG (`guarantee_rate ×`
-    the period's gross less its non-OTE lines) plus any period-prorated
-    concessional contribution; `super_cents − expected` is the super variance.
+    the period's gross less its non-OTE lines) plus the concessional contribution
+    for the period, scaled the same way; `super_cents − expected` is the super
+    variance.
 - **Year-to-date refund/bill**: the summed actual `tax_withheld_cents` for the FY
   feeds the tax engine's `paygWithheldCents`, so the balance reads as a concrete
   refund (negative) or amount owing (positive) from real withholding. Both the Tax

@@ -104,8 +104,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   which date decided it, and the `payslip_financial_year` check constraint holds the
   same rule in the database, `financial_year` staying a plain writable column rather
   than a generated one. The pay period is never clipped to that year: a straddling
-  period counts all of its own days, and the year only supplies the 365/366
-  denominator an off-cadence period's expectations are apportioned over. A slip's
+  period counts all of its own days, and where the pay cycle is known the year's own
+  length does not enter the arithmetic at all — it supplies the 365/366 denominator
+  only for a slip with no cycle to read. Every OTHER expectation is a fraction of one
+  PAY PERIOD, not of the year: a fortnightly wage is paid 26 times a year, not the
+  26.07 a calendar-day share of the year implies, so a part period is the per-period
+  amount times its days over the days one whole turn of the cycle spans (7 × weeks
+  for a week-based cadence, the real calendar length of the months a turn runs
+  through from the period's first day for a month-based one). A whole period
+  therefore yields the per-period amount exactly on either basis, so there is no jump
+  at the boundary and no proration remainder to excuse. A slip's
   own YTD figures rank by payment date too, so the anchor slip is whichever pay
   landed last, while the LIST stays ordered by pay period — every slip has one,
   `paid_on` is optional. The figures are
@@ -128,9 +136,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   hide behind income tax that is over. The pay cycle the slip's OWN expectations
   (withholding, concessional super) are divided by is derived from the largest
   earnings group's inflow; where the lines name no projection there is no cycle and
-  every figure is apportioned by calendar days, which a disagreement among the
-  groups is deliberately NOT — the cadence check still requires the period to be
-  one whole turn of the chosen cycle, so a wrong pick costs the proration and
+  every figure is apportioned by calendar days of the year, which a disagreement
+  among the groups is deliberately NOT — the cadence check still requires the period
+  to be one whole turn of the chosen cycle, so a wrong pick costs the scaling and
   never a wrong division. The lines need not sum to the printed gross or tax
   total; each remainder is unallocated and surfaced, not absorbed, which keeps the
   printed totals an independent cross-check against a misread. Expected employer

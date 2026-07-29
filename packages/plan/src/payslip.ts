@@ -14,56 +14,50 @@
  * compulsory repayment and the PAYG against the income tax and levies that are
  * the rest.
  *
- * Expected figures rest on one of two bases. A pay period that matches the pay
+ * Expected figures rest on one of three bases, each scaling an annual figure by
+ * the unit it is really paid in. A pay period that is one whole turn of the pay
  * cycle the slip's lines are drawn on — the ordinary case — divides the annual
- * figure by the cadence's periods per year, the way an employer pays it, so a
- * slip that matches the projection shows nil variance. Every other period is
- * genuine partial-year apportionment — a part period, a first or last slip in a
- * job, an off-cycle or back-pay slip, or a slip whose lines name no projection at
- * all — and prorates by inclusive calendar days in the period over inclusive
- * calendar days in the financial year.
+ * figure by the cadence's periods per year, the way an employer pays it, so a slip
+ * that matches the projection shows nil variance. A part turn of that cycle — a
+ * part period, a first or last slip in a job, an off-cycle or back-pay slip —
+ * takes the same per-period amount and scales it by the days being measured over
+ * the days one whole turn spans: a fortnightly wage is paid 26 times a year, not
+ * the 26.07 a calendar-day share of the year implies, so a whole turn yields the
+ * per-period amount exactly whichever way it is reached and half a turn yields
+ * half of it. Only a slip with no pay cycle to read at all — nothing on it names a
+ * projection, or the cadence it names states no interval — apportions by inclusive
+ * calendar days in the period over inclusive calendar days in the financial year,
+ * there being no period unit to scale.
  *
  * Which financial year a slip belongs to is the year its pay landed in, not the
  * year the work fell in — see {@link payslipAttributionDate}. The year reaches
  * this module as a caller-supplied label on {@link PayslipActuals}, and enters the
- * math only as the day count an off-cadence period is apportioned over, so a
- * period straddling 30 June still counts every one of its own days.
+ * math only as the denominator that last basis apportions over: a period
+ * straddling 30 June counts every one of its own days, and a slip whose pay cycle
+ * is known reads the same whichever year it is filed under.
  */
 
 import type { Frequency, Money } from './index'
-import { annualCents, MONTHS_PER_YEAR, periodsPerYear, WEEKS_PER_YEAR } from './normalize'
-
-/** Milliseconds in a day, for inclusive calendar-day arithmetic. */
-const MS_PER_DAY = 24 * 60 * 60 * 1000
-
-/** Days in a week: a week-based cadence's period is exactly this many days long. */
-const DAYS_PER_WEEK = 7
-
-/** The shortest calendar month, the lower bound of a month-based cadence's period. */
-const MIN_DAYS_PER_MONTH = 28
-
-/** The longest calendar month, the upper bound of a month-based cadence's period. */
-const MAX_DAYS_PER_MONTH = 31
-
-/** Parses an ISO date (`YYYY-MM-DD`) as a UTC midnight, matching the FY bounds. */
-function isoDateMs(iso: string): number {
-  return Date.parse(`${iso}T00:00:00Z`)
-}
-
-/** The inclusive count of calendar days between two UTC-midnight instants, floored at zero. */
-function inclusiveDayCount(startMs: number, endMs: number): number {
-  return Math.max(0, Math.round((endMs - startMs) / MS_PER_DAY) + 1)
-}
+import { annualCents, periodsPerYear } from './normalize'
+import {
+  cadenceSpan,
+  cadenceTurnDays,
+  DAYS_PER_WEEK,
+  financialYearDayCount,
+  financialYearUnit,
+  inclusiveDayCount,
+  isoDateMs,
+  MAX_DAYS_PER_MONTH,
+  MIN_DAYS_PER_MONTH,
+  periodDayCount,
+  prorateAnnualAcrossUnit,
+  type PayPeriod,
+  type ProrationUnit,
+} from './payPeriod'
 
 /** Whether a nullable stored value — a figure or an effective date — was entered. */
 function isEntered<T>(value: T | null | undefined): value is T {
   return value != null
-}
-
-/** One pay period, both ISO dates (`YYYY-MM-DD`) inclusive. */
-export interface PayPeriod {
-  readonly periodStart: string
-  readonly periodEnd: string
 }
 
 /** The dates a payslip is attributed by, both ISO (`YYYY-MM-DD`). */
@@ -241,11 +235,15 @@ export interface PayslipExpectation {
 }
 
 /**
- * Which basis an expected figure was computed on: `cadence` divides the annual
- * figure by the inflow cadence's periods per year, `calendar_days` apportions it
- * by the period's share of the financial year.
+ * Which basis an expected figure was computed on. `cadence` divides the annual
+ * figure by the inflow cadence's periods per year, the period being one whole turn
+ * of it. `part_cycle` scales that same per-period amount by the days measured over
+ * the days one whole turn spans. `calendar_days` apportions the annual figure by
+ * the period's share of the financial year, the only basis left where there is no
+ * pay cycle to scale against — no inflow at all, or one whose cadence states no
+ * usable interval.
  */
-export type ExpectationBasis = 'cadence' | 'calendar_days'
+export type ExpectationBasis = 'cadence' | 'part_cycle' | 'calendar_days'
 
 /**
  * One inflow's share of an itemised payslip: the lines drawing on it summed and
@@ -291,10 +289,9 @@ export interface PayslipTaxGroupVariance {
  */
 export interface PayslipVariance {
   /**
-   * Which basis the withholding and concessional-super expectations were
-   * computed on, read from the pay cycle the slip's lines are drawn on. Each
-   * earnings-line group reports its own basis, since a group's inflow may run on
-   * another cadence.
+   * Which basis the withholding and concessional-super expectations were computed
+   * on, read from the pay cycle the slip's lines are drawn on. Each earnings-line
+   * group reports its own basis, since a group's inflow may run on another cadence.
    */
   readonly basis: ExpectationBasis
   /**
@@ -305,10 +302,19 @@ export interface PayslipVariance {
   readonly cadenceInflowId: string | null
   /** Inclusive calendar days in the pay period. */
   readonly periodDays: number
-  /** Inclusive calendar days in the financial year — 365, or 366 in a leap year. */
+  /**
+   * Inclusive calendar days in one whole turn of the pay cycle `basis` was read
+   * from — the denominator a part period's expectations are scaled over. Null
+   * where no cycle is known, which is what leaves the financial year the only unit
+   * to apportion over.
+   */
+  readonly cadencePeriodDays: number | null
+  /**
+   * Inclusive calendar days in the financial year — 365, or 366 in a leap year.
+   * The denominator only where no pay cycle is known; a slip whose cycle is known
+   * is scaled over `cadencePeriodDays` and so reads the same in either year.
+   */
   readonly financialYearDays: number
-  /** `periodDays / financialYearDays`, the share of the year the period covers. */
-  readonly periodFraction: number
   readonly expectedGrossCents: Money | null
   readonly grossVarianceCents: Money | null
   /**
@@ -386,98 +392,19 @@ export interface PayslipYearToDateTotals {
   readonly superCents: Money
 }
 
-/** The inclusive day count a period on one cadence occupies, as a range. */
-interface CadenceDayRange {
-  readonly minDays: number
-  readonly maxDays: number
-}
-
 /**
- * The inclusive calendar-day count of an AU financial year, labelled by its
- * ending year: 1 July of the year before the label through 30 June of the label
- * year, so 365 days or 366 when the label year is a leap year.
+ * One whole turn of the inflow's pay cycle as a proration unit, measured from the
+ * pay period's first day. Null for a cadence with no nominal length, which leaves
+ * the caller nothing but the financial year to apportion over.
  */
-export function financialYearDayCount(financialYear: number): number {
-  return inclusiveDayCount(Date.UTC(financialYear - 1, 6, 1), Date.UTC(financialYear, 5, 30))
-}
-
-/** The inclusive calendar days a pay period spans; nil for a period ending before it starts. */
-function periodDayCount(period: PayPeriod): number {
-  return inclusiveDayCount(isoDateMs(period.periodStart), isoDateMs(period.periodEnd))
-}
-
-/**
- * The share of the financial year a pay period covers: its inclusive calendar-day
- * count over the financial year's. A pay period straddling 30 June counts all of
- * its own days — the period is not clipped to the year it is filed under, which is
- * the year its pay landed in, so a fortnight worked to 28 June and paid 1 July is
- * measured whole against the later year. The year supplies only the denominator,
- * 365 days or 366, so filing such a period by its payment date rather than its own
- * last day moves the fraction by at most a leap day. An inverted period (ending
- * before it starts) covers nothing.
- */
-export function periodFractionOfFinancialYear(period: PayPeriod, financialYear: number): number {
-  return periodDayCount(period) / financialYearDayCount(financialYear)
-}
-
-/**
- * Prorates an annual cent figure to a pay period, to whole cents: the annual
- * amount times the period's share of the financial year. This is the same
- * calendar-day counting the FY tax estimate applies to a dated inflow's
- * effective window, and is the basis for every period that does not match its
- * inflow's cadence.
- */
-export function prorateAnnualToPeriod(
-  annualAmountCents: Money,
-  period: PayPeriod,
-  financialYear: number,
-): Money {
-  return Math.round(annualAmountCents * periodFractionOfFinancialYear(period, financialYear))
-}
-
-/** The exact day count of a period spanning `weeksPerPeriod` whole weeks. */
-function weekRange(weeksPerPeriod: number): CadenceDayRange {
-  const days = Math.round(DAYS_PER_WEEK * weeksPerPeriod)
-  return { minDays: days, maxDays: days }
-}
-
-/** The day range of a period spanning `monthsPerPeriod` whole calendar months. */
-function monthRange(monthsPerPeriod: number): CadenceDayRange {
-  const months = Math.round(monthsPerPeriod)
-  return { minDays: MIN_DAYS_PER_MONTH * months, maxDays: MAX_DAYS_PER_MONTH * months }
-}
-
-/**
- * The inclusive day count a single period on `frequency` occupies. A week-based
- * cadence is exact — a week is always seven days — while a month-based cadence
- * spans anything from the shortest to the longest calendar month per month in the
- * period, so a monthly period is 28 to 31 days. Null for an
- * `every_n_weeks`/`every_n_months` cadence with no usable interval, which has no
- * nominal period length at all.
- */
-function cadenceDayRange(frequency: Frequency, interval?: number): CadenceDayRange | null {
-  const periods = periodsPerYear(frequency, interval)
-  if (periods === 0) {
-    return null
-  }
-  switch (frequency) {
-    case 'weekly':
-      return weekRange(1)
-    case 'fortnightly':
-      return weekRange(2)
-    case 'every_n_weeks':
-      return weekRange(WEEKS_PER_YEAR / periods)
-    case 'monthly':
-      return monthRange(1)
-    case 'quarterly':
-      return monthRange(3)
-    case 'biannual':
-      return monthRange(6)
-    case 'annual':
-      return monthRange(12)
-    case 'every_n_months':
-      return monthRange(MONTHS_PER_YEAR / periods)
-  }
+function payCycleUnit(inflow: ReconciledInflow, period: PayPeriod): ProrationUnit | null {
+  const span = cadenceSpan(inflow.schedule, inflow.interval)
+  return span === null
+    ? null
+    : {
+        perYear: periodsPerYear(inflow.schedule, inflow.interval),
+        unitDays: cadenceTurnDays(span, period.periodStart),
+      }
 }
 
 /** The inclusive days of `period` the inflow's effective window covers. */
@@ -495,22 +422,43 @@ function activeDaysInPeriod(inflow: ReconciledInflow, period: PayPeriod): number
 /**
  * Whether a pay period is one whole turn of the inflow's cadence, and so
  * measurable against the annual figure divided by periods per year rather than
- * apportioned by calendar days. It is when the period's day count is the
- * cadence's nominal length — exactly seven days a week for a week-based cadence,
- * and 28 to 31 days a month for a month-based one, since a calendar month varies
- * — and the inflow is effective for every day of it. A period the inflow's
- * effective dates clip is a part period however well its length fits, as is one
- * on a cadence with no usable interval.
+ * scaled to part of a turn. It is when the period's day count is the cadence's
+ * nominal length — exactly seven days a week for a week-based cadence, and 28 to 31
+ * days a month for a month-based one, since a calendar month varies — and the
+ * inflow is effective for every day of it. A period the inflow's effective dates
+ * clip is a part period however well its length fits, as is one on a cadence with
+ * no usable interval.
  */
 export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): boolean {
-  const range = cadenceDayRange(inflow.schedule, inflow.interval)
-  if (range === null) {
+  const span = cadenceSpan(inflow.schedule, inflow.interval)
+  const days = periodDayCount(period)
+  if (span === null || activeDaysInPeriod(inflow, period) !== days) {
     return false
   }
-  const days = periodDayCount(period)
-  return (
-    activeDaysInPeriod(inflow, period) === days && days >= range.minDays && days <= range.maxDays
-  )
+  if (span.unit === 'weeks') {
+    return days === Math.round(DAYS_PER_WEEK * span.count)
+  }
+  const months = Math.round(span.count)
+  return days >= MIN_DAYS_PER_MONTH * months && days <= MAX_DAYS_PER_MONTH * months
+}
+
+/**
+ * Which basis an expectation drawn from `inflow` rests on for `period`: the
+ * `cadence` for one whole turn of its pay cycle, `part_cycle` for part of one, and
+ * `calendar_days` only where there is no cycle to scale against — no inflow at all,
+ * or one whose cadence states no usable interval.
+ */
+function expectationBasis(
+  inflow: ReconciledInflow | undefined,
+  period: PayPeriod,
+): ExpectationBasis {
+  if (inflow === undefined) {
+    return 'calendar_days'
+  }
+  if (isPeriodOnCadence(inflow, period)) {
+    return 'cadence'
+  }
+  return payCycleUnit(inflow, period) === null ? 'calendar_days' : 'part_cycle'
 }
 
 /**
@@ -534,11 +482,14 @@ export function annualInflowGrossCents(inflow: ReconciledInflow): Money {
  * The gross the plan projects for one pay period. A period on the inflow's
  * cadence gets the annualised gross divided by the cadence's periods per year,
  * rounded to the nearest cent — the steady amount the employer pays each period.
- * Any other period gets the annualised gross apportioned by the days of it the
- * inflow is effective for, over the days in the financial year: a window that
- * covers none of the period projects nothing, and a mid-period pay rise modelled
- * as one dated inflow ending and another starting has the two part-period
- * expectations sum to the whole period's calendar-day share.
+ * Any other period takes that same per-period amount and scales it by the days of
+ * the period the inflow is effective for, over the days one whole turn of the
+ * cadence spans: a window that covers none of the period projects nothing, half a
+ * fortnight projects half a fortnight's pay, and a mid-period pay rise modelled as
+ * one dated inflow ending and another starting has the two part-period
+ * expectations sum to exactly the whole period's amount. The financial year is the
+ * unit only for a cadence with no nominal length at all, which is also one that
+ * annualises to nothing.
  */
 export function expectedPeriodGrossCents(
   inflow: ReconciledInflow,
@@ -551,8 +502,10 @@ export function expectedPeriodGrossCents(
   if (isPeriodOnCadence(inflow, period)) {
     return Math.round(annualGrossCents / periodsPerYear(inflow.schedule, inflow.interval))
   }
-  return Math.round(
-    (annualGrossCents * activeDaysInPeriod(inflow, period)) / financialYearDayCount(financialYear),
+  return prorateAnnualAcrossUnit(
+    annualGrossCents,
+    activeDaysInPeriod(inflow, period),
+    payCycleUnit(inflow, period) ?? financialYearUnit(financialYear),
   )
 }
 
@@ -577,9 +530,9 @@ function isTaxLine(line: PayslipLine): line is PayslipTaxLine {
 /**
  * Groups a slip's earnings lines by the inflow they draw on — preserving the
  * order the inflows first appear — and measures each group's sum against that
- * inflow's expectation for the period, on the same cadence-or-calendar-days basis
- * a whole slip is measured on. A group whose inflow is unknown reports a null
- * expectation: there is nothing to compare its lines to.
+ * inflow's expectation for the period, on the same basis a whole slip is measured
+ * on. A group whose inflow is unknown reports a null expectation: there is nothing
+ * to compare its lines to.
  */
 function lineGroupVariances(
   lines: readonly PayslipEarningLine[],
@@ -607,10 +560,7 @@ function lineGroupVariances(
       actualCents: group.actualCents,
       expectedCents,
       varianceCents: expectedCents === null ? null : group.actualCents - expectedCents,
-      basis:
-        inflow !== undefined && isPeriodOnCadence(inflow, period)
-          ? ('cadence' as const)
-          : ('calendar_days' as const),
+      basis: expectationBasis(inflow, period),
     }
   })
 }
@@ -628,14 +578,14 @@ function lineGroupVariances(
  * likely modelled on that cycle. Groups are read in the order the slip printed
  * them and the comparison is strict, so equal groups keep the first.
  *
- * A disagreement among the groups' cadences is deliberately not a reason to fall
- * back to calendar days. An annual bonus paid beside a fortnightly salary is an
- * ordinary slip, and dropping it to a calendar-day apportionment for the sake of
- * the smaller line would move a whole fortnight's expectations off the cadence
- * that really paid it. The pick is self-correcting instead: {@link
- * isPeriodOnCadence} still requires the period to be one whole turn of the chosen
- * cadence with the inflow effective throughout, so a cadence the slip's period
- * does not fit yields the calendar-days proration anyway.
+ * A disagreement among the groups' cadences is deliberately not a reason to drop
+ * off the cadence basis. An annual bonus paid beside a fortnightly salary is an
+ * ordinary slip, and apportioning it for the sake of the smaller line would move a
+ * whole fortnight's expectations off the cadence that really paid it. The pick is
+ * self-correcting instead: {@link isPeriodOnCadence} still requires the period to
+ * be one whole turn of the chosen cadence with the inflow effective throughout, so
+ * a cadence the slip's period does not fit scales across that cadence's own turn
+ * anyway.
  */
 function cadenceInflowFor(
   lineGroups: readonly PayslipLineGroupVariance[],
@@ -693,8 +643,9 @@ function taxGroupVariances(
  * Measures one payslip against the plan. The withholding and concessional-super
  * expectations rest on the one basis reported as `basis`: the cadence when the
  * period is one whole turn of the cycle the slip's lines are drawn on — see
- * {@link cadenceInflowFor} — and calendar days otherwise, including when no line
- * resolves to a projection and there is no cycle to read.
+ * {@link cadenceInflowFor} — a part of that cycle's turn when it is not, and
+ * calendar days of the financial year only when no line resolves to a projection
+ * and there is no cycle to read at all.
  *
  * Expected gross comes from the slip's earnings lines: each inflow's lines are
  * summed and held against that inflow's projection for the period, and those group
@@ -739,13 +690,18 @@ export function payslipVariance(
   const taxLines = lines.filter(isTaxLine)
   const lineGroups = lineGroupVariances(earningLines, expectation, payslip, payslip.financialYear)
   const cadence = cadenceInflowFor(lineGroups, expectation.inflowsById)
+  const cadenceUnit = cadence === null ? null : payCycleUnit(cadence.inflow, payslip)
   const cadencePeriodsPerYear =
     cadence !== null && isPeriodOnCadence(cadence.inflow, payslip)
       ? periodsPerYear(cadence.inflow.schedule, cadence.inflow.interval)
       : null
   const expectedForPeriod = (annualAmountCents: Money): Money =>
     cadencePeriodsPerYear === null
-      ? prorateAnnualToPeriod(annualAmountCents, payslip, payslip.financialYear)
+      ? prorateAnnualAcrossUnit(
+          annualAmountCents,
+          periodDays,
+          cadenceUnit ?? financialYearUnit(payslip.financialYear),
+        )
       : Math.round(annualAmountCents / cadencePeriodsPerYear)
   let expectedGrossCents: Money | null = null
   for (const group of lineGroups) {
@@ -770,11 +726,11 @@ export function payslipVariance(
   const expectedSuperCents = expectedSuperGuaranteeCents + expectedConcessionalCents
   const actualSuperCents = payslip.superCents + (payslip.salarySacrificeCents ?? 0)
   return {
-    basis: cadencePeriodsPerYear === null ? 'calendar_days' : 'cadence',
+    basis: expectationBasis(cadence?.inflow, payslip),
     cadenceInflowId: cadence === null ? null : cadence.sourceInflowId,
     periodDays,
+    cadencePeriodDays: cadenceUnit === null ? null : cadenceUnit.unitDays,
     financialYearDays,
-    periodFraction: periodDays / financialYearDays,
     expectedGrossCents,
     grossVarianceCents:
       expectedGrossCents === null ? null : payslip.grossCents - expectedGrossCents,

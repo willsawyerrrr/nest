@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   annualInflowGrossCents,
   expectedPeriodGrossCents,
-  financialYearDayCount,
   isPeriodOnCadence,
   latestReportedYearToDate,
   paygWithheldByMember,
@@ -10,8 +9,6 @@ import {
   payslipVariance,
   payslipYearToDate,
   payslipYearToDateByMember,
-  periodFractionOfFinancialYear,
-  prorateAnnualToPeriod,
   type Money,
   type PayPeriod,
   type PayslipActuals,
@@ -47,14 +44,18 @@ const CADENCE_WITHHELD = 1_400_00
 /** 12% of $5,000. */
 const CADENCE_SUPER = 600_00
 
-/** $130,000 × 14/365 — the same fortnight apportioned by calendar days instead. */
-const DAY_PRORATED_GROSS = 4_986_30
-
-/** $36,400 × 14/365. */
+/** $36,400 × 14/365 — what a slip with no pay cycle to read expects withheld. */
 const DAY_PRORATED_WITHHELD = 1_396_16
 
 /** A monthly $10,000 salary — $120,000 annualised. */
 const MONTHLY: ReconciledInflow = { type: 'salary', schedule: 'monthly', amountCents: 10_000_00 }
+
+/**
+ * An `every_n_weeks` inflow stating no interval: a cadence with no nominal period
+ * length, and so no pay cycle to scale a part period across. The database forbids
+ * it, but the shape allows it and the math has to answer for it.
+ */
+const NO_INTERVAL: ReconciledInflow = { type: 'salary', schedule: 'every_n_weeks' }
 
 /** One earnings line drawing on the salary, which every default slip is itemised as. */
 function salaryLine(amountCents: Money): PayslipEarningLine {
@@ -121,50 +122,6 @@ describe('payslipAttributionDate', () => {
   it('falls back to the period end where the slip states no payment date', () => {
     expect(payslipAttributionDate({ paidOn: null, periodEnd: '2026-06-28' })).toBe('2026-06-28')
     expect(payslipAttributionDate({ periodEnd: '2026-06-28' })).toBe('2026-06-28')
-  })
-})
-
-describe('financialYearDayCount', () => {
-  it('counts 365 days in a financial year ending in a non-leap year', () => {
-    expect(financialYearDayCount(2027)).toBe(365)
-  })
-
-  it('counts 366 days in a financial year ending in a leap year', () => {
-    // FY2028 runs 1 Jul 2027 – 30 Jun 2028 and so contains 29 Feb 2028.
-    expect(financialYearDayCount(2028)).toBe(366)
-  })
-})
-
-describe('periodFractionOfFinancialYear', () => {
-  it('is the period’s inclusive day count over the financial year’s', () => {
-    expect(periodFractionOfFinancialYear(FORTNIGHT, FY)).toBe(14 / 365)
-  })
-
-  it('counts every day of a period straddling 30 June', () => {
-    expect(periodFractionOfFinancialYear(period('2027-06-24', '2027-07-07'), FY)).toBe(14 / 365)
-  })
-
-  it('counts every day of a straddling period against the year its pay landed in', () => {
-    // Worked 24 June – 7 July 2027 and paid in July, so filed under FY2028 rather
-    // than the FY2027 its first week fell in. The period is not clipped either
-    // way: all 14 days count, and the year it is filed under only chooses the
-    // denominator — 366 for the leap FY2028 against FY2027's 365.
-    const straddling = period('2027-06-24', '2027-07-07')
-    expect(periodFractionOfFinancialYear(straddling, 2028)).toBe(14 / 366)
-    expect(periodFractionOfFinancialYear(straddling, FY)).toBe(14 / 365)
-  })
-
-  it('covers nothing for a period ending before it starts', () => {
-    expect(periodFractionOfFinancialYear(period('2026-07-14', '2026-07-01'), FY)).toBe(0)
-  })
-})
-
-describe('prorateAnnualToPeriod', () => {
-  it('prorates an annual figure to the period, to whole cents', () => {
-    // $36,500 × 14/365 = $1,400.00 exactly.
-    expect(prorateAnnualToPeriod(36_500_00, FORTNIGHT, FY)).toBe(1_400_00)
-    // $130,000 × 14/365 = $4,986.3013… → $4,986.30.
-    expect(prorateAnnualToPeriod(130_000_00, FORTNIGHT, FY)).toBe(DAY_PRORATED_GROSS)
   })
 })
 
@@ -304,33 +261,64 @@ describe('expectedPeriodGrossCents', () => {
     ).toBe(CADENCE_GROSS)
   })
 
-  it('apportions a part period by calendar days', () => {
-    // 13 days of a 365-day year: $130,000 × 13/365 = $4,630.14.
-    expect(expectedPeriodGrossCents(SALARY, period('2026-07-01', '2026-07-13'), FY)).toBe(4_630_14)
+  it('scales a part period across one turn of the pay cycle', () => {
+    // 13 of a fortnight's 14 days: $5,000 × 13/14 = $4,642.857… → $4,642.86, not
+    // the $4,630.14 a 13/365 share of the year would give.
+    expect(expectedPeriodGrossCents(SALARY, period('2026-07-01', '2026-07-13'), FY)).toBe(4_642_86)
+  })
+
+  it('steps by one day of the pay period either side of a whole turn', () => {
+    // The two paths meet at 14 days: a day short is a day's worth less and a day
+    // over a day's worth more, in even $357.14 steps with no jump at the boundary.
+    expect(expectedPeriodGrossCents(SALARY, period('2026-07-01', '2026-07-13'), FY)).toBe(4_642_86)
+    expect(expectedPeriodGrossCents(SALARY, FORTNIGHT, FY)).toBe(CADENCE_GROSS)
+    expect(expectedPeriodGrossCents(SALARY, period('2026-07-01', '2026-07-15'), FY)).toBe(5_357_14)
   })
 
   it('counts only the days from an inflow’s effective start', () => {
-    // Active 8–14 July: 7 of the year's 365 days. $130,000 × 7/365 = $2,493.15.
+    // Active 8–14 July: 7 of a fortnight's 14 days, so exactly half of $5,000.
     expect(expectedPeriodGrossCents({ ...SALARY, startsOn: '2026-07-08' }, FORTNIGHT, FY)).toBe(
-      2_493_15,
+      2_500_00,
     )
   })
 
   it('counts only the days through an inflow’s effective end', () => {
     // Active 1–7 July: the inclusive complement of the window above.
     expect(expectedPeriodGrossCents({ ...SALARY, endsOn: '2026-07-07' }, FORTNIGHT, FY)).toBe(
-      2_493_15,
+      2_500_00,
     )
   })
 
-  it('has two adjacent dated inflows sum to the period’s calendar-day share', () => {
+  it('has two adjacent dated inflows sum to exactly the whole period’s amount', () => {
     // A mid-period pay rise: the old rate ends 7 July, the new rate starts 8 July.
-    // Both are part periods, so both apportion by days and together cover the
-    // period's day share — a shade under the whole-cadence figure.
+    // Both are part periods, and because each is a share of one pay period the two
+    // sum to the whole period's pay rather than to a share of the year.
     const ending = expectedPeriodGrossCents({ ...SALARY, endsOn: '2026-07-07' }, FORTNIGHT, FY)
     const starting = expectedPeriodGrossCents({ ...SALARY, startsOn: '2026-07-08' }, FORTNIGHT, FY)
-    expect(ending + starting).toBe(DAY_PRORATED_GROSS)
-    expect(ending + starting).toBeLessThan(CADENCE_GROSS)
+    expect(ending + starting).toBe(CADENCE_GROSS)
+  })
+
+  it('scales a part month across the calendar month the period starts in', () => {
+    // 15 of July's 31 days: $10,000 × 15/31 = $4,838.709… → $4,838.71, a shade
+    // under half because a day is a smaller share of a long month.
+    expect(expectedPeriodGrossCents(MONTHLY, period('2026-07-01', '2026-07-15'), FY)).toBe(4_838_71)
+    // 14 of February's 28: exactly half, since February is exactly two fortnights.
+    expect(expectedPeriodGrossCents(MONTHLY, period('2027-02-01', '2027-02-14'), FY)).toBe(5_000_00)
+  })
+
+  it('clamps a month-based turn beginning on a day the next month lacks', () => {
+    // A turn from 31 January ends 27 February, so it is 28 days — not the 31 a
+    // rollover into March would make it. Half of it is exactly half a month's pay.
+    expect(expectedPeriodGrossCents(MONTHLY, period('2027-01-31', '2027-02-13'), FY)).toBe(5_000_00)
+  })
+
+  it('apportions over the financial year for a cadence with no nominal length', () => {
+    // No interval means no pay cycle to scale across, so calendar days of the year
+    // are all that is left — and the same missing interval annualises to nothing,
+    // so there is nothing to apportion either way.
+    expect(expectedPeriodGrossCents({ ...NO_INTERVAL, amountCents: 5_000_00 }, FORTNIGHT, FY)).toBe(
+      0,
+    )
   })
 
   it('expects nothing from an inflow whose window misses the period', () => {
@@ -344,8 +332,8 @@ describe('payslipVariance on cadence', () => {
       basis: 'cadence',
       cadenceInflowId: 'salary',
       periodDays: 14,
+      cadencePeriodDays: 14,
       financialYearDays: 365,
-      periodFraction: 14 / 365,
       expectedGrossCents: CADENCE_GROSS,
       grossVarianceCents: 0,
       lineGroups: [
@@ -516,38 +504,48 @@ describe('payslipVariance on cadence', () => {
 })
 
 describe('payslipVariance off cadence', () => {
-  it('apportions every expectation by calendar days for a part period', () => {
+  it('halves every expectation for half a fortnight', () => {
     const variance = payslipVariance(
-      payslip({ periodEnd: '2026-07-07', grossCents: 2_493_15, taxWithheldCents: 698_08 }),
-      expectation(),
+      payslip({
+        periodEnd: '2026-07-07',
+        grossCents: 2_500_00,
+        taxWithheldCents: 700_00,
+        superCents: 300_00,
+      }),
+      // $26,000 a year of concessional contributions — $1,000 a fortnight, $500 of
+      // a half one.
+      expectation({ annualConcessionalContributionsCents: 26_000_00 }),
     )
-    expect(variance.basis).toBe('calendar_days')
+    expect(variance.basis).toBe('part_cycle')
     expect(variance.periodDays).toBe(7)
-    // $130,000 × 7/365 and $36,400 × 7/365.
-    expect(variance.expectedGrossCents).toBe(2_493_15)
+    expect(variance.cadencePeriodDays).toBe(14)
+    // Half of $5,000, half of $1,400, and half of $1,000 — each exactly half,
+    // where a 7/365 share of the year would leave all three a few dollars short.
+    expect(variance.expectedGrossCents).toBe(CADENCE_GROSS / 2)
     expect(variance.grossVarianceCents).toBe(0)
-    expect(variance.expectedTaxWithheldCents).toBe(698_08)
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD / 2)
     expect(variance.taxWithheldVarianceCents).toBe(0)
+    expect(variance.expectedConcessionalCents).toBe(500_00)
   })
 
-  it('measures a straddling period whole against the year its pay landed in', () => {
+  it('measures a straddling period the same whichever year it is filed under', () => {
     // Worked 24 June – 8 July 2027 and paid in July, so filed under FY2028 rather
-    // than the FY2027 its first week fell in. All 15 days count either way — the
-    // period is never clipped to the year — and the year decides only the
-    // denominator, 366 for the leap FY2028 against FY2027's 365.
+    // than the FY2027 its first week fell in. All 15 days count either way, and
+    // because they are scaled across the fortnight rather than the year the leap
+    // year's extra day cannot move the figures at all.
     const straddling = period('2027-06-24', '2027-07-08')
     const paidYear = payslipVariance(payslip({ financialYear: 2028, ...straddling }), expectation())
     expect(paidYear.periodDays).toBe(15)
+    expect(paidYear.cadencePeriodDays).toBe(14)
     expect(paidYear.financialYearDays).toBe(366)
-    // $130,000 × 15/366 and $36,400 × 15/366.
-    expect(paidYear.expectedGrossCents).toBe(5_327_87)
-    expect(paidYear.expectedTaxWithheldCents).toBe(1_491_80)
+    // $5,000 × 15/14 and $1,400 × 15/14.
+    expect(paidYear.expectedGrossCents).toBe(5_357_14)
+    expect(paidYear.expectedTaxWithheldCents).toBe(1_500_00)
 
     const earnedYear = payslipVariance(payslip({ financialYear: FY, ...straddling }), expectation())
-    expect(earnedYear.periodDays).toBe(15)
-    // $130,000 × 15/365 and $36,400 × 15/365.
-    expect(earnedYear.expectedGrossCents).toBe(5_342_47)
-    expect(earnedYear.expectedTaxWithheldCents).toBe(1_495_89)
+    expect(earnedYear.financialYearDays).toBe(365)
+    expect(earnedYear.expectedGrossCents).toBe(paidYear.expectedGrossCents)
+    expect(earnedYear.expectedTaxWithheldCents).toBe(paidYear.expectedTaxWithheldCents)
   })
 
   it('switches basis between a whole fortnight and one a day short of it', () => {
@@ -557,10 +555,10 @@ describe('payslipVariance off cadence', () => {
     expect(whole.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
 
     const partial = payslipVariance(payslip({ periodEnd: '2026-07-13' }), expectation())
-    expect(partial.basis).toBe('calendar_days')
-    // $130,000 × 13/365 and $36,400 × 13/365.
-    expect(partial.expectedGrossCents).toBe(4_630_14)
-    expect(partial.expectedTaxWithheldCents).toBe(1_296_44)
+    expect(partial.basis).toBe('part_cycle')
+    // $5,000 × 13/14 and $1,400 × 13/14 — one day's worth off each, no jump.
+    expect(partial.expectedGrossCents).toBe(4_642_86)
+    expect(partial.expectedTaxWithheldCents).toBe(1_300_00)
   })
 
   it('switches basis at the shortest and longest calendar month', () => {
@@ -573,16 +571,45 @@ describe('payslipVariance off cadence', () => {
     // 28 days is February, a whole month; 27 days is no month at all.
     expect(forPeriod('2027-02-01', '2027-02-28').basis).toBe('cadence')
     const short = forPeriod('2026-07-01', '2026-07-27')
-    expect(short.basis).toBe('calendar_days')
-    // $120,000 × 27/365.
-    expect(short.expectedGrossCents).toBe(8_876_71)
+    expect(short.basis).toBe('part_cycle')
+    expect(short.cadencePeriodDays).toBe(31)
+    // $10,000 × 27/31.
+    expect(short.expectedGrossCents).toBe(8_709_68)
 
     // 31 days is the longest month; 32 is longer than any.
     expect(forPeriod('2026-07-01', '2026-07-31').basis).toBe('cadence')
     const long = forPeriod('2026-07-01', '2026-08-01')
-    expect(long.basis).toBe('calendar_days')
-    // $120,000 × 32/365.
-    expect(long.expectedGrossCents).toBe(10_520_55)
+    expect(long.basis).toBe('part_cycle')
+    // $10,000 × 32/31 — a day of July's pay over a whole month's.
+    expect(long.expectedGrossCents).toBe(10_322_58)
+  })
+
+  it('expects exactly a twelfth of the year of a whole month, however long it runs', () => {
+    const forPeriod = (periodStart: string, periodEnd: string) =>
+      payslipVariance(
+        payslip({ ...period(periodStart, periodEnd), grossCents: 10_000_00 }),
+        expectation({ inflowsById: inflowsById(MONTHLY) }),
+      )
+    // $120,000 ÷ 12 for July's 31 days and February's 28 alike, and half of it for
+    // half of either — a shade under half in a long month, exactly half in a short.
+    expect(forPeriod('2026-07-01', '2026-07-31').expectedGrossCents).toBe(10_000_00)
+    expect(forPeriod('2027-02-01', '2027-02-28').expectedGrossCents).toBe(10_000_00)
+    expect(forPeriod('2026-07-01', '2026-07-15').expectedGrossCents).toBe(4_838_71)
+    expect(forPeriod('2027-02-01', '2027-02-14').expectedGrossCents).toBe(5_000_00)
+  })
+
+  it('apportions over the financial year when the cadence states no interval', () => {
+    // The only case left with no pay cycle to scale across, so the year's own days
+    // decide the withholding — the gross annualises to nothing regardless.
+    const variance = payslipVariance(
+      payslip({ periodEnd: '2026-07-07' }),
+      expectation({ inflowsById: inflowsById(NO_INTERVAL) }),
+    )
+    expect(variance.cadenceInflowId).toBe('salary')
+    expect(variance.basis).toBe('calendar_days')
+    expect(variance.cadencePeriodDays).toBeNull()
+    // $36,400 × 7/365.
+    expect(variance.expectedTaxWithheldCents).toBe(698_08)
   })
 
   it('expects no gross for a payslip whose lines name no inflow', () => {
@@ -614,15 +641,18 @@ describe('payslipVariance off cadence', () => {
     expect(absent.basis).toBe('calendar_days')
   })
 
-  it('apportions by days when the inflow’s effective dates clip the period', () => {
+  it('scales the gross by the days the inflow’s effective dates leave', () => {
+    // The salary starts mid-period, so half a fortnight of it was earned — but the
+    // fortnight the employer withheld on is whole, so the withholding expectation
+    // is a whole period's.
     const variance = payslipVariance(
-      payslip({ grossCents: 2_493_15 }),
+      payslip({ grossCents: 2_500_00 }),
       expectation({ inflowsById: inflowsById({ ...SALARY, startsOn: '2026-07-08' }) }),
     )
-    expect(variance.basis).toBe('calendar_days')
-    expect(variance.expectedGrossCents).toBe(2_493_15)
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.expectedGrossCents).toBe(2_500_00)
     expect(variance.grossVarianceCents).toBe(0)
-    expect(variance.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
   })
 
   it('expects nothing of a period ending before it starts', () => {
@@ -630,9 +660,8 @@ describe('payslipVariance off cadence', () => {
       payslip({ ...period('2026-07-14', '2026-07-01') }),
       expectation(),
     )
-    expect(variance.basis).toBe('calendar_days')
+    expect(variance.basis).toBe('part_cycle')
     expect(variance.periodDays).toBe(0)
-    expect(variance.periodFraction).toBe(0)
     expect(variance.expectedGrossCents).toBe(0)
     expect(variance.expectedTaxWithheldCents).toBe(0)
   })
@@ -1002,14 +1031,15 @@ describe('payslipVariance with earnings lines', () => {
     expect(variance.grossVarianceCents).toBeNull()
   })
 
-  it('apportions a group by calendar days when the period is not one turn of its cadence', () => {
+  it('scales a group across its cadence when the period is not one turn of it', () => {
     const group = payslipVariance(
       heidiPayslip({ ...period('2026-06-27', '2026-07-03') }),
       heidiExpectation(),
     ).lineGroups[0]
-    expect(group?.basis).toBe('calendar_days')
-    // $130,000 × 7/365, the same proration a whole part-period slip gets.
-    expect(group?.expectedCents).toBe(2_493_15)
+    expect(group?.basis).toBe('part_cycle')
+    // Half a fortnight of the $5,000 salary, the same share a whole part-period
+    // slip gets.
+    expect(group?.expectedCents).toBe(2_500_00)
   })
 
   it('reads the withholding basis from the largest group’s cadence', () => {
@@ -1125,16 +1155,19 @@ describe('payslipVariance cadence derivation', () => {
     expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
   })
 
-  it('falls to calendar days when the largest group’s cadence does not fit the period', () => {
+  it('scales across the largest group’s cadence when the period does not fit it', () => {
     // The bonus is the bulk of this payment, so its annual cadence is what the
     // slip reads — and a fortnight is no turn of a year, which is what makes the
-    // pick self-correcting rather than wrong.
+    // pick self-correcting rather than wrong. A turn of an annual cadence from
+    // 1 July is the financial year itself, so the fortnight reads as 14/365 of the
+    // year's withholding.
     const variance = payslipVariance(
       twoLineSlip(1_000_00, 20_000_00),
       expectation({ inflowsById: twoInflows(ANNUAL_BONUS) }),
     )
     expect(variance.cadenceInflowId).toBe('second')
-    expect(variance.basis).toBe('calendar_days')
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.cadencePeriodDays).toBe(365)
     expect(variance.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
   })
 
@@ -1266,16 +1299,15 @@ describe('payslipVariance with tax lines', () => {
     ])
   })
 
-  it('apportions each component by calendar days off cadence', () => {
-    // Half the fortnight: 7 of the year's 365 days, each component prorated on the
-    // same basis as the slip's own withholding expectation.
+  it('halves each component for half a turn of the pay cycle', () => {
+    // Half the fortnight, each component scaled on the same basis as the slip's own
+    // withholding expectation — so each is exactly half its whole-period figure.
     const variance = taxItemisedVariance(HEIDI_TAX_LINES, {
       ...period('2026-06-27', '2026-07-03'),
     })
-    expect(variance.basis).toBe('calendar_days')
-    // $36,816 × 7/365 and $11,284 × 7/365.
-    expect(variance.taxGroups[0]?.expectedCents).toBe(706_06)
-    expect(variance.taxGroups[1]?.expectedCents).toBe(216_41)
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.taxGroups[0]?.expectedCents).toBe(CADENCE_PAYG / 2)
+    expect(variance.taxGroups[1]?.expectedCents).toBe(CADENCE_STSL / 2)
   })
 
   it('keeps the year’s withheld total the printed total, every component included', () => {

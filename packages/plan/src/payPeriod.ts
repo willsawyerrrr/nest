@@ -1,0 +1,180 @@
+/**
+ * Pay periods and pay cycles: the calendar arithmetic a payslip's expectations
+ * rest on, with no knowledge of payslips themselves.
+ *
+ * An annual figure's natural unit is what it is really paid in. A fortnightly wage
+ * is paid 26 times a year, so a part fortnight is a fraction of one fortnight's
+ * pay, not of the year's — and a whole one is the per-period amount exactly, with
+ * no arithmetic remainder to excuse. That is what a {@link ProrationUnit} carries:
+ * how many of the unit fall in a year, and how many inclusive calendar days one of
+ * them spans. One whole turn of a pay cycle is the ordinary unit; the financial
+ * year is the unit only where there is no cycle to read.
+ */
+
+import type { Frequency, Money } from './index'
+import { MONTHS_PER_YEAR, periodsPerYear, WEEKS_PER_YEAR } from './normalize'
+
+/** Milliseconds in a day, for inclusive calendar-day arithmetic. */
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/** Days in a week: a week-based cadence's period is exactly this many days long. */
+export const DAYS_PER_WEEK = 7
+
+/** The shortest calendar month, the lower bound of a month-based cadence's period. */
+export const MIN_DAYS_PER_MONTH = 28
+
+/** The longest calendar month, the upper bound of a month-based cadence's period. */
+export const MAX_DAYS_PER_MONTH = 31
+
+/** Parses an ISO date (`YYYY-MM-DD`) as a UTC midnight, matching the FY bounds. */
+export function isoDateMs(iso: string): number {
+  return Date.parse(`${iso}T00:00:00Z`)
+}
+
+/** The inclusive count of calendar days between two UTC-midnight instants, floored at zero. */
+export function inclusiveDayCount(startMs: number, endMs: number): number {
+  return Math.max(0, Math.round((endMs - startMs) / MS_PER_DAY) + 1)
+}
+
+/** One pay period, both ISO dates (`YYYY-MM-DD`) inclusive. */
+export interface PayPeriod {
+  readonly periodStart: string
+  readonly periodEnd: string
+}
+
+/**
+ * The inclusive calendar-day count of an AU financial year, labelled by its
+ * ending year: 1 July of the year before the label through 30 June of the label
+ * year, so 365 days or 366 when the label year is a leap year.
+ */
+export function financialYearDayCount(financialYear: number): number {
+  return inclusiveDayCount(Date.UTC(financialYear - 1, 6, 1), Date.UTC(financialYear, 5, 30))
+}
+
+/** The inclusive calendar days a pay period spans; nil for a period ending before it starts. */
+export function periodDayCount(period: PayPeriod): number {
+  return inclusiveDayCount(isoDateMs(period.periodStart), isoDateMs(period.periodEnd))
+}
+
+/**
+ * The unit a part period's expectations are scaled across: how many of it fall in
+ * a year, and the inclusive calendar days one of it spans.
+ */
+export interface ProrationUnit {
+  readonly perYear: number
+  readonly unitDays: number
+}
+
+/**
+ * Prorates an annual cent figure across part of one unit, to whole cents: the
+ * annual figure's share of one unit, times the days measured over the days one unit
+ * spans. One division, so nothing is rounded before the result, and `days` equal to
+ * `unitDays` yields the unit's whole share exactly — which is what keeps a whole
+ * pay period's expectation the same figure dividing the annual figure by periods
+ * per year gives it.
+ */
+export function prorateAnnualAcrossUnit(
+  annualAmountCents: Money,
+  days: number,
+  unit: ProrationUnit,
+): Money {
+  return Math.round((annualAmountCents * days) / (unit.perYear * unit.unitDays))
+}
+
+/**
+ * The financial year as a proration unit: the whole annual figure, over the year's
+ * own 365 or 366 days.
+ */
+export function financialYearUnit(financialYear: number): ProrationUnit {
+  return { perYear: 1, unitDays: financialYearDayCount(financialYear) }
+}
+
+/**
+ * Prorates an annual cent figure to a pay period by inclusive calendar days, to
+ * whole cents — the basis for a slip with no pay cycle to scale against. This is
+ * the same calendar-day counting the FY tax estimate applies to a dated inflow's
+ * effective window. A pay period straddling 30 June counts all of its own days:
+ * the period is not clipped to the year it is filed under, which is the year its
+ * pay landed in, so a fortnight worked to 28 June and paid 1 July is measured whole
+ * against the later year and the year supplies only the denominator. An inverted
+ * period (ending before it starts) prorates to nothing.
+ */
+export function prorateAnnualToPeriod(
+  annualAmountCents: Money,
+  period: PayPeriod,
+  financialYear: number,
+): Money {
+  return prorateAnnualAcrossUnit(
+    annualAmountCents,
+    periodDayCount(period),
+    financialYearUnit(financialYear),
+  )
+}
+
+/** The nominal length of one turn of a cadence, in whole weeks or whole calendar months. */
+export type CadenceSpan =
+  | { readonly unit: 'weeks'; readonly count: number }
+  | { readonly unit: 'months'; readonly count: number }
+
+/**
+ * How long one turn of `frequency` nominally runs, in the unit the cadence is
+ * expressed in. A week-based cadence spans whole weeks and a month-based one whole
+ * calendar months. Null for an `every_n_weeks`/`every_n_months` cadence with no
+ * usable interval, which has no nominal length at all.
+ */
+export function cadenceSpan(frequency: Frequency, interval?: number): CadenceSpan | null {
+  const periods = periodsPerYear(frequency, interval)
+  if (periods === 0) {
+    return null
+  }
+  switch (frequency) {
+    case 'weekly':
+      return { unit: 'weeks', count: 1 }
+    case 'fortnightly':
+      return { unit: 'weeks', count: 2 }
+    case 'every_n_weeks':
+      return { unit: 'weeks', count: WEEKS_PER_YEAR / periods }
+    case 'monthly':
+      return { unit: 'months', count: 1 }
+    case 'quarterly':
+      return { unit: 'months', count: 3 }
+    case 'biannual':
+      return { unit: 'months', count: 6 }
+    case 'annual':
+      return { unit: 'months', count: 12 }
+    case 'every_n_months':
+      return { unit: 'months', count: MONTHS_PER_YEAR / periods }
+  }
+}
+
+/**
+ * `months` whole calendar months after a UTC-midnight instant, the day of the
+ * month clamped to the target month's last day where it has no such day — a month
+ * after 31 January is 28 February, not a rollover into March.
+ */
+function addMonths(startMs: number, months: number): number {
+  const start = new Date(startMs)
+  const year = start.getUTCFullYear()
+  const month = start.getUTCMonth() + months
+  // Day zero of the month after the target is the target month's last day.
+  const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return Date.UTC(year, month, Math.min(start.getUTCDate(), lastDayOfMonth))
+}
+
+/**
+ * The inclusive calendar days one whole turn of `span` occupies, beginning on
+ * `startIso` — the denominator a part period of that cadence is scaled over. A
+ * week-based cadence is a fixed seven days a week whatever the date. A month-based
+ * one is as long as the real calendar months it runs through, so a monthly turn
+ * from 1 July is 31 days and one from 1 February 28: that is what makes a whole
+ * month's expectation the annual figure over twelve exactly and a fortnight of
+ * February exactly half of one, where a fixed 365 ÷ 12 would leave both a shade
+ * out and a month split in two summing past the whole.
+ */
+export function cadenceTurnDays(span: CadenceSpan, startIso: string): number {
+  if (span.unit === 'weeks') {
+    return Math.round(DAYS_PER_WEEK * span.count)
+  }
+  const startMs = isoDateMs(startIso)
+  return inclusiveDayCount(startMs, addMonths(startMs, Math.round(span.count)) - MS_PER_DAY)
+}

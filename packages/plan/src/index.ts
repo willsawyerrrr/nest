@@ -57,10 +57,12 @@ export {
 } from './splits'
 export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits'
 
+export { financialYearDayCount, prorateAnnualToPeriod } from './payPeriod'
+export type { PayPeriod } from './payPeriod'
+
 export {
   annualInflowGrossCents,
   expectedPeriodGrossCents,
-  financialYearDayCount,
   isPeriodOnCadence,
   latestReportedYearToDate,
   paygWithheldByMember,
@@ -68,12 +70,9 @@ export {
   payslipVariance,
   payslipYearToDate,
   payslipYearToDateByMember,
-  periodFractionOfFinancialYear,
-  prorateAnnualToPeriod,
 } from './payslip'
 export type {
   ExpectationBasis,
-  PayPeriod,
   PayslipActuals,
   PayslipAttribution,
   PayslipEarningLine,

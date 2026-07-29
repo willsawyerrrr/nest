@@ -299,10 +299,9 @@ interface PayslipCardProps {
  * and stored document. The figure grid reflows from two columns on a phone to four
  * from the `xs` breakpoint up — a payslip carries four figures and three variances,
  * more than a single dense row can hold — and the headline gives way to it, since
- * the grid states the same gross and variance in full. A period that is not one
- * whole turn of the pay cycle its lines are drawn on says so, since its
- * expectations are apportioned by calendar days and carry a proration remainder an
- * on-cadence period does not.
+ * the grid states the same gross and variance in full. A period that is only part
+ * of a turn of the pay cycle its lines are drawn on says so, since its expectations
+ * are that share of a whole pay period rather than the full one.
  *
  * Editing and deleting sit outside the disclosure: correcting a slip is no reason
  * to read it. Expansion is per card and lasts as long as the tab is open, which is
@@ -390,11 +389,10 @@ export function PayslipCard({
               />
             )}
 
-            {variance.cadenceInflowId !== null && variance.basis === 'calendar_days' && (
+            {variance.basis === 'part_cycle' && (
               <Text size="xs" c="dimmed">
-                This period is not one whole turn of the pay cycle its earnings are drawn on, so the
-                plan figures are apportioned by calendar days — a small variance is the proration
-                itself.
+                This period is only part of a turn of the pay cycle its earnings are drawn on, so
+                the plan figures are that share of a whole pay period.
               </Text>
             )}
 

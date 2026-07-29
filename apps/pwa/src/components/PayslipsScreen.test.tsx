@@ -223,14 +223,14 @@ describe('PayslipsScreen', () => {
     renderScreen()
     await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('On plan')
-    expect(screen.queryByText(/apportioned by calendar days/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/share of a whole pay period/i)).not.toBeInTheDocument()
   })
 
-  it('says when a part period’s expectations are apportioned by calendar days', async () => {
+  it('says when a part period’s expectations are a share of a whole pay period', async () => {
     const user = userEvent.setup()
     renderScreen({ payslips: [makePayslip({ period_end: '2026-07-07' })] })
     await expandCards(user)
-    expect(screen.getByText(/apportioned by calendar days/i)).toBeVisible()
+    expect(screen.getByText(/share of a whole pay period/i)).toBeVisible()
   })
 
   it('measures each tax line against the component of the liability it pays', async () => {
@@ -296,9 +296,9 @@ describe('PayslipsScreen', () => {
     renderScreen({ lines: [makePayslipLine({ source_inflow_id: null })] })
     await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
-    // With no pay cycle to read there is no cadence a period could be off, so the
-    // calendar-days note says nothing rather than stating the obvious.
-    expect(screen.queryByText(/apportioned by calendar days/i)).not.toBeInTheDocument()
+    // With no pay cycle to read there is no pay period a share could be of, so the
+    // part-period note says nothing rather than stating the obvious.
+    expect(screen.queryByText(/share of a whole pay period/i)).not.toBeInTheDocument()
   })
 
   it('sums the member’s year-to-date actuals and counts the slips', () => {

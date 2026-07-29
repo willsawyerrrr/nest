@@ -13,6 +13,7 @@
     "test": "vitest run",
     "lint": "oxlint",
     "check:migrations": "node scripts/check-migration-versions.js",
+    "check:migration-drift": "node scripts/check-migration-drift.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "supabase": "supabase",

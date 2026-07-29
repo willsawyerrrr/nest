@@ -13,7 +13,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
   Schema migrations under `supabase/migrations/` auto-deploy to prod on merge to
   `main` via `.github/workflows/deploy-migrations.yml` — nothing is applied by
-  hand (see [`docs/operations.md`](docs/operations.md#deployment)).
+  hand. Prod having applied every migration in the directory is asserted, not
+  assumed: `.github/workflows/check-migration-drift.yml` compares the two every
+  six hours, and the deploy workflow re-runs the same check straight after its
+  push (see [`docs/operations.md`](docs/operations.md#deployment)).
 - Frontend: React PWA (TypeScript); one frontend for iOS + web.
 - UI framework: Mantine (React components + theming) under a dark-first design
   system (custom brand/semantic colour scales, shared primitives, tokenised

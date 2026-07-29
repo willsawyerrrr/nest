@@ -42,6 +42,50 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
     directory. A version already recorded is skipped without an error, so a
     duplicate means one of the pair merges green and never applies; CI's `check`
     job asserts uniqueness (`pnpm check:migrations`).
+  - The last step of the deploy re-reads the remote history and fails the run if
+    anything in the directory is still unapplied, because `db push` exits 0
+    having skipped a version already recorded. A green deploy therefore means
+    every migration applied, not merely that the push returned.
+- **Migration drift** is caught by `.github/workflows/check-migration-drift.yml`,
+  which fails when prod's applied migrations do not match
+  `supabase/migrations/`. It runs on two triggers, covering different failures:
+  - Every six hours (`cron: '17 */6 * * *'`, off the top of the hour where
+    GitHub's scheduler is busiest) plus `workflow_dispatch`. The schedule is what
+    catches a migration no deploy trigger ever fired for — one merged by a commit
+    that touched nothing under `supabase/migrations/**`, or left behind by a
+    deploy that failed unnoticed. Six hours bounds how long such a gap can hide
+    at four runs a day rather than an hourly schedule's twenty-four.
+  - As the deploy workflow's final step, which catches a partial or silently
+    skipped application at the moment it happens.
+  - Both invoke `pnpm check:migration-drift`
+    (`scripts/check-migration-drift.js`), which reads
+    `supabase migration list --linked --output-format json`. That command reports
+    the local directory and the remote history table side by side and emits a
+    structured document, so the versions come out of a JSON field rather than its
+    human table — which is what it prints by default outside an agent session.
+    The read is genuinely read-only: it opens no transaction and does not create
+    a `supabase_migrations` schema where one is absent. Like `db push --linked`
+    it mints a temporary login role through the Management API, so
+    `SUPABASE_ACCESS_TOKEN` is the only credential and no database password is
+    involved.
+  - **A migration in the directory that prod has not applied fails the run.** The
+    failure names each file, dates it by when it landed on `main`, and points at
+    `gh workflow run "Deploy migrations"`.
+  - **A version applied to prod with no file in the directory warns.** It means
+    the schema cannot be rebuilt from the repo, which is worth knowing, but it has
+    no automated remedy — someone has to decide between committing the migration
+    that produced it and clearing the row with
+    `supabase migration repair --status reverted <version>`. Failing on it would
+    leave the schedule permanently red and train everyone to ignore the signal
+    that does have a fix.
+  - The scheduled run passes `--grace-minutes=30`, so a migration that landed on
+    `main` within the last half hour is reported as an in-flight deploy rather
+    than as drift — that is the window in which a deploy is legitimately still
+    queued or running. Ages come from
+    `git log -1 --format=%cI --diff-filter=A -- <file>`, which is why both
+    workflows check out with `fetch-depth: 0`; a file with no commit behind it
+    gets no grace. The post-deploy step passes no grace window at all: the push
+    has just returned, so anything unapplied there is unapplied for good.
 - **Edge functions** auto-deploy on merge via
   `.github/workflows/deploy-functions.yml`: a push to `main` touching
   `supabase/functions/**` or `supabase/config.toml` runs

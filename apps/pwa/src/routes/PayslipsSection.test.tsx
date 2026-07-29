@@ -39,7 +39,15 @@ vi.mock('../components/PayslipsScreen', () => ({
 const submission: PayslipSubmission = {
   id: 'ps1',
   input: { member_id: 'm1' } as PayslipInput,
-  lines: [{ source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 }],
+  lines: [
+    {
+      kind: 'earning',
+      source_inflow_id: 'i1',
+      tax_component: null,
+      label: 'Ordinary Hours',
+      amount_cents: 5_000_00,
+    },
+  ],
   attachment: { payslipId: 'ps1', path: 'h1/ps1/slip.pdf' },
 }
 

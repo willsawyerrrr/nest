@@ -90,21 +90,35 @@ export function reportedYearToDateFromRows(
 }
 
 /**
- * Maps an `inflows` row to the projection a payslip is measured against: the tax
- * engine's own income shape plus whether employer super accrues on it, which
- * decides whether an unitemised slip anchored to it earns any.
+ * Maps an `inflows` row to the projection a payslip's earnings lines are measured
+ * against: the tax engine's own income shape plus whether employer super accrues
+ * on it, which a line snapshots when it is written.
  */
 export function toReconciledInflow(inflow: Inflow): ReconciledInflow {
   return { ...toIncomeInput(inflow), attractsSuper: inflow.attracts_super }
 }
 
-/** Maps a `payslip_line` row to the earnings line `@nest/plan` groups and sums. */
+/**
+ * Maps a `payslip_line` row to the line `@nest/plan` groups and sums. The
+ * database's pairing check constraint is what makes the two shapes total: a tax
+ * line always carries the component it pays and never an inflow, and an earnings
+ * line always carries the ordinary-time-earnings decision its trigger snapshotted.
+ */
 export function toPayslipLine(line: PayslipLineRow): PayslipLine {
+  if (line.kind === 'tax') {
+    return {
+      kind: 'tax',
+      component: line.tax_component!,
+      label: line.label,
+      amountCents: line.amount_cents,
+    }
+  }
   return {
+    kind: 'earning',
     sourceInflowId: line.source_inflow_id,
     label: line.label,
     amountCents: line.amount_cents,
-    attractsSuper: line.attracts_super,
+    attractsSuper: line.attracts_super!,
   }
 }
 
@@ -145,13 +159,12 @@ export function payslipReconciliation(
 
 /**
  * Measures one payslip row against the plan: each of its earnings lines held
- * against the projection it draws on, its member's estimated tax as the implied
- * withholding, and the config's super guarantee — charged on the gross less every
- * non-OTE line — plus their modelled concessional contributions. A slip with no
- * lines is measured whole against the inflow its `source_inflow_id` names, and
- * earns super only if that inflow does; either way, nothing mapping to a
- * projection leaves the gross expectation null, and an absent member estimate
- * expects nothing withheld or contributed.
+ * against the projection it draws on, each of its tax lines against the component
+ * of the estimated liability it pays, its printed tax total against the whole of
+ * that liability, and the config's super guarantee — charged on the gross less
+ * every non-OTE line — plus the member's modelled concessional contributions.
+ * Nothing mapping to a projection leaves the gross expectation null, and an absent
+ * member estimate expects nothing withheld or contributed.
  */
 export function payslipVarianceFor(
   payslip: PayslipRow,
@@ -171,12 +184,9 @@ export function payslipVarianceFor(
       lines: (linesByPayslip.get(payslip.id) ?? []).map(toPayslipLine),
     },
     {
-      inflow:
-        payslip.source_inflow_id === null
-          ? null
-          : (inflowsById.get(payslip.source_inflow_id) ?? null),
       inflowsById,
       annualTaxCents: estimate?.annualTaxCents ?? 0,
+      annualHelpRepaymentCents: estimate?.breakdown.helpRepaymentCents ?? 0,
       annualConcessionalContributionsCents: estimate?.annualConcessionalContributionsCents ?? 0,
       superConfig: config.super,
     },

@@ -36,8 +36,9 @@ which apply to the current rate rather than the part-year figure.
   `help_debt` table (edited on the HELP debt tab), not the tax profile.
 - Concessional (pre-tax) super contributions — salary sacrifice and personal
   deductible.
-- Tax withheld to date (from payslips) — each slip's whole tax total, PAYG income
-  tax plus any STSL study-loan component; see
+- Tax withheld to date (from payslips) — each slip's whole printed tax total, PAYG
+  income tax plus any STSL study-loan component, whether or not the slip itemises
+  the two as tax lines; see
   [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total). A slip counts
   toward the year its pay **landed** in, not the year the work fell in — see
   [`payslips.md`](payslips.md#a-payslip-belongs-to-the-year-its-pay-landed-in).
@@ -81,7 +82,10 @@ which apply to the current rate rather than the part-year figure.
    negative = estimated refund. The liability at step 8 includes the HELP
    repayment, so the withheld figure netted against it is the slip's tax total —
    PAYG **and** the STSL component that pays that repayment. Netting the PAYG line
-   alone would overstate the amount owing by every dollar of STSL withheld.
+   alone would overstate the amount owing by every dollar of STSL withheld. The
+   split is what a slip's per-component variance is measured against instead:
+   `helpRepaymentCents` for an STSL line, the liability less it for a PAYG one (see
+   [`payslips.md`](payslips.md#tax-lines-and-per-component-variance)).
 
 > **Super-income simplification.** Surcharge, HELP repayment, and Division 293
 > income are taken as taxable income plus concessional contributions; reportable

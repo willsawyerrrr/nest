@@ -445,8 +445,8 @@ goal / expiry triggers — is idea 8 in the ideas backlog and is **not** built.
 ### Payslips (complete)
 
 The income side of actual-vs-plan: each pay event's real figures, reconciled
-against the projected inflow and the tax estimate. Design and staging in
-[`payslips.md`](payslips.md).
+line by line against the projected inflows and the tax estimate. Design and
+staging in [`payslips.md`](payslips.md).
 
 - [x] `payslip` schema: per member, FY-scoped, with the gross / tax withheld /
       super / net quartet — withheld being the slip's whole tax total, PAYG plus
@@ -456,16 +456,26 @@ against the projected inflow and the tax estimate. Design and staging in
       totals, `period_end >= period_start` and non-negative money constraints, and
       household-wide RLS (the same boundary as the other per-member tax tables —
       `member_id` is a tax attribution, not a privacy boundary).
-- [x] `source_inflow_id`: the household picks which projected inflow a slip
-      reconciles against, `on delete set null` so retiring the inflow keeps the
-      actuals. One employer per member — no per-employer stream handling.
+- [x] `payslip_line`: the slip itemised as the slip prints it, each line stating
+      its `kind`. An `earning` names the projected inflow it draws on — the
+      household's pick, `on delete set null` so retiring the inflow keeps the
+      actuals — and carries the ordinary-time-earnings decision snapshotted from
+      it; a `tax` line names the component of the liability it pays (`payg` or
+      `stsl`) instead. A check constraint holds each kind to its own columns. One
+      employer per member — no per-employer stream handling.
 - [x] File attachment: the private `payslips` Storage bucket keyed
       `<household_id>/<payslip_id>/<file>`, household-scoped Storage RLS, and
       `payslip.file_path`. The figures are always the member's own; the file is an
       auditable record, not a data source.
 - [x] Variance and readout: per-period actual vs expected gross, withholding, and
-      super, and the FY's summed actual withheld feeding the tax engine's
-      `paygWithheldCents` so the estimate's balance is a concrete refund or bill.
+      super, measured per line group — each inflow's earnings against its own
+      projection, each tax component against the part of the liability it pays,
+      STSL against the compulsory HELP repayment and PAYG against the rest — and
+      the FY's summed actual withheld, every component included, feeding the tax
+      engine's `paygWithheldCents` so the estimate's balance is a concrete refund
+      or bill. The pay cycle the slip's own expectations are divided by is the
+      largest earnings group's inflow, falling back to a calendar-day
+      apportionment where no line names a projection.
 - [x] Extraction pre-fill: the `payslip-extract` edge function reads an uploaded
       slip with Claude Haiku 4.5 (pinned to its dated snapshot, its Vault-held key
       read only by the service-role-only `anthropic_api_key()`) and returns the

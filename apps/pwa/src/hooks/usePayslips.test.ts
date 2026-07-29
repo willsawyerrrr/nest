@@ -39,7 +39,6 @@ const input: PayslipInput = {
   ytd_gross_cents: null,
   ytd_tax_withheld_cents: null,
   ytd_super_cents: null,
-  source_inflow_id: 'i1',
   note: null,
 }
 
@@ -55,7 +54,15 @@ const attachment = { payslipId: 'ps1', path: 'h1/ps1/uuid-slip.pdf' }
 const submission: PayslipSubmission = {
   id: 'ps1',
   input,
-  lines: [{ source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 }],
+  lines: [
+    {
+      kind: 'earning',
+      source_inflow_id: 'i1',
+      tax_component: null,
+      label: 'Ordinary Hours',
+      amount_cents: 5_000_00,
+    },
+  ],
   attachment: null,
 }
 

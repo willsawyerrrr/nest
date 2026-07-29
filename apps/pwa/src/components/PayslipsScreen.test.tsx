@@ -2,7 +2,13 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
 import { estimateHouseholdTaxFromRows } from '../lib/tax'
-import { makeInflow, makeMember, makePayslip, makePayslipLine } from '../test/fixtures'
+import {
+  makeInflow,
+  makeMember,
+  makePayslip,
+  makePayslipLine,
+  makePayslipTaxLine,
+} from '../test/fixtures'
 import { render, screen, waitFor, within } from '../test/render'
 import { PayslipsScreen } from './PayslipsScreen'
 
@@ -28,7 +34,7 @@ function renderScreen(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> =
   const props = {
     members: [will],
     payslips: [makePayslip()],
-    lines: [],
+    lines: [makePayslipLine()],
     inflows: [inflow],
     financialYear: 2027,
     estimate,
@@ -68,11 +74,10 @@ describe('PayslipsScreen', () => {
     expect(screen.getAllByText(/no payslips yet/i)).toHaveLength(2)
   })
 
-  it('lists each period’s quartet with the pay period and reconciled inflow', () => {
+  it('lists each period’s quartet with the pay period it covers', () => {
     renderScreen()
     expect(screen.getByText('1 July 2026 – 14 July 2026')).toBeInTheDocument()
     expect(screen.getByText(/paid 15 July 2026/i)).toBeInTheDocument()
-    expect(screen.getByText('Day job')).toBeInTheDocument()
     expect(figureCell('Gross')).toHaveTextContent('$5,000.00')
     expect(figureCell('Tax withheld')).toHaveTextContent('$1,000.00')
     expect(figureCell('Net')).toHaveTextContent('$4,000.00')
@@ -107,7 +112,7 @@ describe('PayslipsScreen', () => {
     expect(figureCell('Super')).toHaveTextContent('On plan')
   })
 
-  it('reads a fortnight matching its fortnightly inflow as on plan', () => {
+  it('reads a fortnight matching the inflow its lines draw on as on plan', () => {
     renderScreen()
     expect(figureCell('Gross')).toHaveTextContent('On plan')
     expect(screen.queryByText(/apportioned by calendar days/i)).not.toBeInTheDocument()
@@ -118,10 +123,62 @@ describe('PayslipsScreen', () => {
     expect(screen.getByText(/apportioned by calendar days/i)).toBeInTheDocument()
   })
 
-  it('says there is no projection to compare when a slip reconciles against no inflow', () => {
-    renderScreen({ payslips: [makePayslip({ source_inflow_id: null })] })
+  it('measures each tax line against the component of the liability it pays', () => {
+    // The estimate's liability carries no HELP repayment for this member, so the
+    // PAYG line is held against the whole of it and the STSL against nothing.
+    renderScreen({
+      payslips: [makePayslip({ tax_withheld_cents: 1_850_00 })],
+      lines: [
+        makePayslipLine(),
+        makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 1_416_00 }),
+        makePayslipTaxLine({
+          id: 'pt2',
+          label: 'STSL Component',
+          tax_component: 'stsl',
+          amount_cents: 434_00,
+        }),
+      ],
+    })
+
+    expect(screen.getByText('Tax lines')).toBeInTheDocument()
+    expect(lineGroupRow('PAYG')).toHaveTextContent('PAYG income tax')
+    expect(lineGroupRow('PAYG')).toHaveTextContent('$1,416.00')
+    const stsl = lineGroupRow('STSL Component')
+    expect(stsl).toHaveTextContent('STSL (study loan)')
+    expect(stsl).toHaveTextContent('$434.00 above plan')
+  })
+
+  it('calls out withheld tax the tax lines do not account for', () => {
+    renderScreen({
+      lines: [
+        makePayslipLine(),
+        makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 900_00 }),
+      ],
+    })
+    expect(screen.getByText(/of the tax withheld is not itemised/)).toHaveTextContent('$100.00')
+  })
+
+  it('calls out tax lines summing past the withheld total', () => {
+    renderScreen({
+      lines: [
+        makePayslipLine(),
+        makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 1_100_00 }),
+      ],
+    })
+    expect(screen.getByText(/more than the tax withheld is itemised/)).toHaveTextContent('$100.00')
+  })
+
+  it('shows no tax breakdown for a slip whose tax nobody has itemised', () => {
+    renderScreen()
+    expect(screen.queryByText('Tax lines')).not.toBeInTheDocument()
+  })
+
+  it('says there is no projection to compare when no line names one', () => {
+    renderScreen({ lines: [makePayslipLine({ source_inflow_id: null })] })
     expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
-    expect(screen.queryByText('Day job')).not.toBeInTheDocument()
+    // With no pay cycle to read there is no cadence a period could be off, so the
+    // calendar-days note says nothing rather than stating the obvious.
+    expect(screen.queryByText(/apportioned by calendar days/i)).not.toBeInTheDocument()
   })
 
   it('sums the member’s year-to-date actuals and counts the slips', () => {
@@ -240,7 +297,16 @@ describe('PayslipsScreen', () => {
         // The slip's own id, so the save rewrites it rather than adding another.
         id: 'ps1',
         input: expect.objectContaining({ period_end: '2026-07-14' }),
-        lines: [],
+        // The slip's own lines come back with it, unchanged.
+        lines: [
+          {
+            kind: 'earning',
+            source_inflow_id: 'i1',
+            tax_component: null,
+            label: 'Ordinary Hours',
+            amount_cents: 5_000_00,
+          },
+        ],
         attachment: null,
       }),
     )
@@ -316,14 +382,15 @@ describe('PayslipsScreen', () => {
     expect(screen.getByText(/of the gross is not itemised/)).toHaveTextContent('$495.50')
   })
 
-  it('calls out lines summing past the gross', () => {
+  it('calls out earnings lines summing past the gross', () => {
     renderScreen({ lines: [makePayslipLine({ amount_cents: 5_495_50 })] })
     expect(screen.getByText(/more than the gross is itemised/)).toHaveTextContent('$495.50')
   })
 
   it('shows no breakdown for a slip nobody has itemised', () => {
-    renderScreen()
+    renderScreen({ lines: [] })
     expect(screen.queryByText('Earnings lines')).not.toBeInTheDocument()
+    expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
   })
 
   it('opens the edit form on the slip’s own lines', async () => {
@@ -337,8 +404,8 @@ describe('PayslipsScreen', () => {
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
 
-    expect(screen.getByLabelText('Line 1 name')).toHaveValue('Ordinary Hours')
-    expect(screen.queryByLabelText('Line 2 name')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
+    expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
   })
 
   it('keeps each member’s slips under their own heading', () => {

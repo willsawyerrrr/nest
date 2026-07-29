@@ -175,20 +175,24 @@ and so without the trigger.
     `grantValueCents`); the vested value seeds the Net worth tab as an asset.
     Edited on the Equity tab.
 - **payslip** — per member; many rows per member (a collection). One pay event's
-  actual figures, reconciled against the projected inflow and the tax estimate.
-  See [`payslips.md`](payslips.md).
+  actual figures, reconciled through its lines against the projected inflows and
+  the tax estimate. See [`payslips.md`](payslips.md).
   - `id`, `household_id`, `member_id`, `financial_year` (int, ending year),
     `period_start` (date), `period_end` (date), `paid_on` (date, nullable),
     `gross_cents`, `tax_withheld_cents`, `super_cents`, `net_cents` (bigint,
     all `>= 0`), `salary_sacrifice_cents` (nullable, `>= 0`), `ytd_gross_cents`,
     `ytd_tax_withheld_cents`, `ytd_super_cents` (nullable, `>= 0`),
-    `source_inflow_id` (nullable), `file_path` (nullable), `note` (nullable),
-    `created_at`, `updated_at`.
+    `file_path` (nullable), `note` (nullable), `created_at`, `updated_at`.
+  - The quartet and the YTD figures are the slip's **printed totals**, and the
+    slip carries no inflow of its own: which projections its pay came from, and
+    which parts of the liability its tax paid, are its `payslip_line` rows'
+    business.
   - `tax_withheld_cents` is the slip's **tax total** — PAYG income tax plus any
     STSL study-loan component, not the PAYG line alone — and
     `ytd_tax_withheld_cents` the year-to-date total on the same basis. The tax
     estimate's liability includes the compulsory HELP repayment the STSL pays, so
-    only the total nets against it; see
+    only the total nets against it, whether or not the components are itemised as
+    tax lines; see
     [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total).
   - `financial_year` is the year the pay **landed** in, derived from `paid_on` and
     falling back to `period_end` where the slip states no payment date — salary and
@@ -217,14 +221,9 @@ and so without the trigger.
     tab (its selected year) render that position, and the slip count is what tells a
     year that withheld nothing from a year with no slips entered.
   - Composite FK on `(member_id, household_id)` → `members` `on delete cascade`,
-    so a removed member's slips go with them. `source_inflow_id` is the slip's
-    **cadence anchor**, picked by the household: composite FK
-    `(source_inflow_id, household_id)` → `inflows (id, household_id)`
-    `on delete set null (source_inflow_id)`, so removing the inflow clears the
-    link and keeps the actuals. Its schedule is what the withholding and
-    concessional-super expectations are divided by, and for a slip carrying no
-    `payslip_line` rows it is also the one projection the whole gross is measured
-    against. Nullable throughout — a slip need not map to an inflow.
+    so a removed member's slips go with them. That is the slip's only reference:
+    retiring an inflow leaves every stored figure alone, clearing only the lines'
+    own links to it.
   - `file_path` is the object key of an attached slip in the private `payslips`
     bucket (see **Storage buckets**); null under figures-only entry.
   - RLS is **household-wide CRUD** — the same boundary as `tax_profile`,
@@ -233,15 +232,26 @@ and so without the trigger.
     fully pooled, so each member manages their co-member's slips. A payslip is a
     sensitive document and the household, not the individual member, is the trust
     boundary that protects it. Deliberate, not an oversight.
-- **payslip_line** — per payslip; many rows per slip. One earnings line as the
-  slip prints it, optionally drawing on a projected inflow. See
-  [`payslips.md`](payslips.md).
-  - `id`, `household_id`, `payslip_id`, `source_inflow_id` (nullable), `label`,
-    `amount_cents` (bigint), `attracts_super`, `created_at`, `updated_at`.
+- **payslip_line** — per payslip; many rows per slip. One line as the slip prints
+  it: an **earnings** line drawing on a projected inflow, or a **tax** line paying
+  a component of the estimated liability. See [`payslips.md`](payslips.md).
+  - `id`, `household_id`, `payslip_id`, `kind` (`payslip_line_kind`:
+    `earning` | `tax`, default `earning`), `source_inflow_id` (nullable),
+    `tax_component` (`payslip_tax_component`: `payg` | `stsl`, nullable), `label`,
+    `amount_cents` (bigint), `attracts_super` (nullable), `created_at`,
+    `updated_at`.
+  - `kind` decides what the line is measured against, and the
+    `payslip_line_kind_attribution` check constraint holds each kind to the
+    columns that mean anything for it: an `earning` names an inflow (or none) and
+    carries `attracts_super`, with `tax_component` null; a `tax` line names a
+    `tax_component` with `source_inflow_id` and `attracts_super` both null. The
+    constraint's `case` ends in `else true`, so a further kind added to the enum
+    states its own pairing rather than being rejected by a rule written before it
+    existed.
   - `amount_cents` is **signed**, unlike the slip's own totals: an earnings line
     may be a negative adjustment reversing an overpayment. The lines need not sum
-    to the slip's `gross_cents` — the remainder is unallocated and surfaced as
-    such rather than silently absorbed.
+    to the slip's `gross_cents` or `tax_withheld_cents` — each remainder is
+    unallocated and surfaced as such rather than silently absorbed.
   - Composite FK on `(payslip_id, household_id)` → `payslip (id, household_id)`
     `on delete cascade`, so a line goes with the slip it hangs off (and with the
     member, through the slip). Composite FK on
@@ -250,17 +260,23 @@ and so without the trigger.
     line's amount. **Many lines may draw on the same inflow** — ordinary hours
     and annual leave both come off the salary — so there is deliberately no
     uniqueness on `(payslip_id, source_inflow_id)`.
-  - Variance is measured per inflow: the lines drawing on one inflow are summed
-    and held against that inflow's expectation for the period, and the lines
-    recorded as earning no super come off the base the expected employer super
-    guarantee is charged on.
-  - `attracts_super` is that record, **snapshotted from the inflow** by a
-    `before insert` trigger (`snapshot_payslip_line_attracts_super`) when the
-    writer does not state it; a line naming no inflow is ordinary time earnings.
-    The column has no default, so an unstated value reaches the trigger as null.
-    Snapshotting is what makes a payslip a historical record: `source_inflow_id`
-    is `on delete set null`, so re-deriving the decision would silently put a
-    retired allowance back into every past slip's super base.
+  - Earnings variance is measured per inflow: the lines drawing on one inflow are
+    summed and held against that inflow's expectation for the period, and the
+    lines recorded as earning no super come off the base the expected employer
+    super guarantee is charged on. The **largest earnings group's** inflow is also
+    the pay cycle the slip's own withholding and concessional-super expectations
+    are divided by — the slip carries no cadence of its own.
+  - Tax variance is measured per component: `stsl` against the compulsory HELP
+    repayment inside the liability and `payg` against the rest of it.
+  - `attracts_super` is the ordinary-time-earnings record, **snapshotted from the
+    inflow** by a `before insert` trigger
+    (`snapshot_payslip_line_attracts_super`) when the writer of an earnings line
+    does not state it; a line naming no inflow is ordinary time earnings, and a
+    tax line is left untouched so one carrying a decision is refused by the
+    pairing constraint. The column has no default, so an unstated value reaches
+    the trigger as null. Snapshotting is what makes a payslip a historical record:
+    `source_inflow_id` is `on delete set null`, so re-deriving the decision would
+    silently put a retired allowance back into every past slip's super base.
   - RLS is **household-wide CRUD**, exactly the parent slip's boundary. Writes go
     through `upsert_payslip_with_lines` (below) rather than direct inserts, so a
     slip and its lines move together.
@@ -678,8 +694,9 @@ One RPC is a plain **invoker** function, elevating nothing: it exists for the
 transaction, not for the privileges.
 
 - `upsert_payslip_with_lines(payslip jsonb, lines jsonb) returns uuid` — writes
-  one payslip and replaces its whole `payslip_line` set in a single call, and so
-  a single transaction. A slip and its lines are one thing the member saves, and
+  one payslip and replaces its whole `payslip_line` set — earnings and tax lines
+  alike, a line payload omitting `kind` writing the earning an unqualified line is
+  — in a single call, and so a single transaction. A slip and its lines are one thing the member saves, and
   saving them as two calls leaves the pair half-written whenever the second
   fails — worst of all on an edit, where the clearing delete lands and the insert
   does not, taking every line with it. Keyed on the id the client mints, so

@@ -3,21 +3,25 @@
  * the payslip actually reported, and the year-to-date actuals the tax estimate's
  * refund/bill position is computed from.
  *
- * Expected figures rest on one of two bases. A pay period that matches the
- * reconciled inflow's cadence — the ordinary case — divides the annual figure by
- * the cadence's periods per year, the way an employer pays it, so a slip that
- * matches the projection shows nil variance. Every other period is genuine
- * partial-year apportionment — a part period, a first or last slip in a job, an
- * off-cycle or back-pay slip, or a slip mapped to no inflow at all — and prorates
- * by inclusive calendar days in the period over inclusive calendar days in the
- * financial year.
+ * A slip is itemised into lines, and the lines carry the whole of its
+ * reconciliation. One payment routinely covers several projections at once —
+ * salary plus an on-call allowance — so each earnings line names the inflow it
+ * draws on, and gross variance is measured per inflow: the lines naming one
+ * inflow are summed and held against that inflow's expectation, keeping a steady
+ * salary's variance at nil while a lumpy allowance's stands on its own. A slip's
+ * tax is itemised the same way, each tax line naming the component of the
+ * liability it pays, so the STSL that pays down HELP is measured against the
+ * compulsory repayment and the PAYG against the income tax and levies that are
+ * the rest.
  *
- * One payment routinely covers several projections at once — salary plus an
- * on-call allowance — so a slip may be itemised into earnings lines, each naming
- * the inflow it draws on. Gross variance is then measured per inflow: the lines
- * naming one inflow are summed and held against that inflow's expectation on the
- * same basis rule, keeping a steady salary's variance at nil while a lumpy
- * allowance's stands on its own.
+ * Expected figures rest on one of two bases. A pay period that matches the pay
+ * cycle the slip's lines are drawn on — the ordinary case — divides the annual
+ * figure by the cadence's periods per year, the way an employer pays it, so a
+ * slip that matches the projection shows nil variance. Every other period is
+ * genuine partial-year apportionment — a part period, a first or last slip in a
+ * job, an off-cycle or back-pay slip, or a slip whose lines name no projection at
+ * all — and prorates by inclusive calendar days in the period over inclusive
+ * calendar days in the financial year.
  *
  * Which financial year a slip belongs to is the year its pay landed in, not the
  * year the work fell in — see {@link payslipAttributionDate}. The year reaches
@@ -83,12 +87,26 @@ export function payslipAttributionDate({ paidOn, periodEnd }: PayslipAttribution
 }
 
 /**
+ * What one payslip line is, and so what it is measured against: an `earning`
+ * against the inflow it draws on, or a `tax` line against the component of the
+ * estimated liability it pays.
+ */
+export type PayslipLineKind = 'earning' | 'tax'
+
+/**
+ * Which part of the estimated liability a tax line pays: `stsl` the compulsory
+ * HELP/HECS repayment, `payg` the income tax and levies that are the rest of it.
+ */
+export type PayslipTaxComponent = 'payg' | 'stsl'
+
+/**
  * One earnings line a payslip itemises: an amount under the label the slip
  * prints, and the projected inflow it draws on. Several lines may name the same
  * inflow — ordinary hours and annual leave both draw on the salary — and a line
  * naming none (`sourceInflowId` null) has no projection to be measured against.
  */
-export interface PayslipLine {
+export interface PayslipEarningLine {
+  readonly kind: 'earning'
   readonly sourceInflowId: string | null
   readonly label: string
   readonly amountCents: Money
@@ -104,6 +122,25 @@ export interface PayslipLine {
 }
 
 /**
+ * One tax line a payslip itemises: an amount under the label the slip prints,
+ * and the part of the estimated liability it pays. A slip's TAX section prints
+ * PAYG income tax and an STSL study-loan component beneath one total, and the two
+ * pay different parts of the same liability, so each is held against its own —
+ * `stsl` against the compulsory HELP repayment and `payg` against everything
+ * else. A line has no inflow to draw on: tax is withheld from earnings, not
+ * earned.
+ */
+export interface PayslipTaxLine {
+  readonly kind: 'tax'
+  readonly component: PayslipTaxComponent
+  readonly label: string
+  readonly amountCents: Money
+}
+
+/** One line on a payslip, discriminated by what the slip prints it as. */
+export type PayslipLine = PayslipEarningLine | PayslipTaxLine
+
+/**
  * The actual figures one payslip reports. `superCents` is the employer super
  * guarantee and `salarySacrificeCents` the concessional sacrifice shown
  * separately; together they are the slip's total concessional super.
@@ -116,29 +153,31 @@ export interface PayslipActuals extends PayPeriod {
   readonly financialYear: number
   readonly grossCents: Money
   /**
-   * The slip's tax total: PAYG income tax plus any STSL study-loan withholding,
-   * never the PAYG line alone. The annual liability it is measured against
-   * includes the compulsory HELP repayment the STSL pays.
+   * The slip's printed tax total: PAYG income tax plus any STSL study-loan
+   * withholding, never the PAYG line alone. The annual liability it is measured
+   * against includes the compulsory HELP repayment the STSL pays.
    */
   readonly taxWithheldCents: Money
   readonly superCents: Money
   readonly salarySacrificeCents?: Money | null
   /**
-   * The slip's earnings lines, where it is itemised. Absent or empty leaves the
-   * slip one undifferentiated gross measured against `PayslipExpectation.inflow`
-   * — and earning super only if that anchor does. The lines need not sum to
-   * `grossCents`; what is left over is reported as `unallocatedCents`.
+   * The slip's lines, earnings and tax alike, where it is itemised. Absent or
+   * empty leaves the slip one undifferentiated gross with no projection to be
+   * measured against and no pay cycle to read, and its whole tax total held
+   * against the whole liability. The lines need not sum to the printed totals;
+   * what is left over is reported as `unallocatedCents` and
+   * `unallocatedTaxCents`.
    */
   readonly lines?: readonly PayslipLine[]
 }
 
 /**
- * The projected taxable inflow a payslip reconciles against. A `wage` inflow's
- * per-period gross is `hourlyRateCents × hoursPerPeriod`; `salary` and `other`
- * carry it in `amountCents`. `startsOn`/`endsOn` are the inflow's effective
- * dates, which clip the share of the pay period it is active for. Structurally
- * satisfied by `@nest/tax`'s `IncomeInput`, so a caller passes the same object it
- * feeds the tax estimate.
+ * The projected taxable inflow a payslip's earnings lines draw on. A `wage`
+ * inflow's per-period gross is `hourlyRateCents × hoursPerPeriod`; `salary` and
+ * `other` carry it in `amountCents`. `startsOn`/`endsOn` are the inflow's
+ * effective dates, which clip the share of the pay period it is active for.
+ * Structurally satisfied by `@nest/tax`'s `IncomeInput`, so a caller passes the
+ * same object it feeds the tax estimate.
  */
 export interface ReconciledInflow {
   readonly type: 'salary' | 'wage' | 'other'
@@ -154,9 +193,9 @@ export interface ReconciledInflow {
    * Whether the inflow is ordinary time earnings, which the employer super
    * guarantee accrues on. Absent reads as true, so only an inflow marked
    * otherwise — an allowance such as on-call, taxed in full but earning no super
-   * — is left out of the super base. Read as the cadence anchor of a slip with
-   * no lines, whose whole gross is that one projection; an itemised slip reads
-   * each line's own recorded decision instead.
+   * — is left out of the super base. A slip's own super base reads each line's
+   * recorded decision rather than this one, which a line snapshots when it is
+   * written.
    */
   readonly attractsSuper?: boolean
 }
@@ -175,21 +214,27 @@ export interface SuperGuaranteeConfig {
 /** What the plan expected of the member the payslip belongs to, for its financial year. */
 export interface PayslipExpectation {
   /**
-   * The slip's cadence anchor: the inflow whose schedule the withholding and
-   * concessional-super expectations are divided by, and — for a slip carrying no
-   * lines — the one projection its whole gross is measured against and the one
-   * that decides whether that gross earns super. Absent or null leaves the slip
-   * no cadence to read, and no projected gross of its own.
-   */
-  readonly inflow?: ReconciledInflow | null
-  /**
    * Every inflow a line may draw on, keyed by id — the projections the per-inflow
-   * groups are measured against. A line naming an inflow that is absent here is
-   * grouped with no expectation, exactly as an unmapped line is.
+   * groups are measured against, and the pay cycle a slip's own expectations are
+   * divided by. A line naming an inflow that is absent here is grouped with no
+   * expectation, exactly as an unmapped line is.
    */
   readonly inflowsById?: ReadonlyMap<string, ReconciledInflow>
-  /** The member's annual estimated tax — `MemberTaxEstimate.annualTaxCents`. */
+  /**
+   * The member's whole annual estimated liability —
+   * `MemberTaxEstimate.annualTaxCents`, which is
+   * `TaxBreakdown.totalLiabilityCents`. HELP repayment included, so it is what
+   * the slip's printed tax total is measured against.
+   */
   readonly annualTaxCents: Money
+  /**
+   * The member's annual compulsory HELP/HECS repayment —
+   * `TaxBreakdown.helpRepaymentCents`, the part of `annualTaxCents` an STSL line
+   * pays. An `stsl` tax line is measured against it and a `payg` line against
+   * what is left; absent is nil, which holds a PAYG line against the whole
+   * liability, correct for a member with no study loan.
+   */
+  readonly annualHelpRepaymentCents?: Money
   /** The member's annual concessional super contributions; absent is nil. */
   readonly annualConcessionalContributionsCents?: Money
   readonly superConfig: SuperGuaranteeConfig
@@ -222,6 +267,24 @@ export interface PayslipLineGroupVariance {
 }
 
 /**
+ * One component's share of a slip's tax: the lines paying it summed and measured
+ * against the part of the estimated liability they pay. `stsl` is held against the
+ * compulsory HELP repayment and `payg` against the liability less that repayment,
+ * so a study-loan component that is short cannot hide behind income tax that is
+ * over. Both figures are on the slip's own {@link PayslipVariance.basis}, since
+ * the same pay cycle withholds both.
+ */
+export interface PayslipTaxGroupVariance {
+  readonly component: PayslipTaxComponent
+  /** The labels of the group's lines, in the order the slip gave them. */
+  readonly labels: readonly string[]
+  /** The group's lines summed — what the slip actually withheld for this component. */
+  readonly actualCents: Money
+  readonly expectedCents: Money
+  readonly varianceCents: Money
+}
+
+/**
  * One payslip measured against the plan: each expected figure alongside its
  * variance (actual − expected), positive when the payslip reported more than the
  * plan projected. Gross is null when nothing on the slip maps to a projection.
@@ -229,10 +292,17 @@ export interface PayslipLineGroupVariance {
 export interface PayslipVariance {
   /**
    * Which basis the withholding and concessional-super expectations were
-   * computed on, read from the slip's cadence anchor. Each line group reports
-   * its own basis, since a group's inflow may run on another cadence.
+   * computed on, read from the pay cycle the slip's lines are drawn on. Each
+   * earnings-line group reports its own basis, since a group's inflow may run on
+   * another cadence.
    */
   readonly basis: ExpectationBasis
+  /**
+   * The inflow whose pay cycle `basis` was read from — the slip's largest
+   * earnings group — or null when no earnings line resolves to a projection,
+   * which leaves the slip no cycle to read.
+   */
+  readonly cadenceInflowId: string | null
   /** Inclusive calendar days in the pay period. */
   readonly periodDays: number
   /** Inclusive calendar days in the financial year — 365, or 366 in a leap year. */
@@ -242,24 +312,36 @@ export interface PayslipVariance {
   readonly expectedGrossCents: Money | null
   readonly grossVarianceCents: Money | null
   /**
-   * The slip's lines grouped by the inflow they draw on, each summed and
+   * The slip's earnings lines grouped by the inflow they draw on, each summed and
    * measured against that inflow's projection, in the order the inflows first
-   * appear on the slip. Empty for a slip carrying no lines.
+   * appear on the slip. Empty for a slip carrying no earnings lines.
    */
   readonly lineGroups: readonly PayslipLineGroupVariance[]
   /**
-   * The slip's gross less every line on it — earnings the itemisation does not
-   * account for. Nil for a slip carrying no lines, and negative where the lines
-   * overshoot the gross.
+   * The slip's gross less every earnings line on it — earnings the itemisation
+   * does not account for. Nil for a slip carrying no earnings lines, and negative
+   * where the lines overshoot the gross.
    */
   readonly unallocatedCents: Money
   readonly expectedTaxWithheldCents: Money
   readonly taxWithheldVarianceCents: Money
   /**
+   * The slip's tax lines grouped by the component they pay, each summed and
+   * measured against that component of the estimated liability, in the order the
+   * components first appear on the slip. Empty for a slip carrying no tax lines.
+   */
+  readonly taxGroups: readonly PayslipTaxGroupVariance[]
+  /**
+   * The slip's printed tax total less every tax line on it — withholding the
+   * itemisation does not account for. Nil for a slip carrying no tax lines, and
+   * negative where the lines overshoot the total.
+   */
+  readonly unallocatedTaxCents: Money
+  /**
    * The gross the expected super guarantee is charged on: the slip's gross less
-   * every line recorded as earning no super, or — for a slip carrying no lines —
-   * the whole gross when its cadence anchor earns none. The slip's whole gross
-   * where nothing on it is non-OTE, and never below nil, since lines overshooting
+   * every earnings line recorded as earning no super. The slip's whole gross
+   * where nothing on it is non-OTE — including a slip carrying no lines, which
+   * says nothing to the contrary — and never below nil, since lines overshooting
    * the gross are a typing mistake rather than negative super.
    */
   readonly superBaseCents: Money
@@ -482,15 +564,25 @@ function inflowForLine(
   return sourceInflowId === null ? undefined : inflowsById?.get(sourceInflowId)
 }
 
+/** Whether the line is an earning, measured against the inflow it draws on. */
+function isEarningLine(line: PayslipLine): line is PayslipEarningLine {
+  return line.kind === 'earning'
+}
+
+/** Whether the line is tax withheld, measured against the component it pays. */
+function isTaxLine(line: PayslipLine): line is PayslipTaxLine {
+  return line.kind === 'tax'
+}
+
 /**
- * Groups a slip's lines by the inflow they draw on — preserving the order the
- * inflows first appear — and measures each group's sum against that inflow's
- * expectation for the period, on the same cadence-or-calendar-days basis a whole
- * slip is measured on. A group whose inflow is unknown reports a null
+ * Groups a slip's earnings lines by the inflow they draw on — preserving the
+ * order the inflows first appear — and measures each group's sum against that
+ * inflow's expectation for the period, on the same cadence-or-calendar-days basis
+ * a whole slip is measured on. A group whose inflow is unknown reports a null
  * expectation: there is nothing to compare its lines to.
  */
 function lineGroupVariances(
-  lines: readonly PayslipLine[],
+  lines: readonly PayslipEarningLine[],
   expectation: PayslipExpectation,
   period: PayPeriod,
   financialYear: number,
@@ -524,28 +616,104 @@ function lineGroupVariances(
 }
 
 /**
+ * The inflow whose pay cycle a slip's own expectations are divided by: the one
+ * its largest earnings group draws on, or null when no group resolves to a
+ * projection the expectation carries.
+ *
+ * A period's expected withholding and concessional super are annual figures
+ * divided by the cycle the employer pays on, and a slip states that cycle only
+ * through the projections its earnings draw on. The largest group is the best
+ * evidence of it: an employer pays every line of one payment on one cycle, so the
+ * earning that makes up most of the payment is the one whose projection is most
+ * likely modelled on that cycle. Groups are read in the order the slip printed
+ * them and the comparison is strict, so equal groups keep the first.
+ *
+ * A disagreement among the groups' cadences is deliberately not a reason to fall
+ * back to calendar days. An annual bonus paid beside a fortnightly salary is an
+ * ordinary slip, and dropping it to a calendar-day apportionment for the sake of
+ * the smaller line would move a whole fortnight's expectations off the cadence
+ * that really paid it. The pick is self-correcting instead: {@link
+ * isPeriodOnCadence} still requires the period to be one whole turn of the chosen
+ * cadence with the inflow effective throughout, so a cadence the slip's period
+ * does not fit yields the calendar-days proration anyway.
+ */
+function cadenceInflowFor(
+  lineGroups: readonly PayslipLineGroupVariance[],
+  inflowsById: ReadonlyMap<string, ReconciledInflow> | undefined,
+): { readonly sourceInflowId: string; readonly inflow: ReconciledInflow } | null {
+  let largest: {
+    readonly sourceInflowId: string
+    readonly inflow: ReconciledInflow
+    readonly actualCents: Money
+  } | null = null
+  for (const group of lineGroups) {
+    const inflow = inflowForLine(group.sourceInflowId, inflowsById)
+    if (group.sourceInflowId === null || inflow === undefined) {
+      continue
+    }
+    if (largest === null || group.actualCents > largest.actualCents) {
+      largest = { sourceInflowId: group.sourceInflowId, inflow, actualCents: group.actualCents }
+    }
+  }
+  return largest
+}
+
+/**
+ * Groups a slip's tax lines by the component they pay — preserving the order the
+ * components first appear — and measures each group's sum against the part of the
+ * annual liability it pays, prorated to the period by `expectedForComponent`.
+ */
+function taxGroupVariances(
+  lines: readonly PayslipTaxLine[],
+  expectedForComponent: (component: PayslipTaxComponent) => Money,
+): readonly PayslipTaxGroupVariance[] {
+  const grouped = new Map<PayslipTaxComponent, { labels: string[]; actualCents: Money }>()
+  for (const line of lines) {
+    const group = grouped.get(line.component)
+    if (group === undefined) {
+      grouped.set(line.component, { labels: [line.label], actualCents: line.amountCents })
+    } else {
+      group.labels.push(line.label)
+      group.actualCents += line.amountCents
+    }
+  }
+  return [...grouped].map(([component, group]) => {
+    const expectedCents = expectedForComponent(component)
+    return {
+      component,
+      labels: group.labels,
+      actualCents: group.actualCents,
+      expectedCents,
+      varianceCents: group.actualCents - expectedCents,
+    }
+  })
+}
+
+/**
  * Measures one payslip against the plan. The withholding and concessional-super
  * expectations rest on the one basis reported as `basis`: the cadence when the
- * period is one whole turn of the slip's cadence anchor, and calendar days
- * otherwise — including when the slip names no anchor, which leaves it no cadence
- * to read.
+ * period is one whole turn of the cycle the slip's lines are drawn on — see
+ * {@link cadenceInflowFor} — and calendar days otherwise, including when no line
+ * resolves to a projection and there is no cycle to read.
  *
- * Expected gross comes from the slip's lines where it has them: each inflow's
- * lines are summed and held against that inflow's projection for the period, and
- * those group expectations sum to the slip's. A slip with no lines is measured
- * whole against its cadence anchor instead, and either way the expectation is
- * null when nothing on the slip maps to a projection. The gross the lines do not
- * account for is reported as `unallocatedCents` and reads as gross above plan,
- * which is what unexplained earnings are.
+ * Expected gross comes from the slip's earnings lines: each inflow's lines are
+ * summed and held against that inflow's projection for the period, and those group
+ * expectations sum to the slip's, which is null when nothing on the slip maps to a
+ * projection. The gross the lines do not account for is reported as
+ * `unallocatedCents` and reads as gross above plan, which is what unexplained
+ * earnings are.
  *
- * Expected tax withheld is the member's annual estimated tax for the period — the
- * withholding the estimate implies. That estimate is the whole liability, HELP
- * repayment included, so it is held against the slip's whole tax total (PAYG plus
- * any STSL), which is what `taxWithheldCents` carries.
+ * Tax is measured twice over, against the same estimate. The slip's printed total
+ * is held against the whole annual liability for the period — HELP repayment
+ * included, since the total carries the STSL that pays it — and each tax line
+ * group against the component it pays, `stsl` against the compulsory repayment and
+ * `payg` against the liability less that repayment. The two views answer different
+ * questions: the total says whether the year is heading for a refund or a bill,
+ * and the components say which of the two withholdings is off. The tax the lines
+ * do not account for is `unallocatedTaxCents`, exactly as for earnings.
  *
  * Expected super is the versioned guarantee rate on `superBaseCents` — the slip's
- * actual gross less every line recorded as earning no super, or, for a slip with
- * no lines, less the whole gross when its cadence anchor earns none. An allowance
+ * actual gross less every earnings line recorded as earning no super. An allowance
  * is left out of the base while the guarantee stays a percentage of what was
  * really earned, keeping the super variance a rate check independent of the gross
  * variance. Added to it is the member's annual concessional contributions for the
@@ -557,7 +725,8 @@ function lineGroupVariances(
  * The remainder of an annual figure that does not divide evenly by its periods
  * per year is dropped rather than spread across the year's periods: the
  * expectation is a per-period rate to hold one slip against, not an allocation
- * that has to sum back to the annual figure.
+ * that has to sum back to the annual figure. That is why the two component
+ * expectations may sit a cent either side of the whole-total one.
  */
 export function payslipVariance(
   payslip: PayslipActuals,
@@ -565,38 +734,32 @@ export function payslipVariance(
 ): PayslipVariance {
   const financialYearDays = financialYearDayCount(payslip.financialYear)
   const periodDays = periodDayCount(payslip)
-  const { inflow } = expectation
   const lines = payslip.lines ?? []
+  const earningLines = lines.filter(isEarningLine)
+  const taxLines = lines.filter(isTaxLine)
+  const lineGroups = lineGroupVariances(earningLines, expectation, payslip, payslip.financialYear)
+  const cadence = cadenceInflowFor(lineGroups, expectation.inflowsById)
   const cadencePeriodsPerYear =
-    inflow != null && isPeriodOnCadence(inflow, payslip)
-      ? periodsPerYear(inflow.schedule, inflow.interval)
+    cadence !== null && isPeriodOnCadence(cadence.inflow, payslip)
+      ? periodsPerYear(cadence.inflow.schedule, cadence.inflow.interval)
       : null
   const expectedForPeriod = (annualAmountCents: Money): Money =>
     cadencePeriodsPerYear === null
       ? prorateAnnualToPeriod(annualAmountCents, payslip, payslip.financialYear)
       : Math.round(annualAmountCents / cadencePeriodsPerYear)
-  const lineGroups = lineGroupVariances(lines, expectation, payslip, payslip.financialYear)
-  const wholeSlipExpectedGrossCents = inflow
-    ? expectedPeriodGrossCents(inflow, payslip, payslip.financialYear)
-    : null
-  let groupedExpectedGrossCents: Money | null = null
+  let expectedGrossCents: Money | null = null
   for (const group of lineGroups) {
     if (group.expectedCents !== null) {
-      groupedExpectedGrossCents = (groupedExpectedGrossCents ?? 0) + group.expectedCents
+      expectedGrossCents = (expectedGrossCents ?? 0) + group.expectedCents
     }
   }
-  const itemised = lines.length > 0
-  const expectedGrossCents = itemised ? groupedExpectedGrossCents : wholeSlipExpectedGrossCents
-  const allocatedCents = lines.reduce((sum, line) => sum + line.amountCents, 0)
-  // Itemised, the non-OTE earnings are the lines recorded as such; unitemised,
-  // the whole gross stands or falls with the cadence anchor it is measured
-  // against, so an allowance-only slip expects no guarantee at all.
-  const nonOteCents = itemised
-    ? lines.reduce((sum, line) => (line.attractsSuper === false ? sum + line.amountCents : sum), 0)
-    : inflow?.attractsSuper === false
-      ? payslip.grossCents
-      : 0
+  const allocatedCents = earningLines.reduce((sum, line) => sum + line.amountCents, 0)
+  const nonOteCents = earningLines.reduce(
+    (sum, line) => (line.attractsSuper === false ? sum + line.amountCents : sum),
+    0,
+  )
   const superBaseCents = Math.max(0, payslip.grossCents - nonOteCents)
+  const annualHelpRepaymentCents = expectation.annualHelpRepaymentCents ?? 0
   const expectedTaxWithheldCents = expectedForPeriod(expectation.annualTaxCents)
   const expectedSuperGuaranteeCents = Math.round(
     superBaseCents * expectation.superConfig.guaranteeRate,
@@ -608,6 +771,7 @@ export function payslipVariance(
   const actualSuperCents = payslip.superCents + (payslip.salarySacrificeCents ?? 0)
   return {
     basis: cadencePeriodsPerYear === null ? 'calendar_days' : 'cadence',
+    cadenceInflowId: cadence === null ? null : cadence.sourceInflowId,
     periodDays,
     financialYearDays,
     periodFraction: periodDays / financialYearDays,
@@ -615,9 +779,20 @@ export function payslipVariance(
     grossVarianceCents:
       expectedGrossCents === null ? null : payslip.grossCents - expectedGrossCents,
     lineGroups,
-    unallocatedCents: itemised ? payslip.grossCents - allocatedCents : 0,
+    unallocatedCents: earningLines.length === 0 ? 0 : payslip.grossCents - allocatedCents,
     expectedTaxWithheldCents,
     taxWithheldVarianceCents: payslip.taxWithheldCents - expectedTaxWithheldCents,
+    taxGroups: taxGroupVariances(taxLines, (component) =>
+      expectedForPeriod(
+        component === 'stsl'
+          ? annualHelpRepaymentCents
+          : expectation.annualTaxCents - annualHelpRepaymentCents,
+      ),
+    ),
+    unallocatedTaxCents:
+      taxLines.length === 0
+        ? 0
+        : payslip.taxWithheldCents - taxLines.reduce((sum, line) => sum + line.amountCents, 0),
     superBaseCents,
     expectedSuperGuaranteeCents,
     expectedConcessionalCents,
@@ -667,11 +842,17 @@ export function payslipYearToDateByMember(
 }
 
 /**
- * Each member's summed actual tax withheld — every slip's tax total, PAYG plus
- * any STSL — keyed by member id. This is the map `estimateHouseholdTax` takes as
- * its per-member withholding, turning the estimate's liability into a refund or
+ * Each member's summed actual tax withheld — every slip's printed tax total, PAYG
+ * plus any STSL — keyed by member id. This is the map `estimateHouseholdTax` takes
+ * as its per-member withholding, turning the estimate's liability into a refund or
  * amount owing. Pass one financial year's rows; a member with no payslips is
  * absent, so their estimate keeps its nil withholding.
+ *
+ * The printed total is what it sums, never a slip's `payg` lines: the liability it
+ * is netted against includes the compulsory HELP repayment the STSL pays, so
+ * counting the PAYG component alone would overstate the amount owing by every
+ * dollar of STSL withheld. Itemising a slip's tax splits how the variance is
+ * *reported*, per component; the year's withholding is still the whole of it.
  */
 export function paygWithheldByMember(
   payslips: readonly PayslipTotalsRow[],

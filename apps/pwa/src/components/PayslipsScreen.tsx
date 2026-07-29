@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core'
-import type { PayslipLineGroupVariance, PayslipVariance } from '@nest/plan'
+import { Anchor, Group, SimpleGrid, Stack, Text } from '@mantine/core'
+import type { PayslipLineGroupVariance, PayslipTaxGroupVariance, PayslipVariance } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -25,7 +25,7 @@ import { PayslipForm } from './PayslipForm'
 interface PayslipsScreenProps {
   members: Member[]
   payslips: PayslipRow[]
-  /** Every earnings line the household has; each slip picks out its own. */
+  /** Every payslip line the household has; each slip picks out its own. */
   lines: PayslipLineRow[]
   inflows: Inflow[]
   financialYear: number
@@ -48,8 +48,8 @@ function periodLabel(payslip: PayslipRow): string {
 
 /**
  * A figure's variance against the plan: its size in the app's sign colouring with
- * the direction spelled out, so a tint is never read alone. `null` means the
- * payslip reconciles against no inflow, which is stated rather than shown as a
+ * the direction spelled out, so a tint is never read alone. `null` means nothing
+ * on the payslip maps to a projection, which is stated rather than shown as a
  * zero or a bare dash.
  *
  * Colour follows the money sign of the variance itself: above plan reads
@@ -175,6 +175,59 @@ function LineGroups({
   )
 }
 
+/** What a tax line pays, as the slip's own TAX section names it. */
+const TAX_COMPONENT_LABELS: Readonly<Record<PayslipTaxGroupVariance['component'], string>> = {
+  payg: 'PAYG income tax',
+  stsl: 'STSL (study loan)',
+}
+
+/**
+ * A slip's tax split by the part of the liability each withholding pays, so a
+ * study-loan component that is short cannot hide behind income tax that is over.
+ * Tax the lines do not account for is called out: the printed total above is what
+ * the year's refund or bill is worked out from, so a remainder is withholding
+ * nobody has attributed rather than a figure being ignored.
+ */
+function TaxGroups({
+  groups,
+  unallocatedCents,
+}: {
+  groups: readonly PayslipTaxGroupVariance[]
+  unallocatedCents: number
+}) {
+  return (
+    <Stack gap={2}>
+      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+        Tax lines
+      </Text>
+      {groups.map((group) => (
+        <Group key={group.component} justify="space-between" wrap="nowrap" gap="xs">
+          <Stack gap={0} style={{ minWidth: 0 }}>
+            <Text size="xs" fw={500}>
+              {TAX_COMPONENT_LABELS[group.component]}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {group.labels.join(', ')}
+            </Text>
+          </Stack>
+          <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+            <MoneyText cents={group.actualCents} size="xs" fw={600} />
+            <VarianceNote varianceCents={group.varianceCents} />
+          </Group>
+        </Group>
+      ))}
+      {unallocatedCents !== 0 && (
+        <Text size="xs" c="dimmed">
+          <MoneyText span cents={Math.abs(unallocatedCents)} />{' '}
+          {unallocatedCents > 0
+            ? 'of the tax withheld is not itemised.'
+            : 'more than the tax withheld is itemised.'}
+        </Text>
+      )}
+    </Stack>
+  )
+}
+
 /** A link opening a payslip's stored document, which is fetched through a signed URL. */
 function DocumentLink({ path, onView }: { path: string; onView: (path: string) => void }) {
   return (
@@ -193,8 +246,6 @@ function DocumentLink({ path, onView }: { path: string; onView: (path: string) =
 interface PayslipCardProps {
   payslip: PayslipRow
   variance: PayslipVariance
-  /** The reconciled inflow's name, or undefined when the slip maps to none. */
-  inflowName: string | undefined
   /** Every inflow's name keyed by id, for naming each earnings-line group. */
   inflowNames: ReadonlyMap<string, string>
   onEdit: () => void
@@ -203,19 +254,18 @@ interface PayslipCardProps {
 }
 
 /**
- * One payslip: its pay period and the inflow it reconciles against, the gross /
- * withheld / super / net quartet each with its variance against the plan, the
- * per-inflow breakdown where the slip is itemised, and its note and stored
- * document. The figure grid reflows from two columns on a phone to four from the
- * `xs` breakpoint up — a payslip carries four figures and three variances, more
- * than a single dense row can hold. A period that is not one whole turn of the
- * inflow's cadence says so, since its expectations are apportioned by calendar
- * days and carry a proration remainder an on-cadence period does not.
+ * One payslip: its pay period, the gross / withheld / super / net quartet each with
+ * its variance against the plan, the per-inflow and per-component breakdowns of its
+ * lines, and its note and stored document. The figure grid reflows from two columns
+ * on a phone to four from the `xs` breakpoint up — a payslip carries four figures
+ * and three variances, more than a single dense row can hold. A period that is not
+ * one whole turn of the pay cycle its lines are drawn on says so, since its
+ * expectations are apportioned by calendar days and carry a proration remainder an
+ * on-cadence period does not.
  */
 function PayslipCard({
   payslip,
   variance,
-  inflowName,
   inflowNames,
   onEdit,
   onDelete,
@@ -229,18 +279,11 @@ function PayslipCard({
             <Text fw={600} size="sm">
               {periodLabel(payslip)}
             </Text>
-            <Group gap="xxs" wrap="wrap">
-              {payslip.paid_on !== null && (
-                <Text size="xs" c="dimmed">
-                  Paid {formatIsoDate(payslip.paid_on)}
-                </Text>
-              )}
-              {inflowName !== undefined && (
-                <Badge size="xs" color="gray">
-                  {inflowName}
-                </Badge>
-              )}
-            </Group>
+            {payslip.paid_on !== null && (
+              <Text size="xs" c="dimmed">
+                Paid {formatIsoDate(payslip.paid_on)}
+              </Text>
+            )}
           </Stack>
           <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
             <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
@@ -274,10 +317,15 @@ function PayslipCard({
           />
         )}
 
-        {inflowName !== undefined && variance.basis === 'calendar_days' && (
+        {variance.taxGroups.length > 0 && (
+          <TaxGroups groups={variance.taxGroups} unallocatedCents={variance.unallocatedTaxCents} />
+        )}
+
+        {variance.cadenceInflowId !== null && variance.basis === 'calendar_days' && (
           <Text size="xs" c="dimmed">
-            This period is not one whole turn of the inflow’s pay cycle, so the plan figures are
-            apportioned by calendar days — a small variance is the proration itself.
+            This period is not one whole turn of the pay cycle its earnings are drawn on, so the
+            plan figures are apportioned by calendar days — a small variance is the proration
+            itself.
           </Text>
         )}
 
@@ -402,23 +450,16 @@ function MemberPayslips({
         onCreate={onCreate}
         onUpdate={onUpdate}
         onDelete={onDelete}
-        renderItem={(payslip, { onEdit, onDelete: onDeleteItem }) => {
-          const inflowName =
-            payslip.source_inflow_id === null
-              ? undefined
-              : reconciliation.inflowNames.get(payslip.source_inflow_id)
-          return (
-            <PayslipCard
-              payslip={payslip}
-              variance={payslipVarianceFor(payslip, reconciliation, memberEstimate, config)}
-              inflowName={inflowName}
-              inflowNames={reconciliation.inflowNames}
-              onEdit={onEdit}
-              onDelete={onDeleteItem}
-              onViewDocument={(path) => void viewDocument(path)}
-            />
-          )
-        }}
+        renderItem={(payslip, { onEdit, onDelete: onDeleteItem }) => (
+          <PayslipCard
+            payslip={payslip}
+            variance={payslipVarianceFor(payslip, reconciliation, memberEstimate, config)}
+            inflowNames={reconciliation.inflowNames}
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
+            onViewDocument={(path) => void viewDocument(path)}
+          />
+        )}
         renderForm={({ initial, onSubmit, onCancel }) => (
           <PayslipForm
             member={member}
@@ -463,7 +504,7 @@ export function PayslipsScreen({
   return (
     <PageSection
       title={`Payslips (FY${financialYear})`}
-      intro="What each pay event actually paid, measured against the projected inflow and the tax estimate. Withholding entered here is what turns the Tax tab’s estimated liability into a refund or a bill; withholding more than the plan expects points to a refund, not a problem."
+      intro="What each pay event actually paid, measured line by line against the projected inflows and the tax estimate. Withholding entered here is what turns the Tax tab’s estimated liability into a refund or a bill; withholding more than the plan expects points to a refund, not a problem."
     >
       {members.map((member) => (
         <MemberPayslips

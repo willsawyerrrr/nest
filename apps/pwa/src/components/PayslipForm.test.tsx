@@ -9,7 +9,7 @@ import {
   type ExtractionOutcome,
   type PayslipExtraction,
 } from '../lib/payslipExtraction'
-import { makeInflow, makePayslip, makePayslipLine } from '../test/fixtures'
+import { makeInflow, makePayslip, makePayslipLine, makePayslipTaxLine } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { PayslipForm } from './PayslipForm'
 
@@ -123,7 +123,6 @@ describe('PayslipForm', () => {
           period_start: '2026-06-17',
           period_end: '2026-06-30',
           paid_on: '2026-07-01',
-          source_inflow_id: null,
         })}
         onSubmit={onSubmit}
       />,
@@ -151,7 +150,6 @@ describe('PayslipForm', () => {
         ytd_gross_cents: null,
         ytd_tax_withheld_cents: null,
         ytd_super_cents: null,
-        source_inflow_id: null,
         note: null,
       },
       lines: [],
@@ -215,8 +213,7 @@ describe('PayslipForm', () => {
     expect(screen.getByText(/slip’s tax total/i)).toHaveTextContent(/not the PAYG line alone/i)
   })
 
-  it('offers only the member’s own taxable inflows to reconcile against', async () => {
-    const user = userEvent.setup()
+  it('offers no slip-wide inflow to reconcile against: the lines carry that', () => {
     render(
       <PayslipForm
         member={member}
@@ -225,22 +222,10 @@ describe('PayslipForm', () => {
         onSubmit={vi.fn()}
       />,
     )
-
-    await user.click(screen.getByRole('combobox', { name: /reconciles against/i }))
-
-    expect(await screen.findByRole('option', { name: 'Day job' })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: 'Side job' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: 'Gift money' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /reconciles against/i })).not.toBeInTheDocument()
   })
 
-  it('notes when the member has no taxable inflow to reconcile against', () => {
-    render(
-      <PayslipForm member={member} inflows={[]} attachments={attachments} onSubmit={vi.fn()} />,
-    )
-    expect(screen.getByPlaceholderText('No taxable inflows')).toBeInTheDocument()
-  })
-
-  it('records the chosen inflow and the typed note', async () => {
+  it('records the typed note', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(
@@ -248,18 +233,15 @@ describe('PayslipForm', () => {
         member={member}
         inflows={inflows}
         attachments={attachments}
-        initial={makePayslip({ source_inflow_id: null, note: '  ' })}
+        initial={makePayslip({ note: '  ' })}
         onSubmit={onSubmit}
       />,
     )
 
-    await user.click(screen.getByRole('combobox', { name: /reconciles against/i }))
-    await user.click(await screen.findByRole('option', { name: 'Day job' }))
     await user.type(screen.getByLabelText('Note'), 'Includes back-pay')
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
-    expect(submitted(onSubmit).input.source_inflow_id).toBe('i1')
     expect(submitted(onSubmit).input.note).toBe('Includes back-pay')
   })
 
@@ -398,7 +380,6 @@ describe('PayslipForm', () => {
       super_cents: 120_00,
       net_cents: 800_00,
       paid_on: null,
-      source_inflow_id: null,
     })
     // Thirteen days back from the end day makes an inclusive fortnight.
     const days =
@@ -983,6 +964,40 @@ describe('PayslipForm extraction', () => {
   })
 })
 
+/** The submitted shape of one earnings line: no tax component, as the schema requires. */
+function earningLine(sourceInflowId: string | null, label: string, amountCents: number) {
+  return {
+    kind: 'earning',
+    source_inflow_id: sourceInflowId,
+    tax_component: null,
+    label,
+    amount_cents: amountCents,
+  }
+}
+
+/** Renders an add form for the member, returning its `onSubmit` spy. */
+function renderForm(props: Partial<Parameters<typeof PayslipForm>[0]> = {}) {
+  const onSubmit = vi.fn()
+  render(
+    <PayslipForm
+      member={member}
+      inflows={inflows}
+      attachments={attachments}
+      onSubmit={onSubmit}
+      {...props}
+    />,
+  )
+  return onSubmit
+}
+
+/** Types the quartet a save needs, at the real Heidi slip's figures. */
+async function fillQuartet(user: ReturnType<typeof userEvent.setup>, gross = '5495.50') {
+  await user.type(screen.getByLabelText('Gross'), gross)
+  await user.type(screen.getByLabelText('Tax withheld'), '1850')
+  await user.type(screen.getByLabelText('Super'), '600')
+  await user.type(screen.getByLabelText('Net'), '3645.50')
+}
+
 describe('PayslipForm earnings lines', () => {
   /** Fills line `position` with a name, an amount, and optionally an inflow. */
   async function fillLine(
@@ -992,42 +1007,20 @@ describe('PayslipForm earnings lines', () => {
     amount: string,
     inflow?: string,
   ) {
-    await user.type(screen.getByLabelText(`Line ${position} name`), label)
-    await user.type(screen.getByLabelText(`Line ${position} amount`), amount)
+    await user.type(screen.getByLabelText(`Earnings line ${position} name`), label)
+    await user.type(screen.getByLabelText(`Earnings line ${position} amount`), amount)
     if (inflow !== undefined) {
-      await user.click(screen.getByRole('combobox', { name: `Line ${position} draws on` }))
+      await user.click(screen.getByRole('combobox', { name: `Earnings line ${position} draws on` }))
       await user.click(await screen.findByRole('option', { name: inflow }))
     }
-  }
-
-  /** Renders an add form for the member, returning its `onSubmit` spy. */
-  function renderForm(props: Partial<Parameters<typeof PayslipForm>[0]> = {}) {
-    const onSubmit = vi.fn()
-    render(
-      <PayslipForm
-        member={member}
-        inflows={inflows}
-        attachments={attachments}
-        onSubmit={onSubmit}
-        {...props}
-      />,
-    )
-    return onSubmit
-  }
-
-  /** Types the quartet a save needs, at the real Heidi slip's figures. */
-  async function fillQuartet(user: ReturnType<typeof userEvent.setup>, gross = '5495.50') {
-    await user.type(screen.getByLabelText('Gross'), gross)
-    await user.type(screen.getByLabelText('Tax withheld'), '1850')
-    await user.type(screen.getByLabelText('Super'), '600')
-    await user.type(screen.getByLabelText('Net'), '3645.50')
   }
 
   it('opens with no lines, and explains what itemising is for', () => {
     renderForm()
     expect(screen.getByText('Earnings lines')).toBeInTheDocument()
     expect(screen.getByText(/an allowance that earns no super/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText('Line 1 name')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Earnings line 1 name')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Tax line 1 name')).not.toBeInTheDocument()
   })
 
   it('submits a salary split across two lines alongside an on-call allowance', async () => {
@@ -1045,9 +1038,9 @@ describe('PayslipForm earnings lines', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(submitted(onSubmit).lines).toEqual([
-      { source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 4_000_00 },
-      { source_inflow_id: 'i1', label: 'Annual Leave', amount_cents: 1_000_00 },
-      { source_inflow_id: null, label: 'On-call (T1)', amount_cents: 495_50 },
+      earningLine('i1', 'Ordinary Hours', 4_000_00),
+      earningLine('i1', 'Annual Leave', 1_000_00),
+      earningLine(null, 'On-call (T1)', 495_50),
     ])
   })
 
@@ -1056,7 +1049,7 @@ describe('PayslipForm earnings lines', () => {
     renderForm()
 
     await user.click(screen.getByRole('button', { name: /add earnings line/i }))
-    await user.click(screen.getByRole('combobox', { name: 'Line 1 draws on' }))
+    await user.click(screen.getByRole('combobox', { name: 'Earnings line 1 draws on' }))
 
     expect(await screen.findByRole('option', { name: 'Day job' })).toBeInTheDocument()
     // An allowance is offered like any other taxable inflow: it is taxed in
@@ -1079,8 +1072,8 @@ describe('PayslipForm earnings lines', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(submitted(onSubmit).lines).toEqual([
-      { source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 5_000_00 },
-      { source_inflow_id: 'i4', label: 'On-call (T1)', amount_cents: 495_50 },
+      earningLine('i1', 'Ordinary Hours', 5_000_00),
+      earningLine('i4', 'On-call (T1)', 495_50),
     ])
   })
 
@@ -1090,7 +1083,7 @@ describe('PayslipForm earnings lines', () => {
 
     await user.click(screen.getByRole('button', { name: /add earnings line/i }))
 
-    expect(screen.getByRole('combobox', { name: 'Line 1 draws on' })).toHaveAttribute(
+    expect(screen.getByRole('combobox', { name: 'Earnings line 1 draws on' })).toHaveAttribute(
       'placeholder',
       'No taxable inflows',
     )
@@ -1105,8 +1098,8 @@ describe('PayslipForm earnings lines', () => {
     await fillLine(user, 1, 'Ordinary Hours', '5000')
     expect(screen.getByText(/of the gross is not itemised/i)).toHaveTextContent('$495.50')
 
-    await user.clear(screen.getByLabelText('Line 1 amount'))
-    await user.type(screen.getByLabelText('Line 1 amount'), '6000')
+    await user.clear(screen.getByLabelText('Earnings line 1 amount'))
+    await user.type(screen.getByLabelText('Earnings line 1 amount'), '6000')
     expect(screen.getByText(/more than the gross is itemised/i)).toHaveTextContent('$504.50')
   })
 
@@ -1156,7 +1149,7 @@ describe('PayslipForm earnings lines', () => {
     await user.click(screen.getByRole('button', { name: /add earnings line/i }))
     await fillLine(user, 1, 'Ordinary Hours', '5000')
 
-    expect(screen.getByText(/every dollar of the gross is itemised/i)).toBeInTheDocument()
+    expect(screen.getByText(/every dollar is itemised/i)).toBeInTheDocument()
   })
 
   it('removes a line, leaving the rows beside it as they were', async () => {
@@ -1167,10 +1160,10 @@ describe('PayslipForm earnings lines', () => {
     await user.click(screen.getByRole('button', { name: /add earnings line/i }))
     await fillLine(user, 1, 'Ordinary Hours', '4000')
     await fillLine(user, 2, 'Annual Leave', '1000')
-    await user.click(screen.getByRole('button', { name: 'Remove line 1' }))
+    await user.click(screen.getByRole('button', { name: 'Remove earnings line 1' }))
 
-    expect(screen.getByLabelText('Line 1 name')).toHaveValue('Annual Leave')
-    expect(screen.queryByLabelText('Line 2 name')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Annual Leave')
+    expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
   })
 
   it('blocks the save while a line is half filled in', async () => {
@@ -1179,11 +1172,11 @@ describe('PayslipForm earnings lines', () => {
 
     await fillQuartet(user)
     await user.click(screen.getByRole('button', { name: /add earnings line/i }))
-    await user.type(screen.getByLabelText('Line 1 name'), 'Ordinary Hours')
+    await user.type(screen.getByLabelText('Earnings line 1 name'), 'Ordinary Hours')
 
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeDisabled()
 
-    await user.type(screen.getByLabelText('Line 1 amount'), '5495.50')
+    await user.type(screen.getByLabelText('Earnings line 1 amount'), '5495.50')
     expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
   })
 
@@ -1209,15 +1202,133 @@ describe('PayslipForm earnings lines', () => {
       ],
     })
 
-    expect(screen.getByLabelText('Line 1 name')).toHaveValue('Ordinary Hours')
-    expect(screen.getByLabelText('Line 2 name')).toHaveValue('Annual Leave')
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
+    expect(screen.getByLabelText('Earnings line 2 name')).toHaveValue('Annual Leave')
 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(submitted(onSubmit).lines).toEqual([
-      { source_inflow_id: 'i1', label: 'Ordinary Hours', amount_cents: 4_000_00 },
-      { source_inflow_id: 'i1', label: 'Annual Leave', amount_cents: 1_000_00 },
+      earningLine('i1', 'Ordinary Hours', 4_000_00),
+      earningLine('i1', 'Annual Leave', 1_000_00),
     ])
+  })
+})
+
+describe('PayslipForm tax lines', () => {
+  /** Fills tax line `position` with a name, an amount, and the component it pays. */
+  async function fillTaxLine(
+    user: ReturnType<typeof userEvent.setup>,
+    position: number,
+    label: string,
+    amount: string,
+    component?: string,
+  ) {
+    await user.type(screen.getByLabelText(`Tax line ${position} name`), label)
+    await user.type(screen.getByLabelText(`Tax line ${position} amount`), amount)
+    if (component !== undefined) {
+      await user.click(screen.getByRole('combobox', { name: `Tax line ${position} pays` }))
+      await user.click(await screen.findByRole('option', { name: component }))
+    }
+  }
+
+  it('explains that itemising tax splits the variance, not the year’s withholding', () => {
+    renderForm()
+    expect(screen.getByText('Tax lines')).toBeInTheDocument()
+    expect(screen.getByText(/STSL against the compulsory HELP repayment/i)).toHaveTextContent(
+      /stays the printed total/i,
+    )
+  })
+
+  it('submits the slip’s PAYG and STSL components as tax lines', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderForm()
+
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add tax line/i }))
+    await user.click(screen.getByRole('button', { name: /add tax line/i }))
+    await fillTaxLine(user, 1, 'PAYG', '1416', 'PAYG income tax')
+    await fillTaxLine(user, 2, 'STSL Component', '434', 'STSL (study loan)')
+    await user.click(screen.getByRole('button', { name: /^add payslip$/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    // A tax line names no inflow, whatever the earnings lines beside it draw on.
+    expect(submitted(onSubmit).lines).toEqual([
+      {
+        kind: 'tax',
+        source_inflow_id: null,
+        tax_component: 'payg',
+        label: 'PAYG',
+        amount_cents: 1_416_00,
+      },
+      {
+        kind: 'tax',
+        source_inflow_id: null,
+        tax_component: 'stsl',
+        label: 'STSL Component',
+        amount_cents: 434_00,
+      },
+    ])
+  })
+
+  it('blocks the save until a tax line names what it pays', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add tax line/i }))
+    await fillTaxLine(user, 1, 'PAYG', '1850')
+
+    expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeDisabled()
+
+    await user.click(screen.getByRole('combobox', { name: 'Tax line 1 pays' }))
+    await user.click(await screen.findByRole('option', { name: 'PAYG income tax' }))
+    expect(screen.getByRole('button', { name: /^add payslip$/i })).toBeEnabled()
+  })
+
+  it('reports the withheld tax the lines account for, and the gap either way', async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await fillQuartet(user)
+    await user.click(screen.getByRole('button', { name: /add tax line/i }))
+    await fillTaxLine(user, 1, 'PAYG', '1416', 'PAYG income tax')
+    expect(screen.getByText(/of the tax withheld is not itemised/i)).toHaveTextContent('$434.00')
+
+    await user.clear(screen.getByLabelText('Tax line 1 amount'))
+    await user.type(screen.getByLabelText('Tax line 1 amount'), '1900')
+    expect(screen.getByText(/more than the tax withheld is itemised/i)).toHaveTextContent('$50.00')
+
+    await user.clear(screen.getByLabelText('Tax line 1 amount'))
+    await user.type(screen.getByLabelText('Tax line 1 amount'), '1850')
+    expect(screen.getByText(/every dollar is itemised/i)).toBeInTheDocument()
+  })
+
+  it('opens a slip with its saved tax lines and removes one', async () => {
+    const user = userEvent.setup()
+    renderForm({
+      initial: makePayslip(),
+      initialLines: [
+        makePayslipLine(),
+        makePayslipTaxLine({ id: 'pt1', label: 'PAYG', amount_cents: 1_416_00 }),
+        makePayslipTaxLine({
+          id: 'pt2',
+          label: 'STSL Component',
+          tax_component: 'stsl',
+          amount_cents: 434_00,
+        }),
+      ],
+    })
+
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
+    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('PAYG')
+    expect(screen.getByLabelText('Tax line 2 name')).toHaveValue('STSL Component')
+
+    await user.click(screen.getByRole('button', { name: 'Remove tax line 1' }))
+
+    expect(screen.getByLabelText('Tax line 1 name')).toHaveValue('STSL Component')
+    expect(screen.queryByLabelText('Tax line 2 name')).not.toBeInTheDocument()
+    // Removing a tax line leaves the earnings lines untouched.
+    expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
   })
 })

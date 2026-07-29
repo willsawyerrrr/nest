@@ -228,7 +228,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   survive. Payslips drive per-period
   variance against the projection (gross, withholding, super) and the FY's summed
   actual withheld feeds the tax engine's `paygWithheldCents`, turning the estimate's
-  balance into a concrete refund or bill. The withheld figure — per period and
+  balance into a concrete refund or bill. The tab's three year-to-date figures —
+  gross, withheld, super — each carry the SAME reading for the year, in a card's own
+  wording and colours: the expected side is the sum of the expectations already
+  measured for the slips entered, never an annual figure times the share of the year
+  elapsed, so a fortnight not yet entered is not reported as $5,000 behind and the
+  year is literally the cards' own `PayslipVariance` objects summed. A slip a figure
+  has no expectation for is dropped from BOTH sides rather than counted against nil
+  — which would read an unmapped $9,000 bonus as $9,000 above plan — so each figure
+  is counted over the slips it can cover and says "across 3 of 4 slips" where that
+  is fewer than the whole year, or "No projection to compare" where it covers none.
+  The three are counted separately because a slip may have one figure's expectation
+  and not another's. The withheld figure — per period and
   year to date — is the slip's whole PRINTED tax total, PAYG income tax plus any
   STSL study-loan component, because the liability it nets against already includes
   the compulsory HELP repayment that STSL pays; the extraction prompt, the entry

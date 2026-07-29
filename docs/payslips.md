@@ -376,6 +376,49 @@ guarantee from $600 to $659.46, and a year of correct slips starts reading "$59.
 below plan". A payslip is a historical record, and the OTE decision travels with
 it exactly as every other actual on the slip does.
 
+### The year to date is the slips' own expectations summed
+
+A member's three year-to-date figures — gross, tax withheld, super — each carry a
+**position against the plan** beneath them, in the same words and the same sign
+colouring a card's variance uses. The expected side is the sum of the expectations
+already measured for the slips entered; it is never the annual projection multiplied
+by the share of the year elapsed.
+
+Summing the slips' own expectations compares like with like: it asks what the plan
+projected for the periods that were actually recorded. A member who has not entered
+last fortnight's slip yet reads as on plan rather than $5,000 behind, and a year of
+on-plan slips reads as on plan on whatever date it is looked at. Apportioning an
+annual figure by elapsed time would measure how up to date the data entry is
+instead — which is the job of the reported year-to-date cross-check (the running
+totals printed on the latest slip, held against the slips entered), not of a plan
+position.
+
+It is also **one measurement read twice**. The `PayslipVariance` a card renders is
+the very object the year sums, so a total and the figures under it cannot disagree.
+
+**A slip with no expectation is left out of both sides.** Where a figure has no
+expectation for a slip — nothing on it names a projection, or the projection has
+nothing to say about that period — that slip's actual is dropped from the comparison
+rather than held against nil. Held against nil, a $9,000 bonus slip mapped to
+nothing would read as $9,000 above plan: an unmapped slip would become a windfall.
+So the position covers the slips it can and names how many of how many, reading on
+from the variance as one sentence — "$450.00 above plan, across 3 of 4 slips" — a
+qualifier shown only where the two counts differ. Where **no** slip carries an
+expectation the position says "No projection to compare", the same words a card
+uses, rather than dressing nil coverage up as a shortfall.
+
+The three are counted **separately**, because a slip may carry one figure's
+expectation and not another's: a slip mapped to no projection has no gross to
+expect, while its withholding is still apportioned out of the member's estimated
+liability by calendar days.
+
+The figure above each position stays the **whole** year's actual over every slip
+entered — it is what feeds the tax engine's `paygWithheldCents` — so the figure and
+its position speak for different sets of slips exactly when the coverage note
+appears, which is what that note is for. Year-to-date super is the whole
+concessional total, employer super plus salary sacrifice, matching both the figure a
+card shows and the expectation it is measured against.
+
 No new config: payslips are data, not versioned parameters. The **`payslips`**
 Storage bucket is private, its objects keyed `<household_id>/<payslip_id>/<file>`
 so a `storage.objects` policy gates them on the same membership check.
@@ -411,8 +454,17 @@ tab**:
   untouched, so both are itemisation gaps rather than pay off plan. Editing and
   deleting sit outside the disclosure — correcting a slip is no reason to read it —
   and expansion is per card, held in component state, so every card is collapsed
-  again on the next visit. The member's year-to-date totals sit above the list,
-  outside any card.
+  again on the next visit.
+- **The member's year to date sits above the list**, outside any card: gross,
+  withheld, and super, each with its own position against the plan. Three positions
+  rather than one headline, because the three answer different questions — whether
+  the pay came through, whether the withholding tracks the liability, whether the
+  super is being paid — and a year on plan for gross but short on super is exactly
+  the case worth seeing. The grid reflows from two columns on a phone to three from
+  the `xs` breakpoint up, the way a card's quartet does; a figure with a variance and
+  a coverage note under it needs more than a third of a phone's width. How the
+  position is worked out, and what it does with a slip the plan cannot speak for, is
+  [above](#the-year-to-date-is-the-slips-own-expectations-summed).
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
   - *Expected gross for the period* = each inflow the slip's earnings lines draw
     on, annualised (via the existing `annualGrossCents` / schedule normalisation)

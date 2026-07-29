@@ -93,6 +93,13 @@ export type {
   SuperGuaranteeConfig,
 } from './payslip'
 
+export { payslipYearPositions } from './payslipYearPosition'
+export type {
+  PayslipPositionRow,
+  PayslipYearPosition,
+  PayslipYearPositions,
+} from './payslipYearPosition'
+
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number
 

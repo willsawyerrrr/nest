@@ -25,6 +25,17 @@ const onCall = makeInflow({
 })
 const estimate = estimateHouseholdTaxFromRows([inflow], [], [], [], [], config)
 
+/** What the member's estimated liability withholds over one whole fortnight. */
+const onPlanWithheld = Math.round(estimate.members[0]!.annualTaxCents / 26)
+
+/** The second fortnight of FY2027, so a year reads over more than one slip. */
+const secondFortnight = {
+  id: 'ps2',
+  period_start: '2026-07-15',
+  period_end: '2026-07-28',
+  paid_on: '2026-07-29',
+} as const
+
 /** Employer super exactly on the year's guarantee rate for `grossCents`. */
 function superOnRate(grossCents: number) {
   return Math.round(grossCents * config.super.guaranteeRate)
@@ -370,6 +381,91 @@ describe('PayslipsScreen', () => {
     expect(figureCell('YTD gross')).toHaveTextContent('$10,000.00')
     expect(figureCell('YTD withheld')).toHaveTextContent('$2,000.00')
     expect(figureCell('YTD super')).toHaveTextContent('$1,200.00')
+  })
+
+  it('reads a year of slips that all landed on plan as on plan', () => {
+    renderScreen({
+      payslips: [
+        makePayslip({ tax_withheld_cents: onPlanWithheld }),
+        makePayslip({ ...secondFortnight, tax_withheld_cents: onPlanWithheld }),
+      ],
+      lines: [makePayslipLine(), makePayslipLine({ id: 'pl2', payslip_id: 'ps2' })],
+    })
+
+    expect(figureCell('YTD gross')).toHaveTextContent('On plan')
+    expect(figureCell('YTD withheld')).toHaveTextContent('On plan')
+    expect(figureCell('YTD super')).toHaveTextContent('On plan')
+    expect(screen.queryByText(/across \d+ of \d+ slips/i)).not.toBeInTheDocument()
+  })
+
+  it('nets a fortnight above plan against one below, agreeing with the cards', () => {
+    renderScreen({
+      // Both withhold what the plan expects, so each card leads with its gross.
+      payslips: [
+        makePayslip({ gross_cents: 5_500_00, tax_withheld_cents: onPlanWithheld }),
+        makePayslip({
+          ...secondFortnight,
+          gross_cents: 4_800_00,
+          tax_withheld_cents: onPlanWithheld,
+        }),
+      ],
+      lines: [
+        makePayslipLine({ amount_cents: 5_500_00 }),
+        makePayslipLine({ id: 'pl2', payslip_id: 'ps2', amount_cents: 4_800_00 }),
+      ],
+    })
+
+    // The cards read $500 over then $200 under; the year is their sum, not the
+    // $700 of movement between them.
+    const [first, second] = screen.getAllByRole('button', { expanded: false })
+    expect(first).toHaveTextContent('$500.00 above plan')
+    expect(second).toHaveTextContent('$200.00 below plan')
+    expect(figureCell('YTD gross')).toHaveTextContent('$10,300.00')
+    expect(figureCell('YTD gross')).toHaveTextContent('$300.00 above plan')
+  })
+
+  it('counts salary sacrifice in the year’s super, as a card does', () => {
+    renderScreen({
+      payslips: [makePayslip({ super_cents: 500_00, salary_sacrifice_cents: 100_00 })],
+    })
+    expect(figureCell('YTD super')).toHaveTextContent('$600.00')
+    expect(figureCell('YTD super')).toHaveTextContent('On plan')
+  })
+
+  it('leaves a slip with no projection out of the year rather than counting it as a surplus', () => {
+    renderScreen({
+      payslips: [
+        makePayslip(),
+        // A $9,000 bonus slip drawing on no projection at all.
+        makePayslip({ ...secondFortnight, gross_cents: 9_000_00 }),
+      ],
+      lines: [
+        makePayslipLine(),
+        makePayslipLine({ id: 'pl2', payslip_id: 'ps2', source_inflow_id: null }),
+      ],
+    })
+
+    // The figure is the whole year's gross, and the position beneath it covers the
+    // one slip the plan has anything to say about — the bonus is not $9,000 of surplus.
+    expect(figureCell('YTD gross')).toHaveTextContent('$14,000.00')
+    expect(figureCell('YTD gross')).toHaveTextContent('On plan')
+    expect(figureCell('YTD gross')).not.toHaveTextContent('$9,000.00 above plan')
+    expect(figureCell('YTD gross')).toHaveTextContent('Across 1 of 2 slips')
+    // Withholding is apportioned for a slip mapped to nothing, so it covers both.
+    expect(figureCell('YTD withheld')).not.toHaveTextContent(/across/i)
+  })
+
+  it('says there is no projection to compare for a year whose slips name none', () => {
+    renderScreen({ lines: [makePayslipLine({ source_inflow_id: null })] })
+
+    expect(figureCell('YTD gross')).toHaveTextContent('No projection to compare')
+    // Saying it covers none of the slips would dress that up as a shortfall.
+    expect(figureCell('YTD gross')).not.toHaveTextContent(/across/i)
+  })
+
+  it('shows no year-to-date figures for a member with no slips', () => {
+    renderScreen({ payslips: [] })
+    expect(screen.queryByText('YTD gross')).not.toBeInTheDocument()
   })
 
   it('flags a slip’s reported year to date running ahead of the slips entered', () => {

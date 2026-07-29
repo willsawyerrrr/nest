@@ -7,9 +7,11 @@
  * integer cents, dates as ISO — keeps the text alongside so the form can show
  * what was read, and names the fields that came back empty or unreadable. The
  * slip's own itemisation comes back the same way: each printed earnings line and
- * each printed tax line, label and amount as printed, the totals staying the
- * scalar fields they already are. Everything here is pure: nothing calls an API or
- * a database, and nothing writes a payslip.
+ * each printed tax line, label and amounts as printed, the totals staying the
+ * scalar fields they already are. A slip's tables print a column per pay period
+ * beside a year-to-date column, so a line carries both amounts as printed and this
+ * module decides which rows belong to this pay. Everything here is pure: nothing
+ * calls an API or a database, and nothing writes a payslip.
  */
 
 import { isPlaceholder, parseCents, parseIsoDate } from './money.ts'
@@ -50,10 +52,25 @@ export type TaxComponent = typeof TAX_COMPONENTS[number]
 /** A key of the response's `fields`: a date column or a `_cents` amount column. */
 export type ExtractedField = DateField | `${MoneyField}_cents`
 
-/** One line as the model reports it: the label and amount printed on the slip. */
+/**
+ * One line as the model reports it: the label printed on the slip, and each of the
+ * two amounts the row may print against it.
+ *
+ * The two columns are reported separately rather than as one `amount`, because a
+ * payslip's earnings and tax tables print this period beside the year to date and
+ * the same row often carries a figure in each. Asking for each column by name is
+ * what stops a year-to-date figure being carried across as this pay's, and it keeps
+ * the exclusion below auditable: a row belonging to earlier pays comes back with
+ * `period_amount` null and its `ytd_amount` printed, which is the model saying it
+ * read the row and found nothing in this period's column — not the model silently
+ * omitting a row.
+ */
 export interface RawPayslipLine {
   label: string
-  amount: string | null
+  /** The row's amount for this pay period; null when that column holds nothing. */
+  period_amount: string | null
+  /** The row's year-to-date amount, when the row prints one. */
+  ytd_amount: string | null
 }
 
 /** A tax line, which also names which part of the liability it pays. */
@@ -67,9 +84,13 @@ export type RawPayslipFields = {
   is_payslip: boolean
   /** Why it is not a payslip, when `is_payslip` is false. */
   not_payslip_reason: string | null
-  /** The earnings section line by line, empty when the slip itemises none. */
+  /**
+   * The earnings section as reported, row by row and empty when the slip itemises
+   * none — every printed row, including one carrying a year-to-date figure alone,
+   * which the shaping then leaves out of this pay.
+   */
   earnings_lines: RawPayslipLine[]
-  /** The tax section line by line, empty when the slip itemises none. */
+  /** The tax section as reported, row by row, on the same terms. */
   tax_lines: RawPayslipTaxLine[]
 } & Record<DateField | MoneyField, string | null>
 
@@ -84,8 +105,13 @@ export type RawPayslipFields = {
  */
 export interface ExtractedLine {
   label: string
-  /** The amount as printed, so the form can show what was read for the line. */
-  amount: string | null
+  /**
+   * This period's amount exactly as printed, so the form can show what was read
+   * for the line. Never the row's year-to-date figure, which is money from earlier
+   * pays; a row printing nothing in this period's column is no line of this pay at
+   * all, so every line here has one.
+   */
+  amount: string
   /** The printed amount in integer cents; null when it could not be converted. */
   amount_cents: number | null
 }
@@ -102,9 +128,11 @@ export interface PayslipExtraction {
   /** The literal text read for each field, so the form can show what was seen. */
   text: Record<DateField | MoneyField, string | null>
   /**
-   * The slip's own itemisation, in the order it prints it. The section totals are
-   * `fields` — a TOTAL row is never a line — so summing the lines and reading the
-   * total never counts the same money twice.
+   * The slip's own itemisation for **this pay**, in the order it prints it. The
+   * section totals are `fields` — a TOTAL row is never a line — so summing the
+   * lines and reading the total never counts the same money twice, and a row the
+   * slip prints only in its year-to-date column is no line here either, being
+   * money earlier pays already accounted for.
    */
   lines: {
     earnings: ExtractedLine[]
@@ -139,7 +167,12 @@ function readComponent(raw: unknown): TaxComponent | null {
 /** A line with no label is nothing the form could show, so it is dropped. */
 function readLine(item: Record<string, unknown>): RawPayslipLine | null {
   const label = readText(item.label)
-  return label === null ? null : { label, amount: readText(item.amount) }
+  if (label === null) return null
+  return {
+    label,
+    period_amount: readText(item.period_amount),
+    ytd_amount: readText(item.ytd_amount),
+  }
 }
 
 /** A tax line reads as an earnings line does, plus the component it pays. */
@@ -186,9 +219,40 @@ export function readRawFields(input: unknown): RawPayslipFields | null {
   return fields
 }
 
-/** Shapes one reported line, converting its printed amount here rather than in the model. */
-function toLine(line: RawPayslipLine): ExtractedLine {
-  return { label: line.label, amount: line.amount, amount_cents: parseCents(line.amount) }
+/** A line of this pay: one the slip prints an amount for in the period column. */
+type LineOfThisPay<L extends RawPayslipLine> = L & { period_amount: string }
+
+/**
+ * The lines belonging to this pay, in printed order.
+ *
+ * A row printing an amount only in the year-to-date column is money earlier pays
+ * already carried, so it is dropped **quietly**: it is not a gap the member has to
+ * fill, and reported as a line of this pay it would inflate the itemised earnings,
+ * the per-inflow gross variance, the unallocated remainder, and the base expected
+ * super is charged on. A row whose printed period amount cannot be converted is the
+ * opposite case and is kept — see {@linkcode toLine}.
+ *
+ * The comparison is never between the two columns. On the first pay of a financial
+ * year they legitimately match, so a line reading equal in both is a genuine line
+ * of this pay, and an equality test would throw away every line of that slip.
+ */
+function linesOfThisPay<L extends RawPayslipLine>(lines: L[]): LineOfThisPay<L>[] {
+  return lines.filter((line): line is LineOfThisPay<L> => line.period_amount !== null)
+}
+
+/**
+ * Shapes one line of this pay, converting its printed period amount here rather
+ * than in the model. Text that could not be converted leaves `amount_cents` null
+ * with the label and printed text intact, exactly as an unreadable total keeps its
+ * text: the member reads the figure back off the slip and fills it in, which a
+ * dropped row would give them no way to do.
+ */
+function toLine(line: LineOfThisPay<RawPayslipLine>): ExtractedLine {
+  return {
+    label: line.label,
+    amount: line.period_amount,
+    amount_cents: parseCents(line.period_amount),
+  }
 }
 
 /** Shapes the model's reported text into the response payload. */
@@ -217,8 +281,11 @@ export function toExtraction(raw: RawPayslipFields): PayslipExtraction {
   }
 
   const lines = {
-    earnings: raw.earnings_lines.map(toLine),
-    tax: raw.tax_lines.map((line) => ({ ...toLine(line), component: line.component })),
+    earnings: linesOfThisPay(raw.earnings_lines).map(toLine),
+    tax: linesOfThisPay(raw.tax_lines).map((line) => ({
+      ...toLine(line),
+      component: line.component,
+    })),
   }
 
   return { fields, text, lines, missing, unreadable }

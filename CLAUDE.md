@@ -155,6 +155,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   rather than confirmed blind. It reads the slip's ITEMISATION the same way: each
   printed earnings line and each printed tax line, label and amount as printed, a
   section TOTAL row never among them because each total is a scalar figure already.
+  Those tables print a column per period beside a year-to-date column, so a row's two
+  amounts are reported SEPARATELY and only the period one becomes a line: a row
+  printed year to date alone is money earlier pays carried and is left out quietly of
+  earnings and tax alike, since itemised into this pay it would inflate the per-inflow
+  gross variance, the unallocated remainder, the OTE base for expected super, and the
+  per-component tax variance. The two columns are never compared — on the first pay of
+  a financial year they legitimately match — and a period amount that is printed but
+  unconvertible stays the gap it is rather than being dropped.
   A tax line's component comes from the model, the slip stating it plainly, and a
   line whose words do not say comes back unnamed rather than quietly `payg` — that
   line fills in with its component unset and the save waits until the member says

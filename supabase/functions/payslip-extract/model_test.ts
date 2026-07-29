@@ -153,13 +153,18 @@ Deno.test('the real slip comes back itemised, each line as printed', async () =>
       super: '600.00',
       net: '3,645.50',
       earnings_lines: [
-        { label: 'Ordinary Hours', amount: '$4,000.00' },
-        { label: 'Annual Leave', amount: '$1,000.00' },
-        { label: 'On-call (T1)', amount: '$495.50' },
+        { label: 'Ordinary Hours', period_amount: '$4,000.00', ytd_amount: '$12,000.00' },
+        { label: 'Annual Leave', period_amount: '$1,000.00', ytd_amount: '$1,000.00' },
+        { label: 'On-call (T1)', period_amount: '$495.50', ytd_amount: '$1,486.50' },
       ],
       tax_lines: [
-        { label: 'PAYG', amount: '$1,416.00', component: 'payg' },
-        { label: 'STSL Component', amount: '$434.00', component: 'stsl' },
+        { label: 'PAYG', period_amount: '$1,416.00', ytd_amount: '$4,248.00', component: 'payg' },
+        {
+          label: 'STSL Component',
+          period_amount: '$434.00',
+          ytd_amount: '$1,302.00',
+          component: 'stsl',
+        },
       ],
     })
   )
@@ -196,12 +201,85 @@ Deno.test('the real slip comes back itemised, each line as printed', async () =>
   assertStringIncludes(system, 'Never derive a figure by adding')
 })
 
+Deno.test('a row the slip prints year to date alone is no line of this pay', async () => {
+  // The same slip with a fourth earnings row — money paid in earlier periods,
+  // printed in the year-to-date column only, its period column empty.
+  const { requests, fetchImpl } = stub(() =>
+    toolResponse({
+      ...FIELDS,
+      gross: '5,495.50',
+      tax_withheld: '1,850.00',
+      net: '3,645.50',
+      earnings_lines: [
+        { label: 'Ordinary Hours', period_amount: '$4,000.00', ytd_amount: '$12,000.00' },
+        { label: 'Annual Leave', period_amount: '$1,000.00', ytd_amount: '$1,000.00' },
+        { label: 'On-call (T1)', period_amount: '$495.50', ytd_amount: '$1,486.50' },
+        { label: 'Other Previous Earnings', period_amount: null, ytd_amount: '$1,000.00' },
+      ],
+      tax_lines: [
+        { label: 'PAYG', period_amount: '$1,416.00', ytd_amount: '$4,248.00', component: 'payg' },
+        // Withheld this year but not this period: no component of this pay's tax.
+        { label: 'STSL Component', period_amount: null, ytd_amount: '$434.00', component: 'stsl' },
+      ],
+    })
+  )
+  const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1, 2, 3]),
+  })
+
+  const extraction = result.ok ? toExtraction(result.fields) : null
+  assertEquals(extraction?.lines.earnings.map((line) => line.label), [
+    'Ordinary Hours',
+    'Annual Leave',
+    'On-call (T1)',
+  ])
+  assertEquals(extraction?.lines.tax.map((line) => line.label), ['PAYG'])
+  // The itemisation accounts for this pay's gross exactly, which the year-to-date
+  // row coming through as a fourth line would overstate by 100_000.
+  assertEquals(
+    extraction?.lines.earnings.reduce((sum, line) => sum + (line.amount_cents ?? 0), 0),
+    549_550,
+  )
+  assertEquals(extraction?.fields.gross_cents, 549_550)
+  // Not a gap either: the row is not part of this pay, so there is nothing to fill.
+  assertEquals(extraction?.unreadable, [])
+
+  // What steers the model to the period column and keeps the year-to-date figure
+  // out of it: the system prompt and the two per-column descriptions.
+  const system = String(requests[0].system)
+  assertStringIncludes(system, 'never carry a year-to-date figure across into')
+  assertStringIncludes(system, 'its period amount is null')
+  // Equal columns are legitimate on the first pay of a year, so they are asked for.
+  assertStringIncludes(system, 'first pay of a financial year')
+
+  const items = (requests[0].tools as {
+    input_schema: {
+      properties: Record<
+        string,
+        { anyOf?: { items?: { properties: Record<string, { description: string }> } }[] }
+      >
+    }
+  }[])[0].input_schema.properties.earnings_lines.anyOf?.[0].items?.properties
+  assertStringIncludes(items?.period_amount.description ?? '', 'CURRENT PAY PERIOD')
+  assertStringIncludes(
+    items?.period_amount.description ?? '',
+    'printed only in the year-to-date column is money paid in earlier periods',
+  )
+  assertStringIncludes(items?.ytd_amount.description ?? '', 'YEAR-TO-DATE')
+})
+
 Deno.test('a tax line the model could not place comes back unnamed, never PAYG', async () => {
   const { fetchImpl } = stub(() =>
     toolResponse({
       ...FIELDS,
       tax_withheld: '1,048.00',
-      tax_lines: [{ label: 'Tax deducted', amount: '$1,048.00', component: null }],
+      tax_lines: [{
+        label: 'Tax deducted',
+        period_amount: '$1,048.00',
+        ytd_amount: '$3,144.00',
+        component: null,
+      }],
     })
   )
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
@@ -240,7 +318,9 @@ Deno.test('the tool schema asks for the printed lines and forbids the TOTAL rows
   }
 
   const items = schema.properties.tax_lines.anyOf?.[0].items
-  assertEquals(items?.required, ['label', 'amount', 'component'])
+  // Both columns are answered for on every row: a row printing an amount only year
+  // to date has somewhere to put it other than this period's figure.
+  assertEquals(items?.required, ['label', 'period_amount', 'ytd_amount', 'component'])
   // Only the two parts of the liability, and null for a line the slip does not place.
   assertEquals((items?.properties.component as { anyOf: unknown[] }).anyOf, [
     { type: 'string', enum: ['payg', 'stsl'] },
@@ -250,7 +330,7 @@ Deno.test('the tool schema asks for the printed lines and forbids the TOTAL rows
   // inflows are not on the slip, so attribution is the client's own job.
   assertEquals(
     Object.keys(schema.properties.earnings_lines.anyOf?.[0].items?.properties ?? {}),
-    ['label', 'amount'],
+    ['label', 'period_amount', 'ytd_amount'],
   )
 })
 

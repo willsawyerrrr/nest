@@ -243,9 +243,13 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
 
 - **Supabase CLI** runs the full stack locally in Docker; SQL migrations are
   version-controlled; TypeScript types are generated from the schema.
-- Migrations auto-deploy to prod via the GitHub → Supabase integration on merge;
-  edge functions auto-deploy via `.github/workflows/deploy-functions.yml` on any
-  push to `main` touching `supabase/functions/**` or `supabase/config.toml`.
+- Migrations auto-deploy via `.github/workflows/deploy-migrations.yml` on any
+  push to `main` touching `supabase/migrations/**`; edge functions auto-deploy
+  via `.github/workflows/deploy-functions.yml` on any push to `main` touching
+  `supabase/functions/**` or `supabase/config.toml`. Both authenticate with the
+  `SUPABASE_ACCESS_TOKEN` secret and the lockfile-pinned CLI — see
+  [`operations.md`](operations.md#deployment).
+
 ## CI
 
 Parallel GitHub Actions jobs (`.github/workflows/ci.yml`), each on its own runner

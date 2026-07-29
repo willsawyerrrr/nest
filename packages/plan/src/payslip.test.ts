@@ -330,6 +330,7 @@ describe('payslipVariance on cadence', () => {
   it('reports exactly zero variance for a fortnightly payslip matching the projection', () => {
     expect(payslipVariance(payslip(), expectation())).toEqual({
       basis: 'cadence',
+      partCycleReason: null,
       cadenceInflowId: 'salary',
       periodDays: 14,
       cadencePeriodDays: 14,
@@ -344,6 +345,7 @@ describe('payslipVariance on cadence', () => {
           expectedCents: CADENCE_GROSS,
           varianceCents: 0,
           basis: 'cadence',
+          partCycleReason: null,
         },
       ],
       unallocatedCents: 0,
@@ -392,6 +394,7 @@ describe('payslipVariance on cadence', () => {
     expect(payslipVariance(july, expectation({ inflowsById: inflowsById(MONTHLY) }))).toMatchObject(
       {
         basis: 'cadence',
+        partCycleReason: null,
         periodDays: 31,
         expectedGrossCents: 10_000_00,
         grossVarianceCents: 0,
@@ -607,6 +610,7 @@ describe('payslipVariance off cadence', () => {
     )
     expect(variance.cadenceInflowId).toBe('salary')
     expect(variance.basis).toBe('calendar_days')
+    expect(variance.partCycleReason).toBeNull()
     expect(variance.cadencePeriodDays).toBeNull()
     // $36,400 × 7/365.
     expect(variance.expectedTaxWithheldCents).toBe(698_08)
@@ -626,6 +630,7 @@ describe('payslipVariance off cadence', () => {
     // tax, and the guarantee from the slip's own gross.
     expect(unmapped.cadenceInflowId).toBeNull()
     expect(unmapped.basis).toBe('calendar_days')
+    expect(unmapped.partCycleReason).toBeNull()
     expect(unmapped.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
     expect(unmapped.expectedSuperCents).toBe(CADENCE_SUPER)
 
@@ -664,6 +669,161 @@ describe('payslipVariance off cadence', () => {
     expect(variance.periodDays).toBe(0)
     expect(variance.expectedGrossCents).toBe(0)
     expect(variance.expectedTaxWithheldCents).toBe(0)
+  })
+})
+
+describe('payslipVariance part-cycle reasons', () => {
+  /** The fortnight a pay rise falls in: 11–24 July 2026, a whole turn of the cycle. */
+  const RISE_FORTNIGHT = period('2026-07-11', '2026-07-24')
+
+  /** The rate being left behind, effective to 22 July — 12 of the fortnight's 14 days. */
+  const OLD_RATE: ReconciledInflow = { ...SALARY, endsOn: '2026-07-22' }
+
+  /** The rate taking over from 23 July, at $5,200 a fortnight — the other 2 days. */
+  const NEW_RATE: ReconciledInflow = { ...SALARY, amountCents: 5_200_00, startsOn: '2026-07-23' }
+
+  /** $130,000 × 12/14 ÷ 26 — the old rate's share of the fortnight it ends in. */
+  const OLD_RATE_SHARE = 4_285_71
+
+  /** $135,200 × 2/14 ÷ 26 — the new rate's share of the fortnight it starts in. */
+  const NEW_RATE_SHARE = 742_86
+
+  /** The pay rise as the household models it: the old rate ending, a new one starting. */
+  function riseExpectation(newRate: ReconciledInflow = NEW_RATE): PayslipExpectation {
+    return expectation({
+      inflowsById: new Map([
+        ['salary', OLD_RATE],
+        ['salary-risen', newRate],
+      ]),
+    })
+  }
+
+  /** The fortnight's slip, itemised as one line per rate it was paid at. */
+  function riseSlip(oldCents: Money, newCents: Money): PayslipActuals {
+    return payslip({
+      ...RISE_FORTNIGHT,
+      grossCents: oldCents + newCents,
+      lines: [
+        salaryLine(oldCents),
+        {
+          kind: 'earning',
+          sourceInflowId: 'salary-risen',
+          label: 'Ordinary Hours (new rate)',
+          amountCents: newCents,
+        },
+      ],
+    })
+  }
+
+  it('names the period where it is not one whole turn of the cycle', () => {
+    const variance = payslipVariance(payslip({ periodEnd: '2026-07-13' }), expectation())
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.partCycleReason).toBe('part_period')
+    expect(variance.lineGroups[0]?.partCycleReason).toBe('part_period')
+  })
+
+  it('names the inflow’s dates where a whole period’s inflow starts partway through', () => {
+    const variance = payslipVariance(
+      payslip({ grossCents: 2_500_00 }),
+      expectation({ inflowsById: inflowsById({ ...SALARY, startsOn: '2026-07-08' }) }),
+    )
+    expect(variance.periodDays).toBe(14)
+    expect(variance.cadencePeriodDays).toBe(14)
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.partCycleReason).toBe('inflow_dates')
+    expect(variance.lineGroups[0]?.partCycleReason).toBe('inflow_dates')
+  })
+
+  it('names the inflow’s dates where a whole period’s inflow ends partway through', () => {
+    const variance = payslipVariance(
+      payslip({ grossCents: 2_500_00 }),
+      expectation({ inflowsById: inflowsById({ ...SALARY, endsOn: '2026-07-07' }) }),
+    )
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.partCycleReason).toBe('inflow_dates')
+    expect(variance.lineGroups[0]?.partCycleReason).toBe('inflow_dates')
+  })
+
+  it('names the inflow’s dates for both sides of a pay rise mid-fortnight', () => {
+    // The household's real shape: a $130,000 wage ending 22 July and a $135,200 one
+    // starting 23 July, over the whole fortnight 11–24 July. Neither rate covers all
+    // 14 days, so neither group is on cadence — but the fortnight itself is a whole
+    // turn, and it is the rate that changed rather than the period being short.
+    const variance = payslipVariance(riseSlip(OLD_RATE_SHARE, NEW_RATE_SHARE), riseExpectation())
+    expect(variance.periodDays).toBe(14)
+    expect(variance.cadencePeriodDays).toBe(14)
+    expect(variance.lineGroups.map((group) => group.partCycleReason)).toEqual([
+      'inflow_dates',
+      'inflow_dates',
+    ])
+    // The slip's own basis is read from the largest group — the old rate, which paid
+    // 12 of the 14 days — and reports the same reason.
+    expect(variance.cadenceInflowId).toBe('salary')
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.partCycleReason).toBe('inflow_dates')
+
+    // Nothing is approximated. 12/14 of $5,000 plus 2/14 of $5,200 is the fortnight
+    // at the blended rate, which is exactly what the slip paid, and the withholding
+    // expectation is a whole fortnight's rather than a share of one.
+    expect(variance.lineGroups.map((group) => group.expectedCents)).toEqual([
+      OLD_RATE_SHARE,
+      NEW_RATE_SHARE,
+    ])
+    expect(variance.expectedGrossCents).toBe(5_028_57)
+    expect(variance.grossVarianceCents).toBe(0)
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
+  })
+
+  it('has the two shares of an unchanged rate sum to one whole period’s pay', () => {
+    // Same $130,000 either side of the split, so the two shares have to come to the
+    // fortnight's whole $5,000 — a variance against either is real pay off plan
+    // rather than the split losing anything.
+    const groups = payslipVariance(
+      riseSlip(OLD_RATE_SHARE, 71_429),
+      riseExpectation({ ...SALARY, startsOn: '2026-07-23' }),
+    ).lineGroups
+    expect(groups.map((group) => group.expectedCents)).toEqual([OLD_RATE_SHARE, 71_429])
+    expect((groups[0]?.expectedCents ?? 0) + (groups[1]?.expectedCents ?? 0)).toBe(CADENCE_GROSS)
+  })
+
+  it('keeps the period’s own reason where a part period’s inflow is dated too', () => {
+    // A week of a fortnightly cycle, and the rate changes inside even that. The
+    // figures are a fraction of a period's pay however the days were clipped, which
+    // is the period's fault and reads as such.
+    const variance = payslipVariance(
+      payslip({ periodEnd: '2026-07-07', grossCents: 1_250_00 }),
+      expectation({ inflowsById: inflowsById({ ...SALARY, startsOn: '2026-07-04' }) }),
+    )
+    expect(variance.basis).toBe('part_cycle')
+    expect(variance.partCycleReason).toBe('part_period')
+  })
+
+  it('reports no reason for a slip on the cadence of the cycle that paid it', () => {
+    const variance = payslipVariance(payslip(), expectation())
+    expect(variance.basis).toBe('cadence')
+    expect(variance.partCycleReason).toBeNull()
+    expect(variance.lineGroups[0]?.partCycleReason).toBeNull()
+  })
+
+  it('reports no reason where there is no pay cycle to be part of', () => {
+    const noInterval = payslipVariance(
+      payslip({ periodEnd: '2026-07-07' }),
+      expectation({ inflowsById: inflowsById(NO_INTERVAL) }),
+    )
+    expect(noInterval.basis).toBe('calendar_days')
+    expect(noInterval.partCycleReason).toBeNull()
+    expect(noInterval.lineGroups[0]?.partCycleReason).toBeNull()
+
+    const unmapped = payslipVariance(
+      payslip({
+        periodEnd: '2026-07-07',
+        lines: [{ kind: 'earning', sourceInflowId: null, label: 'Bonus', amountCents: 2_500_00 }],
+      }),
+      expectation(),
+    )
+    expect(unmapped.basis).toBe('calendar_days')
+    expect(unmapped.partCycleReason).toBeNull()
+    expect(unmapped.lineGroups[0]?.partCycleReason).toBeNull()
   })
 })
 
@@ -902,6 +1062,7 @@ describe('payslipVariance with earnings lines', () => {
         expectedCents: 5_000_00,
         varianceCents: 0,
         basis: 'cadence',
+        partCycleReason: null,
       },
       {
         sourceInflowId: 'on-call',
@@ -910,6 +1071,7 @@ describe('payslipVariance with earnings lines', () => {
         expectedCents: 450_00,
         varianceCents: 45_50,
         basis: 'cadence',
+        partCycleReason: null,
       },
     ])
   })
@@ -1001,6 +1163,7 @@ describe('payslipVariance with earnings lines', () => {
       expectedCents: null,
       varianceCents: null,
       basis: 'calendar_days',
+      partCycleReason: null,
     })
     // The bonus is real earnings the plan never projected, so it reads as gross
     // above plan rather than vanishing from the comparison.

@@ -342,6 +342,7 @@ describe('payslipVarianceFor', () => {
         expectedCents: 5_000_00,
         varianceCents: 0,
         basis: 'cadence',
+        partCycleReason: null,
       },
       {
         sourceInflowId: 'i2',
@@ -350,6 +351,7 @@ describe('payslipVarianceFor', () => {
         expectedCents: 450_00,
         varianceCents: 45_50,
         basis: 'cadence',
+        partCycleReason: null,
       },
     ])
     expect(variance.unallocatedCents).toBe(0)

@@ -113,7 +113,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   for a week-based cadence, the real calendar length of the months a turn runs
   through from the period's first day for a month-based one). A whole period
   therefore yields the per-period amount exactly on either basis, so there is no jump
-  at the boundary and no proration remainder to excuse. A slip's
+  at the boundary and no proration remainder to excuse. A figure lands on that part
+  basis two materially different ways and the card SAYS WHICH: either the period is
+  not one whole turn of the cycle (a first or last slip, an off-cycle or back-pay
+  one), so its figures really are a fraction of a period's pay; or the period IS a
+  whole turn and it is the dated inflow behind it that covers only part of it — a pay
+  rise modelled as the old rate ending and a new one starting — where each share is
+  exact, the shares sum to a whole period at the blended rate, and a variance against
+  one is real pay off plan rather than proration noise. A slip's
   own YTD figures rank by payment date too, so the anchor slip is whichever pay
   landed last, while the LIST stays ordered by pay period — every slip has one,
   `paid_on` is optional. The figures are

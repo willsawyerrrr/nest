@@ -18,16 +18,21 @@
  * the unit it is really paid in. A pay period that is one whole turn of the pay
  * cycle the slip's lines are drawn on — the ordinary case — divides the annual
  * figure by the cadence's periods per year, the way an employer pays it, so a slip
- * that matches the projection shows nil variance. A part turn of that cycle — a
- * part period, a first or last slip in a job, an off-cycle or back-pay slip —
- * takes the same per-period amount and scales it by the days being measured over
- * the days one whole turn spans: a fortnightly wage is paid 26 times a year, not
- * the 26.07 a calendar-day share of the year implies, so a whole turn yields the
- * per-period amount exactly whichever way it is reached and half a turn yields
- * half of it. Only a slip with no pay cycle to read at all — nothing on it names a
- * projection, or the cadence it names states no interval — apportions by inclusive
- * calendar days in the period over inclusive calendar days in the financial year,
- * there being no period unit to scale.
+ * that matches the projection shows nil variance. A part turn of that cycle takes
+ * the same per-period amount and scales it by the days being measured over the days
+ * one whole turn spans: a fortnightly wage is paid 26 times a year, not the 26.07 a
+ * calendar-day share of the year implies, so a whole turn yields the per-period
+ * amount exactly whichever way it is reached and half a turn yields half of it.
+ * Only a slip with no pay cycle to read at all — nothing on it names a projection,
+ * or the cadence it names states no interval — apportions by inclusive calendar
+ * days in the period over inclusive calendar days in the financial year, there
+ * being no period unit to scale.
+ *
+ * That middle basis is reached two materially different ways, told apart by
+ * {@link PartCycleReason}: the pay period is not a whole turn of the cycle, or it
+ * is one and the dated inflow behind it covers only part of it. The arithmetic is
+ * the same either way; what differs is what a reader should make of the figure,
+ * since the second is an exact share whose siblings sum back to a whole period.
  *
  * Which financial year a slip belongs to is the year its pay landed in, not the
  * year the work fell in — see {@link payslipAttributionDate}. The year reaches
@@ -51,6 +56,7 @@ import {
   MIN_DAYS_PER_MONTH,
   periodDayCount,
   prorateAnnualAcrossUnit,
+  type CadenceSpan,
   type PayPeriod,
   type ProrationUnit,
 } from './payPeriod'
@@ -246,6 +252,27 @@ export interface PayslipExpectation {
 export type ExpectationBasis = 'cadence' | 'part_cycle' | 'calendar_days'
 
 /**
+ * Which of the two things put an expectation on the `part_cycle` basis, so that a
+ * reader is told which one they are looking at. Null on either other basis.
+ *
+ * - `part_period` — the pay period itself is not one whole turn of the cycle: a
+ *   first or last slip in a job, an off-cycle or back-pay slip, or a cadence whose
+ *   turn the period does not fit. The figures are genuinely a fraction of a
+ *   period's pay.
+ * - `inflow_dates` — the period IS one whole turn, and it is the inflow that runs
+ *   for only part of it, its effective dates clipping the days measured. A pay rise
+ *   modelled the documented way — the old rate ending, a new dated one starting —
+ *   puts both of a fortnight's groups here. Nothing is approximated: each share is
+ *   exact and the shares over the period sum to one whole period at the blended
+ *   rate, so a variance against one of them is real rather than proration noise.
+ *
+ * A period that is neither a whole turn nor fully covered reads as `part_period`:
+ * the period's own length is the more fundamental fact, and it is the one that makes
+ * the figure a fraction of a period rather than a whole one.
+ */
+export type PartCycleReason = 'part_period' | 'inflow_dates'
+
+/**
  * One inflow's share of an itemised payslip: the lines drawing on it summed and
  * measured against that inflow's projection for the period. `sourceInflowId` is
  * null for the lines mapped to no inflow, which — like a line naming an inflow
@@ -262,6 +289,8 @@ export interface PayslipLineGroupVariance {
   readonly varianceCents: Money | null
   /** Which basis `expectedCents` was computed on; `calendar_days` with no inflow. */
   readonly basis: ExpectationBasis
+  /** Which of the two things put the group on `part_cycle`; null on either other basis. */
+  readonly partCycleReason: PartCycleReason | null
 }
 
 /**
@@ -294,6 +323,13 @@ export interface PayslipVariance {
    * group reports its own basis, since a group's inflow may run on another cadence.
    */
   readonly basis: ExpectationBasis
+  /**
+   * Which of the two things put those expectations on `part_cycle`, read from the
+   * same cycle and the same inflow's effective dates as `basis`; null on either
+   * other basis. A group whose own inflow is dated differently reports its own
+   * reason, so this speaks only for the slip's own figures.
+   */
+  readonly partCycleReason: PartCycleReason | null
   /**
    * The inflow whose pay cycle `basis` was read from — the slip's largest
    * earnings group — or null when no earnings line resolves to a projection,
@@ -420,21 +456,12 @@ function activeDaysInPeriod(inflow: ReconciledInflow, period: PayPeriod): number
 }
 
 /**
- * Whether a pay period is one whole turn of the inflow's cadence, and so
- * measurable against the annual figure divided by periods per year rather than
- * scaled to part of a turn. It is when the period's day count is the cadence's
- * nominal length — exactly seven days a week for a week-based cadence, and 28 to 31
- * days a month for a month-based one, since a calendar month varies — and the
- * inflow is effective for every day of it. A period the inflow's effective dates
- * clip is a part period however well its length fits, as is one on a cadence with
- * no usable interval.
+ * Whether a day count is the nominal length of one turn of `span`: exactly seven
+ * days a week for a week-based cadence, and 28 to 31 days a month for a month-based
+ * one, since a calendar month varies. This is the period's own length alone — what
+ * the inflow behind it is effective for is a separate question.
  */
-export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): boolean {
-  const span = cadenceSpan(inflow.schedule, inflow.interval)
-  const days = periodDayCount(period)
-  if (span === null || activeDaysInPeriod(inflow, period) !== days) {
-    return false
-  }
+function spansWholeCadenceTurn(span: CadenceSpan, days: number): boolean {
   if (span.unit === 'weeks') {
     return days === Math.round(DAYS_PER_WEEK * span.count)
   }
@@ -443,22 +470,50 @@ export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): 
 }
 
 /**
- * Which basis an expectation drawn from `inflow` rests on for `period`: the
- * `cadence` for one whole turn of its pay cycle, `part_cycle` for part of one, and
- * `calendar_days` only where there is no cycle to scale against — no inflow at all,
- * or one whose cadence states no usable interval.
+ * Whether a pay period is one whole turn of the inflow's cadence, and so
+ * measurable against the annual figure divided by periods per year rather than
+ * scaled to part of a turn. It is when the period's day count is the cadence's
+ * nominal length and the inflow is effective for every day of it. A period the
+ * inflow's effective dates clip is a part period however well its length fits, as
+ * is one on a cadence with no usable interval.
  */
-function expectationBasis(
-  inflow: ReconciledInflow | undefined,
-  period: PayPeriod,
-): ExpectationBasis {
-  if (inflow === undefined) {
-    return 'calendar_days'
+export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): boolean {
+  const span = cadenceSpan(inflow.schedule, inflow.interval)
+  const days = periodDayCount(period)
+  return (
+    span !== null &&
+    activeDaysInPeriod(inflow, period) === days &&
+    spansWholeCadenceTurn(span, days)
+  )
+}
+
+/** Which basis an expectation rests on, and — on `part_cycle` — which case it is. */
+interface BasisReading {
+  readonly basis: ExpectationBasis
+  readonly partCycleReason: PartCycleReason | null
+}
+
+/**
+ * Which basis an expectation drawn from `inflow` rests on for `period`: the
+ * `cadence` for one whole turn of its pay cycle, `part_cycle` for part of one — with
+ * the reason it is part of one, since a short period and a dated inflow read very
+ * differently to whoever is looking at the variance — and `calendar_days` only where
+ * there is no cycle to scale against, no inflow at all or one whose cadence states
+ * no usable interval.
+ */
+function readBasis(inflow: ReconciledInflow | undefined, period: PayPeriod): BasisReading {
+  const span = inflow === undefined ? null : cadenceSpan(inflow.schedule, inflow.interval)
+  if (inflow === undefined || span === null) {
+    return { basis: 'calendar_days', partCycleReason: null }
   }
-  if (isPeriodOnCadence(inflow, period)) {
-    return 'cadence'
+  const days = periodDayCount(period)
+  if (!spansWholeCadenceTurn(span, days)) {
+    return { basis: 'part_cycle', partCycleReason: 'part_period' }
   }
-  return payCycleUnit(inflow, period) === null ? 'calendar_days' : 'part_cycle'
+  if (activeDaysInPeriod(inflow, period) !== days) {
+    return { basis: 'part_cycle', partCycleReason: 'inflow_dates' }
+  }
+  return { basis: 'cadence', partCycleReason: null }
 }
 
 /**
@@ -560,7 +615,7 @@ function lineGroupVariances(
       actualCents: group.actualCents,
       expectedCents,
       varianceCents: expectedCents === null ? null : group.actualCents - expectedCents,
-      basis: expectationBasis(inflow, period),
+      ...readBasis(inflow, period),
     }
   })
 }
@@ -645,7 +700,9 @@ function taxGroupVariances(
  * period is one whole turn of the cycle the slip's lines are drawn on — see
  * {@link cadenceInflowFor} — a part of that cycle's turn when it is not, and
  * calendar days of the financial year only when no line resolves to a projection
- * and there is no cycle to read at all.
+ * and there is no cycle to read at all. On that middle basis `partCycleReason` says
+ * which case it is: a period that is not a whole turn, or a whole turn the cadence
+ * inflow's own effective dates cover only part of.
  *
  * Expected gross comes from the slip's earnings lines: each inflow's lines are
  * summed and held against that inflow's projection for the period, and those group
@@ -726,7 +783,7 @@ export function payslipVariance(
   const expectedSuperCents = expectedSuperGuaranteeCents + expectedConcessionalCents
   const actualSuperCents = payslip.superCents + (payslip.salarySacrificeCents ?? 0)
   return {
-    basis: expectationBasis(cadence?.inflow, payslip),
+    ...readBasis(cadence?.inflow, payslip),
     cadenceInflowId: cadence === null ? null : cadence.sourceInflowId,
     periodDays,
     cadencePeriodDays: cadenceUnit === null ? null : cadenceUnit.unitDays,

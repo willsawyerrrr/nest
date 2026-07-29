@@ -55,6 +55,11 @@ function lineGroupRow(labels: string) {
   return screen.getByText(labels).closest('div')!.parentElement as HTMLElement
 }
 
+/** A card's note on expectations that are a share of a pay period, if it carries one. */
+function partCycleNote() {
+  return screen.queryByText(/turn of the pay cycle/i)
+}
+
 /** One of a payslip card's figure cells, found by its label. */
 function figureCell(label: string) {
   return screen.getByText(label).parentElement as HTMLElement
@@ -223,14 +228,70 @@ describe('PayslipsScreen', () => {
     renderScreen()
     await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('On plan')
-    expect(screen.queryByText(/share of a whole pay period/i)).not.toBeInTheDocument()
+    expect(partCycleNote()).not.toBeInTheDocument()
   })
 
   it('says when a part period’s expectations are a share of a whole pay period', async () => {
     const user = userEvent.setup()
     renderScreen({ payslips: [makePayslip({ period_end: '2026-07-07' })] })
     await expandCards(user)
+    expect(screen.getByText(/only part of a turn of the pay cycle/i)).toBeVisible()
     expect(screen.getByText(/share of a whole pay period/i)).toBeVisible()
+  })
+
+  it('says when a whole period’s expectations are split by a rate that changed', async () => {
+    const user = userEvent.setup()
+    // A whole fortnight, but the inflow behind it only starts on the eighth day, so
+    // its expectations are exact shares rather than a fraction of a period's pay.
+    renderScreen({ inflows: [makeInflow({ ...inflow, starts_on: '2026-07-08' })] })
+    await expandCards(user)
+    const note = screen.getByText(/whole turn of the pay cycle/i)
+    expect(note).toBeVisible()
+    expect(note).toHaveTextContent(/changed partway through/i)
+    expect(note).toHaveTextContent(/usually a pay rise/i)
+    expect(note).toHaveTextContent(/shares add up to a whole pay period/i)
+    expect(screen.queryByText(/only part of a turn of the pay cycle/i)).not.toBeInTheDocument()
+  })
+
+  it('says a fortnight spanning a pay rise is whole, not a part period', async () => {
+    const user = userEvent.setup()
+    // The household's real shape: the old rate ending 22 July, a new one from 23
+    // July, over the whole fortnight 11–24 July. Both groups are shares of the
+    // period, and neither is the period being short.
+    renderScreen({
+      payslips: [
+        makePayslip({
+          period_start: '2026-07-11',
+          period_end: '2026-07-24',
+          paid_on: null,
+          gross_cents: 5_028_57,
+        }),
+      ],
+      inflows: [
+        makeInflow({ ...inflow, ends_on: '2026-07-22' }),
+        makeInflow({
+          id: 'i3',
+          name: 'Day job (risen)',
+          amount_cents: 5_200_00,
+          starts_on: '2026-07-23',
+        }),
+      ],
+      lines: [
+        makePayslipLine({ amount_cents: 4_285_71 }),
+        makePayslipLine({
+          id: 'pl2',
+          source_inflow_id: 'i3',
+          label: 'Ordinary Hours (new rate)',
+          amount_cents: 742_86,
+        }),
+      ],
+    })
+    await expandCards(user)
+    expect(screen.getByText(/whole turn of the pay cycle/i)).toBeVisible()
+    expect(screen.queryByText(/only part of a turn of the pay cycle/i)).not.toBeInTheDocument()
+    // 12/14 of $5,000 plus 2/14 of $5,200 is the fortnight at the blended rate, so
+    // the gross the two shares come to is exactly what the slip paid.
+    expect(figureCell('Gross')).toHaveTextContent('On plan')
   })
 
   it('measures each tax line against the component of the liability it pays', async () => {
@@ -297,8 +358,8 @@ describe('PayslipsScreen', () => {
     await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
     // With no pay cycle to read there is no pay period a share could be of, so the
-    // part-period note says nothing rather than stating the obvious.
-    expect(screen.queryByText(/share of a whole pay period/i)).not.toBeInTheDocument()
+    // note says nothing rather than stating the obvious.
+    expect(partCycleNote()).not.toBeInTheDocument()
   })
 
   it('sums the member’s year-to-date actuals and counts the slips', () => {

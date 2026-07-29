@@ -73,6 +73,7 @@ export {
 } from './payslip'
 export type {
   ExpectationBasis,
+  PartCycleReason,
   PayslipActuals,
   PayslipAttribution,
   PayslipEarningLine,

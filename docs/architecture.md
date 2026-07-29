@@ -249,12 +249,15 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   `supabase/functions/**` or `supabase/config.toml`. Both authenticate with the
   `SUPABASE_ACCESS_TOKEN` secret and the lockfile-pinned CLI — see
   [`operations.md`](operations.md#deployment).
-- `.github/workflows/check-migration-drift.yml` closes the loop on the migration
-  deploy: on a six-hourly schedule (and on `workflow_dispatch`) it fails if prod
-  has not applied every migration in `supabase/migrations/`, whether or not a
-  push ever triggered a deploy for them. The deploy workflow runs the same check
-  as a post-push assertion — see
-  [`operations.md`](operations.md#deployment).
+- `.github/workflows/check-migration-drift.yml` and
+  `.github/workflows/check-function-drift.yml` close the loop on the two deploys:
+  on a six-hourly schedule (and on `workflow_dispatch`) they fail if prod has not
+  applied every migration in `supabase/migrations/`, and if any function in
+  `supabase/functions/` is missing from prod, not serving, or older than the
+  sources its bundle carries — whether or not a push ever triggered a deploy for
+  them. Each deploy workflow runs its own check as a post-push assertion, and the
+  function deploy retries a bundle step that failed because Docker could not
+  start a container — see [`operations.md`](operations.md#deployment).
 
 ## CI
 
@@ -277,7 +280,10 @@ the workflow token is scoped `contents: read`:
   thresholds evaluate over the merged coverage of the whole suite; a shard sets
   `VITEST_SKIP_COVERAGE_THRESHOLDS` so its partial coverage does not fail the
   check. The `test` job `needs` the shards, so the required-check name stays green
-  only when all six pass.
+  only when all six pass. Alongside the packages and the app, the repo scripts
+  carry their own Vitest project (`scripts/vitest.config.js`) so the drift checks'
+  comparison logic is exercised against fixtures; it sits outside the coverage
+  thresholds, which measure the money-critical packages and the app.
 - **rls** — Postgres service; applies the auth shim, every migration in order,
   then the `supabase/tests/rls/` isolation assertions. The shim
   (`setup_auth.sql`) stands in for the Supabase-only primitives the policies read
@@ -296,7 +302,10 @@ request can prove: the directory's versions are unique. The other half — prod
 having applied them — needs a credential and a network round trip, so it lives in
 `check-migration-drift.yml` on a schedule rather than in `ci.yml`, outside the
 sub-minute budget and off the required-check path. It is nonetheless quick
-(checkout, pnpm install, `link`, one query).
+(checkout, pnpm install, `link`, one query). The function contract splits the same
+way: `functions` proves the sources are well formed, and
+`check-function-drift.yml` — a credentialed read of the project — proves prod is
+running them.
 
 Each pnpm job (`check`, `test-shard`, `test`) sets up the toolchain the same way:
 `actions/setup-node` installs Node, then `corepack enable` /

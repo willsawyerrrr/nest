@@ -21,7 +21,11 @@ jobs:
     env:
       COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
+      # Full history, so the post-deploy check can date any function it finds
+      # behind by when its sources last changed on `main`.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -52,6 +56,50 @@ jobs:
       # `supabase/config.toml` here is the one that reads it locally. A CLI
       # resolved outside the lockfile can be older than the config's keys, and
       # rejects the whole file before deploying anything.
-      - run: pnpm exec supabase functions deploy --project-ref dgfeittjtxjtgbretdkj
+      #
+      # The CLI bundles each function inside a container, so a Docker daemon that
+      # cannot start one takes the whole deploy down before anything ships. That
+      # reads as `failed to bundle function: exit 125` — 125 to 127 are Docker's
+      # own codes for never having run the bundler (the container failed to
+      # create, or its command was not executable, or not found), so they say
+      # nothing about the sources and are worth another attempt. The CLI exits 1
+      # either way, which is why the retry matches on the message and not the
+      # process status.
+      #
+      # Any other failure is the CLI's verdict on the repo — a bundler that ran
+      # and rejected the source exits 1 and reports `exit 1` — so it fails on the
+      # first attempt. Retrying a real error would only burn three attempts and
+      # bury the diagnosis two screens up. Every attempt's output stays on the
+      # log; the copy is only there to be matched against.
+      - name: Deploy every function
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/deploy-functions.log"
+          attempts=3
+          for attempt in $(seq 1 $attempts); do
+            if pnpm exec supabase functions deploy --project-ref dgfeittjtxjtgbretdkj 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            if ! grep -qE 'failed to bundle function: exit 12[5-7]' "$log"; then
+              echo "::error::The function deploy failed for a reason a retry cannot fix."
+              exit 1
+            fi
+            if [ "$attempt" -eq "$attempts" ]; then
+              echo "::error::Bundling could not start a container on $attempts attempts."
+              exit 1
+            fi
+            echo "Bundling could not start a container (attempt $attempt); retrying in $((attempt * 15))s"
+            sleep $((attempt * 15))
+          done
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # A deploy that returns is not evidence that every function reached the
+      # project: the step above can ship some functions and fail on a later one,
+      # and a run that never fired at all leaves the whole push behind. Assert it.
+      # No grace window here: the deploy has just returned, so anything still
+      # behind is behind for good — a grace window would forgive precisely the
+      # function this catches.
+      - name: Assert every function deployed
+        run: pnpm check:function-drift --project-ref=dgfeittjtxjtgbretdkj
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

@@ -109,6 +109,70 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
     which touch the paths the push trigger watches. Its `deploy-functions`
     concurrency group serialises manual and push runs, queueing rather than
     cancelling.
+  - The CLI bundles each function inside a container, so a Docker daemon that
+    cannot start one fails the whole deploy before anything ships, reporting
+    `failed to bundle function: exit 125`. The deploy step retries up to three
+    times with a 15s and then 30s backoff. It matches on that message rather than
+    the process status, because the CLI exits 1 whatever went wrong: 125 to 127
+    are Docker's codes for never having run the bundler, whereas a bundler that
+    ran and rejected the source reports `exit 1`. Anything but those three codes
+    therefore fails on the first attempt, so a real code error is diagnosed at
+    once rather than buried under two more attempts. Every attempt's output stays
+    on the log.
+  - The last step of the deploy re-reads the project's functions and fails the run
+    if any function in `supabase/functions/` is missing, not serving, or older
+    than its sources. A green deploy therefore means every function reached prod,
+    not merely that the CLI returned — the step can ship some functions and fail
+    on a later one.
+- **Function drift** is caught by `.github/workflows/check-function-drift.yml`,
+  which fails when prod's deployed functions do not match
+  `supabase/functions/`. Like the migration drift check it runs on two triggers:
+  - Every six hours (`cron: '47 */6 * * *'`, the same cadence as the migration
+    check and offset half an hour from it so the pair do not queue for a runner at
+    the same minute) plus `workflow_dispatch`. The schedule is what catches a
+    deploy no trigger ever fired for, one that failed unnoticed, or a function
+    deleted from the project by hand.
+  - As the deploy workflow's final step, which catches a partial deploy at the
+    moment it happens.
+  - Both invoke `pnpm check:function-drift`
+    (`scripts/check-function-drift.js`), which reads
+    `supabase functions list --output-format json` against
+    `--project-ref dgfeittjtxjtgbretdkj` — a structured document on the pinned
+    CLI, so status and `updated_at` come out of JSON fields rather than its human
+    table. Naming the project on the command line is what lets both callers skip
+    `link`, so `SUPABASE_ACCESS_TOKEN` is the only credential either holds.
+  - **A function missing from prod, one whose status is not `ACTIVE`, and one
+    whose deployed copy predates its sources each fail the run.** The failure
+    names each function, dates both sides, and points at
+    `gh workflow run "Deploy functions"`.
+  - **A function deployed to prod with no directory in `supabase/functions/`
+    warns.** It serves traffic nothing in the repo defines, which is worth
+    knowing, but its remedy deletes a live endpoint
+    (`supabase functions delete <slug>`) so nobody should be forced into it by a
+    red schedule; failing on it would train everyone to ignore the signal that
+    does have a safe fix.
+  - A function is dated by its **bundle inputs** — `index.ts` plus every file
+    reachable from it through a relative, non-type-only specifier, which pulls in
+    the `_shared/` modules it uses — not by its whole directory. `functions
+    deploy` uploads a content-addressed bundle and the platform keeps the version
+    it already holds when the bundle is byte-identical, leaving `updated_at`
+    where it was, so only a change the bundle can see is evidence of a missed
+    deploy. Every function directory also holds `*_test.ts` files nothing imports,
+    and `supabase/functions/` holds a `README.md` and a `deno.json` whose `tasks`
+    and `fmt` sections no bundle reads; dating a function by its directory would
+    report every test-only commit as drift forever, since no redeploy could clear
+    it. The set is deliberately narrower than the bundle rather than wider — a
+    file it omits costs a staleness it could have caught, a file it wrongly
+    includes costs a failure nothing can clear. `deno.json`'s `imports` map is one
+    such omission: a dependency bump alone changes bundles the check cannot date.
+  - The scheduled run passes `--grace-minutes=30`, so a function whose sources
+    changed on `main` within the last half hour is reported as an in-flight deploy
+    rather than as drift — the window covers a missing brand-new function as well
+    as an edited one that is behind. Dates come from
+    `git log -1 --format=%cI -- <bundle inputs>`, which is why both workflows
+    check out with `fetch-depth: 0`; a function with no commit behind it gets no
+    grace. The post-deploy step passes no grace window at all: the deploy has just
+    returned, so anything behind there is behind for good.
 - **Frontend** — Vercel deploys the PWA on merge to `main`; each PR gets a
   preview deployment (see [Hosting](#hosting)). Live prod may briefly trail
   `main` until the next merge triggers a deploy.

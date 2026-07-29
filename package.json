@@ -14,6 +14,7 @@
     "lint": "oxlint",
     "check:migrations": "node scripts/check-migration-versions.js",
     "check:migration-drift": "node scripts/check-migration-drift.js",
+    "check:function-drift": "node scripts/check-function-drift.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "supabase": "supabase",

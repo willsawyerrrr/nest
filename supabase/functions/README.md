@@ -97,6 +97,16 @@ All functions auto-deploy to prod on merge to `main`: the
 authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret; if that
 Supabase access token is rotated, update the secret or the deploy fails.
 
+Bundling happens in a container, so the deploy step retries a failure that reports
+`failed to bundle function: exit 125` — Docker could not start the bundler — while
+failing at once on anything the CLI says about the sources. Its last step then runs
+`pnpm check:function-drift`, which fails the run if any function here is missing
+from prod, not serving, or older than the sources its bundle carries;
+`.github/workflows/check-function-drift.yml` runs the same check every six hours.
+See [`../../docs/operations.md`](../../docs/operations.md#deployment) for what each
+side compares and why a function is dated by its bundle inputs rather than its
+directory.
+
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`, and
 `payslip-extract` are JWT-verified (the default, so they carry no `config.toml`

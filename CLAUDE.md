@@ -313,7 +313,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   Sources (Up Bank API + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
-  prod on merge via `.github/workflows/deploy-functions.yml`.
+  prod on merge via `.github/workflows/deploy-functions.yml`, whose deploy step
+  retries a bundle that fails because Docker could not start a container. Prod
+  running every function in the directory is asserted, not assumed:
+  `.github/workflows/check-function-drift.yml` compares the two every six hours,
+  and the deploy workflow re-runs the same check straight after its push (see
+  [`docs/operations.md`](docs/operations.md#deployment)).
 - Changelog: an in-app "What's new" tab reads recent user-facing changes from
   GitHub via the `changelog` edge function (a server-held `GITHUB_CHANGELOG_TOKEN`
   fine-grained PAT), showing open PR titles as in-progress and merged-commit

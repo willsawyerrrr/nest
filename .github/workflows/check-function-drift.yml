@@ -1,0 +1,70 @@
+name: Check function drift
+
+on:
+  # Every six hours, matching the migration drift check's cadence and reasoning,
+  # offset half an hour from it so the pair do not queue for a runner at the same
+  # minute. The deploy workflow already covers the path where a push touches
+  # `supabase/functions/**`; this catches the cases no trigger reaches — a deploy
+  # that failed unnoticed, one whose trigger never fired because the commit
+  # touched nothing under those paths, a function deleted from the project by
+  # hand. Six hours costs four runs a day against an hourly schedule's
+  # twenty-four, for a quarter-day worst case on a repo where prod trailing
+  # `main` is not an outage.
+  schedule:
+    - cron: '47 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-function-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    env:
+      COREPACK_HOME: ${{ github.workspace }}/.corepack
+    steps:
+      # Full history: the check dates each function by when its sources last
+      # changed on `main`, which a shallow clone cannot answer.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Cache corepack pnpm binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.COREPACK_HOME }}
+          key: corepack-${{ runner.os }}-pnpm-11.14.0
+      - name: Enable corepack (provides pnpm@11.14.0)
+        run: |
+          corepack enable
+          for attempt in 1 2 3; do
+            corepack prepare pnpm@11.14.0 --activate && break
+            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
+            sleep 5
+          done
+          pnpm --version
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      # `functions list --project-ref` names the project on the command line
+      # exactly as `functions deploy` does, so no `link` step is needed and the
+      # access token is the only credential. A function whose sources changed in
+      # the last half hour is not drift: its deploy is probably still queued or
+      # running. Anything older has had every chance to ship, and a genuine miss
+      # surfaces on the next tick regardless.
+      - name: Compare production against supabase/functions
+        run: pnpm check:function-drift --project-ref=dgfeittjtxjtgbretdkj --grace-minutes=30
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

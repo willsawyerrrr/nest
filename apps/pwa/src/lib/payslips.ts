@@ -17,7 +17,16 @@ import { financialYearForDate, type MemberTaxEstimate, type TaxYearConfig } from
 import type { Inflow } from '../hooks/useInflows'
 import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipRow } from '../hooks/usePayslips'
+import { formatIsoDate } from './dates'
 import { toIncomeInput } from './tax'
+
+/**
+ * A payslip's inclusive pay period as a short date range — the label a slip is
+ * named by wherever it is listed, headed, or confirmed for deletion.
+ */
+export function periodLabel(payslip: Pick<PayslipRow, 'period_start' | 'period_end'>): string {
+  return `${formatIsoDate(payslip.period_start)} – ${formatIsoDate(payslip.period_end)}`
+}
 
 /**
  * The AU financial year a payslip is filed under, labelled by its ending year:

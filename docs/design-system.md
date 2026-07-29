@@ -144,7 +144,10 @@ so the rule it enforces holds app-wide.
   `AppCard`. A row carrying several figures at once — a payslip's gross, withheld,
   super, and net, each with its own variance — stays an `AppCard` at every width
   and reflows its figure grid instead (`SimpleGrid cols={{ base: 2, xs: 4 }}`),
-  since a single dense line cannot hold them.
+  since a single dense line cannot hold them. A list long enough to scroll past —
+  a year of fortnightly payslips — puts that grid and everything under it inside
+  the card's own disclosure and settles at a summary row, so the list is scannable
+  and the detail is one tap away.
 - **Variance.** A variance is a signed money figure, so it renders through
   `MoneyText`/`moneyColor` like any other — above plan positive, below plan
   negative — with the direction spelled out in words beside it, never left to the
@@ -169,7 +172,11 @@ so the rule it enforces holds app-wide.
 - **Collapsing a section.** One idiom throughout: a full-width `UnstyledButton`
   header carrying `aria-expanded` + `aria-controls`, led by a chevron
   (`IconChevronDown` open, `IconChevronRight` closed), over a `Collapse` holding
-  the body.
+  the body. A card that collapses puts the whole idiom inside itself: the button
+  takes the header's remaining width beside the card's `EditDeleteActions`, which
+  stay outside the disclosure, and carries a summary — the row's identity plus its
+  headline figure — that gives way to the body's own fuller statement of it on
+  expanding. Expansion is component state: every card is collapsed on arrival.
 - **Navigation.** The nav groups its tabs under that idiom, each header a quiet
   dimmed uppercase label — one size below the items inset beneath it, tracked out
   and bold — so it stays legible beside them without competing. A header never

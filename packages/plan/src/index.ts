@@ -11,6 +11,7 @@ export {
   fortnightlyCents,
   FORTNIGHTS_PER_YEAR,
   MONTHS_PER_YEAR,
+  perPeriodCents,
   PERIODS_PER_YEAR,
   periodsPerYear,
   WEEKS_PER_YEAR,

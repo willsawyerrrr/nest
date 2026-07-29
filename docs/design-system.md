@@ -154,6 +154,16 @@ so the rule it enforces holds app-wide.
   tint alone. Where a sign could be misread as good or bad (more tax withheld than
   the estimate implies is a larger refund, not a problem), the screen says which
   way it reads.
+- **Derived figures in a form.** Where a form derives a figure the app will later
+  hold the household to — the per-payment amount an inflow's pay cadence implies,
+  which a payslip's period is measured against — it shows that figure back as a
+  dimmed `Text size="xs"` under the control that produced it, formatted through
+  `formatCents` like any other money. It reads as what will happen rather than as
+  what was typed, names what is stored where the two differ, and where rounding
+  moves real money it says how much and in which direction. Advice that something
+  is probably not what was meant is an `Alert color="warning" variant="light"
+  p="xs"` naming the control that fixes it — never a validation error, since the
+  unlikely case is still allowed.
 - **Badges.** Most use `variant="light"` `size="xs"`. A frequency label is neutral
   and high-contrast (`variant="default"`, giving standard border + surface +
   body-color text that reads clearly in both schemes); a badge that encodes a

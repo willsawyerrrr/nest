@@ -38,6 +38,8 @@ describe('InflowForm', () => {
         type: 'salary',
         schedule: 'fortnightly',
         interval_count: null,
+        pay_schedule: null,
+        pay_interval_count: null,
         amount_cents: 123456,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -55,7 +57,7 @@ describe('InflowForm', () => {
     await user.type(screen.getByLabelText(/name/i), 'Shifts')
     await selectOption(user, /type/i, 'Wage')
     await user.type(screen.getByLabelText(/hourly rate/i), '45')
-    await user.type(screen.getByLabelText(/hours per period/i), '38')
+    await user.type(screen.getByLabelText(/hours per fortnight/i), '38')
     await user.click(screen.getByRole('button', { name: /add inflow/i }))
 
     await waitFor(() =>
@@ -67,6 +69,8 @@ describe('InflowForm', () => {
         type: 'wage',
         schedule: 'fortnightly',
         interval_count: null,
+        pay_schedule: null,
+        pay_interval_count: null,
         amount_cents: null,
         hourly_rate_cents: 4500,
         hours_per_period: 38,
@@ -97,6 +101,8 @@ describe('InflowForm', () => {
         type: 'reimbursement',
         schedule: 'fortnightly',
         interval_count: null,
+        pay_schedule: null,
+        pay_interval_count: null,
         amount_cents: 8000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -223,13 +229,13 @@ describe('InflowForm', () => {
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
-    expect(screen.queryByLabelText(/weeks between payments/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/weeks in a period/i)).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText(/name/i), 'On-call')
     await user.type(screen.getByLabelText(/amount/i), '300')
     await selectOption(user, /frequency/i, 'Every N weeks')
 
-    const weeks = screen.getByLabelText(/weeks between payments/i)
+    const weeks = screen.getByLabelText(/weeks in a period/i)
     expect(weeks).toBeInTheDocument()
     // Without a valid interval the form cannot submit.
     expect(screen.getByRole('button', { name: /add inflow/i })).toBeDisabled()
@@ -246,6 +252,8 @@ describe('InflowForm', () => {
         type: 'salary',
         schedule: 'every_n_weeks',
         interval_count: 4,
+        pay_schedule: null,
+        pay_interval_count: null,
         amount_cents: 30000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -260,13 +268,13 @@ describe('InflowForm', () => {
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
-    expect(screen.queryByLabelText(/months between payments/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/months in a period/i)).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText(/name/i), 'Quarterly bonus')
     await user.type(screen.getByLabelText(/amount/i), '900')
     await selectOption(user, /frequency/i, 'Every N months')
 
-    const months = screen.getByLabelText(/months between payments/i)
+    const months = screen.getByLabelText(/months in a period/i)
     expect(months).toBeInTheDocument()
     // Without a valid interval the form cannot submit.
     expect(screen.getByRole('button', { name: /add inflow/i })).toBeDisabled()
@@ -283,6 +291,8 @@ describe('InflowForm', () => {
         type: 'salary',
         schedule: 'every_n_months',
         interval_count: 3,
+        pay_schedule: null,
+        pay_interval_count: null,
         amount_cents: 90000,
         hourly_rate_cents: null,
         hours_per_period: null,
@@ -369,6 +379,295 @@ describe('InflowForm', () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ member_id: 'm2' })),
+    )
+  })
+
+  it('keeps a yearly salary yearly and records the fortnightly cycle it lands on', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await selectOption(user, /frequency/i, 'Annually')
+    await user.type(screen.getByLabelText(/amount per year/i), '130000')
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+
+    expect(screen.getByText('That is $5,000.00 each fortnight.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    // The amount and its own frequency are stored exactly as stated — nothing is
+    // divided away — and the pay cycle is recorded beside them.
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: 'annual',
+          interval_count: null,
+          amount_cents: 13_000_000,
+          pay_schedule: 'fortnightly',
+          pay_interval_count: null,
+        }),
+      ),
+    )
+  })
+
+  it('reopens a yearly-amount fortnightly-paid inflow on both its frequencies', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const inflow = makeInflow({
+      schedule: 'annual',
+      amount_cents: 130_000_00,
+      pay_schedule: 'fortnightly',
+    })
+    render(<InflowForm members={members} initial={inflow} onSubmit={onSubmit} />)
+
+    expect(screen.getByRole('combobox', { name: /frequency/i })).toHaveValue('Annually')
+    expect(screen.getByRole('combobox', { name: /^paid$/i })).toHaveValue('Fortnightly')
+    expect(screen.getByLabelText(/amount per year/i)).toHaveValue('$130,000.00')
+    expect(screen.getByText('That is $5,000.00 each fortnight.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: 'annual',
+          amount_cents: 13_000_000,
+          pay_schedule: 'fortnightly',
+          pay_interval_count: null,
+        }),
+      ),
+    )
+  })
+
+  it('names the shortfall where a year of payments cannot reach the amount stated', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await selectOption(user, /frequency/i, 'Annually')
+    await user.type(screen.getByLabelText(/amount per year/i), '100000')
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+
+    expect(
+      screen.getByText(
+        'That is $3,846.15 each fortnight. A year of those payments comes to $99,999.90, $0.10 under the $100,000.00 stated, because each payment rounds to the nearest cent.',
+      ),
+    ).toBeInTheDocument()
+
+    // The rounding is in the derived per-payment figure alone: the row still holds the
+    // whole $100,000.00 the member stated.
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ schedule: 'annual', amount_cents: 10_000_000 }),
+      ),
+    )
+  })
+
+  it('names the overshoot where a year of monthly payments passes the amount stated', async () => {
+    const user = userEvent.setup()
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+
+    await selectOption(user, /frequency/i, 'Annually')
+    await user.type(screen.getByLabelText(/amount per year/i), '50000')
+    await selectOption(user, /^paid$/i, 'Monthly')
+
+    expect(
+      screen.getByText(
+        'That is $4,166.67 each month. A year of those payments comes to $50,000.04, $0.04 over the $50,000.00 stated, because each payment rounds to the nearest cent.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('gathers a weekly amount into the fortnight it is paid in', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await selectOption(user, /frequency/i, 'Weekly')
+    await user.type(screen.getByLabelText(/amount per week/i), '1000')
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+
+    expect(screen.getByText('That is $2,000.00 each fortnight.')).toBeInTheDocument()
+    expect(screen.queryByText(/rounds to the nearest cent/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: 'weekly',
+          amount_cents: 100_000,
+          pay_schedule: 'fortnightly',
+        }),
+      ),
+    )
+  })
+
+  it('takes an interval for an arbitrary pay cadence and waits for it before saving', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'On-call')
+    await selectOption(user, /frequency/i, 'Annually')
+    await user.type(screen.getByLabelText(/amount per year/i), '13000')
+    await selectOption(user, /^paid$/i, 'Every N weeks')
+
+    // Until the interval is given there is no pay cycle to divide by, and nothing to say.
+    expect(screen.queryByText(/That is/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add inflow/i })).toBeDisabled()
+
+    await user.type(screen.getByLabelText(/weeks between payments/i), '4')
+    expect(screen.getByText('That is $1,000.00 each payment.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: 'annual',
+          interval_count: null,
+          amount_cents: 1_300_000,
+          pay_schedule: 'every_n_weeks',
+          pay_interval_count: 4,
+        }),
+      ),
+    )
+  })
+
+  it('keeps the amount’s own every-N interval separate from the pay cadence’s', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'On-call')
+    await selectOption(user, /frequency/i, 'Every N weeks')
+    await user.type(screen.getByLabelText(/weeks in a period/i), '3')
+    await user.type(screen.getByLabelText(/amount per period/i), '300')
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+
+    // $300 every 3 weeks is $5,200 a year, which arrives as $200.00 a fortnight.
+    expect(screen.getByText('That is $200.00 each fortnight.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: 'every_n_weeks',
+          interval_count: 3,
+          amount_cents: 30_000,
+          pay_schedule: 'fortnightly',
+          pay_interval_count: null,
+        }),
+      ),
+    )
+  })
+
+  it('divides a wage’s rate and hours over the cycle the pay lands on', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Shifts')
+    await selectOption(user, /type/i, 'Wage')
+    await selectOption(user, /frequency/i, 'Weekly')
+    await user.type(screen.getByLabelText(/hourly rate/i), '45')
+    await user.type(screen.getByLabelText(/hours per week/i), '38')
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+
+    // $45 × 38 hours a week = $1,710 a week, arriving as $3,420.00 a fortnight.
+    expect(screen.getByText('That is $3,420.00 each fortnight.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'wage',
+          schedule: 'weekly',
+          hourly_rate_cents: 4500,
+          hours_per_period: 38,
+          amount_cents: null,
+          pay_schedule: 'fortnightly',
+        }),
+      ),
+    )
+  })
+
+  it('says nothing when the money arrives on the very period the amount covers', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await user.type(screen.getByLabelText(/amount per fortnight/i), '5000')
+    expect(screen.getByRole('combobox', { name: /^paid$/i })).toHaveValue('Same as above')
+    expect(screen.queryByText(/That is/)).not.toBeInTheDocument()
+
+    // Saying it explicitly is the same fact, so there is still nothing to derive.
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+    expect(screen.queryByText(/That is/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ schedule: 'fortnightly', pay_schedule: 'fortnightly' }),
+      ),
+    )
+  })
+
+  it('advises when a salary’s money arrives once a year, without blocking the save', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await selectOption(user, /frequency/i, 'Annually')
+    await user.type(screen.getByLabelText(/amount per year/i), '130000')
+    expect(screen.getByText(/says the money arrives once a year/)).toBeInTheDocument()
+
+    // Naming the cycle it lands on is exactly what the advice asks for, so it goes away.
+    await selectOption(user, /^paid$/i, 'Fortnightly')
+    expect(screen.queryByText(/says the money arrives once a year/)).not.toBeInTheDocument()
+
+    // Someone genuinely paid once a year exists, so the advice never blocks the save.
+    await selectOption(user, /^paid$/i, 'Same as above')
+    const button = screen.getByRole('button', { name: /add inflow/i })
+    expect(button).toBeEnabled()
+    await user.click(button)
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ schedule: 'annual', pay_schedule: null }),
+      ),
+    )
+  })
+
+  it('leaves the once-a-year advice off a type plausibly paid that way', async () => {
+    const user = userEvent.setup()
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+
+    await selectOption(user, /frequency/i, 'Annually')
+    await selectOption(user, /type/i, 'Other')
+    expect(screen.queryByText(/arrives once a year/)).not.toBeInTheDocument()
+  })
+
+  it('leaves the pay cadence off a non-taxable inflow, which no payslip measures', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await selectOption(user, /^paid$/i, 'Monthly')
+    await user.click(screen.getByText('Non-taxable inflow'))
+    expect(screen.queryByRole('combobox', { name: /^paid$/i })).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/name/i), 'Rebate')
+    await user.type(screen.getByLabelText(/amount/i), '50')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ taxable: false, pay_schedule: null, pay_interval_count: null }),
+      ),
     )
   })
 

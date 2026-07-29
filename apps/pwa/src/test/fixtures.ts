@@ -41,6 +41,8 @@ export function makeInflow(overrides: Partial<Inflow> = {}): Inflow {
     type: 'salary',
     schedule: 'fortnightly',
     interval_count: null,
+    pay_schedule: null,
+    pay_interval_count: null,
     amount_cents: 500000,
     hourly_rate_cents: null,
     hours_per_period: null,

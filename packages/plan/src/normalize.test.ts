@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annualCents, fortnightlyCents, periodsPerYear } from './index'
+import { annualCents, fortnightlyCents, periodsPerYear, perPeriodCents } from './index'
 
 describe('annualCents', () => {
   it('annualises an amount across every frequency', () => {
@@ -35,6 +35,47 @@ describe('periodsPerYear', () => {
     expect(periodsPerYear('every_n_weeks', 0)).toBe(0)
     expect(periodsPerYear('every_n_months')).toBe(0)
     expect(periodsPerYear('every_n_months', 1.5)).toBe(0)
+  })
+})
+
+describe('perPeriodCents', () => {
+  it('draws a per-period figure from an annual total on every fixed frequency', () => {
+    expect(perPeriodCents(52_000_00, 'weekly')).toBe(1_000_00)
+    expect(perPeriodCents(26_000_00, 'fortnightly')).toBe(1_000_00)
+    expect(perPeriodCents(12_000_00, 'monthly')).toBe(1_000_00)
+    expect(perPeriodCents(4_000_00, 'quarterly')).toBe(1_000_00)
+    expect(perPeriodCents(2_000_00, 'biannual')).toBe(1_000_00)
+    expect(perPeriodCents(1_000_00, 'annual')).toBe(1_000_00)
+  })
+
+  it('rounds the per-period figure to whole cents, leaving the annual it came from alone', () => {
+    // $100,000/yr over 26 fortnights = 384_615.38 → 384_615, which adds back up to
+    // 9_999_990 — ten cents short of the annual it was drawn from.
+    expect(perPeriodCents(100_000_00, 'fortnightly')).toBe(3_846_15)
+    expect(annualCents(perPeriodCents(100_000_00, 'fortnightly'), 'fortnightly')).toBe(99_999_90)
+    // $50,000/yr over 12 months = 416_666.67 → 416_667, four cents over.
+    expect(perPeriodCents(50_000_00, 'monthly')).toBe(4_166_67)
+    expect(annualCents(perPeriodCents(50_000_00, 'monthly'), 'monthly')).toBe(50_000_04)
+  })
+
+  it('divides an annual total over an arbitrary cadence’s periods', () => {
+    expect(perPeriodCents(13_000_00, 'every_n_weeks', 4)).toBe(1_000_00)
+    expect(perPeriodCents(4_000_00, 'every_n_months', 3)).toBe(1_000_00)
+    // 52/3 periods: round(300_00 × 3 / 52) = round(1_730.77) = 1_731.
+    expect(perPeriodCents(300_00, 'every_n_weeks', 3)).toBe(17_31)
+  })
+
+  it('defensively yields zero when an arbitrary cadence’s interval is missing or invalid', () => {
+    expect(perPeriodCents(13_000_00, 'every_n_weeks')).toBe(0)
+    expect(perPeriodCents(13_000_00, 'every_n_weeks', 0)).toBe(0)
+    expect(perPeriodCents(13_000_00, 'every_n_months', 1.5)).toBe(0)
+  })
+
+  it('round-trips a stored per-period figure through its annual total unchanged', () => {
+    for (const cents of [5_000_00, 3_846_15, 1_23]) {
+      expect(perPeriodCents(annualCents(cents, 'fortnightly'), 'fortnightly')).toBe(cents)
+      expect(perPeriodCents(annualCents(cents, 'every_n_weeks', 3), 'every_n_weeks', 3)).toBe(cents)
+    }
   })
 })
 

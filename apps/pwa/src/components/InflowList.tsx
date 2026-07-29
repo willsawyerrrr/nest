@@ -40,6 +40,23 @@ function fortnightlyOf(inflow: Inflow): number {
 }
 
 /**
+ * How often the money arrives, where that is not the period the amount is expressed
+ * over — "Paid fortnightly" beside an amount stated per year — and null where the two
+ * are the same and the frequency badge already says it. The badge names the amount's
+ * period, which is what the figure beside it covers, so the pay cycle needs saying
+ * separately or a yearly salary paid fortnightly reads as arriving once a year.
+ */
+function payCadenceLabel(inflow: Inflow): string | null {
+  if (
+    inflow.pay_schedule === null ||
+    (inflow.pay_schedule === inflow.schedule && inflow.pay_interval_count === inflow.interval_count)
+  ) {
+    return null
+  }
+  return `Paid ${formatFrequency(inflow.pay_schedule, inflow.pay_interval_count).toLowerCase()}`
+}
+
+/**
  * A dimmed caption describing an inflow's effective window (e.g.
  * "1 Jul 2026 – 14 Sep 2026", "from 15 Sep 2026", "until 30 Jun 2027"), or null
  * when it applies all year. This is a per-inflow annotation only; the FY-prorated
@@ -56,6 +73,19 @@ function effectiveDatesCaption(inflow: Inflow): string | null {
     return `until ${formatIsoDate(inflow.ends_on)}`
   }
   return null
+}
+
+/**
+ * The dimmed second line an inflow carries: how often its money arrives where the
+ * frequency badge does not already say it, then its effective window. Undefined when
+ * neither applies, which is the ordinary case. Both are qualifications of the figures
+ * above rather than figures themselves, so they share one quiet line.
+ */
+function inflowCaption(inflow: Inflow): string | undefined {
+  const parts = [payCadenceLabel(inflow), effectiveDatesCaption(inflow)].filter(
+    (part): part is string => part !== null,
+  )
+  return parts.length === 0 ? undefined : parts.join(' · ')
 }
 
 /**
@@ -106,7 +136,7 @@ function InflowRow({
       data-testid="inflow-row"
       gap="sm"
       dimmed={ended}
-      caption={ended ? undefined : (effectiveDatesCaption(inflow) ?? undefined)}
+      caption={ended ? undefined : inflowCaption(inflow)}
     >
       <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
         <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
@@ -189,9 +219,9 @@ function InflowCard({
               {formatFrequency(inflow.schedule, inflow.interval_count)}
             </Badge>
           </Group>
-          {!ended && effectiveDatesCaption(inflow) && (
+          {!ended && inflowCaption(inflow) && (
             <Text size="xs" c="dimmed">
-              {effectiveDatesCaption(inflow)}
+              {inflowCaption(inflow)}
             </Text>
           )}
         </Stack>

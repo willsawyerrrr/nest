@@ -32,6 +32,8 @@ const baseInflow: Inflow = {
   type: 'salary',
   schedule: 'every_n_weeks',
   interval_count: 4,
+  pay_schedule: null,
+  pay_interval_count: null,
   amount_cents: 300_00,
   hourly_rate_cents: null,
   hours_per_period: null,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { expectedPeriodGrossCents } from '@nest/plan'
 import { FY2027_CONFIG } from '@nest/tax'
 import { makeInflow, makePayslip, makePayslipLine, makePayslipTaxLine } from '../test/fixtures'
 import {
@@ -181,6 +182,37 @@ describe('toReconciledInflow', () => {
   it('carries the row’s super treatment onto the projection', () => {
     expect(toReconciledInflow(ON_CALL).attractsSuper).toBe(false)
     expect(toReconciledInflow(inflow).attractsSuper).toBe(true)
+  })
+
+  it('carries the cadence the money arrives on, apart from the amount’s own frequency', () => {
+    const yearlyPaidFortnightly = toReconciledInflow(
+      makeInflow({ schedule: 'annual', amount_cents: 130_000_00, pay_schedule: 'fortnightly' }),
+    )
+    expect(yearlyPaidFortnightly.schedule).toBe('annual')
+    expect(yearlyPaidFortnightly.paySchedule).toBe('fortnightly')
+    expect(yearlyPaidFortnightly.payInterval).toBeUndefined()
+    // A 14-day period is one whole turn of the cycle the money lands on, so the slip is
+    // measured against $130,000 ÷ 26 rather than its calendar-day share of the year.
+    expect(
+      expectedPeriodGrossCents(
+        yearlyPaidFortnightly,
+        { periodStart: '2026-07-01', periodEnd: '2026-07-14' },
+        2027,
+      ),
+    ).toBe(5_000_00)
+  })
+
+  it('carries an arbitrary pay cadence’s interval', () => {
+    const everyFourWeeks = toReconciledInflow(
+      makeInflow({ pay_schedule: 'every_n_weeks', pay_interval_count: 4 }),
+    )
+    expect(everyFourWeeks.paySchedule).toBe('every_n_weeks')
+    expect(everyFourWeeks.payInterval).toBe(4)
+  })
+
+  it('leaves the pay cadence off a row arriving on the amount’s own frequency', () => {
+    expect(toReconciledInflow(inflow).paySchedule).toBeUndefined()
+    expect(toReconciledInflow(inflow).payInterval).toBeUndefined()
   })
 })
 

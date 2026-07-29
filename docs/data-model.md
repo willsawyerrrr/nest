@@ -61,7 +61,8 @@ and so without the trigger.
   - `id`, `household_id`, `member_id` (nullable), `name`,
     `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
     `taxable` (default true), `attracts_super` (default true), `schedule`,
-    `interval_count` (nullable), `amount_cents` (nullable),
+    `interval_count` (nullable), `pay_schedule` (nullable),
+    `pay_interval_count` (nullable), `amount_cents` (nullable),
     `hourly_rate_cents` (nullable), `hours_per_period` (nullable), `starts_on`
     (date, nullable), `ends_on` (date, nullable), `created_at`, `updated_at`.
   - `starts_on` / `ends_on` bound when the rate applies; both null means the
@@ -89,9 +90,36 @@ and so without the trigger.
     for every fixed schedule. Periods-per-year and fortnightly/annual
     normalisation are canonical in
     [`budget-and-savings.md`](budget-and-savings.md#schedules--normalization).
+  - **How the amount is expressed and how often it arrives are separate facts.**
+    `schedule` is the period `amount_cents` (or `hours_per_period`) covers — the
+    frequency the amount is **expressed** in, and the only one annualising reads.
+    A salary defined as an annual number is `annual` here however often it is
+    paid, held losslessly as the figure the household was quoted.
+    `pay_schedule` (with `pay_interval_count`) is the cadence the money
+    **arrives** on; null means it arrives on the frequency the amount is
+    expressed in, which is every row's default and needs no backfill. So a
+    $130,000 salary paid fortnightly is `schedule = 'annual'`,
+    `amount_cents = 13_000_000`, `pay_schedule = 'fortnightly'`.
+    `pay_interval_count` keeps lockstep with `pay_schedule` exactly as
+    `interval_count` does with `schedule` — a CHECK (`inflows_pay_interval_count`)
+    requires it present and ≥ 1 for the two interpolated cadences and null
+    otherwise, including when `pay_schedule` itself is null.
+  - The pay cadence sets **one** thing: the pay cycle a payslip's period is
+    measured against — how long one whole turn runs, how many turns a year holds,
+    and so whether a period is a whole turn or part of one (see
+    [`payslips.md`](payslips.md#how-an-expected-figure-is-scaled)). Everything
+    that annualises an amount keeps reading `schedule`, the pay cadence changing
+    nothing about it: the FY tax estimate, the effective-date proration of that
+    annual figure, the budget's fortnightly/annual normalisation, and the pay
+    splits drawn from it. A per-payment figure is **derived, never stored** —
+    annual ÷ the pay cadence's periods per year, rounded to the nearest cent — so
+    a year of payments may sit a few cents either side of the annual figure, which
+    the inflow form names when it does.
   - Amount shape by `type`: `wage` carries `hourly_rate_cents` ×
     `hours_per_period` (and null `amount_cents`); every other type carries a
-    flat `amount_cents` per period.
+    flat `amount_cents` per period. Either shape may carry a pay cadence: 38
+    hours a week at $45 paid fortnightly is `schedule = 'weekly'`,
+    `hours_per_period = 38`, `pay_schedule = 'fortnightly'`.
 
 ## Tax inputs
 

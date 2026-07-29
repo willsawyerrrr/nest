@@ -19,6 +19,8 @@ const input: InflowInput = {
   type: 'salary',
   schedule: 'fortnightly',
   interval_count: null,
+  pay_schedule: null,
+  pay_interval_count: null,
   amount_cents: 5_000_00,
   hourly_rate_cents: null,
   hours_per_period: null,

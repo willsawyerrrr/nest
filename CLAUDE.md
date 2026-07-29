@@ -320,6 +320,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   — code, schema, migrations, docs, CI, config — and owns the full git and PR
   lifecycle autonomously: branching, committing, pushing, and opening, updating,
   and merging pull requests, all without per-turn confirmation.
+- A defect or gap found along the way gets fixed, not raised as a question. Never
+  ask whether something worth fixing should be fixed, and never park it as an
+  optional follow-up for someone to approve: open its own branch and PR for it and
+  say what was done. Report findings — the reasoning behind a decision, a
+  trade-off taken, something deliberately left alone and why — but report them as
+  work already in hand, not as a menu. Ask only where the answer is genuinely the
+  household's to give and no default is defensible: what the app should do, which
+  of several valid behaviours is wanted, or an outward-facing act with
+  consequences beyond the repo.
 - Merge PRs via GitHub auto-merge (`gh pr merge --auto`), not by polling for CI to
   go green. Enable it once the PR is open; GitHub merges the moment the required
   checks pass.

@@ -57,6 +57,17 @@ function payCadenceLabel(inflow: Inflow): string | null {
 }
 
 /**
+ * That the money lands in only some pay periods, where it does — on-call pay riding
+ * the fortnightly payrun for the fortnights a shift was worked. Null in the ordinary
+ * case. Worth saying beside the figures because the fortnightly one is a whole year's
+ * worth spread over the year, which is what the plan projects, rather than what any
+ * one fortnight brings.
+ */
+function occasionalLabel(inflow: Inflow): string | null {
+  return inflow.arrives_every_pay_period ? null : 'Only some pay periods'
+}
+
+/**
  * A dimmed caption describing an inflow's effective window (e.g.
  * "1 Jul 2026 – 14 Sep 2026", "from 15 Sep 2026", "until 30 Jun 2027"), or null
  * when it applies all year. This is a per-inflow annotation only; the FY-prorated
@@ -77,14 +88,17 @@ function effectiveDatesCaption(inflow: Inflow): string | null {
 
 /**
  * The dimmed second line an inflow carries: how often its money arrives where the
- * frequency badge does not already say it, then its effective window. Undefined when
- * neither applies, which is the ordinary case. Both are qualifications of the figures
- * above rather than figures themselves, so they share one quiet line.
+ * frequency badge does not already say it, whether it arrives every such period, then
+ * its effective window. Undefined when none applies, which is the ordinary case. All
+ * are qualifications of the figures above rather than figures themselves, so they
+ * share one quiet line.
  */
 function inflowCaption(inflow: Inflow): string | undefined {
-  const parts = [payCadenceLabel(inflow), effectiveDatesCaption(inflow)].filter(
-    (part): part is string => part !== null,
-  )
+  const parts = [
+    payCadenceLabel(inflow),
+    occasionalLabel(inflow),
+    effectiveDatesCaption(inflow),
+  ].filter((part): part is string => part !== null)
   return parts.length === 0 ? undefined : parts.join(' · ')
 }
 

@@ -134,6 +134,28 @@ describe('InflowList', () => {
     expect(screen.getByText('Paid every 4 weeks · from 15 Sept 2026')).toBeInTheDocument()
   })
 
+  it('captions pay that lands in only some periods, beside the cycle it lands on', () => {
+    renderList([
+      makeInflow({
+        id: 'i11',
+        name: 'On-call (T1)',
+        schedule: 'annual',
+        amount_cents: 6_600_00,
+        pay_schedule: 'fortnightly',
+        arrives_every_pay_period: false,
+      }),
+    ])
+
+    // The $253.85 a fortnight beside it is a year's worth spread over the year, which
+    // is what the plan projects — not what any one fortnight brings.
+    expect(screen.getByText('Paid fortnightly · Only some pay periods')).toBeInTheDocument()
+  })
+
+  it('says nothing about arrival for an inflow that lands every period', () => {
+    renderList([makeInflow({ id: 'i12' })])
+    expect(screen.queryByText(/Only some pay periods/)).not.toBeInTheDocument()
+  })
+
   it('says nothing about the pay cycle where the frequency badge already names it', () => {
     // The same cadence stated twice is the same fact, and the badge has said it.
     renderList([makeInflow({ id: 'i10', pay_schedule: 'fortnightly' })])

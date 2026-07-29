@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { financialYearDayCount, prorateAnnualToPeriod, type PayPeriod } from './index'
+import {
+  financialYearDayCount,
+  financialYearPeriod,
+  prorateAnnualToPeriod,
+  type PayPeriod,
+} from './index'
 
 /** FY2027 — 1 Jul 2026 – 30 Jun 2027, 365 days. */
 const FY = 2027
@@ -11,6 +16,12 @@ const FORTNIGHT = { periodStart: '2026-07-01', periodEnd: '2026-07-14' } as cons
 function period(periodStart: string, periodEnd: string): PayPeriod {
   return { periodStart, periodEnd }
 }
+
+describe('financialYearPeriod', () => {
+  it('runs 1 July of the year before the label through 30 June of the label year', () => {
+    expect(financialYearPeriod(FY)).toEqual(period('2026-07-01', '2027-06-30'))
+  })
+})
 
 describe('financialYearDayCount', () => {
   it('counts 365 days in a financial year ending in a non-leap year', () => {

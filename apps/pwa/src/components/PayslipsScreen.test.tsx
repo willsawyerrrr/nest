@@ -23,6 +23,27 @@ const onCall = makeInflow({
   amount_cents: 450_00,
   attracts_super: false,
 })
+/** An on-call allowance projected at $6,600 a year, landing in only some fortnights. */
+const occasionalOnCall = makeInflow({
+  id: 'i3',
+  name: 'On-call (T1)',
+  type: 'other',
+  schedule: 'annual',
+  amount_cents: 6_600_00,
+  pay_schedule: 'fortnightly',
+  arrives_every_pay_period: false,
+  attracts_super: false,
+})
+
+/** That allowance's line on the first fortnight's slip: $480.00, no super. */
+const occasionalLine = makePayslipLine({
+  id: 'pl2',
+  source_inflow_id: 'i3',
+  label: 'On-call allowance',
+  amount_cents: 480_00,
+  attracts_super: false,
+})
+
 const estimate = estimateHouseholdTaxFromRows([inflow], [], [], [], [], config)
 
 /** What the member's estimated liability withholds over one whole fortnight. */
@@ -699,6 +720,109 @@ describe('PayslipsScreen', () => {
 
     expect(screen.getByLabelText('Earnings line 1 name')).toHaveValue('Ordinary Hours')
     expect(screen.queryByLabelText('Earnings line 2 name')).not.toBeInTheDocument()
+  })
+
+  it('reports an occasional group as unmeasured rather than off plan', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      inflows: [inflow, occasionalOnCall],
+      payslips: [makePayslip({ gross_cents: 5_480_00 })],
+      lines: [makePayslipLine(), occasionalLine],
+    })
+    await expandCards(user)
+
+    expect(lineGroupRow('On-call allowance')).toHaveTextContent('Not measured per period')
+    expect(lineGroupRow('On-call allowance')).not.toHaveTextContent(/above plan|below plan/)
+    // The salary paid beside it is still measured, and still on plan.
+    expect(lineGroupRow('Ordinary Hours')).toHaveTextContent('On plan')
+  })
+
+  it('says why the gross is not measured, and how much of it is that pay', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      inflows: [inflow, occasionalOnCall],
+      payslips: [makePayslip({ gross_cents: 5_480_00 })],
+      lines: [makePayslipLine(), occasionalLine],
+    })
+    await expandCards(user)
+
+    expect(figureCell('Gross')).toHaveTextContent('Not measured this period')
+    expect(cardDetail()).toHaveTextContent(
+      /\$480\.00 of the gross is pay that lands in only some pay periods/,
+    )
+    expect(cardDetail()).toHaveTextContent(/withholds more than that/)
+  })
+
+  it('still says a slip mapped to no projection has none to compare', async () => {
+    const user = userEvent.setup()
+    renderScreen({ lines: [makePayslipLine({ source_inflow_id: null })] })
+    await expandCards(user)
+    expect(figureCell('Gross')).toHaveTextContent('No projection to compare')
+  })
+
+  it('leaves a fortnight with no on-call line reading as on plan', async () => {
+    const user = userEvent.setup()
+    renderScreen({ inflows: [inflow, occasionalOnCall], lines: [makePayslipLine()] })
+    await expandCards(user)
+    expect(figureCell('Gross')).toHaveTextContent('On plan')
+    expect(cardDetail()).not.toHaveTextContent(/only some pay periods/)
+  })
+
+  it('shows the year’s position on occasional pay above the list, once', () => {
+    renderScreen({
+      inflows: [inflow, occasionalOnCall],
+      payslips: [
+        makePayslip({ gross_cents: 5_480_00 }),
+        makePayslip({
+          id: 'ps2',
+          period_start: '2026-07-15',
+          period_end: '2026-07-28',
+          paid_on: '2026-07-29',
+        }),
+      ],
+      lines: [makePayslipLine(), occasionalLine, makePayslipLine({ id: 'pl3', payslip_id: 'ps2' })],
+    })
+
+    // One block for the year, above the list, rather than a figure on each card.
+    const heading = screen.getByText('Occasional pay, year to date')
+    const positions = heading.parentElement as HTMLElement
+    // $6,600 × 29/365 to the 29 July pay, against the $480.00 the year has paid.
+    expect(positions).toHaveTextContent('On-call (T1)')
+    expect(positions).toHaveTextContent('$524.38 projected to 29 July 2026, $6,600.00 for the year')
+    expect(positions).toHaveTextContent('$480.00')
+    expect(positions).toHaveTextContent('$44.38 below plan')
+  })
+
+  it('shows no year-to-date position where nothing occasional was paid', () => {
+    renderScreen({ inflows: [inflow, occasionalOnCall], lines: [makePayslipLine()] })
+    expect(screen.queryByText('Occasional pay, year to date')).not.toBeInTheDocument()
+  })
+
+  it('counts a slip carrying occasional pay out of the year’s gross position', () => {
+    renderScreen({
+      inflows: [inflow, occasionalOnCall],
+      payslips: [makePayslip({ gross_cents: 5_480_00 }), makePayslip(secondFortnight)],
+      lines: [makePayslipLine(), occasionalLine, makePayslipLine({ id: 'pl3', payslip_id: 'ps2' })],
+    })
+
+    // The quiet fortnight is measured and on plan; the on-call one has no gross
+    // expectation, so it is left out of both sides rather than read as above plan.
+    expect(figureCell('YTD gross')).toHaveTextContent('$10,480.00')
+    expect(figureCell('YTD gross')).toHaveTextContent('On plan')
+    expect(figureCell('YTD gross')).toHaveTextContent('Across 1 of 2 slips')
+  })
+
+  it('blames the occasional pay, not a missing projection, where no gross is measured', () => {
+    renderScreen({
+      inflows: [inflow, occasionalOnCall],
+      payslips: [makePayslip({ gross_cents: 5_480_00 })],
+      lines: [makePayslipLine(), occasionalLine],
+    })
+
+    // The projection exists and is annual: the block below is where it is held against.
+    expect(figureCell('YTD gross')).toHaveTextContent('Occasional pay is measured below')
+    expect(figureCell('YTD gross')).not.toHaveTextContent('No projection to compare')
+    expect(screen.getByText('Occasional pay, year to date')).toBeInTheDocument()
   })
 
   it('keeps each member’s slips under their own heading', () => {

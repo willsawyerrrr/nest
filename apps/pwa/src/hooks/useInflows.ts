@@ -22,6 +22,13 @@ export interface InflowInput {
    */
   pay_schedule: Frequency | null
   pay_interval_count: number | null
+  /**
+   * Whether the money lands on every turn of that cadence. False for pay arriving
+   * in only some periods — an on-call allowance paid for the fortnights a shift was
+   * worked — which leaves a payslip period no expectation for it. The projection is
+   * unaffected either way.
+   */
+  arrives_every_pay_period: boolean
   amount_cents: number | null
   hourly_rate_cents: number | null
   hours_per_period: number | null

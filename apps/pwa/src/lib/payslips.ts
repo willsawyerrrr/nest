@@ -1,11 +1,13 @@
 import {
   latestReportedYearToDate,
+  occasionalInflowPositions,
   paygWithheldByMember,
   payslipAttributionDate,
   payslipVariance,
   payslipYearPositions,
   payslipYearToDate,
   payslipYearToDateByMember,
+  type OccasionalInflowPosition,
   type PayslipAttribution,
   type PayslipLine,
   type PayslipTotals,
@@ -103,15 +105,17 @@ export function reportedYearToDateFromRows(
 /**
  * Maps an `inflows` row to the projection a payslip's earnings lines are measured
  * against: the tax engine's own income shape, whether employer super accrues on it
- * (which a line snapshots when it is written), and the cadence the money arrives on.
- * That last is the one thing the tax engine has no use for — it annualises the
- * amount over the frequency the amount is expressed in — and the one thing a pay
- * period is measured against, so it is added here rather than to `IncomeInput`.
+ * (which a line snapshots when it is written), and how the money arrives — the
+ * cadence, and whether it lands on every turn of it. Those last are the things the
+ * tax engine has no use for, since it annualises the amount over the frequency the
+ * amount is expressed in, and the things a pay period is measured against, so they
+ * are added here rather than to `IncomeInput`.
  */
 export function toReconciledInflow(inflow: Inflow): ReconciledInflow {
   return {
     ...toIncomeInput(inflow),
     attractsSuper: inflow.attracts_super,
+    arrivesEveryPayPeriod: inflow.arrives_every_pay_period,
     ...(inflow.pay_schedule != null && { paySchedule: inflow.pay_schedule }),
     ...(inflow.pay_interval_count != null && { payInterval: inflow.pay_interval_count }),
   }
@@ -214,8 +218,9 @@ export function payslipVarianceFor(
 
 /**
  * Each of a member's payslips measured against the plan, keyed by slip id. One
- * measurement per slip, which both the slip's own card and the member's year-to-date
- * position read, so a total can never disagree with the figures it sums.
+ * measurement per slip, which the slip's own card and both of the member's
+ * year-to-date readings share, so a total can never disagree with the figures it
+ * sums.
  */
 export function payslipVariancesById(
   payslips: readonly PayslipRow[],
@@ -232,26 +237,62 @@ export function payslipVariancesById(
 }
 
 /**
+ * A member's slips paired with the measurements their cards show — the one source
+ * both year readings below are summed from. A slip absent from `variances` is not
+ * measured and so takes no part in either, exactly as a slip with no expectation
+ * does.
+ */
+function measuredPayslips(
+  payslips: readonly PayslipRow[],
+  variances: ReadonlyMap<string, PayslipVariance>,
+): readonly { readonly payslip: PayslipRow; readonly variance: PayslipVariance }[] {
+  return payslips.flatMap((payslip) => {
+    const variance = variances.get(payslip.id)
+    return variance === undefined ? [] : [{ payslip, variance }]
+  })
+}
+
+/**
  * A member's year to date against the plan, read off the same per-slip
- * measurements their cards show. A slip absent from `variances` is not measured
- * and so takes no part in the year, exactly as a slip with no expectation does.
+ * measurements their cards show.
  */
 export function payslipYearPositionsFromRows(
   payslips: readonly PayslipRow[],
   variances: ReadonlyMap<string, PayslipVariance>,
 ): PayslipYearPositions {
   return payslipYearPositions(
-    payslips.flatMap((payslip) => {
-      const variance = variances.get(payslip.id)
-      return variance === undefined
-        ? []
-        : [
-            {
-              grossCents: payslip.gross_cents,
-              taxWithheldCents: payslip.tax_withheld_cents,
-              variance,
-            },
-          ]
-    }),
+    measuredPayslips(payslips, variances).map(({ payslip, variance }) => ({
+      grossCents: payslip.gross_cents,
+      taxWithheldCents: payslip.tax_withheld_cents,
+      variance,
+    })),
+  )
+}
+
+/**
+ * Each occasional inflow a member's slips draw on, measured across the financial
+ * year: what those slips paid against it, against the projection for the part of the
+ * year their latest pay reaches. Pass one member's slips for one year. Nothing here
+ * is a per-period reading — that is the point, since pay landing in only some periods
+ * has no per-period figure — so this is where the household reads whether such an
+ * inflow is tracking its projection.
+ *
+ * It reads the same measurements the three positions above do, so each row's actual
+ * is the sum of the occasional-group figures the member's cards show.
+ */
+export function occasionalPositionsFor(
+  payslips: readonly PayslipRow[],
+  variances: ReadonlyMap<string, PayslipVariance>,
+  { inflowsById }: PayslipReconciliation,
+  financialYear: number,
+): readonly OccasionalInflowPosition[] {
+  return occasionalInflowPositions(
+    measuredPayslips(payslips, variances).map(({ payslip, variance }) => ({
+      paidOn: payslip.paid_on,
+      periodEnd: payslip.period_end,
+      variance,
+    })),
+    inflowsById,
+    financialYear,
   )
 }

@@ -27,7 +27,14 @@ which apply to the current rate rather than the part-year figure.
 
 ## Inputs (per member, per FY)
 
-- Assessable income: salary/wages, business, investment, other.
+- Assessable income: salary/wages, business, investment, other. Each taxable
+  inflow's annualised gross at its steady rate, `inflows.schedule` being what
+  annualising divides by. Neither the cadence the money arrives on (`pay_schedule`)
+  nor whether it arrives on every turn of that cadence
+  (`arrives_every_pay_period`) has any part in it: an on-call allowance worth $6,600
+  a year is $6,600 of assessable income however few of the year's fortnights it
+  lands in. Those two columns bear on a payslip period's expectations alone — see
+  [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods).
 - Deductions (work-related, etc.).
 - Residency status (resident vs non-resident brackets differ).
 - Claims tax-free threshold (affects withholding expectations).
@@ -85,7 +92,7 @@ which apply to the current rate rather than the part-year figure.
    alone would overstate the amount owing by every dollar of STSL withheld. The
    split is what a slip's per-component variance is measured against instead:
    `helpRepaymentCents` for an STSL line, the liability less it for a PAYG one (see
-   [`payslips.md`](payslips.md#tax-lines-and-per-component-variance)).
+   [`payslips.md`](payslips.md#tax-withheld-is-the-slips-tax-total)).
 
 > **Super-income simplification.** Surcharge, HELP repayment, and Division 293
 > income are taken as taxable income plus concessional contributions; reportable

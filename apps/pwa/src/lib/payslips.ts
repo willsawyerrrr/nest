@@ -3,6 +3,7 @@ import {
   paygWithheldByMember,
   payslipAttributionDate,
   payslipVariance,
+  payslipYearPositions,
   payslipYearToDate,
   payslipYearToDateByMember,
   type PayslipAttribution,
@@ -10,6 +11,7 @@ import {
   type PayslipTotals,
   type PayslipTotalsRow,
   type PayslipVariance,
+  type PayslipYearPositions,
   type PayslipYearToDateTotals,
   type ReconciledInflow,
 } from '@nest/plan'
@@ -207,5 +209,49 @@ export function payslipVarianceFor(
       annualConcessionalContributionsCents: estimate?.annualConcessionalContributionsCents ?? 0,
       superConfig: config.super,
     },
+  )
+}
+
+/**
+ * Each of a member's payslips measured against the plan, keyed by slip id. One
+ * measurement per slip, which both the slip's own card and the member's year-to-date
+ * position read, so a total can never disagree with the figures it sums.
+ */
+export function payslipVariancesById(
+  payslips: readonly PayslipRow[],
+  reconciliation: PayslipReconciliation,
+  estimate: MemberTaxEstimate | undefined,
+  config: TaxYearConfig,
+): ReadonlyMap<string, PayslipVariance> {
+  return new Map(
+    payslips.map((payslip) => [
+      payslip.id,
+      payslipVarianceFor(payslip, reconciliation, estimate, config),
+    ]),
+  )
+}
+
+/**
+ * A member's year to date against the plan, read off the same per-slip
+ * measurements their cards show. A slip absent from `variances` is not measured
+ * and so takes no part in the year, exactly as a slip with no expectation does.
+ */
+export function payslipYearPositionsFromRows(
+  payslips: readonly PayslipRow[],
+  variances: ReadonlyMap<string, PayslipVariance>,
+): PayslipYearPositions {
+  return payslipYearPositions(
+    payslips.flatMap((payslip) => {
+      const variance = variances.get(payslip.id)
+      return variance === undefined
+        ? []
+        : [
+            {
+              grossCents: payslip.gross_cents,
+              taxWithheldCents: payslip.tax_withheld_cents,
+              variance,
+            },
+          ]
+    }),
   )
 }

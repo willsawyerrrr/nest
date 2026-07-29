@@ -9,6 +9,8 @@ import {
   payslipReconciliation,
   payslipTotalsFromRows,
   payslipVarianceFor,
+  payslipVariancesById,
+  payslipYearPositionsFromRows,
   reportedYearToDateFromRows,
   toPayslipLine,
   toPayslipTotalsRow,
@@ -475,5 +477,107 @@ describe('payslipVarianceFor', () => {
     // The lines account for every dollar of the printed total, which is what the
     // year's withholding is summed from either way.
     expect(variance.unallocatedTaxCents).toBe(0)
+  })
+})
+
+/** What the member's estimated liability withholds over one whole fortnight. */
+const ON_PLAN_WITHHELD = Math.round(memberEstimate.annualTaxCents / 26)
+
+/** The second fortnight of FY2027, itemised against the salary like the first. */
+const SECOND_FORTNIGHT = {
+  id: 'ps2',
+  period_start: '2026-07-15',
+  period_end: '2026-07-28',
+  paid_on: '2026-07-29',
+} as const
+
+describe('payslipVariancesById', () => {
+  it('keys one measurement per slip, the same one its card is given', () => {
+    const payslips = [makePayslip(), makePayslip(SECOND_FORTNIGHT)]
+    const reconciliation = payslipReconciliation(
+      [inflow],
+      [makePayslipLine(), makePayslipLine({ id: 'pl2', payslip_id: 'ps2' })],
+    )
+    const variances = payslipVariancesById(payslips, reconciliation, memberEstimate, config)
+
+    expect([...variances.keys()]).toEqual(['ps1', 'ps2'])
+    expect(variances.get('ps1')).toEqual(
+      payslipVarianceFor(payslips[0]!, reconciliation, memberEstimate, config),
+    )
+  })
+})
+
+describe('payslipYearPositionsFromRows', () => {
+  it('sums the year off the very measurements the cards read', () => {
+    const payslips = [
+      makePayslip({ tax_withheld_cents: ON_PLAN_WITHHELD }),
+      makePayslip({ ...SECOND_FORTNIGHT, tax_withheld_cents: ON_PLAN_WITHHELD }),
+    ]
+    const reconciliation = payslipReconciliation(
+      [inflow],
+      [makePayslipLine(), makePayslipLine({ id: 'pl2', payslip_id: 'ps2' })],
+    )
+    const variances = payslipVariancesById(payslips, reconciliation, memberEstimate, config)
+    const positions = payslipYearPositionsFromRows(payslips, variances)
+
+    // Two fortnights matching the plan: the year matches it too.
+    expect(positions.gross).toEqual({
+      actualCents: 10_000_00,
+      expectedCents: 10_000_00,
+      varianceCents: 0,
+      coveredCount: 2,
+      payslipCount: 2,
+    })
+    expect(positions.taxWithheld.varianceCents).toBe(0)
+    expect(positions.super.varianceCents).toBe(0)
+  })
+
+  it('leaves a slip with no gross expectation out of the gross position', () => {
+    const payslips = [
+      makePayslip(),
+      // A $9,000 bonus slip drawing on no projection at all.
+      makePayslip({ ...SECOND_FORTNIGHT, gross_cents: 9_000_00 }),
+    ]
+    const reconciliation = payslipReconciliation(
+      [inflow],
+      [
+        makePayslipLine(),
+        makePayslipLine({ id: 'pl2', payslip_id: 'ps2', source_inflow_id: null }),
+      ],
+    )
+    const positions = payslipYearPositionsFromRows(
+      payslips,
+      payslipVariancesById(payslips, reconciliation, memberEstimate, config),
+    )
+
+    expect(positions.gross.coveredCount).toBe(1)
+    expect(positions.gross.payslipCount).toBe(2)
+    // The bonus is neither above plan nor part of the expectation.
+    expect(positions.gross.varianceCents).toBe(0)
+    expect(positions.gross.expectedCents).toBe(5_000_00)
+    // Withholding is apportioned even with nothing mapped, so it covers both.
+    expect(positions.taxWithheld.coveredCount).toBe(2)
+  })
+
+  it('covers nothing for a member with no slips', () => {
+    expect(payslipYearPositionsFromRows([], new Map()).gross).toEqual({
+      actualCents: 0,
+      expectedCents: null,
+      varianceCents: null,
+      coveredCount: 0,
+      payslipCount: 0,
+    })
+  })
+
+  it('takes no account of a slip that was never measured', () => {
+    const measured = makePayslip()
+    const reconciliation = payslipReconciliation([inflow], [makePayslipLine()])
+    const positions = payslipYearPositionsFromRows(
+      [measured, makePayslip(SECOND_FORTNIGHT)],
+      payslipVariancesById([measured], reconciliation, memberEstimate, config),
+    )
+
+    expect(positions.gross.payslipCount).toBe(1)
+    expect(positions.gross.actualCents).toBe(5_000_00)
   })
 })

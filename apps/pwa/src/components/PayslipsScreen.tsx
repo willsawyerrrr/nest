@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core'
+import type { PayslipVariance, PayslipYearPosition } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -8,7 +9,8 @@ import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks
 import {
   payslipReconciliation,
   payslipTotalsFromRows,
-  payslipVarianceFor,
+  payslipVariancesById,
+  payslipYearPositionsFromRows,
   periodLabel,
   reportedYearToDateFromRows,
   type PayslipReconciliation,
@@ -64,19 +66,71 @@ function ReportedYearToDateNote({
 }
 
 /**
- * A member's year-to-date actuals summed from the payslips entered, with the
- * running totals printed on their latest slip as a cross-check.
+ * How much of the year a position speaks for, where it speaks for less than the
+ * figure it sits under: the slips whose expectation is known, of every slip summed
+ * into that figure. It reads on from the variance above it — "$450.00 above plan,
+ * across 3 of 4 slips" — so the two lines are one sentence.
+ *
+ * Null where every slip is covered, there being nothing to qualify, and null where
+ * none is: the variance above already says there is no projection to compare, and
+ * "across 0 of 4 slips" would only dress that up as a shortfall.
  */
-function MemberTotals({ payslips }: { payslips: readonly PayslipRow[] }) {
+function coverageNote({ coveredCount, payslipCount }: PayslipYearPosition): string | null {
+  if (coveredCount === 0 || coveredCount === payslipCount) {
+    return null
+  }
+  return `Across ${coveredCount} of ${payslipCount} slips`
+}
+
+/**
+ * A member's year-to-date actuals summed from the payslips entered, each held
+ * against the plan, with the running totals printed on their latest slip as a
+ * cross-check.
+ *
+ * The three figures carry three positions rather than one headline because they
+ * answer three questions — whether the pay came through, whether the withholding
+ * tracks the liability, whether the super is being paid — and a year that is on
+ * plan for gross and short on super is exactly the case worth seeing. The grid
+ * reflows from two columns on a phone to three from the `xs` breakpoint up, the way
+ * a card's quartet does: a figure plus a variance plus a coverage note needs more
+ * than a third of a phone's width to read.
+ *
+ * Super is the whole concessional total — employer super plus salary sacrifice —
+ * because that is the figure a card shows and the figure the expectation is built
+ * to match, so the year and the slips under it name the same thing.
+ */
+function MemberTotals({
+  payslips,
+  variances,
+}: {
+  payslips: readonly PayslipRow[]
+  variances: ReadonlyMap<string, PayslipVariance>
+}) {
   const totals = payslipTotalsFromRows(payslips)
   const reported = reportedYearToDateFromRows(payslips)
+  const positions = payslipYearPositionsFromRows(payslips, variances)
 
   return (
     <Stack gap={2}>
-      <SimpleGrid cols={3} spacing="xs">
-        <FigureCell label="YTD gross" cents={totals.grossCents} />
-        <FigureCell label="YTD withheld" cents={totals.taxWithheldCents} />
-        <FigureCell label="YTD super" cents={totals.superCents} />
+      <SimpleGrid cols={{ base: 2, xs: 3 }} spacing="xs">
+        <FigureCell
+          label="YTD gross"
+          cents={totals.grossCents}
+          varianceCents={positions.gross.varianceCents}
+          note={coverageNote(positions.gross)}
+        />
+        <FigureCell
+          label="YTD withheld"
+          cents={totals.taxWithheldCents}
+          varianceCents={positions.taxWithheld.varianceCents}
+          note={coverageNote(positions.taxWithheld)}
+        />
+        <FigureCell
+          label="YTD super"
+          cents={totals.superCents + totals.salarySacrificeCents}
+          varianceCents={positions.super.varianceCents}
+          note={coverageNote(positions.super)}
+        />
       </SimpleGrid>
       {reported !== null && (
         <ReportedYearToDateNote
@@ -115,6 +169,9 @@ function MemberPayslips({
   signedUrl: (path: string) => Promise<string | null>
 }) {
   const memberEstimate = estimate.members.find((each) => each.memberId === member.id)
+  // Measured once for the member: each card reads its own slip's measurement out
+  // of this, and the year-to-date position sums the very same ones.
+  const variances = payslipVariancesById(payslips, reconciliation, memberEstimate, config)
 
   const viewDocument = async (path: string) => {
     const url = await signedUrl(path)
@@ -132,7 +189,7 @@ function MemberPayslips({
         </Text>
       </Group>
 
-      {payslips.length > 0 && <MemberTotals payslips={payslips} />}
+      {payslips.length > 0 && <MemberTotals payslips={payslips} variances={variances} />}
 
       <EditableList<PayslipRow, PayslipSubmission>
         items={payslips}
@@ -148,7 +205,7 @@ function MemberPayslips({
         renderItem={(payslip, { onEdit, onDelete: onDeleteItem }) => (
           <PayslipCard
             payslip={payslip}
-            variance={payslipVarianceFor(payslip, reconciliation, memberEstimate, config)}
+            variance={variances.get(payslip.id)!}
             inflowNames={reconciliation.inflowNames}
             onEdit={onEdit}
             onDelete={onDeleteItem}
@@ -176,7 +233,8 @@ function MemberPayslips({
 /**
  * Presentational payslips manager: one list per household member, most recent pay
  * period first, each slip's actual gross / withheld / super / net measured against
- * what the plan projected for that period. Persistence lives in the caller.
+ * what the plan projected for that period, under the member's year to date measured
+ * the same way — the slips' own expectations summed. Persistence lives in the caller.
  */
 export function PayslipsScreen({
   members,

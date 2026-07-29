@@ -60,10 +60,17 @@ export function FigureCell({
   label,
   cents,
   varianceCents,
+  note,
 }: {
   label: string
   cents: number
   varianceCents?: number | null
+  /**
+   * A qualifier read under the variance, for a variance that measures less than
+   * the figure above it — which is how a year-to-date cell says how much of the
+   * year its position covers.
+   */
+  note?: string | null
 }) {
   return (
     <Stack gap={0} style={{ minWidth: 0 }}>
@@ -72,6 +79,11 @@ export function FigureCell({
       </Text>
       <MoneyText cents={cents} fw={600} size="sm" />
       {varianceCents !== undefined && <VarianceNote varianceCents={varianceCents} />}
+      {note != null && (
+        <Text size="xs" c="dimmed">
+          {note}
+        </Text>
+      )}
     </Stack>
   )
 }

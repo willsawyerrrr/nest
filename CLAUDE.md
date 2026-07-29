@@ -151,8 +151,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   form mints the payslip id, stores the file under it straight away (the file is
   the auditable record either way, and the `payslip-extract` edge function takes an
   object path), then reads it with Claude Haiku 4.5 and fills in the figures it
-  found — showing back the literal text it read for each, so a misread is caught
-  rather than confirmed blind. It reads the slip's ITEMISATION the same way: each
+  found. Each one lands in the field it fills, and one short note says the details
+  were extracted by AI and asks for them to be checked against the document — the
+  member checks the fields, so the note restates none of them. It reads the slip's ITEMISATION the same way: each
   printed earnings line and each printed tax line, label and amount as printed, a
   section TOTAL row never among them because each total is a scalar figure already.
   Those tables print a column per period beside a year-to-date column, so a row's two
@@ -165,12 +166,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   unconvertible stays the gap it is rather than being dropped.
   A tax line's component comes from the model, the slip stating it plainly, and a
   line whose words do not say comes back unnamed rather than quietly `payg` — that
-  line fills in with its component unset and the save waits until the member says
-  which. Which INFLOW an earnings line draws on is never asked of the model, the
+  line fills in with its component unset, its own picker asks which part it pays,
+  and the save waits until the member says. Which INFLOW an earnings line draws on
+  is never asked of the model, the
   household's inflows being nothing the slip shows: the client matches the printed
   label against the member's own taxable inflow names, whole label to whole name
-  ignoring case and whitespace, pre-selects only on a single exact match, names the
-  lines matched that way, and leaves every other line's inflow to be picked.
+  ignoring case and whitespace, pre-selects only on a single exact match shown on
+  the line's own picker, and leaves every other line's inflow to be picked.
   Extraction writes nothing: it never overwrites a
   figure that is already the member's — one they typed here, or one the payslip
   being edited already holds — nor lines that are, a section at a time: the earnings
@@ -179,9 +181,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   alone and stands its lines in for the untouched rows there. Every field and every
   line stays editable, and the member's
   own save is what persists. A negative LINE amount pre-fills as printed, where a
-  negative total reads as unreadable — `payslip_line.amount_cents` is signed and the
-  slip's own totals are not — and a line whose printed amount cannot be converted is
-  left out and named rather than filled in half-way.
+  negative total is left blank for the member to type — `payslip_line.amount_cents`
+  is signed and the slip's own totals are not — and a line whose printed amount
+  cannot be converted is left out rather than filled in half-way, the gross it does
+  not account for reported as unitemised against the lines themselves.
   An unconfigured key, a file that is not a payslip, an
   unsupported type or size, a rate limit, and a model failure each read as their own
   inline note and fall back to manual entry; none blocks the save. A stored document

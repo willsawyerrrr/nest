@@ -441,8 +441,10 @@ image block (JPEG, PNG, WebP); anything else is rejected before a request is bui
 
 - `fields` — the column-shaped values the form pre-fills from: ISO dates and
   integer cents, keyed as the `payslip` columns are, null where unavailable.
-- `text` — the literal text read for each field, so the form can show what the
-  model saw and the member can spot a misread rather than confirming one blind.
+- `text` — the literal text read for each field. It is the auditable record of what
+  the model saw; the form pre-fills from `fields` and does not show it back, because
+  every figure filled is visible in the field it filled and a restatement beside it
+  would only duplicate what is on screen.
 - `lines` — the slip's own itemisation of **this pay** in printed order, one entry
   per printed row: the `label` as printed, the `amount` as printed, and
   `amount_cents` converted from it. A **section TOTAL row is never a line** — the
@@ -460,7 +462,7 @@ image block (JPEG, PNG, WebP); anything else is rejected before a request is bui
   partial extraction is a success; the member fills the gaps.
 - `unreadable` — fields whose text came back but could not be converted safely
   (a misread `4,12O.50`, a date that is not a real calendar date). Null, with the
-  text kept so the member can correct it. A **line** whose printed period amount
+  text kept as part of that record. A **line** whose printed period amount
   could not be converted comes back with `amount_cents: null` and its label and text
   intact, which is the gap it is; a row printing nothing for this period is a
   different thing and is simply absent.
@@ -496,6 +498,11 @@ converted is the opposite case and is kept — the line comes back with its labe
 printed text, and `amount_cents: null` — because that one is a figure the member has
 to read off the slip themselves, which a dropped row would give them no way to do.
 
+`missing` and `unreadable` divide the fields the form leaves blank into the two
+reasons they are blank. The form treats them identically — a field with no figure to
+fill is left for the member either way — so it reads neither list; they are the
+record of why, alongside `text`.
+
 ### Pre-filling the form
 
 `fields` is keyed as the `payslip` columns are, so the entry form maps it on by
@@ -514,9 +521,7 @@ form does with it:
   - **One the payslip being edited already holds.** Every non-blank figure on a
     saved slip was confirmed when it was saved, so attaching a replacement
     document reads the new slip without rewriting what was filed. Only the gaps —
-    a blank amount, an unset date — are open to it. The text read for a kept
-    field is still shown, so a figure the slip disagrees with can be corrected by
-    hand.
+    a blank amount, an unset date — are open to it.
 - **Lines the member already has are never replaced either, a section at a time.**
   A section — the earnings lines, or the tax lines — is the member's own once they
   have edited any row of it here, and every section the payslip being edited opened
@@ -533,22 +538,24 @@ form does with it:
   deductions as accounting negatives (`(1,234.56)`, `45.00-`) and the parser reads
   them, but every `payslip` amount column is checked `>= 0`. Rather than guess the
   sign, the client treats a negative **total** exactly as an `unreadable` field:
-  nothing is filled in, and the note shows the literal text printed so the member
-  types the figure. `payslip_line.amount_cents` carries no such check, deliberately —
+  nothing is filled in, and the field is left blank for the member to type off the
+  document. `payslip_line.amount_cents` carries no such check, deliberately —
   a line may reverse an overpayment — so a negative **line** amount pre-fills as
-  printed.
-- **What was read is shown back.** A note under the picker names each field it
-  filled beside the literal text it read for it (`Gross “4,120.50”`), the fields
-  it kept because they were already the member's — with their text too, so a
-  figure the slip disagrees with can be copied across by hand — the fields
-  `missing` from the slip, and the fields it saw but could not convert
-  (`unreadable`) and therefore left blank. It does the same for the lines: each
-  section it itemised is listed line by line with the text read for each
-  (`Ordinary Hours “$4,000.00”`), a section it kept is named, and so is any line
-  whose printed amount it could not convert — which is left out of the rows
-  entirely, exactly as an unreadable total is left blank, rather than filled in
-  half-way as a row that would block the save. Showing the text is the point: a
-  misread is caught here rather than confirmed blind.
+  printed. A **line** whose printed amount could not be converted is left out of
+  the rows entirely, for the same reason an unreadable total is left blank: half a
+  row would block the save. The gross those rows do not account for is reported as
+  unitemised beneath the earnings lines, which is where a missing line shows.
+- **The note says the figures were extracted, not what they are.** One line under
+  the picker, headed *Read from the slip*: "The details below were extracted from
+  the document by AI — check them against it before saving." Every figure and every
+  line it filled is on screen in the field or row it filled, so naming them again
+  would duplicate what the member is looking at; what they check the document
+  against is the form itself. A read that filled nothing — every field already
+  theirs, or a slip that yielded none — says so instead, rather than claiming
+  figures it did not write. Anything needing an **answer** is raised at the control
+  it concerns rather than in the note, because a paragraph cannot say which row is
+  meant: an unplaced tax line asks on its own "Pays down" picker, and a matched
+  inflow shows as the earnings row's own selection.
 - **Nothing is confirmed by extraction.** Every figure and every line stays editable
   and the submit is untouched, so the form saves whatever the member leaves in it.
   The reply is read rather than trusted, too: a body the form cannot render falls
@@ -563,14 +570,16 @@ without saying so. Attribution is one deterministic client-side rule instead: th
 line's whole printed label must equal one of the member's own taxable inflow names
 in whole, ignoring case and collapsing whitespace. A prefix, a suffix, a partial, or
 a label two inflows answer to matches nothing, and the line's inflow is left unset
-for the member to pick. Where a match is taken, the note names the line as matched
-by name — so a wrong match is corrected rather than confirmed blind.
+for the member to pick. Where a match is taken it shows as the row's own selection,
+which is both how a wrong one is spotted and where it is corrected.
 
 A tax line's component is the other way round: the slip states it (`PAYG`, `STSL
 Component`), so the model reads it. Where the slip's words do not say, the component
-comes back `null`, the line is filled in with its "Pays down" picker empty, the note
-says which line needs an answer, and the form's existing rule holds the save until
-one is given. It is never quietly `payg`: the two pay different parts of the same
+comes back `null`, the line is filled in with its "Pays down" picker empty, that
+picker asks which part it pays, and the form's existing rule holds the save until an
+answer is given. The ask lives on the picker rather than in the note so that the row
+needing it is the row that says so — the same message a line typed by hand and left
+unplaced gets. It is never quietly `payg`: the two pay different parts of the same
 liability, so a guess would measure the withholding against the wrong half.
 
 ### Money is converted in TypeScript, never by the model

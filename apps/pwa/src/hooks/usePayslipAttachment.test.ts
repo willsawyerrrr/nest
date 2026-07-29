@@ -11,19 +11,10 @@ import type { PayslipAttachments } from './usePayslips'
 const extraction: PayslipExtraction = {
   model: 'claude-haiku-4-5-20251001',
   fields: { gross_cents: 4_120_50 },
-  text: { gross: '4,120.50' },
   lines: { earnings: [], tax: [] },
-  missing: [],
-  unreadable: [],
 }
 
-const summary: PayslipPrefillSummary = {
-  filled: ['gross_cents'],
-  kept: [],
-  filledLines: [],
-  keptLines: [],
-  matchedLines: [],
-}
+const summary: PayslipPrefillSummary = { filled: ['gross_cents'], filledLines: [] }
 
 const upload = vi.fn()
 const discard = vi.fn()
@@ -66,7 +57,7 @@ describe('usePayslipAttachment', () => {
     expect(uploaded).toBe(file)
     expect(read).toHaveBeenCalledWith(`h1/${payslipId}/uuid-slip.pdf`)
     expect(onExtracted).toHaveBeenCalledWith(extraction)
-    expect(result.current.state).toEqual({ status: 'read', extraction, ...summary })
+    expect(result.current.state).toEqual({ status: 'read', ...summary })
     expect(result.current.attachment).toEqual({
       payslipId,
       path: `h1/${payslipId}/uuid-slip.pdf`,

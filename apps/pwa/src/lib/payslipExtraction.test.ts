@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  EXTRACTED_AMOUNT_FIELDS,
-  EXTRACTED_DATE_FIELDS,
-  EXTRACTED_FIELD_LABELS,
-  EXTRACTED_TEXT_KEYS,
-  extractedTextKey,
   EXTRACTION_FAILED_MESSAGE,
   EXTRACTION_KEY_REJECTED_MESSAGE,
   EXTRACTION_OUT_OF_CREDIT_MESSAGE,
@@ -14,28 +9,6 @@ import {
   readExtraction,
   readExtractionFailure,
 } from './payslipExtraction'
-
-describe('extractedTextKey', () => {
-  it('drops the _cents suffix an amount column carries, and leaves a date alone', () => {
-    expect(extractedTextKey('gross_cents')).toBe('gross')
-    expect(extractedTextKey('ytd_tax_withheld_cents')).toBe('ytd_tax_withheld')
-    expect(extractedTextKey('period_start')).toBe('period_start')
-  })
-})
-
-describe('EXTRACTED_FIELD_LABELS', () => {
-  it('names every field extraction can pre-fill', () => {
-    for (const field of [...EXTRACTED_DATE_FIELDS, ...EXTRACTED_AMOUNT_FIELDS]) {
-      expect(EXTRACTED_FIELD_LABELS[field]).toBeTruthy()
-    }
-  })
-
-  it('gives every field a text key the reply reports under', () => {
-    for (const field of [...EXTRACTED_DATE_FIELDS, ...EXTRACTED_AMOUNT_FIELDS]) {
-      expect(EXTRACTED_TEXT_KEYS).toContain(extractedTextKey(field))
-    }
-  })
-})
 
 describe('readExtraction', () => {
   /** A full reply, as the function sends one. */
@@ -50,20 +23,21 @@ describe('readExtraction', () => {
     }
   }
 
-  it('keeps the fields, text, and lists a reply actually carries', () => {
+  it('keeps the fields and lines the form pre-fills from, and nothing else', () => {
+    // The reply also carries the literal text read for each field and which
+    // fields were missing or unreadable — the auditable record of the read — none
+    // of which the form pre-fills from or shows back, so none of it is carried in.
     expect(readExtraction(body())).toEqual({
       model: 'claude-haiku-4-5-20251001',
       fields: { period_start: '2026-07-06', gross_cents: 4_120_50 },
-      text: { period_start: '06/07/2026', gross: '4,120.50' },
       lines: { earnings: [], tax: [] },
-      missing: ['net_cents'],
-      unreadable: [],
     })
   })
 
-  it('reads a negative amount as unreadable rather than pre-filling it', () => {
+  it('leaves a negative amount blank rather than pre-filling it', () => {
     // A slip printing tax withheld as a deduction parses to a negative, which
-    // the column's own `>= 0` check would reject at save.
+    // the column's own `>= 0` check would reject at save. The sign is not guessed
+    // at: the field is left for the member to type off the document.
     const extraction = readExtraction(
       body({
         fields: { tax_withheld_cents: -1_048_00, gross_cents: 4_120_50 },
@@ -73,9 +47,6 @@ describe('readExtraction', () => {
     )
 
     expect(extraction!.fields.tax_withheld_cents).toBeUndefined()
-    expect(extraction!.unreadable).toEqual(['tax_withheld_cents'])
-    // The printed text survives, so the member can read the figure back off it.
-    expect(extraction!.text.tax_withheld).toBe('(1,048.00)')
     expect(extraction!.fields.gross_cents).toBe(4_120_50)
   })
 
@@ -92,10 +63,7 @@ describe('readExtraction', () => {
     expect(extraction).toEqual({
       model: 'claude-haiku-4-5-20251001',
       fields: {},
-      text: {},
       lines: { earnings: [], tax: [] },
-      missing: ['net_cents'],
-      unreadable: ['gross_cents'],
     })
   })
 
@@ -117,14 +85,11 @@ describe('readExtraction', () => {
     ).toEqual({
       model: 'm',
       fields: {},
-      text: {},
       lines: { earnings: [], tax: [] },
-      missing: [],
-      unreadable: [],
     })
   })
 
-  it('keeps the slip’s itemisation, each line with the text read for it', () => {
+  it('keeps the slip’s itemisation, each line as a row to fill in', () => {
     const extraction = readExtraction(
       body({
         lines: {
@@ -147,17 +112,17 @@ describe('readExtraction', () => {
     )
 
     expect(extraction!.lines.earnings).toEqual([
-      { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
-      { label: 'Annual Leave', amount: '$1,000.00', amount_cents: 1_000_00 },
-      { label: 'On-call (T1)', amount: '$495.50', amount_cents: 495_50 },
+      { label: 'Ordinary Hours', amount_cents: 4_000_00 },
+      { label: 'Annual Leave', amount_cents: 1_000_00 },
+      { label: 'On-call (T1)', amount_cents: 495_50 },
     ])
     expect(extraction!.lines.tax).toEqual([
-      { label: 'PAYG', amount: '$1,416.00', amount_cents: 1_416_00, component: 'payg' },
-      { label: 'STSL Component', amount: '$434.00', amount_cents: 434_00, component: 'stsl' },
+      { label: 'PAYG', amount_cents: 1_416_00, component: 'payg' },
+      { label: 'STSL Component', amount_cents: 434_00, component: 'stsl' },
     ])
   })
 
-  it('keeps a negative line amount, where a negative total is unreadable', () => {
+  it('keeps a negative line amount, where a negative total is left blank', () => {
     // `payslip_line.amount_cents` carries no `>= 0` check, deliberately: a line
     // reversing an overpayment is a figure to fill in rather than one to drop.
     const extraction = readExtraction(
@@ -173,7 +138,6 @@ describe('readExtraction', () => {
 
     expect(extraction!.lines.earnings[0]!.amount_cents).toBe(-120_00)
     expect(extraction!.fields.tax_withheld_cents).toBeUndefined()
-    expect(extraction!.unreadable).toEqual(['tax_withheld_cents'])
   })
 
   it('leaves a tax component it does not recognise unnamed rather than PAYG', () => {
@@ -224,11 +188,11 @@ describe('readExtraction', () => {
     )
 
     expect(extraction!.lines.earnings).toEqual([
-      { label: 'Ordinary Hours', amount: '$4,000.00', amount_cents: 4_000_00 },
-      // The label and text survive an amount that could not be converted; the form
-      // names such a line rather than filling it in.
-      { label: 'Bonus', amount: '$1.005', amount_cents: null },
-      { label: 'Overtime', amount: null, amount_cents: null },
+      { label: 'Ordinary Hours', amount_cents: 4_000_00 },
+      // The label survives an amount that could not be converted; the form leaves
+      // such a line out of the itemisation rather than filling in half a row.
+      { label: 'Bonus', amount_cents: null },
+      { label: 'Overtime', amount_cents: null },
     ])
     expect(extraction!.lines.tax).toEqual([])
   })

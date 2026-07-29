@@ -486,9 +486,9 @@ staging in [`payslips.md`](payslips.md).
       `{ configured: false }` so manual entry still works.
 - [x] Extraction in the form: picking a document stores it under a freshly minted
       payslip id and reads it, filling the fields that are not already the
-      member's — typed here, or saved on the payslip being edited — and showing
-      back the literal text read for each, what the slip omits, and what
-      could not be converted safely. Every failure — unconfigured, not a payslip,
+      member's — typed here, or saved on the payslip being edited — under one note
+      saying the details were extracted by AI and asking for them to be checked
+      against the document. Every failure — unconfigured, not a payslip,
       too large, unsupported type, rate limited, model error or timeout — reads as
       its own inline note and falls back to manual entry without blocking the save,
       and an upload the member clears, replaces, or abandons is deleted again where

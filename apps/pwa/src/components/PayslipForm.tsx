@@ -1,15 +1,11 @@
 import { useState } from 'react'
-import { Alert, FileInput, Group, Loader, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
+import { Alert, FileInput, Group, Loader, SimpleGrid, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow } from '../hooks/useInflows'
 import { usePayslipAttachment, type ExtractionState } from '../hooks/usePayslipAttachment'
 import { usePayslipFields } from '../hooks/usePayslipFields'
-import {
-  usePayslipLineDrafts,
-  type LineDraft,
-  type LinePrefillSummary,
-} from '../hooks/usePayslipLineDrafts'
+import { lineEntered, usePayslipLineDrafts, type LineDraft } from '../hooks/usePayslipLineDrafts'
 import type { PayslipLineInput, PayslipLineRow } from '../hooks/usePayslipLines'
 import type {
   PayslipAttachments,
@@ -19,13 +15,6 @@ import type {
 } from '../hooks/usePayslips'
 import { isoDaysBefore, todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
-import {
-  EXTRACTED_FIELD_LABELS,
-  extractedTextKey,
-  type ExtractedField,
-  type ExtractedLine,
-  type PayslipExtraction,
-} from '../lib/payslipExtraction'
 import { financialYearForPayslip } from '../lib/payslips'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
@@ -72,138 +61,23 @@ function AmountField({
   )
 }
 
-/** Field names in reading order, e.g. `Gross, Net, and YTD super`. */
-function fieldNames(fields: readonly ExtractedField[]): string {
-  return fields.map((field) => EXTRACTED_FIELD_LABELS[field]).join(', ')
-}
-
-/** Field names with the literal text the model read for each, where it read any. */
-function fieldNamesAsRead(
-  fields: readonly ExtractedField[],
-  extraction: PayslipExtraction,
-): string {
-  return fields
-    .map((field) => {
-      const text = extraction.text[extractedTextKey(field)]
-      const label = EXTRACTED_FIELD_LABELS[field]
-      return text == null ? label : `${label} “${text}”`
-    })
-    .join(', ')
-}
-
-/** How a line kind is named back to the member. */
-const LINE_KIND_LABELS: Record<LineDraft['kind'], string> = {
-  earning: 'earnings lines',
-  tax: 'tax lines',
-}
-
-/** Whether a read line carries an amount to fill in. */
-function hasAmount(line: ExtractedLine): boolean {
-  return line.amount_cents !== null
-}
-
-/** Lines with the literal text read for each, e.g. `Ordinary Hours “$4,000.00”`. */
-function linesAsRead(lines: readonly ExtractedLine[]): string {
-  return lines
-    .map((line) => (line.amount == null ? line.label : `${line.label} “${line.amount}”`))
-    .join(', ')
-}
-
 /**
- * What the note has to say about the slip's own itemisation: the sections a read
- * itemised, the printed lines whose amount could not be converted (left out
- * entirely, exactly as an unreadable total is left blank), and the tax lines it
- * filled in whose component the slip never stated — each of which needs a member's
- * answer, since a component guessed at nets against the wrong half of the
- * liability.
- */
-function itemisation(extraction: PayslipExtraction, summary: LinePrefillSummary) {
-  const read = summary.filledLines.map((kind) => ({
-    kind,
-    lines: kind === 'earning' ? extraction.lines.earnings : extraction.lines.tax,
-  }))
-  return {
-    sections: read.map(({ kind, lines }) => ({ kind, lines: lines.filter(hasAmount) })),
-    unread: read.flatMap(({ lines }) => lines.filter((line) => !hasAmount(line))),
-    unnamed: (summary.filledLines.includes('tax') ? extraction.lines.tax : []).filter(
-      (line) => hasAmount(line) && line.component === null,
-    ),
-  }
-}
-
-/**
- * What a successful read did, in the model's own words: which figures it filled
- * and the literal text it read for each, how it itemised the slip's earnings and
- * tax sections, which of both it left because they were already the member's own,
- * which the slip does not show, and which it saw but could not convert. Everything
- * above stays editable — the point of showing the text is that a misread can be
- * caught here rather than confirmed blind. A field it left alone shows its text
- * too, so a figure the slip disagrees with can be copied across by hand.
- *
- * An earnings line's inflow is the one thing here the slip does not state: it is
- * matched from the printed label where that names exactly one of the member's
- * inflows, so the note says which lines were matched that way and leaves the rest
- * to be picked.
+ * What a successful read amounts to, in one line. Every figure it filled is already
+ * on screen in the field it filled, so the note attributes the lot to the model and
+ * asks for a check against the document rather than restating values the member is
+ * looking at. Anything needing an answer is raised at the control it concerns — a
+ * tax line the slip does not place asks on its own "Pays down" picker — because a
+ * paragraph cannot say which row is meant.
  */
 function ReadFromSlip({ state }: { state: Extract<ExtractionState, { status: 'read' }> }) {
-  const { extraction, filled, kept, keptLines, matchedLines } = state
-  const { sections, unread, unnamed } = itemisation(extraction, state)
+  const filledNothing = state.filled.length === 0 && state.filledLines.length === 0
   return (
     <Alert color="info" variant="light" p="xs" title="Read from the slip">
-      <Stack gap={4}>
-        <Text size="xs">Check each figure against the document before saving.</Text>
-        {filled.length === 0 ? (
-          <Text size="xs" c="dimmed">
-            Nothing on the slip could be filled in for you.
-          </Text>
-        ) : (
-          <Text size="xs">Filled in: {fieldNamesAsRead(filled, extraction)}.</Text>
-        )}
-        {sections.map(({ kind, lines }) => (
-          <Text key={kind} size="xs">
-            Itemised the {LINE_KIND_LABELS[kind]}: {linesAsRead(lines)}.
-          </Text>
-        ))}
-        {matchedLines.length > 0 && (
-          <Text size="xs" c="dimmed">
-            Matched to an inflow by name: {matchedLines.join(', ')}. Every other line’s inflow is
-            yours to pick.
-          </Text>
-        )}
-        {kept.length > 0 && (
-          <Text size="xs" c="dimmed">
-            Kept what you already had; the slip reads {fieldNamesAsRead(kept, extraction)}.
-          </Text>
-        )}
-        {keptLines.length > 0 && (
-          <Text size="xs" c="dimmed">
-            Kept the {keptLines.map((kind) => LINE_KIND_LABELS[kind]).join(' and ')} you already
-            had.
-          </Text>
-        )}
-        {extraction.missing.length > 0 && (
-          <Text size="xs" c="dimmed">
-            Not shown on the slip: {fieldNames(extraction.missing)}.
-          </Text>
-        )}
-        {extraction.unreadable.length > 0 && (
-          <Text size="xs" c="warning">
-            Could not be read safely, so left blank:{' '}
-            {fieldNamesAsRead(extraction.unreadable, extraction)}.
-          </Text>
-        )}
-        {unread.length > 0 && (
-          <Text size="xs" c="warning">
-            Could not read the amount on {linesAsRead(unread)}, so that line is not itemised.
-          </Text>
-        )}
-        {unnamed.length > 0 && (
-          <Text size="xs" c="warning">
-            The slip does not say which part of the tax {linesAsRead(unnamed)} pays — say which
-            before saving.
-          </Text>
-        )}
-      </Stack>
+      <Text size="xs">
+        {filledNothing
+          ? 'Nothing on the slip could be filled in for you.'
+          : 'The details below were extracted from the document by AI — check them against it before saving.'}
+      </Text>
     </Alert>
   )
 }
@@ -276,11 +150,12 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * payslip being edited — and its itemisation fills the earnings and tax lines on
  * the same footing, a kind at a time. An earnings line's inflow is matched from the
  * printed label where that names exactly one of the member's inflows and left unset
- * otherwise, since the slip never names an inflow. The text read is shown back for
- * every figure and every line, so a misread can be caught. Nothing is confirmed by
- * extraction — everything is editable and the member's own save is what persists —
- * so an extraction that is unconfigured, refused, or broken only leaves the form as
- * it was.
+ * otherwise, since the slip never names an inflow. A note says the figures were
+ * extracted and asks for them to be checked against the document; the figures
+ * themselves are what it asks about, so the note does not restate them. Nothing is
+ * confirmed by extraction — everything is editable and the member's own save is what
+ * persists — so an extraction that is unconfigured, refused, or broken only leaves
+ * the form as it was.
  *
  * An inverted pay period (ending before it starts) blocks submission, so the
  * database's own period check is never reached. Persistence lives in the caller.
@@ -332,11 +207,9 @@ export function PayslipForm({
   const { lines } = drafts
   const earningDrafts = lines.filter((line) => line.kind === 'earning')
   const taxDrafts = lines.filter((line) => line.kind === 'tax')
-  // A row left entirely blank is the member starting one and thinking better of
-  // it, so it is dropped on save rather than blocking it; a half-filled row is a
-  // mistake worth catching, and so is a tax line naming nothing it pays.
-  const entered = (line: LineDraft) => line.label.trim() !== '' || line.amount !== ''
-  const enteredLines = lines.filter(entered)
+  // A half-filled row is a mistake worth catching, and so is a tax line naming
+  // nothing it pays; a row with nothing in it at all is simply dropped.
+  const enteredLines = lines.filter(lineEntered)
   const linesComplete = enteredLines.every(
     (line) =>
       line.label.trim() !== '' &&
@@ -345,10 +218,10 @@ export function PayslipForm({
   )
   const sumOfDrafts = (drafts: readonly LineDraft[]) =>
     drafts.reduce((sum, line) => sum + (dollarsToCents(line.amount) ?? 0), 0)
-  const allocatedCents = sumOfDrafts(earningDrafts.filter(entered))
+  const allocatedCents = sumOfDrafts(earningDrafts.filter(lineEntered))
   const unallocatedCents = (dollarsToCents(values.gross_cents) ?? 0) - allocatedCents
   const unallocatedTaxCents =
-    (dollarsToCents(values.tax_withheld_cents) ?? 0) - sumOfDrafts(taxDrafts.filter(entered))
+    (dollarsToCents(values.tax_withheld_cents) ?? 0) - sumOfDrafts(taxDrafts.filter(lineEntered))
   const periodInverted =
     values.period_start !== null &&
     values.period_end !== null &&

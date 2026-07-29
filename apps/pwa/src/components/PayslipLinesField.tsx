@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ActionIcon, Alert, Button, Group, Select, Stack, Text, TextInput } from '@mantine/core'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
-import type { InflowOption, LineDraft } from '../hooks/usePayslipLineDrafts'
+import { lineEntered, type InflowOption, type LineDraft } from '../hooks/usePayslipLineDrafts'
 import type { PayslipTaxComponent } from '../hooks/usePayslipLines'
 import { formatCents } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
@@ -11,6 +11,14 @@ const TAX_COMPONENT_OPTIONS: readonly { value: PayslipTaxComponent; label: strin
   { value: 'payg', label: 'PAYG income tax' },
   { value: 'stsl', label: 'STSL (study loan)' },
 ]
+
+/**
+ * What an unplaced tax line asks on its own picker. A line naming no component
+ * holds the save — a component guessed at would net against the wrong half of the
+ * liability — so the row that needs the answer is the one that says so, whether the
+ * member typed it or a read filled it in from a slip whose words do not say.
+ */
+const TAX_COMPONENT_REQUIRED = 'Say which part this pays.'
 
 /**
  * A line's name and amount, with whatever it is measured against beside them.
@@ -272,6 +280,7 @@ export function PayslipTaxLinesField({
             placeholder="Pays down"
             data={TAX_COMPONENT_OPTIONS as { value: string; label: string }[]}
             style={{ flex: 1, minWidth: 0 }}
+            {...(line.component === null && lineEntered(line) && { error: TAX_COMPONENT_REQUIRED })}
             value={line.component}
             onChange={(value) => onChange(line, { component: value as PayslipTaxComponent | null })}
           />

@@ -17,12 +17,10 @@ import {
 export type PayslipFieldValues = Record<ExtractedDateField, string | null> &
   Record<ExtractedAmountField, number | string>
 
-/** What a pre-fill did, so the form can say which figures came off the slip. */
+/** What a pre-fill did, so the form can say whether a read gave it anything. */
 export interface PrefillSummary {
   /** Fields the extraction filled in. */
   filled: ExtractedField[]
-  /** Fields left exactly as the member had already set them. */
-  kept: ExtractedField[]
 }
 
 export interface PayslipFields {
@@ -81,9 +79,7 @@ function savedFields(values: PayslipFieldValues): Set<ExtractedField> {
  * may be overwritten, a typed value is the member's and may not. And, when
  * `saved` says these values came off a payslip that already exists, every figure
  * that row holds: they confirmed each one when they saved it, so attaching a
- * replacement document reads the slip without rewriting what they filed. The
- * text read for such a field is still reported, so a corrected figure can be
- * copied across by hand.
+ * replacement document reads the slip without rewriting what they filed.
  *
  * That set of fields is one mutable instance rather than a value replaced on each
  * change: nothing renders from it, and a pre-fill landing after an awaited read
@@ -114,13 +110,11 @@ export function usePayslipFields(initial: PayslipFieldValues, saved = false): Pa
   const prefill = useCallback(
     (extraction: PayslipExtraction): PrefillSummary => {
       const filled: ExtractedField[] = []
-      const kept: ExtractedField[] = []
       const writes: ((values: PayslipFieldValues) => PayslipFieldValues)[] = []
 
-      /** Whether the field is the extraction's to write, recording either way. */
+      /** Whether the field is the extraction's to write, recording it where it is. */
       const claim = (field: ExtractedField): boolean => {
         if (claimed.has(field)) {
-          kept.push(field)
           return false
         }
         filled.push(field)
@@ -145,7 +139,7 @@ export function usePayslipFields(initial: PayslipFieldValues, saved = false): Pa
       // Written through an updater, not over a snapshot: a read takes seconds,
       // and whatever was typed while it ran belongs to a later render's values.
       setValues((current) => writes.reduce((next, write) => write(next), current))
-      return { filled, kept }
+      return { filled }
     },
     [claimed],
   )

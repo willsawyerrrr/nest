@@ -120,7 +120,32 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   a Deductions line in the Tax tab's income build-up and flowing through to the
   Summary. Each deduction may carry stored receipts (`deduction_receipt`), the
   files held in a private Supabase Storage bucket (`receipts`) laid out under
-  `<household_id>/…` so Storage RLS gates access by household membership.
+  `<household_id>/<deduction_id>/…` so Storage RLS gates access by household
+  membership. Adding a deduction lets the member pick receipt files as the
+  FIRST step, before the deduction exists: the add form mints the deduction id
+  client-side and each picked file uploads immediately to Storage under it
+  (Storage has no foreign key, so this is safe ahead of the row — unlike
+  `deduction_receipt.deduction_id`, a real, non-deferrable one). Picking the
+  first file is what triggers extraction pre-fill: it is read with Claude Haiku
+  4.5 via the `deduction-extract` edge function, which fills in the
+  description, amount, and date that are not already the member's own — typed
+  here already — with a note saying the details were extracted by AI and
+  asking for them to be checked; every failure mode (an unconfigured key, a
+  file that is not a receipt, an unsupported type or size, a rate limit, a
+  model failure) reads as its own inline note and never blocks the save,
+  exactly as payslip extraction. Only the first picked file is read — a second
+  and further ones upload alongside it without a second read, since one
+  confirmed read is what the form works from. The deduction and every receipt
+  already uploaded are written together in one transaction
+  (`create_deduction_with_receipts`), keyed on the id the form minted, so a
+  retried save rewrites the same deduction and replaces its receipt set rather
+  than duplicating either. A picked file the member removes, or the whole add
+  flow they walk away from, is deleted again, best effort: a delete that fails
+  is swallowed, and a closed tab runs no cleanup at all. Editing an existing
+  deduction carries none of this — its receipts are added and removed
+  individually from its row in the deductions list, exactly as before, each
+  such upload creating its `deduction_receipt` row immediately since the
+  deduction already exists.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. A slip is filed

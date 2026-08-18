@@ -181,6 +181,11 @@ and so without the trigger.
     `help_debt`, `super_contribution`, and `payslip`. `member_id` is a
     tax/reporting attribution, not a privacy boundary: the two returns are lodged
     against one pooled pot, so each member maintains their co-member's claims.
+  - Adding a deduction is written, alongside every receipt already uploaded for
+    it, through `create_deduction_with_receipts` (below) rather than a direct
+    insert — the client mints the id before the row exists, so a receipt
+    picked first can be filed under it. Editing an existing row is a direct
+    update, as any other field write is.
 - **deduction_receipt** — a stored receipt file backing a deduction; many rows
   per deduction.
   - `id`, `deduction_id`, `household_id`, `storage_path`, `file_name`,
@@ -750,6 +755,20 @@ transaction, not for the privileges.
   point: the household policies on both tables gate every statement in it exactly
   as they gate a direct write, and `household_id` is not updatable on conflict,
   so a slip cannot be moved or hijacked across households.
+- `create_deduction_with_receipts(deduction jsonb, receipts jsonb) returns uuid`
+  — writes one deduction and replaces its whole `deduction_receipt` set in a
+  single call. Only the add-deduction flow uses it: the form lets a member pick
+  receipt files before the deduction exists, uploading each straight to Storage
+  (which has no foreign key), so the id the form mints has to reach both tables
+  in one transaction — `deduction_receipt.deduction_id` is a real,
+  non-deferrable foreign key, so a receipt row cannot be inserted first. Keyed
+  on that same id, so a retried save rewrites the deduction and replaces its
+  receipt set rather than duplicating either. Running as the caller: the
+  household policies on both tables gate every statement exactly as a direct
+  write would, and `household_id` is not updatable on conflict. Editing an
+  existing deduction never calls this RPC — its receipts are attached one at a
+  time through the ordinary `deduction_receipt` insert path, since the
+  deduction id is already real.
 
 The Up token and VAPID RPCs are also `SECURITY DEFINER`, but granted to
 `service_role` alone (not `authenticated`) — they are the only path to secrets

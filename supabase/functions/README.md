@@ -40,10 +40,11 @@ injected so the validate-then-store ordering is tested against fakes, and
 `push-key/key.ts` / `push-test/send.ts` do the same for the push flows —
 `push-test/webpush.ts` is exercised against a stubbed `fetch`, so the real VAPID
 signature and aes128gcm framing are asserted without a push service. On the same
-pattern, `payslip-extract/{money,fields,extract}.ts` hold the cents conversion,
-the field shaping, and the extraction flow (`payslip-extract/model.ts` takes an
-injectable `fetch` the same way `UpClient` does, so the Anthropic request is
-asserted against a stub).
+pattern, `_shared/money.ts` holds the cents/date conversion shared by both
+document-reading functions, `payslip-extract/{fields,extract}.ts` and
+`deduction-extract/{fields,extract}.ts` hold their own field shaping and
+extraction flow, and each function's `model.ts` takes an injectable `fetch` the
+same way `UpClient` does, so the Anthropic request is asserted against a stub.
 
 ## Up Bank sync
 
@@ -108,14 +109,14 @@ side compares and why a function is dated by its bundle inputs rather than its
 directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
-`up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`, and
-`payslip-extract` are JWT-verified (the default, so they carry no `config.toml`
-entry) — the caller is resolved from their JWT, so a member can only touch their
-own token, their own devices, and files in their own household, and `up-sync`'s PWA
-Refresh carries the member's JWT while its hourly cron presents the service-role
-key. `up-webhook` is the only entry in `config.toml`, setting `verify_jwt = false`
-so Up can call it unauthenticated; its HMAC signature check is the security
-boundary.
+`up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
+`payslip-extract`, and `deduction-extract` are JWT-verified (the default, so they
+carry no `config.toml` entry) — the caller is resolved from their JWT, so a
+member can only touch their own token, their own devices, and files in their own
+household, and `up-sync`'s PWA Refresh carries the member's JWT while its hourly
+cron presents the service-role key. `up-webhook` is the only entry in
+`config.toml`, setting `verify_jwt = false` so Up can call it unauthenticated;
+its HMAC signature check is the security boundary.
 
 Serve locally against the running stack, or deploy a single function by hand:
 
@@ -125,6 +126,7 @@ supabase functions serve up-disconnect
 supabase functions serve up-webhook
 supabase functions serve up-sync
 supabase functions serve payslip-extract
+supabase functions serve deduction-extract
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -197,13 +199,47 @@ write — which also means a failure at any step can leave nothing half-written.
   `{ configured: false }` when the API key is unset — an honest "the feature is
   off, enter it by hand" rather than a 500 that looks like a bug.
 
+## Receipt extraction
+
+`deduction-extract` reads the fields off an uploaded deduction receipt so the
+member can confirm them, on the same shape as `payslip-extract`: JWT-verified,
+takes an already-uploaded object path, checks the path's household prefix,
+downloads with the service role, and forces a tool schema over Claude Haiku 4.5.
+It **never writes a deduction anywhere** — same reasoning as payslip extraction —
+and shares its money/date conversion (`_shared/money.ts`) and its Vault-held API
+key (`anthropic_api_key`).
+
+- **Request** — `POST { "path": "<household_id>/<deduction_id>/…" }`, the object
+  path of a file the client has *already* uploaded to the private `receipts`
+  bucket (Storage has no foreign key, so the upload can happen before the
+  deduction row exists — see [`../../CLAUDE.md`](../../CLAUDE.md)'s Tax
+  deductions section).
+- **Fields** — a receipt states less than a payslip does, so the schema asks for
+  three: `description` (the merchant/business name, or — absent one — what was
+  purchased), `deduction_date` (the date of purchase, converted to ISO by the
+  model as `payslip-extract` converts its dates), and `amount` (the printed TOTAL,
+  never a subtotal or a single line item, reported as literal text and converted
+  to cents in `_shared/money.ts`, never by the model).
+- **Response** — `{ model, fields, text, missing, unreadable }`, the same shape as
+  `payslip-extract`'s: `fields.description` is the read text directly (no
+  conversion applies to it), `fields.deduction_date` and `fields.amount_cents`
+  are the converted values, `text` carries the literal date/amount strings read,
+  and `missing`/`unreadable` say which fields the receipt did not show versus
+  which were read but could not be converted safely.
+- **Failures** — the same taxonomy as `payslip-extract`: `400`/`403`/`404`/`415`/
+  `413` on the request or file, `422` when the model reports the document is not
+  a receipt (`notReceipt: true`) or declines to read it, `429` a rate limit,
+  `502` an API error or unusable output, `504` a timeout, and `503` with
+  `{ configured: false }` / `{ outOfCredit: true }` / `{ keyRejected: true }` for
+  the three operator-fixable "reading is off" cases.
+
 ### Secret
 
 - **`anthropic_api_key`** — one household-wide Anthropic API key, held in Vault
-  and readable only by the SECURITY DEFINER `anthropic_api_key()` function granted
-  to `service_role` alone (`20260812000000_anthropic_api_key.sql`), which the
-  function calls with its service-role client. It is never returned to a client.
-  The operator sets it by hand; see
+  and readable only by the SECURITY DEFINER `anthropic_api_key()` function
+  granted to `service_role` alone (`20260812000000_anthropic_api_key.sql`), which
+  each extraction function calls with its own service-role client. It is never
+  returned to a client. The operator sets it by hand; see
   [`docs/operations.md`](../../docs/operations.md).
 
 ## Changelog ("What's new")

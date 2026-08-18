@@ -1,6 +1,15 @@
+import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import type { DeductionRow } from '../hooks/useDeductions'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
+import {
+  EXTRACTION_KEY_REJECTED_MESSAGE,
+  EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+  EXTRACTION_UNCONFIGURED_MESSAGE,
+  type DeductionExtraction,
+  type ExtractionOutcome,
+} from '../lib/deductionExtraction'
 import { fireEvent, render, screen, waitFor } from '../test/render'
 import { DeductionForm } from './DeductionForm'
 
@@ -21,32 +30,76 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
   }
 }
 
+/** What a receipt's fields come back as when the model reads every one of them. */
+function extraction(overrides: Partial<DeductionExtraction['fields']> = {}): DeductionExtraction {
+  return {
+    model: 'claude-haiku-4-5-20251001',
+    fields: {
+      description: 'Officeworks',
+      deduction_date: '2026-08-05',
+      amount_cents: 124_50,
+      ...overrides,
+    },
+  }
+}
+
+const upload = vi.fn()
+const discard = vi.fn()
+const read = vi.fn()
+const attachments: DeductionAttachments = { upload, discard, read }
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  upload.mockImplementation(async (deductionId: string, file: File) => ({
+    storage_path: `h1/${deductionId}/uuid-${file.name}`,
+    file_name: file.name,
+  }))
+  discard.mockResolvedValue(undefined)
+  read.mockResolvedValue({ status: 'read', extraction: extraction() } satisfies ExtractionOutcome)
+})
+
+/** The single submission the form passed to its `onSubmit`. */
+function submitted(onSubmit: ReturnType<typeof vi.fn>): DeductionSubmission {
+  return onSubmit.mock.calls[0]![0] as DeductionSubmission
+}
+
+/** The form's file picker, which has no accessible label of its own. */
+function filePicker() {
+  return document.querySelector('input[type="file"]') as HTMLInputElement
+}
+
+/** Attaches a receipt and waits for the store-and-read to settle. */
+async function attach(user: ReturnType<typeof userEvent.setup>, name = 'receipt.pdf') {
+  await user.upload(filePicker(), new File(['x'], name, { type: 'application/pdf' }))
+  await waitFor(() => expect(screen.queryByText(/the receipt…$/)).not.toBeInTheDocument())
+}
+
 describe('DeductionForm', () => {
-  it('submits a deduction with the amount in cents', async () => {
+  it('submits a deduction with the amount in cents, minting its own id', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} onSubmit={onSubmit} />)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '350')
     await user.click(screen.getByRole('button', { name: /add deduction/i }))
 
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          member_id: 'm1',
-          description: 'Tools',
-          amount_cents: 35000,
-        }),
-      ),
-    )
-    expect(onSubmit.mock.calls[0]![0].deduction_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    const submission = submitted(onSubmit)
+    expect(submission.id).toEqual(expect.any(String))
+    expect(submission.input).toMatchObject({
+      member_id: 'm1',
+      description: 'Tools',
+      amount_cents: 35000,
+    })
+    expect(submission.input.deduction_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(submission.receipts).toEqual([])
   })
 
   it('shows an error when saving fails', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
-    render(<DeductionForm member={member} onSubmit={onSubmit} />)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '10')
@@ -57,19 +110,22 @@ describe('DeductionForm', () => {
 
   it('ignores a submit while the form is incomplete', () => {
     const onSubmit = vi.fn()
-    const { container } = render(<DeductionForm member={member} onSubmit={onSubmit} />)
+    const { container } = render(
+      <DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />,
+    )
 
     fireEvent.submit(container.querySelector('form')!)
 
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('prefills an existing deduction and cancels', async () => {
+  it('prefills an existing deduction, offers no receipt picker, and cancels', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
     render(
       <DeductionForm
         member={member}
+        attachments={attachments}
         initial={makeDeduction()}
         onSubmit={vi.fn()}
         onCancel={onCancel}
@@ -78,8 +134,320 @@ describe('DeductionForm', () => {
 
     expect(screen.getByDisplayValue('Home office')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    // Editing carries no attachment mechanics: receipts for an existing
+    // deduction are managed from its row in the list, not from this form.
+    expect(filePicker()).toBeNull()
 
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('submits the resubmitted fields for an edit, with the deduction’s own id', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        initial={makeDeduction()}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit)).toEqual({
+      id: 'd1',
+      input: {
+        member_id: 'm1',
+        description: 'Home office',
+        amount_cents: 1_200_00,
+        deduction_date: '2026-08-01',
+      },
+      receipts: [],
+    })
+    expect(upload).not.toHaveBeenCalled()
+  })
+})
+
+describe('DeductionForm receipt extraction', () => {
+  it('pre-fills the fields read off an attached receipt and saves them in cents', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+
+    await attach(user)
+
+    expect(screen.getByLabelText(/description/i)).toHaveValue('Officeworks')
+    expect(screen.getByLabelText(/amount/i)).toHaveValue('$124.50')
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    const submission = submitted(onSubmit)
+    expect(submission.input).toMatchObject({
+      description: 'Officeworks',
+      amount_cents: 124_50,
+      deduction_date: '2026-08-05',
+    })
+    // The receipt was stored before it was read, so the save carries the same
+    // storage path the deduction id is filed under.
+    expect(submission.receipts).toEqual([
+      { storage_path: `h1/${submission.id}/uuid-receipt.pdf`, file_name: 'receipt.pdf' },
+    ])
+    expect(read).toHaveBeenCalledWith(submission.receipts[0]!.storage_path)
+  })
+
+  it('says the details were extracted and asks for a check, without restating them', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'read',
+      // The receipt printed no readable amount, so it stays blank for the
+      // member to type — never guessed at.
+      extraction: extraction({ amount_cents: null }),
+    } satisfies ExtractionOutcome)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    const note = screen.getByText(/extracted from the receipt by AI/i)
+    expect(note).toHaveTextContent(/check them against it before saving/i)
+    expect(note).not.toHaveTextContent(/Officeworks/i)
+    expect(screen.getByLabelText(/description/i)).toHaveValue('Officeworks')
+    expect(screen.getByLabelText(/amount/i)).toHaveValue('')
+  })
+
+  it('says plainly when a receipt yielded nothing to fill in', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'read',
+      extraction: { model: 'claude-haiku-4-5-20251001', fields: {} },
+    } satisfies ExtractionOutcome)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    expect(
+      screen.getByText(/Nothing on the receipt could be filled in for you\./),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps a value the member typed rather than replacing it with a read one', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/description/i), 'My own label')
+    await attach(user)
+
+    expect(screen.getByLabelText(/description/i)).toHaveValue('My own label')
+    // The amount was left alone, so it still fills from the receipt.
+    expect(screen.getByLabelText(/amount/i)).toHaveValue('$124.50')
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input.description).toBe('My own label')
+  })
+
+  it('only reads the first of several attached receipts', async () => {
+    const user = userEvent.setup()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user, 'first.pdf')
+    await attach(user, 'second.pdf')
+
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(read).toHaveBeenCalledWith(expect.stringContaining('first.pdf'))
+    expect(screen.getByText('first.pdf')).toBeInTheDocument()
+    expect(screen.getByText('second.pdf')).toBeInTheDocument()
+  })
+
+  it('removes a picked receipt, discarding its stored object', async () => {
+    const user = userEvent.setup()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+    const path = (await upload.mock.results[0]!.value).storage_path as string
+    await user.click(screen.getByRole('button', { name: /remove receipt\.pdf/i }))
+
+    await waitFor(() => expect(discard).toHaveBeenCalledWith(path))
+    expect(screen.queryByText('receipt.pdf')).not.toBeInTheDocument()
+  })
+
+  it('says so while the receipt is being stored and read', async () => {
+    const user = userEvent.setup()
+    let finishRead!: (outcome: ExtractionOutcome) => void
+    read.mockReturnValue(
+      new Promise<ExtractionOutcome>((resolve) => {
+        finishRead = resolve
+      }),
+    )
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await user.upload(filePicker(), new File(['x'], 'receipt.pdf', { type: 'application/pdf' }))
+
+    expect(await screen.findByText('Reading the receipt…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add deduction/i })).toBeDisabled()
+
+    finishRead({ status: 'read', extraction: extraction() })
+    await waitFor(() => expect(screen.queryByText('Reading the receipt…')).not.toBeInTheDocument())
+  })
+
+  it('falls back to manual entry with an honest note when extraction is not configured', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'not-configured',
+      message: EXTRACTION_UNCONFIGURED_MESSAGE,
+    } satisfies ExtractionOutcome)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    expect(screen.getByText(EXTRACTION_UNCONFIGURED_MESSAGE)).toBeInTheDocument()
+    expect(screen.getByLabelText(/description/i)).toHaveValue('')
+  })
+
+  it('reads an account out of credit as reading being off, not as a broken read', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'out-of-credit',
+      message: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
+    } satisfies ExtractionOutcome)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    const note = screen.getByText(EXTRACTION_OUT_OF_CREDIT_MESSAGE)
+    expect(note.closest('[role="alert"]')).toBeNull()
+    expect(screen.queryByText(EXTRACTION_UNCONFIGURED_MESSAGE)).not.toBeInTheDocument()
+  })
+
+  it('reads a refused API key as reading being off, not as a broken read', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'key-rejected',
+      message: EXTRACTION_KEY_REJECTED_MESSAGE,
+    } satisfies ExtractionOutcome)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    const note = screen.getByText(EXTRACTION_KEY_REJECTED_MESSAGE)
+    expect(note.closest('[role="alert"]')).toBeNull()
+  })
+
+  it('passes on the model’s reason for a file that is not a receipt', async () => {
+    const user = userEvent.setup()
+    read.mockResolvedValue({
+      status: 'not-receipt',
+      message: 'That file does not look like a receipt.',
+      reason: 'It is a bank statement.',
+    } satisfies ExtractionOutcome)
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    expect(
+      screen.getByText(
+        /does not look like a receipt\. It is a bank statement\. Enter the details by hand\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('reports a receipt that could not be stored, and reads nothing', async () => {
+    const user = userEvent.setup()
+    upload.mockRejectedValue(new Error('nope'))
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+
+    await attach(user)
+
+    expect(screen.getByText(/Could not upload this receipt/)).toBeInTheDocument()
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('deletes an attached receipt the member walks away from', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(
+      <DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />,
+    )
+
+    await attach(user)
+    unmount()
+    await waitFor(() => expect(discard).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps every stored receipt once the save that references them succeeds', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const { unmount } = render(
+      <DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />,
+    )
+
+    await attach(user)
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    unmount()
+
+    expect(discard).not.toHaveBeenCalled()
+  })
+
+  it('keeps the stored receipt when the save closes the form itself', async () => {
+    const user = userEvent.setup()
+    function ClosingDeductionForm({
+      onSaved,
+    }: {
+      onSaved: (submission: DeductionSubmission) => Promise<void>
+    }) {
+      const [open, setOpen] = useState(true)
+      if (!open) {
+        return <p>Saved</p>
+      }
+      return (
+        <DeductionForm
+          member={member}
+          attachments={attachments}
+          onSubmit={async (submission) => {
+            await onSaved(submission)
+            setOpen(false)
+          }}
+        />
+      )
+    }
+    const onSaved = vi.fn().mockResolvedValue(undefined)
+    render(<ClosingDeductionForm onSaved={onSaved} />)
+
+    await attach(user)
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    expect(onSaved).toHaveBeenCalled()
+    expect(discard).not.toHaveBeenCalled()
+  })
+
+  it('blocks a save while a receipt is still being stored', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    let finishUpload!: (stored: { storage_path: string; file_name: string }) => void
+    upload.mockImplementation(
+      async (deductionId: string, file: File) =>
+        await new Promise<{ storage_path: string; file_name: string }>((resolve) => {
+          finishUpload = () =>
+            resolve({ storage_path: `h1/${deductionId}/uuid-${file.name}`, file_name: file.name })
+        }),
+    )
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/description/i), 'Tools')
+    await user.type(screen.getByLabelText(/amount/i), '10')
+    await user.upload(filePicker(), new File(['x'], 'receipt.pdf', { type: 'application/pdf' }))
+
+    const submit = await screen.findByRole('button', { name: /add deduction/i })
+    expect(submit).toBeDisabled()
+    await user.click(submit)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    finishUpload({ storage_path: 'h1/x/uuid-receipt.pdf', file_name: 'receipt.pdf' })
+    await waitFor(() => expect(submit).not.toBeDisabled())
   })
 })

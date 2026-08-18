@@ -11,12 +11,20 @@ export type DeductionRow = Tables<'deduction'>
  * The deduction fields a form supplies for a member; the household and financial
  * year are set by the hook. A member may claim many deductions, so deductions are
  * created, updated, and removed individually.
+ *
+ * `basis` says how `amount_cents` was arrived at: `'amount'` (the default), typed
+ * directly, or `'distance'`, computed by the form from `distance_km` at the
+ * financial year's cents-per-km car expense rate before being submitted here.
+ * `amount_cents` is always the figure that is saved and read downstream;
+ * `distance_km` is set only alongside `'distance'`.
  */
 export interface DeductionInput {
   member_id: string
   description: string
   amount_cents: number
   deduction_date: string
+  basis?: DeductionRow['basis']
+  distance_km?: number | null
 }
 
 /**

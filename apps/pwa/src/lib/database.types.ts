@@ -348,9 +348,11 @@ export type Database = {
       deduction: {
         Row: {
           amount_cents: number
+          basis: Database['public']['Enums']['deduction_basis']
           created_at: string
           deduction_date: string
           description: string
+          distance_km: number | null
           financial_year: number
           household_id: string
           id: string
@@ -359,9 +361,11 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          basis?: Database['public']['Enums']['deduction_basis']
           created_at?: string
           deduction_date: string
           description: string
+          distance_km?: number | null
           financial_year: number
           household_id: string
           id?: string
@@ -370,9 +374,11 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          basis?: Database['public']['Enums']['deduction_basis']
           created_at?: string
           deduction_date?: string
           description?: string
+          distance_km?: number | null
           financial_year?: number
           household_id?: string
           id?: string
@@ -1653,6 +1659,7 @@ export type Database = {
       breakdown_kind: 'generic'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
+      deduction_basis: 'amount' | 'distance'
       frequency:
         | 'weekly'
         | 'fortnightly'
@@ -1802,6 +1809,7 @@ export const Constants = {
       breakdown_kind: ['generic'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
+      deduction_basis: ['amount', 'distance'],
       frequency: [
         'weekly',
         'fortnightly',

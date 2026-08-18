@@ -100,6 +100,8 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     description: 'Home office',
     amount_cents: 300_00,
     deduction_date: '2026-09-01',
+    basis: 'amount',
+    distance_km: null,
     created_at: '',
     updated_at: '',
     ...overrides,

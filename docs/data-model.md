@@ -201,12 +201,26 @@ and so without the trigger.
   income. Edited on the member's Tax deductions tab.
   - `id`, `household_id`, `member_id`, `description`, `amount_cents` (bigint,
     `>= 0`), `deduction_date` (date), `financial_year` (int, ending year),
-    `created_at`, `updated_at`.
+    `basis` (`deduction_basis` enum: `amount` default, or `distance`),
+    `distance_km` (`numeric(8,2)`, nullable), `created_at`, `updated_at`.
   - `financial_year` is the year the expense is claimed in and is stored rather
     than derived from `deduction_date`, with no constraint tying the two: an
     expense incurred near a year boundary is claimed in whichever year the
     household lodges it. It is the FY scope every read filters on, so the Tax and
     EOFY tabs for a year see only that year's rows.
+  - `amount_cents` is always the figure downstream readers use; `basis` says how
+    it was arrived at. On the `distance` basis (a work-related car expense
+    claimed under the ATO's cents-per-kilometre method), the form computes
+    `amount_cents` from `distance_km` at `financial_year`'s published cents-per-km
+    rate (`@nest/tax`'s `carExpense` config, via `carExpenseDeductionCents`) and
+    saves that computed figure — not the distance — as the historical record, the
+    same snapshot-at-write-time pattern `payslip_line.attracts_super` follows so a
+    later change to the ATO rate never retroactively moves a deduction already
+    claimed. The `deduction_basis_attribution` check constraint holds each basis
+    to its own column (`distance_km` non-null and `>= 0` only when
+    `basis = 'distance'`), mirroring `payslip_line_kind_attribution`; the
+    database does not itself derive `amount_cents` from `distance_km`, since the
+    rate is versioned in `@nest/tax`, not stored in Postgres.
   - `member_id` is the tax attribution: a deduction reduces the taxable income of
     exactly one member, so it must be set (not null) even though the money is
     pooled. Composite FK `(member_id, household_id)` → `members`

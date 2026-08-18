@@ -42,6 +42,15 @@ function formatIsoDate(iso: string): string {
   })
 }
 
+/** The date, plus the claimed distance for a distance-basis deduction (e.g. "1 Aug 2026 · 120km"). */
+function deductionDateLabel(deduction: DeductionRow): string {
+  const date = formatIsoDate(deduction.deduction_date)
+  if (deduction.basis === 'distance' && deduction.distance_km != null) {
+    return `${date} · ${deduction.distance_km}km`
+  }
+  return date
+}
+
 /**
  * One stored receipt: its file name, a view link, a rename control, and a
  * delete control. Renaming swaps the label for a text field with save/cancel
@@ -225,7 +234,7 @@ function DeductionRow({ deduction, onEdit, onDelete, ...receiptProps }: Deductio
           {deduction.description}
         </Text>
         <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-          {formatIsoDate(deduction.deduction_date)}
+          {deductionDateLabel(deduction)}
         </Text>
       </Group>
       <MoneyText
@@ -253,7 +262,7 @@ function DeductionCard({ deduction, onEdit, onDelete, ...receiptProps }: Deducti
               {deduction.description}
             </Text>
             <Text size="xs" c="dimmed">
-              {formatIsoDate(deduction.deduction_date)}
+              {deductionDateLabel(deduction)}
             </Text>
           </Stack>
           <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
@@ -283,6 +292,7 @@ function MemberDeductions({
   deductions,
   receipts,
   attachments,
+  financialYear,
   onCreate,
   onUpdate,
   onDelete,
@@ -295,6 +305,7 @@ function MemberDeductions({
   deductions: DeductionRow[]
   receipts: DeductionReceiptRow[]
   attachments: DeductionAttachments
+  financialYear: number
   onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -355,6 +366,7 @@ function MemberDeductions({
           <DeductionForm
             member={member}
             attachments={attachments}
+            financialYear={financialYear}
             initial={initial}
             onSubmit={onSubmit}
             onCancel={onCancel}
@@ -398,6 +410,7 @@ export function DeductionsScreen({
           deductions={deductions.filter((deduction) => deduction.member_id === member.id)}
           receipts={receipts}
           attachments={attachments}
+          financialYear={financialYear}
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}

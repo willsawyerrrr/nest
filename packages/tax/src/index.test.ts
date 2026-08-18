@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   activeFractionOfFinancialYear,
+  carExpenseDeductionCents,
   computeTax,
   configsByYear,
   division293,
@@ -102,6 +103,10 @@ const FIXTURE_CONFIG: TaxYearConfig = {
       baseLimitCents: 12_000_00,
       perYearOfServiceCents: 6_000_00,
     },
+  },
+  carExpense: {
+    centsPerKm: 90,
+    maxClaimableKm: 5_000,
   },
 }
 
@@ -678,6 +683,11 @@ describe('FY2026_CONFIG', () => {
     expect(FY2026_CONFIG.helpRepayment.indexationRate).toBe(0.028)
   })
 
+  it('carries the final 2025-26 cents-per-km car expense rate and cap', () => {
+    expect(FY2026_CONFIG.carExpense.centsPerKm).toBe(88)
+    expect(FY2026_CONFIG.carExpense.maxClaimableKm).toBe(5_000)
+  })
+
   it('gives the maximum LITO below the first taper threshold', () => {
     expect(lowIncomeTaxOffset(30_000_00, FY2026_CONFIG)).toBe(700_00)
     expect(lowIncomeTaxOffset(66_667_00, FY2026_CONFIG)).toBe(0) // cuts out at $66,667
@@ -751,6 +761,13 @@ describe('FY2027_CONFIG', () => {
 
   it('carries a provisional HELP indexation rate for the payoff projection', () => {
     expect(FY2027_CONFIG.helpRepayment.indexationRate).toBe(0.035)
+  })
+
+  it('carries the final 2026-27 cents-per-km car expense rate and cap', () => {
+    // 91c = an 89c indexed base plus a temporary 2c one-off uplift for 2026-27,
+    // legislated ahead of the year (F2026L00785) — not provisional.
+    expect(FY2027_CONFIG.carExpense.centsPerKm).toBe(91)
+    expect(FY2027_CONFIG.carExpense.maxClaimableKm).toBe(5_000)
   })
 
   it('gives the maximum LITO below the first taper threshold', () => {
@@ -1216,5 +1233,30 @@ describe('salarySacrificeWhatIf', () => {
       takeHomeChangeCents: 0,
       division293DeltaCents: 0,
     })
+  })
+})
+
+describe('carExpenseDeductionCents', () => {
+  it('multiplies distance by the rate and rounds to whole cents', () => {
+    // 100km × 90c = $90.00.
+    expect(carExpenseDeductionCents(100, FIXTURE_CONFIG)).toBe(90_00)
+  })
+
+  it('rounds a fractional-km distance to the nearest cent', () => {
+    // 12.5km × 90c = $11.25.
+    expect(carExpenseDeductionCents(12.5, FIXTURE_CONFIG)).toBe(11_25)
+  })
+
+  it('is nil for zero distance', () => {
+    expect(carExpenseDeductionCents(0, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it('floors a negative distance at zero', () => {
+    expect(carExpenseDeductionCents(-10, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it("uses each financial year's own published rate", () => {
+    expect(carExpenseDeductionCents(5_000, FY2026_CONFIG)).toBe(4_400_00) // 5,000km × 88c
+    expect(carExpenseDeductionCents(5_000, FY2027_CONFIG)).toBe(4_550_00) // 5,000km × 91c
   })
 })

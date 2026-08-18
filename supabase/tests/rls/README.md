@@ -26,14 +26,21 @@ instance and can also be run locally.
   a second pass, and the check constraint refusing a slip filed by the year its
   work fell in. It runs the backfill from the migration file itself (`\ir`), so
   the assertions cover the shipped SQL rather than a copy of it.
+- `deduction_basis.sql` — the assertions that a deduction's `basis` and
+  `distance_km` are held to the `deduction_basis_attribution` pairing constraint:
+  an unqualified insert defaults to the amount basis with no distance, a
+  distance-basis row must name a non-negative distance, an amount-basis row must
+  name none, and a valid distance-basis row round-trips the client-computed
+  `amount_cents` unchanged (the database does not re-derive it from the
+  cents-per-km rate, which lives in `@nest/tax`, not in Postgres).
 
 ## What runs
 
 `setup_auth.sql` → every file in `supabase/migrations/` in order →
 `rls_isolation.sql` → `derived_line_triggers.sql` →
-`payslip_financial_year.sql` → `payslip_lines.sql`. Because the real migrations
-and policies are applied, the assertions test the actual security boundary and
-trigger behaviour, not a reimplementation.
+`payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql`.
+Because the real migrations and policies are applied, the assertions test the
+actual security boundary and trigger behaviour, not a reimplementation.
 
 ## Run locally
 
@@ -51,5 +58,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/rls_isolation.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/derived_line_triggers.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_financial_year.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_lines.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
 docker rm -f pba-rls
 ```

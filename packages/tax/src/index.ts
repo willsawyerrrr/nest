@@ -130,6 +130,7 @@ export interface TaxYearConfig {
   readonly helpRepayment: HelpRepaymentConfig
   readonly super: SuperConfig
   readonly employmentTermination: EmploymentTerminationConfig
+  readonly carExpense: CarExpenseConfig
 }
 
 /**
@@ -180,6 +181,18 @@ export interface EmploymentTerminationConfig {
 export interface GenuineRedundancyConfig {
   readonly baseLimitCents: Money
   readonly perYearOfServiceCents: Money
+}
+
+/**
+ * ATO cents-per-kilometre car expense deduction parameters. `centsPerKm` is a
+ * rate in whole cents (e.g. `88` means $0.88/km), not a `Money` amount, so a
+ * deduction claimed as `distanceKm` kilometres converts to
+ * `round(distanceKm * centsPerKm)` integer cents. `maxClaimableKm` is the ATO's
+ * cap on work-related kilometres claimable per car per year under this method.
+ */
+export interface CarExpenseConfig {
+  readonly centsPerKm: number
+  readonly maxClaimableKm: number
 }
 
 /**
@@ -398,6 +411,16 @@ export function activeFractionOfFinancialYear(
  */
 function roundCents(value: number): Money {
   return Math.round(value)
+}
+
+/**
+ * The dollar deduction for a work-related car expense claimed under the ATO's
+ * cents-per-kilometre method: `distanceKm` kilometres at `config.carExpense`'s
+ * rate, rounded to the nearest whole cent. Never negative; a negative
+ * `distanceKm` is treated as zero.
+ */
+export function carExpenseDeductionCents(distanceKm: number, config: TaxYearConfig): Money {
+  return roundCents(Math.max(0, distanceKm) * config.carExpense.centsPerKm)
 }
 
 /**

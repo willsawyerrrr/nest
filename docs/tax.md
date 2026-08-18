@@ -300,6 +300,9 @@ employment_termination:
   above_cap_rate: 0.45                # ATO's 47%, less the levy
   unused_leave_max_rate: 0.30         # ATO's 32%, less the levy
   genuine_redundancy: { base_limit_cents, per_year_of_service_cents }
+car_expense:
+  cents_per_km: 91          # ATO cents-per-kilometre car expense deduction rate
+  max_claimable_km: 5000    # cap on business km claimable per car per year under this method
 ```
 
 > **Values above are illustrative.** Each FY's real figures must be sourced from
@@ -310,9 +313,10 @@ employment_termination:
 
 - **FY2026** (`FY2026_CONFIG`, also in `configsByYear`) — a verified resident
   config for the closed 2025-26 financial year. Every figure, including the HELP
-  indexation rate applied on 1 June 2026 (2.8%), is the ATO's final published or
-  legislated value — none are provisional. It is the last year at the 16%
-  lowest marginal rate, and carries the verified 2025-26 super figures
+  indexation rate applied on 1 June 2026 (2.8%) and the 88c/km cents-per-km car
+  expense rate (capped at 5,000km per car per year), is the ATO's final
+  published or legislated value — none are provisional. It is the last year at
+  the 16% lowest marginal rate, and carries the verified 2025-26 super figures
   (concessional cap $30,000, non-concessional cap $120,000, the $2.0M general
   transfer balance cap, the $250,000 Division 293 threshold, 15%
   contributions/Division 293 rate, the co-contribution income test, and
@@ -324,7 +328,11 @@ employment_termination:
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
   carries its `ato.gov.au` source in a comment; figures the ATO has not yet
   published for 2026-27 (the Medicare levy low-income thresholds and the HELP
-  indexation rate) reuse the latest known values and are flagged provisional. It
+  indexation rate) reuse the latest known values and are flagged provisional. The
+  91c/km cents-per-km car expense rate (an 89c indexed base plus a temporary 2c
+  one-off uplift for 2026-27, capped at 5,000km per car per year) is final, not
+  provisional — legislated ahead of the year via the Income Tax Assessment
+  (Cents per Kilometre Deduction Rate for Car Expenses) Determination 2026. It
   also carries the verified 2026-27
   super figures (concessional cap $32,500, non-concessional cap $130,000, the
   $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the

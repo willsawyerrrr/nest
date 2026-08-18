@@ -1,5 +1,6 @@
-import { ActionIcon, Anchor, FileInput, Group, Stack, Text } from '@mantine/core'
-import { IconTrash } from '@tabler/icons-react'
+import { useState } from 'react'
+import { ActionIcon, Anchor, FileInput, Group, Stack, Text, TextInput } from '@mantine/core'
+import { IconCheck, IconPencil, IconTrash, IconX } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
@@ -27,6 +28,7 @@ interface DeductionsScreenProps {
   onDelete: (id: string) => Promise<void>
   onUploadReceipt: (deductionId: string, file: File) => Promise<void>
   onRemoveReceipt: (receipt: DeductionReceiptRow) => Promise<void>
+  onRenameReceipt: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
   signedUrl: (path: string) => Promise<string | null>
 }
 
@@ -40,16 +42,84 @@ function formatIsoDate(iso: string): string {
   })
 }
 
-/** One stored receipt: its file name, a view link, and a delete control. */
+/**
+ * One stored receipt: its file name, a view link, a rename control, and a
+ * delete control. Renaming swaps the label for a text field with save/cancel
+ * controls beside it, matching the pencil/check pair `NetWorthView`'s own edit
+ * toggle uses. Saving is blocked while the name is blank, matching the rest of
+ * the app's disable-rather-than-error validation; the underlying stored file
+ * and its path are never touched, only the display label.
+ */
 function ReceiptItem({
   receipt,
   onView,
   onDelete,
+  onRename,
 }: {
   receipt: DeductionReceiptRow
   onView: () => void
   onDelete: () => void
+  onRename: (fileName: string) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(receipt.file_name)
+
+  const startEditing = () => {
+    setDraft(receipt.file_name)
+    setEditing(true)
+  }
+  const cancel = () => setEditing(false)
+  const trimmed = draft.trim()
+  const canSave = trimmed !== ''
+  const save = () => {
+    if (!canSave) {
+      return
+    }
+    onRename(trimmed)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <Group gap={4} wrap="nowrap">
+        <TextInput
+          size="xs"
+          aria-label={`Rename ${receipt.file_name}`}
+          value={draft}
+          onChange={(event) => setDraft(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              save()
+            } else if (event.key === 'Escape') {
+              cancel()
+            }
+          }}
+          style={{ flex: 1, minWidth: 0 }}
+          autoFocus
+        />
+        <ActionIcon
+          variant="subtle"
+          color="teal"
+          size="sm"
+          aria-label={`Save name for ${receipt.file_name}`}
+          disabled={!canSave}
+          onClick={save}
+        >
+          <IconCheck size={14} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          size="sm"
+          aria-label={`Cancel renaming ${receipt.file_name}`}
+          onClick={cancel}
+        >
+          <IconX size={14} />
+        </ActionIcon>
+      </Group>
+    )
+  }
+
   return (
     <Group gap="xs" wrap="nowrap" justify="space-between">
       <Anchor size="xs" component="button" type="button" onClick={onView} style={{ minWidth: 0 }}>
@@ -57,15 +127,25 @@ function ReceiptItem({
           {receipt.file_name}
         </Text>
       </Anchor>
-      <ActionIcon
-        variant="subtle"
-        color="red"
-        size="sm"
-        aria-label={`Delete receipt ${receipt.file_name}`}
-        onClick={onDelete}
-      >
-        <IconTrash size={14} />
-      </ActionIcon>
+      <Group gap={2} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <ActionIcon
+          variant="subtle"
+          size="sm"
+          aria-label={`Rename ${receipt.file_name}`}
+          onClick={startEditing}
+        >
+          <IconPencil size={14} />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          size="sm"
+          aria-label={`Delete receipt ${receipt.file_name}`}
+          onClick={onDelete}
+        >
+          <IconTrash size={14} />
+        </ActionIcon>
+      </Group>
     </Group>
   )
 }
@@ -77,6 +157,7 @@ interface DeductionItemProps {
   onDelete: () => void
   onUploadReceipt: (file: File) => Promise<void>
   onRemoveReceipt: (receipt: DeductionReceiptRow) => void
+  onRenameReceipt: (receipt: DeductionReceiptRow, fileName: string) => void
   signedUrl: (path: string) => Promise<string | null>
 }
 
@@ -86,6 +167,7 @@ function DeductionReceipts({
   receipts,
   onUploadReceipt,
   onRemoveReceipt,
+  onRenameReceipt,
   signedUrl,
 }: Omit<DeductionItemProps, 'onEdit' | 'onDelete'>) {
   const viewReceipt = async (receipt: DeductionReceiptRow) => {
@@ -103,6 +185,7 @@ function DeductionReceipts({
           receipt={receipt}
           onView={() => void viewReceipt(receipt)}
           onDelete={() => onRemoveReceipt(receipt)}
+          onRename={(fileName) => onRenameReceipt(receipt, fileName)}
         />
       ))}
 
@@ -199,6 +282,7 @@ function MemberDeductions({
   onDelete,
   onUploadReceipt,
   onRemoveReceipt,
+  onRenameReceipt,
   signedUrl,
 }: {
   member: Member
@@ -210,6 +294,7 @@ function MemberDeductions({
   onDelete: (id: string) => Promise<void>
   onUploadReceipt: (deductionId: string, file: File) => Promise<void>
   onRemoveReceipt: (receipt: DeductionReceiptRow) => Promise<void>
+  onRenameReceipt: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
   signedUrl: (path: string) => Promise<string | null>
 }) {
   // A second confirm dialog for a deduction's receipts; the deduction's own
@@ -256,6 +341,7 @@ function MemberDeductions({
                 onConfirm: () => onRemoveReceipt(receipt),
               })
             }
+            onRenameReceipt={(receipt, fileName) => void onRenameReceipt(receipt, fileName)}
             signedUrl={signedUrl}
           />
         )}
@@ -291,6 +377,7 @@ export function DeductionsScreen({
   onDelete,
   onUploadReceipt,
   onRemoveReceipt,
+  onRenameReceipt,
   signedUrl,
 }: DeductionsScreenProps) {
   return (
@@ -310,6 +397,7 @@ export function DeductionsScreen({
           onDelete={onDelete}
           onUploadReceipt={onUploadReceipt}
           onRemoveReceipt={onRemoveReceipt}
+          onRenameReceipt={onRenameReceipt}
           signedUrl={signedUrl}
         />
       ))}

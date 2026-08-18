@@ -28,6 +28,11 @@ export interface PendingReceipt {
   file_name: string
 }
 
+/** The one field a rename may change; the stored file and its path are untouched. */
+interface DeductionReceiptRenameInput {
+  file_name: string
+}
+
 /** The private Storage bucket receipt files live in. */
 const RECEIPTS_BUCKET = 'receipts'
 
@@ -39,6 +44,11 @@ export interface UseDeductionReceiptsResult {
   upload: (deductionId: string, file: File) => Promise<void>
   /** Removes a receipt's stored file and its row. */
   remove: (receipt: DeductionReceiptRow) => Promise<void>
+  /**
+   * Renames a receipt's display label. Purely a label: `storage_path` and the
+   * underlying stored file are untouched.
+   */
+  rename: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
   /** A short-lived signed URL for viewing a stored receipt, or null on failure. */
   signedUrl: (path: string) => Promise<string | null>
   /**
@@ -67,18 +77,21 @@ const SIGNED_URL_TTL_SECONDS = 3600
  * `<household_id>/<deduction_id>/<uuid>-<file>` so the first path segment gates
  * access to the owning household.
  *
- * `upload`/`remove` attach a receipt to an already-real deduction — the edit
- * flow, and every receipt shown against an existing deduction. `uploadPending`/
- * `discardPending`/`extract` are the create flow's own: a receipt picked before
- * the deduction row exists uploads to Storage alone (no `deduction_receipt` row,
- * since `deduction_id` is a real foreign key), reads through `deduction-extract`
- * to pre-fill the add form, and is written into a `deduction_receipt` row only
- * when `create_deduction_with_receipts` creates the deduction itself.
+ * `upload`/`remove`/`rename` act on an already-real deduction — the edit flow,
+ * and every receipt shown against an existing deduction; `rename` only ever
+ * touches `file_name`, the display label, never `storage_path` or the stored
+ * file. `uploadPending`/`discardPending`/`extract` are the create flow's own: a
+ * receipt picked before the deduction row exists uploads to Storage alone (no
+ * `deduction_receipt` row, since `deduction_id` is a real foreign key), reads
+ * through `deduction-extract` to pre-fill the add form, and is written into a
+ * `deduction_receipt` row only when `create_deduction_with_receipts` creates
+ * the deduction itself.
  */
 export function useDeductionReceipts(householdId: string): UseDeductionReceiptsResult {
-  const { rows, loading, reload, create, remove } = useHouseholdCollection<
+  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_receipt',
-    DeductionReceiptInput
+    DeductionReceiptInput,
+    DeductionReceiptRenameInput
   >(householdId, { table: 'deduction_receipt', orderBy: 'created_at' })
 
   const uploadFile = useCallback(
@@ -145,6 +158,13 @@ export function useDeductionReceipts(householdId: string): UseDeductionReceiptsR
     [remove],
   )
 
+  const rename = useCallback(
+    async (receipt: DeductionReceiptRow, fileName: string) => {
+      await update(receipt.id, { file_name: fileName })
+    },
+    [update],
+  )
+
   const signedUrl = useCallback(async (path: string) => {
     const { data, error } = await supabase.storage
       .from(RECEIPTS_BUCKET)
@@ -161,6 +181,7 @@ export function useDeductionReceipts(householdId: string): UseDeductionReceiptsR
     reload,
     upload,
     remove: removeReceipt,
+    rename,
     signedUrl,
     uploadPending,
     discardPending,

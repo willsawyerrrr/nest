@@ -544,49 +544,6 @@ Recurring shorthand:
 
 ### Integrations
 
-#### 1. incident.io on-call schedule → on-call pay forecasting
-
-- **What / value.** On-call pay is modelled as its own inflow per tier, taxed in
-  full, marked as earning no super, and marked as arriving in only some pay periods
-  — so the year's projection stands while no single fortnight is held against a
-  share of it, and each payslip's on-call earnings line is reported as unmeasured
-  for the period and measured across the year instead (see
-  [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods)). What the
-  projection still cannot say is _when_: it carries a cadence and a year's total,
-  not the roster. Integrating incident.io's schedules/on-call API reads the _actual_
-  rotation, so the app can name a concrete **"next on-call payment: <date>, ~$X"**
-  and hold that fortnight's slip against a real per-period figure rather than none
-  at all. It sharpens near-term cash-flow accuracy (the buffer knows exactly which
-  fortnight the money lands in) and, once ingestion works, lets expected on-call pay
-  be reconciled against what actually hit the Up account.
-- **Effort.** M — one edge function + a small schedule-derived inflow type and
-  a read-only "upcoming on-call" panel. The forecasting math is easy; the
-  fiddly part is mapping rotation entries to pay events and pay dates (shift
-  worked in period P is usually paid in a later payroll run).
-- **Touches.** External API (incident.io REST — `Schedules` / on-call entries)
-  + auth: an API key in **Vault**, fetched by an edge function (same pattern as
-  Up tokens; never exposed to the client). New/derived inflow flavour
-  ("schedule-driven inflow") so a forecast inflow can carry concrete dated
-  occurrences rather than only a cadence — a schema addition, or a derived
-  read-model that leaves the stored inflow as-is. Frontend: an upcoming-shifts
-  card, likely on Inflows or Summary.
-- **Dependencies.** Forecast display works standalone. Expected-vs-received
-  reconciliation needs **ingestion** first.
-- **Feasibility / risks.** incident.io has a documented REST API with a
-  schedules/on-call surface and API-key auth, so the fetch is straightforward.
-  Real modelling risk is the _pay_ side, not the _roster_ side: on-call
-  allowance rates, whether weekends/public holidays pay differently, and the
-  lag between working a shift and being paid for it all have to be encoded
-  (probably a small user-configured "on-call pay rule": $ per weekday shift, $
-  per weekend/holiday shift, pay-run offset). Timezone care around shift
-  boundaries. The user must be able to generate an API key with schedule read
-  scope.
-- **Alternatives (same capability).** **PagerDuty** (schedules API, API-token
-  or OAuth) and **Opsgenie** (on-call/schedule API) offer equivalent rosters —
-  worth abstracting behind one "on-call source" adapter (mirroring the
-  source-agnostic import boundary) so the pay-forecast logic is provider-neutral
-  and the user picks whichever their team actually uses.
-
 #### 3. Recurring bill / subscription detection from Up transactions
 
 - **What / value.** Once transactions flow in, cluster them by
@@ -611,11 +568,10 @@ Recurring shorthand:
 #### 4. Google Calendar surfacing of money dates
 
 - **What / value.** Push the household's financial calendar into Google Calendar
-  as events: expected salary/inflow deposits, on-call pay dates (from idea 1),
-  detected bill due-dates (from idea 3), savings-goal target dates, temporary-
-  item expiry dates, and FY boundaries (30 Jun / 1 Jul — "new tax year, review
-  configs"). Money timing shows up where the couple already look, on their
-  phones, without opening the app.
+  as events: expected salary/inflow deposits, detected bill due-dates (from idea
+  3), savings-goal target dates, temporary-item expiry dates, and FY boundaries
+  (30 Jun / 1 Jul — "new tax year, review configs"). Money timing shows up where
+  the couple already look, on their phones, without opening the app.
 - **Effort.** S–M — an edge function that writes events to a dedicated calendar;
   the source dates already exist in the data model.
 - **Touches.** External API (Google Calendar) + auth. The app already uses
@@ -625,7 +581,7 @@ Recurring shorthand:
   incremental-auth token. Mostly backend + a settings toggle; no schema change
   if events are derived on the fly.
 - **Dependencies.** Base version (inflows, goals, temporary dates) works today.
-  On-call and bill-due events depend on ideas 1 and 3.
+  Bill-due events depend on idea 3.
 - **Feasibility / risks.** Adding Calendar scope re-triggers the OAuth consent
   screen and may complicate the published-consent-screen setup noted in
   `architecture.md`. Idempotency matters — use stable event IDs so re-syncs
@@ -867,10 +823,7 @@ Ranked for value-to-effort against this specific household's setup:
    the remaining slice extends the same real-balance linking to Temporary items.
    Small, high roadmap alignment, and the saver balances it needs are already
    synced.
-2. **incident.io on-call pay forecasting (1)** — turns an averaged on-call
-   cadence into a concrete dated forecast; distinctive and directly useful to
-   this user. Provider-abstract it (PagerDuty/Opsgenie).
-3. **Push notification triggers (8)** — the subscription store, VAPID keys, and
+2. **Push notification triggers (8)** — the subscription store, VAPID keys, and
    send path are shipped (a device can opt in and receive a test push), so what is
    left is the evaluation layer that makes the installed PWA proactive (negative
    buffer, goal slippage, deposit landed); most of those triggers work on today's

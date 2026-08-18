@@ -189,6 +189,22 @@ describe('useDeductionAttachment', () => {
     expect(read).not.toHaveBeenCalled()
   })
 
+  it('leaves the read state alone when a second file fails to upload', async () => {
+    const { result } = renderAttachment()
+    await act(async () => await result.current.addFile(receipt('first.pdf')))
+    const stateAfterFirst = result.current.state
+
+    upload.mockRejectedValue(new Error('nope'))
+    await act(async () => await result.current.addFile(receipt('second.pdf')))
+
+    // The first file's read already settled the state; a later file failing to
+    // upload is not the first file's problem to report.
+    expect(result.current.state).toEqual(stateAfterFirst)
+    expect(result.current.files).toEqual([
+      { storage_path: `h1/${result.current.deductionId}/uuid-first.pdf`, file_name: 'first.pdf' },
+    ])
+  })
+
   it('keeps the receipt attached when the read fails, and pre-fills nothing', async () => {
     for (const outcome of [
       { status: 'not-configured', message: 'Not configured.' },

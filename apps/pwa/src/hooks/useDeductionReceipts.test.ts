@@ -126,6 +126,14 @@ describe('useDeductionReceipts', () => {
     expect(builder.insert).not.toHaveBeenCalled()
   })
 
+  it('discards a pending upload from Storage', async () => {
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    await expect(result.current.discardPending('h1/d2/uuid-receipt.pdf')).resolves.toBeUndefined()
+    expect(bucket.remove).toHaveBeenCalledWith(['h1/d2/uuid-receipt.pdf'])
+  })
+
   it('swallows a failure discarding a pending upload', async () => {
     bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
     const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
@@ -172,6 +180,21 @@ describe('useDeductionReceipts', () => {
     expect(outcome).toEqual({
       status: 'not-configured',
       message: 'Receipt extraction is not configured.',
+    })
+  })
+
+  it('falls back to a plain message when the failure carries no readable body', async () => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: new Error('bad gateway'),
+      response: new Response('<html>502</html>', { status: 502 }),
+    })
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    expect(await result.current.extract('h1/d2/uuid-receipt.pdf')).toEqual({
+      status: 'failed',
+      message: 'Could not read this receipt. Enter the details by hand.',
     })
   })
 })

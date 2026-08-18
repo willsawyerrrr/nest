@@ -208,7 +208,36 @@ describe('DeductionsScreen', () => {
     await user.type(input, '   ')
 
     expect(screen.getByRole('button', { name: /save name for receipt\.pdf/i })).toBeDisabled()
+    // Enter bypasses the disabled button, so the guard inside save() is what
+    // actually stops a blank name — not just the disabled control.
+    await user.type(input, '{Enter}')
     expect(onRenameReceipt).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: /rename receipt\.pdf/i })).toBeInTheDocument()
+  })
+
+  it('saves a receipt rename on Enter', async () => {
+    const user = userEvent.setup()
+    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
+
+    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
+    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
+    await user.clear(input)
+    await user.type(input, 'Officeworks invoice.pdf{Enter}')
+
+    expect(onRenameReceipt).toHaveBeenCalledWith(makeReceipt(), 'Officeworks invoice.pdf')
+    expect(screen.queryByRole('textbox', { name: /rename receipt\.pdf/i })).not.toBeInTheDocument()
+  })
+
+  it('cancels a receipt rename on Escape', async () => {
+    const user = userEvent.setup()
+    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
+
+    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
+    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
+    await user.type(input, 'Something else{Escape}')
+
+    expect(onRenameReceipt).not.toHaveBeenCalled()
+    expect(screen.getByText('receipt.pdf')).toBeInTheDocument()
   })
 
   it('cancels a receipt rename without saving', async () => {

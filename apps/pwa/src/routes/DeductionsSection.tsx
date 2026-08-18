@@ -39,6 +39,7 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
       onDelete={deductions.remove}
       onUploadReceipt={receipts.upload}
       onRemoveReceipt={receipts.remove}
+      onRenameReceipt={receipts.rename}
       signedUrl={receipts.signedUrl}
     />
   )

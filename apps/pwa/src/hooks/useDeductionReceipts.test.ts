@@ -197,4 +197,27 @@ describe('useDeductionReceipts', () => {
       message: 'Could not read this receipt. Enter the details by hand.',
     })
   })
+
+  it('renames a receipt’s display label, leaving its stored file untouched', async () => {
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    await act(async () => {
+      await result.current.rename(receipt, 'Officeworks invoice.pdf')
+    })
+
+    expect(builder.update).toHaveBeenCalledWith({ file_name: 'Officeworks invoice.pdf' })
+    expect(builder.eq).toHaveBeenCalledWith('id', 'r1')
+    // Only the label changes: no Storage call touches the underlying file.
+    expect(bucket.upload).not.toHaveBeenCalled()
+    expect(bucket.remove).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a failed rename', async () => {
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    builder.result = { data: null, error: new Error('nope') }
+    await expect(result.current.rename(receipt, 'New name.pdf')).rejects.toThrow('nope')
+  })
 })

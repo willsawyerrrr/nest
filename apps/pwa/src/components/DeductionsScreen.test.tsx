@@ -57,6 +57,7 @@ function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]>
     onDelete: vi.fn().mockResolvedValue(undefined),
     onUploadReceipt: vi.fn().mockResolvedValue(undefined),
     onRemoveReceipt: vi.fn().mockResolvedValue(undefined),
+    onRenameReceipt: vi.fn().mockResolvedValue(undefined),
     signedUrl: vi.fn().mockResolvedValue('https://signed/url'),
     ...overrides,
   }
@@ -180,6 +181,46 @@ describe('DeductionsScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: /delete/i }))
 
     expect(onRemoveReceipt).toHaveBeenCalledWith(makeReceipt())
+  })
+
+  it('renames a receipt in place', async () => {
+    const user = userEvent.setup()
+    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
+
+    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
+    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
+    await user.clear(input)
+    await user.type(input, 'Officeworks invoice.pdf')
+    await user.click(screen.getByRole('button', { name: /save name for receipt\.pdf/i }))
+
+    expect(onRenameReceipt).toHaveBeenCalledWith(makeReceipt(), 'Officeworks invoice.pdf')
+    // The edit control closes once saved.
+    expect(screen.queryByRole('textbox', { name: /rename receipt\.pdf/i })).not.toBeInTheDocument()
+  })
+
+  it('blocks saving a receipt name that is blank', async () => {
+    const user = userEvent.setup()
+    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
+
+    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
+    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
+    await user.clear(input)
+    await user.type(input, '   ')
+
+    expect(screen.getByRole('button', { name: /save name for receipt\.pdf/i })).toBeDisabled()
+    expect(onRenameReceipt).not.toHaveBeenCalled()
+  })
+
+  it('cancels a receipt rename without saving', async () => {
+    const user = userEvent.setup()
+    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
+
+    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
+    await user.type(screen.getByRole('textbox', { name: /rename receipt\.pdf/i }), 'Something else')
+    await user.click(screen.getByRole('button', { name: /cancel renaming receipt\.pdf/i }))
+
+    expect(onRenameReceipt).not.toHaveBeenCalled()
+    expect(screen.getByText('receipt.pdf')).toBeInTheDocument()
   })
 
   describe('on desktop', () => {

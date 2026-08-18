@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import { makeMember } from '../test/fixtures'
@@ -36,12 +37,21 @@ function makeReceipt(overrides: Partial<DeductionReceiptRow> = {}): DeductionRec
   }
 }
 
+const attachments: DeductionAttachments = {
+  upload: vi
+    .fn()
+    .mockResolvedValue({ storage_path: 'h1/new/uuid-receipt.pdf', file_name: 'receipt.pdf' }),
+  discard: vi.fn().mockResolvedValue(undefined),
+  read: vi.fn().mockResolvedValue({ status: 'read', extraction: { model: 'x', fields: {} } }),
+}
+
 function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]> = {}) {
   const props = {
     members: [will, sam],
     deductions: [makeDeduction()],
     receipts: [] as DeductionReceiptRow[],
     financialYear: 2027,
+    attachments,
     onCreate: vi.fn().mockResolvedValue(undefined),
     onUpdate: vi.fn().mockResolvedValue(undefined),
     onDelete: vi.fn().mockResolvedValue(undefined),
@@ -83,7 +93,15 @@ describe('DeductionsScreen', () => {
     await user.click(within(card).getByRole('button', { name: /edit/i }))
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
-    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('d1', expect.objectContaining({})))
+    await waitFor(() =>
+      // Editing goes through a plain field update, not the receipts-replacing
+      // RPC, so it carries the deduction's own fields — never a submission
+      // shape with an `input`/`receipts` split.
+      expect(onUpdate).toHaveBeenCalledWith(
+        'd1',
+        expect.objectContaining({ description: 'Home office' }),
+      ),
+    )
   })
 
   it('confirms before deleting a deduction', async () => {
@@ -110,7 +128,10 @@ describe('DeductionsScreen', () => {
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ description: 'Union fees', amount_cents: 50000 }),
+        expect.objectContaining({
+          input: expect.objectContaining({ description: 'Union fees', amount_cents: 50000 }),
+          receipts: [],
+        }),
       ),
     )
   })

@@ -14,7 +14,7 @@
  * calls an API or a database, and nothing writes a payslip.
  */
 
-import { isPlaceholder, parseCents, parseIsoDate } from './money.ts'
+import { isPlaceholder, parseCents, parseIsoDate } from '../_shared/money.ts'
 
 /** Payslip dates the model reads, named as the `payslip` columns are. */
 export const DATE_FIELDS = ['period_start', 'period_end', 'paid_on'] as const

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeWrapper } from '../test/queryWrapper'
 import { useDeductionReceipts, type DeductionReceiptRow } from './useDeductionReceipts'
 
-const { builder, bucket } = await vi.hoisted(async () => {
+const { builder, bucket, invoke } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
   return {
     builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']),
@@ -12,6 +12,7 @@ const { builder, bucket } = await vi.hoisted(async () => {
       remove: vi.fn(),
       createSignedUrl: vi.fn(),
     },
+    invoke: vi.fn(),
   }
 })
 
@@ -19,6 +20,7 @@ vi.mock('../lib/supabase', () => ({
   supabase: {
     from: vi.fn(() => builder),
     storage: { from: vi.fn(() => bucket) },
+    functions: { invoke },
   },
 }))
 
@@ -107,5 +109,69 @@ describe('useDeductionReceipts', () => {
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     expect(await result.current.signedUrl('h1/d1/abc-receipt.pdf')).toBeNull()
+  })
+
+  it('uploads a file for a not-yet-created deduction without recording a row', async () => {
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
+    const pending = await result.current.uploadPending('d2', file)
+
+    const [path, uploaded] = bucket.upload.mock.calls[0]!
+    expect(path).toMatch(/^h1\/d2\/.*-receipt\.pdf$/)
+    expect(uploaded).toBe(file)
+    expect(pending).toEqual({ storage_path: path, file_name: 'receipt.pdf' })
+    // create_deduction_with_receipts writes the row, not this call.
+    expect(builder.insert).not.toHaveBeenCalled()
+  })
+
+  it('swallows a failure discarding a pending upload', async () => {
+    bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    await expect(result.current.discardPending('h1/d2/uuid-receipt.pdf')).resolves.toBeUndefined()
+    expect(bucket.remove).toHaveBeenCalledWith(['h1/d2/uuid-receipt.pdf'])
+  })
+
+  it('reads an uploaded receipt through deduction-extract', async () => {
+    invoke.mockResolvedValue({
+      data: { model: 'claude-haiku-4-5-20251001', fields: { description: 'Officeworks' } },
+      error: null,
+      response: undefined,
+    })
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf')
+
+    expect(invoke).toHaveBeenCalledWith('deduction-extract', {
+      body: { path: 'h1/d2/uuid-receipt.pdf' },
+    })
+    expect(outcome).toEqual({
+      status: 'read',
+      extraction: { model: 'claude-haiku-4-5-20251001', fields: { description: 'Officeworks' } },
+    })
+  })
+
+  it('reads a non-2xx reply from deduction-extract into a failure state', async () => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: new Error('status 503'),
+      response: new Response(
+        JSON.stringify({ error: 'Receipt extraction is not configured.', configured: false }),
+        { status: 503 },
+      ),
+    })
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf')
+
+    expect(outcome).toEqual({
+      status: 'not-configured',
+      message: 'Receipt extraction is not configured.',
+    })
   })
 })

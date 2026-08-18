@@ -1,8 +1,9 @@
 import { ActionIcon, Anchor, FileInput, Group, Stack, Text } from '@mantine/core'
 import { IconTrash } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
+import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
-import type { DeductionInput, DeductionRow } from '../hooks/useDeductions'
+import type { DeductionInput, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
@@ -19,7 +20,9 @@ interface DeductionsScreenProps {
   deductions: DeductionRow[]
   receipts: DeductionReceiptRow[]
   financialYear: number
-  onCreate: (input: DeductionInput) => Promise<void>
+  /** Storing, discarding, and reading receipts picked before a new deduction exists. */
+  attachments: DeductionAttachments
+  onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onUploadReceipt: (deductionId: string, file: File) => Promise<void>
@@ -190,6 +193,7 @@ function MemberDeductions({
   member,
   deductions,
   receipts,
+  attachments,
   onCreate,
   onUpdate,
   onDelete,
@@ -200,7 +204,8 @@ function MemberDeductions({
   member: Member
   deductions: DeductionRow[]
   receipts: DeductionReceiptRow[]
-  onCreate: (input: DeductionInput) => Promise<void>
+  attachments: DeductionAttachments
+  onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onUploadReceipt: (deductionId: string, file: File) => Promise<void>
@@ -222,7 +227,7 @@ function MemberDeductions({
         </Text>
       </Group>
 
-      <EditableList<DeductionRow, DeductionInput>
+      <EditableList<DeductionRow, DeductionSubmission>
         items={deductions}
         addLabel="Add deduction"
         emptyMessage="No deductions yet."
@@ -231,7 +236,11 @@ function MemberDeductions({
           itemLabel: deduction.description,
         })}
         onCreate={onCreate}
-        onUpdate={onUpdate}
+        // Editing goes straight to a plain field update — the RPC that writes
+        // receipts alongside a new deduction is never reached here, so the
+        // receipts already on this deduction (managed from its row below) are
+        // never replaced by the empty set an edit form's submission carries.
+        onUpdate={(id, submission) => onUpdate(id, submission.input)}
         onDelete={onDelete}
         renderItem={(deduction, { onEdit, onDelete: onDeleteItem }) => (
           <DeductionItem
@@ -253,6 +262,7 @@ function MemberDeductions({
         renderForm={({ initial, onSubmit, onCancel }) => (
           <DeductionForm
             member={member}
+            attachments={attachments}
             initial={initial}
             onSubmit={onSubmit}
             onCancel={onCancel}
@@ -275,6 +285,7 @@ export function DeductionsScreen({
   deductions,
   receipts,
   financialYear,
+  attachments,
   onCreate,
   onUpdate,
   onDelete,
@@ -285,7 +296,7 @@ export function DeductionsScreen({
   return (
     <PageSection
       title={`Tax deductions (FY${financialYear})`}
-      intro="Each member’s deductible expenses for the financial year, with receipts stored privately. A member’s deductions reduce their taxable income on the Tax tab, lowering their estimated tax and lifting take-home on the Summary."
+      intro="Each member’s deductible expenses for the financial year, with receipts stored privately — pick receipts before saving a new deduction and their details are read for you to check. A member’s deductions reduce their taxable income on the Tax tab, lowering their estimated tax and lifting take-home on the Summary."
     >
       {members.map((member) => (
         <MemberDeductions
@@ -293,6 +304,7 @@ export function DeductionsScreen({
           member={member}
           deductions={deductions.filter((deduction) => deduction.member_id === member.id)}
           receipts={receipts}
+          attachments={attachments}
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}

@@ -36,16 +36,20 @@ Clients talk to the database in the way that fits each job:
   never shows changes newer than its build), while the commits newer than it are
   returned as `available` so the tab can offer a one-tap reload to the latest
   deployed version), `push-key` / `push-test` (see *Push notifications*), and
-  `payslip-extract` (read the figures off an uploaded payslip with Claude Haiku 4.5
-  so the member can confirm them: it takes the Storage object path of an
-  already-uploaded file, checks that path's household prefix against the caller's
-  own household, forces a nullable tool schema so an absent figure comes back null
-  rather than invented, converts each amount from the literal printed text to
-  integer cents in TypeScript, and **writes no figure** — the member confirms the
-  pre-filled form and their own save is what persists). The Up functions hold Up
+  `payslip-extract` and `deduction-extract` (read the figures off an uploaded
+  payslip or deduction receipt with Claude Haiku 4.5 so the member can confirm
+  them: each takes the Storage object path of an already-uploaded file, checks
+  that path's household prefix against the caller's own household, forces a
+  nullable tool schema so an absent figure comes back null rather than
+  invented, converts each amount from the literal printed text to integer
+  cents in TypeScript, and **writes no figure** — the member confirms the
+  pre-filled form and their own save is what persists; `deduction-extract`
+  shares its money/date conversion with `payslip-extract` via
+  `_shared/money.ts`). The Up functions hold Up
   tokens server-side (via Vault); `changelog` holds a GitHub PAT server-side; the
-  push functions hold the VAPID keypair; `payslip-extract` reads its Anthropic key
-  from Vault. All are JWT-verified except `up-webhook`
+  push functions hold the VAPID keypair; `payslip-extract` and
+  `deduction-extract` read the same Vault-held Anthropic key. All are
+  JWT-verified except `up-webhook`
   (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
   client-side in the PWA; an authoritative server-side tax estimate is a future
   edge function.

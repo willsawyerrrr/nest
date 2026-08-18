@@ -1,15 +1,16 @@
 /**
- * Converts an amount as printed on a payslip into integer cents.
+ * Converts an amount as printed on a document — a payslip, a receipt — into
+ * integer cents.
  *
  * The model reports each amount as the literal text it read; this module — not
  * the model — turns that text into money. Asking a model to multiply by 100
- * invites a silent arithmetic slip in a tax figure, so the conversion is
- * deterministic TypeScript, done with integer arithmetic on the digit strings.
- * `parseFloat(text) * 100` is never used: `parseFloat('8.29') * 100` is
- * 828.9999999999999, which truncates to the wrong cents.
+ * invites a silent arithmetic slip in a figure a tax outcome is built on, so the
+ * conversion is deterministic TypeScript, done with integer arithmetic on the
+ * digit strings. `parseFloat(text) * 100` is never used: `parseFloat('8.29') *
+ * 100` is 828.9999999999999, which truncates to the wrong cents.
  *
  * Anything that is not unambiguously an amount yields `null`. A null is a field
- * the member fills in themselves; a wrong number is a wrong tax figure they may
+ * the member fills in themselves; a wrong number is a wrong figure they may
  * never notice, so every uncertain case resolves to null.
  */
 

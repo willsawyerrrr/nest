@@ -1587,6 +1587,10 @@ export type Database = {
     }
     Functions: {
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
+      create_deduction_with_receipts: {
+        Args: { p_deduction: Json; p_receipts: Json }
+        Returns: string
+      }
       create_household: {
         Args: { p_member_name: string; p_name: string }
         Returns: string

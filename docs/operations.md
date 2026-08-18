@@ -225,7 +225,7 @@ Vault holds every secret that must never reach a client:
 | `up_token:<member_id>`   | a member's Up personal access token                        |
 | `up_sync_cron_url`       | the hourly cron's `up-sync` invocation URL                 |
 | `up_sync_cron_key`       | the service-role key the cron POSTs with                   |
-| `anthropic_api_key`      | the `payslip-extract` function's Anthropic key (see below) |
+| `anthropic_api_key`      | the `payslip-extract`/`deduction-extract` functions' Anthropic key (see below) |
 | `GITHUB_CHANGELOG_TOKEN` | the `changelog` function's GitHub PAT (see below)          |
 | `vapid_public_key`       | the Web Push VAPID public key, base64url (see below)       |
 | `vapid_private_key`      | the Web Push VAPID private key, base64url                  |
@@ -313,11 +313,12 @@ and local Postgres and only schedules on Supabase. To bring it up in prod:
 
 ## `anthropic_api_key` setup
 
-The `payslip-extract` function reads an uploaded payslip with Claude Haiku 4.5,
-pinned to `claude-haiku-4-5-20251001`. The key is one household-wide credential
-(not per member), so it is a single Vault secret named `anthropic_api_key`. There
-is no store RPC — no client ever supplies this key — so the operator writes it by
-hand once, from the SQL editor or `psql`:
+The `payslip-extract` and `deduction-extract` functions each read an uploaded
+document with Claude Haiku 4.5, pinned to `claude-haiku-4-5-20251001`. The key
+is one household-wide credential shared by both functions (not per member), so
+it is a single Vault secret named `anthropic_api_key`. There is no store RPC —
+no client ever supplies this key — so the operator writes it by hand once, from
+the SQL editor or `psql`:
 
 ```sql
 select vault.create_secret(
@@ -338,12 +339,13 @@ select vault.update_secret(
 
 The only read path is `public.anthropic_api_key()`
 (`20260812000000_anthropic_api_key.sql`) — SECURITY DEFINER, `revoke execute from
-public`, granted to `service_role` alone — mirroring `up_token_for_member`. The
-function calls it with its service-role client; the key never reaches a client.
+public`, granted to `service_role` alone — mirroring `up_token_for_member`. Each
+function calls it with its own service-role client; the key never reaches a
+client.
 
 Until the secret is set, extraction returns `503` with `{ configured: false }` and
 the UI falls back to manual entry with an honest "not configured" note, so the
-payslip feature works without it.
+payslip and deduction-receipt features both work without it.
 
 **Three switched-off states, three fixes.** Extraction answers `503` for each
 failure only an operator can clear, and carries its own flag in each so the fix is

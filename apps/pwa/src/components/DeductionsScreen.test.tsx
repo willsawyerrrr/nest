@@ -82,6 +82,16 @@ describe('DeductionsScreen', () => {
     expect(within(card).getByText(/1 Aug 2026/)).toBeInTheDocument()
   })
 
+  it('renders the claimed distance beside the date of a distance-basis deduction', () => {
+    renderScreen({
+      deductions: [
+        makeDeduction({ description: 'Client visits', basis: 'distance', distance_km: 120 }),
+      ],
+    })
+    const card = screen.getByText('Client visits').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText(/1 Aug 2026 · 120km/)).toBeInTheDocument()
+  })
+
   it('shows a per-member deductions total', () => {
     renderScreen({ members: [will], deductions: [makeDeduction(), makeDeduction({ id: 'd2' })] })
     // Two $1,200 deductions plus the $2,400 total.

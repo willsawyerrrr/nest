@@ -297,12 +297,12 @@ function DeductionItem(props: DeductionItemProps) {
  * A member's deductions with a running total, an add affordance, and inline
  * forms.
  *
- * Recurring expenses are read through their groups: a subscription's twelve
- * invoices collapse to one row carrying the name, the payment count, and the
- * total, expandable to the payments themselves. Each payment is an ordinary
- * deduction — its own date, amount, and receipts — so the member's total below
- * counts grouped and ungrouped rows alike, and grouping never changes what is
- * claimed.
+ * A group of deductions — a subscription paid monthly, a trip's several
+ * receipts, anything claimed in more than one payment — collapses to one row
+ * carrying the name, the payment count, and the total, expandable to the
+ * payments themselves. Each payment is an ordinary deduction — its own date,
+ * amount, and receipts — so the member's total below counts grouped and
+ * ungrouped rows alike, and grouping never changes what is claimed.
  */
 function MemberDeductions({
   member,
@@ -383,10 +383,10 @@ function MemberDeductions({
 
       <EditableList<DeductionGroupRow, DeductionGroupInput>
         items={groups}
-        addLabel="Add subscription"
+        addLabel="Add group"
         emptyMessage=""
         deleteTarget={(group) => ({
-          title: 'Delete subscription?',
+          title: 'Delete group?',
           itemLabel: group.name,
         })}
         onCreate={onCreateGroup}
@@ -399,15 +399,15 @@ function MemberDeductions({
             onEdit={onEdit}
             onDelete={onDeleteItem}
           >
-            {/* The group's own payments list: adding here files the invoice
+            {/* The group's own payments list: adding here files the payment
                 into the group, and editing or deleting one is the same
                 operation it is on a standalone deduction. */}
             <EditableList<DeductionRow, DeductionSubmission>
               items={deductions.filter((deduction) => deduction.group_id === group.id)}
-              addLabel="Add invoice"
-              emptyMessage="No invoices yet."
+              addLabel="Add payment"
+              emptyMessage="No payments yet."
               deleteTarget={(deduction) => ({
-                title: 'Delete invoice?',
+                title: 'Delete payment?',
                 itemLabel: deduction.description,
               })}
               onCreate={onCreate}
@@ -419,10 +419,10 @@ function MemberDeductions({
                   member={member}
                   attachments={attachments}
                   financialYear={financialYear}
-                  // Adding here is adding to THIS subscription, so the group is
-                  // settled and no picker is offered. Editing a payment already
-                  // in it is where the picker earns its place: that is how one
-                  // moves to another subscription, or out of them all.
+                  // Adding here is adding to THIS group, so it is settled and
+                  // no picker is offered. Editing a payment already in it is
+                  // where the picker earns its place: that is how one moves to
+                  // another group, or out of them all.
                   {...(initial ? { groups } : { groupId: group.id })}
                   initial={initial}
                   onSubmit={onSubmit}

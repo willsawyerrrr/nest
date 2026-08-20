@@ -245,6 +245,33 @@ and so without the trigger.
     insert — the client mints the id before the row exists, so a receipt
     picked first can be filed under it. Editing an existing row is a direct
     update, as any other field write is.
+  - `group_id` files the deduction as one payment of a recurring expense, or is
+    null for a standalone claim. Composite FK
+    `(group_id, household_id, member_id, financial_year)` → `deduction_group`,
+    so a payment cannot sit in a group belonging to another member or another
+    year, `on delete set null (group_id)` — the column list matters, a bare
+    `set null` nulling every referencing column, three of which are not null.
+    Indexed on `(group_id)`.
+- **deduction_group** — a named set of one member's deductions for one financial
+  year: the many payments of one recurring deductible expense, totalled for
+  display.
+  - `id`, `household_id`, `member_id`, `name`, `financial_year`, `created_at`,
+    `updated_at`. Composite FK `(member_id, household_id)` → `members`
+    `on delete cascade`. Unique on `(id, household_id, member_id, financial_year)`
+    — the key a deduction composite-FKs against, which is what holds a payment to
+    its group's member and year in the same reference.
+  - **It holds no amount.** The total shown against a group is summed from its
+    payments at read time, because each payment is a `deduction` the tax estimate
+    already counts; a stored total would be the only figure in the app able to
+    disagree with what is actually claimed. Nothing in the estimate, the EOFY tab,
+    or the Summary reads this table at all — grouping is presentational.
+  - **One financial year.** A subscription running across 30 June is one group per
+    year. A group's total is meant to BE the figure claimed for its year, so a
+    group spanning years would total money from two returns, and the Deductions
+    tab — which shows one year — could only ever display part of it.
+  - Deleting a group ungroups its payments rather than deleting them: each stays
+    an ordinary deduction, still claimable on its own.
+  - RLS is **household-wide CRUD**, as for `deduction` itself.
 - **deduction_receipt** — a stored receipt file backing a deduction; many rows
   per deduction.
   - `id`, `deduction_id`, `household_id`, `storage_path`, `file_name`,

@@ -1,6 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import { makeMember } from '../test/fixtures'
@@ -21,6 +22,20 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    group_id: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRow {
+  return {
+    id: 'g1',
+    household_id: 'h1',
+    member_id: 'm1',
+    name: 'Adobe Creative Cloud',
+    financial_year: 2027,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -51,12 +66,16 @@ function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]>
   const props = {
     members: [will, sam],
     deductions: [makeDeduction()],
+    groups: [] as DeductionGroupRow[],
     receipts: [] as DeductionReceiptRow[],
     financialYear: 2027,
     attachments,
     onCreate: vi.fn().mockResolvedValue(undefined),
     onUpdate: vi.fn().mockResolvedValue(undefined),
     onDelete: vi.fn().mockResolvedValue(undefined),
+    onCreateGroup: vi.fn().mockResolvedValue(undefined),
+    onUpdateGroup: vi.fn().mockResolvedValue(undefined),
+    onDeleteGroup: vi.fn().mockResolvedValue(undefined),
     onUploadReceipt: vi.fn().mockResolvedValue(undefined),
     onRemoveReceipt: vi.fn().mockResolvedValue(undefined),
     onRenameReceipt: vi.fn().mockResolvedValue(undefined),
@@ -90,6 +109,135 @@ describe('DeductionsScreen', () => {
     })
     const card = screen.getByText('Client visits').closest('.mantine-Card-root') as HTMLElement
     expect(within(card).getByText(/1 Aug 2026 · 120km/)).toBeInTheDocument()
+  })
+
+  it('reads a subscription as one row, its payments totalled underneath', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [
+        makeDeduction({ id: 'd1', description: 'Adobe', amount_cents: 64_99, group_id: 'g1' }),
+        makeDeduction({ id: 'd2', description: 'Adobe', amount_cents: 65_01, group_id: 'g1' }),
+        makeDeduction({ id: 'd3', description: 'Home office' }),
+      ],
+    })
+
+    expect(screen.getByText('Adobe Creative Cloud')).toBeInTheDocument()
+    expect(screen.getByText('2 payments')).toBeInTheDocument()
+    expect(screen.getByText('$130.00')).toBeInTheDocument()
+
+    // The member's total counts grouped and ungrouped alike — grouping is a
+    // reading of rows each claimed in its own right.
+    expect(screen.getByText('$1,330.00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
+    expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument()
+  })
+
+  it('files an invoice added from a subscription into that group', async () => {
+    const user = userEvent.setup()
+    const { onCreate } = renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [],
+    })
+
+    await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
+    await user.click(screen.getByRole('button', { name: /add invoice/i }))
+    await user.type(screen.getByLabelText(/description/i), 'Adobe July')
+    await user.type(screen.getByLabelText(/amount/i), '64.99')
+    await user.click(screen.getByRole('button', { name: /^add invoice$/i }))
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ description: 'Adobe July', group_id: 'g1' }),
+        }),
+      ),
+    )
+  })
+
+  it('leaves an ungrouped deduction out of every subscription', () => {
+    renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [makeDeduction({ description: 'Home office' })],
+    })
+
+    expect(screen.getByText('0 payments')).toBeInTheDocument()
+    expect(screen.getByText('Home office')).toBeInTheDocument()
+  })
+
+  it('adds a subscription for the member', async () => {
+    const user = userEvent.setup()
+    const { onCreateGroup } = renderScreen({ members: [will], groups: [], deductions: [] })
+
+    await user.click(screen.getByRole('button', { name: /add subscription/i }))
+    await user.type(screen.getByLabelText(/subscription/i), 'Xero')
+    await user.click(screen.getByRole('button', { name: /^add subscription$/i }))
+
+    await waitFor(() =>
+      expect(onCreateGroup).toHaveBeenCalledWith({ member_id: 'm1', name: 'Xero' }),
+    )
+  })
+
+  it('confirms before deleting a subscription, which keeps its invoices', async () => {
+    const user = userEvent.setup()
+    const { onDeleteGroup } = renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [makeDeduction({ group_id: 'g1' })],
+    })
+
+    const card = screen
+      .getByText('Adobe Creative Cloud')
+      .closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(card).getAllByRole('button', { name: 'Delete' })[0]!)
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }))
+
+    expect(onDeleteGroup).toHaveBeenCalledWith('g1')
+  })
+
+  it('edits an invoice inside a subscription', async () => {
+    const user = userEvent.setup()
+    const { onUpdate } = renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [makeDeduction({ id: 'd1', description: 'Adobe July', group_id: 'g1' })],
+    })
+
+    await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
+    const payment = screen.getByText('Adobe July').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(payment).getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith(
+        'd1',
+        expect.objectContaining({ description: 'Adobe July', group_id: 'g1' }),
+      ),
+    )
+  })
+
+  it('deletes an invoice from inside a subscription', async () => {
+    const user = userEvent.setup()
+    const { onDelete } = renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [makeDeduction({ id: 'd1', description: 'Adobe July', group_id: 'g1' })],
+    })
+
+    await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
+    const payment = screen.getByText('Adobe July').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(payment).getByRole('button', { name: 'Delete' }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /delete/i }))
+
+    expect(onDelete).toHaveBeenCalledWith('d1')
   })
 
   it('shows a per-member deductions total', () => {

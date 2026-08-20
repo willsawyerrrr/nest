@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { DeductionsScreen } from '../components/DeductionsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
 import { useMembers } from '../hooks/useMembers'
@@ -9,6 +10,7 @@ import { useMembers } from '../hooks/useMembers'
 export function DeductionsSection({ householdId }: { householdId: string }) {
   const { members, loading: membersLoading } = useMembers()
   const deductions = useDeductions(householdId)
+  const groups = useDeductionGroups(householdId, deductions.financialYear)
   const receipts = useDeductionReceipts(householdId)
 
   // Storing, discarding, and reading a receipt picked before a new deduction
@@ -23,7 +25,7 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
     [receipts.uploadPending, receipts.discardPending, receipts.extract],
   )
 
-  if (membersLoading || deductions.loading || receipts.loading || !members) {
+  if (membersLoading || deductions.loading || groups.loading || receipts.loading || !members) {
     return <LoadingScreen />
   }
 
@@ -31,12 +33,16 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
     <DeductionsScreen
       members={members}
       deductions={deductions.deductions ?? []}
+      groups={groups.groups ?? []}
       receipts={receipts.receipts ?? []}
       financialYear={deductions.financialYear}
       attachments={attachments}
       onCreate={deductions.create}
       onUpdate={deductions.update}
       onDelete={deductions.remove}
+      onCreateGroup={groups.create}
+      onUpdateGroup={groups.update}
+      onDeleteGroup={groups.remove}
       onUploadReceipt={receipts.upload}
       onRemoveReceipt={receipts.remove}
       onRenameReceipt={receipts.rename}

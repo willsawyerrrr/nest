@@ -212,6 +212,27 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   individually from its row in the deductions list, each such upload creating
   its `deduction_receipt` row immediately since the deduction already exists and
   landing under its file's own name, which the row's own rename control edits.
+  A recurring deductible expense — a subscription paid monthly — is many payments
+  of one commitment, and each payment is already a deduction in its own right, so
+  grouping them is a READING of rows that exist rather than a new kind of row. A
+  `deduction_group` names the expense and `deduction.group_id` files a payment
+  under it; the tab collapses the set to one row carrying the name, the payment
+  count, and the summed total, expandable to the payments themselves, each with
+  its own date, amount, and receipts. The total is summed from the payments and
+  never stored, because every payment is a deduction the tax estimate already
+  counts: a stored group total would be the only figure in the app able to
+  disagree with what is actually claimed. Nothing downstream changes — the tax
+  estimate, the EOFY tab, and the Summary read `deduction` rows and are indifferent
+  to whether one sits in a group. Appending an invoice from the group's own row is
+  the ordinary add-deduction flow with the group filled in, extraction and all, so
+  the amount and date come off the invoice for the member to confirm. A group is
+  scoped to one financial year, as a deduction is: a subscription running across
+  30 June is one group per year, because a group's total is meant to BE the figure
+  claimed for its year, and a group spanning years would total money from two
+  returns while the tab could only ever show part of it. The composite reference
+  (id, household_id, member_id, financial_year) holds a payment to its group's
+  member and year, and dropping a group ungroups its payments rather than deleting
+  them — each is still claimable on its own.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. A slip is filed

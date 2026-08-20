@@ -3,6 +3,7 @@ import { ActionIcon, Anchor, FileInput, Group, Stack, Text, TextInput } from '@m
 import { IconCheck, IconPencil, IconTrash, IconX } from '@tabler/icons-react'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import type { DeductionGroupInput, DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionInput, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useIsWide } from '../hooks/useIsWide'
@@ -10,7 +11,8 @@ import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
 import { AppCard } from './AppCard'
 import { DeductionForm } from './DeductionForm'
-import { EditableList } from './EditableList'
+import { DeductionGroup, DeductionGroupForm } from './DeductionGroup'
+import { EditableList, type ItemControls } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
@@ -19,6 +21,8 @@ import { PageSection } from './PageSection'
 interface DeductionsScreenProps {
   members: Member[]
   deductions: DeductionRow[]
+  /** The recurring expenses the deductions above are read through, for this year. */
+  groups: DeductionGroupRow[]
   receipts: DeductionReceiptRow[]
   financialYear: number
   /** Storing, discarding, and reading receipts picked before a new deduction exists. */
@@ -26,6 +30,9 @@ interface DeductionsScreenProps {
   onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onCreateGroup: (input: DeductionGroupInput) => Promise<void>
+  onUpdateGroup: (id: string, input: DeductionGroupInput) => Promise<void>
+  onDeleteGroup: (id: string) => Promise<void>
   onUploadReceipt: (deductionId: string, file: File) => Promise<void>
   onRemoveReceipt: (receipt: DeductionReceiptRow) => Promise<void>
   onRenameReceipt: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
@@ -286,16 +293,30 @@ function DeductionItem(props: DeductionItemProps) {
   return wide ? <DeductionRow {...props} /> : <DeductionCard {...props} />
 }
 
-/** A member's deductions with a running total, an add affordance, and inline forms. */
+/**
+ * A member's deductions with a running total, an add affordance, and inline
+ * forms.
+ *
+ * Recurring expenses are read through their groups: a subscription's twelve
+ * invoices collapse to one row carrying the name, the payment count, and the
+ * total, expandable to the payments themselves. Each payment is an ordinary
+ * deduction — its own date, amount, and receipts — so the member's total below
+ * counts grouped and ungrouped rows alike, and grouping never changes what is
+ * claimed.
+ */
 function MemberDeductions({
   member,
   deductions,
+  groups,
   receipts,
   attachments,
   financialYear,
   onCreate,
   onUpdate,
   onDelete,
+  onCreateGroup,
+  onUpdateGroup,
+  onDeleteGroup,
   onUploadReceipt,
   onRemoveReceipt,
   onRenameReceipt,
@@ -303,12 +324,16 @@ function MemberDeductions({
 }: {
   member: Member
   deductions: DeductionRow[]
+  groups: DeductionGroupRow[]
   receipts: DeductionReceiptRow[]
   attachments: DeductionAttachments
   financialYear: number
   onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onCreateGroup: (input: DeductionGroupInput) => Promise<void>
+  onUpdateGroup: (id: string, input: DeductionGroupInput) => Promise<void>
+  onDeleteGroup: (id: string) => Promise<void>
   onUploadReceipt: (deductionId: string, file: File) => Promise<void>
   onRemoveReceipt: (receipt: DeductionReceiptRow) => Promise<void>
   onRenameReceipt: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
@@ -318,7 +343,34 @@ function MemberDeductions({
   // delete is owned by the EditableList. Only one is ever open at a time.
   const { confirm, modal } = useConfirmDelete()
 
+  // The member's total counts every deduction, grouped or not — a group is a
+  // reading of rows that are each claimed in their own right.
   const totalCents = deductions.reduce((total, deduction) => total + deduction.amount_cents, 0)
+  const ungrouped = deductions.filter((deduction) => deduction.group_id === null)
+
+  // One payment, rendered the same whether it stands alone or sits in a group —
+  // a grouped deduction is an ordinary deduction, receipts and all.
+  const renderPayment = (
+    deduction: DeductionRow,
+    { onEdit, onDelete: onDeleteItem }: ItemControls,
+  ) => (
+    <DeductionItem
+      deduction={deduction}
+      receipts={receipts.filter((receipt) => receipt.deduction_id === deduction.id)}
+      onEdit={onEdit}
+      onDelete={onDeleteItem}
+      onUploadReceipt={(file) => onUploadReceipt(deduction.id, file)}
+      onRemoveReceipt={(receipt) =>
+        confirm({
+          title: 'Delete receipt?',
+          itemLabel: receipt.file_name,
+          onConfirm: () => onRemoveReceipt(receipt),
+        })
+      }
+      onRenameReceipt={(receipt, fileName) => void onRenameReceipt(receipt, fileName)}
+      signedUrl={signedUrl}
+    />
+  )
 
   return (
     <Stack gap="xs">
@@ -329,8 +381,65 @@ function MemberDeductions({
         </Text>
       </Group>
 
+      <EditableList<DeductionGroupRow, DeductionGroupInput>
+        items={groups}
+        addLabel="Add subscription"
+        emptyMessage=""
+        deleteTarget={(group) => ({
+          title: 'Delete subscription?',
+          itemLabel: group.name,
+        })}
+        onCreate={onCreateGroup}
+        onUpdate={onUpdateGroup}
+        onDelete={onDeleteGroup}
+        renderItem={(group, { onEdit, onDelete: onDeleteItem }) => (
+          <DeductionGroup
+            group={group}
+            payments={deductions.filter((deduction) => deduction.group_id === group.id)}
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
+          >
+            {/* The group's own payments list: adding here files the invoice
+                into the group, and editing or deleting one is the same
+                operation it is on a standalone deduction. */}
+            <EditableList<DeductionRow, DeductionSubmission>
+              items={deductions.filter((deduction) => deduction.group_id === group.id)}
+              addLabel="Add invoice"
+              emptyMessage="No invoices yet."
+              deleteTarget={(deduction) => ({
+                title: 'Delete invoice?',
+                itemLabel: deduction.description,
+              })}
+              onCreate={onCreate}
+              onUpdate={(id, submission) => onUpdate(id, submission.input)}
+              onDelete={onDelete}
+              renderItem={(deduction, controls) => renderPayment(deduction, controls)}
+              renderForm={({ initial, onSubmit, onCancel }) => (
+                <DeductionForm
+                  member={member}
+                  attachments={attachments}
+                  financialYear={financialYear}
+                  groupId={group.id}
+                  initial={initial}
+                  onSubmit={onSubmit}
+                  onCancel={onCancel}
+                />
+              )}
+            />
+          </DeductionGroup>
+        )}
+        renderForm={({ initial, onSubmit, onCancel }) => (
+          <DeductionGroupForm
+            member={member}
+            initial={initial}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
+          />
+        )}
+      />
+
       <EditableList<DeductionRow, DeductionSubmission>
-        items={deductions}
+        items={ungrouped}
         addLabel="Add deduction"
         emptyMessage="No deductions yet."
         deleteTarget={(deduction) => ({
@@ -344,24 +453,7 @@ function MemberDeductions({
         // never replaced by the empty set an edit form's submission carries.
         onUpdate={(id, submission) => onUpdate(id, submission.input)}
         onDelete={onDelete}
-        renderItem={(deduction, { onEdit, onDelete: onDeleteItem }) => (
-          <DeductionItem
-            deduction={deduction}
-            receipts={receipts.filter((receipt) => receipt.deduction_id === deduction.id)}
-            onEdit={onEdit}
-            onDelete={onDeleteItem}
-            onUploadReceipt={(file) => onUploadReceipt(deduction.id, file)}
-            onRemoveReceipt={(receipt) =>
-              confirm({
-                title: 'Delete receipt?',
-                itemLabel: receipt.file_name,
-                onConfirm: () => onRemoveReceipt(receipt),
-              })
-            }
-            onRenameReceipt={(receipt, fileName) => void onRenameReceipt(receipt, fileName)}
-            signedUrl={signedUrl}
-          />
-        )}
+        renderItem={(deduction, controls) => renderPayment(deduction, controls)}
         renderForm={({ initial, onSubmit, onCancel }) => (
           <DeductionForm
             member={member}
@@ -387,12 +479,16 @@ function MemberDeductions({
 export function DeductionsScreen({
   members,
   deductions,
+  groups,
   receipts,
   financialYear,
   attachments,
   onCreate,
   onUpdate,
   onDelete,
+  onCreateGroup,
+  onUpdateGroup,
+  onDeleteGroup,
   onUploadReceipt,
   onRemoveReceipt,
   onRenameReceipt,
@@ -408,12 +504,16 @@ export function DeductionsScreen({
           key={member.id}
           member={member}
           deductions={deductions.filter((deduction) => deduction.member_id === member.id)}
+          groups={groups.filter((group) => group.member_id === member.id)}
           receipts={receipts}
           attachments={attachments}
           financialYear={financialYear}
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          onCreateGroup={onCreateGroup}
+          onUpdateGroup={onUpdateGroup}
+          onDeleteGroup={onDeleteGroup}
           onUploadReceipt={onUploadReceipt}
           onRemoveReceipt={onRemoveReceipt}
           onRenameReceipt={onRenameReceipt}

@@ -17,6 +17,12 @@ export type DeductionRow = Tables<'deduction'>
  * financial year's cents-per-km car expense rate before being submitted here.
  * `amount_cents` is always the figure that is saved and read downstream;
  * `distance_km` is set only alongside `'distance'`.
+ *
+ * `group_id` files the deduction under a `deduction_group` — one payment of a
+ * recurring expense — or is null for a standalone deduction. Grouping changes
+ * nothing about the deduction itself: it is claimed in its own right either way,
+ * and the group's total is the sum of its payments rather than a figure of its
+ * own.
  */
 export interface DeductionInput {
   member_id: string
@@ -25,6 +31,7 @@ export interface DeductionInput {
   deduction_date: string
   basis?: DeductionRow['basis']
   distance_km?: number | null
+  group_id?: string | null
 }
 
 /**

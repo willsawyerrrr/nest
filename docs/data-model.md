@@ -189,8 +189,8 @@ and so without the trigger.
 - **deduction_receipt** — a stored receipt file backing a deduction; many rows
   per deduction.
   - `id`, `deduction_id`, `household_id`, `storage_path`, `file_name`,
-    `created_at`. No `updated_at`: a receipt row is written once with its upload
-    and deleted rather than edited, so there is nothing to touch.
+    `created_at`. No `updated_at`: `file_name` is the only field an edit ever
+    touches, and nothing reads when a label was last changed.
   - Composite FK `(deduction_id, household_id)` → `deduction (id, household_id)`
     `on delete cascade` — deleting a deduction takes its receipt rows with it.
     Indexed on `(deduction_id)` (the list read) and `(household_id)`.
@@ -199,8 +199,11 @@ and so without the trigger.
     leading household segment is load-bearing: the `storage.objects` policy
     matches it against `household_ids_for_current_user()`, so the file's access
     boundary is the row's rather than something separately administered.
-    `file_name` keeps the original upload name for display, since the key itself
-    is generated.
+    `file_name` is the label the receipt is shown under, since the key itself is
+    generated. It is chosen as the file is attached — the file's own name, one
+    the member types, or `Receipt` where neither is given — and retyped in place
+    from the deductions list. A label alone: naming and renaming never touch
+    `storage_path` or the stored object.
   - RLS is household-wide CRUD on `household_id`, matching `deduction`. The
     boundary is drawn at the household, not the claiming member, for the same
     reason: a receipt is filing evidence for a jointly planned pair of returns,

@@ -161,7 +161,13 @@ interface DeductionItemProps {
   signedUrl: (path: string) => Promise<string | null>
 }
 
-/** A deduction's stored receipts and its upload control, shared by its row and card. */
+/**
+ * A deduction's stored receipts and its upload control, shared by its row and
+ * card. A receipt attached here lands under its file's own name and takes any
+ * other from the rename control on its own row, which exists the moment the
+ * file does; the add form, having no row to rename, asks for the name as the
+ * file is attached.
+ */
 function DeductionReceipts({
   deduction,
   receipts,

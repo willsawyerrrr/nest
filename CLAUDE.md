@@ -135,17 +135,23 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   model failure) reads as its own inline note and never blocks the save,
   exactly as payslip extraction. Only the first picked file is read — a second
   and further ones upload alongside it without a second read, since one
-  confirmed read is what the form works from. The deduction and every receipt
-  already uploaded are written together in one transaction
+  confirmed read is what the form works from. Each picked file lists under a
+  name field seeded with the file's own name, so a receipt is stored under
+  whatever the member types — or "Receipt", where the field is cleared or the
+  file carries no name of its own — the name being chosen on the way in rather
+  than corrected afterwards. It is a label alone: `deduction_receipt.file_name`
+  is what the UI shows, and naming never touches `storage_path` or the stored
+  object. The deduction and every receipt already uploaded are written together
+  in one transaction
   (`create_deduction_with_receipts`), keyed on the id the form minted, so a
   retried save rewrites the same deduction and replaces its receipt set rather
   than duplicating either. A picked file the member removes, or the whole add
   flow they walk away from, is deleted again, best effort: a delete that fails
   is swallowed, and a closed tab runs no cleanup at all. Editing an existing
-  deduction carries none of this — its receipts are added and removed
-  individually from its row in the deductions list, exactly as before, each
-  such upload creating its `deduction_receipt` row immediately since the
-  deduction already exists.
+  deduction carries none of this — its receipts are added, renamed, and removed
+  individually from its row in the deductions list, each such upload creating
+  its `deduction_receipt` row immediately since the deduction already exists and
+  landing under its file's own name, which the row's own rename control edits.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. A slip is filed

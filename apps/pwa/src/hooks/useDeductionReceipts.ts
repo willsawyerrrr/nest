@@ -6,6 +6,7 @@ import {
   readExtractionFailure,
   type ExtractionOutcome,
 } from '../lib/deductionExtraction'
+import { receiptName } from '../lib/receiptName'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
 
@@ -40,13 +41,17 @@ export interface UseDeductionReceiptsResult {
   receipts: DeductionReceiptRow[] | null
   loading: boolean
   reload: () => Promise<void>
-  /** Uploads `file` for a deduction and records a receipt row pointing at it. */
+  /**
+   * Uploads `file` for a deduction and records a receipt row pointing at it,
+   * labelled with the file's own name — the label the row's rename control edits.
+   */
   upload: (deductionId: string, file: File) => Promise<void>
   /** Removes a receipt's stored file and its row. */
   remove: (receipt: DeductionReceiptRow) => Promise<void>
   /**
-   * Renames a receipt's display label. Purely a label: `storage_path` and the
-   * underlying stored file are untouched.
+   * Renames a receipt's display label, trimmed, or `Receipt` where the name
+   * given is blank. Purely a label: `storage_path` and the underlying stored
+   * file are untouched.
    */
   rename: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
   /** A short-lived signed URL for viewing a stored receipt, or null on failure. */
@@ -54,7 +59,8 @@ export interface UseDeductionReceiptsResult {
   /**
    * Uploads `file` under `deductionId` in Storage without a `deduction_receipt`
    * row — for a deduction not yet created, whose receipts are written together
-   * with it by `create_deduction_with_receipts`.
+   * with it by `create_deduction_with_receipts`. It comes back under the file's
+   * own name, which the add form offers for the household to retype.
    */
   uploadPending: (deductionId: string, file: File) => Promise<PendingReceipt>
   /**
@@ -101,7 +107,7 @@ export function useDeductionReceipts(householdId: string): UseDeductionReceiptsR
       if (error) {
         throw error
       }
-      return { storage_path: path, file_name: file.name }
+      return { storage_path: path, file_name: receiptName(file.name) }
     },
     [householdId],
   )
@@ -160,7 +166,7 @@ export function useDeductionReceipts(householdId: string): UseDeductionReceiptsR
 
   const rename = useCallback(
     async (receipt: DeductionReceiptRow, fileName: string) => {
-      await update(receipt.id, { file_name: fileName })
+      await update(receipt.id, { file_name: receiptName(fileName) })
     },
     [update],
   )

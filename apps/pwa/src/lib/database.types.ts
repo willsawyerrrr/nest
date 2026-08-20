@@ -833,13 +833,16 @@ export type Database = {
           interval_count: number | null
           member_id: string | null
           name: string
+          one_off_tax_treatment: Database['public']['Enums']['one_off_tax_treatment'] | null
+          paid_on: string | null
           pay_interval_count: number | null
           pay_schedule: Database['public']['Enums']['frequency'] | null
-          schedule: Database['public']['Enums']['frequency']
+          schedule: Database['public']['Enums']['frequency'] | null
           starts_on: string | null
           taxable: boolean
           type: Database['public']['Enums']['inflow_type']
           updated_at: string
+          years_of_service: number | null
         }
         Insert: {
           amount_cents?: number | null
@@ -854,13 +857,16 @@ export type Database = {
           interval_count?: number | null
           member_id?: string | null
           name: string
+          one_off_tax_treatment?: Database['public']['Enums']['one_off_tax_treatment'] | null
+          paid_on?: string | null
           pay_interval_count?: number | null
           pay_schedule?: Database['public']['Enums']['frequency'] | null
-          schedule: Database['public']['Enums']['frequency']
+          schedule?: Database['public']['Enums']['frequency'] | null
           starts_on?: string | null
           taxable?: boolean
           type: Database['public']['Enums']['inflow_type']
           updated_at?: string
+          years_of_service?: number | null
         }
         Update: {
           amount_cents?: number | null
@@ -875,13 +881,16 @@ export type Database = {
           interval_count?: number | null
           member_id?: string | null
           name?: string
+          one_off_tax_treatment?: Database['public']['Enums']['one_off_tax_treatment'] | null
+          paid_on?: string | null
           pay_interval_count?: number | null
           pay_schedule?: Database['public']['Enums']['frequency'] | null
-          schedule?: Database['public']['Enums']['frequency']
+          schedule?: Database['public']['Enums']['frequency'] | null
           starts_on?: string | null
           taxable?: boolean
           type?: Database['public']['Enums']['inflow_type']
           updated_at?: string
+          years_of_service?: number | null
         }
         Relationships: [
           {
@@ -903,6 +912,7 @@ export type Database = {
       members: {
         Row: {
           created_at: string
+          date_of_birth: string | null
           email: string | null
           household_id: string
           id: string
@@ -913,6 +923,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           household_id: string
           id?: string
@@ -923,6 +934,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           household_id?: string
           id?: string
@@ -1652,6 +1664,8 @@ export type Database = {
         | 'every_n_months'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
       ledger_source: 'up' | 'manual'
+      one_off_tax_treatment:
+        'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
       payslip_tax_component: 'payg' | 'stsl'
       super_contribution_kind:
@@ -1800,6 +1814,12 @@ export const Constants = {
       ],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement', 'hobby', 'gift'],
       ledger_source: ['up', 'manual'],
+      one_off_tax_treatment: [
+        'ordinary',
+        'genuine_redundancy',
+        'employment_termination',
+        'unused_leave',
+      ],
       super_contribution_kind: [
         'salary_sacrifice',
         'personal_deductible',

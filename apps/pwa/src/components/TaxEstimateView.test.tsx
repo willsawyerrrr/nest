@@ -18,6 +18,7 @@ const breakdown: TaxBreakdown = {
   incomeForSurchargeCents: 0,
   incomeTaxCents: 0,
   litoOffsetCents: 0,
+  oneOffOffsetCents: 0,
   medicareLevyCents: 0,
   medicareLevySurchargeCents: 0,
   helpRepaymentCents: 0,
@@ -36,6 +37,7 @@ function inputFor(salaryCents: number): TaxInput {
       businessCents: 0,
       investmentCents: 0,
       otherCents: 0,
+      employmentTerminationCents: 0,
     },
     deductionsCents: 0,
     residency: 'resident',
@@ -54,6 +56,8 @@ const will: MemberTaxEstimate = {
   annualDeductionsCents: 0,
   annualTaxCents: 2_500_000,
   annualAfterTaxCents: 7_500_000,
+  annualOneOffGrossCents: 0,
+  annualOneOffAfterTaxCents: 0,
   fortnightlyGrossCents: 384_615,
   fortnightlyTaxCents: 96_154,
   fortnightlyAfterTaxCents: 288_461,
@@ -69,6 +73,8 @@ const sam: MemberTaxEstimate = {
   annualDeductionsCents: 0,
   annualTaxCents: 1_000_000,
   annualAfterTaxCents: 5_000_000,
+  annualOneOffGrossCents: 0,
+  annualOneOffAfterTaxCents: 0,
   fortnightlyGrossCents: 230_769,
   fortnightlyTaxCents: 38_462,
   fortnightlyAfterTaxCents: 192_307,
@@ -84,6 +90,8 @@ const estimate: HouseholdTaxEstimate = {
   annualDeductionsCents: 0,
   annualTaxCents: 3_500_000,
   annualAfterTaxCents: 12_500_000,
+  annualOneOffGrossCents: 0,
+  annualOneOffAfterTaxCents: 0,
   fortnightlyGrossCents: 615_384,
   fortnightlyTaxCents: 134_616,
   fortnightlyAfterTaxCents: 480_768,
@@ -173,6 +181,8 @@ describe('TaxEstimateView', () => {
       annualGrossCents: 0,
       annualTaxCents: 0,
       annualAfterTaxCents: 0,
+      annualOneOffGrossCents: 0,
+      annualOneOffAfterTaxCents: 0,
       fortnightlyGrossCents: 0,
       fortnightlyTaxCents: 0,
       fortnightlyAfterTaxCents: 0,
@@ -401,6 +411,7 @@ describe('TaxEstimateView', () => {
         incomeForSurchargeCents: 100_000_00,
         incomeTaxCents: 24_000_00,
         litoOffsetCents: 700_00,
+        oneOffOffsetCents: 0,
         medicareLevyCents: 2_000_00,
         medicareLevySurchargeCents: 1_000_00,
         helpRepaymentCents: 3_000_00,
@@ -769,6 +780,8 @@ describe('TaxEstimateView', () => {
       annualDeductionsCents: 0,
       annualTaxCents: 0,
       annualAfterTaxCents: 0,
+      annualOneOffGrossCents: 0,
+      annualOneOffAfterTaxCents: 0,
       fortnightlyGrossCents: 0,
       fortnightlyTaxCents: 0,
       fortnightlyAfterTaxCents: 0,
@@ -842,5 +855,60 @@ describe('TaxEstimateView', () => {
     await user.clear(input)
     await user.type(input, '40000') // over the $30,000 cap
     expect(within(willCard).getByText(/past the cap/i)).toBeInTheDocument()
+  })
+
+  it('names one-off money in the annual figures and says the fortnightly ones exclude it', () => {
+    const willWithOneOff: MemberTaxEstimate = {
+      ...will,
+      annualOneOffGrossCents: 40_000_00,
+      annualOneOffAfterTaxCents: 22_000_00,
+    }
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [willWithOneOff, sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    const note = within(card('Will')).getByText(/of one-off money in the annual figures/)
+    expect(note).toHaveTextContent('$40,000.00')
+    // A member with none says nothing about it.
+    expect(within(card('Sam')).queryByText(/one-off money/)).not.toBeInTheDocument()
+  })
+
+  it('subtracts a redundancy’s tax-free amount and the concession offset in the build-up', async () => {
+    const user = userEvent.setup()
+    const willWithRedundancy: MemberTaxEstimate = {
+      ...will,
+      annualOneOffGrossCents: 100_000_00,
+      annualOneOffAfterTaxCents: 60_000_00,
+      breakdown: { ...breakdown, taxableIncomeCents: 80_000_00, oneOffOffsetCents: 5_000_00 },
+      input: {
+        ...inputFor(10_000_000),
+        assessableIncome: {
+          ...inputFor(10_000_000).assessableIncome,
+          employmentTerminationCents: 20_000_00,
+        },
+      },
+    }
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [willWithRedundancy, sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    await showBreakdown(user, 'Will')
+    expect(
+      within(incomeTable('Will')).getByRole('row', { name: /Tax-free one-off payments/ }),
+    ).toHaveTextContent('-$80,000.00')
+    expect(within(card('Will')).getByText(/Gross income includes/)).toHaveTextContent('$100,000.00')
+    expect(
+      within(card('Will')).getByRole('row', { name: /Termination payment offset/ }),
+    ).toHaveTextContent('-$5,000.00')
   })
 })

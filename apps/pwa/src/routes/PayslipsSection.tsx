@@ -44,6 +44,8 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
     helpDebts.helpDebts ?? [],
     deductions.deductions ?? [],
     config,
+    undefined,
+    members,
   )
 
   return (

@@ -40,9 +40,9 @@ export interface TaxWaterfallInput {
  * Turns a member's estimate into the steps of a waterfall from gross income down
  * to take-home. Gross opens the flow; deductions and the concessional super
  * diverted to the fund step it down to taxable income; each tax component (income
- * tax net of the Low Income Tax Offset, the Medicare levy and its surcharge, the
- * HELP/HECS repayment, and Division 293) steps it down further; and take-home
- * closes it.
+ * tax net of the Low Income Tax Offset and the employment-termination concession
+ * offset, the Medicare levy and its surcharge, the HELP/HECS repayment, and
+ * Division 293) steps it down further; and take-home closes it.
  *
  * A deduction lowers taxable income — and so the tax bars that follow — but is not
  * paid out of cash, so it is returned as a `Deductions kept` step before take-home;
@@ -53,7 +53,12 @@ export interface TaxWaterfallInput {
  */
 export function taxWaterfallSteps(input: TaxWaterfallInput): WaterfallStep[] {
   const { grossCents, deductionsCents, concessionalCents, breakdown, afterTaxCents } = input
-  const netIncomeTaxCents = Math.max(0, breakdown.incomeTaxCents - breakdown.litoOffsetCents)
+  // Both offsets net against income tax and are floored together, exactly as
+  // `computeTax` nets them, so the bars reconcile to the liability the estimate ran.
+  const netIncomeTaxCents = Math.max(
+    0,
+    breakdown.incomeTaxCents - breakdown.litoOffsetCents - breakdown.oneOffOffsetCents,
+  )
   const steps: WaterfallStep[] = [
     {
       key: 'gross',

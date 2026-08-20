@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Stack, Text } from '@mantine/core'
+import { Badge, Box, Group, Stack, Text, type GroupProps } from '@mantine/core'
 import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
 import type { Inflow, InflowInput } from '../hooks/useInflows'
@@ -6,7 +6,7 @@ import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate, todayIso } from '../lib/dates'
 import { formatFrequency } from '../lib/frequency'
-import { inflowTypeLabel } from '../lib/inflowTypes'
+import { inflowTypeLabel, oneOffTaxTreatmentLabel } from '../lib/inflowTypes'
 import { memberName } from '../lib/members'
 import { formatCents } from '../lib/money'
 import { toIncomeInput } from '../lib/tax'
@@ -34,9 +34,26 @@ function describeAmount(inflow: Inflow): string {
   return formatCents(inflow.amount_cents ?? 0)
 }
 
-/** The inflow's fortnightly-normalised gross, via its annualised gross. */
-function fortnightlyOf(inflow: Inflow): number {
-  return fortnightlyCents(annualGrossCents(toIncomeInput(inflow)), 'annual')
+/**
+ * The inflow's fortnightly-normalised gross, via its annualised gross — or null for a
+ * ONE-OFF, which has no fortnightly reading at all. Dividing a payment that lands
+ * once by 26 states a figure 25 fortnights of the year never see, which is the very
+ * claim a one-off exists to stop the plan making.
+ */
+function fortnightlyOf(inflow: Inflow): number | null {
+  return inflow.paid_on != null
+    ? null
+    : fortnightlyCents(annualGrossCents(toIncomeInput(inflow)), 'annual')
+}
+
+/**
+ * The cadence badge an inflow carries: the period its amount is expressed over, or
+ * `One-off` for a payment that names a date instead of a cadence.
+ */
+function cadenceLabel(inflow: Inflow): string {
+  return inflow.schedule === null
+    ? 'One-off'
+    : formatFrequency(inflow.schedule, inflow.interval_count)
 }
 
 /**
@@ -68,6 +85,21 @@ function occasionalLabel(inflow: Inflow): string | null {
 }
 
 /**
+ * When a one-off's money lands, and — for a taxable one — the concession it is
+ * assessed under, since that is what separates a redundancy from a bonus of the same
+ * size. Null for a recurring inflow, whose cadence badge says what there is to say.
+ */
+function oneOffCaption(inflow: Inflow): string | null {
+  if (inflow.paid_on == null) {
+    return null
+  }
+  const paid = `One-off \u00b7 ${formatIsoDate(inflow.paid_on)}`
+  return inflow.one_off_tax_treatment === null
+    ? paid
+    : `${paid} \u00b7 ${oneOffTaxTreatmentLabel(inflow.one_off_tax_treatment)}`
+}
+
+/**
  * A dimmed caption describing an inflow's effective window (e.g.
  * "1 Jul 2026 – 14 Sep 2026", "from 15 Sep 2026", "until 30 Jun 2027"), or null
  * when it applies all year. This is a per-inflow annotation only; the FY-prorated
@@ -95,6 +127,7 @@ function effectiveDatesCaption(inflow: Inflow): string | null {
  */
 function inflowCaption(inflow: Inflow): string | undefined {
   const parts = [
+    oneOffCaption(inflow),
     payCadenceLabel(inflow),
     occasionalLabel(inflow),
     effectiveDatesCaption(inflow),
@@ -103,12 +136,18 @@ function inflowCaption(inflow: Inflow): string | undefined {
 }
 
 /**
- * Whether an inflow's effective window has closed: it has an `ends_on` date that
- * fell strictly before today. Compared date-only (both are `YYYY-MM-DD`), so an
- * inflow ending today still counts as active on its last day.
+ * Whether an inflow's money is all behind it: a recurring one whose effective window
+ * has closed, or a one-off whose payment date has passed. Compared date-only (every
+ * date here is `YYYY-MM-DD`), so an inflow ending today, and a one-off paid today,
+ * both still count as live on their last day.
+ *
+ * A paid one-off sinks and dims for the same reason an ended inflow does: it is a
+ * record of money already had rather than money still to plan around, and a household
+ * that has been here a few years has more of those than of live inflows.
  */
 function isInflowEnded(inflow: Inflow, now: Date = new Date()): boolean {
-  return inflow.ends_on !== null && inflow.ends_on < todayIso(now)
+  const last = inflow.paid_on ?? inflow.ends_on
+  return last !== null && last < todayIso(now)
 }
 
 /**
@@ -123,6 +162,29 @@ function inflowSubtitle(inflow: Inflow, memberName: (id: string) => string): str
     return `Non-taxable · ${type}`
   }
   return inflow.member_id ? `${memberName(inflow.member_id)} · ${type}` : type
+}
+
+/**
+ * The inflow's fortnightly figure, or — for a one-off — a dimmed note that it has
+ * none. The plan reads in fortnights and this money does not, so the column says so
+ * rather than leaving a blank a reader would take for nil.
+ */
+function InflowFortnightly({
+  inflow,
+  justify,
+}: {
+  inflow: Inflow
+  justify?: GroupProps['justify']
+}) {
+  const cents = fortnightlyOf(inflow)
+  if (cents === null) {
+    return (
+      <Text size="xs" c="dimmed" ta={justify === undefined ? undefined : 'right'}>
+        Not fortnightly
+      </Text>
+    )
+  }
+  return <FortnightlyAmount cents={cents} {...(justify !== undefined && { justify })} />
 }
 
 /**
@@ -170,14 +232,12 @@ function InflowRow({
       </Text>
       <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
         <Badge size="xs" variant="default">
-          {formatFrequency(inflow.schedule, inflow.interval_count)}
+          {cadenceLabel(inflow)}
         </Badge>
       </Box>
-      <FortnightlyAmount
-        cents={fortnightlyOf(inflow)}
-        justify="flex-end"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
+      <Box style={{ width: '7rem', flexShrink: 0 }}>
+        <InflowFortnightly inflow={inflow} justify="flex-end" />
+      </Box>
       <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
@@ -230,7 +290,7 @@ function InflowCard({
               {inflowTypeLabel(inflow.type)}
             </Badge>
             <Badge size="xs" variant="default">
-              {formatFrequency(inflow.schedule, inflow.interval_count)}
+              {cadenceLabel(inflow)}
             </Badge>
           </Group>
           {!ended && inflowCaption(inflow) && (
@@ -240,7 +300,7 @@ function InflowCard({
           )}
         </Stack>
         <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
-          <FortnightlyAmount cents={fortnightlyOf(inflow)} />
+          <InflowFortnightly inflow={inflow} />
           <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
       </Group>

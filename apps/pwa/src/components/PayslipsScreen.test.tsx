@@ -748,7 +748,7 @@ describe('PayslipsScreen', () => {
 
     expect(figureCell('Gross')).toHaveTextContent('Not measured this period')
     expect(cardDetail()).toHaveTextContent(
-      /\$480\.00 of the gross is pay that lands in only some pay periods/,
+      /\$480\.00 of the gross is pay that no pay period expects/,
     )
     expect(cardDetail()).toHaveTextContent(/withholds more than that/)
   })
@@ -765,7 +765,7 @@ describe('PayslipsScreen', () => {
     renderScreen({ inflows: [inflow, occasionalOnCall], lines: [makePayslipLine()] })
     await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent('On plan')
-    expect(cardDetail()).not.toHaveTextContent(/only some pay periods/)
+    expect(cardDetail()).not.toHaveTextContent(/no pay period expects/)
   })
 
   it('shows the year’s position on occasional pay above the list, once', () => {
@@ -784,7 +784,7 @@ describe('PayslipsScreen', () => {
     })
 
     // One block for the year, above the list, rather than a figure on each card.
-    const heading = screen.getByText('Occasional pay, year to date')
+    const heading = screen.getByText('Pay measured across the year')
     const positions = heading.parentElement as HTMLElement
     // $6,600 × 29/365 to the 29 July pay, against the $480.00 the year has paid.
     expect(positions).toHaveTextContent('On-call (T1)')
@@ -795,7 +795,7 @@ describe('PayslipsScreen', () => {
 
   it('shows no year-to-date position where nothing occasional was paid', () => {
     renderScreen({ inflows: [inflow, occasionalOnCall], lines: [makePayslipLine()] })
-    expect(screen.queryByText('Occasional pay, year to date')).not.toBeInTheDocument()
+    expect(screen.queryByText('Pay measured across the year')).not.toBeInTheDocument()
   })
 
   it('counts a slip carrying occasional pay out of the year’s gross position', () => {
@@ -820,9 +820,9 @@ describe('PayslipsScreen', () => {
     })
 
     // The projection exists and is annual: the block below is where it is held against.
-    expect(figureCell('YTD gross')).toHaveTextContent('Occasional pay is measured below')
+    expect(figureCell('YTD gross')).toHaveTextContent('This pay is measured across the year, below')
     expect(figureCell('YTD gross')).not.toHaveTextContent('No projection to compare')
-    expect(screen.getByText('Occasional pay, year to date')).toBeInTheDocument()
+    expect(screen.getByText('Pay measured across the year')).toBeInTheDocument()
   })
 
   it('keeps each member’s slips under their own heading', () => {

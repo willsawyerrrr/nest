@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Inflow } from '../hooks/useInflows'
 import { formatIsoDate, todayIso } from '../lib/dates'
-import { makeInflow, makeMember } from '../test/fixtures'
+import { makeInflow, makeMember, makeOneOffInflow } from '../test/fixtures'
 import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { InflowList } from './InflowList'
 
@@ -372,5 +372,52 @@ describe('InflowList', () => {
     // The other card stays in display mode with its own edit control.
     expect(screen.getAllByRole('button', { name: /^edit$/i })).toHaveLength(1)
     expect(screen.getByText('Shifts')).toBeInTheDocument()
+  })
+
+  it('captions a one-off with the day it lands and, for a taxable one, its treatment', () => {
+    renderList([
+      makeOneOffInflow({
+        name: 'Redundancy',
+        paid_on: '2099-09-12',
+        one_off_tax_treatment: 'genuine_redundancy',
+        years_of_service: 10,
+      }),
+    ])
+    expect(screen.getByText('One-off · 12 Sept 2099 · Genuine redundancy')).toBeInTheDocument()
+    expect(screen.getByText('One-off')).toBeInTheDocument()
+  })
+
+  it('leaves a non-taxable one-off’s caption at the day it lands', () => {
+    renderList([
+      makeOneOffInflow({
+        name: 'Wedding gift',
+        taxable: false,
+        member_id: null,
+        type: 'gift',
+        paid_on: '2099-09-12',
+        one_off_tax_treatment: null,
+      }),
+    ])
+    expect(screen.getByText('One-off · 12 Sept 2099')).toBeInTheDocument()
+  })
+
+  it('states no fortnightly figure for a one-off, which has none', () => {
+    renderList([makeOneOffInflow({ paid_on: '2099-09-12' })])
+    expect(screen.getByText('Not fortnightly')).toBeInTheDocument()
+    expect(screen.queryByText('/ fn')).not.toBeInTheDocument()
+  })
+
+  it('states no fortnightly figure for a one-off in the dense desktop row either', () => {
+    setWideViewport()
+    renderList([makeOneOffInflow({ paid_on: '2099-09-12' })])
+    expect(
+      within(screen.getByTestId('inflow-row')).getByText('Not fortnightly'),
+    ).toBeInTheDocument()
+  })
+
+  it('sinks a one-off already paid, exactly as an ended inflow sinks', () => {
+    renderList([makeOneOffInflow({ name: 'Old severance', paid_on: '2000-01-01' })])
+    expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.queryByText(/One-off · 1 Jan 2000/)).not.toBeInTheDocument()
   })
 })

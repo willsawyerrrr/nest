@@ -68,6 +68,7 @@ export function EofySection({ householdId }: { householdId: string }) {
     deductionRows,
     config,
     paygWithheldFromRows(payslipRows),
+    members,
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],

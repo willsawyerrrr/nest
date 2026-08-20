@@ -53,6 +53,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
     deductions.deductions ?? [],
     config,
     paygWithheldFromRows(payslips.payslips ?? []),
+    members,
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],

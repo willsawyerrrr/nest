@@ -12,7 +12,7 @@ import {
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
-import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
+import type { TaxProfile, TaxProfileSubmission } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
 import { PageSection } from './PageSection'
 import { PushNotificationsCard } from './PushNotificationsCard'
@@ -27,7 +27,7 @@ interface HomeScreenProps {
   members: Member[]
   taxProfiles: TaxProfile[]
   financialYear: number
-  onUpsertTaxProfile: (input: TaxProfileInput) => Promise<void>
+  onUpsertTaxProfile: (submission: TaxProfileSubmission) => Promise<void>
   onCreateInviteCode: () => Promise<void>
   onRevokeInviteCode: () => Promise<void>
   onConnectUp: (token: string) => Promise<void>

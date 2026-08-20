@@ -20,9 +20,12 @@ describe('TaxProfileForm', () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
-        member_id: 'm1',
-        residency: 'foreign_resident',
-        has_private_hospital_cover: true,
+        profile: {
+          member_id: 'm1',
+          residency: 'foreign_resident',
+          has_private_hospital_cover: true,
+        },
+        dateOfBirth: null,
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)

@@ -48,6 +48,8 @@ interface Row {
   annualGrossCents: number
   annualTaxCents: number
   annualAfterTaxCents: number
+  /** Gross one-off money inside the annual figures, and out of the fortnightly ones. */
+  annualOneOffGrossCents: number
   fortnightlyGrossCents: number
   fortnightlyTaxCents: number
   fortnightlyAfterTaxCents: number
@@ -142,6 +144,22 @@ function SupportFigure({
         <MoneyText span cents={annualCents} /> / year
       </Text>
     </Stack>
+  )
+}
+
+/**
+ * Why the card's annual and fortnightly figures deliberately disagree where one-off
+ * money lands in the year: the annual ones are the whole year's truth and the
+ * fortnightly ones are derived net of the one-offs, a payment that lands once having
+ * no fortnightly share to plan against. Without this a reader multiplying the
+ * fortnightly figure by 26 would read the gap as an error.
+ */
+function OneOffNote({ oneOffGrossCents }: { oneOffGrossCents: number }) {
+  return (
+    <Text size="xs" c="dimmed">
+      Includes <MoneyText span cents={oneOffGrossCents} /> of one-off money in the annual figures.
+      The fortnightly ones leave it out, so the plan is a statement about the pay that recurs.
+    </Text>
   )
 }
 
@@ -331,6 +349,7 @@ function FiguresCard({
   config,
   concessionalCapCents,
   helpPayoff,
+  oneOffTaxFreeCents = 0,
 }: {
   name: string
   row: Row
@@ -341,12 +360,17 @@ function FiguresCard({
   config?: TaxYearConfig
   concessionalCapCents?: number | undefined
   helpPayoff?: HelpPayoffProjection | undefined
+  /** A one-off's amount excluded from assessable income entirely, for the build-up. */
+  oneOffTaxFreeCents?: number
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="md">
       <Stack gap="sm">
         <Text fw={600}>{name}</Text>
         <HeroFigures row={row} />
+        {row.annualOneOffGrossCents > 0 && (
+          <OneOffNote oneOffGrossCents={row.annualOneOffGrossCents} />
+        )}
         <TaxBiteBar
           label={name}
           afterTaxCents={row.annualAfterTaxCents}
@@ -375,6 +399,8 @@ function FiguresCard({
                 grossCents={row.annualGrossCents}
                 concessionalCents={concessionalCents}
                 deductionsCents={deductionsCents}
+                oneOffGrossCents={row.annualOneOffGrossCents}
+                oneOffTaxFreeCents={oneOffTaxFreeCents}
               />
             </Stack>
           </Disclosure>
@@ -523,6 +549,10 @@ export function TaxEstimateView({
               config={config}
               concessionalCapCents={concessionalCapCentsByMember?.get(member.memberId)}
               helpPayoff={helpPayoff?.get(member.memberId)}
+              oneOffTaxFreeCents={
+                member.annualOneOffGrossCents -
+                member.input.assessableIncome.employmentTerminationCents
+              }
             />
           ))}
           <Text size="xs" c="dimmed">

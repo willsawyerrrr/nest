@@ -123,6 +123,9 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     contributionRows,
     helpDebtRows,
     deductions.deductions ?? [],
+    undefined,
+    undefined,
+    members,
   )
   const helpNowCents = helpDebtRows.reduce(
     (total, debt) => total + Math.max(0, debt.balance_cents),

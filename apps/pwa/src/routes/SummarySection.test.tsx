@@ -12,6 +12,7 @@ const hooks = vi.hoisted(() => ({
   useBreakdowns: vi.fn(),
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
+  useMembers: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -29,6 +30,7 @@ vi.mock('../hooks/useGifts', () => ({ useGifts: hooks.useGifts }))
 vi.mock('../hooks/useBreakdowns', () => ({ useBreakdowns: hooks.useBreakdowns }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
+vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../components/SummaryView', () => ({
   SummaryView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -47,13 +49,14 @@ describe('SummarySection', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: false })
     hooks.useHelpDebts.mockReturnValue({ loading: false })
     hooks.useDeductions.mockReturnValue({ loading: false })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [] })
     render(<SummarySection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('renders the summary view from the computed plan', () => {
     hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
-    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
     hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
     hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
     hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
@@ -61,6 +64,7 @@ describe('SummarySection', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [] })
     render(<SummarySection householdId="h1" />)
     expect(screen.getByTestId('summary-view')).toBeInTheDocument()
     expect(hooks.screenProps).toHaveProperty('summary')

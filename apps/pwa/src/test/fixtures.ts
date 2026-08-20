@@ -21,6 +21,7 @@ export function makeMember(overrides: Partial<Member> = {}): Member {
     household_id: 'h1',
     name: 'Will',
     email: null,
+    date_of_birth: null,
     user_id: 'u1',
     up_connected_at: null,
     created_at: '',
@@ -49,10 +50,30 @@ export function makeInflow(overrides: Partial<Inflow> = {}): Inflow {
     hours_per_period: null,
     starts_on: null,
     ends_on: null,
+    paid_on: null,
+    one_off_tax_treatment: null,
+    years_of_service: null,
     created_at: '',
     updated_at: '',
     ...overrides,
   }
+}
+
+/**
+ * Builds a ONE-OFF inflow row: a taxable severance paid on a single date, with no
+ * cadence and none of the machinery a cadence needs, exactly as the database's
+ * one-off shape check requires.
+ */
+export function makeOneOffInflow(overrides: Partial<Inflow> = {}): Inflow {
+  return makeInflow({
+    id: 'i-oneoff',
+    name: 'Severance',
+    schedule: null,
+    paid_on: '2026-09-12',
+    one_off_tax_treatment: 'ordinary',
+    amount_cents: 40_000_00,
+    ...overrides,
+  })
 }
 
 /** Builds a payslip row for one fortnight of the default inflow's pay. */

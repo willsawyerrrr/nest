@@ -51,6 +51,26 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tagged to a member
   for tax) and non-taxable inflows (reimbursement, hobby income, gift, or other —
   the type is a reporting label, excluded from tax and added to available cash).
+  **An inflow is either RECURRING or a ONE-OFF, and says which.** It states the
+  cadence it recurs on (`schedule`) or the single date it lands on (`paid_on`),
+  never both and never neither. A one-off is money that arrives once — severance,
+  a bonus, a gift from a relative — which no cadence can say: given `annual` and
+  an amount, every reader treats the money as arriving each year, so the
+  fortnightly budget smears it into the buffer, a pay split routes a share of it,
+  and a payslip period is measured against a slice of it, reporting a household as
+  permanently ahead and then permanently behind. So a one-off carries none of the
+  cadence machinery — no interval, no separate pay cadence, no effective dates —
+  is never a `wage` (an amount paid once prices no hours), and is annualised as its
+  whole amount in the financial year its date falls in and as nothing in any other.
+  Nothing per-period is derived from it: it is excluded from the fortnightly budget
+  figures and from pay splits, and no payslip period holds an expectation for it —
+  the year is where it is read, in the same block as pay arriving in only some
+  periods (see Payslips). The Summary reports the year's one-off money as its own
+  annual figure BESIDE the plan rather than inside `available`, because dividing a
+  payment that lands once into a fortnightly figure would raise the buffer for all
+  26 fortnights on the strength of one. A TAXABLE one-off also states how it is
+  taxed (`one_off_tax_treatment`), a genuine redundancy carrying the completed
+  `years_of_service` its tax-free amount is priced from; see Tax.
   **How an amount is expressed and how often it arrives are separate facts, and
   both are stored.** `schedule` + `amount_cents` are the amount and the period it
   covers, so a salary defined as an annual number is `annual` + `130_000_00`
@@ -96,7 +116,31 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
   balance is a single standing figure (the `help_debt` table, not FY-scoped),
   edited on its own HELP debt tab, that feeds the tax estimate and counts as a
-  net-worth liability.
+  net-worth liability. A taxable ONE-OFF is assessed under the concession its
+  treatment names rather than as ordinary salary, which would overstate a
+  redundancy by thousands: a genuine redundancy's tax-free amount (a base limit
+  plus a per-year amount for each completed year of service) is excluded from
+  assessable income entirely and its excess is an excluded ETP capped by the ETP
+  cap alone; a non-excluded employment termination payment is capped at the lesser
+  of that cap and the whole-of-income cap net of the member's other taxable
+  income; unused leave paid out on a redundancy is assessable in full with the tax
+  on it capped at a flat maximum rate; and ordinary income is assessable in full.
+  The concession is delivered as an OFFSET, never by holding the payment out of
+  income: the assessable part joins taxable income like any other — lifting the
+  LITO taper, the Medicare levy, the surcharge, HELP repayment income, and
+  Division 293, all of which assess taxable income — and the offset brings the
+  effective rate on the concessional part down to its capped rate by the ATO's
+  difference method, applied alongside LITO and floored with it, so it can never
+  create a refund on its own and leaves the Medicare levy untouched (the config's
+  rates therefore EXCLUDE the levy, which is why they read 2% under the commonly
+  quoted figures). The ETP rate turns on the member's age at the payment date, so
+  `members.date_of_birth` — optional, entered on the Home tab beside their tax
+  profile — is tested against the year's preservation age; unset reads as below
+  it, the higher rate. **The annual and fortnightly figures deliberately disagree
+  about one-off money**: the annual ones are whole-year truths that include it,
+  the fortnightly ones are derived net of it, and the estimate reports the
+  one-off gross and its own after-tax value separately so the gap is named rather
+  than read as a bug.
 - EOFY summary: a read-only filing-prep tab (`/eofy`) that gathers the
   household's already-tracked tax data — the tax estimate, the payslips' actual
   PAYG withheld, deductions, super contributions, and HELP debt — into one
@@ -209,9 +253,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the liability is one figure over all of a member's income and marginal rates make
   it no sum of per-inflow parts — so a period carrying the allowance withholds more
   than that, which the card says. Such an inflow is read across the YEAR instead: one
-  row per occasional inflow above the member's list, its actual so far against the
-  projection for the share of the year the latest pay reaches, shown once rather than
-  on every card where it would read as the per-period comparison it is not.
+  row per inflow no period measures above the member's list, its actual so far against
+  what the plan expects by the date the latest pay reaches, shown once rather than
+  on every card where it would read as the per-period comparison it is not. A ONE-OFF
+  joins that block on the same rule and for a plainer reason — it states a date rather
+  than a cadence, so no period was ever owed a share of it and it is never the slip's
+  cadence anchor however large its group — but its row is worked out differently: an
+  occasional inflow's expectation is prorated across the days of the year run through,
+  because its money accrues over them, while a one-off's is a STEP, the whole amount
+  from the day it lands and nothing before, so a redundancy due in May is not most of a
+  year's worth behind in December nor a cent short the day after it is paid.
   A slip's tax is measured per component the same way — STSL against the
   compulsory HELP repayment inside the liability, PAYG against the rest — so a
   study-loan component that is short cannot hide behind income tax that is over.

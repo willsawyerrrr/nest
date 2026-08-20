@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core'
-import type { OccasionalInflowPosition, PayslipVariance, PayslipYearPosition } from '@nest/plan'
+import type { PayslipVariance, PayslipYearPosition, UnmeasuredInflowPosition } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -8,13 +8,13 @@ import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
 import {
-  occasionalPositionsFor,
   payslipReconciliation,
   payslipTotalsFromRows,
   payslipVariancesById,
   payslipYearPositionsFromRows,
   periodLabel,
   reportedYearToDateFromRows,
+  unmeasuredPositionsFor,
   type PayslipReconciliation,
 } from '../lib/payslips'
 import { EditableList } from './EditableList'
@@ -85,26 +85,28 @@ function coverageNote({ coveredCount, payslipCount }: PayslipYearPosition): stri
 }
 
 /**
- * Each inflow whose money lands in only some pay periods, measured across the year
- * rather than against any one period: what the slips have paid against it, and how
- * that stands against the share of the year their latest pay reaches.
+ * Each inflow no pay period measures — one whose money lands in only some periods,
+ * and a one-off, whose money lands on a day of its own — measured across the year
+ * instead: what the slips have paid against it, and how that stands against what the
+ * plan expects by the date their latest pay reaches.
  *
- * This is where "am I getting the on-call I projected?" is answered, and it is a
- * year's reading that belongs to the year — one figure per inflow, shown once above
- * the list rather than repeated on all 26 cards, where it would read as exactly the
- * per-period comparison the whole point is that it is not.
+ * This is where "am I getting the on-call I projected?" and "has the redundancy come
+ * through?" are answered, and both are readings that belong to the year — one figure
+ * per inflow, shown once above the list rather than repeated on all 26 cards, where
+ * they would read as exactly the per-period comparison the whole point is that they
+ * are not.
  */
-function OccasionalPositions({
+function UnmeasuredPositions({
   positions,
   inflowNames,
 }: {
-  positions: readonly OccasionalInflowPosition[]
+  positions: readonly UnmeasuredInflowPosition[]
   inflowNames: ReadonlyMap<string, string>
 }) {
   return (
     <Stack gap={2}>
       <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-        Occasional pay, year to date
+        Pay measured across the year
       </Text>
       {positions.map((position) => (
         <Group key={position.sourceInflowId} justify="space-between" wrap="nowrap" gap="xs">
@@ -131,7 +133,7 @@ function OccasionalPositions({
 /**
  * A member's year-to-date actuals summed from the payslips entered, each held
  * against the plan, with the running totals printed on their latest slip as a
- * cross-check and the year's position on any pay that lands in only some periods.
+ * cross-check and the year's position on any pay no period measures.
  *
  * The three figures carry three positions rather than one headline because they
  * answer three questions — whether the pay came through, whether the withholding
@@ -146,17 +148,16 @@ function OccasionalPositions({
  * to match, so the year and the slips under it name the same thing.
  *
  * Both readings are drawn from `variances`, the one measurement per slip the cards
- * render, so neither the grid nor the occasional block can drift from a card.
- * Occasional pay is where they meet: such a slip carries no gross expectation, so it
- * is left out of the gross position and the coverage note says so — and where every
- * slip carries it, the gross position has nothing at all to compare, which the cell
- * blames on the pay being occasional rather than on a missing projection, pointing at
- * the block below where it really is measured.
+ * render, so neither the grid nor the year block can drift from a card. Pay no
+ * period measures is where they meet: such a slip carries no gross expectation, so
+ * it is left out of the gross position and the coverage note says so — and where
+ * every slip carries it, the gross position has nothing at all to compare, which the
+ * cell blames on that pay rather than on a missing projection, pointing at the block
+ * below where it really is measured.
  *
- * The occasional block sits under the reported-year-to-date cross-check rather than
- * between it and the grid: that cross-check is a footnote to the gross figure
- * immediately above it, while the block is a section of its own with a row per
- * inflow.
+ * That block sits under the reported-year-to-date cross-check rather than between it
+ * and the grid: the cross-check is a footnote to the gross figure immediately above
+ * it, while the block is a section of its own with a row per inflow.
  */
 function MemberTotals({
   payslips,
@@ -172,7 +173,7 @@ function MemberTotals({
   const totals = payslipTotalsFromRows(payslips)
   const reported = reportedYearToDateFromRows(payslips)
   const positions = payslipYearPositionsFromRows(payslips, variances)
-  const occasional = occasionalPositionsFor(payslips, variances, reconciliation, financialYear)
+  const unmeasured = unmeasuredPositionsFor(payslips, variances, reconciliation, financialYear)
 
   return (
     <Stack gap={2}>
@@ -182,7 +183,9 @@ function MemberTotals({
           cents={totals.grossCents}
           varianceCents={positions.gross.varianceCents}
           note={coverageNote(positions.gross)}
-          {...(occasional.length > 0 && { nullNote: 'Occasional pay is measured below' })}
+          {...(unmeasured.length > 0 && {
+            nullNote: 'This pay is measured across the year, below',
+          })}
         />
         <FigureCell
           label="YTD withheld"
@@ -203,8 +206,8 @@ function MemberTotals({
           summedGrossCents={totals.grossCents}
         />
       )}
-      {occasional.length > 0 && (
-        <OccasionalPositions positions={occasional} inflowNames={reconciliation.inflowNames} />
+      {unmeasured.length > 0 && (
+        <UnmeasuredPositions positions={unmeasured} inflowNames={reconciliation.inflowNames} />
       )}
     </Stack>
   )
@@ -312,7 +315,7 @@ function MemberPayslips({
  * period first, each slip's actual gross / withheld / super / net measured against
  * what the plan projected for that period, under the member's year to date measured
  * the same way — the slips' own expectations summed, plus the year's position on any
- * pay that lands in only some periods. Persistence lives in the caller.
+ * pay no period measures. Persistence lives in the caller.
  */
 export function PayslipsScreen({
   members,

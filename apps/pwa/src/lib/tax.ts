@@ -6,7 +6,9 @@ import {
   financialYearForDate,
   FY2027_CONFIG,
   projectHelpPayoff,
+  splitOneOffPayment,
   superCoContribution,
+  type OneOffTaxTreatment as EngineOneOffTaxTreatment,
   type HelpPayoffProjection,
   type HouseholdTaxEstimate,
   type IncomeInput,
@@ -17,7 +19,8 @@ import {
 } from '@nest/tax'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
-import type { Inflow } from '../hooks/useInflows'
+import type { Inflow, OneOffTaxTreatment } from '../hooks/useInflows'
+import type { Member } from '../hooks/useMembers'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
@@ -25,24 +28,63 @@ import type { TaxProfile } from '../hooks/useTaxProfiles'
 /** The tax engine's income types; any other inflow type is treated as `other`. */
 const TAXABLE_INCOME_TYPES = new Set<IncomeInput['type']>(['salary', 'wage', 'other'])
 
+/** Each stored tax treatment as the engine names it. */
+export const ENGINE_ONE_OFF_TREATMENTS: Record<OneOffTaxTreatment, EngineOneOffTaxTreatment> = {
+  ordinary: 'ordinary',
+  genuine_redundancy: 'genuineRedundancy',
+  employment_termination: 'employmentTermination',
+  unused_leave: 'unusedLeave',
+}
+
 /**
- * Maps a taxable `inflow` row to the tax engine's `IncomeInput`. Only taxable
- * inflows reach the tax estimate, so the type is only ever salary, wage, or
- * other; any non-taxable label is coerced to `other` for safety.
+ * Whether a member born on `dateOfBirth` had reached `config`'s preservation age by
+ * `onDate`, which is what chooses between the two concessional rates on a
+ * termination payment. An unknown date of birth reads as below it — the higher rate,
+ * so a missing figure understates the payment rather than the tax on it.
  */
-export function toIncomeInput(inflow: Inflow): IncomeInput {
+export function atPreservationAgeOn(
+  dateOfBirth: string | null,
+  onDate: string,
+  config: TaxYearConfig,
+): boolean {
+  if (dateOfBirth === null) {
+    return false
+  }
+  const reached = new Date(`${dateOfBirth}T00:00:00Z`)
+  reached.setUTCFullYear(reached.getUTCFullYear() + config.super.preservationAge)
+  return new Date(`${onDate}T00:00:00Z`) >= reached
+}
+
+/**
+ * Maps an `inflow` row to the tax engine's `IncomeInput`. Only taxable inflows reach
+ * the tax estimate, so the type is only ever salary, wage, or other; any non-taxable
+ * label is coerced to `other` for safety.
+ *
+ * A ONE-OFF carries `paidOn` and the concession it is assessed under in place of a
+ * cadence, which is what tells the engine to count its whole amount in the year that
+ * date falls in rather than annualising anything. `atPreservationAge` is the
+ * member's age at that date decided by the caller (see {@link atPreservationAgeOn}),
+ * defaulting to the higher-rate reading.
+ */
+export function toIncomeInput(inflow: Inflow, atPreservationAge = false): IncomeInput {
   return {
     memberId: inflow.member_id ?? '',
     type: TAXABLE_INCOME_TYPES.has(inflow.type as IncomeInput['type'])
       ? (inflow.type as IncomeInput['type'])
       : 'other',
-    schedule: inflow.schedule,
+    ...(inflow.schedule != null && { schedule: inflow.schedule }),
     ...(inflow.amount_cents != null && { amountCents: inflow.amount_cents }),
     ...(inflow.hourly_rate_cents != null && { hourlyRateCents: inflow.hourly_rate_cents }),
     ...(inflow.hours_per_period != null && { hoursPerPeriod: inflow.hours_per_period }),
     ...(inflow.interval_count != null && { interval: inflow.interval_count }),
     ...(inflow.starts_on != null && { startsOn: inflow.starts_on }),
     ...(inflow.ends_on != null && { endsOn: inflow.ends_on }),
+    ...(inflow.paid_on != null && {
+      paidOn: inflow.paid_on,
+      treatment: ENGINE_ONE_OFF_TREATMENTS[inflow.one_off_tax_treatment ?? 'ordinary'],
+      atPreservationAge,
+      ...(inflow.years_of_service != null && { yearsOfService: inflow.years_of_service }),
+    }),
   }
 }
 
@@ -145,13 +187,38 @@ export function currentTaxConfig(): TaxYearConfig {
 }
 
 /**
- * Sums each member's annual income from the taxable inflows `include` accepts, at
- * the steady rate (not FY-prorated by effective dates): a super base is set
- * against the current rate, not a part-year figure.
+ * What one taxable inflow adds to a member's annual assessable income, `income`
+ * being the row already mapped to the engine's shape: a recurring inflow's steady
+ * annual rate (not FY-prorated by effective dates, a super base
+ * being set against the current rate rather than a part-year figure), or — for a
+ * ONE-OFF — the assessable part of the payment, a genuine redundancy's tax-free
+ * amount excluded, and nil where the payment lands outside `config`'s financial
+ * year.
+ *
+ * The assessable part is the same figure whatever else the member earns; only the
+ * CONCESSIONAL part turns on their other income, and that has no bearing here. So
+ * the payments need no ordering and the other-income argument is nil.
  */
+function annualAssessableCents(inflow: Inflow, income: IncomeInput, config: TaxYearConfig): number {
+  if (inflow.paid_on == null) {
+    return annualGrossCents(income)
+  }
+  return splitOneOffPayment(
+    {
+      treatment: ENGINE_ONE_OFF_TREATMENTS[inflow.one_off_tax_treatment ?? 'ordinary'],
+      amountCents: annualGrossCents(income, config.financialYear),
+      ...(inflow.years_of_service != null && { yearsOfService: inflow.years_of_service }),
+    },
+    0,
+    config,
+  ).assessableCents
+}
+
+/** Sums each member's annual assessable income from the taxable inflows `include` accepts. */
 function annualByMemberFromInflows(
   inflows: readonly Inflow[],
   include: (inflow: Inflow) => boolean,
+  config: TaxYearConfig,
 ): Map<string, number> {
   const byMember = new Map<string, number>()
   for (const inflow of inflows) {
@@ -159,7 +226,10 @@ function annualByMemberFromInflows(
       continue
     }
     const income = toIncomeInput(inflow)
-    byMember.set(income.memberId, (byMember.get(income.memberId) ?? 0) + annualGrossCents(income))
+    byMember.set(
+      income.memberId,
+      (byMember.get(income.memberId) ?? 0) + annualAssessableCents(inflow, income, config),
+    )
   }
   return byMember
 }
@@ -170,21 +240,36 @@ function annualByMemberFromInflows(
  * of. An inflow marked `attracts_super = false` — an allowance such as on-call —
  * is excluded from both, because no guarantee accrues on it and a sacrifice set
  * as a percentage of salary is not set against an allowance.
+ *
+ * A ONE-OFF is excluded on the same reasoning: no employer super accrues on a
+ * termination payment or a bonus paid on the way out, and a contribution set as a
+ * percentage of salary is set against the salary, not against money that lands once.
  */
-function grossByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
-  return annualByMemberFromInflows(inflows, (inflow) => inflow.attracts_super)
+function grossByMemberFromInflows(
+  inflows: readonly Inflow[],
+  config: TaxYearConfig,
+): Map<string, number> {
+  return annualByMemberFromInflows(
+    inflows,
+    (inflow) => inflow.attracts_super && inflow.paid_on == null,
+    config,
+  )
 }
 
 /**
  * Per-member annual assessable income: every taxable inflow, whether or not super
- * accrues on it. This is the co-contribution income test's base, which is the
- * member's total income — an allowance is assessable in full, so leaving it out
- * over-states the entitlement. On $45,000 of salary plus $12,000 of on-call, the
- * ordinary-time base alone reads $45,000 and awards the whole $500 where the
- * taper on $57,000 allows $243.10.
+ * accrues on it, and one-offs included. This is the co-contribution income test's
+ * base, which is the member's total income — an allowance is assessable in full, as
+ * is the assessable part of a one-off, so leaving either out over-states the
+ * entitlement. On $45,000 of salary plus $12,000 of on-call, the ordinary-time base
+ * alone reads $45,000 and awards the whole $500 where the taper on $57,000 allows
+ * $243.10.
  */
-function assessableByMemberFromInflows(inflows: readonly Inflow[]): Map<string, number> {
-  return annualByMemberFromInflows(inflows, () => true)
+function assessableByMemberFromInflows(
+  inflows: readonly Inflow[],
+  config: TaxYearConfig,
+): Map<string, number> {
+  return annualByMemberFromInflows(inflows, () => true, config)
 }
 
 /**
@@ -269,8 +354,8 @@ export function superCapSummaryFromRows(
   return superCapSummaryByMember(
     contributions,
     profiles,
-    grossByMemberFromInflows(inflows),
-    assessableByMemberFromInflows(inflows),
+    grossByMemberFromInflows(inflows, config),
+    assessableByMemberFromInflows(inflows, config),
     config,
   )
 }
@@ -336,8 +421,8 @@ export function netAnnualSuperContributionFromRows(
   const config = currentTaxConfig()
   return netAnnualSuperContributionByMember(
     contributions,
-    grossByMemberFromInflows(inflows),
-    assessableByMemberFromInflows(inflows),
+    grossByMemberFromInflows(inflows, config),
+    assessableByMemberFromInflows(inflows, config),
     config,
   )
 }
@@ -357,6 +442,9 @@ export function netAnnualSuperContributionFromRows(
  * against their liability as
  * `breakdown.balanceCents` (positive owing, negative a refund). It changes no tax
  * figure: omitting it leaves every liability and after-tax total identical.
+ * `members`, when supplied, gives each member's date of birth, which decides the
+ * concessional rate on a one-off termination payment; a member whose date of birth
+ * is absent or unset is read as below preservation age — the higher rate.
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly Inflow[],
@@ -366,10 +454,28 @@ export function estimateHouseholdTaxFromRows(
   deductions: readonly DeductionRow[] = [],
   config: TaxYearConfig = currentTaxConfig(),
   paygWithheld?: ReadonlyMap<string, number>,
+  members: readonly Member[] = [],
 ): HouseholdTaxEstimate {
-  const incomes = inflows.filter((inflow) => inflow.taxable).map(toIncomeInput)
+  // Keyed to allow a null member id, which a taxable inflow can carry: it simply
+  // matches no member, and an unknown date of birth reads as the higher rate.
+  const dateOfBirthByMember = new Map<string | null, string | null>(
+    members.map((member) => [member.id, member.date_of_birth]),
+  )
+  const incomes = inflows
+    .filter((inflow) => inflow.taxable)
+    .map((inflow) =>
+      toIncomeInput(
+        inflow,
+        inflow.paid_on != null &&
+          atPreservationAgeOn(
+            dateOfBirthByMember.get(inflow.member_id) ?? null,
+            inflow.paid_on,
+            config,
+          ),
+      ),
+    )
   // Per-member annual gross salary, the base for percent-of-salary contributions.
-  const grossByMember = grossByMemberFromInflows(inflows)
+  const grossByMember = grossByMemberFromInflows(inflows, config)
   const helpByMember = helpDebtCentsByMember(helpDebts)
   const profileInputByMember = new Map(
     profiles.map((profile) => [

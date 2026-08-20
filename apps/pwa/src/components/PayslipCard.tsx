@@ -2,6 +2,7 @@ import { Anchor, Collapse, Group, SimpleGrid, Stack, Text, UnstyledButton } from
 import { useDisclosure } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type {
+  ExpectationBasis,
   PartCycleReason,
   PayslipLineGroupVariance,
   PayslipTaxGroupVariance,
@@ -106,16 +107,25 @@ export function FigureCell({
 }
 
 /**
+ * Whether a basis puts no per-period figure on a group at all: `occasional` for
+ * money landing in only some turns of the cycle, `one_off` for money landing on a
+ * day of its own. Both have a real projection, and neither has one for this period.
+ */
+function isUnmeasuredBasis(basis: ExpectationBasis): boolean {
+  return basis === 'occasional' || basis === 'one_off'
+}
+
+/**
  * One inflow's share of an itemised slip: the lines drawing on it named and
  * summed, against what that projection expected for the period. A group mapped to
  * no inflow — or to one since retired — has nothing to compare, which
  * {@link VarianceNote} says rather than showing a zero.
  *
- * A group whose inflow arrives in only some pay periods reads differently again: its
- * projection is real and annual, and this period was never expected to carry any
- * particular share of it, so the row says the figure is not measured here rather than
- * implying a projection is missing. Where it stands instead is the member's
- * year-to-date position, above the list.
+ * A group whose inflow arrives in only some pay periods, or is a one-off, reads
+ * differently again: its projection is real and belongs to the year, and this period
+ * was never expected to carry any particular share of it, so the row says the figure
+ * is not measured here rather than implying a projection is missing. Where it stands
+ * instead is the member's year-to-date position, above the list.
  */
 function LineGroupRow({
   group,
@@ -138,7 +148,7 @@ function LineGroupRow({
         <MoneyText cents={group.actualCents} size="xs" fw={600} />
         <VarianceNote
           varianceCents={group.varianceCents}
-          {...(group.basis === 'occasional' && { nullNote: 'Not measured per period' })}
+          {...(isUnmeasuredBasis(group.basis) && { nullNote: 'Not measured per period' })}
         />
       </Group>
     </Group>
@@ -205,31 +215,34 @@ const PART_CYCLE_NOTES: Readonly<Record<PartCycleReason, string>> = {
 
 /**
  * What a null gross variance on this slip means. Nothing on it mapping to a
- * projection is one thing; the slip carrying pay that lands in only some periods is
- * another, and reading the second as the first would suggest a projection is missing
- * when it is only annual.
+ * projection is one thing; the slip carrying pay no period measures — an allowance
+ * landing in only some of them, or a one-off — is another, and reading the second as
+ * the first would suggest a projection is missing when it only belongs to the year.
  */
 function grossNullNote(variance: PayslipVariance): string {
   return variance.grossPartlyUnmeasured ? 'Not measured this period' : NO_PROJECTION_NOTE
 }
 
 /**
- * Why the slip's gross is not measured against the plan: part of it is pay that lands
- * in only some periods, so no per-period figure covers it. The measured groups above
- * still carry their own variances — the salary's nil variance is right there — and
- * only the total stops claiming to be one, since holding the whole gross against part
- * of it would read an ordinary on-call fortnight as above plan by the whole
- * allowance. The withholding expectation is named too: the year's tax is one figure
- * over all of a member's income, so it is spread evenly and a period carrying this
- * pay withholds more than its share.
+ * Why the slip's gross is not measured against the plan: part of it is pay no period
+ * holds a figure for — an allowance landing in only some periods, or a one-off
+ * landing on a day of its own. The measured groups above still carry their own
+ * variances — the salary's nil variance is right there — and only the total stops
+ * claiming to be one, since holding the whole gross against part of it would read an
+ * ordinary on-call fortnight as above plan by the whole allowance, and the fortnight
+ * a redundancy was paid out in as above plan by the whole redundancy. The withholding
+ * expectation is named too: the year's tax is one figure over all of a member's
+ * income, so it is spread evenly and a period carrying this pay withholds more than
+ * its share.
  */
 function UnmeasuredGrossNote({ unmeasuredCents }: { unmeasuredCents: number }) {
   return (
     <Text size="xs" c="dimmed">
-      <MoneyText span cents={unmeasuredCents} /> of the gross is pay that lands in only some pay
-      periods, so this period expects no figure for it and the gross is not measured against the
-      plan — its year-to-date position is above the list. Tax withheld still expects the year’s
-      liability spread evenly, so a period carrying this pay withholds more than that.
+      <MoneyText span cents={unmeasuredCents} /> of the gross is pay that no pay period expects — an
+      allowance landing in only some of them, or a one-off landing on a day of its own — so the
+      gross is not measured against the plan here; its year-to-date position is above the list. Tax
+      withheld still expects the year’s liability spread evenly, so a period carrying this pay
+      withholds more than that.
     </Text>
   )
 }
@@ -397,8 +410,8 @@ interface PayslipCardProps {
  * super expectations rest on, since those are the figures the note is about. An
  * earnings group on some other cadence carries its own reason on its variance, and
  * its row already shows the variance that reason produced. A slip part of whose gross
- * lands in only some periods carries {@link UnmeasuredGrossNote} instead of a gross
- * variance, that pay being measured across the year rather than against this period.
+ * no period expects carries {@link UnmeasuredGrossNote} instead of a gross variance,
+ * that pay being measured across the year rather than against this period.
  *
  * Editing and deleting sit outside the disclosure: correcting a slip is no reason
  * to read it. Expansion is per card and lasts as long as the tab is open, which is

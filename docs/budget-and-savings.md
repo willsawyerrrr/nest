@@ -29,6 +29,12 @@ inflows never reach the tax engine.
 A capped-but-always-spent work reimbursement is modelled as a fixed regular
 non-taxable inflow at the cap amount.
 
+An inflow is also either **recurring** or **one-off**, and states one or the other:
+`schedule` is the cadence it recurs on, `paid_on` the single day it lands on, never
+both and never neither. A one-off is severance, a bonus, or a gift — money that
+arrives once — so it carries no cadence, no interval, and no effective dates, and
+its amount is the whole payment rather than a figure expressed over a period.
+
 ## Schedules & normalization
 
 Every inflow and budget line carries an amount and a frequency. All figures
@@ -50,6 +56,14 @@ weeks` cadence — an amount received once every N weeks, where N is a
 user-supplied positive integer — annualises to `round(amount × 52 ÷ N)`, and the
 `every N months` cadence — once every N months — to `round(amount × 12 ÷ N)`.
 Fortnightly amount = `round(annual ÷ 26)` in every case.
+
+**A one-off normalises to nothing.** Its amount is already the whole payment, so
+annualising takes it unchanged and there is no fortnightly reading of it at all: a
+$40,000 redundancy is $40,000 of money in, and dividing it by 26 would tell the plan
+it had $1,538.46 more to spend in every fortnight of the year on the strength of one
+payment. It is reported on its own instead — see [Summary /
+reconciliation](#summary--reconciliation) — and a pay period holds no expectation for
+it either (see [`payslips.md`](payslips.md#money-that-lands-once)).
 
 ## Budget (plan-only, fortnightly)
 
@@ -123,10 +137,16 @@ The Summary mirrors the household's existing spreadsheet: it reconciles availabl
 money against outgoings and money set aside, leaving a buffer.
 
 - **Available** = after-tax income (from the tax estimate over taxable inflows) +
-  non-taxable inflows.
+  non-taxable inflows, both recurring only.
 - **Outgoings** = Needs + Wants + Discretionary + Temporary.
 - **Savings block** = Savings + Investments.
 - **Remaining buffer** = Available − Outgoings − Savings block.
+- **One-off money** = the gross one-off inflows landing in the financial year,
+  taxable and non-taxable alike, reported as a single annual figure beside the plan
+  and deliberately **not** added into Available. Every other figure here is money the
+  household can count on each fortnight, and a payment that lands once is not; folded
+  in, it would raise the buffer for all 26 fortnights and the plan would spend it
+  twenty-six times over.
 
 The dashboard shows each group's fortnightly, annual, and **portion** (share of
 Available), plus the running "After Outgoing" and "After Saving" figures.
@@ -170,7 +190,8 @@ income tables.
 - **Inflow** — money in.
   - `id`, `household_id`, `name`, `taxable` (bool), `type`, `schedule`,
     `interval_count` (int ≥ 1, non-null iff `schedule` is
-    `every_n_weeks`/`every_n_months`, else null), `amount_cents` (or wage
+    `every_n_weeks`/`every_n_months`, else null), `paid_on` (the day a one-off
+    lands; set exactly when `schedule` is null), `amount_cents` (or wage
     `hourly_rate_cents` + `hours_per_period`),
     `member_id` (required when `taxable`, else null).
   - Taxable inflows feed the tax estimate; non-taxable add to available cash.
@@ -198,8 +219,9 @@ income tables.
 
 ### Derived / computed (not stored)
 
-- Fortnightly and annual normalization of every inflow and budget line.
-- Summary reconciliation (Available, Outgoings, Savings block, buffer, portions).
+- Fortnightly and annual normalization of every recurring inflow and budget line.
+- Summary reconciliation (Available, Outgoings, Savings block, buffer, portions,
+  and the year's one-off money reported beside them).
 - Goal progress and ETA; temporary-item active/expired state from its target
   date.
 

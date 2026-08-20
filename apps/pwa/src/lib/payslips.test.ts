@@ -7,7 +7,6 @@ import type { PayslipRow } from '../hooks/usePayslips'
 import { makeInflow, makePayslip, makePayslipLine, makePayslipTaxLine } from '../test/fixtures'
 import {
   financialYearForPayslip,
-  occasionalPositionsFor,
   paygWithheldFromRows,
   payslipCountByMember,
   payslipReconciliation,
@@ -19,6 +18,7 @@ import {
   toPayslipLine,
   toPayslipTotalsRow,
   toReconciledInflow,
+  unmeasuredPositionsFor,
 } from './payslips'
 import { estimateHouseholdTaxFromRows } from './tax'
 
@@ -247,7 +247,7 @@ describe('toReconciledInflow', () => {
   })
 })
 
-describe('occasionalPositionsFor', () => {
+describe('unmeasuredPositionsFor', () => {
   const shiftSlip = makePayslip({ gross_cents: 5_480_00, paid_on: '2026-07-15' })
   const quietSlip = makePayslip({
     id: 'ps2',
@@ -284,7 +284,7 @@ describe('occasionalPositionsFor', () => {
     const payslips = [shiftSlip, quietSlip]
     const { reconciliation, variances } = measured(payslips, [inflow, OCCASIONAL_ON_CALL])
     // 1–29 July is 29 of FY2027's 365 days: $6,600 × 29/365 = $524.38.
-    expect(occasionalPositionsFor(payslips, variances, reconciliation, 2027)).toEqual([
+    expect(unmeasuredPositionsFor(payslips, variances, reconciliation, 2027)).toEqual([
       {
         sourceInflowId: 'i3',
         actualCents: 480_00,
@@ -302,7 +302,7 @@ describe('occasionalPositionsFor', () => {
     const group = variances.get('ps1')!.lineGroups.find((each) => each.sourceInflowId === 'i3')
 
     expect(group?.basis).toBe('occasional')
-    expect(occasionalPositionsFor(payslips, variances, reconciliation, 2027)[0]?.actualCents).toBe(
+    expect(unmeasuredPositionsFor(payslips, variances, reconciliation, 2027)[0]?.actualCents).toBe(
       group?.actualCents,
     )
   })
@@ -310,7 +310,7 @@ describe('occasionalPositionsFor', () => {
   it('reports nothing where no line draws on an occasional inflow', () => {
     const payslips = [shiftSlip]
     const { reconciliation, variances } = measured(payslips, [inflow], [makePayslipLine()])
-    expect(occasionalPositionsFor(payslips, variances, reconciliation, 2027)).toEqual([])
+    expect(unmeasuredPositionsFor(payslips, variances, reconciliation, 2027)).toEqual([])
   })
 })
 

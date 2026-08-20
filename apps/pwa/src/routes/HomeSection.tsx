@@ -19,7 +19,7 @@ export function HomeSection({
   onCreateInviteCode: () => Promise<void>
   onRevokeInviteCode: () => Promise<void>
 }) {
-  const { members, loading: membersLoading, reload: reloadMembers } = useMembers()
+  const { members, loading: membersLoading, reload: reloadMembers, setDateOfBirth } = useMembers()
   const taxProfiles = useTaxProfiles(household.id)
   const up = useUpConnection(reloadMembers)
   // A push subscription is tagged to the signed-in member, so it waits on the
@@ -41,7 +41,10 @@ export function HomeSection({
       members={members}
       taxProfiles={taxProfiles.profiles ?? []}
       financialYear={taxProfiles.financialYear}
-      onUpsertTaxProfile={taxProfiles.upsert}
+      onUpsertTaxProfile={async ({ profile, dateOfBirth }) => {
+        await taxProfiles.upsert(profile)
+        await setDateOfBirth(profile.member_id, dateOfBirth)
+      }}
       onCreateInviteCode={onCreateInviteCode}
       onRevokeInviteCode={onRevokeInviteCode}
       onConnectUp={up.connect}

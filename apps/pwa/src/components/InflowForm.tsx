@@ -16,10 +16,22 @@ import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
-import { NON_TAXABLE_INFLOW_TYPE_OPTIONS, TAXABLE_INFLOW_TYPE_OPTIONS } from '../lib/inflowTypes'
+import {
+  NON_TAXABLE_INFLOW_TYPE_OPTIONS,
+  TAXABLE_INFLOW_TYPE_OPTIONS,
+  TAXABLE_ONE_OFF_TYPE_OPTIONS,
+} from '../lib/inflowTypes'
 import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
+import {
+  EMPTY_ONE_OFF_DRAFT,
+  isOneOffDraftComplete,
+  oneOffDraftFrom,
+  oneOffRecurrenceInput,
+  RECURRING_RECURRENCE_INPUT,
+} from '../lib/oneOffInflow'
 import { EnumSelect } from './EnumSelect'
 import { FormShell } from './FormShell'
+import { InflowOneOffFields } from './InflowOneOffFields'
 import { MoneyInput } from './MoneyInput'
 
 interface InflowFormProps {
@@ -180,8 +192,16 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [hours, setHours] = useState<number | string>(initial?.hours_per_period ?? '')
   const [startsOn, setStartsOn] = useState<string | null>(initial?.starts_on ?? null)
   const [endsOn, setEndsOn] = useState<string | null>(initial?.ends_on ?? null)
+  const [oneOff, setOneOff] = useState(
+    initial === undefined ? EMPTY_ONE_OFF_DRAFT : oneOffDraftFrom(initial),
+  )
+  const [isOneOff, setIsOneOff] = useState(initial?.paid_on != null)
 
-  const typeOptions = taxable ? TAXABLE_INFLOW_TYPE_OPTIONS : NON_TAXABLE_INFLOW_TYPE_OPTIONS
+  const typeOptions = taxable
+    ? isOneOff
+      ? TAXABLE_ONE_OFF_TYPE_OPTIONS
+      : TAXABLE_INFLOW_TYPE_OPTIONS
+    : NON_TAXABLE_INFLOW_TYPE_OPTIONS
 
   /** Switches taxability, resetting the type to the new mode's default if it no longer applies. */
   const handleTaxableChange = (nextTaxable: boolean) => {
@@ -192,14 +212,29 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     }
   }
 
-  const isWage = taxable && type === 'wage'
-  const isEveryN = needsInterval(schedule)
+  /**
+   * Switches recurrence. A one-off is never a `wage` — an amount paid once prices no
+   * hours — so a wage becomes a salary on the way in, and stays one on the way back
+   * out rather than silently reviving a rate and hours that were never re-entered.
+   */
+  const handleRecurrenceChange = (nextIsOneOff: boolean) => {
+    setIsOneOff(nextIsOneOff)
+    if (nextIsOneOff && type === 'wage') {
+      setType(DEFAULT_TYPE.taxable)
+    }
+  }
+
+  const isWage = !isOneOff && taxable && type === 'wage'
+  // Everything a cadence needs is a recurring inflow's alone: a one-off has no
+  // interval, no separate pay cadence, no effective window, and no turn of a cycle to
+  // arrive in, so each is held at the nothing the database's one-off shape requires.
+  const isEveryN = !isOneOff && needsInterval(schedule)
   const intervalUnit = schedule === 'every_n_months' ? 'months' : 'weeks'
   const intervalValid = isIntervalValid(interval)
   const intervalCount = isEveryN && intervalValid ? Number(interval) : undefined
   // The pay cadence is a taxable-inflow concern: it exists to line a payslip's period
   // up with the projection, and only taxable inflows are reconciled against payslips.
-  const payCadence = taxable ? paySchedule : null
+  const payCadence = taxable && !isOneOff ? paySchedule : null
   const isPayEveryN = needsInterval(payCadence)
   const payIntervalUnit = payCadence === 'every_n_months' ? 'months' : 'weeks'
   const payIntervalValid = isIntervalValid(payInterval)
@@ -207,7 +242,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   // Whether the money lands every period is a taxable-inflow concern for the same
   // reason the pay cadence is: it exists to keep a payslip period from expecting pay
   // that only lands in some, and only a taxable inflow is reconciled against a slip.
-  const arrivesEvery = taxable ? arrivesEveryPeriod : true
+  const arrivesEvery = taxable && !isOneOff ? arrivesEveryPeriod : true
   const amountEntered = isWage ? hourlyRate !== '' && hours !== '' : amount !== ''
 
   // The annual total the amount states, by the very arithmetic the payslip expectation
@@ -236,15 +271,21 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
   // Money arriving once a year is rarely what a salary or wage means, and a yearly
   // amount says what it is through its own frequency rather than through the pay cycle.
+  // A one-off says the same thing honestly, so the advice has nothing to add there.
   const arrivesAnnually =
-    taxable && (type === 'salary' || type === 'wage') && (payCadence ?? schedule) === 'annual'
+    !isOneOff &&
+    taxable &&
+    (type === 'salary' || type === 'wage') &&
+    (payCadence ?? schedule) === 'annual'
 
   const canSubmit =
     name.trim() !== '' &&
     (taxable ? memberId !== '' : true) &&
     amountEntered &&
-    (isEveryN ? interval !== '' && intervalValid : true) &&
-    (isPayEveryN ? payInterval !== '' && payIntervalValid : true)
+    (isOneOff
+      ? isOneOffDraftComplete(oneOff, taxable)
+      : (isEveryN ? interval !== '' && intervalValid : true) &&
+        (isPayEveryN ? payInterval !== '' && payIntervalValid : true))
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
@@ -257,9 +298,10 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       type,
       // Only a taxable inflow is ever part of an employer's super base; a
       // non-taxable one is stored as ordinary time earnings so switching it back
-      // to taxable starts from the ordinary default.
-      attracts_super: taxable ? attractsSuper : true,
-      schedule,
+      // to taxable starts from the ordinary default. A one-off is stored the same
+      // way, no employer super accruing on money that lands once.
+      attracts_super: taxable && !isOneOff ? attractsSuper : true,
+      schedule: isOneOff ? null : schedule,
       interval_count: isEveryN ? Number(interval) : null,
       pay_schedule: payCadence,
       pay_interval_count: isPayEveryN ? Number(payInterval) : null,
@@ -267,8 +309,9 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
-      starts_on: taxable ? startsOn : null,
-      ends_on: taxable ? endsOn : null,
+      starts_on: taxable && !isOneOff ? startsOn : null,
+      ends_on: taxable && !isOneOff ? endsOn : null,
+      ...(isOneOff ? oneOffRecurrenceInput(oneOff, taxable) : RECURRING_RECURRENCE_INPUT),
     }),
   })
 
@@ -321,21 +364,35 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         allowDeselect={false}
       />
 
-      <EnumSelect
-        label="Frequency"
+      <SegmentedControl
+        fullWidth
         size="sm"
-        description={
-          <>
-            The period the figure below covers. A salary defined as a yearly number is{' '}
-            <b>Annually</b> here however often it is paid — say the pay cycle under <b>Paid</b>. The
-            app converts everything to <b>fortnightly and annual</b>.
-          </>
-        }
-        data={FREQUENCY_OPTIONS}
-        value={schedule}
-        onChange={(value) => value && setSchedule(value)}
-        allowDeselect={false}
+        aria-label="Recurrence"
+        value={isOneOff ? 'oneoff' : 'recurring'}
+        onChange={(value) => handleRecurrenceChange(value === 'oneoff')}
+        data={[
+          { value: 'recurring', label: 'Recurring' },
+          { value: 'oneoff', label: 'One-off' },
+        ]}
       />
+
+      {!isOneOff && (
+        <EnumSelect
+          label="Frequency"
+          size="sm"
+          description={
+            <>
+              The period the figure below covers. A salary defined as a yearly number is{' '}
+              <b>Annually</b> here however often it is paid — say the pay cycle under <b>Paid</b>.
+              The app converts everything to <b>fortnightly and annual</b>.
+            </>
+          }
+          data={FREQUENCY_OPTIONS}
+          value={schedule}
+          onChange={(value) => value && setSchedule(value)}
+          allowDeselect={false}
+        />
+      )}
 
       {isEveryN && (
         <NumberInput
@@ -375,12 +432,16 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         </>
       ) : (
         <MoneyInput
-          label={`Amount per ${PERIOD_NOUN[schedule]}`}
+          label={isOneOff ? 'Amount' : `Amount per ${PERIOD_NOUN[schedule]}`}
           size="sm"
           description={
-            taxable
-              ? 'Gross pay (before tax) for one such period.'
-              : 'Amount received over one such period; excluded from tax.'
+            isOneOff
+              ? taxable
+                ? 'Gross amount (before tax) of this single payment.'
+                : 'Amount received in this single payment; excluded from tax.'
+              : taxable
+                ? 'Gross pay (before tax) for one such period.'
+                : 'Amount received over one such period; excluded from tax.'
           }
           min={0}
           hideControls
@@ -389,7 +450,17 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         />
       )}
 
-      {taxable && (
+      {isOneOff && (
+        <InflowOneOffFields
+          taxable={taxable}
+          amountCents={dollarsToCents(amount)}
+          member={members.find((each) => each.id === memberId)}
+          draft={oneOff}
+          onChange={setOneOff}
+        />
+      )}
+
+      {taxable && !isOneOff && (
         <EnumSelect
           label="Paid"
           size="sm"
@@ -419,7 +490,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
 
       {arrivesAnnually && <AnnualArrivalNote />}
 
-      {taxable && (
+      {taxable && !isOneOff && (
         <Switch
           size="sm"
           label="Arrives in every pay period"
@@ -429,7 +500,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         />
       )}
 
-      {taxable && (
+      {taxable && !isOneOff && (
         <Switch
           size="sm"
           label="Employer super accrues on this"
@@ -439,7 +510,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         />
       )}
 
-      {taxable && (
+      {taxable && !isOneOff && (
         <Group grow align="flex-start">
           <DateInput
             label="Effective from"

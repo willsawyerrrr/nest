@@ -64,8 +64,8 @@ annual total, exactly like the app.
 
 | Spreadsheet capability | App | Note |
 | --- | --- | --- |
-| Per-member income; wage (rate × hours × weeks) and salary | ✅ Have | Taxable inflows: wage `rate × hours/period`, salary annual gross |
-| Income tax + HELP + Medicare estimate | ✅ Have | App is richer: LITO, Medicare low-income phase-in + surcharge, private hospital, marginal HELP with cap, versioned FY config |
+| Per-member income; wage (rate × hours × weeks) and salary | ✅ Have | Taxable inflows: wage `rate × hours/period`, salary annual gross. App richer: an inflow can also be a **one-off** — a single dated payment (severance, a bonus, a gift) the sheet can only model as a recurring annual amount, which smears it across every fortnight of the plan |
+| Income tax + HELP + Medicare estimate | ✅ Have | App is richer: LITO, Medicare low-income phase-in + surcharge, private hospital, marginal HELP with cap, employment-termination concessions (genuine redundancy, ETP, unused leave) delivered as an offset, versioned FY config |
 | Six budget groups (Needs/Wants/Discretionary/Temporary/Savings/Investments) | ✅ Have | Exact same groups |
 | Amount + frequency → fortnightly + annual normalisation | ✅ Have | Same frequencies, plus every-N-weeks and every-N-months cadences the sheet lacks |
 | Summary reconciliation: after-tax − outgoings − savings = buffer | ✅ Have | Same running After Outgoing / After Saving ledger |
@@ -109,7 +109,9 @@ means a schema/migration/RLS/types change; "frontend" means PWA-only.
 **Deliberate non-gaps** (documented, not to build): a **payment-method tag per
 bill** (Debit / Transfer / Card / Saver) and a **finance-admin to-do list** — the
 household keeps both in the spreadsheet, and neither needs to move into the app.
-The app's tax engine already exceeds the sheet's flat-Medicare / no-offset model;
+The app's tax engine already exceeds the sheet's flat-Medicare / no-offset model —
+which has no notion of a payment that lands once, let alone the concession one
+carries;
 app Goals already exceed the sheet's flat target list; and per-person *budget*
 splitting is intentionally out of scope (money is fully pooled — member tags are a
 tax/reporting concept only). Wishlist still warrants an optional per-member tag

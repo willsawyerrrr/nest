@@ -408,11 +408,29 @@ function ledgerRows(summary: BudgetSummary, mode: IncomeBasis): LedgerRow[] {
 }
 
 /**
+ * The year's one-off money, stated beside the plan rather than inside it. Every
+ * figure in the ledger is fortnightly money the household can count on, and a
+ * payment that lands once is not: divided into a fortnightly figure it would raise
+ * the buffer for all 26 fortnights of the year on the strength of one. It is an
+ * annual figure for the same reason — there is no honest fortnightly reading of it.
+ */
+function OneOffNote({ oneOffCents }: { oneOffCents: number }) {
+  return (
+    <Text size="xs" c="dimmed">
+      <MoneyText span cents={oneOffCents} /> of one-off money lands this financial year — severance,
+      a bonus, a gift. It is left out of every figure above, because money that arrives once has no
+      fortnightly share to plan against.
+    </Text>
+  )
+}
+
+/**
  * Presentational Summary reconciliation, mirroring the household's spreadsheet:
  * Available, each group's fortnightly/annual/portion, and the running After
  * Outgoing and After Saving (remaining buffer) figures. On the gross basis a
  * Gross subtotal and the Tax and salary-sacrifice deductions lead the ledger. A compact
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
+ * Any one-off money the year carries is reported under the ledger, outside it.
  */
 export function SummaryView({ summary }: SummaryViewProps) {
   const wide = useIsWide()
@@ -430,7 +448,8 @@ export function SummaryView({ summary }: SummaryViewProps) {
   const hasData =
     summary.available.annualCents !== 0 ||
     summary.outgoings.annualCents !== 0 ||
-    summary.savingsBlock.annualCents !== 0
+    summary.savingsBlock.annualCents !== 0 ||
+    summary.oneOffCents !== 0
 
   return (
     <PageSection title="Summary">
@@ -489,6 +508,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
               </Stack>
             </Card>
           )}
+          {summary.oneOffCents !== 0 && <OneOffNote oneOffCents={summary.oneOffCents} />}
         </>
       )}
     </PageSection>

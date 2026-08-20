@@ -11,6 +11,10 @@
  * on-call pay rides the fortnightly payrun but only for the fortnights a shift was
  * worked, so `arrivesEveryPayPeriod` false says a period holds no expectation for
  * it rather than the smoothed share a cadence alone would imply.
+ *
+ * An inflow may instead have no cadence at all. A one-off states the single date its
+ * money lands on — severance, a bonus, a gift — so there is nothing to annualise and
+ * no turn to measure a period against; its amount is already the whole of it.
  */
 
 import type { Frequency, Money } from './index'
@@ -48,11 +52,20 @@ export function isEntered<T>(value: T | null | undefined): value is T {
  * `interval`) is the period the amount is EXPRESSED over — a salary defined as
  * $130,000 a year is `annual`, and that is what annualising divides by.
  * `paySchedule` (with `payInterval`) is the cadence the money ARRIVES on, which is
- * what a pay period is measured against; absent, the two are the same.
+ * what a pay period is measured against; absent, the two are the same. A one-off
+ * carries neither, naming the day its money lands on in `paidOn` instead: nothing
+ * about it is annualised or held against a cycle, so its `schedule` is read by no
+ * path here and a row that stores none may pass any value.
  */
 export interface ReconciledInflow {
   readonly type: 'salary' | 'wage' | 'other'
-  readonly schedule: Frequency
+  /**
+   * The period the amount is expressed over. Absent on a one-off, which states the
+   * day its money lands on instead; absent on anything else there is no period to
+   * multiply the amount up from and no cycle to read, so it annualises to nothing
+   * and every period is measured by calendar days.
+   */
+  readonly schedule?: Frequency
   readonly amountCents?: Money
   readonly hourlyRateCents?: Money
   readonly hoursPerPeriod?: number
@@ -68,6 +81,14 @@ export interface ReconciledInflow {
   readonly payInterval?: number | null
   readonly startsOn?: string | null
   readonly endsOn?: string | null
+  /**
+   * The single date a one-off's money lands on, and the fact that makes the inflow
+   * a one-off at all. Absent or null is a recurring inflow, which is what states a
+   * cadence instead. A one-off's amount is the whole payment rather than a figure
+   * expressed over a period, so nothing here is annualised and no pay period holds
+   * an expectation for it.
+   */
+  readonly paidOn?: string | null
   /**
    * Whether the money lands on every turn of the pay cadence. Absent reads as
    * true, so only an inflow recorded otherwise — on-call pay, paid on the
@@ -99,6 +120,30 @@ export function arrivesOnlySomePayPeriods(inflow: ReconciledInflow): boolean {
   return inflow.arrivesEveryPayPeriod === false
 }
 
+/** An inflow whose money lands once, on the day {@link ReconciledInflow.paidOn} names. */
+export type OneOffInflow = ReconciledInflow & { readonly paidOn: string }
+
+/**
+ * Whether the inflow is a one-off — severance, a bonus, a gift — money that lands
+ * on a single day rather than recurring on a cadence. Its amount is the whole
+ * payment, so there is nothing to annualise and no turn of a cycle for a pay period
+ * to be a share of.
+ */
+export function isOneOff(inflow: ReconciledInflow): inflow is OneOffInflow {
+  return isEntered(inflow.paidOn)
+}
+
+/**
+ * Whether a pay period holds no expectation for the inflow at all: a one-off, whose
+ * money belongs to the day it lands on, or an inflow arriving in only some turns of
+ * its cadence. Each has a projection and neither has a per-period one, so measuring
+ * either against a period reports pay off plan in whichever direction the payment
+ * fell. Both are read across the year instead.
+ */
+export function isUnmeasuredPerPeriod(inflow: ReconciledInflow): boolean {
+  return isOneOff(inflow) || arrivesOnlySomePayPeriods(inflow)
+}
+
 /**
  * The cadence the inflow's money arrives on: the pay cadence where it states one,
  * else the cadence its amount is expressed in. Everything about the pay cycle — how
@@ -109,7 +154,7 @@ export function arrivesOnlySomePayPeriods(inflow: ReconciledInflow): boolean {
  * 365-day one.
  */
 function payCadence(inflow: ReconciledInflow): {
-  readonly frequency: Frequency
+  readonly frequency: Frequency | undefined
   readonly interval: number | undefined
 } {
   return isEntered(inflow.paySchedule)
@@ -117,10 +162,26 @@ function payCadence(inflow: ReconciledInflow): {
     : { frequency: inflow.schedule, interval: inflow.interval }
 }
 
+/**
+ * The inflow's pay cycle resolved: how many turns of it a year holds, and how long
+ * one turn nominally runs. Three inflows resolve to no turns and no span, and to the
+ * same effect — every figure drawn from them falls to the calendar-day basis and none
+ * is ever on cadence: one whose cadence states no usable interval, one stating no
+ * cadence at all, and a one-off, which has none to state.
+ */
+function payCycle(inflow: ReconciledInflow): {
+  readonly perYear: number
+  readonly span: CadenceSpan | null
+} {
+  const { frequency, interval } = payCadence(inflow)
+  return frequency === undefined
+    ? { perYear: 0, span: null }
+    : { perYear: periodsPerYear(frequency, interval), span: cadenceSpan(frequency, interval) }
+}
+
 /** How many turns of the inflow's pay cadence a year holds — the on-cadence divisor. */
 export function payCadencePeriodsPerYear(inflow: ReconciledInflow): number {
-  const { frequency, interval } = payCadence(inflow)
-  return periodsPerYear(frequency, interval)
+  return payCycle(inflow).perYear
 }
 
 /**
@@ -129,14 +190,8 @@ export function payCadencePeriodsPerYear(inflow: ReconciledInflow): number {
  * the caller nothing but the financial year to apportion over.
  */
 export function payCycleUnit(inflow: ReconciledInflow, period: PayPeriod): ProrationUnit | null {
-  const { frequency, interval } = payCadence(inflow)
-  const span = cadenceSpan(frequency, interval)
-  return span === null
-    ? null
-    : {
-        perYear: periodsPerYear(frequency, interval),
-        unitDays: cadenceTurnDays(span, period.periodStart),
-      }
+  const { perYear, span } = payCycle(inflow)
+  return span === null ? null : { perYear, unitDays: cadenceTurnDays(span, period.periodStart) }
 }
 
 /** The inclusive days of `period` the inflow's effective window covers. */
@@ -181,8 +236,7 @@ function spansWholeCadenceTurn(span: CadenceSpan, days: number): boolean {
  * has periods that fit its cadence exactly.
  */
 export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): boolean {
-  const { frequency, interval } = payCadence(inflow)
-  const span = cadenceSpan(frequency, interval)
+  const { span } = payCycle(inflow)
   const days = periodDayCount(period)
   return (
     span !== null &&
@@ -198,11 +252,12 @@ export function isPeriodOnCadence(inflow: ReconciledInflow, period: PayPeriod): 
  * the days one whole turn spans. `calendar_days` apportions the annual figure by
  * the period's share of the financial year, the only basis left where there is no
  * pay cycle to scale against — no inflow at all, or one whose cadence states no
- * usable interval. `occasional` is the one basis that computes nothing: the money
- * lands only in some turns of the cycle, so the period holds no expectation at all
- * and the figure is null rather than a smoothed share.
+ * usable interval. Two bases compute nothing, the figure being null rather than a
+ * smoothed share: `occasional`, where the money lands only in some turns of the
+ * cycle, and `one_off`, where it lands on a single day and belongs to no cycle at
+ * all. Both are read across the year instead.
  */
-export type ExpectationBasis = 'cadence' | 'part_cycle' | 'calendar_days' | 'occasional'
+export type ExpectationBasis = 'cadence' | 'part_cycle' | 'calendar_days' | 'occasional' | 'one_off'
 
 /**
  * Which of the two things put an expectation on the `part_cycle` basis, so that a
@@ -232,25 +287,29 @@ export interface BasisReading {
 }
 
 /**
- * Which basis an expectation drawn from `inflow` rests on for `period`: `occasional`
- * where the money lands only in some turns of the cycle, and so nothing is expected
- * of this one; the `cadence` for one whole turn of its pay cycle; `part_cycle` for
- * part of one — with the reason it is part of one, since a short period and a dated
- * inflow read very differently to whoever is looking at the variance — and
- * `calendar_days` only where there is no cycle to scale against, no inflow at all or
- * one whose cadence states no usable interval. The cycle read is the one the money
- * arrives on, so this agrees with {@link isPeriodOnCadence} however the inflow's
- * amount is expressed.
+ * Which basis an expectation drawn from `inflow` rests on for `period`: `one_off`
+ * where the money lands on a day of its own, and `occasional` where it lands only in
+ * some turns of the cycle, neither of which this period is expected to carry; the
+ * `cadence` for one whole turn of its pay cycle; `part_cycle` for part of one — with
+ * the reason it is part of one, since a short period and a dated inflow read very
+ * differently to whoever is looking at the variance — and `calendar_days` only where
+ * there is no cycle to scale against, no inflow at all or one whose cadence states no
+ * usable interval. The two that expect nothing are read first: a one-off states no
+ * cadence, so the questions the rest ask of one have no answer. The cycle the rest
+ * read is the one the money arrives on, so this agrees with {@link isPeriodOnCadence}
+ * however the inflow's amount is expressed.
  */
 export function readBasis(inflow: ReconciledInflow | undefined, period: PayPeriod): BasisReading {
   if (inflow === undefined) {
     return { basis: 'calendar_days', partCycleReason: null }
   }
+  if (isOneOff(inflow)) {
+    return { basis: 'one_off', partCycleReason: null }
+  }
   if (arrivesOnlySomePayPeriods(inflow)) {
     return { basis: 'occasional', partCycleReason: null }
   }
-  const { frequency, interval } = payCadence(inflow)
-  const span = cadenceSpan(frequency, interval)
+  const { span } = payCycle(inflow)
   if (span === null) {
     return { basis: 'calendar_days', partCycleReason: null }
   }
@@ -271,12 +330,23 @@ export function readBasis(inflow: ReconciledInflow | undefined, period: PayPerio
  * as zero; the amount's own `schedule` is normalised by `annualCents` — the pay
  * cadence has no part in it, the amount meaning what it says over the period it
  * names — so an `every_n_weeks`/`every_n_months` inflow with no usable interval
- * annualises to zero. Whether the money lands every period has no part in it
+ * annualises to zero, as does one stating no schedule at all: there is no period to
+ * multiply the amount up from. Whether the money lands every period has no part in it
  * either: an inflow worth $6,600 a year is worth $6,600 a year however few of the
  * year's fortnights it arrives in. The inflow's effective dates are not applied
  * here — this is the full-year rate a period's expectation is drawn from.
+ *
+ * A one-off's amount comes back unchanged. It is the whole payment rather than a
+ * figure expressed over a period, so there is no frequency to multiply it by: a
+ * $40,000 redundancy is $40,000 of money in, not $40,000 a period.
  */
 export function annualInflowGrossCents(inflow: ReconciledInflow): Money {
+  if (isOneOff(inflow)) {
+    return inflow.amountCents ?? 0
+  }
+  if (inflow.schedule === undefined) {
+    return 0
+  }
   const perPeriodCents =
     inflow.type === 'wage'
       ? Math.round((inflow.hourlyRateCents ?? 0) * (inflow.hoursPerPeriod ?? 0))
@@ -285,10 +355,11 @@ export function annualInflowGrossCents(inflow: ReconciledInflow): Money {
 }
 
 /**
- * The gross the plan projects for one pay period, or **null** for an inflow that
- * arrives only in some pay periods — that one has no per-period figure at all, and
- * a smoothed share would invent one, reporting every period as off plan in one
- * direction or the other.
+ * The gross the plan projects for one pay period, or **null** for an inflow no
+ * period holds an expectation for: one arriving only in some pay periods, or a
+ * one-off, whose money belongs to the day it lands on. Neither has a per-period
+ * figure at all, and a smoothed share would invent one, reporting every period as
+ * off plan in one direction or the other.
  *
  * A period on the inflow's pay cadence gets the annualised gross divided by that
  * cadence's periods per year, rounded to the nearest cent — the steady amount the
@@ -308,7 +379,7 @@ export function expectedPeriodGrossCents(
   period: PayPeriod,
   financialYear: number,
 ): Money | null {
-  if (arrivesOnlySomePayPeriods(inflow)) {
+  if (isUnmeasuredPerPeriod(inflow)) {
     return null
   }
   const annualGrossCents = annualInflowGrossCents(inflow)

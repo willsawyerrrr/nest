@@ -102,4 +102,40 @@ describe('HomeSection', () => {
     )
     expect(hooks.screenProps?.email).toBe('')
   })
+
+  it('saves a tax profile and the member’s date of birth together', async () => {
+    const upsert = vi.fn().mockResolvedValue(undefined)
+    const setDateOfBirth = vi.fn().mockResolvedValue(undefined)
+    hooks.useMembers.mockReturnValue({
+      members: [{ id: 'm1', name: 'Alex' }],
+      loading: false,
+      reload: vi.fn(),
+      setDateOfBirth,
+    })
+    hooks.useTaxProfiles.mockReturnValue({
+      loading: false,
+      profiles: [],
+      financialYear: 2027,
+      upsert,
+    })
+    hooks.useUpConnection.mockReturnValue({ connect: vi.fn(), disconnect: vi.fn(), busy: false })
+    render(
+      <HomeSection
+        household={household}
+        session={session}
+        onCreateInviteCode={vi.fn()}
+        onRevokeInviteCode={vi.fn()}
+      />,
+    )
+
+    const profile = { member_id: 'm1', residency: 'resident', has_private_hospital_cover: false }
+    const onUpsert = hooks.screenProps!.onUpsertTaxProfile as (submission: {
+      profile: typeof profile
+      dateOfBirth: string | null
+    }) => Promise<void>
+    await onUpsert({ profile, dateOfBirth: '1990-01-01' })
+
+    expect(upsert).toHaveBeenCalledWith(profile)
+    expect(setDateOfBirth).toHaveBeenCalledWith('m1', '1990-01-01')
+  })
 })

@@ -39,7 +39,13 @@ and so without the trigger.
     RPCs), not a broad households update.
 - **members** — a person in a household, linked to an auth user.
   - `id`, `household_id`, `user_id` (→ `auth.users`), `name`, `email`
-    (nullable), `up_connected_at` (nullable), `created_at`, `updated_at`.
+    (nullable), `date_of_birth` (date, nullable), `up_connected_at` (nullable),
+    `created_at`, `updated_at`.
+  - `date_of_birth` is optional and read for one thing: the member's age at a
+    one-off payment's date, tested against the financial year's preservation age
+    to set the concessional rate an employment termination payment is taxed at
+    (see [`tax.md`](tax.md)). Unset reads as below preservation age — the higher
+    rate — so a missing date understates the payment, never the tax.
   - Unique on `(household_id, user_id)`. All members can manage everything in
     the household; member attribution elsewhere is a tax/reporting tag, not a
     permission.
@@ -49,7 +55,8 @@ and so without the trigger.
     token is stored/read/cleared solely by SECURITY DEFINER RPCs granted to
     `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
     It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
-    `name`/`email` only, so a client cannot forge its Up connection status.
+    `name`/`email`/`date_of_birth` only, so a client cannot forge its Up
+    connection status.
   - `service_role` holds the table grants the Up edge functions read under:
     `select` on `members` and `select`/`insert`/`update` on `accounts`, for member
     lookup and for resolving a synced transaction's account. The sync's writes go
@@ -57,22 +64,53 @@ and so without the trigger.
 
 ## Inflows
 
-- **inflows** — projected recurring money in, split by taxability.
+- **inflows** — projected money in, split by taxability, and either recurring on
+  a cadence or landing once on a date.
   - `id`, `household_id`, `member_id` (nullable), `name`,
     `type` (`salary` | `wage` | `other` | `reimbursement` | `hobby` | `gift`),
-    `taxable` (default true), `attracts_super` (default true), `schedule`,
-    `interval_count` (nullable), `pay_schedule` (nullable),
+    `taxable` (default true), `attracts_super` (default true), `schedule`
+    (nullable), `interval_count` (nullable), `pay_schedule` (nullable),
     `pay_interval_count` (nullable), `arrives_every_pay_period` (default true),
     `amount_cents` (nullable),
     `hourly_rate_cents` (nullable), `hours_per_period` (nullable), `starts_on`
-    (date, nullable), `ends_on` (date, nullable), `created_at`, `updated_at`.
+    (date, nullable), `ends_on` (date, nullable), `paid_on` (date, nullable),
+    `one_off_tax_treatment` (nullable), `years_of_service` (int, nullable),
+    `created_at`, `updated_at`.
+  - **Recurring or one-off.** A CHECK (`inflows_recurrence`) requires exactly one
+    of `schedule` and `paid_on`: a recurring inflow states the cadence its money
+    comes on, a one-off states the single date it lands on. Severance, a bonus, or
+    a gift from a relative arrives once, and a cadence cannot say that — read as
+    `annual`, the money is smeared into the fortnightly buffer, routed through a
+    pay split, and measured against a payslip period, so a payment that lands once
+    reads as a household permanently ahead and then permanently behind.
+  - A one-off carries none of the machinery a cadence needs, held by a CHECK
+    (`inflows_one_off_shape`): where `paid_on` is set, `interval_count`,
+    `pay_schedule`, `pay_interval_count`, `starts_on`, and `ends_on` are all null,
+    `arrives_every_pay_period` is true, and `type` is not `wage` — an amount paid
+    once has no hours to price. `amount_cents` is the whole payment, since the day
+    it lands on is the only period it covers. A recurring inflow is unconstrained
+    by the rule.
+  - A **taxable** one-off states how it is taxed. `one_off_tax_treatment` is the
+    `one_off_tax_treatment` enum — `ordinary` (a bonus, commission, or back-pay:
+    assessable in full at marginal rates), `genuine_redundancy`,
+    `employment_termination` (a golden handshake or payment in lieu of notice),
+    `unused_leave` (annual or long service leave paid out on a redundancy) — and a
+    CHECK (`inflows_one_off_tax_treatment`) requires it exactly when `paid_on` is
+    set and the inflow is taxable, so a recurring inflow and a non-taxable one-off
+    (a gift) carry none. `years_of_service` prices a genuine redundancy's tax-free
+    amount (a base limit plus a per-year amount for each completed year); a CHECK
+    (`inflows_years_of_service`) requires it present and ≥ 0 under that treatment
+    and null under every other. What each treatment concedes, and how the estimate
+    models it, is canonical in [`tax.md`](tax.md).
   - `starts_on` / `ends_on` bound when the rate applies; both null means the
     whole year. A CHECK (`inflows_effective_dates`) requires
     `ends_on >= starts_on` where both are set. The tax estimate prorates each
     inflow's annual gross by its active share of the financial year in inclusive
     calendar days, so a mid-year pay rise is modelled as the old rate ending and
     a new dated inflow starting — see
-    [`tax.md`](tax.md#effective-dated-income).
+    [`tax.md`](tax.md#effective-dated-income). A one-off sets neither: its
+    `paid_on` is both its first day and its last, and it counts in full in the
+    financial year that date falls in or not at all.
   - `taxable` inflows feed the per-member tax estimate and require `member_id`;
     non-taxable inflows (reimbursement, hobby income, gift, or other) add to
     available cash and may omit it. For non-taxable inflows `type` is a reporting
@@ -88,7 +126,10 @@ and so without the trigger.
     `monthly`, `quarterly`, `biannual`, `annual`, `every_n_weeks`,
     `every_n_months`. For `every_n_weeks` and `every_n_months`, `interval_count`
     holds N (≥ 1) — the unit (weeks or months) read from the schedule; it is null
-    for every fixed schedule. Periods-per-year and fortnightly/annual
+    for every fixed schedule and on a one-off, which has no schedule to
+    interpolate — a null `schedule` makes the CHECK's `IN` test null, so it falls
+    to the branch requiring the count absent, exactly as `pay_interval_count`
+    reads a null `pay_schedule`. Periods-per-year and fortnightly/annual
     normalisation are canonical in
     [`budget-and-savings.md`](budget-and-savings.md#schedules--normalization).
   - **How the amount is expressed and how often it arrives are separate facts.**
@@ -129,12 +170,16 @@ and so without the trigger.
     expected — and the household reads such an inflow across the financial year
     instead; see [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods).
     Like `attracts_super` it is a taxable-inflow concern, only a taxable inflow being
-    reconciled against a payslip, and is stored true for a non-taxable one.
+    reconciled against a payslip, and is stored true for a non-taxable one. A
+    one-off holds it true and it says nothing there, there being no cadence for it
+    to say anything about; a one-off is kept out of a period's expectations by its
+    `paid_on` alone.
   - Amount shape by `type`: `wage` carries `hourly_rate_cents` ×
     `hours_per_period` (and null `amount_cents`); every other type carries a
     flat `amount_cents` per period. Either shape may carry a pay cadence: 38
     hours a week at $45 paid fortnightly is `schedule = 'weekly'`,
-    `hours_per_period = 38`, `pay_schedule = 'fortnightly'`.
+    `hours_per_period = 38`, `pay_schedule = 'fortnightly'`. A one-off takes the
+    flat shape, its `type` never being `wage`.
 
 ## Tax inputs
 

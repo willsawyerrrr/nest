@@ -11,11 +11,14 @@ import {
   FY2027_CONFIG,
   helpRepayment,
   incomeTax,
+  isDateInFinancialYear,
   lowIncomeTaxOffset,
   medicareLevy,
   medicareLevySurcharge,
+  oneOffConcessionOffset,
   projectHelpPayoff,
   salarySacrificeWhatIf,
+  splitOneOffPayment,
   superCoContribution,
   taxableIncome,
   type AssessableIncome,
@@ -85,6 +88,21 @@ const FIXTURE_CONFIG: TaxYearConfig = {
     },
     preservationAge: 60,
   },
+  // Round, made-up termination figures. Every rate is deliberately distinct so a
+  // test proves WHICH rate was read: 30% below preservation age, 15% at it, and a
+  // 25% unused-leave maximum that matches neither.
+  employmentTermination: {
+    capCents: 200_000_00,
+    wholeOfIncomeCapCents: 150_000_00,
+    belowPreservationAgeRate: 0.3,
+    atPreservationAgeRate: 0.15,
+    aboveCapRate: 0.45,
+    unusedLeaveMaxRate: 0.25,
+    genuineRedundancy: {
+      baseLimitCents: 12_000_00,
+      perYearOfServiceCents: 6_000_00,
+    },
+  },
 }
 
 const NO_INCOME: AssessableIncome = {
@@ -92,6 +110,7 @@ const NO_INCOME: AssessableIncome = {
   businessCents: 0,
   investmentCents: 0,
   otherCents: 0,
+  employmentTerminationCents: 0,
 }
 
 /** Builds a `TaxInput` with a single salary figure and sensible defaults. */
@@ -169,6 +188,7 @@ describe('taxableIncome', () => {
         businessCents: 10_000_00,
         investmentCents: 5_000_00,
         otherCents: 5_000_00,
+        employmentTerminationCents: 20_000_00,
       },
       deductionsCents: 10_000_00,
       residency: 'resident',
@@ -176,7 +196,7 @@ describe('taxableIncome', () => {
       helpDebtCents: 0,
       paygWithheldCents: 0,
     }
-    expect(taxableIncome(input)).toBe(90_000_00)
+    expect(taxableIncome(input)).toBe(110_000_00)
   })
 
   it('floors at zero when deductions exceed assessable income', () => {
@@ -443,6 +463,7 @@ describe('computeTax', () => {
       incomeForSurchargeCents: 15_000_00,
       incomeTaxCents: 0,
       litoOffsetCents: 700_00,
+      oneOffOffsetCents: 0,
       medicareLevyCents: 0,
       medicareLevySurchargeCents: 0,
       helpRepaymentCents: 0,
@@ -472,6 +493,7 @@ describe('computeTax', () => {
       incomeForSurchargeCents: 100_000_00,
       incomeTaxCents: 20_550_00,
       litoOffsetCents: 0,
+      oneOffOffsetCents: 0,
       medicareLevyCents: 2_000_00,
       medicareLevySurchargeCents: 1_000_00,
       // marginal: 0.10 × (8,000,000 − 5,000,000) + 0.30 × (10,000,000 − 8,000,000)
@@ -494,6 +516,7 @@ describe('computeTax', () => {
       incomeForSurchargeCents: 40_000_00,
       incomeTaxCents: 3_300_00,
       litoOffsetCents: 600_00,
+      oneOffOffsetCents: 0,
       medicareLevyCents: 800_00,
       medicareLevySurchargeCents: 0,
       helpRepaymentCents: 0,
@@ -743,6 +766,400 @@ describe('FY2027_CONFIG', () => {
     expect(result.taxableIncomeCents).toBe(270_000_00)
     // income + concessional = 300,000; 15% × min(30,000, 300,000 − 250,000).
     expect(result.division293Cents).toBe(4_500_00)
+  })
+})
+
+describe('isDateInFinancialYear', () => {
+  it('accepts both inclusive bounds of the financial year', () => {
+    expect(isDateInFinancialYear('2026-07-01', 2027)).toBe(true)
+    expect(isDateInFinancialYear('2027-06-30', 2027)).toBe(true)
+    expect(isDateInFinancialYear('2026-12-25', 2027)).toBe(true)
+  })
+
+  it('rejects a date either side of the financial year', () => {
+    expect(isDateInFinancialYear('2026-06-30', 2027)).toBe(false)
+    expect(isDateInFinancialYear('2027-07-01', 2027)).toBe(false)
+  })
+})
+
+describe('splitOneOffPayment', () => {
+  const { genuineRedundancy, capCents, wholeOfIncomeCapCents } =
+    FIXTURE_CONFIG.employmentTermination
+
+  it('leaves an ordinary payment wholly assessable with no concession', () => {
+    expect(
+      splitOneOffPayment({ treatment: 'ordinary', amountCents: 10_000_00 }, 0, FIXTURE_CONFIG),
+    ).toEqual({
+      taxFreeCents: 0,
+      assessableCents: 10_000_00,
+      concessionalCents: 0,
+      concessionalRate: 0,
+    })
+  })
+
+  it('excludes a redundancy’s tax-free amount and taxes the rest concessionally', () => {
+    // Tax-free = 12,000 base + 5 × 6,000 per year = 42,000 of the 100,000 payment.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'genuineRedundancy', amountCents: 100_000_00, yearsOfService: 5 },
+        0,
+        FIXTURE_CONFIG,
+      ),
+    ).toEqual({
+      taxFreeCents: 42_000_00,
+      assessableCents: 58_000_00,
+      concessionalCents: 58_000_00,
+      concessionalRate: 0.3,
+    })
+  })
+
+  it('leaves a redundancy wholly tax-free when the limit exceeds the payment', () => {
+    // Tax-free limit 12,000 + 3 × 6,000 = 30,000 against a 20,000 payment.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'genuineRedundancy', amountCents: 20_000_00, yearsOfService: 3 },
+        0,
+        FIXTURE_CONFIG,
+      ),
+    ).toEqual({
+      taxFreeCents: 20_000_00,
+      assessableCents: 0,
+      concessionalCents: 0,
+      concessionalRate: 0.3,
+    })
+  })
+
+  it('counts no years of service for a nil, negative, or absent figure', () => {
+    const base = { treatment: 'genuineRedundancy', amountCents: 20_000_00 } as const
+    const baseLimitOnly = {
+      taxFreeCents: genuineRedundancy.baseLimitCents,
+      assessableCents: 20_000_00 - genuineRedundancy.baseLimitCents,
+      concessionalCents: 20_000_00 - genuineRedundancy.baseLimitCents,
+      concessionalRate: 0.3,
+    }
+    expect(splitOneOffPayment({ ...base, yearsOfService: 0 }, 0, FIXTURE_CONFIG)).toEqual(
+      baseLimitOnly,
+    )
+    expect(splitOneOffPayment({ ...base, yearsOfService: -4 }, 0, FIXTURE_CONFIG)).toEqual(
+      baseLimitOnly,
+    )
+    expect(splitOneOffPayment(base, 0, FIXTURE_CONFIG)).toEqual(baseLimitOnly)
+  })
+
+  it('counts only completed years of service', () => {
+    // 5.9 years is five completed years: 12,000 + 5 × 6,000 = 42,000.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'genuineRedundancy', amountCents: 100_000_00, yearsOfService: 5.9 },
+        0,
+        FIXTURE_CONFIG,
+      ).taxFreeCents,
+    ).toBe(42_000_00)
+  })
+
+  it('leaves a redundancy’s excess over the ETP cap to the marginal brackets', () => {
+    // Tax-free 12,000; the remaining 288,000 is assessable but only the 200,000 ETP
+    // cap of it is concessional — the 88,000 above the cap is taxed on the brackets.
+    const split = splitOneOffPayment(
+      { treatment: 'genuineRedundancy', amountCents: 300_000_00, yearsOfService: 0 },
+      0,
+      FIXTURE_CONFIG,
+    )
+    expect(split).toEqual({
+      taxFreeCents: 12_000_00,
+      assessableCents: 288_000_00,
+      concessionalCents: capCents,
+      concessionalRate: 0.3,
+    })
+    expect(split.assessableCents - split.concessionalCents).toBe(88_000_00)
+  })
+
+  it('taxes a non-excluded payment concessionally within the whole-of-income headroom', () => {
+    // No other income, so the whole 150,000 whole-of-income cap is headroom and the
+    // 100,000 payment fits inside it.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'employmentTermination', amountCents: 100_000_00 },
+        0,
+        FIXTURE_CONFIG,
+      ),
+    ).toEqual({
+      taxFreeCents: 0,
+      assessableCents: 100_000_00,
+      concessionalCents: 100_000_00,
+      concessionalRate: 0.3,
+    })
+  })
+
+  it('shrinks a non-excluded payment’s concession to the headroom other income leaves', () => {
+    // 120,000 of salary leaves 30,000 of the 150,000 whole-of-income cap.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'employmentTermination', amountCents: 100_000_00 },
+        120_000_00,
+        FIXTURE_CONFIG,
+      ),
+    ).toMatchObject({ assessableCents: 100_000_00, concessionalCents: 30_000_00 })
+  })
+
+  it('gives a non-excluded payment no concession once salary exhausts the headroom', () => {
+    // 160,000 of salary is already past the 150,000 whole-of-income cap, so the whole
+    // payment is taxed at marginal rates.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'employmentTermination', amountCents: 100_000_00 },
+        wholeOfIncomeCapCents + 10_000_00,
+        FIXTURE_CONFIG,
+      ),
+    ).toEqual({
+      taxFreeCents: 0,
+      assessableCents: 100_000_00,
+      concessionalCents: 0,
+      concessionalRate: 0.3,
+    })
+  })
+
+  it('applies the lower rate at or above preservation age and the higher below it', () => {
+    const payment = { treatment: 'employmentTermination', amountCents: 50_000_00 } as const
+    expect(
+      splitOneOffPayment({ ...payment, atPreservationAge: true }, 0, FIXTURE_CONFIG)
+        .concessionalRate,
+    ).toBe(0.15)
+    expect(
+      splitOneOffPayment({ ...payment, atPreservationAge: false }, 0, FIXTURE_CONFIG)
+        .concessionalRate,
+    ).toBe(0.3)
+    // Absent reads as below preservation age — the higher rate.
+    expect(splitOneOffPayment(payment, 0, FIXTURE_CONFIG).concessionalRate).toBe(0.3)
+  })
+
+  it('caps unused leave at its own maximum rate, uncapped in amount', () => {
+    // The whole payment is concessional at the 25% unused-leave maximum, which is
+    // neither preservation-age rate, and no cap bounds the amount.
+    expect(
+      splitOneOffPayment(
+        { treatment: 'unusedLeave', amountCents: 300_000_00, atPreservationAge: true },
+        0,
+        FIXTURE_CONFIG,
+      ),
+    ).toEqual({
+      taxFreeCents: 0,
+      assessableCents: 300_000_00,
+      concessionalCents: 300_000_00,
+      concessionalRate: 0.25,
+    })
+  })
+})
+
+describe('oneOffConcessionOffset', () => {
+  it('is nil with no concessions', () => {
+    expect(oneOffConcessionOffset(100_000_00, [], FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it('is the marginal tax on the amount less what its capped rate charges', () => {
+    // Top 50,000 of a 100,000 income: 20,550 − 5,550 = 15,000 marginal, against
+    // 15% × 50,000 = 7,500 capped.
+    expect(
+      oneOffConcessionOffset(
+        100_000_00,
+        [{ concessionalCents: 50_000_00, rate: 0.15 }],
+        FIXTURE_CONFIG,
+      ),
+    ).toBe(7_500_00)
+  })
+
+  it('floors at zero when the capped rate exceeds the marginal rate', () => {
+    // Top 10,000 of a 30,000 income attracts 1,500 at the 15% bracket, below the
+    // 3,000 the 30% capped rate would charge — so the concession is worth nothing
+    // rather than a negative offset against the rest of the income.
+    expect(
+      oneOffConcessionOffset(
+        30_000_00,
+        [{ concessionalCents: 10_000_00, rate: 0.3 }],
+        FIXTURE_CONFIG,
+      ),
+    ).toBe(0)
+  })
+
+  it('peels stacked concessions off the top in order', () => {
+    // Top 100,000 of 200,000: 60,550 − 20,550 = 40,000 marginal less 15,000 capped
+    // = 25,000. The next 50,000 sits under it (100,000 → 50,000): 15,000 marginal
+    // less 15,000 capped = nil, so the second concession adds nothing.
+    expect(
+      oneOffConcessionOffset(
+        200_000_00,
+        [
+          { concessionalCents: 100_000_00, rate: 0.15 },
+          { concessionalCents: 50_000_00, rate: 0.3 },
+        ],
+        FIXTURE_CONFIG,
+      ),
+    ).toBe(25_000_00)
+  })
+
+  it('measures a concession larger than the income against the whole income', () => {
+    // A 50,000 concession against a 30,000 income leaves nothing under it, so the
+    // marginal side is the whole 1,800 of income tax.
+    expect(
+      oneOffConcessionOffset(
+        30_000_00,
+        [{ concessionalCents: 50_000_00, rate: 0 }],
+        FIXTURE_CONFIG,
+      ),
+    ).toBe(1_800_00)
+  })
+})
+
+describe('computeTax with one-off concessions', () => {
+  it('reports the offset and nets it against income tax', () => {
+    const result = computeTax(
+      inputForSalary(50_000_00, {
+        assessableIncome: {
+          ...NO_INCOME,
+          salaryOrWagesCents: 50_000_00,
+          employmentTerminationCents: 50_000_00,
+        },
+        oneOffConcessions: [{ concessionalCents: 50_000_00, rate: 0.15 }],
+        privateHospitalCover: true,
+      }),
+      FIXTURE_CONFIG,
+    )
+    // Taxable income 100,000; the top 50,000 attracts 15,000 marginal against the
+    // 7,500 the 15% capped rate charges, so the offset is 7,500.
+    expect(result.taxableIncomeCents).toBe(100_000_00)
+    expect(result.incomeTaxCents).toBe(20_550_00)
+    expect(result.oneOffOffsetCents).toBe(7_500_00)
+    expect(result.totalLiabilityCents).toBe(20_550_00 - 7_500_00 + 2_000_00)
+  })
+
+  it('leaves the Medicare levy untouched by the offset', () => {
+    const withConcession = computeTax(
+      inputForSalary(100_000_00, {
+        oneOffConcessions: [{ concessionalCents: 50_000_00, rate: 0.15 }],
+      }),
+      FIXTURE_CONFIG,
+    )
+    const without = computeTax(inputForSalary(100_000_00), FIXTURE_CONFIG)
+    // The concessional amount stays in taxable income, so the levy is charged on it
+    // exactly as on any other income — which is why the config's rates exclude it.
+    expect(withConcession.medicareLevyCents).toBe(without.medicareLevyCents)
+    expect(withConcession.medicareLevyCents).toBe(2_000_00)
+  })
+
+  it('floors net income tax at zero when the offset exceeds the tax payable', () => {
+    // Income tax 1,800 against a 1,800 offset and a 700 LITO: the offset is
+    // non-refundable, so the excess is lost rather than becoming a refund.
+    const result = computeTax(
+      inputForSalary(30_000_00, {
+        oneOffConcessions: [{ concessionalCents: 30_000_00, rate: 0 }],
+        privateHospitalCover: true,
+      }),
+      FIXTURE_CONFIG,
+    )
+    expect(result.incomeTaxCents).toBe(1_800_00)
+    expect(result.litoOffsetCents).toBe(700_00)
+    expect(result.oneOffOffsetCents).toBe(1_800_00)
+    // Only the Medicare levy remains, the offsets having no reach into it.
+    expect(result.medicareLevyCents).toBe(600_00)
+    expect(result.totalLiabilityCents).toBe(600_00)
+    expect(result.balanceCents).toBe(600_00)
+  })
+})
+
+describe('FY2026_CONFIG and FY2027_CONFIG employment-termination figures', () => {
+  it('indexes the ETP cap and the redundancy tax-free amounts year on year', () => {
+    expect(FY2026_CONFIG.employmentTermination.capCents).toBe(260_000_00)
+    expect(FY2027_CONFIG.employmentTermination.capCents).toBe(270_000_00)
+    expect(FY2026_CONFIG.employmentTermination.genuineRedundancy).toEqual({
+      baseLimitCents: 13_100_00,
+      perYearOfServiceCents: 6_552_00,
+    })
+    expect(FY2027_CONFIG.employmentTermination.genuineRedundancy).toEqual({
+      baseLimitCents: 13_598_00,
+      perYearOfServiceCents: 6_801_00,
+    })
+  })
+
+  it('holds the whole-of-income cap and every rate net of the Medicare levy', () => {
+    for (const config of [FY2026_CONFIG, FY2027_CONFIG]) {
+      const termination = config.employmentTermination
+      // The cap is not indexed, so both years carry $180,000.
+      expect(termination.wholeOfIncomeCapCents).toBe(180_000_00)
+      // The ATO quotes 32% / 17% / 47% and a 32% unused-leave maximum, each of which
+      // is the rate here PLUS the 2% Medicare levy the `medicareLevy` line charges.
+      expect(termination.belowPreservationAgeRate + config.medicareLevy.rate).toBeCloseTo(0.32, 12)
+      expect(termination.atPreservationAgeRate + config.medicareLevy.rate).toBeCloseTo(0.17, 12)
+      expect(termination.aboveCapRate + config.medicareLevy.rate).toBeCloseTo(0.47, 12)
+      expect(termination.unusedLeaveMaxRate + config.medicareLevy.rate).toBeCloseTo(0.32, 12)
+    }
+  })
+
+  it('taxes a real redundancy at the concessional rate net of the levy', () => {
+    // $200,000 redundancy after 10 years' service under FY2027: tax-free
+    // 13,598 + 10 × 6,801 = 81,608, leaving 118,392 assessable and concessional.
+    const split = splitOneOffPayment(
+      { treatment: 'genuineRedundancy', amountCents: 200_000_00, yearsOfService: 10 },
+      0,
+      FY2027_CONFIG,
+    )
+    expect(split.taxFreeCents).toBe(81_608_00)
+    expect(split.assessableCents).toBe(118_392_00)
+    expect(split.concessionalCents).toBe(118_392_00)
+
+    // Paid on top of a $200,000 salary, so the slice would otherwise be taxed at the
+    // top 45% marginal rate and the 30% cap really binds.
+    const salaryOnly = inputForSalary(200_000_00, { privateHospitalCover: true })
+    const withRedundancy = computeTax(
+      {
+        ...salaryOnly,
+        assessableIncome: {
+          ...salaryOnly.assessableIncome,
+          employmentTerminationCents: split.assessableCents,
+        },
+        oneOffConcessions: [
+          { concessionalCents: split.concessionalCents, rate: split.concessionalRate },
+        ],
+      },
+      FY2027_CONFIG,
+    )
+    const withoutRedundancy = computeTax(salaryOnly, FY2027_CONFIG)
+    // The offset is the marginal tax the slice attracts less what 30% charges on it.
+    expect(withRedundancy.oneOffOffsetCents).toBe(
+      withRedundancy.incomeTaxCents -
+        withoutRedundancy.incomeTaxCents -
+        Math.round(split.concessionalCents * 0.3),
+    )
+    // What the redundancy costs in total is 30% income tax plus the 2% levy on it —
+    // the ATO's quoted 32%, which is exactly why the config rate excludes the levy.
+    expect(withRedundancy.totalLiabilityCents - withoutRedundancy.totalLiabilityCents).toBe(
+      Math.round(split.concessionalCents * 0.32),
+    )
+  })
+
+  it('leaves a redundancy at marginal rates where they sit below the capped rate', () => {
+    // The same payment as the member's only income: the concessional rate is a
+    // MAXIMUM, so a marginal rate below it stands and the offset is nil.
+    const split = splitOneOffPayment(
+      { treatment: 'genuineRedundancy', amountCents: 200_000_00, yearsOfService: 10 },
+      0,
+      FY2027_CONFIG,
+    )
+    const result = computeTax(
+      {
+        assessableIncome: { ...NO_INCOME, employmentTerminationCents: split.assessableCents },
+        deductionsCents: 0,
+        residency: 'resident',
+        privateHospitalCover: true,
+        helpDebtCents: 0,
+        paygWithheldCents: 0,
+        oneOffConcessions: [
+          { concessionalCents: split.concessionalCents, rate: split.concessionalRate },
+        ],
+      },
+      FY2027_CONFIG,
+    )
+    expect(result.oneOffOffsetCents).toBe(0)
+    expect(result.incomeTaxCents).toBeLessThan(Math.round(split.concessionalCents * 0.3))
   })
 })
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Badge, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
-import type { TaxProfile, TaxProfileInput } from '../hooks/useTaxProfiles'
+import type { TaxProfile, TaxProfileSubmission } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
 import { EditAction } from './EditAction'
 import { TaxProfileForm } from './TaxProfileForm'
@@ -9,7 +9,7 @@ import { TaxProfileForm } from './TaxProfileForm'
 interface TaxProfileListProps {
   members: Member[]
   profiles: TaxProfile[]
-  onUpsert: (input: TaxProfileInput) => Promise<void>
+  onUpsert: (submission: TaxProfileSubmission) => Promise<void>
 }
 
 /** One member's tax profile as a compact read-only row: residency and cover. */
@@ -61,8 +61,8 @@ export function TaxProfileList({ members, profiles, onUpsert }: TaxProfileListPr
             key={member.id}
             member={member}
             initial={profileForMember(member.id)}
-            onSubmit={async (input) => {
-              await onUpsert(input)
+            onSubmit={async (submission) => {
+              await onUpsert(submission)
               setEditingMemberId(null)
             }}
             onCancel={() => setEditingMemberId(null)}

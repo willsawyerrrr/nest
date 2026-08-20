@@ -7,6 +7,7 @@ const zeroBreakdown: TaxBreakdown = {
   incomeForSurchargeCents: 0,
   incomeTaxCents: 0,
   litoOffsetCents: 0,
+  oneOffOffsetCents: 0,
   medicareLevyCents: 0,
   medicareLevySurchargeCents: 0,
   helpRepaymentCents: 0,

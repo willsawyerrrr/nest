@@ -1,13 +1,12 @@
 import {
   latestReportedYearToDate,
-  occasionalInflowPositions,
   paygWithheldByMember,
   payslipAttributionDate,
   payslipVariance,
   payslipYearPositions,
   payslipYearToDate,
   payslipYearToDateByMember,
-  type OccasionalInflowPosition,
+  unmeasuredInflowPositions,
   type PayslipAttribution,
   type PayslipLine,
   type PayslipTotals,
@@ -16,6 +15,7 @@ import {
   type PayslipYearPositions,
   type PayslipYearToDateTotals,
   type ReconciledInflow,
+  type UnmeasuredInflowPosition,
 } from '@nest/plan'
 import { financialYearForDate, type MemberTaxEstimate, type TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
@@ -110,6 +110,10 @@ export function reportedYearToDateFromRows(
  * tax engine has no use for, since it annualises the amount over the frequency the
  * amount is expressed in, and the things a pay period is measured against, so they
  * are added here rather than to `IncomeInput`.
+ *
+ * The income shape carries the one-off's `paidOn` through, which is what marks the
+ * projection as belonging to a day rather than to a cadence, so no pay period holds
+ * an expectation for it.
  */
 export function toReconciledInflow(inflow: Inflow): ReconciledInflow {
   return {
@@ -270,23 +274,24 @@ export function payslipYearPositionsFromRows(
 }
 
 /**
- * Each occasional inflow a member's slips draw on, measured across the financial
- * year: what those slips paid against it, against the projection for the part of the
- * year their latest pay reaches. Pass one member's slips for one year. Nothing here
- * is a per-period reading — that is the point, since pay landing in only some periods
- * has no per-period figure — so this is where the household reads whether such an
- * inflow is tracking its projection.
+ * Each inflow a member's slips draw on that no pay period measures — one arriving in
+ * only some periods, or a one-off — measured across the financial year instead: what
+ * those slips paid against it, against the projection for the part of the year their
+ * latest pay reaches. Pass one member's slips for one year. Nothing here is a
+ * per-period reading — that is the point, since neither kind has a per-period figure
+ * — so this is where the household reads whether such an inflow is tracking its
+ * projection.
  *
  * It reads the same measurements the three positions above do, so each row's actual
- * is the sum of the occasional-group figures the member's cards show.
+ * is the sum of the unmeasured-group figures the member's cards show.
  */
-export function occasionalPositionsFor(
+export function unmeasuredPositionsFor(
   payslips: readonly PayslipRow[],
   variances: ReadonlyMap<string, PayslipVariance>,
   { inflowsById }: PayslipReconciliation,
   financialYear: number,
-): readonly OccasionalInflowPosition[] {
-  return occasionalInflowPositions(
+): readonly UnmeasuredInflowPosition[] {
+  return unmeasuredInflowPositions(
     measuredPayslips(payslips, variances).map(({ payslip, variance }) => ({
       paidOn: payslip.paid_on,
       periodEnd: payslip.period_end,

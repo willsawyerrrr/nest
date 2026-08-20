@@ -34,12 +34,13 @@
  * the same either way; what differs is what a reader should make of the figure,
  * since the second is an exact share whose siblings sum back to a whole period.
  *
- * An inflow that arrives only in SOME pay periods is measured on none of them. It
- * has no per-period figure to hold a slip against, so its group reports no
- * expectation and no variance, the slip's gross expectation goes null rather than
- * quietly treating that group as expecting nothing, and the reading that answers
- * "am I getting the on-call I projected?" is the year's —
- * {@link occasionalInflowPositions}.
+ * Two kinds of inflow are measured on no period at all: one that arrives only in
+ * SOME pay periods, and a one-off, whose money lands on a single day. Neither has a
+ * per-period figure to hold a slip against, so such a group reports no expectation
+ * and no variance, the slip's gross expectation goes null rather than quietly
+ * treating that group as expecting nothing, and the reading that answers "am I
+ * getting the on-call I projected?" — or "has the redundancy landed?" — is the
+ * year's, {@link unmeasuredInflowPositions}.
  *
  * Which financial year a slip belongs to is the year its pay landed in, not the
  * year the work fell in — see {@link payslipAttributionDate}. The year reaches
@@ -53,14 +54,16 @@ import type { Money } from './index'
 import {
   activeDaysInPeriod,
   annualInflowGrossCents,
-  arrivesOnlySomePayPeriods,
   expectedPeriodGrossCents,
   isEntered,
+  isOneOff,
   isPeriodOnCadence,
+  isUnmeasuredPerPeriod,
   payCadencePeriodsPerYear,
   payCycleUnit,
   readBasis,
   type ExpectationBasis,
+  type OneOffInflow,
   type PartCycleReason,
   type ReconciledInflow,
 } from './payCadence'
@@ -71,6 +74,7 @@ import {
   periodDayCount,
   prorateAnnualAcrossUnit,
   type PayPeriod,
+  type ProrationUnit,
 } from './payPeriod'
 
 /** The dates a payslip is attributed by, both ISO (`YYYY-MM-DD`). */
@@ -224,9 +228,9 @@ export interface PayslipExpectation {
  * null for the lines mapped to no inflow, which — like a line naming an inflow
  * the expectation does not carry — have no projection to compare and so report a
  * null expectation and variance. A group whose inflow arrives only in some pay
- * periods reports the same pair of nulls for a different reason, told apart by its
- * `occasional` basis: the projection exists, and it is annual rather than
- * per-period.
+ * periods, and one whose inflow is a one-off, report the same pair of nulls for a
+ * different reason, told apart by their `occasional` and `one_off` bases: the
+ * projection exists, and it is the year's rather than the period's.
  */
 export interface PayslipLineGroupVariance {
   readonly sourceInflowId: string | null
@@ -304,17 +308,19 @@ export interface PayslipVariance {
   readonly grossVarianceCents: Money | null
   /**
    * Whether part of the slip's gross is pay no per-period figure covers — earnings
-   * drawing on an inflow that arrives only in some pay periods. True is what makes
-   * `expectedGrossCents` null even where the slip's other groups do have
-   * expectations: summing only those would hold the slip's WHOLE gross against part
-   * of it, reading an ordinary on-call fortnight as above plan by the whole
-   * allowance. The groups that are measurable still carry their own variances, so
-   * nothing is lost — only the total stops claiming to be one.
+   * drawing on an inflow that arrives only in some pay periods, or on a one-off.
+   * True is what makes `expectedGrossCents` null even where the slip's other groups
+   * do have expectations: summing only those would hold the slip's WHOLE gross
+   * against part of it, reading an ordinary on-call fortnight as above plan by the
+   * whole allowance, and the fortnight a redundancy was paid out in as above plan by
+   * the whole redundancy. The groups that are measurable still carry their own
+   * variances, so nothing is lost — only the total stops claiming to be one.
    */
   readonly grossPartlyUnmeasured: boolean
   /**
-   * The occasional groups' lines summed — how much of the gross is the pay
-   * `grossPartlyUnmeasured` is about. Nil where nothing on the slip is occasional.
+   * The unmeasured groups' lines summed — how much of the gross is the pay
+   * `grossPartlyUnmeasured` is about. Nil where nothing on the slip is occasional or
+   * a one-off.
    */
   readonly unmeasuredGrossCents: Money
   /**
@@ -416,7 +422,8 @@ function isTaxLine(line: PayslipLine): line is PayslipTaxLine {
  * inflow's expectation for the period, on the same basis a whole slip is measured
  * on. A group whose inflow is unknown reports a null expectation: there is nothing
  * to compare its lines to. So does one whose inflow arrives only in some pay
- * periods, this period being no more expected to carry it than any other.
+ * periods, this period being no more expected to carry it than any other, and one
+ * drawing on a one-off, which no period was ever owed a share of.
  */
 function lineGroupVariances(
   lines: readonly PayslipEarningLine[],
@@ -478,7 +485,13 @@ function lineGroupVariances(
  * someone else's payrun: on-call is paid alongside the fortnightly salary, so the
  * cycle the employer really withholds on is the steady inflow's — which is what the
  * pick lands on when the allowance is skipped, even on a slip the allowance
- * dominates. A slip whose every group is occasional falls back to the calendar-day
+ * dominates.
+ *
+ * Neither is a one-off, and for a plainer reason: it has no cadence to offer at all.
+ * A redundancy paid out beside a final fortnight says nothing about how often the
+ * employer pays, and it is routinely the larger of the two, so anchoring on it would
+ * hand the slip's withholding and super the cycle of a payment that happens once. A
+ * slip whose every group is a one-off or occasional falls back to the calendar-day
  * basis, exactly as one naming no projection at all does.
  */
 function cadenceInflowFor(
@@ -492,11 +505,7 @@ function cadenceInflowFor(
   } | null = null
   for (const group of lineGroups) {
     const inflow = inflowForLine(group.sourceInflowId, inflowsById)
-    if (
-      group.sourceInflowId === null ||
-      inflow === undefined ||
-      arrivesOnlySomePayPeriods(inflow)
-    ) {
+    if (group.sourceInflowId === null || inflow === undefined || isUnmeasuredPerPeriod(inflow)) {
       continue
     }
     if (largest === null || group.actualCents > largest.actualCents) {
@@ -514,20 +523,29 @@ interface GrossExpectation {
 }
 
 /**
+ * Whether a basis computes no per-period figure at all: `occasional` for money
+ * landing in only some turns of the cycle, `one_off` for money landing on a day of
+ * its own. A group on either is pay the slip's own total cannot account for.
+ */
+function isUnmeasuredBasis(basis: ExpectationBasis): boolean {
+  return basis === 'occasional' || basis === 'one_off'
+}
+
+/**
  * Sums a slip's group expectations into the slip's own, and separates out the pay no
- * per-period figure covers. An occasional group forfeits the total rather than
+ * per-period figure covers. An unmeasured group forfeits the total rather than
  * counting as nil: the gross it is subtracted from is the slip's whole gross, so
- * treating the group as expecting nothing would report the allowance it paid as
- * gross above plan. A group with no resolvable inflow is a different case and is
- * still skipped — its earnings really are unexplained, which is what a gross above
- * plan says.
+ * treating the group as expecting nothing would report the allowance or one-off it
+ * paid as gross above plan. A group with no resolvable inflow is a different case
+ * and is still skipped — its earnings really are unexplained, which is what a gross
+ * above plan says.
  */
 function grossExpectation(lineGroups: readonly PayslipLineGroupVariance[]): GrossExpectation {
   let expectedGrossCents: Money | null = null
   let grossPartlyUnmeasured = false
   let unmeasuredGrossCents = 0
   for (const group of lineGroups) {
-    if (group.basis === 'occasional') {
+    if (isUnmeasuredBasis(group.basis)) {
       grossPartlyUnmeasured = true
       unmeasuredGrossCents += group.actualCents
     } else if (group.expectedCents !== null) {
@@ -586,7 +604,7 @@ function taxGroupVariances(
  * summed and held against that inflow's projection for the period, and those group
  * expectations sum to the slip's, which is null when nothing on the slip maps to a
  * projection — or when any of it draws on an inflow arriving only in some pay
- * periods, reported as `grossPartlyUnmeasured` with the amount in
+ * periods or on a one-off, reported as `grossPartlyUnmeasured` with the amount in
  * `unmeasuredGrossCents`. The gross the lines do not account for is reported as
  * `unallocatedCents` and reads as gross above plan, which is what unexplained
  * earnings are.
@@ -601,12 +619,12 @@ function taxGroupVariances(
  * do not account for is `unallocatedTaxCents`, exactly as for earnings.
  *
  * The withholding expectation stays the year's liability spread evenly over the pay
- * cycle even on a slip carrying occasional pay, because the liability is one figure
- * over the whole of a member's income and marginal rates make it no sum of
- * per-inflow parts. So a period that happens to carry an on-call allowance withholds
- * more than the smoothed figure and a period without one less, and the year's summed
- * withholding — the figure the refund or bill is worked out from — is unaffected
- * either way.
+ * cycle even on a slip carrying occasional or one-off pay, because the liability is
+ * one figure over the whole of a member's income and marginal rates make it no sum
+ * of per-inflow parts. So a period that happens to carry an on-call allowance or a
+ * redundancy withholds more than the smoothed figure and a period without one less,
+ * and the year's summed withholding — the figure the refund or bill is worked out
+ * from — is unaffected either way.
  *
  * Expected super is the versioned guarantee rate on `superBaseCents` — the slip's
  * actual gross less every earnings line recorded as earning no super. An allowance
@@ -802,62 +820,121 @@ export function latestReportedYearToDate(
 }
 
 /**
- * One payslip as a year's reading of its occasional pay takes it: the dates that
+ * One payslip as a year's reading of its unmeasured pay takes it: the dates that
  * rank the slip, and the measurement its own card renders.
  *
- * The measurement rather than the lines, because the occasional groups it carries are
+ * The measurement rather than the lines, because the unmeasured groups it carries are
  * already summed there. The figure the year adds up is therefore the very figure the
  * card shows, so the two cannot disagree — the same one-measurement guarantee the
  * year-to-date positions rest on.
  */
-export interface OccasionalPositionRow extends PayslipAttribution {
+export interface UnmeasuredPositionRow extends PayslipAttribution {
   readonly variance: PayslipVariance
 }
 
 /**
- * One occasional inflow's position across a financial year — the reading that
- * answers "am I getting the on-call I projected?", which no single period can.
+ * One unmeasured inflow's position across a financial year — the reading that
+ * answers "am I getting the on-call I projected?" and "has the redundancy landed
+ * yet?", neither of which a single period can.
  *
- * The comparison is against the share of the year already run through rather than
- * the whole year's projection, because half a year of on-call is not short by half
- * the year's allowance. It runs to the member's latest pay rather than to today: the
- * actuals only reach as far as the slips entered, so measuring past them would report
- * every household that has not yet entered this fortnight's slip as behind plan.
+ * For an inflow arriving in only some periods the comparison is against the share of
+ * the year already run through rather than the whole year's projection, because half
+ * a year of on-call is not short by half the year's allowance. For a one-off it is a
+ * step instead: the whole amount from the day it lands, and nothing before. Either
+ * way it runs to the member's latest pay rather than to today, because the actuals
+ * only reach as far as the slips entered, so measuring past them would report every
+ * household that has not yet entered this fortnight's slip as behind plan.
  */
-export interface OccasionalInflowPosition {
+export interface UnmeasuredInflowPosition {
   readonly sourceInflowId: string
   /** Every line drawing on the inflow, across the slips given, summed. */
   readonly actualCents: Money
-  /** The inflow's projection for the days of the year run through by `asAt`. */
+  /**
+   * What the plan expects of the inflow by `asAt`: the projection for the days of
+   * the year run through, or — for a one-off — the whole amount once the day it
+   * lands on has been reached, and nil until then.
+   */
   readonly expectedCents: Money
   /** `actualCents − expectedCents`, positive where the year is ahead of plan. */
   readonly varianceCents: Money
-  /** The inflow's projection for the whole year, its effective dates applied. */
+  /**
+   * The inflow's projection for the whole year, its effective dates applied — the
+   * whole amount for a one-off, which lands on a day rather than accruing.
+   */
   readonly annualExpectedCents: Money
   /** The date the position runs to: the latest {@link payslipAttributionDate} given. */
   readonly asAt: string
 }
 
+/** What the plan expects of one unmeasured inflow: by `asAt`, and over the year. */
+interface PositionProjection {
+  readonly expectedCents: Money
+  readonly annualExpectedCents: Money
+}
+
 /**
- * Each occasional inflow the given payslips draw on, measured across the financial
- * year. Pass one member's measured slips for `financialYear` — the inflows are picked
- * out by what those slips actually name, so a co-member's occasional inflows in the
- * same `inflowsById` map are never reported here. Empty for slips that name none, and
- * for no slips at all.
+ * A one-off's projection: the whole amount for the year, and the whole amount so far
+ * once the day it lands on is reached. A STEP rather than a proration, because the
+ * money lands on a day rather than accruing over the days before it — a $40,000
+ * redundancy paid in May is not $20,000 behind plan in December, and it is not
+ * short by a cent on the day after it is paid.
+ */
+function oneOffProjection(inflow: OneOffInflow, asAt: string): PositionProjection {
+  const annualExpectedCents = annualInflowGrossCents(inflow)
+  return {
+    expectedCents: inflow.paidOn <= asAt ? annualExpectedCents : 0,
+    annualExpectedCents,
+  }
+}
+
+/**
+ * An occasional inflow's projection: the annual figure apportioned by the days of
+ * the year it was effective for, up to `toDate` and over the whole `year`. The money
+ * arrives in turns nothing can name, so the days run through are the only measure of
+ * how much of it should have come in by now.
+ */
+function occasionalProjection(
+  inflow: ReconciledInflow,
+  toDate: PayPeriod,
+  year: PayPeriod,
+  unit: ProrationUnit,
+): PositionProjection {
+  const annualGrossCents = annualInflowGrossCents(inflow)
+  return {
+    expectedCents: prorateAnnualAcrossUnit(
+      annualGrossCents,
+      activeDaysInPeriod(inflow, toDate),
+      unit,
+    ),
+    annualExpectedCents: prorateAnnualAcrossUnit(
+      annualGrossCents,
+      activeDaysInPeriod(inflow, year),
+      unit,
+    ),
+  }
+}
+
+/**
+ * Each inflow the given payslips draw on that no pay period measures — an inflow
+ * arriving in only some periods, or a one-off — measured across the financial year
+ * instead. Pass one member's measured slips for `financialYear`: the inflows are
+ * picked out by what those slips actually name, so a co-member's in the same
+ * `inflowsById` map are never reported here. Empty for slips that name none, and for
+ * no slips at all.
  *
- * Each inflow's actual is its occasional groups summed straight off the slips'
- * measurements, never their lines re-read, so a row here is the sum of the very
- * figures the cards below it show.
+ * Each inflow's actual is its groups summed straight off the slips' measurements,
+ * never their lines re-read, so a row here is the sum of the very figures the cards
+ * below it show.
  *
  * Inflows come back in the order their first group appears, matching how a slip's own
  * groups are ordered.
  */
-export function occasionalInflowPositions(
-  rows: readonly OccasionalPositionRow[],
+export function unmeasuredInflowPositions(
+  rows: readonly UnmeasuredPositionRow[],
   inflowsById: ReadonlyMap<string, ReconciledInflow> | undefined,
   financialYear: number,
-): readonly OccasionalInflowPosition[] {
-  const occasional = new Map<string, { inflow: ReconciledInflow; actualCents: Money }>()
+): readonly UnmeasuredInflowPosition[] {
+  const unmeasured = new Map<string, { inflow: ReconciledInflow; actualCents: Money }>()
   let asAt = ''
   for (const row of rows) {
     const attributedOn = payslipAttributionDate(row)
@@ -867,12 +944,12 @@ export function occasionalInflowPositions(
     for (const group of row.variance.lineGroups) {
       const { sourceInflowId, actualCents } = group
       const inflow = inflowForLine(sourceInflowId, inflowsById)
-      if (sourceInflowId === null || inflow === undefined || !arrivesOnlySomePayPeriods(inflow)) {
+      if (sourceInflowId === null || inflow === undefined || !isUnmeasuredPerPeriod(inflow)) {
         continue
       }
-      const found = occasional.get(sourceInflowId)
+      const found = unmeasured.get(sourceInflowId)
       if (found === undefined) {
-        occasional.set(sourceInflowId, { inflow, actualCents })
+        unmeasured.set(sourceInflowId, { inflow, actualCents })
       } else {
         found.actualCents += actualCents
       }
@@ -881,23 +958,16 @@ export function occasionalInflowPositions(
   const year = financialYearPeriod(financialYear)
   const unit = financialYearUnit(financialYear)
   const toDate = { periodStart: year.periodStart, periodEnd: asAt }
-  return [...occasional].map(([sourceInflowId, { inflow, actualCents }]) => {
-    const annualGrossCents = annualInflowGrossCents(inflow)
-    const expectedCents = prorateAnnualAcrossUnit(
-      annualGrossCents,
-      activeDaysInPeriod(inflow, toDate),
-      unit,
-    )
+  return [...unmeasured].map(([sourceInflowId, { inflow, actualCents }]) => {
+    const { expectedCents, annualExpectedCents } = isOneOff(inflow)
+      ? oneOffProjection(inflow, asAt)
+      : occasionalProjection(inflow, toDate, year, unit)
     return {
       sourceInflowId,
       actualCents,
       expectedCents,
       varianceCents: actualCents - expectedCents,
-      annualExpectedCents: prorateAnnualAcrossUnit(
-        annualGrossCents,
-        activeDaysInPeriod(inflow, year),
-        unit,
-      ),
+      annualExpectedCents,
       asAt,
     }
   })

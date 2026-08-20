@@ -12,6 +12,16 @@ export interface TaxProfileInput {
   has_private_hospital_cover: boolean
 }
 
+/**
+ * What one member's tax editor saves: their FY-scoped tax profile, and their date of
+ * birth, which lives on the member rather than the year because a birthday is not a
+ * financial-year fact.
+ */
+export interface TaxProfileSubmission {
+  profile: TaxProfileInput
+  dateOfBirth: string | null
+}
+
 export interface UseTaxProfilesResult {
   profiles: TaxProfile[] | null
   financialYear: number

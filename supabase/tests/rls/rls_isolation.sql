@@ -74,6 +74,90 @@ do $$ begin
   assert (select count(*) from public.tax_profile) = 1, 'Alice should see her tax profile';
 end $$;
 
+-- Money that lands once states the date it landed on rather than a cadence. A
+-- taxable one-off also states the concession it is assessed under, and a genuine
+-- redundancy the completed years of service that price its tax-free amount; a
+-- non-taxable one-off (a gift) is taxed under none and states neither.
+insert into public.inflows
+    (household_id, member_id, name, type, paid_on, amount_cents, one_off_tax_treatment, years_of_service)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid,
+    'Acme redundancy', 'other', '2026-09-12', 45_000_00, 'genuine_redundancy', 6);
+
+insert into public.inflows (household_id, name, taxable, type, paid_on, amount_cents)
+  values (current_setting('test.hid')::uuid, 'Birthday gift', false, 'gift', '2026-10-01', 500_00);
+
+do $$ begin
+  assert (select count(*) from public.inflows where paid_on is not null) = 2,
+    'Alice should be able to record a one-off inflow that carries no cadence';
+  assert (select schedule from public.inflows where name = 'Acme redundancy') is null,
+    'a one-off should hold no schedule';
+  assert (select years_of_service from public.inflows where name = 'Acme redundancy') = 6,
+    'a genuine redundancy should hold the years of service pricing its tax-free amount';
+  assert (select one_off_tax_treatment from public.inflows where name = 'Birthday gift') is null,
+    'a non-taxable one-off is taxed under no treatment at all';
+end $$;
+
+-- Every inflow tells one story about when its money arrives, and a one-off
+-- carries none of the machinery a cadence needs.
+do $$
+declare v_hid uuid := current_setting('test.hid')::uuid;
+  v_mid uuid := current_setting('test.mid')::uuid;
+begin
+  begin
+    insert into public.inflows
+        (household_id, member_id, name, type, schedule, paid_on, amount_cents, one_off_tax_treatment)
+      values (v_hid, v_mid, 'Both at once', 'other', 'annual', '2026-09-12', 1_00, 'ordinary');
+    raise exception 'FAIL: an inflow claimed both a cadence and a payment date';
+  exception when check_violation then
+    raise notice 'PASS: an inflow states a schedule or a paid_on, never both';
+  end;
+
+  begin
+    insert into public.inflows (household_id, member_id, name, type, amount_cents)
+      values (v_hid, v_mid, 'Neither', 'other', 1_00);
+    raise exception 'FAIL: an inflow said nothing about when its money arrives';
+  exception when check_violation then
+    raise notice 'PASS: an inflow states a schedule or a paid_on, never neither';
+  end;
+
+  begin
+    insert into public.inflows
+        (household_id, member_id, name, type, paid_on, amount_cents, one_off_tax_treatment)
+      values (v_hid, v_mid, 'Unpriced redundancy', 'other', '2026-09-12', 45_000_00, 'genuine_redundancy');
+    raise exception 'FAIL: a genuine redundancy was recorded without its years of service';
+  exception when check_violation then
+    raise notice 'PASS: a genuine redundancy must state its completed years of service';
+  end;
+
+  begin
+    insert into public.inflows
+        (household_id, member_id, name, type, paid_on, starts_on, amount_cents, one_off_tax_treatment)
+      values (v_hid, v_mid, 'Dated one-off', 'other', '2026-09-12', '2026-07-01', 1_00, 'ordinary');
+    raise exception 'FAIL: a one-off carried an effective start date';
+  exception when check_violation then
+    raise notice 'PASS: a one-off carries no effective dates, its paid_on being both';
+  end;
+
+  begin
+    insert into public.inflows (household_id, member_id, name, type, paid_on, amount_cents)
+      values (v_hid, v_mid, 'Untreated bonus', 'other', '2026-09-12', 5_000_00);
+    raise exception 'FAIL: a taxable one-off was recorded under no tax treatment';
+  exception when check_violation then
+    raise notice 'PASS: a taxable one-off must state the concession it is assessed under';
+  end;
+end $$;
+
+-- A member's date of birth is theirs to set, and it is the only thing the ETP
+-- concessional rate reads to place them either side of preservation age.
+update public.members set date_of_birth = '1988-04-02'
+  where id = current_setting('test.mid')::uuid;
+
+do $$ begin
+  assert (select date_of_birth from public.members where id = current_setting('test.mid')::uuid)
+    = date '1988-04-02',
+    'a member should be able to record their own date of birth';
+end $$;
+
 -- Alice's budget: a savings goal, a savings budget line funding that goal, and a
 -- date-driven temporary item.
 insert into public.savings_goal (household_id, name, target_amount_cents, target_date)
@@ -601,7 +685,7 @@ do $$ begin
   assert (select count(*) from public.members) = 2, 'Carol should see both herself and Alice';
   assert (select count(*) from public.accounts) = 1, 'Carol should see Alice''s account';
   assert (select count(*) from public.transactions) = 1, 'Carol should see Alice''s transaction';
-  assert (select count(*) from public.inflows) = 2, 'Carol should see Alice''s inflows';
+  assert (select count(*) from public.inflows) = 4, 'Carol should see Alice''s inflows';
   assert (select count(*) from public.tax_profile) = 1, 'Carol should see Alice''s tax profile';
   assert (select count(*) from public.savings_goal) = 1, 'Carol should see Alice''s savings goal';
   assert (select count(*) from public.budget_line) = 4, 'Carol should see all four of Alice''s budget lines';

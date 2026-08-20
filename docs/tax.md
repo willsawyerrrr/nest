@@ -25,9 +25,94 @@ the whole year. The steady-rate `annualGrossCents` is unchanged; it remains the
 per-inflow display figure and the base for percent-of-salary super contributions,
 which apply to the current rate rather than the part-year figure.
 
+## One-off payments and termination concessions
+
+An inflow is either **recurring** — it states the cadence it arrives on — or
+**one-off** — it states the single date it lands on (`paid_on`). A one-off is money
+that arrives once: severance, a bonus, a gift. It is never annualised and never
+prorated by an effective window; `annualGrossCents` returns its whole amount when
+`paid_on` falls inside the financial year and nothing at all when it falls outside,
+because a payment lands on a day rather than accruing over one.
+
+A taxable one-off carries a **tax treatment**, so a redundancy is not taxed as
+though it were salary. `splitOneOffPayment(payment, otherTaxableIncomeCents, config)`
+splits one payment into the parts the estimate treats differently:
+
+| Treatment | Tax-free | Assessable | Concessional (capped rate) |
+| --- | --- | --- | --- |
+| `ordinary` | nil | the whole payment | none — marginal rates throughout |
+| `genuineRedundancy` | `base_limit_cents + per_year_of_service_cents ×` completed years, capped at the payment | the rest | the assessable part up to the **ETP cap** |
+| `employmentTermination` | nil | the whole payment | up to the lesser of the ETP cap and the **whole-of-income cap** less the member's other taxable income |
+| `unusedLeave` | nil | the whole payment | the whole payment, at `unused_leave_max_rate`, uncapped in amount |
+
+A genuine redundancy is an **excluded** payment, so only the ETP cap bounds it; every
+other ETP is **non-excluded**, so a high salary can shrink its concession to nothing.
+Completed years of service are floored to whole years at or above zero, and an absent
+figure counts as none. The concessional rate is `at_preservation_age_rate` when the
+member was at or above the year's preservation age on the payment date and
+`below_preservation_age_rate` otherwise — an unknown date of birth reads as below.
+
+> **The config's rates exclude the 2% Medicare levy.** The ATO quotes the ETP rates
+> as 32% / 17% / 47% and the unused-leave maximum as 32%; each of those is the
+> config's rate **plus** the levy. The concessional amount sits in taxable income, so
+> the `medicareLevy` line already charges the levy on it, and repeating it in the rate
+> would charge it twice.
+
+### The concession is delivered as an offset
+
+The assessable part of every one-off joins taxable income as
+`employment_termination_cents` — deliberately, because it is assessable income like
+any other and must lift income for the LITO taper, the Medicare levy, the surcharge,
+HELP repayment income, and Division 293, all of which assess taxable income.
+
+The concession is then delivered as `one_off_offset_cents`, by the ATO's difference
+method, per concession:
+
+```
+offset = income_tax(taxable_income)
+       − income_tax(taxable_income − concessional_cents)
+       − round(concessional_cents × rate)
+```
+
+Several concessions in one year are peeled off the top in order, so each is measured
+against the income actually sitting under it. Each is floored at zero: the capped rate
+is a **maximum**, so where the member's marginal rate is already below it the marginal
+rate stands and the concession is worth nothing. The offset is applied alongside LITO
+— `net_income_tax = max(0, income_tax − lito − one_off_offset)` — which makes it
+**non-refundable**: it can never create a refund on its own, and it leaves the Medicare
+levy, the surcharge, the HELP repayment, and Division 293 untouched.
+
+### One-off money is kept out of the fortnightly plan
+
+`MemberTaxEstimate` and `HouseholdTaxEstimate` report `annual_one_off_gross_cents` and
+`annual_one_off_after_tax_cents` — the latter the gross less the liability the one-offs
+themselves add, computed by running the member twice and differencing, the same shape
+as the salary-sacrifice what-if.
+
+The annual and fortnightly figures **deliberately disagree** about that money. The
+annual figures are whole-year truths and include it; the fortnightly figures are
+derived from the same year net of it, so `fortnightly_gross_cents × 26` falls short of
+`annual_gross_cents` by the one-off gross. Money that lands once has no fortnightly
+share to plan against — smearing a redundancy across 26 fortnights would promise cash
+in 25 of them that never arrives — so the budget plans against recurring money and the
+one-off is shown as the separate figure it is.
+
+> **Termination-concession simplifications.** The part of a payment above the ETP cap
+> is left to the marginal brackets rather than lifted to `above_cap_rate`: the top
+> bracket already reaches that rate at the incomes at which the cap binds, and the
+> offset mechanism can only reduce tax, never add it. The whole-of-income headroom is
+> measured against the member's recurring taxable income (gross less deductions and
+> concessional super) plus the assessable part of any earlier one-off in the same year.
+> The family-assessed Medicare levy surcharge is held constant across the two runs
+> behind `annual_one_off_after_tax_cents`, so a one-off large enough to move the
+> household into a surcharge tier has that rise counted in the total liability but not
+> attributed to the payment.
+
 ## Inputs (per member, per FY)
 
-- Assessable income: salary/wages, business, investment, other. Each taxable
+- Assessable income: salary/wages, business, investment, other, and the assessable
+  part of every one-off payment (`employment_termination_cents` — see
+  [One-off payments](#one-off-payments-and-termination-concessions)). Each taxable
   inflow's annualised gross at its steady rate, `inflows.schedule` being what
   annualising divides by. Neither the cadence the money arrives on (`pay_schedule`)
   nor whether it arrives on every turn of that cadence
@@ -55,8 +140,9 @@ which apply to the current rate rather than the part-year figure.
 1. **Taxable income** = assessable income − deductions − concessional super
    contributions (salary sacrifice and personal deductible both reduce it).
 2. **Income tax** = apply marginal brackets from `TaxYearConfig`.
-3. **Offsets** — subtract e.g. Low Income Tax Offset (LITO). Offsets reduce tax
-   payable but not below zero.
+3. **Offsets** — subtract the Low Income Tax Offset (LITO) and the
+   employment-termination concession offset. Offsets reduce tax payable but not
+   below zero, and reach no further than income tax.
 4. **Medicare levy** — base rate (2%) with low-income reduction thresholds.
 5. **Medicare levy surcharge** — assessed on the household's **combined** income,
    not per person. The tier rate is chosen by summed surcharge income against the
@@ -206,6 +292,14 @@ super:
   general_transfer_balance_cap_cents: ...
   co_contribution: { max_cents, lower_income_threshold_cents, higher_income_threshold_cents }
   preservation_age: 60
+employment_termination:
+  cap_cents: ...                      # ETP cap, indexed annually
+  whole_of_income_cap_cents: ...      # not indexed; net of other taxable income
+  below_preservation_age_rate: 0.30   # ATO's 32%, less the 2% Medicare levy
+  at_preservation_age_rate: 0.15      # ATO's 17%, less the levy
+  above_cap_rate: 0.45                # ATO's 47%, less the levy
+  unused_leave_max_rate: 0.30         # ATO's 32%, less the levy
+  genuine_redundancy: { base_limit_cents, per_year_of_service_cents }
 ```
 
 > **Values above are illustrative.** Each FY's real figures must be sourced from
@@ -222,7 +316,9 @@ super:
   (concessional cap $30,000, non-concessional cap $120,000, the $2.0M general
   transfer balance cap, the $250,000 Division 293 threshold, 15%
   contributions/Division 293 rate, the co-contribution income test, and
-  preservation age 60). See `packages/tax/src/configs.ts`.
+  preservation age 60), and the 2025-26 termination figures ($260,000 ETP cap, the
+  $180,000 whole-of-income cap, and a $13,100 + $6,552-per-year genuine-redundancy
+  tax-free amount). See `packages/tax/src/configs.ts`.
 - **FY2027** (`FY2027_CONFIG`, also in `configsByYear`) — a verified resident
   config with real ATO figures for 2026-27, including the Budget top-up cut that
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
@@ -232,7 +328,9 @@ super:
   also carries the verified 2026-27
   super figures (concessional cap $32,500, non-concessional cap $130,000, the
   $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the
-  co-contribution income test, and preservation age 60). See
+  co-contribution income test, and preservation age 60) and the 2026-27 termination
+  figures ($270,000 ETP cap, the unindexed $180,000 whole-of-income cap, and a
+  $13,598 + $6,801-per-year genuine-redundancy tax-free amount). See
   `packages/tax/src/configs.ts`.
 
 ## Testing
@@ -242,6 +340,11 @@ super:
   and HELP thresholds.
 - Effective-dated income: proration by inclusive calendar days, adjacent windows
   summing to the whole year, and non-overlapping windows contributing nil.
+- One-off payments: each treatment's split, a redundancy whose tax-free amount
+  covers the whole payment, nil and negative years of service, a payment above the
+  ETP cap, a non-excluded payment whose whole-of-income headroom salary has already
+  exhausted, both sides of the preservation-age split, an offset larger than the tax
+  payable, two concessions stacked, and a payment landing outside the year.
 - Non-resident cases as a follow-up.
 
 ## Presentation

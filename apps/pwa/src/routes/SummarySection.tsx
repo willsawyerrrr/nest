@@ -7,6 +7,7 @@ import { useDeductions } from '../hooks/useDeductions'
 import { useGifts } from '../hooks/useGifts'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
+import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
@@ -15,6 +16,7 @@ import { toSummaryInput } from '../lib/summary'
 import { estimateHouseholdTaxFromRows } from '../lib/tax'
 
 export function SummarySection({ householdId }: { householdId: string }) {
+  const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
   const taxProfiles = useTaxProfiles(householdId)
   const budgetLines = useBudgetLines(householdId)
@@ -26,6 +28,7 @@ export function SummarySection({ householdId }: { householdId: string }) {
   const deductions = useDeductions(householdId)
 
   if (
+    membersLoading ||
     inflows.loading ||
     taxProfiles.loading ||
     budgetLines.loading ||
@@ -34,7 +37,8 @@ export function SummarySection({ householdId }: { householdId: string }) {
     gifts.loading ||
     breakdowns.loading ||
     helpDebts.loading ||
-    deductions.loading
+    deductions.loading ||
+    !members
   ) {
     return <LoadingScreen />
   }
@@ -52,10 +56,19 @@ export function SummarySection({ householdId }: { householdId: string }) {
     contributions.contributions ?? [],
     helpDebts.helpDebts ?? [],
     deductions.deductions ?? [],
+    undefined,
+    undefined,
+    members,
   )
+  // One-off money is reported beside the plan, never inside it, so the take-home the
+  // ledger divides up is the year's after-tax cash NET of it — as are the tax and
+  // salary-sacrifice slices the gross basis rebuilds Gross from, or Gross would
+  // include money Available does not.
+  const oneOffTaxCents = estimate.annualOneOffGrossCents - estimate.annualOneOffAfterTaxCents
   const summary = summarise(
     toSummaryInput({
-      afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents,
+      afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents - estimate.annualOneOffAfterTaxCents,
+      financialYear: taxProfiles.financialYear,
       inflows: inflows.inflows ?? [],
       budgetLines: budgetLines.lines ?? [],
       derivedAmounts: context,
@@ -67,7 +80,8 @@ export function SummarySection({ householdId }: { householdId: string }) {
       // The pre-tax "Tax" slice is income tax and levies plus the 15% super
       // contributions tax (the gross concessional less what nets into the fund).
       taxAnnualCents:
-        estimate.annualTaxCents +
+        estimate.annualTaxCents -
+        oneOffTaxCents +
         (estimate.annualConcessionalContributionsCents - estimate.annualNetConcessionalSuperCents),
     }),
     new Date(),

@@ -23,6 +23,7 @@ const group = (fortnightlyCents: number, annualCents: number, portion: number): 
 })
 
 const summary: BudgetSummary = {
+  oneOffCents: 0,
   available: { fortnightlyCents: 500_000, annualCents: 13_000_000 },
   groups: {
     needs: group(200_000, 5_200_000, 0.4),
@@ -195,6 +196,7 @@ describe('SummaryView', () => {
   it('omits the allocation donut when nothing is allocated but there is still data', () => {
     const zero = { fortnightlyCents: 0, annualCents: 0 }
     const noAllocation: BudgetSummary = {
+      oneOffCents: 0,
       available: { fortnightlyCents: 500_000, annualCents: 13_000_000 },
       groups: {
         needs: group(0, 0, 0),
@@ -224,6 +226,7 @@ describe('SummaryView', () => {
     const zero = { fortnightlyCents: 0, annualCents: 0 }
     const negative = { fortnightlyCents: -375_000, annualCents: -9_750_000 }
     const noAvailable: BudgetSummary = {
+      oneOffCents: 0,
       available: zero,
       groups: {
         needs: group(375_000, 9_750_000, 0),
@@ -249,6 +252,7 @@ describe('SummaryView', () => {
   it('shows an empty state when there is nothing to reconcile', () => {
     const zero = { fortnightlyCents: 0, annualCents: 0 }
     const empty: BudgetSummary = {
+      oneOffCents: 0,
       available: zero,
       groups: {
         needs: group(0, 0, 0),
@@ -269,5 +273,45 @@ describe('SummaryView', () => {
 
     expect(screen.getByText(/nothing to reconcile yet/i)).toBeInTheDocument()
     expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('reports one-off money beside the plan, saying it is left out of it', () => {
+    render(<SummaryView summary={{ ...summary, oneOffCents: 40_000_00 }} />)
+    const note = screen.getByText(/of one-off money lands this financial year/)
+    expect(note).toHaveTextContent('$40,000.00')
+    expect(note).toHaveTextContent(/left out of every figure above/)
+  })
+
+  it('says nothing about one-off money in a year that carries none', () => {
+    render(<SummaryView summary={summary} />)
+    expect(screen.queryByText(/of one-off money lands/)).not.toBeInTheDocument()
+  })
+
+  it('reconciles a year whose only money is a one-off, rather than reading as empty', () => {
+    const zero = { fortnightlyCents: 0, annualCents: 0 }
+    render(
+      <SummaryView
+        summary={{
+          oneOffCents: 40_000_00,
+          available: zero,
+          groups: {
+            needs: group(0, 0, 0),
+            wants: group(0, 0, 0),
+            discretionary: group(0, 0, 0),
+            temporary: group(0, 0, 0),
+            savings: group(0, 0, 0),
+            investments: group(0, 0, 0),
+          },
+          outgoings: zero,
+          savingsBlock: zero,
+          afterOutgoing: zero,
+          afterSaving: zero,
+          tax: zero,
+          salarySacrifice: zero,
+        }}
+      />,
+    )
+    expect(screen.queryByText(/nothing to reconcile yet/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/of one-off money lands/)).toBeInTheDocument()
   })
 })

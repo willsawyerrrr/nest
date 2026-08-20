@@ -7,7 +7,9 @@ import type { Inflow } from '../hooks/useInflows'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
+import { makeMember } from '../test/fixtures'
 import {
+  atPreservationAgeOn,
   concessionalByMember,
   currentTaxConfig,
   deductionsByMember,
@@ -37,6 +39,9 @@ const baseInflow: Inflow = {
   pay_schedule: null,
   pay_interval_count: null,
   arrives_every_pay_period: true,
+  paid_on: null,
+  one_off_tax_treatment: null,
+  years_of_service: null,
   amount_cents: 300_00,
   hourly_rate_cents: null,
   hours_per_period: null,
@@ -795,6 +800,7 @@ const breakdownWithRepaymentIncome = (repaymentIncomeCents: number): TaxBreakdow
   incomeForSurchargeCents: repaymentIncomeCents,
   incomeTaxCents: 0,
   litoOffsetCents: 0,
+  oneOffOffsetCents: 0,
   medicareLevyCents: 0,
   medicareLevySurchargeCents: 0,
   helpRepaymentCents: 0,
@@ -865,5 +871,150 @@ describe('helpPayoffByMember', () => {
 
     const noDebt = helpPayoffByMember(estimate, [], FY2027_CONFIG)
     expect(noDebt.size).toBe(0)
+  })
+})
+
+describe('atPreservationAgeOn', () => {
+  it('reads an unknown date of birth as below preservation age — the higher rate', () => {
+    expect(atPreservationAgeOn(null, '2026-09-12', FY2027_CONFIG)).toBe(false)
+  })
+
+  it('turns over on the birthday the member reaches preservation age', () => {
+    // FY2027 preservation age is 60, so a 1966-09-12 birth reaches it on 2026-09-12.
+    expect(atPreservationAgeOn('1966-09-12', '2026-09-11', FY2027_CONFIG)).toBe(false)
+    expect(atPreservationAgeOn('1966-09-12', '2026-09-12', FY2027_CONFIG)).toBe(true)
+  })
+})
+
+/** A taxable one-off severance for `m1`, paid inside FY2027. */
+const severance: Inflow = {
+  ...baseInflow,
+  id: 'i-oneoff',
+  name: 'Severance',
+  schedule: null,
+  interval_count: null,
+  paid_on: '2026-09-12',
+  one_off_tax_treatment: 'ordinary',
+  amount_cents: 40_000_00,
+}
+
+describe('one-off inflows in the tax estimate', () => {
+  it('counts a one-off in the annual figures and keeps it out of the fortnightly ones', () => {
+    const salary: Inflow = { ...baseInflow, schedule: 'annual', amount_cents: 100_000_00 }
+    const withOneOff = estimateHouseholdTaxFromRows([salary, severance], [profile])
+    const withoutOneOff = estimateHouseholdTaxFromRows([salary], [profile])
+
+    expect(withOneOff.annualGrossCents).toBe(140_000_00)
+    expect(withOneOff.annualOneOffGrossCents).toBe(40_000_00)
+    expect(withOneOff.fortnightlyGrossCents).toBe(withoutOneOff.fortnightlyGrossCents)
+  })
+
+  it('counts a one-off paid outside the financial year as nothing', () => {
+    const nextYear: Inflow = { ...severance, paid_on: '2027-09-12' }
+    expect(estimateHouseholdTaxFromRows([nextYear], [profile]).annualOneOffGrossCents).toBe(0)
+  })
+
+  it('reads the member’s age at the payment date from their date of birth', () => {
+    // A redundancy above a top-bracket salary, so the capped rate really does bite:
+    // it is an excluded payment, bounded by the ETP cap rather than by the salary.
+    const salary: Inflow = { ...baseInflow, schedule: 'annual', amount_cents: 200_000_00 }
+    const redundancy: Inflow = {
+      ...severance,
+      one_off_tax_treatment: 'genuine_redundancy',
+      years_of_service: 0,
+      amount_cents: 100_000_00,
+    }
+    const rows = [salary, redundancy]
+    const atAge = estimateHouseholdTaxFromRows(rows, [profile], [], [], [], undefined, undefined, [
+      makeMember({ id: 'm1', date_of_birth: '1950-01-01' }),
+    ])
+    const below = estimateHouseholdTaxFromRows(rows, [profile], [], [], [], undefined, undefined, [
+      makeMember({ id: 'm1', date_of_birth: '1990-01-01' }),
+    ])
+    // The lower capped rate leaves a bigger offset, so less tax and more kept.
+    expect(atAge.annualOneOffAfterTaxCents).toBeGreaterThan(below.annualOneOffAfterTaxCents)
+    // With no member supplied at all, the higher rate stands.
+    expect(estimateHouseholdTaxFromRows(rows, [profile]).annualOneOffAfterTaxCents).toBe(
+      below.annualOneOffAfterTaxCents,
+    )
+  })
+})
+
+describe('toIncomeInput for a one-off', () => {
+  it('carries the payment date, its treatment, and the redundancy’s years of service', () => {
+    expect(
+      toIncomeInput({
+        ...severance,
+        one_off_tax_treatment: 'genuine_redundancy',
+        years_of_service: 8,
+      }),
+    ).toMatchObject({
+      paidOn: '2026-09-12',
+      treatment: 'genuineRedundancy',
+      yearsOfService: 8,
+      atPreservationAge: false,
+    })
+  })
+
+  it('reads a one-off carrying no treatment as ordinary income', () => {
+    // A non-taxable one-off — a gift — stores none, being taxed under nothing.
+    expect(
+      toIncomeInput({ ...severance, taxable: false, one_off_tax_treatment: null }),
+    ).toMatchObject({ treatment: 'ordinary' })
+  })
+})
+
+describe('one-off inflows in the super bases', () => {
+  it('earns no employer super, so it stays out of the guarantee base', () => {
+    const salary: Inflow = { ...baseInflow, schedule: 'annual', amount_cents: 100_000_00 }
+    const withOneOff = netAnnualSuperContributionFromRows([salary, severance], [])
+    const withoutOneOff = netAnnualSuperContributionFromRows([salary], [])
+    expect(withOneOff.get('m1')).toBe(withoutOneOff.get('m1'))
+  })
+
+  it('counts its assessable part in the co-contribution income test, tax-free part aside', () => {
+    const redundancy: Inflow = {
+      ...severance,
+      one_off_tax_treatment: 'genuine_redundancy',
+      years_of_service: 5,
+      amount_cents: 70_000_00,
+    }
+    const contribution: SuperContribution = {
+      id: 's1',
+      household_id: 'h1',
+      member_id: 'm1',
+      financial_year: 2027,
+      kind: 'personal_non_concessional',
+      mode: 'amount',
+      amount_cents: 1_000_00,
+      percent_bp: null,
+      frequency: 'annual',
+      interval_count: null,
+      contributor_member_id: null,
+      fhss_eligible: false,
+      created_at: '',
+      updated_at: '',
+    }
+    // $13,598 + 5 × $6,801 of the $70,000 is tax free, leaving $22,397 assessable —
+    // under the taper's lower threshold, so the whole entitlement stands. The same
+    // amount as ordinary income is $70,000 assessable, above the taper entirely.
+    expect(superCapSummaryFromRows([redundancy], [], [contribution]).get('m1')).toMatchObject({
+      coContributionCents: 500_00,
+    })
+    expect(
+      superCapSummaryFromRows(
+        [{ ...redundancy, one_off_tax_treatment: 'ordinary', years_of_service: null }],
+        [],
+        [contribution],
+      ).get('m1'),
+    ).toMatchObject({ coContributionCents: 0 })
+    // A one-off carrying no treatment at all is assessable in full, as ordinary is.
+    expect(
+      superCapSummaryFromRows(
+        [{ ...redundancy, one_off_tax_treatment: null, years_of_service: null }],
+        [],
+        [contribution],
+      ).get('m1'),
+    ).toMatchObject({ coContributionCents: 0 })
   })
 })

@@ -46,7 +46,9 @@ describe('TaxProfileList', () => {
     await user.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() =>
-      expect(onUpsert).toHaveBeenCalledWith(expect.objectContaining({ member_id: 'm1' })),
+      expect(onUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ profile: expect.objectContaining({ member_id: 'm1' }) }),
+      ),
     )
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument(),

@@ -32,6 +32,9 @@ function inflow(overrides: Partial<Inflow> = {}): Inflow {
     hours_per_period: null,
     starts_on: null,
     ends_on: null,
+    paid_on: null,
+    one_off_tax_treatment: null,
+    years_of_service: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -74,6 +77,7 @@ function temporaryItem(overrides: Partial<TemporaryItem> = {}): TemporaryItem {
 describe('toSummaryInput', () => {
   it('passes the after-tax income through unchanged', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 80_000_00,
       inflows: [],
       budgetLines: [],
@@ -85,6 +89,7 @@ describe('toSummaryInput', () => {
 
   it('passes the gross-basis tax and salary-sacrifice annuals through', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [],
@@ -99,6 +104,7 @@ describe('toSummaryInput', () => {
 
   it('defaults the gross-basis tax and salary-sacrifice annuals to zero when omitted', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [],
@@ -111,6 +117,7 @@ describe('toSummaryInput', () => {
 
   it('keeps only non-taxable inflows, mapping schedule and interval', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [
         inflow({ id: 'taxable', taxable: true }),
@@ -133,6 +140,7 @@ describe('toSummaryInput', () => {
 
   it('defaults a non-taxable inflow with no amount to zero cents', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [inflow({ taxable: false, amount_cents: null, interval_count: null })],
       budgetLines: [],
@@ -148,6 +156,7 @@ describe('toSummaryInput', () => {
 
   it('substitutes a derived line’s breakdown total as an annual amount', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [line({ id: 'd', breakdown_id: 'b1', amount_cents: 0, frequency: 'monthly' })],
@@ -161,6 +170,7 @@ describe('toSummaryInput', () => {
 
   it('maps a manual budget line untouched', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [line({ line_group: 'needs', amount_cents: 42_00, frequency: 'weekly' })],
@@ -174,6 +184,7 @@ describe('toSummaryInput', () => {
 
   it('carries a budget line’s custom cadence interval through', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [line({ amount_cents: 60_00, frequency: 'every_n_months', interval_count: 4 })],
@@ -185,8 +196,65 @@ describe('toSummaryInput', () => {
     ])
   })
 
+  it('reports one-off money landing in the year, and keeps it out of the inflow top-up', () => {
+    const result = toSummaryInput({
+      financialYear: 2027,
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [
+        inflow({
+          id: 'i1',
+          taxable: false,
+          schedule: null,
+          paid_on: '2026-09-12',
+          amount_cents: 5_000_00,
+        }),
+        inflow({
+          id: 'i2',
+          taxable: true,
+          schedule: null,
+          paid_on: '2027-01-05',
+          amount_cents: 40_000_00,
+        }),
+        inflow({ id: 'i3', taxable: false, schedule: 'weekly', amount_cents: 100_00 }),
+      ],
+      budgetLines: [],
+      derivedAmounts: context(),
+      temporaryItems: [],
+    })
+    expect(result.oneOffCents).toBe(45_000_00)
+    // Only the recurring non-taxable inflow tops up available cash.
+    expect(result.nonTaxableInflows).toEqual([
+      { amountCents: 100_00, frequency: 'weekly', interval: undefined },
+    ])
+  })
+
+  it('leaves a one-off landing in another financial year to that year', () => {
+    const result = toSummaryInput({
+      financialYear: 2027,
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [inflow({ schedule: null, paid_on: '2027-09-12', amount_cents: 5_000_00 })],
+      budgetLines: [],
+      derivedAmounts: context(),
+      temporaryItems: [],
+    })
+    expect(result.oneOffCents).toBe(0)
+  })
+
+  it('counts a one-off with no amount entered as nothing', () => {
+    const result = toSummaryInput({
+      financialYear: 2027,
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [inflow({ schedule: null, paid_on: '2026-09-12', amount_cents: null })],
+      budgetLines: [],
+      derivedAmounts: context(),
+      temporaryItems: [],
+    })
+    expect(result.oneOffCents).toBe(0)
+  })
+
   it('maps temporary items to their contribution and target date', () => {
     const result = toSummaryInput({
+      financialYear: 2027,
       afterTaxIncomeAnnualCents: 0,
       inflows: [],
       budgetLines: [],

@@ -354,11 +354,13 @@ export type Database = {
           description: string
           distance_km: number | null
           financial_year: number
+          full_amount_cents: number
           group_id: string | null
           household_id: string
           id: string
           member_id: string
           updated_at: string
+          work_use_percent: number
         }
         Insert: {
           amount_cents: number
@@ -368,11 +370,13 @@ export type Database = {
           description: string
           distance_km?: number | null
           financial_year: number
+          full_amount_cents: number
           group_id?: string | null
           household_id: string
           id?: string
           member_id: string
           updated_at?: string
+          work_use_percent?: number
         }
         Update: {
           amount_cents?: number
@@ -382,11 +386,13 @@ export type Database = {
           description?: string
           distance_km?: number | null
           financial_year?: number
+          full_amount_cents?: number
           group_id?: string | null
           household_id?: string
           id?: string
           member_id?: string
           updated_at?: string
+          work_use_percent?: number
         }
         Relationships: [
           {

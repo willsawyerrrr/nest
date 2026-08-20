@@ -202,7 +202,9 @@ and so without the trigger.
   - `id`, `household_id`, `member_id`, `description`, `amount_cents` (bigint,
     `>= 0`), `deduction_date` (date), `financial_year` (int, ending year),
     `basis` (`deduction_basis` enum: `amount` default, or `distance`),
-    `distance_km` (`numeric(8,2)`, nullable), `created_at`, `updated_at`.
+    `distance_km` (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
+    `>= 0`), `work_use_percent` (`numeric(5,2)`, default 100), `created_at`,
+    `updated_at`.
   - `financial_year` is the year the expense is claimed in and is stored rather
     than derived from `deduction_date`, with no constraint tying the two: an
     expense incurred near a year boundary is claimed in whichever year the
@@ -221,6 +223,25 @@ and so without the trigger.
     `basis = 'distance'`), mirroring `payslip_line_kind_attribution`; the
     database does not itself derive `amount_cents` from `distance_km`, since the
     rate is versioned in `@nest/tax`, not stored in Postgres.
+  - On the `amount` basis, `amount_cents` may be less than the expense's full
+    cost: `full_amount_cents` records what it cost, `work_use_percent` the share
+    claimed (100 by default). `deduction_work_use_apportioned` requires
+    `amount_cents = round(full_amount_cents * work_use_percent / 100)`, enforced
+    in the database rather than trusted from the client — `workUseAmountCents`
+    (`apps/pwa/src/lib/money.ts`) computes the identical rounding client-side, so
+    the form's shown claimable figure never disagrees with what the constraint
+    will accept. `deduction_work_use_range` bounds `work_use_percent` to `(0,
+    100]` and `full_amount_cents` to non-negative;
+    `deduction_work_use_basis` pins `work_use_percent` at 100 on the `distance`
+    basis, since its kilometres are work-related already and a percentage on top
+    would discount the claim twice. `full_amount_cents` has no plain column
+    default — "whatever `amount_cents` says" is not a constant, `DEFAULT` cannot
+    read another column of the same row — so a BEFORE INSERT trigger,
+    `snapshot_deduction_full_amount`, fills it from `amount_cents` when a write
+    leaves it null, the same shape `snapshot_payslip_line_attracts_super` fills
+    `payslip_line.attracts_super` with. A write naming no work-use figures at
+    all is therefore claimed in full at 100%, through the RPC below or a direct
+    insert alike.
   - `member_id` is the tax attribution: a deduction reduces the taxable income of
     exactly one member, so it must be set (not null) even though the money is
     pooled. Composite FK `(member_id, household_id)` → `members`
@@ -245,8 +266,8 @@ and so without the trigger.
     insert — the client mints the id before the row exists, so a receipt
     picked first can be filed under it. Editing an existing row is a direct
     update, as any other field write is.
-  - `group_id` files the deduction as one payment of a recurring expense, or is
-    null for a standalone claim. Composite FK
+  - `group_id` files the deduction as one payment of an expense claimed more
+    than once, or is null for a standalone claim. Composite FK
     `(group_id, household_id, member_id, financial_year)` → `deduction_group`,
     so a payment cannot sit in a group belonging to another member or another
     year, `on delete set null (group_id)` — the column list matters, a bare
@@ -859,11 +880,16 @@ transaction, not for the privileges.
   non-deferrable foreign key, so a receipt row cannot be inserted first. Keyed
   on that same id, so a retried save rewrites the deduction and replaces its
   receipt set rather than duplicating either. It carries the deduction's `basis`
-  and, on the distance basis, its `distance_km`: the add form writes every new
-  deduction through this function, so a column it does not name is one the add
-  path cannot set, and a work-travel deduction would otherwise save as a typed
-  dollar amount with the kilometres behind it dropped. A payload naming no basis
-  writes `amount`, the column's own default. Running as the caller: the
+  and, on the distance basis, its `distance_km`; the group it is filed under
+  (`group_id`); and its work-use apportioning (`full_amount_cents`,
+  `work_use_percent`): the add form writes every new deduction through this
+  function, so a column it does not name is one the add path cannot set, and a
+  work-travel deduction, a grouped payment, or a part-claimed expense would
+  otherwise save wrong or fail the apportioning constraint outright. A payload
+  naming no basis writes `amount`; naming no work-use percentage writes 100 (the
+  column's own default), and naming no `full_amount_cents` leaves it null for
+  `snapshot_deduction_full_amount` to fill from `amount_cents` — the same
+  BEFORE INSERT trigger a direct insert relies on. Running as the caller: the
   household policies on both tables gate every statement exactly as a direct
   write would, and `household_id` is not updatable on conflict. Editing an
   existing deduction never calls this RPC — its receipts are attached one at a

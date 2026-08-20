@@ -390,6 +390,8 @@ describe('deductionsByMember', () => {
     basis: 'amount',
     distance_km: null,
     group_id: null,
+    full_amount_cents: 1_200_00,
+    work_use_percent: 100,
     created_at: '',
     updated_at: '',
   }
@@ -423,6 +425,8 @@ describe('estimateHouseholdTaxFromRows deductions', () => {
     basis: 'amount',
     distance_km: null,
     group_id: null,
+    full_amount_cents: 10_000_00,
+    work_use_percent: 100,
     created_at: '',
     updated_at: '',
   }

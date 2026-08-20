@@ -207,6 +207,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_lines.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
 
   ci-status:
     name: CI Status

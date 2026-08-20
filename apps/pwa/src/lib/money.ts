@@ -81,3 +81,19 @@ export function dollarsToCents(value: number | string): number | null {
   }
   return Math.round(dollars * 100)
 }
+
+/**
+ * The deductible share of a cost: `fullAmountCents` at `workUsePercent`,
+ * rounded to the nearest cent.
+ *
+ * The percentage carries two decimal places, so the arithmetic runs in
+ * hundredths of a percent to keep the numerator an exact integer — the only
+ * rounding is the final one, and it lands on the same cent Postgres's
+ * `deduction_work_use_apportioned` check computes in exact numeric. The two
+ * must agree: a save whose `amount_cents` disagrees with the constraint is
+ * refused outright.
+ */
+export function workUseAmountCents(fullAmountCents: number, workUsePercent: number): number {
+  const hundredthsOfAPercent = Math.round(workUsePercent * 100)
+  return Math.round((fullAmountCents * hundredthsOfAPercent) / 10_000)
+}

@@ -24,7 +24,7 @@ import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
-import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
+import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
 import { DEFAULT_RECEIPT_NAME, receiptName } from '../lib/receiptName'
 import { currentTaxConfig } from '../lib/tax'
 import { EnumSegmentedControl } from './EnumSelect'
@@ -219,9 +219,18 @@ function PendingReceiptItem({
  * shown back, read-only, from `financialYear`'s published cents-per-km rate, and
  * a warning appears if the distance exceeds the ATO's cap on kilometres
  * claimable per car per year under this method — advisory only, it never blocks
- * a save. The basis and the distance are the member's own throughout: a receipt
- * read fills the description, amount, and date alone, so neither is pre-fillable
- * and both stay outside `useDeductionFields`.
+ * a save. On the amount basis, "Amount" is what the expense cost in FULL, not
+ * necessarily what is claimed: a "Work use %" field beside it (100 by default)
+ * apportions it, showing back the claimable figure once the percentage departs
+ * from 100. `full_amount_cents` and `work_use_percent` are the source figures;
+ * `amount_cents` is the apportioned result every downstream reader uses, so
+ * editing a part-claimed deduction reopens on its full cost — not the
+ * apportioned amount — with the claim recomputed from it and the percentage. A
+ * distance-basis claim is pinned at 100% work use, its kilometres being
+ * work-related already; a percentage on top would discount the claim twice. The
+ * basis, the distance, and the work-use percentage are all the member's own
+ * throughout: a receipt read fills the description, amount, and date alone, so
+ * none of them is pre-fillable and all stay outside `useDeductionFields`.
  */
 export function DeductionForm({
   member,
@@ -237,7 +246,11 @@ export function DeductionForm({
 
   const fields = useDeductionFields({
     description: initial?.description ?? '',
-    amount: centsToDollars(initial?.amount_cents),
+    // The full cost, not the apportioned amount_cents: editing a part-claimed
+    // deduction re-opens on what it cost, with the claimed share recomputed from
+    // it and the percentage below, rather than showing back a figure that was
+    // itself derived.
+    amount: centsToDollars(initial?.full_amount_cents ?? initial?.amount_cents),
     deductionDate: initial?.deduction_date ?? todayIso(),
   })
   const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
@@ -248,6 +261,9 @@ export function DeductionForm({
   )
   const [distanceKm, setDistanceKm] = useState<number | string>(
     toDistanceValue(initial?.distance_km),
+  )
+  const [workUsePercent, setWorkUsePercent] = useState<number | string>(
+    initial?.work_use_percent ?? 100,
   )
   const receipts = useDeductionAttachment({
     attachments,
@@ -263,10 +279,21 @@ export function DeductionForm({
     distanceKm !== '' && Number.isFinite(distanceKmNumber) && distanceKmNumber >= 0
   const computedAmountCents = distanceValid ? carExpenseDeductionCents(distanceKmNumber, config) : 0
   const overCap = isDistance && distanceValid && distanceKmNumber > config.carExpense.maxClaimableKm
+  const fullAmountCents = dollarsToCents(values.amount) ?? 0
+  const workUsePercentNumber =
+    typeof workUsePercent === 'number' ? workUsePercent : Number.parseFloat(workUsePercent)
+  const workUsePercentValid =
+    workUsePercent !== '' &&
+    Number.isFinite(workUsePercentNumber) &&
+    workUsePercentNumber > 0 &&
+    workUsePercentNumber <= 100
+  const apportionedAmountCents = workUsePercentValid
+    ? workUseAmountCents(fullAmountCents, workUsePercentNumber)
+    : 0
 
   const canSubmit =
     values.description.trim() !== '' &&
-    (isDistance ? distanceValid : values.amount !== '') &&
+    (isDistance ? distanceValid : values.amount !== '' && workUsePercentValid) &&
     values.deductionDate !== null &&
     // A save while a receipt is still being stored or read would send no
     // receipt for it, leaving the object filed under an id no row is written under.
@@ -284,11 +311,17 @@ export function DeductionForm({
       input: {
         member_id: member.id,
         description: values.description.trim(),
-        amount_cents: isDistance ? computedAmountCents : (dollarsToCents(values.amount) ?? 0),
+        amount_cents: isDistance ? computedAmountCents : apportionedAmountCents,
         deduction_date: values.deductionDate!,
         basis,
         distance_km: isDistance ? distanceKmNumber : null,
         group_id: groupId ?? pickedGroupId,
+        // A distance-basis claim is work-related in full — its kilometres are
+        // work kilometres already — so it is pinned at 100% regardless of
+        // whatever the percentage field last held from an earlier amount-basis
+        // edit; deduction_work_use_basis holds the database to the same rule.
+        full_amount_cents: isDistance ? computedAmountCents : fullAmountCents,
+        work_use_percent: isDistance ? 100 : workUsePercentNumber,
       },
       // A name left blank is a receipt named nothing, which stores as `Receipt`
       // rather than holding the save over a label.
@@ -386,15 +419,34 @@ export function DeductionForm({
           )}
         </>
       ) : (
-        <MoneyInput
-          label="Amount"
-          size="sm"
-          description="The deductible amount."
-          min={0}
-          hideControls
-          value={values.amount}
-          onChange={fields.setAmount}
-        />
+        <>
+          <MoneyInput
+            label="Amount"
+            size="sm"
+            description="What the expense cost in full."
+            min={0}
+            hideControls
+            value={values.amount}
+            onChange={fields.setAmount}
+          />
+          <NumberInput
+            label="Work use %"
+            size="sm"
+            description="The share used for work; 100% if it's for work only."
+            suffix="%"
+            decimalScale={2}
+            min={0.01}
+            max={100}
+            hideControls
+            value={workUsePercent}
+            onChange={setWorkUsePercent}
+          />
+          {workUsePercentValid && workUsePercentNumber !== 100 && (
+            <Text size="sm" c="dimmed">
+              Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
+            </Text>
+          )}
+        </>
       )}
 
       {groupId === undefined && groups.length > 0 && (

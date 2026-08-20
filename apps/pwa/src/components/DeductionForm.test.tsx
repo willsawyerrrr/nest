@@ -27,6 +27,8 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     basis: 'amount',
     distance_km: null,
     group_id: null,
+    full_amount_cents: 1_200_00,
+    work_use_percent: 100,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -191,6 +193,8 @@ describe('DeductionForm', () => {
         basis: 'amount',
         distance_km: null,
         group_id: null,
+        full_amount_cents: 1_200_00,
+        work_use_percent: 100,
       },
       receipts: [],
     })
@@ -722,5 +726,145 @@ describe('DeductionForm receipt names', () => {
       { storage_path: expect.stringContaining('first.pdf'), file_name: 'first.pdf' },
       { storage_path: expect.stringContaining('second.pdf'), file_name: 'Toolkit' },
     ])
+  })
+})
+
+describe('DeductionForm work-use apportioning', () => {
+  it('claims the full amount at the default 100% work use', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/description/i), 'Union fees')
+    await user.type(screen.getByLabelText(/^amount/i), '500')
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            amount_cents: 500_00,
+            full_amount_cents: 500_00,
+            work_use_percent: 100,
+          }),
+        }),
+      ),
+    )
+    // No computed-amount note at the default: it would just repeat the typed figure.
+    expect(screen.queryByText(/deductible amount/i)).not.toBeInTheDocument()
+  })
+
+  it('apportions a part-private expense and shows the claimable amount', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/description/i), 'Phone plan')
+    await user.type(screen.getByLabelText(/^amount/i), '100')
+    await user.clear(screen.getByLabelText(/work use/i))
+    await user.type(screen.getByLabelText(/work use/i), '60')
+
+    expect(await screen.findByText('$60.00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            amount_cents: 60_00,
+            full_amount_cents: 100_00,
+            work_use_percent: 60,
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('will not save an amount-basis deduction with no work-use percent', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/description/i), 'Phone plan')
+    await user.type(screen.getByLabelText(/^amount/i), '100')
+    await user.clear(screen.getByLabelText(/work use/i))
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('reopens a part-claimed deduction on its full cost, not the apportioned figure', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction({
+          amount_cents: 60_00,
+          full_amount_cents: 100_00,
+          work_use_percent: 60,
+        })}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText(/^amount/i)).toHaveValue('$100.00')
+    expect(screen.getByLabelText(/work use/i)).toHaveValue('60%')
+    expect(screen.getByText('$60.00')).toBeInTheDocument()
+  })
+
+  it('pins work use at 100% on the distance basis regardless of the field', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/description/i), 'Client visits')
+    // Set a part-private percentage on the amount basis, then switch to distance.
+    await user.clear(screen.getByLabelText(/work use/i))
+    await user.type(screen.getByLabelText(/work use/i), '60')
+    await user.click(screen.getByText('Distance (km)'))
+    await user.type(screen.getByLabelText(/kilometres/i), '100')
+
+    // The work-use field disappears with the amount basis it belongs to.
+    expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ work_use_percent: 100 }),
+        }),
+      ),
+    )
   })
 })

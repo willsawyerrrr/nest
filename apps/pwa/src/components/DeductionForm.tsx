@@ -1,6 +1,18 @@
-import { ActionIcon, Alert, FileInput, Group, Loader, Stack, Text, TextInput } from '@mantine/core'
+import { useState } from 'react'
+import {
+  ActionIcon,
+  Alert,
+  FileInput,
+  Group,
+  Loader,
+  NumberInput,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconTrash } from '@tabler/icons-react'
+import { carExpenseDeductionCents, configsByYear } from '@nest/tax'
 import {
   useDeductionAttachment,
   type DeductionAttachments,
@@ -10,8 +22,10 @@ import { useDeductionFields } from '../hooks/useDeductionFields'
 import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
-import { centsToDollars, dollarsToCents } from '../lib/money'
+import { centsToDollars, dollarsToCents, formatCents } from '../lib/money'
 import { DEFAULT_RECEIPT_NAME, receiptName } from '../lib/receiptName'
+import { currentTaxConfig } from '../lib/tax'
+import { EnumSegmentedControl } from './EnumSelect'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
@@ -19,9 +33,24 @@ interface DeductionFormProps {
   member: { id: string; name: string }
   /** Storing, discarding, and reading receipts picked before the deduction exists. */
   attachments: DeductionAttachments
+  /** The financial year the deduction is claimed in, deciding which year's cents-per-km rate applies. */
+  financialYear: number
   initial?: DeductionRow | undefined
   onSubmit: (submission: DeductionSubmission) => void | Promise<void>
   onCancel?: () => void
+}
+
+type Basis = DeductionRow['basis']
+
+/**
+ * A distance in kilometres as a `NumberInput` value, or `''` when unset.
+ * `distance_km` is a `numeric(8,2)` column, so it may arrive as a string.
+ */
+function toDistanceValue(km: number | string | null | undefined): number | string {
+  if (km == null || km === '') {
+    return ''
+  }
+  return typeof km === 'number' ? km : Number.parseFloat(km)
 }
 
 /**
@@ -159,10 +188,22 @@ function PendingReceiptItem({
  * Editing an existing deduction carries none of this: its receipts are managed
  * from its row in the deductions list, exactly as before, so this form shows
  * only its own fields.
+ *
+ * A deduction is entered on an **amount** basis (a dollar figure, typed
+ * directly) or a **distance** basis (kilometres travelled for a work-related car
+ * expense claimed under the ATO's cents-per-kilometre method), toggled by the
+ * segmented control. On the distance basis the dollar amount is computed and
+ * shown back, read-only, from `financialYear`'s published cents-per-km rate, and
+ * a warning appears if the distance exceeds the ATO's cap on kilometres
+ * claimable per car per year under this method — advisory only, it never blocks
+ * a save. The basis and the distance are the member's own throughout: a receipt
+ * read fills the description, amount, and date alone, so neither is pre-fillable
+ * and both stay outside `useDeductionFields`.
  */
 export function DeductionForm({
   member,
   attachments,
+  financialYear,
   initial,
   onSubmit,
   onCancel,
@@ -174,15 +215,28 @@ export function DeductionForm({
     amount: centsToDollars(initial?.amount_cents),
     deductionDate: initial?.deduction_date ?? todayIso(),
   })
+  const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
+  const [distanceKm, setDistanceKm] = useState<number | string>(
+    toDistanceValue(initial?.distance_km),
+  )
   const receipts = useDeductionAttachment({
     attachments,
     onExtracted: (extraction) => fields.prefill(extraction),
   })
 
   const { values } = fields
+  const config = configsByYear[financialYear] ?? currentTaxConfig()
+  const isDistance = basis === 'distance'
+  const distanceKmNumber =
+    typeof distanceKm === 'number' ? distanceKm : Number.parseFloat(distanceKm)
+  const distanceValid =
+    distanceKm !== '' && Number.isFinite(distanceKmNumber) && distanceKmNumber >= 0
+  const computedAmountCents = distanceValid ? carExpenseDeductionCents(distanceKmNumber, config) : 0
+  const overCap = isDistance && distanceValid && distanceKmNumber > config.carExpense.maxClaimableKm
+
   const canSubmit =
     values.description.trim() !== '' &&
-    values.amount !== '' &&
+    (isDistance ? distanceValid : values.amount !== '') &&
     values.deductionDate !== null &&
     // A save while a receipt is still being stored or read would send no
     // receipt for it, leaving the object filed under an id no row is written under.
@@ -200,8 +254,10 @@ export function DeductionForm({
       input: {
         member_id: member.id,
         description: values.description.trim(),
-        amount_cents: dollarsToCents(values.amount) ?? 0,
+        amount_cents: isDistance ? computedAmountCents : (dollarsToCents(values.amount) ?? 0),
         deduction_date: values.deductionDate!,
+        basis,
+        distance_km: isDistance ? distanceKmNumber : null,
       },
       // A name left blank is a receipt named nothing, which stores as `Receipt`
       // rather than holding the save over a label.
@@ -258,15 +314,55 @@ export function DeductionForm({
         onChange={(event) => fields.setDescription(event.currentTarget.value)}
       />
 
-      <MoneyInput
-        label="Amount"
+      <EnumSegmentedControl
+        fullWidth
         size="sm"
-        description="The deductible amount."
-        min={0}
-        hideControls
-        value={values.amount}
-        onChange={fields.setAmount}
+        aria-label="Entry basis"
+        value={basis}
+        onChange={setBasis}
+        data={[
+          { value: 'amount', label: 'Dollar' },
+          { value: 'distance', label: 'Distance (km)' },
+        ]}
       />
+
+      {isDistance ? (
+        <>
+          <NumberInput
+            label="Kilometres travelled"
+            size="sm"
+            description={`Work-related kilometres travelled, at FY${financialYear}'s ${(config.carExpense.centsPerKm / 100).toFixed(2)}c/km ATO rate.`}
+            suffix=" km"
+            decimalScale={2}
+            min={0}
+            hideControls
+            value={distanceKm}
+            onChange={setDistanceKm}
+          />
+          <Text size="sm" c="dimmed">
+            Deductible amount: <b>{formatCents(computedAmountCents)}</b>
+          </Text>
+          {overCap && (
+            <Alert color="warning" variant="light" p="xs">
+              <Text size="xs">
+                Over the ATO's {config.carExpense.maxClaimableKm.toLocaleString()}km cap per car,
+                per year for the cents-per-kilometre method. Kilometres beyond the cap need the
+                logbook method or actual costs instead.
+              </Text>
+            </Alert>
+          )}
+        </>
+      ) : (
+        <MoneyInput
+          label="Amount"
+          size="sm"
+          description="The deductible amount."
+          min={0}
+          hideControls
+          value={values.amount}
+          onChange={fields.setAmount}
+        />
+      )}
 
       <DateInput
         label="Date"

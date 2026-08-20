@@ -24,6 +24,8 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     amount_cents: 1_200_00,
     deduction_date: '2026-08-01',
     financial_year: 2027,
+    basis: 'amount',
+    distance_km: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -78,7 +80,14 @@ describe('DeductionForm', () => {
   it('submits a deduction with the amount in cents, minting its own id', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '350')
@@ -99,7 +108,14 @@ describe('DeductionForm', () => {
   it('shows an error when saving fails', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '10')
@@ -111,7 +127,12 @@ describe('DeductionForm', () => {
   it('ignores a submit while the form is incomplete', () => {
     const onSubmit = vi.fn()
     const { container } = render(
-      <DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />,
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
     )
 
     fireEvent.submit(container.querySelector('form')!)
@@ -126,6 +147,7 @@ describe('DeductionForm', () => {
       <DeductionForm
         member={member}
         attachments={attachments}
+        financialYear={2027}
         initial={makeDeduction()}
         onSubmit={vi.fn()}
         onCancel={onCancel}
@@ -149,6 +171,7 @@ describe('DeductionForm', () => {
       <DeductionForm
         member={member}
         attachments={attachments}
+        financialYear={2027}
         initial={makeDeduction()}
         onSubmit={onSubmit}
       />,
@@ -164,10 +187,74 @@ describe('DeductionForm', () => {
         description: 'Home office',
         amount_cents: 1_200_00,
         deduction_date: '2026-08-01',
+        basis: 'amount',
+        distance_km: null,
       },
       receipts: [],
     })
     expect(upload).not.toHaveBeenCalled()
+  })
+
+  it('computes the amount from distance at the FY2027 cents-per-km rate on the distance basis', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/description/i), 'Client visits')
+    await user.click(screen.getByText('Distance (km)'))
+    await user.type(screen.getByLabelText(/kilometres/i), '100')
+
+    // FY2027's published rate is 91c/km: 100km = $91.00.
+    expect(await screen.findByText('$91.00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input).toMatchObject({
+      description: 'Client visits',
+      amount_cents: 91_00,
+      basis: 'distance',
+      distance_km: 100,
+    })
+  })
+
+  it('warns when the distance exceeds the ATO cap for the cents-per-km method', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByText('Distance (km)'))
+    await user.type(screen.getByLabelText(/kilometres/i), '6000')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/5,000km cap/i)
+  })
+
+  it('prefills an existing distance-basis deduction on the distance control', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction({ basis: 'distance', distance_km: 250, amount_cents: 227_50 })}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText(/kilometres/i)).toHaveValue('250 km')
+    expect(screen.getByText('$227.50')).toBeInTheDocument()
   })
 })
 
@@ -175,7 +262,14 @@ describe('DeductionForm receipt extraction', () => {
   it('pre-fills the fields read off an attached receipt and saves them in cents', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await attach(user)
 
@@ -207,7 +301,14 @@ describe('DeductionForm receipt extraction', () => {
       // member to type — never guessed at.
       extraction: extraction({ amount_cents: null }),
     } satisfies ExtractionOutcome)
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -224,7 +325,14 @@ describe('DeductionForm receipt extraction', () => {
       status: 'read',
       extraction: { model: 'claude-haiku-4-5-20251001', fields: {} },
     } satisfies ExtractionOutcome)
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -236,7 +344,14 @@ describe('DeductionForm receipt extraction', () => {
   it('keeps a value the member typed rather than replacing it with a read one', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await user.type(screen.getByLabelText(/description/i), 'My own label')
     await attach(user)
@@ -252,7 +367,14 @@ describe('DeductionForm receipt extraction', () => {
 
   it('only reads the first of several attached receipts', async () => {
     const user = userEvent.setup()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user, 'first.pdf')
     await attach(user, 'second.pdf')
@@ -265,7 +387,14 @@ describe('DeductionForm receipt extraction', () => {
 
   it('removes a picked receipt, discarding its stored object', async () => {
     const user = userEvent.setup()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
     const path = (await upload.mock.results[0]!.value).storage_path as string
@@ -283,7 +412,14 @@ describe('DeductionForm receipt extraction', () => {
         finishRead = resolve
       }),
     )
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await user.upload(filePicker(), new File(['x'], 'receipt.pdf', { type: 'application/pdf' }))
 
@@ -300,7 +436,14 @@ describe('DeductionForm receipt extraction', () => {
       status: 'not-configured',
       message: EXTRACTION_UNCONFIGURED_MESSAGE,
     } satisfies ExtractionOutcome)
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -314,7 +457,14 @@ describe('DeductionForm receipt extraction', () => {
       status: 'out-of-credit',
       message: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
     } satisfies ExtractionOutcome)
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -329,7 +479,14 @@ describe('DeductionForm receipt extraction', () => {
       status: 'key-rejected',
       message: EXTRACTION_KEY_REJECTED_MESSAGE,
     } satisfies ExtractionOutcome)
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -344,7 +501,14 @@ describe('DeductionForm receipt extraction', () => {
       message: 'That file does not look like a receipt.',
       reason: 'It is a bank statement.',
     } satisfies ExtractionOutcome)
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -358,7 +522,14 @@ describe('DeductionForm receipt extraction', () => {
   it('reports a receipt that could not be stored, and reads nothing', async () => {
     const user = userEvent.setup()
     upload.mockRejectedValue(new Error('nope'))
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
 
     await attach(user)
 
@@ -369,7 +540,12 @@ describe('DeductionForm receipt extraction', () => {
   it('deletes an attached receipt the member walks away from', async () => {
     const user = userEvent.setup()
     const { unmount } = render(
-      <DeductionForm member={member} attachments={attachments} onSubmit={vi.fn()} />,
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
     )
 
     await attach(user)
@@ -381,7 +557,12 @@ describe('DeductionForm receipt extraction', () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     const { unmount } = render(
-      <DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />,
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
     )
 
     await attach(user)
@@ -407,6 +588,7 @@ describe('DeductionForm receipt extraction', () => {
         <DeductionForm
           member={member}
           attachments={attachments}
+          financialYear={2027}
           onSubmit={async (submission) => {
             await onSaved(submission)
             setOpen(false)
@@ -436,7 +618,14 @@ describe('DeductionForm receipt extraction', () => {
             resolve({ storage_path: `h1/${deductionId}/uuid-${file.name}`, file_name: file.name })
         }),
     )
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '10')
@@ -466,7 +655,14 @@ describe('DeductionForm receipt names', () => {
   it('stores an attached receipt under the name the member types', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await attach(user)
     const name = screen.getByRole('textbox', { name: /receipt 1 name/i })
@@ -486,7 +682,14 @@ describe('DeductionForm receipt names', () => {
   it('stores a receipt left with no name as Receipt', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await attach(user)
     await user.clear(screen.getByRole('textbox', { name: /receipt 1 name/i }))
@@ -499,7 +702,14 @@ describe('DeductionForm receipt names', () => {
   it('names each attached receipt on its own', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
 
     await attach(user, 'first.pdf')
     await attach(user, 'second.pdf')

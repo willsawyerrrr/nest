@@ -162,7 +162,23 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tagged to a member. A deduction reduces that member's taxable income in the
   tax estimate — so their estimated tax falls and take-home rises — appearing as
   a Deductions line in the Tax tab's income build-up and flowing through to the
-  Summary. Each deduction may carry stored receipts (`deduction_receipt`), the
+  Summary. `amount_cents` is always the figure saved and read downstream; a
+  deduction states its `basis` (`amount`, the default, or `distance`) to say how
+  that figure was arrived at. A work-related car expense claimed under the ATO's
+  cents-per-kilometre method is entered as `distance_km` kilometres instead of a
+  dollar figure: the form computes and shows back `amount_cents` from the
+  deduction's own financial year's published cents-per-km rate
+  (`@nest/tax`'s versioned `carExpense` config, read by `carExpenseDeductionCents`)
+  and that figure — not the distance — is what is saved, the same
+  snapshot-at-write-time pattern `payslip_line.attracts_super` follows so a later
+  change to the ATO rate cannot retroactively move a deduction already claimed.
+  The form warns, without blocking the save, when the distance exceeds the ATO's
+  cap on kilometres claimable per car per year under this method. The
+  `deduction_basis_attribution` check constraint holds each basis to its own
+  column (`distance_km` set only when `basis = 'distance'`); the database does
+  not itself compute `amount_cents` from `distance_km`, since the cents-per-km
+  rate is versioned in `@nest/tax`, not stored in Postgres. Each deduction may
+  carry stored receipts (`deduction_receipt`), the
   files held in a private Supabase Storage bucket (`receipts`) laid out under
   `<household_id>/<deduction_id>/…` so Storage RLS gates access by household
   membership. Adding a deduction lets the member pick receipt files as the

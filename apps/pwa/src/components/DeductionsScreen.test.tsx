@@ -19,6 +19,8 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     amount_cents: 1_200_00,
     deduction_date: '2026-08-01',
     financial_year: 2027,
+    basis: 'amount',
+    distance_km: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -78,6 +80,16 @@ describe('DeductionsScreen', () => {
     const card = screen.getByText('Home office').closest('.mantine-Card-root') as HTMLElement
     expect(within(card).getByText('$1,200.00')).toBeInTheDocument()
     expect(within(card).getByText(/1 Aug 2026/)).toBeInTheDocument()
+  })
+
+  it('renders the claimed distance beside the date of a distance-basis deduction', () => {
+    renderScreen({
+      deductions: [
+        makeDeduction({ description: 'Client visits', basis: 'distance', distance_km: 120 }),
+      ],
+    })
+    const card = screen.getByText('Client visits').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText(/1 Aug 2026 · 120km/)).toBeInTheDocument()
   })
 
   it('shows a per-member deductions total', () => {

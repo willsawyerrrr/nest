@@ -161,6 +161,15 @@ export const FY2026_CONFIG: TaxYearConfig = {
       perYearOfServiceCents: 6_552_00, // $6,552
     },
   },
+
+  // Cents-per-kilometre car expense deduction rate for 2025-26: 88c/km (final,
+  // ATO Tax Determination TD 2025/4), capped at 5,000 work-related km per car per
+  // year ($4,400 maximum deduction under this method):
+  //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/cars-transport-and-travel/motor-vehicle-and-car-expenses/expenses-for-a-car-you-own-or-lease/cents-per-kilometre-method
+  carExpense: {
+    centsPerKm: 88,
+    maxClaimableKm: 5_000,
+  },
 }
 
 /**
@@ -305,6 +314,21 @@ export const FY2027_CONFIG: TaxYearConfig = {
       baseLimitCents: 13_598_00, // $13,598
       perYearOfServiceCents: 6_801_00, // $6,801
     },
+  },
+
+  // Cents-per-kilometre car expense deduction rate for 2026-27: 91c/km (final —
+  // an 89c indexed base plus a temporary 2c one-off uplift for 2026-27 only),
+  // legislated ahead of the year via the Income Tax Assessment (Cents per
+  // Kilometre Deduction Rate for Car Expenses) Determination 2026
+  // (F2026L00785, registered 23 Jun 2026), capped at 5,000 work-related km per
+  // car per year ($4,550 maximum deduction under this method). Unlike the
+  // HELP indexation rate above, this figure is confirmed for FY2027, not
+  // provisional — the ATO sets and registers it before the financial year it
+  // covers begins:
+  //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/cars-transport-and-travel/motor-vehicle-and-car-expenses/expenses-for-a-car-you-own-or-lease/cents-per-kilometre-method
+  carExpense: {
+    centsPerKm: 91,
+    maxClaimableKm: 5_000,
   },
 }
 

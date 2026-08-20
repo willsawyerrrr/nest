@@ -419,7 +419,11 @@ function MemberDeductions({
                   member={member}
                   attachments={attachments}
                   financialYear={financialYear}
-                  groupId={group.id}
+                  // Adding here is adding to THIS subscription, so the group is
+                  // settled and no picker is offered. Editing a payment already
+                  // in it is where the picker earns its place: that is how one
+                  // moves to another subscription, or out of them all.
+                  {...(initial ? { groups } : { groupId: group.id })}
                   initial={initial}
                   onSubmit={onSubmit}
                   onCancel={onCancel}
@@ -459,6 +463,7 @@ function MemberDeductions({
             member={member}
             attachments={attachments}
             financialYear={financialYear}
+            groups={groups}
             initial={initial}
             onSubmit={onSubmit}
             onCancel={onCancel}

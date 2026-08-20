@@ -271,6 +271,12 @@ and so without the trigger.
     tab — which shows one year — could only ever display part of it.
   - Deleting a group ungroups its payments rather than deleting them: each stays
     an ordinary deduction, still claimable on its own.
+  - Membership is editable after the fact. The deduction form's Subscription
+    picker lists the member's groups for the year plus an explicit None, so a
+    standalone deduction can be filed under a group and a payment moved between
+    groups or taken out. It is withheld only when the answer is already settled —
+    adding an invoice from a group's own row. The write is a plain `deduction`
+    update, so nothing passes through `create_deduction_with_receipts`.
   - RLS is **household-wide CRUD**, as for `deduction` itself.
 - **deduction_receipt** — a stored receipt file backing a deduction; many rows
   per deduction.

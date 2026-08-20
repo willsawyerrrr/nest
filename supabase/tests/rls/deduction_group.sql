@@ -89,16 +89,42 @@ begin
   end;
 end $$;
 
+-- The add path files its payment in the group. Adding a deduction goes through
+-- `create_deduction_with_receipts`, which names its columns explicitly, so the
+-- group has to be among them — a payload the function ignores is a payment that
+-- silently lands ungrouped.
+select public.create_deduction_with_receipts(
+  jsonb_build_object(
+    'household_id', current_setting('db.hid')::uuid,
+    'member_id', current_setting('db.mid')::uuid,
+    'description', 'Adobe Creative Cloud',
+    'amount_cents', 64_99,
+    'deduction_date', '2026-10-01',
+    'financial_year', 2027,
+    'group_id', current_setting('db.gid')::uuid
+  ),
+  '[]'::jsonb
+) as db_added \gset
+select set_config('db.added', :'db_added', false);
+
+do $$
+declare v_added uuid := current_setting('db.added')::uuid;
+begin
+  assert (select group_id from public.deduction where id = v_added)
+    = current_setting('db.gid')::uuid,
+    'an invoice added through the RPC should land in the group it names';
+end $$;
+
 -- Ungrouping is not deleting: dropping the group leaves the payments standing.
 delete from public.deduction_group where id = current_setting('db.gid')::uuid;
 
 do $$
 begin
-  assert (select count(*) from public.deduction where description = 'Adobe Creative Cloud') = 2,
+  assert (select count(*) from public.deduction where description = 'Adobe Creative Cloud') = 3,
     'dropping a group should leave its payments as ordinary deductions';
   assert not exists (select 1 from public.deduction where group_id is not null),
     'dropping a group should clear its payments'' group_id and nothing else';
-  assert (select count(*) from public.deduction where financial_year = 2027) = 2,
+  assert (select count(*) from public.deduction where financial_year = 2027) = 3,
     'ungrouping should not disturb the payments'' own columns';
 end $$;
 

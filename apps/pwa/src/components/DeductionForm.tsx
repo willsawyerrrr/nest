@@ -11,6 +11,7 @@ import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import { DEFAULT_RECEIPT_NAME, receiptName } from '../lib/receiptName'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
@@ -95,18 +96,40 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
   return <ReadFromReceipt filledNothing={state.filledNothing} />
 }
 
-/** One receipt already uploaded for a deduction not yet saved, with a delete control. */
-function PendingReceiptItem({ fileName, onDelete }: { fileName: string; onDelete: () => void }) {
+/**
+ * One receipt already uploaded for a deduction not yet saved: the name it is
+ * stored under, and a delete control. The name is seeded with the file's own
+ * and freely retyped, so the member names the receipt on the way in rather than
+ * renaming it from the list afterwards; cleared, it falls back to the `Receipt`
+ * its placeholder shows. Each control is labelled by position, the name itself
+ * being the thing under edit.
+ */
+function PendingReceiptItem({
+  position,
+  fileName,
+  onRename,
+  onDelete,
+}: {
+  position: number
+  fileName: string
+  onRename: (fileName: string) => void
+  onDelete: () => void
+}) {
   return (
-    <Group gap="xs" wrap="nowrap" justify="space-between">
-      <Text size="xs" truncate style={{ minWidth: 0, flex: 1 }}>
-        {fileName}
-      </Text>
+    <Group gap="xs" wrap="nowrap">
+      <TextInput
+        size="xs"
+        aria-label={`Receipt ${position} name`}
+        placeholder={DEFAULT_RECEIPT_NAME}
+        value={fileName}
+        onChange={(event) => onRename(event.currentTarget.value)}
+        style={{ flex: 1, minWidth: 0 }}
+      />
       <ActionIcon
         variant="subtle"
         color="red"
         size="sm"
-        aria-label={`Remove ${fileName}`}
+        aria-label={`Remove receipt ${position}`}
         onClick={onDelete}
       >
         <IconTrash size={14} />
@@ -126,8 +149,10 @@ function PendingReceiptItem({ fileName, onDelete }: { fileName: string; onDelete
  * that are not already the member's own — typed here already. A note says the
  * details were extracted by AI and asks for them to be checked; every failure
  * mode reads as its own inline note and never blocks the save, exactly as
- * payslip extraction does. Saving writes the deduction and every receipt
- * already uploaded together, in one transaction
+ * payslip extraction does. Each picked file lists under a name field seeded
+ * with the file's own name, so the receipt is stored under whatever the member
+ * types — or `Receipt`, where the field is cleared. Saving writes the deduction
+ * and every receipt already uploaded together, in one transaction
  * (`create_deduction_with_receipts`). A picked file the member removes, or the
  * whole add flow they cancel, is deleted again, best effort.
  *
@@ -178,7 +203,11 @@ export function DeductionForm({
         amount_cents: dollarsToCents(values.amount) ?? 0,
         deduction_date: values.deductionDate!,
       },
-      receipts: adding ? receipts.files : [],
+      // A name left blank is a receipt named nothing, which stores as `Receipt`
+      // rather than holding the save over a label.
+      receipts: adding
+        ? receipts.files.map((file) => ({ ...file, file_name: receiptName(file.file_name) }))
+        : [],
     }),
   })
 
@@ -209,10 +238,12 @@ export function DeductionForm({
             }}
           />
           <ExtractionNote state={receipts.state} />
-          {receipts.files.map((file) => (
+          {receipts.files.map((file, index) => (
             <PendingReceiptItem
               key={file.storage_path}
+              position={index + 1}
               fileName={file.file_name}
+              onRename={(fileName) => receipts.renameFile(file.storage_path, fileName)}
               onDelete={() => void receipts.removeFile(file.storage_path)}
             />
           ))}

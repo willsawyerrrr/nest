@@ -259,8 +259,8 @@ describe('DeductionForm receipt extraction', () => {
 
     expect(read).toHaveBeenCalledTimes(1)
     expect(read).toHaveBeenCalledWith(expect.stringContaining('first.pdf'))
-    expect(screen.getByText('first.pdf')).toBeInTheDocument()
-    expect(screen.getByText('second.pdf')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('first.pdf')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('second.pdf')).toBeInTheDocument()
   })
 
   it('removes a picked receipt, discarding its stored object', async () => {
@@ -269,10 +269,10 @@ describe('DeductionForm receipt extraction', () => {
 
     await attach(user)
     const path = (await upload.mock.results[0]!.value).storage_path as string
-    await user.click(screen.getByRole('button', { name: /remove receipt\.pdf/i }))
+    await user.click(screen.getByRole('button', { name: /remove receipt 1/i }))
 
     await waitFor(() => expect(discard).toHaveBeenCalledWith(path))
-    expect(screen.queryByText('receipt.pdf')).not.toBeInTheDocument()
+    expect(screen.queryByDisplayValue('receipt.pdf')).not.toBeInTheDocument()
   })
 
   it('says so while the receipt is being stored and read', async () => {
@@ -449,5 +449,66 @@ describe('DeductionForm receipt extraction', () => {
 
     finishUpload({ storage_path: 'h1/x/uuid-receipt.pdf', file_name: 'receipt.pdf' })
     await waitFor(() => expect(submit).not.toBeDisabled())
+  })
+})
+
+describe('DeductionForm receipt names', () => {
+  /** Saves the deduction — the read having filled its fields — and returns the receipts saved. */
+  async function saveReceipts(
+    user: ReturnType<typeof userEvent.setup>,
+    onSubmit: ReturnType<typeof vi.fn>,
+  ) {
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    return submitted(onSubmit).receipts
+  }
+
+  it('stores an attached receipt under the name the member types', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+
+    await attach(user)
+    const name = screen.getByRole('textbox', { name: /receipt 1 name/i })
+    expect(name).toHaveValue('receipt.pdf')
+    await user.clear(name)
+    await user.type(name, '  Officeworks invoice  ')
+
+    // The typed name is trimmed, and the file itself stays where it was stored.
+    expect(await saveReceipts(user, onSubmit)).toEqual([
+      {
+        storage_path: expect.stringContaining('uuid-receipt.pdf'),
+        file_name: 'Officeworks invoice',
+      },
+    ])
+  })
+
+  it('stores a receipt left with no name as Receipt', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+
+    await attach(user)
+    await user.clear(screen.getByRole('textbox', { name: /receipt 1 name/i }))
+
+    expect(await saveReceipts(user, onSubmit)).toEqual([
+      { storage_path: expect.any(String), file_name: 'Receipt' },
+    ])
+  })
+
+  it('names each attached receipt on its own', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<DeductionForm member={member} attachments={attachments} onSubmit={onSubmit} />)
+
+    await attach(user, 'first.pdf')
+    await attach(user, 'second.pdf')
+    await user.clear(screen.getByRole('textbox', { name: /receipt 2 name/i }))
+    await user.type(screen.getByRole('textbox', { name: /receipt 2 name/i }), 'Toolkit')
+
+    expect(await saveReceipts(user, onSubmit)).toEqual([
+      { storage_path: expect.stringContaining('first.pdf'), file_name: 'first.pdf' },
+      { storage_path: expect.stringContaining('second.pdf'), file_name: 'Toolkit' },
+    ])
   })
 })

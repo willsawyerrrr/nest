@@ -46,6 +46,11 @@ export interface UseDeductionAttachmentResult {
   addFile: (file: File) => Promise<void>
   /** Removes an uploaded file, deleting its Storage object. */
   removeFile: (path: string) => Promise<void>
+  /**
+   * Retypes the name an uploaded file's receipt is saved under. The label alone:
+   * the stored object stays where it was uploaded, under the path it was given.
+   */
+  renameFile: (path: string, fileName: string) => void
   /** Marks every uploaded file saved, so leaving the form no longer deletes them. */
   keep: () => void
 }
@@ -67,6 +72,11 @@ interface UseDeductionAttachmentOptions {
  * is eventually written under. Only the first successfully uploaded file is
  * read — a second and further reads would each try to overwrite the same
  * fields, so one confirmed read is what the form works from.
+ *
+ * A file arrives under its own name, which is the label its receipt is saved
+ * under and which `renameFile` retypes before the save — so the name is chosen
+ * on the way in. It labels the receipt alone: the stored object keeps the path
+ * it was uploaded under whatever the label says.
  *
  * A file the member removes, or leaves behind when the form is cancelled or
  * closed, is deleted again, best effort — a delete that fails is swallowed,
@@ -156,6 +166,13 @@ export function useDeductionAttachment({
     await discard.current(path)
   }, [])
 
+  const renameFile = useCallback((path: string, fileName: string) => {
+    const renamed = (file: PendingReceipt) =>
+      file.storage_path === path ? { ...file, file_name: fileName } : file
+    pending.current = pending.current.map(renamed)
+    setFiles((current) => current.map(renamed))
+  }, [])
+
   const keep = useCallback(() => {
     pending.current = []
   }, [])
@@ -167,6 +184,7 @@ export function useDeductionAttachment({
     busy: state.status === 'uploading' || state.status === 'reading',
     addFile,
     removeFile,
+    renameFile,
     keep,
   }
 }

@@ -96,6 +96,21 @@ describe('useDeductionAttachment', () => {
     expect(result.current.files).toEqual([])
   })
 
+  it('renames one uploaded file, leaving the others and every stored object alone', async () => {
+    const { result } = renderAttachment()
+
+    await act(async () => await result.current.addFile(receipt('first.pdf')))
+    await act(async () => await result.current.addFile(receipt('second.pdf')))
+    const id = result.current.deductionId
+    act(() => result.current.renameFile(`h1/${id}/uuid-second.pdf`, 'Toolkit'))
+
+    expect(result.current.files).toEqual([
+      { storage_path: `h1/${id}/uuid-first.pdf`, file_name: 'first.pdf' },
+      { storage_path: `h1/${id}/uuid-second.pdf`, file_name: 'Toolkit' },
+    ])
+    expect(upload).toHaveBeenCalledTimes(2)
+  })
+
   it('deletes every file the member walked away from', async () => {
     const { result, unmount } = renderAttachment()
 

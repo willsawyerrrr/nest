@@ -213,6 +213,19 @@ describe('useDeductionReceipts', () => {
     expect(bucket.remove).not.toHaveBeenCalled()
   })
 
+  it('stores a receipt named nothing under Receipt', async () => {
+    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.receipts).not.toBeNull())
+
+    await act(async () => {
+      await result.current.rename(receipt, '   ')
+    })
+    const pending = await result.current.uploadPending('d2', new File(['x'], ''))
+
+    expect(builder.update).toHaveBeenCalledWith({ file_name: 'Receipt' })
+    expect(pending.file_name).toBe('Receipt')
+  })
+
   it('surfaces a failed rename', async () => {
     const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())

@@ -825,7 +825,12 @@ transaction, not for the privileges.
   in one transaction — `deduction_receipt.deduction_id` is a real,
   non-deferrable foreign key, so a receipt row cannot be inserted first. Keyed
   on that same id, so a retried save rewrites the deduction and replaces its
-  receipt set rather than duplicating either. Running as the caller: the
+  receipt set rather than duplicating either. It carries the deduction's `basis`
+  and, on the distance basis, its `distance_km`: the add form writes every new
+  deduction through this function, so a column it does not name is one the add
+  path cannot set, and a work-travel deduction would otherwise save as a typed
+  dollar amount with the kilometres behind it dropped. A payload naming no basis
+  writes `amount`, the column's own default. Running as the caller: the
   household policies on both tables gate every statement exactly as a direct
   write would, and `household_id` is not updatable on conflict. Editing an
   existing deduction never calls this RPC — its receipts are attached one at a

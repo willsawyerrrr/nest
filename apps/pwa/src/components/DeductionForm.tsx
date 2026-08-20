@@ -6,6 +6,7 @@ import {
   Group,
   Loader,
   NumberInput,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -19,6 +20,7 @@ import {
   type ExtractionState,
 } from '../hooks/useDeductionAttachment'
 import { useDeductionFields } from '../hooks/useDeductionFields'
+import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
@@ -41,12 +43,27 @@ interface DeductionFormProps {
    * new deduction stands on its own.
    */
   groupId?: string | undefined
+  /**
+   * The member's subscriptions for this financial year, offered as a picker so a
+   * deduction can be filed under one — or taken out of one — after the fact.
+   * Empty, or when the form was opened from a group, no picker is shown.
+   */
+  groups?: DeductionGroupRow[]
   initial?: DeductionRow | undefined
   onSubmit: (submission: DeductionSubmission) => void | Promise<void>
   onCancel?: () => void
 }
 
 type Basis = DeductionRow['basis']
+
+/**
+ * The subscription picker's "no subscription" option. A Select's value is a
+ * string, and null is what the column holds, so standing on its own needs an
+ * option of its own — leaving it to the placeholder would make clearing the
+ * picker the only way back out, which nothing on screen says is possible. No
+ * group id can collide: they are uuids.
+ */
+const NO_GROUP = 'none'
 
 /**
  * A distance in kilometres as a `NumberInput` value, or `''` when unset.
@@ -211,6 +228,7 @@ export function DeductionForm({
   attachments,
   financialYear,
   groupId,
+  groups = [],
   initial,
   onSubmit,
   onCancel,
@@ -223,6 +241,11 @@ export function DeductionForm({
     deductionDate: initial?.deduction_date ?? todayIso(),
   })
   const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
+  // Opened from a group the deduction belongs to that group and the picker is
+  // not offered; otherwise it starts wherever the deduction already sits.
+  const [pickedGroupId, setPickedGroupId] = useState<string | null>(
+    groupId ?? initial?.group_id ?? null,
+  )
   const [distanceKm, setDistanceKm] = useState<number | string>(
     toDistanceValue(initial?.distance_km),
   )
@@ -265,7 +288,7 @@ export function DeductionForm({
         deduction_date: values.deductionDate!,
         basis,
         distance_km: isDistance ? distanceKmNumber : null,
-        group_id: groupId ?? initial?.group_id ?? null,
+        group_id: groupId ?? pickedGroupId,
       },
       // A name left blank is a receipt named nothing, which stores as `Receipt`
       // rather than holding the save over a label.
@@ -371,6 +394,23 @@ export function DeductionForm({
           hideControls
           value={values.amount}
           onChange={fields.setAmount}
+        />
+      )}
+
+      {groupId === undefined && groups.length > 0 && (
+        <Select
+          label="Subscription"
+          size="sm"
+          description="File this under a recurring expense, or leave it on its own."
+          allowDeselect={false}
+          data={[
+            { value: NO_GROUP, label: 'None' },
+            ...groups.map((group) => ({ value: group.id, label: group.name })),
+          ]}
+          value={pickedGroupId ?? NO_GROUP}
+          onChange={(value) =>
+            setPickedGroupId(value === null || value === NO_GROUP ? null : value)
+          }
         />
       )}
 

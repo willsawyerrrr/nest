@@ -232,7 +232,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   returns while the tab could only ever show part of it. The composite reference
   (id, household_id, member_id, financial_year) holds a payment to its group's
   member and year, and dropping a group ungroups its payments rather than deleting
-  them — each is still claimable on its own.
+  them — each is still claimable on its own. Which subscription a deduction sits
+  in is editable after the fact: the form offers a Subscription picker listing
+  that member's groups for the year, with an explicit None, so a standalone
+  deduction can be filed under one and a payment can be moved or taken back out.
+  The picker is offered wherever the group is a question — editing any deduction,
+  or adding a standalone one — and withheld where it is already answered, namely
+  adding an invoice from a subscription's own row, which is what that control
+  means. Editing is a plain field update rather than
+  `create_deduction_with_receipts`, so the group it writes cannot be dropped the
+  way the add path's was.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. A slip is filed

@@ -86,6 +86,11 @@ function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]>
   return props
 }
 
+/** The form's subscription picker; its label also labels Mantine's listbox. */
+function subscriptionPicker() {
+  return screen.getByRole('combobox', { name: 'Subscription' })
+}
+
 afterEach(() => vi.restoreAllMocks())
 
 describe('DeductionsScreen', () => {
@@ -174,7 +179,7 @@ describe('DeductionsScreen', () => {
     const { onCreateGroup } = renderScreen({ members: [will], groups: [], deductions: [] })
 
     await user.click(screen.getByRole('button', { name: /add subscription/i }))
-    await user.type(screen.getByLabelText(/subscription/i), 'Xero')
+    await user.type(screen.getByRole('textbox', { name: 'Subscription' }), 'Xero')
     await user.click(screen.getByRole('button', { name: /^add subscription$/i }))
 
     await waitFor(() =>
@@ -238,6 +243,69 @@ describe('DeductionsScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: /delete/i }))
 
     expect(onDelete).toHaveBeenCalledWith('d1')
+  })
+
+  it('files a standalone deduction under a subscription', async () => {
+    const user = userEvent.setup()
+    const { onUpdate } = renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [makeDeduction({ id: 'd1', description: 'Home office' })],
+    })
+
+    const card = screen.getByText('Home office').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(card).getByRole('button', { name: /edit/i }))
+    await user.click(subscriptionPicker())
+    await user.click(await screen.findByRole('option', { name: 'Adobe Creative Cloud' }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith('d1', expect.objectContaining({ group_id: 'g1' })),
+    )
+  })
+
+  it('takes a payment back out of its subscription', async () => {
+    const user = userEvent.setup()
+    const { onUpdate } = renderScreen({
+      members: [will],
+      groups: [makeGroup()],
+      deductions: [makeDeduction({ id: 'd1', description: 'Adobe July', group_id: 'g1' })],
+    })
+
+    await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
+    const payment = screen.getByText('Adobe July').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(payment).getByRole('button', { name: /edit/i }))
+
+    // The picker opens on the subscription the payment already sits in.
+    expect(subscriptionPicker()).toHaveValue('Adobe Creative Cloud')
+    await user.click(subscriptionPicker())
+    await user.click(await screen.findByRole('option', { name: 'None' }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith('d1', expect.objectContaining({ group_id: null })),
+    )
+  })
+
+  it('offers no subscription picker when adding an invoice from one', async () => {
+    const user = userEvent.setup()
+    renderScreen({ members: [will], groups: [makeGroup()], deductions: [] })
+
+    await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
+    await user.click(screen.getByRole('button', { name: /add invoice/i }))
+
+    // The group it was opened from is already the answer.
+    expect(screen.queryByRole('combobox', { name: 'Subscription' })).not.toBeInTheDocument()
+  })
+
+  it('offers no subscription picker when the member has none', async () => {
+    const user = userEvent.setup()
+    renderScreen({ members: [will], groups: [], deductions: [makeDeduction()] })
+
+    const card = screen.getByText('Home office').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(card).getByRole('button', { name: /edit/i }))
+
+    expect(screen.queryByRole('combobox', { name: 'Subscription' })).not.toBeInTheDocument()
   })
 
   it('shows a per-member deductions total', () => {

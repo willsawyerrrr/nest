@@ -153,6 +153,290 @@ describe('annualGrossCents', () => {
   })
 })
 
+describe('annualGrossCents for a one-off', () => {
+  const bonus: IncomeInput = {
+    memberId: 'm',
+    type: 'other',
+    amountCents: 26_000_00,
+    paidOn: '2026-09-01',
+  }
+
+  it('takes the whole amount, unannualised, for a payment landing in the year', () => {
+    expect(annualGrossCents(bonus, 2027)).toBe(26_000_00)
+  })
+
+  it('takes nothing for a payment landing outside the year', () => {
+    expect(annualGrossCents({ ...bonus, paidOn: '2027-08-01' }, 2027)).toBe(0)
+    expect(annualGrossCents({ ...bonus, paidOn: '2026-06-30' }, 2027)).toBe(0)
+  })
+
+  it('takes the whole amount whatever year it lands in when no year is given', () => {
+    expect(annualGrossCents(bonus)).toBe(26_000_00)
+    expect(annualGrossCents({ ...bonus, paidOn: '2030-01-01' })).toBe(26_000_00)
+  })
+
+  it('ignores an effective window on a one-off, which lands on a day rather than accruing', () => {
+    expect(annualGrossCents({ ...bonus, startsOn: '2020-01-01', endsOn: '2020-12-31' }, 2027)).toBe(
+      26_000_00,
+    )
+  })
+
+  it('annualises a recurring income with no schedule to zero', () => {
+    expect(annualGrossCents({ memberId: 'm', type: 'salary', amountCents: 1_000_00 })).toBe(0)
+  })
+})
+
+describe('estimateHouseholdTax with one-off payments', () => {
+  /** A covered resident, so the family surcharge cannot move between comparisons. */
+  const covered: TaxProfileInput[] = [
+    { memberId: 'm', residency: 'resident', privateHospitalCover: true, helpDebtCents: 0 },
+  ]
+  const salaryOf = (amountCents: number): IncomeInput => ({
+    memberId: 'm',
+    type: 'salary',
+    schedule: 'annual',
+    amountCents,
+  })
+  const oneOff = (amountCents: number, overrides: Partial<IncomeInput> = {}): IncomeInput => ({
+    memberId: 'm',
+    type: 'other',
+    amountCents,
+    paidOn: '2026-09-01',
+    ...overrides,
+  })
+  const memberOf = (household: ReturnType<typeof estimateHouseholdTax>) => household.members[0]!
+
+  it('taxes an ordinary one-off exactly as the same money earned steadily', () => {
+    const withBonus = estimateHouseholdTax(
+      [salaryOf(100_000_00), oneOff(26_000_00, { treatment: 'ordinary' })],
+      covered,
+      FY2027_CONFIG,
+    )
+    const asSalary = estimateHouseholdTax([salaryOf(126_000_00)], covered, FY2027_CONFIG)
+    expect(memberOf(withBonus).annualGrossCents).toBe(126_000_00)
+    expect(memberOf(withBonus).annualTaxCents).toBe(memberOf(asSalary).annualTaxCents)
+    expect(memberOf(withBonus).breakdown.oneOffOffsetCents).toBe(0)
+  })
+
+  it('reads an absent treatment as ordinary', () => {
+    const untreated = estimateHouseholdTax(
+      [salaryOf(100_000_00), oneOff(26_000_00)],
+      covered,
+      FY2027_CONFIG,
+    )
+    const ordinary = estimateHouseholdTax(
+      [salaryOf(100_000_00), oneOff(26_000_00, { treatment: 'ordinary' })],
+      covered,
+      FY2027_CONFIG,
+    )
+    expect(memberOf(untreated).annualTaxCents).toBe(memberOf(ordinary).annualTaxCents)
+  })
+
+  it('keeps one-off money in the annual figures and out of the fortnightly ones', () => {
+    const household = estimateHouseholdTax(
+      [salaryOf(100_000_00), oneOff(26_000_00, { treatment: 'ordinary' })],
+      covered,
+      FY2027_CONFIG,
+    )
+    const recurringOnly = estimateHouseholdTax([salaryOf(100_000_00)], covered, FY2027_CONFIG)
+    const member = memberOf(household)
+    expect(member.annualOneOffGrossCents).toBe(26_000_00)
+    // The fortnightly figures are the recurring year over 26, the one-off nowhere in
+    // them; the annual figures carry it in full.
+    expect(member.fortnightlyGrossCents).toBe(Math.round(100_000_00 / 26))
+    expect(member.fortnightlyGrossCents).toBe(memberOf(recurringOnly).fortnightlyGrossCents)
+    expect(member.annualGrossCents - member.annualOneOffGrossCents).toBe(100_000_00)
+    expect(member.fortnightlyAfterTaxCents).toBe(
+      Math.round((member.annualAfterTaxCents - member.annualOneOffAfterTaxCents) / 26),
+    )
+    expect(member.fortnightlyTaxCents).toBeLessThan(Math.round(member.annualTaxCents / 26))
+  })
+
+  it('reports nil one-off figures for a member with only recurring income', () => {
+    const member = memberOf(estimateHouseholdTax([salaryOf(100_000_00)], covered, FY2027_CONFIG))
+    expect(member.annualOneOffGrossCents).toBe(0)
+    expect(member.annualOneOffAfterTaxCents).toBe(0)
+    expect(member.fortnightlyGrossCents).toBe(Math.round(member.annualGrossCents / 26))
+  })
+
+  it('excludes a redundancy’s tax-free amount from income and offsets the rest', () => {
+    // FY2027 tax-free = $13,598 + 5 × $6,801 = $47,603 of the $100,000 payment,
+    // leaving $52,397 assessable on top of a $100,000 salary.
+    const household = estimateHouseholdTax(
+      [
+        salaryOf(100_000_00),
+        oneOff(100_000_00, { treatment: 'genuineRedundancy', yearsOfService: 5 }),
+      ],
+      covered,
+      FY2027_CONFIG,
+    )
+    const member = memberOf(household)
+    expect(member.input.assessableIncome.employmentTerminationCents).toBe(52_397_00)
+    expect(member.breakdown.taxableIncomeCents).toBe(152_397_00)
+    expect(member.annualGrossCents).toBe(200_000_00)
+    expect(member.annualOneOffGrossCents).toBe(100_000_00)
+    // Marginal tax on the $52,397 slice is $16,936.89; 30% of it is $15,719.10.
+    expect(member.breakdown.oneOffOffsetCents).toBe(1_217_79)
+  })
+
+  it('counts only the base tax-free limit for a redundancy stating no years of service', () => {
+    const member = memberOf(
+      estimateHouseholdTax(
+        [oneOff(100_000_00, { treatment: 'genuineRedundancy' })],
+        covered,
+        FY2027_CONFIG,
+      ),
+    )
+    expect(member.input.assessableIncome.employmentTerminationCents).toBe(100_000_00 - 13_598_00)
+  })
+
+  it('taxes a member at or above preservation age less on the same payment', () => {
+    const payment = { treatment: 'employmentTermination' } as const
+    const below = estimateHouseholdTax(
+      [salaryOf(100_000_00), oneOff(50_000_00, payment)],
+      covered,
+      FY2027_CONFIG,
+    )
+    const atAge = estimateHouseholdTax(
+      [salaryOf(100_000_00), oneOff(50_000_00, { ...payment, atPreservationAge: true })],
+      covered,
+      FY2027_CONFIG,
+    )
+    expect(memberOf(atAge).annualTaxCents).toBeLessThan(memberOf(below).annualTaxCents)
+    expect(memberOf(atAge).annualOneOffAfterTaxCents).toBeGreaterThan(
+      memberOf(below).annualOneOffAfterTaxCents,
+    )
+  })
+
+  it('gives a non-excluded payment no concession once salary exhausts the headroom', () => {
+    // A $200,000 salary is already past the $180,000 whole-of-income cap.
+    const member = memberOf(
+      estimateHouseholdTax(
+        [salaryOf(200_000_00), oneOff(50_000_00, { treatment: 'employmentTermination' })],
+        covered,
+        FY2027_CONFIG,
+      ),
+    )
+    expect(member.input.oneOffConcessions).toEqual([{ concessionalCents: 0, rate: 0.3 }])
+    expect(member.breakdown.oneOffOffsetCents).toBe(0)
+  })
+
+  it('shares the whole-of-income headroom between two payments in one year', () => {
+    // $100,000 of salary leaves $80,000 of the $180,000 cap for the termination
+    // payment; the unused leave that follows is concessional in full at its own rate.
+    const member = memberOf(
+      estimateHouseholdTax(
+        [
+          salaryOf(100_000_00),
+          oneOff(100_000_00, { treatment: 'employmentTermination' }),
+          oneOff(20_000_00, { treatment: 'unusedLeave' }),
+        ],
+        covered,
+        FY2027_CONFIG,
+      ),
+    )
+    expect(member.input.oneOffConcessions).toEqual([
+      { concessionalCents: 80_000_00, rate: 0.3 },
+      { concessionalCents: 20_000_00, rate: 0.3 },
+    ])
+    expect(member.breakdown.taxableIncomeCents).toBe(220_000_00)
+    expect(member.annualOneOffGrossCents).toBe(120_000_00)
+  })
+
+  it('measures the headroom against taxable income, net of deductions and super', () => {
+    // $200,000 of salary less $10,000 of deductions and $30,000 of concessional super
+    // is $160,000 of taxable income, leaving $20,000 of the $180,000 cap.
+    const member = memberOf(
+      estimateHouseholdTax(
+        [salaryOf(200_000_00), oneOff(50_000_00, { treatment: 'employmentTermination' })],
+        covered,
+        FY2027_CONFIG,
+        new Map([['m', 30_000_00]]),
+        new Map([['m', 10_000_00]]),
+      ),
+    )
+    expect(member.input.oneOffConcessions).toEqual([{ concessionalCents: 20_000_00, rate: 0.3 }])
+  })
+
+  it('excludes a one-off paid outside the financial year entirely', () => {
+    const household = estimateHouseholdTax(
+      [
+        salaryOf(100_000_00),
+        oneOff(100_000_00, { treatment: 'genuineRedundancy', paidOn: '2027-08-01' }),
+      ],
+      covered,
+      FY2027_CONFIG,
+    )
+    const recurringOnly = estimateHouseholdTax([salaryOf(100_000_00)], covered, FY2027_CONFIG)
+    expect(memberOf(household).annualOneOffGrossCents).toBe(0)
+    expect(memberOf(household).annualGrossCents).toBe(100_000_00)
+    expect(memberOf(household).annualTaxCents).toBe(memberOf(recurringOnly).annualTaxCents)
+  })
+
+  it('reports what the member keeps of a one-off as the liability it adds', () => {
+    const incomes = [
+      salaryOf(100_000_00),
+      oneOff(100_000_00, { treatment: 'genuineRedundancy', yearsOfService: 5 }),
+    ]
+    const member = memberOf(estimateHouseholdTax(incomes, covered, FY2027_CONFIG))
+    const recurringOnly = memberOf(
+      estimateHouseholdTax([salaryOf(100_000_00)], covered, FY2027_CONFIG),
+    )
+    expect(member.annualOneOffAfterTaxCents).toBe(
+      100_000_00 - (member.annualTaxCents - recurringOnly.annualTaxCents),
+    )
+    // The tax-free half means the member keeps more than half of it.
+    expect(member.annualOneOffAfterTaxCents).toBeGreaterThan(50_000_00)
+    expect(member.annualOneOffAfterTaxCents).toBeLessThan(100_000_00)
+  })
+
+  it('keeps a wholly tax-free redundancy whole', () => {
+    // $40,000 after 5 years is under the $47,603 tax-free amount, so it adds no
+    // assessable income and costs no tax at all.
+    const member = memberOf(
+      estimateHouseholdTax(
+        [
+          salaryOf(100_000_00),
+          oneOff(40_000_00, { treatment: 'genuineRedundancy', yearsOfService: 5 }),
+        ],
+        covered,
+        FY2027_CONFIG,
+      ),
+    )
+    expect(member.input.assessableIncome.employmentTerminationCents).toBe(0)
+    expect(member.annualOneOffAfterTaxCents).toBe(40_000_00)
+  })
+
+  it('sums the one-off figures across the household', () => {
+    const household = estimateHouseholdTax(
+      [
+        { ...salaryOf(100_000_00), memberId: 'alex' },
+        { ...oneOff(50_000_00, { treatment: 'ordinary' }), memberId: 'alex' },
+        { ...salaryOf(80_000_00), memberId: 'sam' },
+        {
+          ...oneOff(60_000_00, { treatment: 'genuineRedundancy', yearsOfService: 2 }),
+          memberId: 'sam',
+        },
+      ],
+      [
+        { memberId: 'alex', residency: 'resident', privateHospitalCover: true, helpDebtCents: 0 },
+        { memberId: 'sam', residency: 'resident', privateHospitalCover: true, helpDebtCents: 0 },
+      ],
+      FY2027_CONFIG,
+    )
+    const sumOf = (pick: (m: (typeof household.members)[number]) => number) =>
+      household.members.reduce((total, m) => total + pick(m), 0)
+    expect(household.annualOneOffGrossCents).toBe(110_000_00)
+    expect(household.annualOneOffGrossCents).toBe(sumOf((m) => m.annualOneOffGrossCents))
+    expect(household.annualOneOffAfterTaxCents).toBe(sumOf((m) => m.annualOneOffAfterTaxCents))
+    // The household's annual gross carries the one-offs; its fortnightly gross does not.
+    expect(household.annualGrossCents).toBe(290_000_00)
+    expect(household.fortnightlyGrossCents).toBe(
+      Math.round(100_000_00 / 26) + Math.round(80_000_00 / 26),
+    )
+  })
+})
+
 describe('estimateHouseholdTax', () => {
   const incomes: IncomeInput[] = [
     { memberId: 'alex', type: 'salary', schedule: 'annual', amountCents: 130_000_00 },

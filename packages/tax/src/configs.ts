@@ -136,6 +136,31 @@ export const FY2026_CONFIG: TaxYearConfig = {
     //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/payments-from-super
     preservationAge: 60,
   },
+
+  // Employment-termination concessions for 2025-26. ETP cap $260,000 (indexed
+  // annually); whole-of-income cap $180,000 (not indexed), which bounds a
+  // non-excluded payment net of the member's other taxable income:
+  //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/employment-termination-payments
+  // The rates EXCLUDE the 2% Medicare levy. The ATO quotes 32% / 17% / 47% (and
+  // 32% for unused leave) in Schedule 11, each of which is the rate below plus the
+  // levy; the concessional amount sits in taxable income, so the `medicareLevy`
+  // line already charges the levy on it:
+  //   https://www.ato.gov.au/tax-rates-and-codes/payg-withholding-schedule-11-tax-table-for-employment-termination-payments
+  employmentTermination: {
+    capCents: 260_000_00, // $260,000
+    wholeOfIncomeCapCents: 180_000_00, // $180,000, not indexed
+    belowPreservationAgeRate: 0.3, // 32% quoted, less the 2% levy
+    atPreservationAgeRate: 0.15, // 17% quoted, less the 2% levy
+    aboveCapRate: 0.45, // 47% quoted, less the 2% levy
+    unusedLeaveMaxRate: 0.3, // 32% quoted, less the 2% levy
+    // Genuine redundancy tax-free amount for 2025-26: $13,100 base plus $6,552 per
+    // completed year of service (both indexed annually):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/employment-termination-payments
+    genuineRedundancy: {
+      baseLimitCents: 13_100_00, // $13,100
+      perYearOfServiceCents: 6_552_00, // $6,552
+    },
+  },
 }
 
 /**
@@ -255,6 +280,31 @@ export const FY2027_CONFIG: TaxYearConfig = {
     // Preservation age 60 (everyone born after 1 July 1964):
     //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/payments-from-super
     preservationAge: 60,
+  },
+
+  // Employment-termination concessions for 2026-27. ETP cap $270,000 (indexed
+  // annually); whole-of-income cap $180,000 (not indexed), which bounds a
+  // non-excluded payment net of the member's other taxable income:
+  //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/employment-termination-payments
+  // The rates EXCLUDE the 2% Medicare levy. The ATO quotes 32% / 17% / 47% (and
+  // 32% for unused leave) in Schedule 11, each of which is the rate below plus the
+  // levy; the concessional amount sits in taxable income, so the `medicareLevy`
+  // line already charges the levy on it:
+  //   https://www.ato.gov.au/tax-rates-and-codes/payg-withholding-schedule-11-tax-table-for-employment-termination-payments
+  employmentTermination: {
+    capCents: 270_000_00, // $270,000
+    wholeOfIncomeCapCents: 180_000_00, // $180,000, not indexed
+    belowPreservationAgeRate: 0.3, // 32% quoted, less the 2% levy
+    atPreservationAgeRate: 0.15, // 17% quoted, less the 2% levy
+    aboveCapRate: 0.45, // 47% quoted, less the 2% levy
+    unusedLeaveMaxRate: 0.3, // 32% quoted, less the 2% levy
+    // Genuine redundancy tax-free amount for 2026-27: $13,598 base plus $6,801 per
+    // completed year of service (both indexed annually):
+    //   https://www.ato.gov.au/tax-rates-and-codes/key-superannuation-rates-and-thresholds/employment-termination-payments
+    genuineRedundancy: {
+      baseLimitCents: 13_598_00, // $13,598
+      perYearOfServiceCents: 6_801_00, // $6,801
+    },
   },
 }
 

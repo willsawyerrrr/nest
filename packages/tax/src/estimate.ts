@@ -15,12 +15,20 @@ import {
   activeFractionOfFinancialYear,
   computeTax,
   familyMedicareLevySurcharge,
+  isDateInFinancialYear,
+  type FinancialYear,
   type Money,
   type Residency,
   type TaxBreakdown,
   type TaxInput,
   type TaxYearConfig,
 } from './index'
+import {
+  splitOneOffPayment,
+  type OneOffConcession,
+  type OneOffPaymentInput,
+  type OneOffTaxTreatment,
+} from './oneOff'
 
 /**
  * How often an income is received. Drives periods-per-year for annualisation.
@@ -42,11 +50,17 @@ export type IncomeSchedule =
  * One projection-based income, tagged to a member. `salary` and `other` carry a
  * gross `amountCents` per period; `wage` carries an `hourlyRateCents` and the
  * `hoursPerPeriod` worked in each period.
+ *
+ * An income is either RECURRING — it states the `schedule` it arrives on — or
+ * ONE-OFF — it states the single date it lands on in `paidOn`. A one-off has no
+ * cadence, so it is never annualised, never prorated by an effective window, and
+ * counts only in the financial year `paidOn` falls in.
  */
 export interface IncomeInput {
   readonly memberId: string
   readonly type: 'salary' | 'wage' | 'other'
-  readonly schedule: IncomeSchedule
+  /** The cadence a recurring income arrives on; absent for a one-off, which has none. */
+  readonly schedule?: IncomeSchedule
   readonly amountCents?: Money
   readonly hourlyRateCents?: Money
   readonly hoursPerPeriod?: number
@@ -66,6 +80,21 @@ export interface IncomeInput {
    * end of the financial year. Prorates the assessable figure by calendar days.
    */
   readonly endsOn?: string
+  /**
+   * The single date a ONE-OFF payment lands on (ISO `YYYY-MM-DD`). Its presence is
+   * what makes the income a one-off: the whole `amountCents` counts in the financial
+   * year the date falls in, and nothing at all in any other year.
+   */
+  readonly paidOn?: string
+  /** How a one-off is taxed; absent reads as `ordinary`, assessable in full. */
+  readonly treatment?: OneOffTaxTreatment
+  /** Completed years of service behind a `genuineRedundancy` one-off. */
+  readonly yearsOfService?: number
+  /**
+   * Whether the member was at or above the year's preservation age when the one-off
+   * was paid; absent reads as false — the higher concessional rate.
+   */
+  readonly atPreservationAge?: boolean
 }
 
 /** A member's tax attributes: residency, private hospital cover, and HELP debt. */
@@ -83,6 +112,17 @@ export interface TaxProfileInput {
  * the cash actually available to budget. `annualNetConcessionalSuperCents` is what
  * of those contributions lands in the fund after the 15% contributions tax — the
  * beneficial amount actually saved into super.
+ *
+ * **The annual and fortnightly figures deliberately disagree about one-off money.**
+ * The annual figures are whole-year truths and INCLUDE every one-off landing in the
+ * year; the fortnightly figures are derived from the same figures NET of one-offs,
+ * so `fortnightlyGrossCents × 26` falls short of `annualGrossCents` by
+ * `annualOneOffGrossCents` (and the tax and after-tax pairs by their own one-off
+ * parts). This is not a rounding artefact: a fortnightly figure funds the budget,
+ * and money that lands once has no fortnightly share to plan against — smearing a
+ * redundancy over 26 fortnights would promise cash in 25 of them that never arrives.
+ * `annualOneOffGrossCents` and `annualOneOffAfterTaxCents` report the one-off money
+ * on its own so it can be shown as what it is.
  */
 export interface MemberTaxEstimate {
   readonly memberId: string
@@ -93,6 +133,21 @@ export interface MemberTaxEstimate {
   readonly annualDeductionsCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
+  /**
+   * Gross one-off money landing in the financial year — the whole payment, its
+   * tax-free part included. Part of `annualGrossCents` and excluded from
+   * `fortnightlyGrossCents`.
+   */
+  readonly annualOneOffGrossCents: Money
+  /**
+   * What of that one-off money the member keeps: the gross less the tax the one-offs
+   * themselves add, measured as the liability with them less the liability without —
+   * the same compute-twice-and-diff shape as `salarySacrificeWhatIf`. The
+   * family-assessed Medicare levy surcharge is held at the same figure on both sides,
+   * so the difference is the one-offs' effect on income tax (net of the concession
+   * offset), the Medicare levy, the HELP repayment, and Division 293.
+   */
+  readonly annualOneOffAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
   readonly fortnightlyTaxCents: Money
   readonly fortnightlyAfterTaxCents: Money
@@ -101,7 +156,11 @@ export interface MemberTaxEstimate {
   readonly input: TaxInput
 }
 
-/** The household total, with each field the sum of its members' fields. */
+/**
+ * The household total, with each field the sum of its members' fields — including
+ * the annual/fortnightly asymmetry over one-off money that `MemberTaxEstimate`
+ * documents.
+ */
 export interface HouseholdTaxEstimate {
   readonly members: readonly MemberTaxEstimate[]
   readonly annualGrossCents: Money
@@ -110,6 +169,8 @@ export interface HouseholdTaxEstimate {
   readonly annualDeductionsCents: Money
   readonly annualTaxCents: Money
   readonly annualAfterTaxCents: Money
+  readonly annualOneOffGrossCents: Money
+  readonly annualOneOffAfterTaxCents: Money
   readonly fortnightlyGrossCents: Money
   readonly fortnightlyTaxCents: Money
   readonly fortnightlyAfterTaxCents: Money
@@ -156,13 +217,28 @@ function fortnightlyOf(annualCents: Money): Money {
  * `interval` weeks — is `round(perPeriod × 52 / interval)`, and `every_n_months`
  * — once every `interval` months — is `round(perPeriod × 12 / interval)`, with
  * an absent or non-positive-integer interval defensively annualising to zero.
- * Missing amounts are treated as zero.
+ * Missing amounts are treated as zero, as is an absent schedule on a recurring
+ * income (which has nothing to annualise by).
+ *
+ * A ONE-OFF — an income carrying `paidOn` — is not annualised at all: it yields its
+ * whole amount, since that amount is already the year's figure. `financialYear`, when
+ * given, is the year the payment must land in to count: a one-off paid outside it
+ * yields nothing. Omit `financialYear` to ask for the payment's own figure whatever
+ * year it lands in, which is what a per-inflow display reads.
  */
-export function annualGrossCents(income: IncomeInput): Money {
+export function annualGrossCents(income: IncomeInput, financialYear?: FinancialYear): Money {
   const perPeriod =
     income.type === 'wage'
       ? Math.round((income.hourlyRateCents ?? 0) * (income.hoursPerPeriod ?? 0))
       : (income.amountCents ?? 0)
+  if (income.paidOn !== undefined) {
+    const landsInYear =
+      financialYear === undefined || isDateInFinancialYear(income.paidOn, financialYear)
+    return landsInYear ? perPeriod : 0
+  }
+  if (income.schedule === undefined) {
+    return 0
+  }
   const interval = income.interval
   const hasValidInterval = interval !== undefined && Number.isInteger(interval) && interval >= 1
   if (income.schedule === 'every_n_weeks') {
@@ -184,6 +260,59 @@ export function annualGrossCents(income: IncomeInput): Money {
 interface MemberIncome {
   salaryOrWagesCents: Money
   otherCents: Money
+  /**
+   * The member's one-off payments, in the order they were supplied. They are split
+   * only once the member's whole recurring income is known, because the
+   * whole-of-income cap on a non-excluded termination payment is measured net of it.
+   */
+  oneOffs: IncomeInput[]
+}
+
+/** One member's one-off payments, split and summed for the engine input. */
+interface SplitOneOffs {
+  /** The assessable part of every one-off, summed. */
+  assessableCents: Money
+  /** Gross one-off money landing in the year, each payment's tax-free part included. */
+  grossCents: Money
+  /** Each payment's concessional amount and capped rate, in payment order. */
+  concessions: OneOffConcession[]
+}
+
+/**
+ * Splits a member's one-off payments against the recurring taxable income sitting
+ * under them. Payments are split in order, each one's assessable part lifting the
+ * other-taxable-income figure the next is measured against, so two termination
+ * payments in one year share the whole-of-income headroom rather than each claiming
+ * all of it.
+ */
+function splitOneOffsForMember(
+  oneOffs: readonly IncomeInput[],
+  recurringTaxableIncomeCents: Money,
+  config: TaxYearConfig,
+): SplitOneOffs {
+  let otherTaxableIncomeCents = recurringTaxableIncomeCents
+  const split: SplitOneOffs = { assessableCents: 0, grossCents: 0, concessions: [] }
+  for (const oneOff of oneOffs) {
+    const amountCents = annualGrossCents(oneOff, config.financialYear)
+    const payment: OneOffPaymentInput = {
+      treatment: oneOff.treatment ?? 'ordinary',
+      amountCents,
+      ...(oneOff.yearsOfService !== undefined && { yearsOfService: oneOff.yearsOfService }),
+      ...(oneOff.atPreservationAge !== undefined && {
+        atPreservationAge: oneOff.atPreservationAge,
+      }),
+    }
+    const { assessableCents, concessionalCents, concessionalRate } = splitOneOffPayment(
+      payment,
+      otherTaxableIncomeCents,
+      config,
+    )
+    split.assessableCents += assessableCents
+    split.grossCents += amountCents
+    split.concessions.push({ concessionalCents, rate: concessionalRate })
+    otherTaxableIncomeCents += assessableCents
+  }
+  return split
 }
 
 /**
@@ -194,6 +323,14 @@ interface MemberIncome {
  * per-person engine. A member with income but no profile is
  * treated as a cover-less resident with no HELP debt; a member with a profile but
  * no income yields a zero estimate. Household fields are the sum of members'.
+ *
+ * A ONE-OFF income — one carrying `paidOn` — takes none of that: it is neither
+ * annualised nor prorated, and counts its whole amount when the date falls inside
+ * `config.financialYear` and nothing at all otherwise. Each is split by its
+ * treatment (`splitOneOffPayment`) against the recurring taxable income under it,
+ * its assessable part joining `employmentTerminationCents` and its concessional part
+ * becoming the offset. One-off money lands in the annual figures and is kept out of
+ * the fortnightly ones — see `MemberTaxEstimate` for why the two disagree.
  * `concessionalByMember`, when supplied, gives each member's annual concessional
  * super contributions — reducing taxable income and the after-tax cash available.
  * `deductionsByMember`, when supplied, gives each member's annual work-related
@@ -232,7 +369,7 @@ export function estimateHouseholdTax(
     }
     let bucket = incomeByMember.get(memberId)
     if (!bucket) {
-      bucket = { salaryOrWagesCents: 0, otherCents: 0 }
+      bucket = { salaryOrWagesCents: 0, otherCents: 0, oneOffs: [] }
       incomeByMember.set(memberId, bucket)
     }
     return bucket
@@ -240,6 +377,13 @@ export function estimateHouseholdTax(
 
   for (const income of incomes) {
     const bucket = note(income.memberId)
+    // A one-off has no cadence and no effective window: it is held back for the
+    // split, which needs the member's whole recurring income to measure the
+    // whole-of-income cap against.
+    if (income.paidOn !== undefined) {
+      bucket.oneOffs.push(income)
+      continue
+    }
     // Prorate the steady-rate annual gross by the share of the financial year the
     // income is active, so income that starts, ends, or changes mid-year (a pay
     // rise modelled as two dated inflows) contributes only its part-year amount.
@@ -265,16 +409,29 @@ export function estimateHouseholdTax(
     // Every id in `memberOrder` was appended by `note()`, which always writes an
     // `incomeByMember` bucket in the same call, so the fallback is unreachable.
     /* v8 ignore next */
-    const bucket = incomeByMember.get(memberId) ?? { salaryOrWagesCents: 0, otherCents: 0 }
+    const bucket = incomeByMember.get(memberId) ?? {
+      salaryOrWagesCents: 0,
+      otherCents: 0,
+      oneOffs: [],
+    }
     const profile = profileByMember.get(memberId) ?? { memberId, ...DEFAULT_PROFILE }
     const concessionalCents = concessionalByMember?.get(memberId) ?? 0
     const deductionsCents = deductionsByMember?.get(memberId) ?? 0
+    // The whole-of-income cap is measured against the member's other TAXABLE income,
+    // so the recurring gross is taken net of their deductions and concessional super
+    // exactly as `taxableIncome` takes it.
+    const recurringTaxableIncomeCents = Math.max(
+      0,
+      bucket.salaryOrWagesCents + bucket.otherCents - deductionsCents - concessionalCents,
+    )
+    const oneOffs = splitOneOffsForMember(bucket.oneOffs, recurringTaxableIncomeCents, config)
     const input: TaxInput = {
       assessableIncome: {
         salaryOrWagesCents: bucket.salaryOrWagesCents,
         businessCents: 0,
         investmentCents: 0,
         otherCents: bucket.otherCents,
+        employmentTerminationCents: oneOffs.assessableCents,
       },
       deductionsCents,
       residency: profile.residency,
@@ -282,6 +439,7 @@ export function estimateHouseholdTax(
       helpDebtCents: profile.helpDebtCents,
       paygWithheldCents: paygWithheldByMember?.get(memberId) ?? 0,
       concessionalContributionsCents: concessionalCents,
+      oneOffConcessions: oneOffs.concessions,
     }
     return {
       memberId,
@@ -289,6 +447,7 @@ export function estimateHouseholdTax(
       profile,
       concessionalCents,
       deductionsCents,
+      oneOffs,
       input,
       firstPass: computeTax(input, config),
     }
@@ -311,18 +470,28 @@ export function estimateHouseholdTax(
   // Pass 2: re-run each member with the family-assessed surcharge injected, so the
   // surcharge line and total liability reflect the combined-income assessment.
   const members = contexts.map((context, index) => {
-    const { memberId, bucket, concessionalCents, deductionsCents, input } = context
+    const { memberId, bucket, concessionalCents, deductionsCents, oneOffs, input } = context
     const perMemberSurchargeCents = familySurcharge.perMemberSurchargeCents[index]
-    const breakdown = computeTax(
+    const assessedInput: TaxInput = {
+      ...input,
+      ...(perMemberSurchargeCents !== undefined && {
+        medicareLevySurchargeCentsOverride: perMemberSurchargeCents,
+      }),
+    }
+    const breakdown = computeTax(assessedInput, config)
+    // The same member without their one-offs, so the tax the one-offs themselves add
+    // is a difference of two liabilities rather than a marginal rate guessed at. The
+    // family-assessed surcharge is carried on both sides, holding it constant across
+    // the pair.
+    const withoutOneOffs = computeTax(
       {
-        ...input,
-        ...(perMemberSurchargeCents !== undefined && {
-          medicareLevySurchargeCentsOverride: perMemberSurchargeCents,
-        }),
+        ...assessedInput,
+        assessableIncome: { ...input.assessableIncome, employmentTerminationCents: 0 },
+        oneOffConcessions: [],
       },
       config,
     )
-    const annualGross = bucket.salaryOrWagesCents + bucket.otherCents
+    const annualGross = bucket.salaryOrWagesCents + bucket.otherCents + oneOffs.grossCents
     const annualTax = breakdown.totalLiabilityCents
     // After-tax cash excludes concessional super (diverted from cash to the fund).
     const annualAfterTax = annualGross - concessionalCents - annualTax
@@ -331,6 +500,10 @@ export function estimateHouseholdTax(
     const netConcessionalCents = Math.round(
       concessionalCents * (1 - config.super.contributionsTaxRate),
     )
+    const oneOffTax = annualTax - withoutOneOffs.totalLiabilityCents
+    const annualOneOffAfterTax = oneOffs.grossCents - oneOffTax
+    // The fortnightly figures fund the budget, so they are derived from the year NET
+    // of one-off money: what lands once has no fortnightly share to plan against.
     return {
       memberId,
       annualGrossCents: annualGross,
@@ -339,9 +512,11 @@ export function estimateHouseholdTax(
       annualDeductionsCents: deductionsCents,
       annualTaxCents: annualTax,
       annualAfterTaxCents: annualAfterTax,
-      fortnightlyGrossCents: fortnightlyOf(annualGross),
-      fortnightlyTaxCents: fortnightlyOf(annualTax),
-      fortnightlyAfterTaxCents: fortnightlyOf(annualAfterTax),
+      annualOneOffGrossCents: oneOffs.grossCents,
+      annualOneOffAfterTaxCents: annualOneOffAfterTax,
+      fortnightlyGrossCents: fortnightlyOf(annualGross - oneOffs.grossCents),
+      fortnightlyTaxCents: fortnightlyOf(annualTax - oneOffTax),
+      fortnightlyAfterTaxCents: fortnightlyOf(annualAfterTax - annualOneOffAfterTax),
       breakdown,
       input,
     } satisfies MemberTaxEstimate
@@ -360,6 +535,8 @@ export function estimateHouseholdTax(
     annualDeductionsCents: sum((member) => member.annualDeductionsCents),
     annualTaxCents: sum((member) => member.annualTaxCents),
     annualAfterTaxCents: sum((member) => member.annualAfterTaxCents),
+    annualOneOffGrossCents: sum((member) => member.annualOneOffGrossCents),
+    annualOneOffAfterTaxCents: sum((member) => member.annualOneOffAfterTaxCents),
     fortnightlyGrossCents: sum((member) => member.fortnightlyGrossCents),
     fortnightlyTaxCents: sum((member) => member.fortnightlyTaxCents),
     fortnightlyAfterTaxCents: sum((member) => member.fortnightlyAfterTaxCents),

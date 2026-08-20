@@ -4,6 +4,8 @@
  * computation lives in exactly one place. Pure — no I/O, no side effects.
  */
 
+import type { OneOffConcession } from './oneOff'
+
 export { FY2026_CONFIG, FY2027_CONFIG, configsByYear } from './configs'
 
 export { annualGrossCents, estimateHouseholdTax } from './estimate'
@@ -14,6 +16,14 @@ export type {
   MemberTaxEstimate,
   TaxProfileInput,
 } from './estimate'
+
+export { splitOneOffPayment } from './oneOff'
+export type {
+  OneOffConcession,
+  OneOffPaymentInput,
+  OneOffPaymentSplit,
+  OneOffTaxTreatment,
+} from './oneOff'
 
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number
@@ -119,6 +129,57 @@ export interface TaxYearConfig {
   readonly lito: LitoConfig
   readonly helpRepayment: HelpRepaymentConfig
   readonly super: SuperConfig
+  readonly employmentTermination: EmploymentTerminationConfig
+}
+
+/**
+ * Employment-termination concession parameters: the caps that bound how much of a
+ * termination payment is taxed concessionally, the rates it is taxed at, and the
+ * genuine-redundancy tax-free amount.
+ *
+ * Every rate here **excludes** the 2% Medicare levy. The ATO quotes the
+ * concessional rates as 32% / 17% / 47% and the unused-leave maximum as 32%; each
+ * of those is the rate below **plus** the levy. The concessional part of a payment
+ * sits in taxable income, so `medicareLevy` already charges the levy on it, and
+ * repeating it here would charge it twice.
+ */
+export interface EmploymentTerminationConfig {
+  /**
+   * ETP cap: the most of one payment that can be taxed at the concessional rate.
+   * Indexed annually.
+   */
+  readonly capCents: Money
+  /**
+   * Whole-of-income cap. A payment that is NOT an excluded payment is concessional
+   * only up to this cap less the member's other taxable income for the year, so a
+   * high salary can exhaust the headroom entirely. Not indexed.
+   */
+  readonly wholeOfIncomeCapCents: Money
+  /** Concessional rate for a member below preservation age on the payment date. */
+  readonly belowPreservationAgeRate: number
+  /** Concessional rate for a member at or above preservation age on the payment date. */
+  readonly atPreservationAgeRate: number
+  /**
+   * Rate the ATO charges on the part of a payment above the cap. The top marginal
+   * bracket reaches the same rate at the incomes at which the cap binds, so
+   * `splitOneOffPayment` leaves that part to the brackets rather than counting it
+   * concessional; the figure is stated here so the config carries the whole
+   * schedule.
+   */
+  readonly aboveCapRate: number
+  /** Maximum rate on unused leave paid out on a genuine redundancy. */
+  readonly unusedLeaveMaxRate: number
+  readonly genuineRedundancy: GenuineRedundancyConfig
+}
+
+/**
+ * The genuine-redundancy tax-free amount: `baseLimitCents` plus
+ * `perYearOfServiceCents` for every completed year of service. That amount is
+ * excluded from assessable income entirely. Both figures are indexed annually.
+ */
+export interface GenuineRedundancyConfig {
+  readonly baseLimitCents: Money
+  readonly perYearOfServiceCents: Money
 }
 
 /**
@@ -163,6 +224,16 @@ export interface AssessableIncome {
   readonly businessCents: Money
   readonly investmentCents: Money
   readonly otherCents: Money
+  /**
+   * The assessable part of every one-off payment the member received in the year,
+   * summed — a termination payment's excess over its tax-free amount, an unused-leave
+   * payout, or an ordinary bonus in full. It is assessable income like any other, so
+   * it lifts income for the LITO taper, the Medicare levy, the surcharge, HELP
+   * repayment income, and Division 293, all of which assess taxable income. The
+   * concession such a payment carries is delivered as an offset
+   * (`oneOffOffsetCents`), never by holding the payment out of income.
+   */
+  readonly employmentTerminationCents: Money
 }
 
 /** A member's figures for one financial year, paired with a `TaxYearConfig`. */
@@ -194,15 +265,23 @@ export interface TaxInput {
    * absent, `computeTax` assesses the surcharge per person from this input.
    */
   readonly medicareLevySurchargeCentsOverride?: Money
+  /**
+   * The already-split concessional parts of the member's one-off payments, in
+   * payment order, each with the capped rate it bears. `computeTax` turns them into
+   * `oneOffOffsetCents`; absent is treated as none. Split them with
+   * `splitOneOffPayment`, whose `assessableCents` belongs in
+   * `assessableIncome.employmentTerminationCents` for the same payment.
+   */
+  readonly oneOffConcessions?: readonly OneOffConcession[]
 }
 
 /**
  * A full liability breakdown, every field an integer cent amount. `incomeTaxCents`
- * is gross tax on the brackets and `litoOffsetCents` the offset applied against
- * it; `totalLiabilityCents` nets the offset (floored at zero) before adding the
- * levies, repayment, and Division 293. `balanceCents` is positive when owing,
- * negative for an estimated refund. `division293Cents` is the extra tax on
- * concessional contributions for high earners (nil for most).
+ * is gross tax on the brackets, with `litoOffsetCents` and `oneOffOffsetCents` the
+ * offsets applied against it; `totalLiabilityCents` nets both (floored at zero)
+ * before adding the levies, repayment, and Division 293. `balanceCents` is positive
+ * when owing, negative for an estimated refund. `division293Cents` is the extra tax
+ * on concessional contributions for high earners (nil for most).
  */
 export interface TaxBreakdown {
   readonly taxableIncomeCents: Money
@@ -214,6 +293,15 @@ export interface TaxBreakdown {
   readonly incomeForSurchargeCents: Money
   readonly incomeTaxCents: Money
   readonly litoOffsetCents: Money
+  /**
+   * The employment-termination concession offset, bringing the effective tax on each
+   * concessional amount down to its capped rate. Non-refundable: it is applied
+   * alongside LITO against income tax, floored at zero with it, so it can never
+   * create a refund on its own, and it leaves the Medicare levy untouched — the levy
+   * is charged on the concessional amount as on any other taxable income, which is
+   * why the config's rates exclude it.
+   */
+  readonly oneOffOffsetCents: Money
   readonly medicareLevyCents: Money
   readonly medicareLevySurchargeCents: Money
   readonly helpRepaymentCents: Money
@@ -265,6 +353,17 @@ function isoDateToUtc(iso: string): Date {
 }
 
 /**
+ * Whether an ISO date (`YYYY-MM-DD`) falls within `financialYear`, both bounds
+ * inclusive. A payment that lands on a single day is counted by this test rather
+ * than prorated, so it belongs wholly to one financial year or to none.
+ */
+export function isDateInFinancialYear(iso: string, financialYear: FinancialYear): boolean {
+  const { start, end } = financialYearBounds(financialYear)
+  const date = isoDateToUtc(iso)
+  return date >= start && date <= end
+}
+
+/**
  * The fraction of financial year `financialYear` for which an inflow is active,
  * counted in inclusive calendar days. The inflow's window is
  * `[startsOn ?? fyStart, endsOn ?? fyEnd]`; its overlap with the financial year,
@@ -307,8 +406,15 @@ function roundCents(value: number): Money {
  * contributions both reduce assessable income, so they are subtracted here.
  */
 export function taxableIncome(input: TaxInput): Money {
-  const { salaryOrWagesCents, businessCents, investmentCents, otherCents } = input.assessableIncome
-  const assessable = salaryOrWagesCents + businessCents + investmentCents + otherCents
+  const {
+    salaryOrWagesCents,
+    businessCents,
+    investmentCents,
+    otherCents,
+    employmentTerminationCents,
+  } = input.assessableIncome
+  const assessable =
+    salaryOrWagesCents + businessCents + investmentCents + otherCents + employmentTerminationCents
   const concessional = input.concessionalContributionsCents ?? 0
   return Math.max(0, assessable - input.deductionsCents - concessional)
 }
@@ -524,22 +630,56 @@ export function superCoContribution(
 }
 
 /**
+ * The offset that brings the effective tax on each concessional amount down to its
+ * capped rate, by the ATO's difference method: the marginal tax the amount attracts
+ * where it sits in the member's income, less what the capped rate charges on it.
+ *
+ * Concessions are peeled off the top of `taxableIncomeCents` in order, so each is
+ * measured against the income actually sitting under it rather than against the same
+ * top slice twice. Each is floored at zero: a capped rate at or above the member's
+ * marginal rate leaves the marginal rate standing rather than yielding a negative
+ * offset that would subsidise the rest of their income.
+ */
+export function oneOffConcessionOffset(
+  taxableIncomeCents: Money,
+  concessions: readonly OneOffConcession[],
+  config: TaxYearConfig,
+): Money {
+  let topCents = taxableIncomeCents
+  let offsetCents = 0
+  for (const concession of concessions) {
+    const underCents = Math.max(0, topCents - concession.concessionalCents)
+    const marginalCents = incomeTax(topCents, config) - incomeTax(underCents, config)
+    const cappedCents = roundCents(concession.concessionalCents * concession.rate)
+    offsetCents += Math.max(0, marginalCents - cappedCents)
+    topCents = underCents
+  }
+  return offsetCents
+}
+
+/**
  * Computes the full income-tax breakdown for a member's financial year. The
  * caller selects the `config` matching the member's residency and financial year.
  * Offsets reduce tax payable but not below zero, and never reduce the levies.
  * Concessional super contributions reduce taxable income (so they lower income
  * tax, LITO, and the Medicare levy) but are added back for the surcharge and HELP
- * repayment income, and may attract Division 293. When
- * `medicareLevySurchargeCentsOverride` is set, that surcharge is used in the line
- * and total in place of the per-person assessment, letting the household layer
- * assess the surcharge on combined family income.
+ * repayment income, and may attract Division 293. `oneOffConcessions` become the
+ * employment-termination offset, applied alongside LITO against income tax and
+ * floored at zero with it. When `medicareLevySurchargeCentsOverride` is set, that
+ * surcharge is used in the line and total in place of the per-person assessment,
+ * letting the household layer assess the surcharge on combined family income.
  */
 export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown {
   const concessionalCents = input.concessionalContributionsCents ?? 0
   const taxableIncomeCents = taxableIncome(input)
   const incomeTaxCents = incomeTax(taxableIncomeCents, config)
   const litoOffsetCents = lowIncomeTaxOffset(taxableIncomeCents, config)
-  const netIncomeTaxCents = Math.max(0, incomeTaxCents - litoOffsetCents)
+  const oneOffOffsetCents = oneOffConcessionOffset(
+    taxableIncomeCents,
+    input.oneOffConcessions ?? [],
+    config,
+  )
+  const netIncomeTaxCents = Math.max(0, incomeTaxCents - litoOffsetCents - oneOffOffsetCents)
   const medicareLevyCents = medicareLevy(taxableIncomeCents, config)
   // Reportable concessional contributions are added back for the surcharge and
   // HELP repayment income (they add back reportable super contributions).
@@ -563,6 +703,7 @@ export function computeTax(input: TaxInput, config: TaxYearConfig): TaxBreakdown
     incomeForSurchargeCents: incomeWithSuperCents,
     incomeTaxCents,
     litoOffsetCents,
+    oneOffOffsetCents,
     medicareLevyCents,
     medicareLevySurchargeCents,
     helpRepaymentCents,

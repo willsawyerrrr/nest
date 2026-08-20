@@ -354,6 +354,7 @@ export type Database = {
           description: string
           distance_km: number | null
           financial_year: number
+          group_id: string | null
           household_id: string
           id: string
           member_id: string
@@ -367,6 +368,7 @@ export type Database = {
           description: string
           distance_km?: number | null
           financial_year: number
+          group_id?: string | null
           household_id: string
           id?: string
           member_id: string
@@ -380,6 +382,7 @@ export type Database = {
           description?: string
           distance_km?: number | null
           financial_year?: number
+          group_id?: string | null
           household_id?: string
           id?: string
           member_id?: string
@@ -394,7 +397,59 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'deduction_group_fk'
+            columns: ['group_id', 'household_id', 'member_id', 'financial_year']
+            isOneToOne: false
+            referencedRelation: 'deduction_group'
+            referencedColumns: ['id', 'household_id', 'member_id', 'financial_year']
+          },
+          {
             foreignKeyName: 'deduction_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      deduction_group: {
+        Row: {
+          created_at: string
+          financial_year: number
+          household_id: string
+          id: string
+          member_id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          financial_year: number
+          household_id: string
+          id?: string
+          member_id: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          financial_year?: number
+          household_id?: string
+          id?: string
+          member_id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'deduction_group_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'deduction_group_member_id_household_id_fkey'
             columns: ['member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'

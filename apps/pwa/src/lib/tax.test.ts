@@ -389,6 +389,7 @@ describe('deductionsByMember', () => {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    group_id: null,
     created_at: '',
     updated_at: '',
   }
@@ -421,6 +422,7 @@ describe('estimateHouseholdTaxFromRows deductions', () => {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    group_id: null,
     created_at: '',
     updated_at: '',
   }

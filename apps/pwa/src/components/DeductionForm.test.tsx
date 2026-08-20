@@ -26,6 +26,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    group_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -189,6 +190,7 @@ describe('DeductionForm', () => {
         deduction_date: '2026-08-01',
         basis: 'amount',
         distance_km: null,
+        group_id: null,
       },
       receipts: [],
     })

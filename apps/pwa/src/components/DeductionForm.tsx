@@ -35,6 +35,12 @@ interface DeductionFormProps {
   attachments: DeductionAttachments
   /** The financial year the deduction is claimed in, deciding which year's cents-per-km rate applies. */
   financialYear: number
+  /**
+   * The group this deduction is filed under, when the form was opened from one.
+   * Omitted, an edit keeps whatever group the deduction already sits in and a
+   * new deduction stands on its own.
+   */
+  groupId?: string | undefined
   initial?: DeductionRow | undefined
   onSubmit: (submission: DeductionSubmission) => void | Promise<void>
   onCancel?: () => void
@@ -204,6 +210,7 @@ export function DeductionForm({
   member,
   attachments,
   financialYear,
+  groupId,
   initial,
   onSubmit,
   onCancel,
@@ -258,6 +265,7 @@ export function DeductionForm({
         deduction_date: values.deductionDate!,
         basis,
         distance_km: isDistance ? distanceKmNumber : null,
+        group_id: groupId ?? initial?.group_id ?? null,
       },
       // A name left blank is a receipt named nothing, which stores as `Receipt`
       // rather than holding the save over a label.
@@ -274,7 +282,9 @@ export function DeductionForm({
       submitting={submitting}
       canSubmit={canSubmit}
       editing={Boolean(initial)}
-      addLabel="deduction"
+      // Inside a group the row being added is one invoice of a recurring
+      // expense, and the button says so.
+      addLabel={groupId ? 'invoice' : 'deduction'}
       onCancel={onCancel}
     >
       {adding && (

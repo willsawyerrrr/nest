@@ -36,8 +36,10 @@ instance and can also be run locally.
 - `deduction_group.sql` — the assertions that grouping a member's deductions
   keeps each payment a deduction in its own right: the group totals its members,
   the composite reference refuses a payment from another financial year or
-  another member, and dropping a group clears its payments' `group_id` while
-  leaving the payments themselves — and every other column on them — untouched.
+  another member, the add path's `create_deduction_with_receipts` files a payment
+  in the group its payload names, and dropping a group clears its payments'
+  `group_id` while leaving the payments themselves — and every other column on
+  them — untouched.
 
 ## What runs
 

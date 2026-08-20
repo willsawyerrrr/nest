@@ -115,6 +115,20 @@ describe('summarise', () => {
     expect(summary.salarySacrifice).toEqual({ fortnightlyCents: 0, annualCents: 0 })
   })
 
+  it('reports one-off money beside the plan, out of available and every total', () => {
+    // A $40,000 redundancy lands in the year. Were it available, the buffer would
+    // rise by $1,538.46 every fortnight of the year on the strength of one payment.
+    const withOneOff = summarise({ ...HOUSEHOLD, oneOffCents: 40_000_00 }, NOW)
+    expect(withOneOff.oneOffCents).toBe(40_000_00)
+    expect(withOneOff.available).toEqual(summary.available)
+    expect(withOneOff.afterSaving).toEqual(summary.afterSaving)
+    expect(withOneOff.groups).toEqual(summary.groups)
+  })
+
+  it('yields zero one-off money when that input is omitted', () => {
+    expect(summary.oneOffCents).toBe(0)
+  })
+
   it('guards portion against divide-by-zero when nothing is available', () => {
     const broke = summarise(
       {

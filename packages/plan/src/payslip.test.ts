@@ -4,14 +4,14 @@ import {
   expectedPeriodGrossCents,
   isPeriodOnCadence,
   latestReportedYearToDate,
-  occasionalInflowPositions,
   paygWithheldByMember,
   payslipAttributionDate,
   payslipVariance,
   payslipYearToDate,
   payslipYearToDateByMember,
+  unmeasuredInflowPositions,
+  type Frequency,
   type Money,
-  type OccasionalPositionRow,
   type PayPeriod,
   type PayslipActuals,
   type PayslipEarningLine,
@@ -22,6 +22,7 @@ import {
   type PayslipVariance,
   type ReconciledInflow,
   type SuperGuaranteeConfig,
+  type UnmeasuredPositionRow,
 } from './index'
 
 /** FY2027 — 1 Jul 2026 – 30 Jun 2027, 365 days. */
@@ -171,6 +172,12 @@ describe('annualInflowGrossCents', () => {
     ).toBe(13_000_00)
   })
 
+  it('annualises an inflow stating no schedule to zero', () => {
+    // The row a one-off stores states none, and nothing else has a period to
+    // multiply an amount up from either.
+    expect(annualInflowGrossCents({ type: 'salary', amountCents: 5_000_00 })).toBe(0)
+  })
+
   it('annualises an arbitrary cadence with no interval to zero', () => {
     expect(
       annualInflowGrossCents({ type: 'salary', schedule: 'every_n_weeks', amountCents: 1_000_00 }),
@@ -180,7 +187,7 @@ describe('annualInflowGrossCents', () => {
 
 describe('isPeriodOnCadence', () => {
   /** A $1-a-period inflow on `schedule`; the amount is irrelevant to the cadence. */
-  function on(schedule: ReconciledInflow['schedule'], interval?: number): ReconciledInflow {
+  function on(schedule: Frequency, interval?: number): ReconciledInflow {
     return {
       type: 'salary',
       schedule,
@@ -246,6 +253,10 @@ describe('isPeriodOnCadence', () => {
   it('is never on cadence for an arbitrary cadence with no usable interval', () => {
     expect(isPeriodOnCadence(on('every_n_weeks'), FORTNIGHT)).toBe(false)
     expect(isPeriodOnCadence(on('every_n_months'), FORTNIGHT)).toBe(false)
+  })
+
+  it('is never on cadence for an inflow stating no schedule at all', () => {
+    expect(isPeriodOnCadence({ type: 'salary', amountCents: 1_00 }, FORTNIGHT)).toBe(false)
   })
 
   it('is not on cadence for a period ending before it starts', () => {
@@ -1802,7 +1813,125 @@ describe('an inflow that arrives in only some pay periods', () => {
   })
 })
 
-describe('occasionalInflowPositions', () => {
+/**
+ * A $40,000 redundancy paid on 15 September 2026: money that lands once, on a day of
+ * its own. Its `schedule` is read by nothing — a one-off is annualised to its own
+ * amount and held against no cycle — and it earns no super, being no part of
+ * ordinary time earnings.
+ */
+const REDUNDANCY: ReconciledInflow = {
+  type: 'other',
+  schedule: 'annual',
+  amountCents: 40_000_00,
+  paidOn: '2026-09-15',
+  attractsSuper: false,
+}
+
+/** The salary and the redundancy paid out beside it, keyed as the slips name them. */
+const REDUNDANCY_INFLOWS = new Map<string, ReconciledInflow>([
+  ['salary', SALARY],
+  ['redundancy', REDUNDANCY],
+])
+
+/** One earnings line for the redundancy, which never earns super. */
+function redundancyLine(amountCents: Money): PayslipEarningLine {
+  return {
+    kind: 'earning',
+    sourceInflowId: 'redundancy',
+    label: 'Redundancy',
+    amountCents,
+    attractsSuper: false,
+  }
+}
+
+/** The final fortnight, 2–15 September: the salary plus the redundancy beside it. */
+function finalFortnight(overrides: Partial<PayslipActuals> = {}): PayslipActuals {
+  return payslip({
+    ...period('2026-09-02', '2026-09-15'),
+    grossCents: 45_000_00,
+    lines: [salaryLine(5_000_00), redundancyLine(40_000_00)],
+    ...overrides,
+  })
+}
+
+/** That slip measured against `inflows`. */
+function redundancyVariance(
+  slip: PayslipActuals,
+  inflows: ReadonlyMap<string, ReconciledInflow> = REDUNDANCY_INFLOWS,
+): PayslipVariance {
+  return payslipVariance(slip, expectation({ inflowsById: inflows }))
+}
+
+describe('a one-off inflow', () => {
+  it('annualises to its own amount, with no frequency multiplied in', () => {
+    expect(annualInflowGrossCents(REDUNDANCY)).toBe(40_000_00)
+    // The amount is the whole payment however the row's frequency reads, where the
+    // same figure recurring monthly is twelve payments and annualises to twelve.
+    expect(annualInflowGrossCents({ ...REDUNDANCY, schedule: 'monthly' })).toBe(40_000_00)
+    expect(annualInflowGrossCents({ ...REDUNDANCY, schedule: 'monthly', paidOn: null })).toBe(
+      480_000_00,
+    )
+  })
+
+  it('treats a missing amount as nothing', () => {
+    expect(
+      annualInflowGrossCents({ type: 'other', schedule: 'annual', paidOn: '2026-09-15' }),
+    ).toBe(0)
+  })
+
+  it('holds no per-period expectation, on a basis of its own', () => {
+    expect(expectedPeriodGrossCents(REDUNDANCY, FORTNIGHT, FY)).toBeNull()
+    expect(redundancyVariance(finalFortnight()).lineGroups[1]).toEqual({
+      sourceInflowId: 'redundancy',
+      labels: ['Redundancy'],
+      actualCents: 40_000_00,
+      expectedCents: null,
+      varianceCents: null,
+      basis: 'one_off',
+      partCycleReason: null,
+    })
+  })
+
+  it('reads as a one-off before any question about turns of a cycle', () => {
+    // Landing on a day of its own is the more fundamental fact, so a row that also
+    // claims to arrive every period — or only some — is a one-off either way.
+    const inflows = new Map<string, ReconciledInflow>([
+      ['salary', SALARY],
+      ['redundancy', { ...REDUNDANCY, arrivesEveryPayPeriod: false }],
+    ])
+    expect(redundancyVariance(finalFortnight(), inflows).lineGroups[1]?.basis).toBe('one_off')
+  })
+
+  it('forfeits the slip’s gross total rather than reading as gross above plan', () => {
+    // Holding the whole $45,000 gross against the salary's $5,000 alone would report
+    // the redundancy that was really paid as $40,000 above plan.
+    const variance = redundancyVariance(finalFortnight())
+    expect(variance.expectedGrossCents).toBeNull()
+    expect(variance.grossVarianceCents).toBeNull()
+    expect(variance.grossPartlyUnmeasured).toBe(true)
+    expect(variance.unmeasuredGrossCents).toBe(40_000_00)
+  })
+
+  it('never anchors the pay cycle, however large its group', () => {
+    // The redundancy is eight times the fortnight's salary and says nothing at all
+    // about how often the employer pays; the salary's fortnightly cycle still is.
+    const variance = redundancyVariance(finalFortnight())
+    expect(variance.cadenceInflowId).toBe('salary')
+    expect(variance.basis).toBe('cadence')
+    expect(variance.expectedTaxWithheldCents).toBe(CADENCE_WITHHELD)
+  })
+
+  it('falls back to calendar days where the slip is nothing but a one-off', () => {
+    const variance = redundancyVariance(
+      finalFortnight({ grossCents: 40_000_00, lines: [redundancyLine(40_000_00)] }),
+    )
+    expect(variance.cadenceInflowId).toBeNull()
+    expect(variance.basis).toBe('calendar_days')
+    expect(variance.expectedTaxWithheldCents).toBe(DAY_PRORATED_WITHHELD)
+  })
+})
+
+describe('unmeasuredInflowPositions', () => {
   /**
    * One slip as a year's reading takes it: the date it was paid, and the measurement
    * its own card renders — which is where its occasional groups are already summed.
@@ -1811,7 +1940,7 @@ describe('occasionalInflowPositions', () => {
     paidOn: string,
     lines: readonly PayslipLine[] = [],
     inflows: ReadonlyMap<string, ReconciledInflow> = ON_CALL_INFLOWS,
-  ): OccasionalPositionRow {
+  ): UnmeasuredPositionRow {
     return {
       paidOn,
       periodEnd: paidOn,
@@ -1820,7 +1949,7 @@ describe('occasionalInflowPositions', () => {
   }
 
   /** The household's two fortnights: one that carried both tiers, one that carried neither. */
-  const FORTNIGHTS: readonly OccasionalPositionRow[] = [
+  const FORTNIGHTS: readonly UnmeasuredPositionRow[] = [
     paid('2026-07-15', SHIFT_LINES),
     paid('2026-07-29', [salaryLine(5_000_00)]),
   ]
@@ -1828,7 +1957,7 @@ describe('occasionalInflowPositions', () => {
   it('measures each occasional inflow across the year, to the latest pay', () => {
     // 1 July through 29 July is 29 of FY2027's 365 days: $6,600 × 29/365 = $524.38
     // and $2,600 × 29/365 = $206.58, against the $480.00 and $190.00 really paid.
-    expect(occasionalInflowPositions(FORTNIGHTS, ON_CALL_INFLOWS, FY)).toEqual([
+    expect(unmeasuredInflowPositions(FORTNIGHTS, ON_CALL_INFLOWS, FY)).toEqual([
       {
         sourceInflowId: 't1',
         actualCents: 480_00,
@@ -1849,7 +1978,7 @@ describe('occasionalInflowPositions', () => {
   })
 
   it('sums every line drawing on one occasional inflow, across every slip', () => {
-    const positions = occasionalInflowPositions(
+    const positions = unmeasuredInflowPositions(
       [
         paid('2026-07-15', [
           onCallLine('t1', 'On-call (T1)', 480_00),
@@ -1867,14 +1996,14 @@ describe('occasionalInflowPositions', () => {
   it('sums the group figures the cards show rather than measuring the lines again', () => {
     const shift = FORTNIGHTS[0]!
     const onCallGroup = shift.variance.lineGroups.find((group) => group.sourceInflowId === 't1')
-    const [position] = occasionalInflowPositions([shift], ON_CALL_INFLOWS, FY)
+    const [position] = unmeasuredInflowPositions([shift], ON_CALL_INFLOWS, FY)
     expect(onCallGroup?.basis).toBe('occasional')
     expect(position?.actualCents).toBe(onCallGroup?.actualCents)
   })
 
   it('reports nothing for a steady inflow, an unmapped line, or a tax line', () => {
     expect(
-      occasionalInflowPositions(
+      unmeasuredInflowPositions(
         [
           paid('2026-07-15', [
             salaryLine(5_000_00),
@@ -1891,7 +2020,7 @@ describe('occasionalInflowPositions', () => {
   it('reports only the inflows these slips actually name', () => {
     // A co-member's occasional inflow sits in the same household-wide map; it is no
     // part of this member's position, and nothing on their slips names it.
-    const positions = occasionalInflowPositions(
+    const positions = unmeasuredInflowPositions(
       [paid('2026-07-15', [onCallLine('t1', 'On-call (T1)', 480_00)])],
       ON_CALL_INFLOWS,
       FY,
@@ -1901,27 +2030,82 @@ describe('occasionalInflowPositions', () => {
 
   it('reports nothing where the line’s inflow is not carried, or no inflows are', () => {
     const gone = [onCallLine('gone', 'On-call (T1)', 480_00)]
-    expect(occasionalInflowPositions([paid('2026-07-15', gone)], ON_CALL_INFLOWS, FY)).toEqual([])
-    expect(occasionalInflowPositions([paid('2026-07-15', gone, new Map())], undefined, FY)).toEqual(
+    expect(unmeasuredInflowPositions([paid('2026-07-15', gone)], ON_CALL_INFLOWS, FY)).toEqual([])
+    expect(unmeasuredInflowPositions([paid('2026-07-15', gone, new Map())], undefined, FY)).toEqual(
       [],
     )
   })
 
   it('reports nothing for no slips, or slips with no lines', () => {
-    expect(occasionalInflowPositions([], ON_CALL_INFLOWS, FY)).toEqual([])
-    expect(occasionalInflowPositions([paid('2026-07-15')], ON_CALL_INFLOWS, FY)).toEqual([])
+    expect(unmeasuredInflowPositions([], ON_CALL_INFLOWS, FY)).toEqual([])
+    expect(unmeasuredInflowPositions([paid('2026-07-15')], ON_CALL_INFLOWS, FY)).toEqual([])
   })
 
   it('runs to the latest pay whatever order the slips arrive in', () => {
-    const [reversed] = occasionalInflowPositions([...FORTNIGHTS].reverse(), ON_CALL_INFLOWS, FY)
+    const [reversed] = unmeasuredInflowPositions([...FORTNIGHTS].reverse(), ON_CALL_INFLOWS, FY)
     expect(reversed?.asAt).toBe('2026-07-29')
+  })
+
+  it('measures a one-off as a step: the whole amount from the day it lands', () => {
+    // No proration. The redundancy is not two thirds paid because two thirds of the
+    // year has run; it is expected in full from 15 September and not before.
+    expect(
+      unmeasuredInflowPositions(
+        [paid('2026-09-15', [redundancyLine(40_000_00)], REDUNDANCY_INFLOWS)],
+        REDUNDANCY_INFLOWS,
+        FY,
+      ),
+    ).toEqual([
+      {
+        sourceInflowId: 'redundancy',
+        actualCents: 40_000_00,
+        expectedCents: 40_000_00,
+        varianceCents: 0,
+        annualExpectedCents: 40_000_00,
+        asAt: '2026-09-15',
+      },
+    ])
+  })
+
+  it('expects nothing of a one-off the year has not reached', () => {
+    // Paid out five days before the date the projection names it for: the year is
+    // ahead of plan by the whole amount rather than short of a payment nothing is
+    // owed yet.
+    const [position] = unmeasuredInflowPositions(
+      [paid('2026-09-10', [redundancyLine(40_000_00)], REDUNDANCY_INFLOWS)],
+      REDUNDANCY_INFLOWS,
+      FY,
+    )
+    expect(position?.expectedCents).toBe(0)
+    expect(position?.varianceCents).toBe(40_000_00)
+    expect(position?.annualExpectedCents).toBe(40_000_00)
+  })
+
+  it('reads each unmeasured inflow on its own terms, in one year’s reading', () => {
+    // An on-call allowance and a redundancy on one slip: the first prorated across
+    // the days run through, the second stepped in whole.
+    const inflows = new Map<string, ReconciledInflow>([...ON_CALL_INFLOWS, ...REDUNDANCY_INFLOWS])
+    const lines = [
+      salaryLine(5_000_00),
+      onCallLine('t1', 'On-call (T1)', 480_00),
+      redundancyLine(40_000_00),
+    ]
+    expect(
+      unmeasuredInflowPositions([paid('2026-09-15', lines, inflows)], inflows, FY).map(
+        (position) => [position.sourceInflowId, position.expectedCents],
+      ),
+    ).toEqual([
+      // 1 July through 15 September is 77 of FY2027's 365 days: $6,600 × 77/365.
+      ['t1', 1_392_33],
+      ['redundancy', 40_000_00],
+    ])
   })
 
   it('counts only the days a dated inflow was effective for', () => {
     // Starting 15 July, the allowance was live for 15 of the 29 days to the latest
     // pay and for 351 of the year's 365.
     const dated = new Map([['t1', { ...ON_CALL_T1, startsOn: '2026-07-15' }]])
-    const [position] = occasionalInflowPositions(
+    const [position] = unmeasuredInflowPositions(
       [paid('2026-07-15', SHIFT_LINES, dated), paid('2026-07-29', [salaryLine(5_000_00)], dated)],
       dated,
       FY,

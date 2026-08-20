@@ -240,6 +240,10 @@ reported on the variance as `basis`.
   (`inflows.arrives_every_pay_period` false), so **no figure is computed at all**:
   the expectation and variance are null, and the reading moves to the year. See
   [Pay that lands in only some periods](#pay-that-lands-in-only-some-periods).
+- **`one_off`** — the inflow is a one-off (`inflows.paid_on` set), so it belongs to
+  no cycle at all and again **no figure is computed**: the expectation and variance
+  are null, and the reading moves to the year. See [Money that lands
+  once](#money-that-lands-once).
 
 The cycle all three read is the cadence the inflow's money **arrives** on —
 `inflows.pay_schedule` (with `pay_interval_count`) where the row states one, and
@@ -331,9 +335,10 @@ period must still be one whole turn of the chosen cadence with the inflow effect
 throughout, so a cadence the period does not fit scales across that cadence's own turn
 anyway.
 
-Two inflows are skipped when picking. A group naming no projection has no cadence to
-offer, and an inflow arriving in only some pay periods is never the anchor (below). A
-slip with no eligible group at all falls back to the `calendar_days` basis.
+Three inflows are skipped when picking. A group naming no projection has no cadence to
+offer, an inflow arriving in only some pay periods is never the anchor (below), and
+neither is a one-off, which has no cadence to offer either. A slip with no eligible
+group at all falls back to the `calendar_days` basis.
 
 ### Pay that lands in only some periods
 
@@ -405,6 +410,37 @@ Super needs nothing here. The guarantee is charged on the slip's **actual** gros
 its non-OTE lines, so it never involved a projection; an on-call allowance is already
 out of the base by earning no super.
 
+### Money that lands once
+
+A one-off is money that arrives on a single day rather than on a cadence — severance,
+a bonus, a gift. `inflows.paid_on` is what says so (an inflow states either the cadence
+it recurs on or the day it lands on, never both), and a payslip reads it the way it
+reads occasional pay, on the `one_off` basis: the projection exists and is the whole
+payment, but no pay period was ever owed a share of it. **Annualising takes the amount
+unchanged** — a $40,000 redundancy is $40,000 of money in, not $40,000 a period — so
+there is no smoothed figure to hold a slip against and none is invented.
+
+The three per-period consequences are the occasional ones, for a plainer reason: the
+group's expectation and variance are null; the slip's whole gross expectation goes
+null with it, reported as `grossPartlyUnmeasured` and the amount in
+`unmeasuredGrossCents`, because holding a $45,000 final fortnight against the salary's
+$5,000 alone would read the redundancy that was really paid as $40,000 above plan; and
+it is **never the cadence anchor**, a one-off having no cadence to offer at all while
+being routinely the largest group on the slip it lands in. Withholding stays the
+year's liability over the pay cycle for the reason it always does, so the period that
+carried the payment withholds more than the smoothed figure and the card says so. And
+super needs nothing here either, the guarantee being charged on the slip's actual
+gross less its non-OTE lines.
+
+**The year reads it as a step, not a share.** The same block that carries occasional
+pay carries it — one row per inflow no period measures, all of them from
+`unmeasuredInflowPositions` — but the two rows are worked out differently, and have
+to be. An occasional inflow is prorated across the days of the year already run
+through, because its money accrues over those days. A one-off's does not: it lands on
+a day. So the whole amount is expected from `paid_on` and nothing before it, which is
+what keeps a redundancy due in May from reading as most of a year's worth already
+missing, and keeps it from reading a cent short the day after it is paid.
+
 ### Earnings lines and per-inflow variance
 
 One employer pays salary and on-call in a single payment, and the two are
@@ -433,7 +469,8 @@ every line stays theirs to edit. Five properties fall out of that shape.
 - **A group whose inflow lands in only some periods is not measured here at all** —
   see [Pay that lands in only some
   periods](#pay-that-lands-in-only-some-periods). Its projection is annual, so the
-  year is where it is read.
+  year is where it is read. Nor is a group drawing on a one-off, whose projection is
+  the whole payment: see [Money that lands once](#money-that-lands-once).
 - **A slip with no lines is measured against nothing.** There is no projection
   for its gross and no pay cycle to read, so the gross expectation is null and its
   printed totals are held against the year's own figures apportioned by calendar
@@ -511,12 +548,13 @@ qualifier shown only where the two counts differ. Where **no** slip carries an
 expectation the position says "No projection to compare", the same words a card
 uses, rather than dressing nil coverage up as a shortfall.
 
-[Pay that lands in only some periods](#pay-that-lands-in-only-some-periods) reaches
-the gross position through that same path: such a slip has no gross expectation, so
-it is left out of both sides and the coverage note counts it out. Where **every** slip
-carries that pay the gross position has nothing to compare at all, and the cell blames
-the pay for being occasional and points at the block below rather than saying "No
-projection to compare" — the projection exists, and it is annual.
+[Pay that lands in only some periods](#pay-that-lands-in-only-some-periods) and
+[money that lands once](#money-that-lands-once) reach the gross position through that
+same path: such a slip has no gross expectation, so it is left out of both sides and
+the coverage note counts it out. Where **every** slip carries that pay the gross
+position has nothing to compare at all, and the cell blames the pay for landing
+outside the period rather than saying "No projection to compare" — the projection
+exists, and it is the year's.
 
 The three are counted **separately**, because a slip may carry one figure's
 expectation and not another's: a slip mapped to no projection has no gross to
@@ -579,8 +617,9 @@ tab**:
   [above](#the-year-to-date-is-the-slips-own-expectations-summed). Under the grid comes
   the cross-check against the running totals printed on the latest slip — a footnote to
   the gross figure right above it — and under that, in a block of its own, the year's
-  position on any pay that lands in only some periods, one row per such inflow: see
-  [Pay that lands in only some periods](#pay-that-lands-in-only-some-periods).
+  position on any pay no period measures, one row per such inflow: see [Pay that lands
+  in only some periods](#pay-that-lands-in-only-some-periods) and [Money that lands
+  once](#money-that-lands-once).
 - **Variance computation** (pure, in `@nest/plan` or a sibling of `lib/tax`):
   - *Expected gross for the period* = each inflow the slip's earnings lines draw
     on, annualised (via the existing `annualGrossCents` / schedule normalisation)
@@ -588,7 +627,7 @@ tab**:
     group's sum less its expectation is its variance; over the slip,
     `gross_cents − expected` is the gross variance. A slip whose lines name no
     projection has no gross expectation at all, and neither has one part of whose
-    gross draws on an inflow arriving in only some periods.
+    gross draws on an inflow arriving in only some periods, or on a one-off.
   - *Expected tax withheld for the period* = the member's annual estimated tax
     (from `estimateHouseholdTax`) ÷ periods per year of the slip's pay cycle,
     scaled by the share of one period it covers. `tax_withheld_cents − expected` is

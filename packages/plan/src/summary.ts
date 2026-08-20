@@ -34,6 +34,12 @@ export interface SummaryInput {
    * sacrificed from pay — for the gross-basis view. Absent ⇒ nil.
    */
   readonly salarySacrificeAnnualCents?: Money
+  /**
+   * The gross one-off money landing in the financial year — severance, a bonus, a
+   * gift — taxable and non-taxable alike. Reported as its own figure and left out
+   * of `available`; see {@link BudgetSummary.oneOffCents}. Absent ⇒ nil.
+   */
+  readonly oneOffCents?: Money
 }
 
 /**
@@ -49,6 +55,16 @@ export interface SummaryInput {
  * corresponding inputs are supplied.
  */
 export interface BudgetSummary {
+  /**
+   * The year's one-off money — severance, a bonus, a gift — reported beside the
+   * plan rather than inside it, and deliberately NOT part of `available`. Every
+   * other figure here is fortnightly money the household can count on, and a
+   * payment that lands once is not: divided into a fortnightly figure it would
+   * raise the buffer for all 26 fortnights of the year on the strength of one, so
+   * the plan would spend it twenty-six times over. It is a single annual cents
+   * figure for the same reason — there is no honest fortnightly reading of it.
+   */
+  readonly oneOffCents: Money
   readonly available: Amounts
   readonly groups: Readonly<Record<BudgetGroup | 'temporary', GroupSummary>>
   readonly outgoings: Amounts
@@ -82,6 +98,8 @@ function addAmounts(a: Amounts, b: Amounts): Amounts {
  * only active temporary items' fortnightly contributions. A group's `portion`
  * is its fortnightly total over available fortnightly cash, guarded to 0 when no
  * cash is available. `now` is taken as a parameter for deterministic results.
+ * One-off money passes straight through to `oneOffCents`, entering no total: it is
+ * reported beside the plan rather than spent by it.
  */
 export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   const inflowFortnightly = input.nonTaxableInflows.reduce(
@@ -163,6 +181,7 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   const salarySacrifice = annualToAmounts(input.salarySacrificeAnnualCents ?? 0)
 
   return {
+    oneOffCents: input.oneOffCents ?? 0,
     available,
     groups,
     outgoings,

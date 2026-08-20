@@ -11,9 +11,10 @@ import { EditDeleteActions } from './EditDeleteActions'
 import { FormShell } from './FormShell'
 
 /**
- * Names a recurring deductible expense. A group holds no amount of its own —
- * its total is the sum of the payments filed under it — so the name is the only
- * thing to fill in.
+ * Names a group: a subscription paid monthly, a trip's several receipts,
+ * anything claimed in more than one payment. A group holds no amount of its
+ * own — its total is the sum of the payments filed under it — so the name is
+ * the only thing to fill in.
  */
 export function DeductionGroupForm({
   member,
@@ -31,7 +32,7 @@ export function DeductionGroupForm({
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
-    errorMessage: 'Could not save this subscription. Please try again.',
+    errorMessage: 'Could not save this group. Please try again.',
     onSubmit,
     buildInput: (): DeductionGroupInput => ({ member_id: member.id, name: name.trim() }),
   })
@@ -43,14 +44,14 @@ export function DeductionGroupForm({
       submitting={submitting}
       canSubmit={canSubmit}
       editing={Boolean(initial)}
-      addLabel="subscription"
+      addLabel="group"
       onCancel={onCancel}
     >
       <TextInput
-        label="Subscription"
+        label="Name"
         size="sm"
-        placeholder="e.g. Adobe Creative Cloud"
-        description="What the recurring expense is called. Each invoice under it is claimed in its own right; the group totals them."
+        placeholder="e.g. Adobe Creative Cloud, or Bali conference trip"
+        description="A subscription paid monthly, a trip's several receipts, anything claimed in more than one payment. Each payment under it is claimed in its own right; the group totals them."
         value={name}
         onChange={(event) => setName(event.currentTarget.value)}
       />
@@ -59,10 +60,10 @@ export function DeductionGroupForm({
 }
 
 /**
- * One recurring deductible expense, collapsed to its name, how many payments it
- * has, and their total. Expanding shows the payments — each an ordinary
- * deduction with its own date, amount, and receipts — and the control that
- * appends the next invoice.
+ * One group of a member's deductions, collapsed to its name, how many payments
+ * it has, and their total. Expanding shows the payments — each an ordinary
+ * deduction with its own date, amount, and receipts — and the control that adds
+ * the next one.
  *
  * The total is summed from the payments rather than stored: every payment is a
  * deduction the tax estimate already counts, so a stored group total would be

@@ -44,26 +44,26 @@ describe('DeductionGroupForm', () => {
     const onSubmit = vi.fn()
     render(<DeductionGroupForm member={member} onSubmit={onSubmit} />)
 
-    await user.type(screen.getByLabelText(/subscription/i), '  Adobe Creative Cloud  ')
-    await user.click(screen.getByRole('button', { name: /add subscription/i }))
+    await user.type(screen.getByLabelText('Name'), '  Adobe Creative Cloud  ')
+    await user.click(screen.getByRole('button', { name: /add group/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({ member_id: 'm1', name: 'Adobe Creative Cloud' }),
     )
   })
 
-  it('will not save a subscription with no name', async () => {
+  it('will not save a group with no name', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<DeductionGroupForm member={member} onSubmit={onSubmit} />)
 
-    await user.type(screen.getByLabelText(/subscription/i), '   ')
-    await user.click(screen.getByRole('button', { name: /add subscription/i }))
+    await user.type(screen.getByLabelText('Name'), '   ')
+    await user.click(screen.getByRole('button', { name: /add group/i }))
 
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('prefills an existing subscription and cancels', async () => {
+  it('prefills an existing group and cancels', async () => {
     const user = userEvent.setup()
     const onCancel = vi.fn()
     render(
@@ -75,7 +75,7 @@ describe('DeductionGroupForm', () => {
       />,
     )
 
-    expect(screen.getByLabelText(/subscription/i)).toHaveValue('Adobe Creative Cloud')
+    expect(screen.getByLabelText('Name')).toHaveValue('Adobe Creative Cloud')
 
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onCancel).toHaveBeenCalled()

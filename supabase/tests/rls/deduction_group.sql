@@ -29,7 +29,7 @@ insert into public.deduction_group (household_id, member_id, name, financial_yea
   returning id as db_gid \gset
 select set_config('db.gid', :'db_gid', false);
 
--- Two payments of the one subscription, in the group's own year.
+-- Two payments of the one expense, in the group's own year.
 insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, group_id)
   values
     (current_setting('db.hid')::uuid, current_setting('db.mid')::uuid, 'Adobe Creative Cloud', 64_99, '2026-07-01', 2027, current_setting('db.gid')::uuid),
@@ -112,7 +112,7 @@ declare v_added uuid := current_setting('db.added')::uuid;
 begin
   assert (select group_id from public.deduction where id = v_added)
     = current_setting('db.gid')::uuid,
-    'an invoice added through the RPC should land in the group it names';
+    'a payment added through the RPC should land in the group it names';
 end $$;
 
 -- Ungrouping is not deleting: dropping the group leaves the payments standing.

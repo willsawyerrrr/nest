@@ -1,15 +1,17 @@
--- Deduction groups: many payments for one recurring expense, read as one claim.
+-- Deduction groups: many payments for one expense claimed twice or more, read as
+-- one claim.
 --
--- A deductible subscription is one commitment paid many times — twelve invoices
--- for one Adobe licence — and each payment is already a deduction in its own
--- right: its own date, its own amount, its own receipt. Grouping is therefore a
+-- A recurring subscription is one commitment paid many times — twelve invoices for
+-- one Adobe licence — and each payment is already a deduction in its own right:
+-- its own date, its own amount, its own receipt. A one-off with several receipts,
+-- a trip's flights and hotel and meals, is the same shape. Grouping is therefore a
 -- READING of rows that already exist, not a new kind of row. The group carries a
 -- name and totals its members for display; the deductions underneath stay exactly
 -- what they were, which is why the tax estimate, the EOFY tab, and the Summary
 -- need no change at all — they sum `deduction` rows and always did.
 --
--- A group is scoped to one financial year, as a deduction is. A subscription
--- running across 30 June is two groups, one per year, because a group's total is
+-- A group is scoped to one financial year, as a deduction is. An expense whose
+-- payments span 30 June is two groups, one per year, because a group's total is
 -- meant to BE the figure claimed for its year: a group spanning years would total
 -- money from two returns, and the Deductions tab — which shows one year — could
 -- only ever display part of it.

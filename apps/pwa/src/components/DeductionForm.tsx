@@ -44,7 +44,7 @@ interface DeductionFormProps {
    */
   groupId?: string | undefined
   /**
-   * The member's subscriptions for this financial year, offered as a picker so a
+   * The member's groups for this financial year, offered as a picker so a
    * deduction can be filed under one — or taken out of one — after the fact.
    * Empty, or when the form was opened from a group, no picker is shown.
    */
@@ -57,7 +57,7 @@ interface DeductionFormProps {
 type Basis = DeductionRow['basis']
 
 /**
- * The subscription picker's "no subscription" option. A Select's value is a
+ * The group picker's "no group" option. A Select's value is a
  * string, and null is what the column holds, so standing on its own needs an
  * option of its own — leaving it to the placeholder would make clearing the
  * picker the only way back out, which nothing on screen says is possible. No
@@ -305,9 +305,9 @@ export function DeductionForm({
       submitting={submitting}
       canSubmit={canSubmit}
       editing={Boolean(initial)}
-      // Inside a group the row being added is one invoice of a recurring
-      // expense, and the button says so.
-      addLabel={groupId ? 'invoice' : 'deduction'}
+      // Inside a group the row being added is one payment of it, and the
+      // button says so.
+      addLabel={groupId ? 'payment' : 'deduction'}
       onCancel={onCancel}
     >
       {adding && (
@@ -399,9 +399,9 @@ export function DeductionForm({
 
       {groupId === undefined && groups.length > 0 && (
         <Select
-          label="Subscription"
+          label="Group"
           size="sm"
-          description="File this under a recurring expense, or leave it on its own."
+          description="File this under a group, or leave it on its own."
           allowDeselect={false}
           data={[
             { value: NO_GROUP, label: 'None' },

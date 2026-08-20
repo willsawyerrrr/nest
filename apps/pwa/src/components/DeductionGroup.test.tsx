@@ -32,6 +32,8 @@ function makePayment(overrides: Partial<DeductionRow> = {}): DeductionRow {
     basis: 'amount',
     distance_km: null,
     group_id: 'g1',
+    full_amount_cents: 64_99,
+    work_use_percent: 100,
     created_at: '',
     updated_at: '',
     ...overrides,

@@ -23,6 +23,8 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     basis: 'amount',
     distance_km: null,
     group_id: null,
+    full_amount_cents: 1_200_00,
+    work_use_percent: 100,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -114,6 +116,27 @@ describe('DeductionsScreen', () => {
     })
     const card = screen.getByText('Client visits').closest('.mantine-Card-root') as HTMLElement
     expect(within(card).getByText(/1 Aug 2026 · 120km/)).toBeInTheDocument()
+  })
+
+  it('renders the work-use share beside the date of a part-claimed deduction', () => {
+    renderScreen({
+      deductions: [
+        makeDeduction({
+          description: 'Phone plan',
+          amount_cents: 60_00,
+          full_amount_cents: 100_00,
+          work_use_percent: 60,
+        }),
+      ],
+    })
+    const card = screen.getByText('Phone plan').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText(/1 Aug 2026 · 60% work use/)).toBeInTheDocument()
+  })
+
+  it('shows no work-use share beside a deduction claimed in full', () => {
+    renderScreen({ deductions: [makeDeduction({ description: 'Union fees' })] })
+    const card = screen.getByText('Union fees').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).queryByText(/work use/)).not.toBeInTheDocument()
   })
 
   it('reads a group as one row, its payments totalled underneath', async () => {

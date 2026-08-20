@@ -7,6 +7,7 @@ import {
   formatPerFortnight,
   formatPerYear,
   moneyColor,
+  workUseAmountCents,
 } from './money'
 
 describe('formatPerFortnight', () => {
@@ -127,5 +128,30 @@ describe('dollarsToCents', () => {
 
   it('returns null for an unparseable string', () => {
     expect(dollarsToCents('abc')).toBeNull()
+  })
+})
+
+describe('workUseAmountCents', () => {
+  it('claims the whole cost at 100%', () => {
+    expect(workUseAmountCents(64_99, 100)).toBe(64_99)
+  })
+
+  it('apportions a part-private expense', () => {
+    expect(workUseAmountCents(100_00, 60)).toBe(60_00)
+    expect(workUseAmountCents(64_99, 60)).toBe(38_99)
+  })
+
+  it('rounds a half-cent up, as the database constraint does', () => {
+    // 101c at 50% is exactly 50.5c.
+    expect(workUseAmountCents(101, 50)).toBe(51)
+  })
+
+  it('honours a fractional percentage', () => {
+    expect(workUseAmountCents(1_000_00, 33.33)).toBe(333_30)
+    expect(workUseAmountCents(1_000_00, 12.5)).toBe(125_00)
+  })
+
+  it('claims nothing of nothing', () => {
+    expect(workUseAmountCents(0, 60)).toBe(0)
   })
 })

@@ -177,7 +177,27 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `deduction_basis_attribution` check constraint holds each basis to its own
   column (`distance_km` set only when `basis = 'distance'`); the database does
   not itself compute `amount_cents` from `distance_km`, since the cents-per-km
-  rate is versioned in `@nest/tax`, not stored in Postgres. Each deduction may
+  rate is versioned in `@nest/tax`, not stored in Postgres. A deduction on the
+  amount basis may be claimed at less than its full cost: `full_amount_cents`
+  states what it cost, `work_use_percent` the share claimed (100 by default), and
+  `amount_cents` — the figure every reader still uses — must equal
+  `full_amount_cents` at that percentage, rounded to the nearest cent
+  (`deduction_work_use_apportioned`, enforced in the database rather than trusted
+  from the client, because a wrong figure here is a wrong figure on a tax return;
+  `workUseAmountCents` computes the same rounding client-side so the form's shown
+  claimable figure never disagrees with what the constraint will accept). The
+  form's "Amount" field is the full cost, not the claim, so editing a part-claimed
+  deduction reopens on what it cost rather than showing back a figure that was
+  itself derived; a "Work use %" field beside it (`deduction_work_use_range`:
+  greater than 0, at most 100) shows the claimable amount once it departs from
+  100. A distance-basis claim is pinned at 100% work use
+  (`deduction_work_use_basis`): its kilometres are work-related already, so a
+  percentage on top would discount the claim twice. `full_amount_cents` has no
+  plain column default — "whatever `amount_cents` says" depends on another
+  column of the same row, which `DEFAULT` cannot express — so a
+  `snapshot_deduction_full_amount` BEFORE INSERT trigger fills it from
+  `amount_cents` when a write leaves it unstated, the same shape
+  `snapshot_payslip_line_attracts_super` fills `attracts_super` with. Each deduction may
   carry stored receipts (`deduction_receipt`), the
   files held in a private Supabase Storage bucket (`receipts`) laid out under
   `<household_id>/<deduction_id>/…` so Storage RLS gates access by household

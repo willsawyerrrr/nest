@@ -40,13 +40,18 @@ instance and can also be run locally.
   in the group its payload names, and dropping a group clears its payments'
   `group_id` while leaving the payments themselves — and every other column on
   them — untouched.
+- `deduction_work_use.sql` — the assertions that a deduction's work-use
+  apportioning is held to its three constraints: `amount_cents` must equal
+  `full_amount_cents` at `work_use_percent`, the percentage must fall in (0, 100],
+  a distance-basis row is pinned at 100%, and the add path's
+  `create_deduction_with_receipts` carries the apportioning it is given.
 
 ## What runs
 
 `setup_auth.sql` → every file in `supabase/migrations/` in order →
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
-`deduction_group.sql`.
+`deduction_group.sql` → `deduction_work_use.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -68,5 +73,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_financial_year.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_lines.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
 docker rm -f pba-rls
 ```

@@ -18,11 +18,16 @@ export type DeductionRow = Tables<'deduction'>
  * `amount_cents` is always the figure that is saved and read downstream;
  * `distance_km` is set only alongside `'distance'`.
  *
- * `group_id` files the deduction under a `deduction_group` — one payment of a
- * recurring expense — or is null for a standalone deduction. Grouping changes
- * nothing about the deduction itself: it is claimed in its own right either way,
- * and the group's total is the sum of its payments rather than a figure of its
- * own.
+ * `group_id` files the deduction under a `deduction_group` — one payment of an
+ * expense claimed more than once — or is null for a standalone deduction.
+ * Grouping changes nothing about the deduction itself: it is claimed in its own
+ * right either way, and the group's total is the sum of its payments rather
+ * than a figure of its own.
+ *
+ * `full_amount_cents` and `work_use_percent` record how `amount_cents` was
+ * apportioned: the whole cost and the share of it claimed. Both default so an
+ * unqualified deduction is claimed in full, matching what a deduction always
+ * was before apportioning existed.
  */
 export interface DeductionInput {
   member_id: string
@@ -32,6 +37,10 @@ export interface DeductionInput {
   basis?: DeductionRow['basis']
   distance_km?: number | null
   group_id?: string | null
+  /** What the expense cost in full, before the work-use share was applied. Equal to `amount_cents` at 100%. */
+  full_amount_cents?: number
+  /** The share of `full_amount_cents` claimed, as a percentage; 100 for a wholly work-related expense. */
+  work_use_percent?: number
 }
 
 /**

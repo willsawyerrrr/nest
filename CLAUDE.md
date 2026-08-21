@@ -584,63 +584,25 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 
 ## Conventions
 
+- All planning happens in Linear, under the Nest project
+  (`willsawyerrrr-dev` / WSD team). Do not produce ad-hoc chat plans or
+  planning documents outside Linear — capture scope, decisions, and
+  breakdown as Linear issues/documents on the Nest project instead.
 - Money is stored as integer minor units (cents); never floats.
 - Integer-cent numeric literals are grouped to read as dollars: a trailing `_NN`
   for the cents, then `_NNN` groups for the dollars (e.g. `18_200_00` = $18,200.00).
 - Financial year = AU FY (1 Jul – 30 Jun), labelled by the ending year.
 - Tax rates/thresholds live in versioned config, never hardcoded in logic.
-- Commit messages: Conventional Commits, first word capitalised, scoped where it
-  helps (e.g. `feat(tax): Add LITO taper`).
-- Feature work on branches → PRs; keep `main` releasable.
-- Before opening a pull request — and before pushing updates to an open one —
-  `git fetch` and rebase the branch onto the latest `origin/main`, so a PR is
-  never built on a stale main (which risks silent conflicts with changes merged
-  in the meantime).
-- One feature per pull request. Each distinct change ships in its own branch and
-  PR, even when several are requested in quick succession. Never bundle two
-  unrelated changes together just because one was asked for while the other was
-  already in motion — when a new request arrives mid-flight, open a separate
-  branch and PR for it rather than folding it into the work in progress.
-- PR titles are user-facing changelog copy. The in-app "What's new" changelog is
-  sourced from merged-commit subjects on `main` (squash-merge uses the PR title)
-  and from open PR titles, so write every PR title as a clear, user-readable
-  description of the change. Keep the Conventional Commit `type(scope):` prefix —
-  the changelog surfaces `feat`, `fix`, and `perf` entries and hides `chore`,
-  `docs`, `ci`, `test`, and `refactor` — but phrase the description for someone
-  using the app, not for an implementer.
+- The in-app "What's new" changelog is sourced from merged-commit subjects on
+  `main` (squash-merge uses the PR title) and from open PR titles, and surfaces
+  only `feat`, `fix`, and `perf` entries — hiding `chore`, `docs`, `ci`, `test`,
+  and `refactor`.
 - Because the changelog shows only the description (the type becomes an emoji and
   the scope is hidden), write each PR title's description so it reads as a clear,
   self-contained sentence that makes sense without the scope — e.g. prefer
   `feat(splits): Sort pay-split rows by title or amount` over
   `feat(splits): Add sorting`, whose description ("Add sorting") is meaningless
   once the `splits` scope is dropped.
-- Keep documentation in sync with the code. When a change alters behaviour,
-  schema, scope, or a workflow, update the affected docs (`docs/` and this file)
-  as part of the same change, so `main` is never merged with stale docs.
-- Claude is the driver of everything in this repo. It makes changes of every kind
-  — code, schema, migrations, docs, CI, config — and owns the full git and PR
-  lifecycle autonomously: branching, committing, pushing, and opening, updating,
-  and merging pull requests, all without per-turn confirmation.
-- A defect or gap found along the way gets fixed, not raised as a question. Never
-  ask whether something worth fixing should be fixed, and never park it as an
-  optional follow-up for someone to approve: open its own branch and PR for it and
-  say what was done. Report findings — the reasoning behind a decision, a
-  trade-off taken, something deliberately left alone and why — but report them as
-  work already in hand, not as a menu. Ask only where the answer is genuinely the
-  household's to give and no default is defensible: what the app should do, which
-  of several valid behaviours is wanted, or an outward-facing act with
-  consequences beyond the repo.
-- Merge PRs via GitHub auto-merge (`gh pr merge --auto`), not by polling for CI to
-  go green. Enable it once the PR is open; GitHub merges the moment the required
-  checks pass.
-- The driving agent delegates every piece of work to subagents rather than doing
-  it inline, staying free to plan and take direction from the user. Launch
-  independent subagents concurrently; reserve the main thread for orchestration
-  and conversation.
-- Every piece of work happens in its own dedicated git worktree named after its
-  branch. This repo is a bare + per-branch-worktree layout (`.bare` plus a
-  worktree per branch), so isolating each task in its own worktree keeps
-  parallel subagents from sharing a working tree or colliding on git state.
 - CI must complete in under 1 minute. If a run exceeds that, diagnosing and
   reducing CI time takes priority over other work. CI runs as separate parallel
   jobs (`check`, `test`, `rls`, `functions`) aggregated by a `ci-status` job that

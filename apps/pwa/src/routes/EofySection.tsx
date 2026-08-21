@@ -13,16 +13,12 @@ import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { paygWithheldFromRows, payslipCountByMember } from '../lib/payslips'
 import {
+  availableFinancialYears,
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
   helpPayoffByMember,
   superCapSummaryFromRows,
 } from '../lib/tax'
-
-/** Every financial year with a published tax config, most recent first. */
-const AVAILABLE_FINANCIAL_YEARS = Object.keys(configsByYear)
-  .map(Number)
-  .sort((a, b) => b - a)
 
 export function EofySection({ householdId }: { householdId: string }) {
   const [financialYear, setFinancialYear] = useState(financialYearForDate(new Date()))
@@ -89,7 +85,7 @@ export function EofySection({ householdId }: { householdId: string }) {
     <EofyScreen
       members={members}
       financialYear={financialYear}
-      availableFinancialYears={AVAILABLE_FINANCIAL_YEARS}
+      availableFinancialYears={availableFinancialYears}
       onFinancialYearChange={setFinancialYear}
       estimate={estimate}
       capSummaries={capSummaries}

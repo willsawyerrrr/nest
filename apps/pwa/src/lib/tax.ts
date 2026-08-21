@@ -186,6 +186,11 @@ export function currentTaxConfig(): TaxYearConfig {
   return configsByYear[financialYearForDate(new Date())] ?? FY2027_CONFIG
 }
 
+/** Every financial year with a published tax config, most recent first. */
+export const availableFinancialYears: readonly number[] = Object.keys(configsByYear)
+  .map(Number)
+  .sort((a, b) => b - a)
+
 /**
  * What one taxable inflow adds to a member's annual assessable income, `income`
  * being the row already mapped to the engine's shape: a recurring inflow's steady

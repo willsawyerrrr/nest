@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { financialYearForDate } from '@nest/tax'
 import { DeductionsScreen } from '../components/DeductionsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
@@ -6,11 +7,14 @@ import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
 import { useMembers } from '../hooks/useMembers'
+import { availableFinancialYears } from '../lib/tax'
 
 export function DeductionsSection({ householdId }: { householdId: string }) {
+  const [financialYear, setFinancialYear] = useState(financialYearForDate(new Date()))
+
   const { members, loading: membersLoading } = useMembers()
-  const deductions = useDeductions(householdId)
-  const groups = useDeductionGroups(householdId, deductions.financialYear)
+  const deductions = useDeductions(householdId, financialYear)
+  const groups = useDeductionGroups(householdId, financialYear)
   const receipts = useDeductionReceipts(householdId)
 
   // Storing, discarding, and reading a receipt picked before a new deduction
@@ -35,7 +39,9 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
       deductions={deductions.deductions ?? []}
       groups={groups.groups ?? []}
       receipts={receipts.receipts ?? []}
-      financialYear={deductions.financialYear}
+      financialYear={financialYear}
+      availableFinancialYears={availableFinancialYears}
+      onFinancialYearChange={setFinancialYear}
       attachments={attachments}
       onCreate={deductions.create}
       onUpdate={deductions.update}

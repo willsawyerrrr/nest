@@ -14,6 +14,7 @@ import { DeductionForm } from './DeductionForm'
 import { DeductionGroup, DeductionGroupForm } from './DeductionGroup'
 import { EditableList, type ItemControls } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
+import { FinancialYearSelect } from './FinancialYearSelect'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
@@ -25,6 +26,9 @@ interface DeductionsScreenProps {
   groups: DeductionGroupRow[]
   receipts: DeductionReceiptRow[]
   financialYear: number
+  /** Financial years with a published tax config, most recent first. */
+  availableFinancialYears: readonly number[]
+  onFinancialYearChange: (financialYear: number) => void
   /** Storing, discarding, and reading receipts picked before a new deduction exists. */
   attachments: DeductionAttachments
   onCreate: (submission: DeductionSubmission) => Promise<void>
@@ -495,6 +499,8 @@ export function DeductionsScreen({
   groups,
   receipts,
   financialYear,
+  availableFinancialYears,
+  onFinancialYearChange,
   attachments,
   onCreate,
   onUpdate,
@@ -512,6 +518,12 @@ export function DeductionsScreen({
       title={`Tax deductions (FY${financialYear})`}
       intro="Each member’s deductible expenses for the financial year, with receipts stored privately — pick receipts before saving a new deduction and their details are read for you to check. A member’s deductions reduce their taxable income on the Tax tab, lowering their estimated tax and lifting take-home on the Summary."
     >
+      <FinancialYearSelect
+        financialYear={financialYear}
+        availableFinancialYears={availableFinancialYears}
+        onChange={onFinancialYearChange}
+      />
+
       {members.map((member) => (
         <MemberDeductions
           key={member.id}

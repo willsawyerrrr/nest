@@ -71,6 +71,8 @@ function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]>
     groups: [] as DeductionGroupRow[],
     receipts: [] as DeductionReceiptRow[],
     financialYear: 2027,
+    availableFinancialYears: [2027, 2026],
+    onFinancialYearChange: vi.fn(),
     attachments,
     onCreate: vi.fn().mockResolvedValue(undefined),
     onUpdate: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +98,26 @@ function groupPicker() {
 afterEach(() => vi.restoreAllMocks())
 
 describe('DeductionsScreen', () => {
+  it('titles the page with the selected financial year', () => {
+    renderScreen({ financialYear: 2027 })
+    expect(screen.getByRole('heading', { name: /Tax deductions \(FY2027\)/ })).toBeInTheDocument()
+  })
+
+  it('offers every available financial year and reports a change', async () => {
+    const onFinancialYearChange = vi.fn()
+    const user = userEvent.setup()
+    renderScreen({
+      financialYear: 2027,
+      availableFinancialYears: [2027, 2026],
+      onFinancialYearChange,
+    })
+
+    await user.click(screen.getByRole('combobox', { name: /financial year/i }))
+    await user.click(await screen.findByRole('option', { name: 'FY2026' }))
+
+    expect(onFinancialYearChange).toHaveBeenCalledWith(2026)
+  })
+
   it('shows an empty hint per member without deductions', () => {
     renderScreen({ deductions: [] })
     expect(screen.getAllByText(/no deductions yet/i)).toHaveLength(2)

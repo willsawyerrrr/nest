@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Anchor, Card, Group, Select, Stack, Text, Title } from '@mantine/core'
+import { Anchor, Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { HelpPayoffProjection, HouseholdTaxEstimate, MemberTaxEstimate } from '@nest/tax'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
@@ -8,6 +8,7 @@ import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { helpPayoffSummary, type SuperCapSummary } from '../lib/tax'
 import { EmptyState } from './EmptyState'
+import { FinancialYearSelect } from './FinancialYearSelect'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { SuperCapsSummary } from './SuperCapsSummary'
@@ -321,32 +322,6 @@ function EofyMemberCard({
         </Stack>
       </Stack>
     </Card>
-  )
-}
-
-/** The FY picker, offering every financial year with a published tax config. */
-function FinancialYearSelect({
-  financialYear,
-  availableFinancialYears,
-  onChange,
-}: {
-  financialYear: number
-  availableFinancialYears: readonly number[]
-  onChange: (financialYear: number) => void
-}) {
-  return (
-    <Select
-      label="Financial year"
-      w={160}
-      allowDeselect={false}
-      data={availableFinancialYears.map((year) => ({ value: String(year), label: `FY${year}` }))}
-      value={String(financialYear)}
-      onChange={(value) => {
-        if (value) {
-          onChange(Number(value))
-        }
-      }}
-    />
   )
 }
 

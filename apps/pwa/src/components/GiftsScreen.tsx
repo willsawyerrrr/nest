@@ -15,6 +15,8 @@ import { IconChevronDown, IconChevronRight, IconRefresh } from '@tabler/icons-re
 import type {
   GiftBudget,
   GiftBudgetInput,
+  GiftDiscretionaryBudget,
+  GiftDiscretionaryBudgetInput,
   GiftOccasion,
   GiftOccasionInput,
   GiftPurchase,
@@ -45,6 +47,7 @@ import { EmptyState } from './EmptyState'
 import { EnumSegmentedControl } from './EnumSelect'
 import { GiftBudgetForm } from './GiftBudgetForm'
 import { GiftCandidateInbox } from './GiftCandidateInbox'
+import { GiftDiscretionaryCard } from './GiftDiscretionaryCard'
 import { GiftManagement } from './GiftManagement'
 import { GiftRowCard } from './GiftRowCard'
 import { GiftMoneyBar } from './GiftRowParts'
@@ -54,6 +57,8 @@ interface GiftsScreenProps {
   occasions: GiftOccasion[]
   budgets: GiftBudget[]
   purchases: GiftPurchase[]
+  /** The household's single ad hoc gift buffer row, or null before its first edit. */
+  discretionaryBudget: GiftDiscretionaryBudget | null
   /** The synced gift-category transactions the inbox offers, newest first. */
   transactions: GiftTransaction[]
   /** The dismissals keeping the transactions that were not gifts out of the inbox. */
@@ -73,6 +78,7 @@ interface GiftsScreenProps {
   onCreatePurchase: (input: GiftPurchaseInput) => Promise<void>
   onUpdatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
   onDeletePurchase: (id: string) => Promise<void>
+  onUpsertDiscretionaryBudget: (input: GiftDiscretionaryBudgetInput) => Promise<void>
   /** Sets a candidate aside as "not a gift". */
   onDismissTransaction: (transactionId: string) => Promise<void>
   /** Undoes a set-aside, returning its transaction to the inbox. */
@@ -215,6 +221,7 @@ export function GiftsScreen({
   occasions,
   budgets,
   purchases,
+  discretionaryBudget,
   transactions,
   dismissals,
   members,
@@ -231,6 +238,7 @@ export function GiftsScreen({
   onCreatePurchase,
   onUpdatePurchase,
   onDeletePurchase,
+  onUpsertDiscretionaryBudget,
   onDismissTransaction,
   onRestoreTransaction,
   onRefresh,
@@ -245,7 +253,7 @@ export function GiftsScreen({
   const [managing, { toggle: toggleManaging }] = useDisclosure(false)
 
   const groups = groupGifts(recipients, occasions, budgets, purchases, groupBy)
-  const overall = overallGiftTotals(budgets, purchases)
+  const overall = overallGiftTotals(budgets, purchases, discretionaryBudget)
   const budgetsById = new Map(budgets.map((budget) => [budget.id, budget]))
   const takenPairs = new Set(
     budgets.map((budget) => pairKey(budget.recipient_id, budget.occasion_id)),
@@ -265,8 +273,13 @@ export function GiftsScreen({
       .map((budget) => budget.id),
   )
   // Every gift is for the signed-in member: the overall total shows only its
-  // budgeted amount, with no spend, remaining, or progress bar to spoil.
-  const allHidden = budgets.length > 0 && budgets.every((budget) => hiddenBudgetIds.has(budget.id))
+  // budgeted amount, with no spend, remaining, or progress bar to spoil. The ad
+  // hoc buffer is shared rather than "for" anyone, so a positive buffer amount
+  // always keeps the full spend readout, even when every gift budget is hidden.
+  const allHidden =
+    budgets.length > 0 &&
+    budgets.every((budget) => hiddenBudgetIds.has(budget.id)) &&
+    (discretionaryBudget?.budgeted_amount_cents ?? 0) === 0
   const noEntities = recipients.length === 0 && occasions.length === 0
 
   return (
@@ -303,7 +316,7 @@ export function GiftsScreen({
         onRestore={onRestoreTransaction}
       />
 
-      {budgets.length > 0 && (
+      {(budgets.length > 0 || discretionaryBudget !== null) && (
         <AppCard withBorder padding="sm">
           <Stack gap="xxs">
             <Title order={3} size="h5">
@@ -313,6 +326,16 @@ export function GiftsScreen({
           </Stack>
         </AppCard>
       )}
+
+      <GiftDiscretionaryCard
+        discretionaryBudget={discretionaryBudget}
+        purchases={purchases}
+        recipients={recipients}
+        onUpsertBudget={onUpsertDiscretionaryBudget}
+        onCreatePurchase={onCreatePurchase}
+        onUpdatePurchase={onUpdatePurchase}
+        onDeletePurchase={onDeletePurchase}
+      />
 
       <Collapse expanded={managing}>
         <GiftManagement

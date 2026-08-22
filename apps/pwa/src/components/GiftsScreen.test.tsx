@@ -2,7 +2,11 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GiftBudget, GiftOccasion, GiftPurchase, GiftRecipient } from '../hooks/useGifts'
-import { makeGiftPurchase, makeGiftTransaction } from '../test/fixtures'
+import {
+  makeGiftDiscretionaryBudget,
+  makeGiftPurchase,
+  makeGiftTransaction,
+} from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { GiftsScreen } from './GiftsScreen'
 
@@ -41,6 +45,7 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
         occasions={[xmas]}
         budgets={[budget]}
         purchases={[]}
+        discretionaryBudget={null}
         transactions={[]}
         dismissals={[]}
         members={[]}
@@ -57,6 +62,7 @@ function renderScreen(overrides: Partial<Parameters<typeof GiftsScreen>[0]> = {}
         onCreatePurchase={vi.fn()}
         onUpdatePurchase={vi.fn()}
         onDeletePurchase={vi.fn()}
+        onUpsertDiscretionaryBudget={vi.fn()}
         onDismissTransaction={vi.fn()}
         onRestoreTransaction={vi.fn()}
         onRefresh={vi.fn()}
@@ -159,6 +165,8 @@ describe('GiftsScreen total', () => {
     const purchase: GiftPurchase = {
       id: 'p1',
       gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
@@ -195,6 +203,8 @@ describe('GiftsScreen spend rollup', () => {
     const purchase: GiftPurchase = {
       id: 'p1',
       gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
@@ -213,6 +223,8 @@ describe('GiftsScreen spend rollup', () => {
     const purchase: GiftPurchase = {
       id: 'p1',
       gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
       amount_cents: 20_00,
       description: 'Book',
       purchased_on: '2026-11-01',
@@ -324,6 +336,8 @@ describe('GiftsScreen private gifts for the current member', () => {
   const myPurchase: GiftPurchase = {
     id: 'p9',
     gift_budget_id: 'b9',
+    gift_discretionary_budget_id: null,
+    recipient_id: null,
     amount_cents: 40_00,
     description: 'Secret',
     purchased_on: '2026-12-02',
@@ -404,9 +418,19 @@ describe('GiftsScreen private gifts for the current member', () => {
     await user.click(screen.getByRole('radio', { name: 'By person' }))
 
     // Both the "Me" group and the overall total show the budgeted amount alone.
+    // Scoped to those two cards: the always-visible ad hoc buffer card shows its
+    // own (unrelated, unhidden) spend readout alongside them.
     expect(screen.getAllByText('Budget $100.00').length).toBeGreaterThan(0)
-    expect(screen.queryByText(/^Spent /)).not.toBeInTheDocument()
-    expect(screen.queryByText(/^Left /)).not.toBeInTheDocument()
+    const meCard = screen
+      .getByRole('heading', { name: 'Me' })
+      .closest('.mantine-Card-root') as HTMLElement
+    const totalCard = screen
+      .getByRole('heading', { name: 'Total' })
+      .closest('.mantine-Card-root') as HTMLElement
+    for (const card of [meCard, totalCard]) {
+      expect(within(card).queryByText(/^Spent /)).not.toBeInTheDocument()
+      expect(within(card).queryByText(/^Left /)).not.toBeInTheDocument()
+    }
     expect(screen.queryByLabelText('Me spend')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Total gift spend')).not.toBeInTheDocument()
   })
@@ -463,6 +487,8 @@ describe('GiftsScreen purchases', () => {
     const purchase: GiftPurchase = {
       id: 'p1',
       gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
@@ -510,6 +536,8 @@ describe('GiftsScreen purchases', () => {
     const purchase: GiftPurchase = {
       id: 'p1',
       gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
       amount_cents: 30_00,
       description: 'Book',
       purchased_on: '2026-11-01',
@@ -538,6 +566,8 @@ describe('GiftsScreen purchases', () => {
     const purchase: GiftPurchase = {
       id: 'p1',
       gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
       amount_cents: 30_00,
       description: '',
       purchased_on: '2026-11-01',
@@ -628,5 +658,117 @@ describe('GiftsScreen card-spending inbox', () => {
 
     renderScreen({ refreshError: 'Could not refresh from Up. Try again.' })
     expect(screen.getByRole('alert')).toHaveTextContent(/could not refresh from up/i)
+  })
+})
+
+describe('GiftsScreen ad hoc discretionary buffer', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('is always visible even with no gift budgets at all', () => {
+    renderScreen({ recipients: [], occasions: [], budgets: [] })
+    expect(screen.getByRole('heading', { name: 'Ad hoc gifts' })).toBeInTheDocument()
+  })
+
+  it('shows the buffer budgeted amount once set', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ budgeted_amount_cents: 50_00 }),
+    })
+
+    await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
+    expect(screen.getAllByText('Budget $50.00').length).toBeGreaterThan(0)
+  })
+
+  it('upserts the buffer amount from the edit form', async () => {
+    const user = userEvent.setup()
+    const onUpsertDiscretionaryBudget = vi.fn()
+    renderScreen({ onUpsertDiscretionaryBudget })
+
+    await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
+    await user.click(screen.getByRole('button', { name: 'Edit budget' }))
+    const amountInput = screen.getByLabelText(/budgeted amount/i)
+    await user.clear(amountInput)
+    await user.type(amountInput, '75')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onUpsertDiscretionaryBudget).toHaveBeenCalledWith({ budgeted_amount_cents: 75_00 })
+  })
+
+  it('disables adding a purchase until the buffer row exists', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+
+    await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
+    expect(screen.getByRole('button', { name: 'Add purchase' })).toBeDisabled()
+    expect(screen.getByText(/set a budget above/i)).toBeInTheDocument()
+  })
+
+  it('adds an ad hoc purchase optionally tagged to a recipient', async () => {
+    const user = userEvent.setup()
+    const onCreatePurchase = vi.fn()
+    renderScreen({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      onCreatePurchase,
+    })
+
+    await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
+    await user.click(screen.getByRole('button', { name: 'Add purchase' }))
+    await user.type(screen.getByLabelText(/description/i), 'Flowers')
+    await user.type(screen.getByLabelText(/amount/i), '20')
+    await user.click(screen.getByRole('combobox', { name: /recipient/i }))
+    await user.click(await screen.findByRole('option', { name: 'Alice' }))
+    await user.click(screen.getByRole('button', { name: 'Add purchase' }))
+
+    expect(onCreatePurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gift_discretionary_budget_id: 'gdb1',
+        recipient_id: 'r1',
+        amount_cents: 20_00,
+        description: 'Flowers',
+      }),
+    )
+  })
+
+  it('shows a tagged ad hoc purchase with its recipient badge', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: 'gdb1',
+          recipient_id: 'r1',
+          description: 'Flowers',
+        }),
+      ],
+    })
+
+    await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
+    expect(screen.getByText('Flowers')).toBeInTheDocument()
+    expect(screen.getByText('For Alice')).toBeInTheDocument()
+  })
+
+  it('deletes an ad hoc purchase', async () => {
+    const user = userEvent.setup()
+    const onDeletePurchase = vi.fn()
+    renderScreen({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: 'gdb1',
+          description: 'Flowers',
+        }),
+      ],
+      onDeletePurchase,
+    })
+
+    await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
+    await user.click(screen.getByRole('button', { name: 'Delete Flowers' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+
+    expect(onDeletePurchase).toHaveBeenCalledWith('p1')
   })
 })

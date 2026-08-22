@@ -630,12 +630,36 @@ recipient is a household member (see **Private gifts** below).
   - Composite foreign keys `(recipient_id, household_id)` → `gift_recipient` and
     `(occasion_id, household_id)` → `gift_occasion`, both `on delete cascade`.
     Unique on `(recipient_id, occasion_id)` and on `(id, household_id)`.
-- **gift_purchase** — an actual purchase assigned to a `gift_budget`.
-  - `id`, `household_id`, `gift_budget_id`, `amount_cents` (≥ 0),
-    `description` (default `''`), `purchased_on`, `transaction_id` (nullable),
-    `created_at`, `updated_at`.
-  - Composite foreign key `(gift_budget_id, household_id)` → `gift_budget`
+- **gift_discretionary_budget** — the household's single ad hoc gift buffer: a
+  planned amount not linked to any recipient's or occasion's `gift_budget`.
+  - `id`, `household_id` (`unique`, so exactly one row per household),
+    `budgeted_amount_cents` (default 0, ≥ 0), `created_at`, `updated_at`. Unique
+    on `(id, household_id)`.
+  - Created lazily on first edit — a household with no ad hoc spend planned has
+    no row at all, read client-side as a zero budget.
+  - Its amount folds into the external ("Gifts (others)") derived line rather
+    than minting a line of its own (see **Reconcile** below): a household-wide
+    buffer partitioned no differently from an external recipient's budgets.
+- **gift_purchase** — an actual purchase assigned to a `gift_budget`, or an ad
+  hoc one assigned to the household's `gift_discretionary_budget` instead.
+  - `id`, `household_id`, `gift_budget_id` (nullable),
+    `gift_discretionary_budget_id` (nullable), `recipient_id` (nullable),
+    `amount_cents` (≥ 0), `description` (default `''`), `purchased_on`,
+    `transaction_id` (nullable), `created_at`, `updated_at`.
+  - `gift_budget_id`/`gift_discretionary_budget_id` are each nullable, and
+    exactly one is set (`gift_purchase_budget_xor_discretionary`): a purchase is
+    budget-linked or ad hoc, never both, never neither. Composite foreign keys
+    `(gift_budget_id, household_id)` → `gift_budget` `on delete cascade` and
+    `(gift_discretionary_budget_id, household_id)` → `gift_discretionary_budget`
     `on delete cascade`.
+  - `recipient_id` optionally tags an ad hoc purchase with a `gift_recipient`,
+    for record-keeping only — it carries no budget of its own, so it may be set
+    only alongside `gift_discretionary_budget_id`
+    (`gift_purchase_recipient_requires_discretionary`); a budget-linked
+    purchase's recipient is already implied by its `gift_budget.recipient_id`.
+    Composite foreign key `(recipient_id, household_id)` → `gift_recipient`
+    `on delete set null` on that column alone, so removing the tagged recipient
+    leaves the purchase standing, untagged.
   - `transaction_id` is the synced Up transaction the purchase was linked from,
     null for a hand-entered one. Composite foreign key
     `(transaction_id, household_id)` → `transactions`, `on delete set null` on
@@ -659,18 +683,33 @@ recipient is a household member (see **Private gifts** below).
     right: once Up no longer reports the transaction in the gift category, it is
     not a candidate to dismiss.
 
-**Private gifts.** `gift_recipient`, `gift_occasion`, and `gift_budget` carry the
-shared blanket "household members manage" policy — the agreed budget is set
-together and a recipient may see their own budgeted amount, and it still feeds the
-derived Gifts budget line and pay splits unchanged. `gift_purchase` instead has
-per-command policies gated on the caller not being the gift's recipient:
-`SELECT`/`UPDATE`/`DELETE`/`INSERT` all require
-`gift_budget_id not in (select hidden_gift_budget_ids_for_current_member())` (plus
-household membership). `hidden_gift_budget_ids_for_current_member()` is a
-`SECURITY DEFINER` helper returning the gift-budget ids whose recipient is linked
-to one of the caller's members (mirroring `visible_balance_account_ids`), so a
-member never reads and cannot log a purchase for their own surprise, while the
-buyer — any other member — sees and manages it normally.
+**Private gifts.** `gift_recipient`, `gift_occasion`, `gift_budget`, and
+`gift_discretionary_budget` carry the shared blanket "household members manage"
+policy — the agreed budget is set together and a recipient may see their own
+budgeted amount, and it still feeds the derived Gifts budget line and pay splits
+unchanged. `gift_purchase` instead has per-command policies that branch on which
+kind of purchase a row is, since `gift_budget_id` is nullable and
+`null not in (...)` would otherwise evaluate to unknown — silently hiding and
+blocking every ad hoc purchase:
+
+- A budget-linked purchase (`gift_budget_id` not null) keeps the original check:
+  `gift_budget_id not in (select hidden_gift_budget_ids_for_current_member())`.
+  `hidden_gift_budget_ids_for_current_member()` is a `SECURITY DEFINER` helper
+  returning the gift-budget ids whose recipient is linked to one of the caller's
+  members (mirroring `visible_balance_account_ids`), so a member never reads and
+  cannot log a purchase for their own surprise, while the buyer — any other
+  member — sees and manages it normally.
+- An ad hoc purchase (`gift_budget_id` null) is instead gated on its own
+  optional `recipient_id` tag:
+  `recipient_id is null or recipient_id not in (select hidden_gift_recipient_ids_for_current_member())`.
+  `hidden_gift_recipient_ids_for_current_member()` mirrors the budget helper,
+  returning the `gift_recipient` ids linked to one of the caller's members, so a
+  member never reads and cannot log an ad hoc purchase tagged to their own
+  recipient; an untagged purchase, or one tagged to the other member or an
+  external recipient, is visible to both.
+
+`SELECT`/`UPDATE`/`DELETE`/`INSERT` all carry the same branch (plus household
+membership).
 
 The card spend behind such a purchase is withheld too, so the claim cannot leak
 through the ledger: the `transactions` `SELECT`, `UPDATE`, and `DELETE` policies
@@ -954,21 +993,26 @@ stale by a client.
   computes the derived lines the current sources imply and applies the creates,
   updates, and deletes needed to match, no-opping when they already do. It reads
   each roll-up through `reconcile_generic_total` (a breakdown's annualised items),
-  `reconcile_gift_total` (a recipient's gift budgets), and
-  `reconcile_buyer_account` (the *other* member's `type = 'transaction'` account,
-  which funds a "Gifts for &lt;member&gt;" line), with `reconcile_annual_cents`
-  normalising an amount + frequency + interval to annual cents and
-  `budget_line_derived_fields` resolving one line's group, name, amount, and
-  destination.
-- Six `AFTER` triggers named `reconcile_derived_lines` call it whenever a source
-  changes, each narrowed to the columns that can move a roll-up:
+  `reconcile_gift_total` (a recipient's gift budgets, plus — for the external,
+  null-member partition only — the household's `gift_discretionary_budget`
+  amount), and `reconcile_buyer_account` (the *other* member's
+  `type = 'transaction'` account, which funds a "Gifts for &lt;member&gt;" line),
+  with `reconcile_annual_cents` normalising an amount + frequency + interval to
+  annual cents and `budget_line_derived_fields` resolving one line's group,
+  name, amount, and destination. The external partition's line is created or
+  kept whenever it has budgets, is routed, **or** the discretionary buffer's
+  amount is positive — folding the buffer straight into "Gifts (others)" rather
+  than minting a line of its own.
+- Seven `AFTER` triggers named `reconcile_derived_lines` call it whenever a
+  source changes, each narrowed to the columns that can move a roll-up:
   `breakdown_item` (insert/delete/update of `amount_cents`, `frequency`,
   `interval_count`, `breakdown_id`), `breakdown` (update of `name`,
   `line_group`), `gift_budget` (insert/delete/update of
   `budgeted_amount_cents`, `recipient_id`), `gift_recipient` (delete/update of
-  `member_id`), `members` (insert/delete/update of `name`), and `accounts`
+  `member_id`), `members` (insert/delete/update of `name`), `accounts`
   (insert/delete/update of `owner_member_id`, `type`, `name` — the three columns
-  that decide which account funds a gift line).
+  that decide which account funds a gift line), and `gift_discretionary_budget`
+  (insert/delete/update of `budgeted_amount_cents`).
 - `budget_line_normalize_derived` — a `BEFORE INSERT OR UPDATE` trigger on
   `budget_line` that canonicalises any derived row on write, so a hand-issued
   write cannot leave a derived line inconsistent with its source.

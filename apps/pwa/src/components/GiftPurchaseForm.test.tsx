@@ -1,12 +1,14 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { GiftPurchase } from '../hooks/useGifts'
+import type { GiftPurchase, GiftRecipient } from '../hooks/useGifts'
 import { fireEvent, render, screen, waitFor } from '../test/render'
 import { GiftPurchaseForm } from './GiftPurchaseForm'
 
 const purchase: GiftPurchase = {
   id: 'p1',
   gift_budget_id: 'b1',
+  gift_discretionary_budget_id: null,
+  recipient_id: null,
   amount_cents: 45_00,
   description: 'Toy train',
   purchased_on: '2026-11-01',
@@ -110,5 +112,120 @@ describe('GiftPurchaseForm', () => {
   it('omits the cancel button when no cancel handler is given', () => {
     renderForm({ onCancel: undefined })
     expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument()
+  })
+})
+
+const gdbPurchase: GiftPurchase = {
+  ...purchase,
+  id: 'p2',
+  gift_budget_id: null,
+  gift_discretionary_budget_id: 'gdb1',
+  recipient_id: 'r1',
+  description: 'Flowers',
+}
+
+const alice: GiftRecipient = {
+  id: 'r1',
+  name: 'Alice',
+  member_id: null,
+  household_id: 'h',
+  created_at: '',
+  updated_at: '',
+}
+const bob: GiftRecipient = { ...alice, id: 'r2', name: 'Bob' }
+
+describe('GiftPurchaseForm ad hoc mode', () => {
+  it('omits the recipient picker for a budget-linked purchase', () => {
+    renderForm({ budgetId: 'b1' })
+    expect(screen.queryByRole('combobox', { name: /recipient/i })).not.toBeInTheDocument()
+  })
+
+  it('offers an optional recipient picker for an ad hoc purchase', () => {
+    render(
+      <GiftPurchaseForm
+        discretionaryBudgetId="gdb1"
+        recipients={[alice, bob]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('combobox', { name: /recipient/i })).toBeInTheDocument()
+  })
+
+  it('submits with the discretionary budget id and no recipient tag by default', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <GiftPurchaseForm discretionaryBudgetId="gdb1" recipients={[alice]} onSubmit={onSubmit} />,
+    )
+
+    await user.type(screen.getByLabelText(/amount/i), '20')
+    await user.click(screen.getByRole('button', { name: /add purchase/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gift_budget_id: undefined,
+          gift_discretionary_budget_id: 'gdb1',
+          recipient_id: null,
+          amount_cents: 20_00,
+        }),
+      ),
+    )
+  })
+
+  it('submits the tagged recipient when one is chosen', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <GiftPurchaseForm
+        discretionaryBudgetId="gdb1"
+        recipients={[alice, bob]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/amount/i), '20')
+    await user.click(screen.getByRole('combobox', { name: /recipient/i }))
+    await user.click(await screen.findByRole('option', { name: 'Bob' }))
+    await user.click(screen.getByRole('button', { name: /add purchase/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recipient_id: 'r2' })),
+    )
+  })
+
+  it('prefills the tagged recipient when editing an ad hoc purchase', () => {
+    render(
+      <GiftPurchaseForm
+        discretionaryBudgetId="gdb1"
+        recipients={[alice, bob]}
+        initial={gdbPurchase}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('combobox', { name: /recipient/i })).toHaveValue('Alice')
+  })
+
+  it('clears an existing recipient tag when set back to untagged', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const { container } = render(
+      <GiftPurchaseForm
+        discretionaryBudgetId="gdb1"
+        recipients={[alice, bob]}
+        initial={gdbPurchase}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    // Mantine's clear-button is aria-hidden (a mouse-only affordance), so it is
+    // reached by a plain DOM query rather than an accessible role/name.
+    const clearButton = container.querySelector('[aria-label="Clear recipient"]') as HTMLElement
+    await user.click(clearButton)
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recipient_id: null })),
+    )
   })
 })

@@ -59,14 +59,19 @@ export function GiftMoneyBar({
 
 /**
  * One purchase line with edit/delete controls. A purchase linked from a synced
- * Up transaction is marked, so a card purchase reads apart from a typed one.
+ * Up transaction is marked, so a card purchase reads apart from a typed one. An
+ * ad hoc purchase optionally tagged with a recipient shows that tag as a badge —
+ * record-keeping only, so it reads apart from the transaction-linked badge.
  */
 export function PurchaseRow({
   purchase,
+  recipientLabel,
   onEdit,
   onDelete,
 }: {
   purchase: GiftPurchase
+  /** The tagged recipient's name, for an ad hoc purchase that names one. */
+  recipientLabel?: string | undefined
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -80,6 +85,11 @@ export function PurchaseRow({
           {purchase.transaction_id !== null && (
             <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
               From Up
+            </Badge>
+          )}
+          {recipientLabel !== undefined && (
+            <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+              For {recipientLabel}
             </Badge>
           )}
         </Group>

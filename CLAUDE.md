@@ -507,6 +507,32 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `on delete cascade` FK), limited to one per member (a partial unique index),
   and non-editable (an update guard), so adding a recipient is for external
   people only.
+  The household also plans a single household-wide **ad hoc gifts** buffer
+  (`gift_discretionary_budget`, one row per household, created lazily on first
+  edit) for gift spend nobody itemised against a recipient or an occasion in
+  advance; its planned amount folds into the existing external ("Gifts
+  (others)") derived line rather than minting a line of its own. A
+  `gift_purchase` counts against exactly one of a `gift_budget` or the
+  household's discretionary buffer, never both and never neither
+  (`gift_budget_id` and `gift_discretionary_budget_id` are each nullable, and
+  exactly one is set). An ad hoc purchase may optionally tag a `gift_recipient`
+  (`recipient_id`) for record-keeping only: the tag carries no budget of its
+  own, so it is set only alongside `gift_discretionary_budget_id`, never on a
+  budget-linked purchase, whose recipient is already `gift_budget.recipient_id`.
+  The same purchase privacy applies to the tag as to a budget-linked purchase's
+  recipient: RLS on `gift_purchase` branches on which kind of purchase a row is
+  — a budget-linked purchase keeps the existing
+  `hidden_gift_budget_ids_for_current_member()` check, while an ad hoc purchase
+  is hidden only when its `recipient_id` links, via
+  `hidden_gift_recipient_ids_for_current_member()` (mirroring the budget
+  helper), to the current member — so a purchase tagged to a member's own
+  linked recipient is hidden from that member and cannot be logged by them,
+  exactly as a budget-linked purchase for their own gift is, while an untagged
+  purchase, or one tagged to the other member or an external recipient, is
+  visible to both. The Gifts screen's "Ad hoc gifts" card is always visible,
+  outside the occasion/person grouping, with its own editable budgeted amount
+  and purchase list, each purchase's optional recipient picker sourced from the
+  household's existing recipients (members and external) rather than free text.
   A line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
   goal's linked saver instead); the Pay splits tab sums each account's routed lines

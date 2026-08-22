@@ -1093,6 +1093,113 @@ do $$ begin
     'Alice should still see purchases for a gift where she is not the recipient';
 end $$;
 
+-- ── Private ad hoc gift purchases: the discretionary buffer's recipient tag ──
+--
+-- An ad hoc purchase (gift_budget_id null) counts against the household's
+-- single discretionary buffer instead of a gift budget, and may optionally tag
+-- a gift_recipient for record-keeping only. The same privacy applies to the tag
+-- as to a budget-linked purchase's recipient: a purchase tagged to a member's
+-- own linked recipient is hidden from them and cannot be logged by them; an
+-- untagged purchase, or one tagged to the other member or an external
+-- recipient, is visible to both. This also proves the nullable-gift_budget_id
+-- policy rewrite (20260829020000): `gift_budget_id is null` must not collapse
+-- every ad hoc purchase into invisible/unwritable.
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+insert into public.gift_discretionary_budget (household_id, budgeted_amount_cents)
+  values (current_setting('test.priv_hid')::uuid, 500_00)
+  returning id as priv_discretionary \gset
+select set_config('test.priv_discretionary', :'priv_discretionary', false);
+
+insert into public.gift_recipient (household_id, name)
+  values (current_setting('test.priv_hid')::uuid, 'Mum')
+  returning id as priv_mum_recipient \gset
+select set_config('test.priv_mum_recipient', :'priv_mum_recipient', false);
+
+-- Alice logs three ad hoc purchases: untagged, tagged to Bob (her surprise for
+-- him), and tagged to the external Mum.
+insert into public.gift_purchase (household_id, gift_discretionary_budget_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_discretionary')::uuid, 15_00, 'Untagged treat', '2027-04-01')
+  returning id as priv_adhoc_untagged \gset
+select set_config('test.priv_adhoc_untagged', :'priv_adhoc_untagged', false);
+
+insert into public.gift_purchase (household_id, gift_discretionary_budget_id, recipient_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_discretionary')::uuid, current_setting('test.priv_bob_recipient')::uuid, 30_00, 'Surprise for Bob', '2027-04-02')
+  returning id as priv_adhoc_for_bob \gset
+select set_config('test.priv_adhoc_for_bob', :'priv_adhoc_for_bob', false);
+
+insert into public.gift_purchase (household_id, gift_discretionary_budget_id, recipient_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_discretionary')::uuid, current_setting('test.priv_mum_recipient')::uuid, 40_00, 'For Mum', '2027-04-03')
+  returning id as priv_adhoc_for_mum \gset
+select set_config('test.priv_adhoc_for_mum', :'priv_adhoc_for_mum', false);
+
+-- Alice cannot tag an ad hoc purchase to her own linked recipient (the surprise
+-- would be for herself, blocked exactly as a budget-linked one is).
+do $$ begin
+  insert into public.gift_purchase (household_id, gift_discretionary_budget_id, recipient_id, amount_cents, purchased_on)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_discretionary')::uuid, current_setting('test.priv_alice_recipient')::uuid, 5_00, '2027-04-04');
+  raise exception 'FAIL: Alice logged an ad hoc purchase tagged to herself';
+exception when insufficient_privilege then
+  raise notice 'PASS: Alice cannot tag an ad hoc purchase to her own recipient';
+end $$;
+
+-- Alice (the buyer) sees all three of her ad hoc purchases: untagged, for Bob,
+-- and for Mum.
+do $$ begin
+  assert (select count(*) from public.gift_purchase
+    where gift_discretionary_budget_id = current_setting('test.priv_discretionary')::uuid) = 3,
+    'Alice should see all three ad hoc purchases she logged';
+end $$;
+
+-- Bob does not see the purchase tagged to him, but sees the untagged one and
+-- the one for Mum.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert (select count(*) from public.gift_purchase
+    where gift_discretionary_budget_id = current_setting('test.priv_discretionary')::uuid) = 2,
+    'Bob should see the two ad hoc purchases not tagged to him';
+  assert not exists (select 1 from public.gift_purchase where id = current_setting('test.priv_adhoc_for_bob')::uuid),
+    'Bob must not see the ad hoc purchase tagged to him';
+  assert exists (select 1 from public.gift_purchase where id = current_setting('test.priv_adhoc_untagged')::uuid),
+    'Bob should see the untagged ad hoc purchase';
+  assert exists (select 1 from public.gift_purchase where id = current_setting('test.priv_adhoc_for_mum')::uuid),
+    'Bob should see the ad hoc purchase tagged to the external Mum';
+end $$;
+
+-- Bob cannot tag an ad hoc purchase to himself either.
+do $$ begin
+  insert into public.gift_purchase (household_id, gift_discretionary_budget_id, recipient_id, amount_cents, purchased_on)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_discretionary')::uuid, current_setting('test.priv_bob_recipient')::uuid, 5_00, '2027-04-05');
+  raise exception 'FAIL: Bob logged an ad hoc purchase tagged to himself';
+exception when insufficient_privilege then
+  raise notice 'PASS: Bob cannot tag an ad hoc purchase to his own recipient';
+end $$;
+
+-- Bob logs his own surprise for Alice.
+insert into public.gift_purchase (household_id, gift_discretionary_budget_id, recipient_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_discretionary')::uuid, current_setting('test.priv_alice_recipient')::uuid, 20_00, 'Surprise for Alice', '2027-04-06')
+  returning id as priv_adhoc_for_alice \gset
+select set_config('test.priv_adhoc_for_alice', :'priv_adhoc_for_alice', false);
+
+-- Bob (the buyer) sees his new purchase, the untagged one, and the one for
+-- Mum — four total minus the one hidden from him (for Bob).
+do $$ begin
+  assert (select count(*) from public.gift_purchase
+    where gift_discretionary_budget_id = current_setting('test.priv_discretionary')::uuid) = 3,
+    'Bob should see his new purchase plus the two already visible to him';
+end $$;
+
+-- Alice must not see the purchase tagged to her, while still seeing her own
+-- three (Bob's new one for her stays hidden, so her count is unchanged).
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$ begin
+  assert not exists (select 1 from public.gift_purchase where id = current_setting('test.priv_adhoc_for_alice')::uuid),
+    'Alice must not see the ad hoc purchase tagged to her';
+  assert (select count(*) from public.gift_purchase
+    where gift_discretionary_budget_id = current_setting('test.priv_discretionary')::uuid) = 3,
+    'Alice should see her three purchases only';
+end $$;
+
 -- ── Household pay account: one household-level source, validated on write ─────
 --
 -- The pay account is set only through set_household_pay_account, which resolves

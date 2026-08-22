@@ -1,11 +1,12 @@
 import { useCallback } from 'react'
 import type { Tables } from '../lib/database.types'
-import { useHouseholdCollection } from './useCollection'
+import { useHouseholdCollection, useHouseholdUpsertCollection } from './useCollection'
 
 export type GiftRecipient = Tables<'gift_recipient'>
 export type GiftOccasion = Tables<'gift_occasion'>
 export type GiftBudget = Tables<'gift_budget'>
 export type GiftPurchase = Tables<'gift_purchase'>
+export type GiftDiscretionaryBudget = Tables<'gift_discretionary_budget'>
 
 /** The recipient fields a form supplies; the household is set by the hook. */
 export interface GiftRecipientInput {
@@ -30,7 +31,16 @@ export interface GiftBudgetInput {
 
 /** The purchase fields a form supplies; the household is set by the hook. */
 export interface GiftPurchaseInput {
-  gift_budget_id: string
+  /** The gift budget this purchase counts against; omit for an ad hoc purchase against the household's discretionary buffer instead. */
+  gift_budget_id?: string | undefined
+  /** The household's discretionary gift buffer this ad hoc purchase counts against; omit for a purchase linked to a gift_budget instead. */
+  gift_discretionary_budget_id?: string | undefined
+  /**
+   * The recipient an ad hoc purchase is optionally tagged with, for
+   * record-keeping only — never set for a budget-linked purchase, whose
+   * recipient is already its gift budget's. `null` clears an existing tag.
+   */
+  recipient_id?: string | null | undefined
   amount_cents: number
   description: string
   purchased_on: string
@@ -42,11 +52,18 @@ export interface GiftPurchaseInput {
   transaction_id?: string
 }
 
+/** The discretionary-budget field a form supplies; the household is set by the hook. */
+export interface GiftDiscretionaryBudgetInput {
+  budgeted_amount_cents: number
+}
+
 export interface UseGiftsResult {
   recipients: GiftRecipient[] | null
   occasions: GiftOccasion[] | null
   budgets: GiftBudget[] | null
   purchases: GiftPurchase[] | null
+  /** The household's single ad hoc gift buffer row, or null before its first edit. */
+  discretionaryBudget: GiftDiscretionaryBudget | null
   loading: boolean
   reload: () => Promise<void>
   createRecipient: (input: GiftRecipientInput) => Promise<void>
@@ -61,22 +78,27 @@ export interface UseGiftsResult {
   createPurchase: (input: GiftPurchaseInput) => Promise<void>
   updatePurchase: (id: string, input: GiftPurchaseInput) => Promise<void>
   removePurchase: (id: string) => Promise<void>
+  /** Creates the household's discretionary gift buffer row, or replaces its amount. */
+  upsertDiscretionaryBudget: (input: GiftDiscretionaryBudgetInput) => Promise<void>
 }
 
 /**
- * Loads and mutates the household's gift recipients, occasions, budgets, and
- * purchases. RLS scopes reads to the household. Each write refreshes its own
- * table; a delete additionally refreshes the sibling tables its cascade
- * reaches — deleting a recipient or an occasion cascades to gift budgets and
- * their purchases, and deleting a budget cascades to its purchases.
+ * Loads and mutates the household's gift recipients, occasions, budgets,
+ * purchases, and its single ad hoc discretionary gift buffer. RLS scopes reads
+ * to the household. Each write refreshes its own table; a delete additionally
+ * refreshes the sibling tables its cascade reaches — deleting a recipient or an
+ * occasion cascades to gift budgets and their purchases, and deleting a budget
+ * cascades to its purchases.
  *
- * A gift-recipient, gift-occasion, or gift-budget write drives the `budget_line`
- * reconcile trigger, which rewrites the derived gift lines — deleting an occasion
- * cascades its budgets away, changing those lines — so all three collections also
- * invalidate `budget_line` and the raw-line consumers (the Pay splits tab)
- * refetch. A gift-purchase write is excluded: it changes only spent/remaining,
- * never the derived lines. It invalidates `transactions` instead, since claiming
- * a synced transaction as a purchase takes it out of the gift inbox.
+ * A gift-recipient, gift-occasion, gift-budget, or discretionary-budget write
+ * drives the `budget_line` reconcile trigger, which rewrites the derived gift
+ * lines — deleting an occasion cascades its budgets away, changing those lines,
+ * and editing the discretionary buffer's amount changes the external ("Gifts
+ * (others)") line it folds into — so all four collections also invalidate
+ * `budget_line` and the raw-line consumers (the Pay splits tab) refetch. A
+ * gift-purchase write is excluded: it changes only spent/remaining, never the
+ * derived lines. It invalidates `transactions` instead, since claiming a synced
+ * transaction as a purchase takes it out of the gift inbox.
  */
 export function useGifts(householdId: string): UseGiftsResult {
   const {
@@ -122,10 +144,28 @@ export function useGifts(householdId: string): UseGiftsResult {
     orderBy: 'purchased_on',
     alsoInvalidate: ['transactions'],
   })
+  const {
+    rows: discretionaryBudgetRows,
+    reload: reloadDiscretionaryBudget,
+    upsert: upsertDiscretionaryBudget,
+  } = useHouseholdUpsertCollection<'gift_discretionary_budget', GiftDiscretionaryBudgetInput>(
+    householdId,
+    {
+      table: 'gift_discretionary_budget',
+      onConflict: 'household_id',
+      alsoInvalidate: ['budget_line'],
+    },
+  )
 
   const reload = useCallback(async () => {
-    await Promise.all([reloadRecipients(), reloadOccasions(), reloadBudgets(), reloadPurchases()])
-  }, [reloadRecipients, reloadOccasions, reloadBudgets, reloadPurchases])
+    await Promise.all([
+      reloadRecipients(),
+      reloadOccasions(),
+      reloadBudgets(),
+      reloadPurchases(),
+      reloadDiscretionaryBudget(),
+    ])
+  }, [reloadRecipients, reloadOccasions, reloadBudgets, reloadPurchases, reloadDiscretionaryBudget])
 
   const removeRecipient = useCallback(
     async (id: string) => {
@@ -154,11 +194,13 @@ export function useGifts(householdId: string): UseGiftsResult {
     occasions: occasionRows,
     budgets: budgetRows,
     purchases: purchaseRows,
+    discretionaryBudget: discretionaryBudgetRows?.[0] ?? null,
     loading:
       recipientRows === null ||
       occasionRows === null ||
       budgetRows === null ||
-      purchaseRows === null,
+      purchaseRows === null ||
+      discretionaryBudgetRows === null,
     reload,
     createRecipient,
     updateRecipient,
@@ -172,5 +214,6 @@ export function useGifts(householdId: string): UseGiftsResult {
     createPurchase,
     updatePurchase,
     removePurchase,
+    upsertDiscretionaryBudget,
   }
 }

@@ -629,6 +629,38 @@ export type Database = {
           },
         ]
       }
+      gift_discretionary_budget: {
+        Row: {
+          budgeted_amount_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          budgeted_amount_cents?: number
+          created_at?: string
+          household_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          budgeted_amount_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_discretionary_budget_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: true
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       gift_occasion: {
         Row: {
           created_at: string
@@ -669,10 +701,12 @@ export type Database = {
           amount_cents: number
           created_at: string
           description: string
-          gift_budget_id: string
+          gift_budget_id: string | null
+          gift_discretionary_budget_id: string | null
           household_id: string
           id: string
           purchased_on: string
+          recipient_id: string | null
           transaction_id: string | null
           updated_at: string
         }
@@ -680,10 +714,12 @@ export type Database = {
           amount_cents: number
           created_at?: string
           description?: string
-          gift_budget_id: string
+          gift_budget_id?: string | null
+          gift_discretionary_budget_id?: string | null
           household_id: string
           id?: string
           purchased_on: string
+          recipient_id?: string | null
           transaction_id?: string | null
           updated_at?: string
         }
@@ -691,10 +727,12 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           description?: string
-          gift_budget_id?: string
+          gift_budget_id?: string | null
+          gift_discretionary_budget_id?: string | null
           household_id?: string
           id?: string
           purchased_on?: string
+          recipient_id?: string | null
           transaction_id?: string | null
           updated_at?: string
         }
@@ -707,11 +745,25 @@ export type Database = {
             referencedColumns: ['id', 'household_id']
           },
           {
+            foreignKeyName: 'gift_purchase_gift_discretionary_budget_id_household_id_fkey'
+            columns: ['gift_discretionary_budget_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'gift_discretionary_budget'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
             foreignKeyName: 'gift_purchase_household_id_fkey'
             columns: ['household_id']
             isOneToOne: false
             referencedRelation: 'households'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gift_purchase_recipient_id_household_id_fkey'
+            columns: ['recipient_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'gift_recipient'
+            referencedColumns: ['id', 'household_id']
           },
           {
             foreignKeyName: 'gift_purchase_transaction_id_household_id_fkey'

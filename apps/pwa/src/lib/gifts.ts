@@ -4,6 +4,7 @@ export type GiftRecipient = Tables<'gift_recipient'>
 export type GiftOccasion = Tables<'gift_occasion'>
 export type GiftBudget = Tables<'gift_budget'>
 export type GiftPurchase = Tables<'gift_purchase'>
+export type GiftDiscretionaryBudget = Tables<'gift_discretionary_budget'>
 
 /** Which dimension the tracker groups by: occasions with recipient rows, or the reverse. */
 export type GiftGroupBy = 'occasion' | 'person'
@@ -70,13 +71,17 @@ export function giftBudgetTotalCents(budgets: GiftBudget[]): number {
  * The planned gift spend partitioned by the recipient's household member: for
  * each member with gift budgets, the summed budgeted cents keyed by their
  * `member_id`; every external (non-member) recipient's budgets collapse into the
- * `null` key. A member or the external group appears only when it has at least
- * one budget — so an empty partition is absent rather than a zero entry. This
- * drives the split into one derived budget line per partition.
+ * `null` key, which also carries the household's ad hoc discretionary gift
+ * buffer amount (folded in rather than given a partition of its own). A member
+ * appears only when it has at least one budget; the external (`null`) key
+ * appears when it has a budget, or the buffer is non-zero — so an empty,
+ * bufferless partition is absent rather than a zero entry. This drives the
+ * split into one derived budget line per partition.
  */
 export function giftTotalsByMember(
   budgets: GiftBudget[],
   recipients: GiftRecipient[],
+  discretionaryBudget?: GiftDiscretionaryBudget | null,
 ): Map<string | null, number> {
   const memberByRecipient = new Map(
     recipients.map((recipient) => [recipient.id, recipient.member_id]),
@@ -86,12 +91,51 @@ export function giftTotalsByMember(
     const key = memberByRecipient.get(budget.recipient_id) ?? null
     totals.set(key, (totals.get(key) ?? 0) + budget.budgeted_amount_cents)
   }
+  const discretionaryCents = discretionaryBudget?.budgeted_amount_cents ?? 0
+  if (discretionaryCents !== 0) {
+    totals.set(null, (totals.get(null) ?? 0) + discretionaryCents)
+  }
   return totals
 }
 
-/** The household's overall gift totals: budgeted, spent, and remaining across every gift budget. */
-export function overallGiftTotals(budgets: GiftBudget[], purchases: GiftPurchase[]): GiftTotals {
-  return sumTotals(budgets.map((budget) => budgetTotals(budget, purchases)))
+/**
+ * Total cents spent against the household's ad hoc discretionary gift buffer:
+ * every purchase counted against it (`gift_discretionary_budget_id` set) rather
+ * than against a `gift_budget`.
+ */
+export function discretionarySpentCents(purchases: GiftPurchase[]): number {
+  return purchases
+    .filter((purchase) => purchase.gift_discretionary_budget_id !== null)
+    .reduce((total, purchase) => total + purchase.amount_cents, 0)
+}
+
+/**
+ * The household's ad hoc discretionary gift buffer's budgeted, spent, and
+ * remaining cents. Budgeted reads zero before the buffer's row exists (it is
+ * created lazily on first edit).
+ */
+export function discretionaryTotals(
+  discretionaryBudget: GiftDiscretionaryBudget | null,
+  purchases: GiftPurchase[],
+): GiftTotals {
+  const budgeted = discretionaryBudget?.budgeted_amount_cents ?? 0
+  const spent = discretionarySpentCents(purchases)
+  return { budgetedCents: budgeted, spentCents: spent, remainingCents: budgeted - spent }
+}
+
+/**
+ * The household's overall gift totals: budgeted, spent, and remaining across
+ * every gift budget, plus the ad hoc discretionary gift buffer.
+ */
+export function overallGiftTotals(
+  budgets: GiftBudget[],
+  purchases: GiftPurchase[],
+  discretionaryBudget: GiftDiscretionaryBudget | null = null,
+): GiftTotals {
+  return sumTotals([
+    ...budgets.map((budget) => budgetTotals(budget, purchases)),
+    discretionaryTotals(discretionaryBudget, purchases),
+  ])
 }
 
 /** Sums a list of totals into one triple. */

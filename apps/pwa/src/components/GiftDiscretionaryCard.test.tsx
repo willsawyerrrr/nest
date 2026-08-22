@@ -163,6 +163,46 @@ describe('GiftDiscretionaryCard', () => {
     expect(screen.getAllByText(/^For /)).toHaveLength(1)
   })
 
+  it('cancels adding a purchase without saving', async () => {
+    const user = userEvent.setup()
+    const onCreatePurchase = vi.fn()
+    renderCard({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      onCreatePurchase,
+    })
+
+    await expandCard(user)
+    await user.click(screen.getByRole('button', { name: 'Add purchase' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onCreatePurchase).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Add purchase' })).toBeInTheDocument()
+  })
+
+  it('cancels editing a purchase without saving', async () => {
+    const user = userEvent.setup()
+    const onUpdatePurchase = vi.fn()
+    renderCard({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: 'gdb1',
+          description: 'Flowers',
+        }),
+      ],
+      onUpdatePurchase,
+    })
+
+    await expandCard(user)
+    await user.click(screen.getByRole('button', { name: 'Edit Flowers' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onUpdatePurchase).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Edit Flowers' })).toBeInTheDocument()
+  })
+
   it('edits an existing ad hoc purchase', async () => {
     const user = userEvent.setup()
     const onUpdatePurchase = vi.fn()

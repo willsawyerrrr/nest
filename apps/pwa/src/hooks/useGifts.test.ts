@@ -7,13 +7,27 @@ import { useGifts } from './useGifts'
 
 const { builder, from } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
-  const builder = makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order'])
+  const builder = makeSupabaseBuilder([
+    'select',
+    'insert',
+    'update',
+    'upsert',
+    'delete',
+    'eq',
+    'order',
+  ])
   return { builder, from: vi.fn((_table: string) => builder) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from } }))
 
-const tables = ['gift_recipient', 'gift_occasion', 'gift_budget', 'gift_purchase'] as const
+const tables = [
+  'gift_recipient',
+  'gift_occasion',
+  'gift_budget',
+  'gift_purchase',
+  'gift_discretionary_budget',
+] as const
 type GiftTable = (typeof tables)[number]
 
 /** How many times a table was accessed — one per load, plus one per write. */
@@ -33,6 +47,7 @@ describe('useGifts', () => {
     expect(result.current.occasions).toEqual([])
     expect(result.current.budgets).toEqual([])
     expect(result.current.purchases).toEqual([])
+    expect(result.current.discretionaryBudget).toBeNull()
 
     const before = Object.fromEntries(tables.map((t) => [t, accesses(t)])) as Record<
       GiftTable,
@@ -154,6 +169,37 @@ describe('useGifts', () => {
     expect(afterPurchase.gift_budget).toBe(0)
   })
 
+  it('upserts the discretionary budget onConflict household_id, refreshing only its own table', async () => {
+    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    async function siblingReloads(run: () => Promise<void>): Promise<Record<GiftTable, number>> {
+      const before = Object.fromEntries(tables.map((t) => [t, accesses(t)])) as Record<
+        GiftTable,
+        number
+      >
+      await act(run)
+      return Object.fromEntries(tables.map((t) => [t, accesses(t) - before[t]])) as Record<
+        GiftTable,
+        number
+      >
+    }
+
+    const reloads = await siblingReloads(() =>
+      result.current.upsertDiscretionaryBudget({ budgeted_amount_cents: 50_00 }),
+    )
+    expect(reloads.gift_discretionary_budget).toBeGreaterThan(0)
+    expect(reloads.gift_recipient).toBe(0)
+    expect(reloads.gift_occasion).toBe(0)
+    expect(reloads.gift_budget).toBe(0)
+    expect(reloads.gift_purchase).toBe(0)
+
+    expect(builder.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ budgeted_amount_cents: 50_00, household_id: 'h1' }),
+      { onConflict: 'household_id' },
+    )
+  })
+
   it('reports loading while any collection is null', async () => {
     builder.result = { data: null, error: new Error('load failed') }
     const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
@@ -183,6 +229,12 @@ describe('useGifts', () => {
     // changing the derived lines.
     invalidateSpy.mockClear()
     await act(() => result.current.removeOccasion('o1'))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
+
+    // Editing the discretionary buffer's amount does too — it folds into the
+    // external ("Gifts (others)") derived line.
+    invalidateSpy.mockClear()
+    await act(() => result.current.upsertDiscretionaryBudget({ budgeted_amount_cents: 50_00 }))
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['budget_line', 'h1'] })
   })
 

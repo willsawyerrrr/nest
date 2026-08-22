@@ -217,6 +217,12 @@ export interface UpsertCollectionConfig<T extends HouseholdTable> {
   insertDefaults?: Readonly<Record<string, ScopeValue>>
   /** The unique columns an upsert conflicts on. */
   onConflict: string
+  /**
+   * Other tables a database trigger rewrites alongside this one (see
+   * {@link CollectionConfig.alsoInvalidate}) — e.g. the `gift_discretionary_budget`
+   * reconcile trigger rewrites the derived `budget_line` rows.
+   */
+  alsoInvalidate?: readonly HouseholdTable[]
 }
 
 /**
@@ -233,8 +239,10 @@ export function useHouseholdUpsertCollection<T extends HouseholdTable, UpsertInp
 
   const matchKey = JSON.stringify(config.match ?? {})
   const defaultsKey = JSON.stringify(config.insertDefaults ?? {})
+  const alsoInvalidateKey = (config.alsoInvalidate ?? []).join(',')
   const match = useMemo(() => config.match ?? {}, [matchKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const insertDefaults = useMemo(() => config.insertDefaults ?? {}, [defaultsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const alsoInvalidate = useMemo(() => config.alsoInvalidate ?? [], [alsoInvalidateKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const queryKey = useMemo(
     () => collectionKey(table, householdId, matchKey, ''),
@@ -247,8 +255,13 @@ export function useHouseholdUpsertCollection<T extends HouseholdTable, UpsertInp
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: [table, householdId] })
-  }, [queryClient, table, householdId])
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [table, householdId] }),
+      ...alsoInvalidate.map((other) =>
+        queryClient.invalidateQueries({ queryKey: [other, householdId] }),
+      ),
+    ])
+  }, [queryClient, table, householdId, alsoInvalidate])
 
   const upsert = useCallback(
     async (input: UpsertInput) => {

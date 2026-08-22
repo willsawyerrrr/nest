@@ -276,6 +276,23 @@ do $$ begin
     'S9 emptied member gift line removed';
 end $$;
 
+-- ── Scenario D0: the discretionary buffer alone drives the external partition
+-- (no gift budgets remain after S9/S10); its amount folds straight into the
+-- kept, routed external line, and the idempotency check below (S17) covers it.
+insert into public.gift_discretionary_budget (household_id, budgeted_amount_cents)
+  values (current_setting('t.hid')::uuid, 75_00)
+  returning id as t_discretionary \gset
+select set_config('t.discretionary', :'t_discretionary', false);
+do $$
+declare r public.budget_line;
+begin
+  select * into r from public.budget_line
+    where is_gift_line and gift_recipient_member_id is null;
+  assert r.amount_cents = 75_00,
+    format('D0 external amount is the buffer alone (no budgets left), got %s', r.amount_cents);
+  assert r.destination_account_id = current_setting('t.ada_spend')::uuid, 'D0 routing preserved';
+end $$;
+
 -- ── Scenario 17: idempotency — a fresh reconcile writes nothing ──────────────
 -- Snapshot every derived line (including updated_at); re-running the engine over
 -- the converged household must leave every row byte-for-byte identical.
@@ -400,6 +417,126 @@ begin
     where is_gift_line and gift_recipient_member_id = current_setting('s.mid_dan')::uuid;
   assert r.destination_account_id = current_setting('s.cleo_beta')::uuid,
     'S15 renamed account reorders → funding switches to Cleo Beta';
+end $$;
+
+-- ══ Discretionary: the ad hoc gift buffer folds into the external partition ═══
+-- Continues in Solo, which has no external gift line yet — a blank slate that
+-- isolates the buffer's own effect on that partition's existence and amount.
+
+-- ── Scenario D1: a zero-amount buffer creates no line ─────────────────────────
+insert into public.gift_discretionary_budget (household_id, budgeted_amount_cents)
+  values (current_setting('s.hid')::uuid, 0)
+  returning id as s_discretionary \gset
+select set_config('s.discretionary', :'s_discretionary', false);
+do $$ begin
+  assert (select count(*) from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null) = 0,
+    'D1 a zero-amount discretionary buffer creates no external gift line';
+end $$;
+
+-- ── Scenario D2: a positive amount mints the external line ────────────────────
+update public.gift_discretionary_budget set budgeted_amount_cents = 250_00
+  where id = current_setting('s.discretionary')::uuid;
+do $$
+declare r public.budget_line;
+begin
+  select * into r from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null;
+  assert r.name = 'Gifts', format('D2 external name, got %s', r.name);
+  assert r.amount_cents = 250_00, format('D2 amount is the buffer alone, got %s', r.amount_cents);
+  assert r.line_group = 'wants', 'D2 group seeded wants';
+  assert r.destination_account_id is null, 'D2 unrouted by default';
+  assert r.is_gift_line = true, 'D2 is_gift_line';
+end $$;
+
+-- ── Scenario D3: an external gift budget adds to the same partition total ─────
+insert into public.gift_recipient (household_id, name)
+  values (current_setting('s.hid')::uuid, 'Nan')
+  returning id as s_rec_nan \gset
+select set_config('s.rec_nan', :'s_rec_nan', false);
+insert into public.gift_budget (household_id, recipient_id, occasion_id, budgeted_amount_cents)
+  values (current_setting('s.hid')::uuid, current_setting('s.rec_nan')::uuid, current_setting('s.occ')::uuid, 40_00);
+do $$
+declare r public.budget_line;
+begin
+  select * into r from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null;
+  assert r.amount_cents = 290_00, format('D3 buffer plus external budget, got %s', r.amount_cents);
+end $$;
+
+-- ── Scenario D4: zeroing the buffer alone leaves the line at the budget total ─
+update public.gift_discretionary_budget set budgeted_amount_cents = 0
+  where id = current_setting('s.discretionary')::uuid;
+do $$
+declare r public.budget_line;
+begin
+  select * into r from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null;
+  assert r.amount_cents = 40_00,
+    format('D4 buffer zeroed, external budget alone remains, got %s', r.amount_cents);
+end $$;
+
+-- ── Scenario D5: removing the last gift budget too, with the buffer still at
+-- zero, removes the line entirely (empty and unrouted on both counts).
+delete from public.gift_budget where recipient_id = current_setting('s.rec_nan')::uuid;
+do $$ begin
+  assert (select count(*) from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null) = 0,
+    'D5 empty and unrouted (budget gone, buffer zero) removes the external line';
+end $$;
+
+-- ── Scenario D6: deleting the buffer row outright is equivalent to zero ───────
+update public.gift_discretionary_budget set budgeted_amount_cents = 100_00
+  where id = current_setting('s.discretionary')::uuid;
+do $$ begin
+  assert (select count(*) from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null) = 1,
+    'D6 pre: buffer alone re-creates the line';
+end $$;
+delete from public.gift_discretionary_budget where id = current_setting('s.discretionary')::uuid;
+do $$ begin
+  assert (select count(*) from public.budget_line
+    where household_id = current_setting('s.hid')::uuid
+      and is_gift_line and gift_recipient_member_id is null) = 0,
+    'D6 deleting the buffer row removes the external line (nothing left to keep it)';
+end $$;
+
+-- ── Scenario D7: idempotency — a fresh reconcile writes nothing after the
+-- discretionary-buffer churn above either.
+select md5(coalesce(string_agg(
+    bl.id || '|' || bl.line_group || '|' || bl.name || '|' || bl.amount_cents || '|' ||
+    bl.frequency || '|' || coalesce(bl.interval_count::text, '') || '|' ||
+    coalesce(bl.goal_id::text, '') || '|' || coalesce(bl.breakdown_id::text, '') || '|' ||
+    coalesce(bl.destination_account_id::text, '') || '|' ||
+    coalesce(bl.gift_recipient_member_id::text, '') || '|' || bl.is_gift_line || '|' ||
+    bl.updated_at, ',' order by bl.id), '')) as t_before
+  from public.budget_line bl where bl.household_id = current_setting('s.hid')::uuid \gset
+select set_config('d.before', :'t_before', false);
+
+reset role;
+select public.reconcile_derived_lines(current_setting('s.hid')::uuid);
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-000000000003","email":"cleo@example.com"}', true);
+
+do $$
+declare v_after text;
+begin
+  select md5(coalesce(string_agg(
+      bl.id || '|' || bl.line_group || '|' || bl.name || '|' || bl.amount_cents || '|' ||
+      bl.frequency || '|' || coalesce(bl.interval_count::text, '') || '|' ||
+      coalesce(bl.goal_id::text, '') || '|' || coalesce(bl.breakdown_id::text, '') || '|' ||
+      coalesce(bl.destination_account_id::text, '') || '|' ||
+      coalesce(bl.gift_recipient_member_id::text, '') || '|' || bl.is_gift_line || '|' ||
+      bl.updated_at, ',' order by bl.id), ''))
+    into v_after
+    from public.budget_line bl where bl.household_id = current_setting('s.hid')::uuid;
+  assert v_after = current_setting('d.before'), 'D7 re-running reconcile after buffer churn changed nothing (no writes)';
 end $$;
 
 -- ══ Duo: member removal cascades a gift line and re-funds the survivor ════════

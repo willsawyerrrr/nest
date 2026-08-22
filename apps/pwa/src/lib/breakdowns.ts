@@ -1,7 +1,12 @@
 import { annualCents } from '@nest/plan'
 import type { BreakdownItem } from '../hooks/useBreakdownItems'
 import type { Breakdown } from '../hooks/useBreakdowns'
-import { giftTotalsByMember, type GiftBudget, type GiftRecipient } from './gifts'
+import {
+  giftTotalsByMember,
+  type GiftBudget,
+  type GiftDiscretionaryBudget,
+  type GiftRecipient,
+} from './gifts'
 
 /**
  * The rolled-up annual amounts every derived line reads, resolved per line. A
@@ -29,15 +34,17 @@ function genericTotal(items: BreakdownItem[], breakdownId: string): number {
 
 /**
  * Builds the {@link DerivedAmountContext} from the household's breakdowns, generic
- * items, and gift data. Every derived-line amount — in the Budget and Summary
- * tabs — resolves from this one context, so the surfaces never drift. Breakdowns
- * are generic; the gift roll-up reads gift data alone.
+ * items, and gift data (including the ad hoc discretionary gift buffer, folded
+ * into the external partition). Every derived-line amount — in the Budget and
+ * Summary tabs — resolves from this one context, so the surfaces never drift.
+ * Breakdowns are generic; the gift roll-up reads gift data alone.
  */
 export function derivedAmountContext(
   breakdowns: Breakdown[],
   items: BreakdownItem[],
   giftBudgets: GiftBudget[],
   giftRecipients: GiftRecipient[],
+  giftDiscretionaryBudget: GiftDiscretionaryBudget | null = null,
 ): DerivedAmountContext {
   const genericTotalsByBreakdownId = new Map<string, number>()
   for (const breakdown of breakdowns) {
@@ -45,7 +52,7 @@ export function derivedAmountContext(
   }
   return {
     genericTotalsByBreakdownId,
-    giftTotalsByMember: giftTotalsByMember(giftBudgets, giftRecipients),
+    giftTotalsByMember: giftTotalsByMember(giftBudgets, giftRecipients, giftDiscretionaryBudget),
   }
 }
 

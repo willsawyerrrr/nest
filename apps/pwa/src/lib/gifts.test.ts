@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   budgetTotals,
+  discretionarySpentCents,
+  discretionaryTotals,
   giftBudgetTotalCents,
   giftTotalsByMember,
   groupGifts,
@@ -8,6 +10,7 @@ import {
   pairKey,
   spentCents,
   type GiftBudget,
+  type GiftDiscretionaryBudget,
   type GiftOccasion,
   type GiftPurchase,
   type GiftRecipient,
@@ -50,10 +53,42 @@ function purchase(id: string, gift_budget_id: string, amount_cents: number): Gif
   return {
     id,
     gift_budget_id,
+    gift_discretionary_budget_id: null,
+    recipient_id: null,
     amount_cents,
     description: '',
     purchased_on: '2026-01-01',
     transaction_id: null,
+    household_id: 'h',
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+function discretionaryPurchase(
+  id: string,
+  amount_cents: number,
+  recipient_id: string | null = null,
+): GiftPurchase {
+  return {
+    id,
+    gift_budget_id: null,
+    gift_discretionary_budget_id: 'gdb1',
+    recipient_id,
+    amount_cents,
+    description: '',
+    purchased_on: '2026-01-01',
+    transaction_id: null,
+    household_id: 'h',
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+function discretionaryBudget(budgeted_amount_cents: number): GiftDiscretionaryBudget {
+  return {
+    id: 'gdb1',
+    budgeted_amount_cents,
     household_id: 'h',
     created_at: '',
     updated_at: '',
@@ -121,6 +156,55 @@ describe('overallGiftTotals', () => {
       remainingCents: 0,
     })
   })
+
+  it('folds the discretionary buffer and its own purchases into the overall total', () => {
+    const withDiscretionary = [...purchases, discretionaryPurchase('p4', 15_00)]
+    expect(overallGiftTotals(budgets, withDiscretionary, discretionaryBudget(50_00))).toEqual({
+      budgetedCents: 240_00, // 190 (budgets) + 50 (buffer)
+      spentCents: 130_00, // 115 (budget-linked) + 15 (ad hoc)
+      remainingCents: 110_00,
+    })
+  })
+
+  it('reads a null discretionary budget as zero', () => {
+    expect(overallGiftTotals(budgets, purchases, null)).toEqual(
+      overallGiftTotals(budgets, purchases),
+    )
+  })
+})
+
+describe('discretionarySpentCents', () => {
+  it('sums only purchases counted against the discretionary buffer', () => {
+    const mixed = [
+      ...purchases,
+      discretionaryPurchase('p4', 15_00),
+      discretionaryPurchase('p5', 5_00),
+    ]
+    expect(discretionarySpentCents(mixed)).toBe(20_00)
+  })
+
+  it('is zero with no ad hoc purchases', () => {
+    expect(discretionarySpentCents(purchases)).toBe(0)
+  })
+})
+
+describe('discretionaryTotals', () => {
+  it('reports budgeted, spent, and remaining for the buffer alone', () => {
+    const adHoc = [discretionaryPurchase('p4', 15_00), discretionaryPurchase('p5', 5_00)]
+    expect(discretionaryTotals(discretionaryBudget(50_00), [...purchases, ...adHoc])).toEqual({
+      budgetedCents: 50_00,
+      spentCents: 20_00,
+      remainingCents: 30_00,
+    })
+  })
+
+  it('reads zero budgeted before the buffer row exists', () => {
+    expect(discretionaryTotals(null, [discretionaryPurchase('p4', 15_00)])).toEqual({
+      budgetedCents: 0,
+      spentCents: 15_00,
+      remainingCents: -15_00,
+    })
+  })
 })
 
 describe('giftBudgetTotalCents', () => {
@@ -166,6 +250,41 @@ describe('giftTotalsByMember', () => {
 
   it('is empty with no budgets', () => {
     expect(giftTotalsByMember([], [recipient('r1', 'Alice')]).size).toBe(0)
+  })
+
+  it('folds a positive discretionary buffer into the external (null) partition', () => {
+    const sam = memberRecipient('r-sam', 'Sam', 'm-sam')
+    const totals = giftTotalsByMember(
+      [budget('b1', sam.id, xmas.id, 100_00)],
+      [sam],
+      discretionaryBudget(50_00),
+    )
+    expect(totals.get('m-sam')).toBe(100_00)
+    expect(totals.get(null)).toBe(50_00)
+    expect(totals.size).toBe(2)
+  })
+
+  it('adds the buffer to an existing external partition rather than replacing it', () => {
+    const external = recipient('r-ext', 'Grandma')
+    const totals = giftTotalsByMember(
+      [budget('b1', external.id, xmas.id, 30_00)],
+      [external],
+      discretionaryBudget(20_00),
+    )
+    expect(totals.get(null)).toBe(50_00)
+  })
+
+  it('creates no external partition for a zero or absent buffer with no external budgets', () => {
+    const sam = memberRecipient('r-sam', 'Sam', 'm-sam')
+    const withoutBuffer = giftTotalsByMember([budget('b1', sam.id, xmas.id, 10_00)], [sam])
+    expect(withoutBuffer.has(null)).toBe(false)
+
+    const withZeroBuffer = giftTotalsByMember(
+      [budget('b1', sam.id, xmas.id, 10_00)],
+      [sam],
+      discretionaryBudget(0),
+    )
+    expect(withZeroBuffer.has(null)).toBe(false)
   })
 })
 

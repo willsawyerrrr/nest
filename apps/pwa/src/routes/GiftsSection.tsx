@@ -33,6 +33,7 @@ export function GiftsSection({ householdId }: { householdId: string }) {
       occasions={gifts.occasions ?? []}
       budgets={gifts.budgets ?? []}
       purchases={gifts.purchases ?? []}
+      discretionaryBudget={gifts.discretionaryBudget}
       transactions={giftTransactions.transactions ?? []}
       dismissals={giftTransactions.dismissals ?? []}
       members={members ?? []}
@@ -49,6 +50,7 @@ export function GiftsSection({ householdId }: { householdId: string }) {
       onCreatePurchase={gifts.createPurchase}
       onUpdatePurchase={gifts.updatePurchase}
       onDeletePurchase={gifts.removePurchase}
+      onUpsertDiscretionaryBudget={gifts.upsertDiscretionaryBudget}
       onDismissTransaction={giftTransactions.dismiss}
       onRestoreTransaction={giftTransactions.restore}
       onRefresh={() => void refresh.refresh()}

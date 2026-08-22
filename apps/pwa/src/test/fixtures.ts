@@ -1,6 +1,6 @@
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
-import type { GiftPurchase } from '../hooks/useGifts'
+import type { GiftDiscretionaryBudget, GiftPurchase } from '../hooks/useGifts'
 import type { Goal } from '../hooks/useGoals'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -208,16 +208,32 @@ export function makeBudgetLine(overrides: Partial<BudgetLine> = {}): BudgetLine 
   }
 }
 
-/** Builds a gift-purchase row, defaulting to a hand-entered (unlinked) purchase. */
+/** Builds a gift-purchase row, defaulting to a hand-entered, budget-linked (unlinked to Up) purchase. */
 export function makeGiftPurchase(overrides: Partial<GiftPurchase> = {}): GiftPurchase {
   return {
     id: 'p1',
     household_id: 'h1',
     gift_budget_id: 'b1',
+    gift_discretionary_budget_id: null,
+    recipient_id: null,
     amount_cents: 30_00,
     description: 'Book',
     purchased_on: '2026-11-01',
     transaction_id: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds the household's discretionary gift buffer row. */
+export function makeGiftDiscretionaryBudget(
+  overrides: Partial<GiftDiscretionaryBudget> = {},
+): GiftDiscretionaryBudget {
+  return {
+    id: 'gdb1',
+    household_id: 'h1',
+    budgeted_amount_cents: 100_00,
     created_at: '',
     updated_at: '',
     ...overrides,

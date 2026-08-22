@@ -24,11 +24,19 @@ export function BudgetSection({ householdId }: { householdId: string }) {
 
   const giftBudgets = useMemo(() => gifts.budgets ?? [], [gifts.budgets])
   const giftRecipients = useMemo(() => gifts.recipients ?? [], [gifts.recipients])
+  const giftDiscretionaryBudget = gifts.discretionaryBudget
   const breakdownRows = useMemo(() => breakdowns.breakdowns ?? [], [breakdowns.breakdowns])
   const breakdownItems = useMemo(() => breakdowns.items ?? [], [breakdowns.items])
   const context = useMemo(
-    () => derivedAmountContext(breakdownRows, breakdownItems, giftBudgets, giftRecipients),
-    [breakdownRows, breakdownItems, giftBudgets, giftRecipients],
+    () =>
+      derivedAmountContext(
+        breakdownRows,
+        breakdownItems,
+        giftBudgets,
+        giftRecipients,
+        giftDiscretionaryBudget,
+      ),
+    [breakdownRows, breakdownItems, giftBudgets, giftRecipients, giftDiscretionaryBudget],
   )
 
   const handleUpdateDerivedLine = useDerivedLineEditor({

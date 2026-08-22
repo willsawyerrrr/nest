@@ -14,12 +14,16 @@ instance and can also be run locally.
 - `rls_isolation.sql` — the assertions: a member sees only their own household's
   rows, a second user is fully isolated, cross-household writes are rejected, and
   the within-household boundaries hold (per-account balance privacy, private gift
-  purchases, and own-device-only push subscriptions).
+  purchases — budget-linked and ad hoc alike, each tag-hidden from its own
+  recipient — and own-device-only push subscriptions).
 - `derived_line_triggers.sql` — the assertions that the derived-budget-line
   reconcile triggers produce the exact tuple the client reconciler does, across
   the generic-breakdown and gift lifecycles (add/update/remove items and budgets,
   routing preservation, buyer-account funding, member add/rename/remove, and
-  idempotency).
+  idempotency), plus the household's ad hoc discretionary gift buffer folding
+  into the external ("Gifts (others)") partition: a zero amount mints no line, a
+  positive one does, it adds to any external gift budgets in the same partition,
+  and zeroing or deleting the buffer removes the line once nothing else keeps it.
 - `payslip_financial_year.sql` — the assertions that `payslip.financial_year` is
   the year the pay landed in: the derivation at the 30 June boundary, the backfill
   migration moving exactly the rows that disagree with it and rewriting nothing on

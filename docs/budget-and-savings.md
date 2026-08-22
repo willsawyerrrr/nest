@@ -96,9 +96,11 @@ substitutes the breakdown's rolled-up amount for the typed `amount_cents`.
 Medications and any other itemised budget are `generic` breakdowns the household
 creates. Gift budget lines are a separate standalone roll-up keyed by
 `budget_line.is_gift_line` (with no breakdown row): the Gifts tab manages the gift
-data, and the reconcile derives the gift lines directly from it. See
-[`breakdowns.md`](breakdowns.md) and
-[`data-model.md`](data-model.md#breakdowns).
+data, and the reconcile derives the gift lines directly from it. The household's
+ad hoc discretionary gift buffer — a planned amount not linked to any recipient's
+or occasion's gift budget — folds its amount into the external ("Gifts (others)")
+gift line rather than owning a line of its own. See [`breakdowns.md`](breakdowns.md)
+and [`data-model.md`](data-model.md#breakdowns).
 
 ## Targets — goals & temporary items
 

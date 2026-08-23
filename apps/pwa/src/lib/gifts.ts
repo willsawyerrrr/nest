@@ -110,6 +110,24 @@ export function discretionarySpentCents(purchases: GiftPurchase[]): number {
 }
 
 /**
+ * Whether a purchase has not yet been assigned to a gift budget or the ad hoc
+ * discretionary buffer — logged before a recipient or occasion is decided.
+ */
+export function isUnassignedPurchase(purchase: GiftPurchase): boolean {
+  return purchase.gift_budget_id === null && purchase.gift_discretionary_budget_id === null
+}
+
+/**
+ * Total cents spent on purchases not yet assigned to any gift budget or the ad
+ * hoc discretionary buffer.
+ */
+export function unassignedSpentCents(purchases: GiftPurchase[]): number {
+  return purchases
+    .filter(isUnassignedPurchase)
+    .reduce((total, purchase) => total + purchase.amount_cents, 0)
+}
+
+/**
  * The household's ad hoc discretionary gift buffer's budgeted, spent, and
  * remaining cents. Budgeted reads zero before the buffer's row exists (it is
  * created lazily on first edit).

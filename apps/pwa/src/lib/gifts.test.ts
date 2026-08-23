@@ -6,9 +6,11 @@ import {
   giftBudgetTotalCents,
   giftTotalsByMember,
   groupGifts,
+  isUnassignedPurchase,
   overallGiftTotals,
   pairKey,
   spentCents,
+  unassignedSpentCents,
   type GiftBudget,
   type GiftDiscretionaryBudget,
   type GiftOccasion,
@@ -75,6 +77,22 @@ function discretionaryPurchase(
     gift_budget_id: null,
     gift_discretionary_budget_id: 'gdb1',
     recipient_id,
+    amount_cents,
+    description: '',
+    purchased_on: '2026-01-01',
+    transaction_id: null,
+    household_id: 'h',
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+function unassignedPurchase(id: string, amount_cents: number): GiftPurchase {
+  return {
+    id,
+    gift_budget_id: null,
+    gift_discretionary_budget_id: null,
+    recipient_id: null,
     amount_cents,
     description: '',
     purchased_on: '2026-01-01',
@@ -204,6 +222,30 @@ describe('discretionaryTotals', () => {
       spentCents: 15_00,
       remainingCents: -15_00,
     })
+  })
+})
+
+describe('isUnassignedPurchase', () => {
+  it('is true only when neither a gift budget nor the discretionary buffer is set', () => {
+    expect(isUnassignedPurchase(unassignedPurchase('p4', 12_00))).toBe(true)
+    expect(isUnassignedPurchase(purchase('p1', 'b1', 30_00))).toBe(false)
+    expect(isUnassignedPurchase(discretionaryPurchase('p5', 15_00))).toBe(false)
+  })
+})
+
+describe('unassignedSpentCents', () => {
+  it('sums only unassigned purchases', () => {
+    const mixed = [
+      ...purchases,
+      discretionaryPurchase('p4', 15_00),
+      unassignedPurchase('p5', 12_00),
+      unassignedPurchase('p6', 8_00),
+    ]
+    expect(unassignedSpentCents(mixed)).toBe(20_00)
+  })
+
+  it('is zero with no unassigned purchases', () => {
+    expect(unassignedSpentCents(purchases)).toBe(0)
   })
 })
 

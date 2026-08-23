@@ -1,6 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { GiftRecipient } from '../hooks/useGifts'
+import type { GiftBudget, GiftOccasion, GiftRecipient } from '../hooks/useGifts'
 import { makeGiftDiscretionaryBudget, makeGiftPurchase } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
 import { GiftDiscretionaryCard } from './GiftDiscretionaryCard'
@@ -14,6 +14,24 @@ const alice: GiftRecipient = {
   updated_at: '',
 }
 const bob: GiftRecipient = { ...alice, id: 'r2', name: 'Bob' }
+const birthday: GiftOccasion = {
+  id: 'o1',
+  name: 'Birthday',
+  occasion_date: null,
+  household_id: 'h',
+  created_at: '',
+  updated_at: '',
+}
+const bobsBudget: GiftBudget = {
+  id: 'b1',
+  recipient_id: 'r2',
+  occasion_id: 'o1',
+  budgeted_amount_cents: 100_00,
+  event_date: null,
+  household_id: 'h',
+  created_at: '',
+  updated_at: '',
+}
 
 function renderCard(overrides: Partial<Parameters<typeof GiftDiscretionaryCard>[0]> = {}) {
   return render(
@@ -21,6 +39,9 @@ function renderCard(overrides: Partial<Parameters<typeof GiftDiscretionaryCard>[
       discretionaryBudget={null}
       purchases={[]}
       recipients={[alice, bob]}
+      budgets={[]}
+      occasions={[]}
+      hiddenBudgetIds={new Set()}
       onUpsertBudget={vi.fn()}
       onCreatePurchase={vi.fn()}
       onUpdatePurchase={vi.fn()}
@@ -259,5 +280,88 @@ describe('GiftDiscretionaryCard', () => {
 
     await expandCard(user)
     expect(screen.getByText('No ad hoc purchases yet.')).toBeInTheDocument()
+  })
+
+  it('assigns an ad hoc purchase to a recipient’s gift budget', async () => {
+    const user = userEvent.setup()
+    const onUpdatePurchase = vi.fn()
+    renderCard({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: 'gdb1',
+          description: 'Wrapping paper',
+          amount_cents: 15_00,
+          purchased_on: '2026-08-01',
+        }),
+      ],
+      budgets: [bobsBudget],
+      occasions: [birthday],
+      onUpdatePurchase,
+    })
+
+    await expandCard(user)
+    await user.click(screen.getByRole('button', { name: 'Assign Wrapping paper' }))
+    await user.click(screen.getByRole('combobox', { name: /recipient/i }))
+    await user.click(await screen.findByRole('option', { name: 'Bob' }))
+    await user.click(screen.getByRole('combobox', { name: /occasion/i }))
+    await user.click(await screen.findByRole('option', { name: 'Birthday' }))
+    await user.click(screen.getByRole('button', { name: 'Assign' }))
+
+    expect(onUpdatePurchase).toHaveBeenCalledWith('p1', {
+      gift_budget_id: 'b1',
+      gift_discretionary_budget_id: null,
+      recipient_id: null,
+      amount_cents: 15_00,
+      description: 'Wrapping paper',
+      purchased_on: '2026-08-01',
+    })
+  })
+
+  it('cancels assigning a purchase without saving', async () => {
+    const user = userEvent.setup()
+    const onUpdatePurchase = vi.fn()
+    renderCard({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: 'gdb1',
+          description: 'Wrapping paper',
+        }),
+      ],
+      budgets: [bobsBudget],
+      occasions: [birthday],
+      onUpdatePurchase,
+    })
+
+    await expandCard(user)
+    await user.click(screen.getByRole('button', { name: 'Assign Wrapping paper' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onUpdatePurchase).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Assign Wrapping paper' })).toBeInTheDocument()
+  })
+
+  it('offers no Assign action, with a hint, when no gift budget exists yet', async () => {
+    const user = userEvent.setup()
+    renderCard({
+      discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: 'gdb1',
+          description: 'Wrapping paper',
+        }),
+      ],
+    })
+
+    await expandCard(user)
+    expect(screen.queryByRole('button', { name: 'Assign Wrapping paper' })).not.toBeInTheDocument()
+    expect(screen.getByText(/add a gift budget to assign/i)).toBeInTheDocument()
   })
 })

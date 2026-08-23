@@ -331,6 +331,9 @@ export function GiftsScreen({
         discretionaryBudget={discretionaryBudget}
         purchases={purchases}
         recipients={recipients}
+        budgets={budgets}
+        occasions={occasions}
+        hiddenBudgetIds={hiddenBudgetIds}
         onUpsertBudget={onUpsertDiscretionaryBudget}
         onCreatePurchase={onCreatePurchase}
         onUpdatePurchase={onUpdatePurchase}

@@ -77,10 +77,19 @@ supabase        Postgres migrations, edge functions, and local config
 Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
 
 ```sh
-pnpm install                 # install all workspaces
+pnpm install   # install all workspaces
+pnpm dev       # start the local Supabase stack, apply migrations, seed a dev
+               # household, and run the PWA — prints a sign-in link, no Google
+               # OAuth needed locally
+```
+
+`pnpm dev` (`scripts/dev-app.js`) is idempotent — rerun it any time, including
+after a `supabase db reset`. To drive the pieces separately instead:
+
+```sh
 cp apps/pwa/.env.example apps/pwa/.env   # fill in Supabase URL + anon key
 pnpm --filter @nest/pwa dev              # run the PWA
-pnpm supabase start          # start the local Postgres/API stack (Docker)
+pnpm supabase start                      # start the local Postgres/API stack (Docker)
 ```
 
 Workspace-wide checks (also run in CI):

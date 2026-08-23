@@ -52,14 +52,42 @@ export type Database = {
             foreignKeyName: 'account_balance_account_id_fkey'
             columns: ['account_id']
             isOneToOne: true
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'account_balance_account_id_fkey'
+            columns: ['account_id']
+            isOneToOne: true
             referencedRelation: 'accounts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'account_balance_account_id_fkey'
+            columns: ['account_id']
+            isOneToOne: true
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id']
           },
           {
             foreignKeyName: 'account_balance_account_id_household_id_fkey'
             columns: ['account_id', 'household_id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'account_balance_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'account_balance_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
         ]
@@ -271,7 +299,21 @@ export type Database = {
             foreignKeyName: 'budget_line_destination_account_id_household_id_fkey'
             columns: ['destination_account_id', 'household_id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'budget_line_destination_account_id_household_id_fkey'
+            columns: ['destination_account_id', 'household_id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'budget_line_destination_account_id_household_id_fkey'
+            columns: ['destination_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
           {
@@ -396,18 +438,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'deduction_household_id_fkey'
-            columns: ['household_id']
-            isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
-          },
-          {
             foreignKeyName: 'deduction_group_fk'
             columns: ['group_id', 'household_id', 'member_id', 'financial_year']
             isOneToOne: false
             referencedRelation: 'deduction_group'
             referencedColumns: ['id', 'household_id', 'member_id', 'financial_year']
+          },
+          {
+            foreignKeyName: 'deduction_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
           },
           {
             foreignKeyName: 'deduction_member_id_household_id_fkey'
@@ -933,7 +975,21 @@ export type Database = {
             foreignKeyName: 'households_pay_account_id_fkey'
             columns: ['pay_account_id', 'id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'households_pay_account_id_fkey'
+            columns: ['pay_account_id', 'id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'households_pay_account_id_fkey'
+            columns: ['pay_account_id', 'id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
         ]
@@ -1105,7 +1161,21 @@ export type Database = {
             foreignKeyName: 'pay_split_account_id_household_id_fkey'
             columns: ['account_id', 'household_id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'pay_split_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'pay_split_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
           {
@@ -1356,7 +1426,21 @@ export type Database = {
             foreignKeyName: 'savings_goal_linked_account_id_household_id_fkey'
             columns: ['linked_account_id', 'household_id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'savings_goal_linked_account_id_household_id_fkey'
+            columns: ['linked_account_id', 'household_id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'savings_goal_linked_account_id_household_id_fkey'
+            columns: ['linked_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
         ]
@@ -1486,7 +1570,21 @@ export type Database = {
             foreignKeyName: 'super_profile_linked_account_id_household_id_fkey'
             columns: ['linked_account_id', 'household_id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'super_profile_linked_account_id_household_id_fkey'
+            columns: ['linked_account_id', 'household_id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'super_profile_linked_account_id_household_id_fkey'
+            columns: ['linked_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
           {
@@ -1644,7 +1742,21 @@ export type Database = {
             foreignKeyName: 'transactions_account_id_household_id_fkey'
             columns: ['account_id', 'household_id']
             isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transactions_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
             referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'transactions_account_id_household_id_fkey'
+            columns: ['account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
             referencedColumns: ['id', 'household_id']
           },
           {
@@ -1681,7 +1793,38 @@ export type Database = {
           source: Database['public']['Enums']['ledger_source']
           type: Database['public']['Enums']['account_type']
         }
-        Relationships: []
+        Insert: {
+          household_id?: string
+          id?: string
+          name?: string
+          owner_member_id?: string | null
+          source?: Database['public']['Enums']['ledger_source']
+          type?: Database['public']['Enums']['account_type']
+        }
+        Update: {
+          household_id?: string
+          id?: string
+          name?: string
+          owner_member_id?: string | null
+          source?: Database['public']['Enums']['ledger_source']
+          type?: Database['public']['Enums']['account_type']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'accounts_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'accounts_owner_member_id_household_id_fkey'
+            columns: ['owner_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
       }
       accounts_with_balance: {
         Row: {
@@ -1717,6 +1860,19 @@ export type Database = {
       }
     }
     Functions: {
+      anthropic_api_key: { Args: never; Returns: string }
+      budget_line_derived_fields: {
+        Args: {
+          p_breakdown_id: string
+          p_current_destination: string
+          p_current_group: Database['public']['Enums']['budget_group']
+          p_current_name: string
+          p_gift_recipient_member_id: string
+          p_household_id: string
+          p_is_gift_line: boolean
+        }
+        Returns: Record<string, unknown>
+      }
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
       create_deduction_with_receipts: {
         Args: { p_deduction: Json; p_receipts: Json }
@@ -1733,13 +1889,51 @@ export type Database = {
           invite_code_expires_at: string
         }[]
       }
+      current_member_ids: { Args: never; Returns: string[] }
+      hidden_gift_budget_ids_for_current_member: {
+        Args: never
+        Returns: string[]
+      }
+      hidden_gift_recipient_ids_for_current_member: {
+        Args: never
+        Returns: string[]
+      }
+      hidden_gift_transaction_ids_for_current_member: {
+        Args: never
+        Returns: string[]
+      }
       household_ids_for_current_user: { Args: never; Returns: string[] }
+      household_super_account_ids: { Args: never; Returns: string[] }
       join_household: {
         Args: { p_code: string; p_member_name: string }
         Returns: string
       }
       payslip_financial_year: {
         Args: { paid_on: string; period_end: string }
+        Returns: number
+      }
+      reconcile_annual_cents: {
+        Args: {
+          p_amount: number
+          p_frequency: Database['public']['Enums']['frequency']
+          p_interval_count: number
+        }
+        Returns: number
+      }
+      reconcile_buyer_account: {
+        Args: { p_household_id: string; p_recipient_member_id: string }
+        Returns: string
+      }
+      reconcile_derived_lines: {
+        Args: { p_household_id: string }
+        Returns: undefined
+      }
+      reconcile_generic_total: {
+        Args: { p_breakdown_id: string }
+        Returns: number
+      }
+      reconcile_gift_total: {
+        Args: { p_household_id: string; p_member_id: string }
         Returns: number
       }
       revoke_invite_code: { Args: never; Returns: undefined }
@@ -1766,6 +1960,15 @@ export type Database = {
         Returns: string
       }
       upsert_up_accounts: { Args: { rows: Json }; Returns: undefined }
+      vapid_keys: {
+        Args: never
+        Returns: {
+          private_key: string
+          public_key: string
+          subject: string
+        }[]
+      }
+      visible_balance_account_ids: { Args: never; Returns: string[] }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
@@ -1941,6 +2144,8 @@ export const Constants = {
         'employment_termination',
         'unused_leave',
       ],
+      payslip_line_kind: ['earning', 'tax'],
+      payslip_tax_component: ['payg', 'stsl'],
       super_contribution_kind: [
         'salary_sacrifice',
         'personal_deductible',

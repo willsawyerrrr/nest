@@ -1200,6 +1200,71 @@ do $$ begin
     'Alice should see her three purchases only';
 end $$;
 
+-- ── Unassigned gift purchases: logged before a recipient/occasion is picked ──
+--
+-- gift_purchase now also allows neither gift_budget_id nor
+-- gift_discretionary_budget_id to be set: a purchase bought with no gift
+-- decided yet (20260830000000_unassigned_gift_purchases.sql). It is fully
+-- shared until assigned -- no recipient tag is possible without
+-- gift_discretionary_budget_id set (gift_purchase_recipient_requires_
+-- discretionary), so nothing narrows its visibility -- and assigning it later
+-- (an ordinary update) picks up whichever privacy the destination carries.
+
+insert into public.gift_purchase (household_id, amount_cents, description, purchased_on)
+  values (current_setting('test.priv_hid')::uuid, 12_00, 'Wrapping paper', '2027-04-10')
+  returning id as priv_unassigned \gset
+select set_config('test.priv_unassigned', :'priv_unassigned', false);
+
+do $$ begin
+  assert exists (select 1 from public.gift_purchase where id = current_setting('test.priv_unassigned')::uuid),
+    'Alice should see the unassigned purchase she logged';
+end $$;
+
+-- A purchase may not count against both a gift budget and the discretionary
+-- buffer at once. Uses Bob's gift (Alice is its buyer, not its hidden
+-- recipient) so the check constraint is what blocks this, not RLS.
+do $$ begin
+  insert into public.gift_purchase (household_id, gift_budget_id, gift_discretionary_budget_id, amount_cents, purchased_on)
+    values (current_setting('test.priv_hid')::uuid, current_setting('test.priv_bob_gift')::uuid, current_setting('test.priv_discretionary')::uuid, 5_00, '2027-04-11');
+  raise exception 'FAIL: logged a purchase against both a gift budget and the discretionary buffer';
+exception when check_violation then
+  raise notice 'PASS: a purchase cannot count against both a gift budget and the discretionary buffer';
+end $$;
+
+-- Bob (not yet the recipient of anything this purchase names) sees it too --
+-- an unassigned purchase carries no privacy of its own.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert exists (select 1 from public.gift_purchase where id = current_setting('test.priv_unassigned')::uuid),
+    'Bob should see the unassigned purchase too, before it is assigned';
+end $$;
+
+-- Assigning it to Bob's own gift is an ordinary update, and immediately picks
+-- up that gift's existing privacy: Bob can no longer see the purchase he could
+-- see moments ago, while Alice (the buyer) still can.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+do $$
+declare v_count int;
+begin
+  update public.gift_purchase set gift_budget_id = current_setting('test.priv_bob_gift')::uuid
+    where id = current_setting('test.priv_unassigned')::uuid;
+  get diagnostics v_count = row_count;
+  assert v_count = 1, 'Alice should be able to assign the unassigned purchase to a gift budget';
+  assert exists (select 1 from public.gift_purchase where id = current_setting('test.priv_unassigned')::uuid),
+    'Alice (the buyer) should still see the purchase once assigned';
+end $$;
+
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$ begin
+  assert not exists (select 1 from public.gift_purchase where id = current_setting('test.priv_unassigned')::uuid),
+    'Bob must no longer see the purchase now it is assigned to his own gift';
+end $$;
+
+-- Clean up: remove it (as Alice, the buyer -- Bob cannot, it is hidden from
+-- him) so later fixtures counting purchases against Bob's gift are undisturbed.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+delete from public.gift_purchase where id = current_setting('test.priv_unassigned')::uuid;
+
 -- ── Household pay account: one household-level source, validated on write ─────
 --
 -- The pay account is set only through set_household_pay_account, which resolves

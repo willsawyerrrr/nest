@@ -51,6 +51,7 @@ import { GiftDiscretionaryCard } from './GiftDiscretionaryCard'
 import { GiftManagement } from './GiftManagement'
 import { GiftRowCard } from './GiftRowCard'
 import { GiftMoneyBar } from './GiftRowParts'
+import { GiftUnassignedCard } from './GiftUnassignedCard'
 
 interface GiftsScreenProps {
   recipients: GiftRecipient[]
@@ -326,6 +327,18 @@ export function GiftsScreen({
           </Stack>
         </AppCard>
       )}
+
+      <GiftUnassignedCard
+        purchases={purchases}
+        budgets={budgets}
+        occasions={occasions}
+        recipients={recipients}
+        discretionaryBudget={discretionaryBudget}
+        hiddenBudgetIds={hiddenBudgetIds}
+        onCreatePurchase={onCreatePurchase}
+        onUpdatePurchase={onUpdatePurchase}
+        onDeletePurchase={onDeletePurchase}
+      />
 
       <GiftDiscretionaryCard
         discretionaryBudget={discretionaryBudget}

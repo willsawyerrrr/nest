@@ -108,21 +108,27 @@ Recurring shorthand:
 #### 5. CSV / multi-source bank import
 
 - **What / value.** Both partners bank with Up today, but the import boundary is
-  explicitly source-agnostic. A generic CSV importer (plus adapters for other AU
-  banks) future-proofs against a joint account elsewhere, a credit card, or a
-  historical backfill Up's API won't reach. Also the natural escape hatch when
-  Up's API is down or rate-limited.
-- **Effort.** M — a column-mapping importer + dedupe, reusing the same ledger
-  and category-mapping tables Up will populate.
-- **Touches.** No external API (file upload). Backend: parsing + `external_id`
-  dedupe (already the ledger's dedupe key) + `CategoryMapping`. Frontend: an
-  upload + column-map wizard. Supabase Storage for the uploaded file.
+  explicitly source-agnostic. A structured multi-bank source (plus a CSV
+  fallback for banks it doesn't reach) future-proofs against a joint account
+  elsewhere, a credit card, or a historical backfill Up's API won't reach. Also
+  the natural escape hatch when Up's API is down or rate-limited.
+- **Effort.** M — either a column-mapping CSV importer + dedupe, or a
+  Redbark-backed sync reusing the ledger dedupe pattern (see
+  [`redbark-ingestion.md`](redbark-ingestion.md)).
+- **Touches.** CSV path: no external API (file upload), parsing + `external_id`
+  dedupe + `CategoryMapping`, an upload + column-map wizard, Supabase Storage
+  for the uploaded file. Redbark path: an external API + Vault credential,
+  mirroring the Up connect/sync edge functions.
 - **Dependencies.** Shares the ledger schema with **ingestion**; cleanest built
   alongside or just after it so both go through one import layer.
 - **Feasibility / risks.** Per-bank CSV formats vary wildly; a flexible
-  column-mapper beats hardcoded adapters. Dedupe across sources is the trap —
-  the same transaction from two sources must not double-count (Up webhook + a
-  manual CSV of the same account).
+  column-mapper beats hardcoded adapters, and dedupe across sources is the
+  trap — the same transaction from two sources must not double-count (Up
+  webhook + a manual CSV of the same account). Redbark sidesteps per-bank CSV
+  parsing entirely by returning structured data over CDR for 100+ AU/NZ banks,
+  at the cost of a recurring subscription and an unconfirmed multi-person
+  connection model — see [`redbark-ingestion.md`](redbark-ingestion.md) for the
+  detailed design and open questions.
 
 #### 6. Superannuation & brokerage balances → net worth inputs (incl. CDR super auto-fetch)
 
@@ -145,17 +151,20 @@ Recurring shorthand:
   aren't transaction feeds.
 - **Dependencies.** Net-worth _feature_ (idea 10) is the consumer of this data.
   Up `HOME_LOAN` + saver balances arrive with **ingestion**.
-- **Feasibility / risks.** The automated path is the hard part — super APIs
-  effectively don't exist for individuals; CDR accreditation is heavy for a
-  two-person app (Up itself was chosen precisely _because_ a personal token
-  needs no CDR accreditation). Super is not in CDR scope today (CDR covers
-  banking and energy, with super flagged for a future designation but not yet
-  designated); screen-scraping aggregators exist but are B2B and being phased
-  out as CDR expands. So contribution-based accrual is the pragmatic path until
-  CDR covers super, at which point the periodic manual true-up could be automated
-  from each fund's real balance. Recommend manual balances first (updated
-  occasionally), automating only the sources that expose a token (Up) — see idea
-  10.
+- **Feasibility / risks.** Super itself is the hard part — super APIs
+  effectively don't exist for individuals, and super is not in CDR scope today
+  (CDR covers banking and energy, with super flagged for a future designation
+  but not yet designated); screen-scraping aggregators exist but are B2B and
+  being phased out as CDR expands. So contribution-based accrual is the
+  pragmatic path until CDR covers super, at which point the periodic manual
+  true-up could be automated from each fund's real balance. Brokerage and bank
+  balances are a different story: a developer-facing CDR aggregator such as
+  [Redbark](redbark-ingestion.md) removes the accreditation cost this app
+  would otherwise carry directly — see `redbark-ingestion.md` for the design
+  sketch and its open questions (chiefly whether one subscription covers two
+  household members' separate bank connections). Recommend manual balances for
+  super regardless, automating brokerage/bank balances via Up (idea 10) and,
+  once a real need exists, Redbark for anything Up doesn't reach.
 
 #### 7. ATO / MyGov tax figures
 

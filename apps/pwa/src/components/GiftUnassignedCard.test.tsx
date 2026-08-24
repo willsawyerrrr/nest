@@ -154,6 +154,29 @@ describe('GiftUnassignedCard', () => {
     )
   })
 
+  it('cancels editing a purchase without saving', async () => {
+    const user = userEvent.setup()
+    const onUpdatePurchase = vi.fn()
+    renderCard({
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: null,
+          description: 'Wrapping paper',
+        }),
+      ],
+      onUpdatePurchase,
+    })
+
+    await expandCard(user)
+    await user.click(screen.getByRole('button', { name: 'Edit Wrapping paper' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onUpdatePurchase).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Edit Wrapping paper' })).toBeInTheDocument()
+  })
+
   it('deletes an unassigned purchase after confirming', async () => {
     const user = userEvent.setup()
     const onDeletePurchase = vi.fn()
@@ -226,6 +249,10 @@ describe('GiftUnassignedCard', () => {
           purchased_on: '2026-08-01',
         }),
       ],
+      // A gift budget exists, so the form defaults to "A specific gift" —
+      // switching to "Ad hoc gifts" here also covers that switch itself.
+      budgets: [bobsBudget],
+      occasions: [birthday],
       discretionaryBudget: makeGiftDiscretionaryBudget({ id: 'gdb1' }),
       onUpdatePurchase,
     })

@@ -386,9 +386,19 @@ deno_version = 2
 # secret_key = "env(SECRET_VALUE)"
 
 # Up calls up-webhook unauthenticated, so it must skip JWT verification; its
-# HMAC-SHA256 signature check is the security boundary. Every other function
-# keeps the default (verify_jwt = true) and resolves the caller from their JWT.
+# HMAC-SHA256 signature check is the security boundary. A tax agent opening a
+# shared EOFY link likewise carries no Supabase session, so eofy-share and
+# eofy-share-file skip JWT verification too — their share_grant bearer token
+# is their security boundary, resolved by _shared/shareGrant.ts. Every other
+# function keeps the default (verify_jwt = true) and resolves the caller from
+# their JWT.
 [functions.up-webhook]
+verify_jwt = false
+
+[functions.eofy-share]
+verify_jwt = false
+
+[functions.eofy-share-file]
 verify_jwt = false
 
 [analytics]

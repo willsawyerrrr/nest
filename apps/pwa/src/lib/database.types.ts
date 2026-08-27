@@ -1445,6 +1445,51 @@ export type Database = {
           },
         ]
       }
+      share_grant: {
+        Row: {
+          created_at: string
+          created_by_member_id: string | null
+          expires_at: string
+          financial_year: number
+          household_id: string
+          recipient_email: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_member_id?: string | null
+          expires_at: string
+          financial_year: number
+          household_id: string
+          recipient_email: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          created_by_member_id?: string | null
+          expires_at?: string
+          financial_year?: number
+          household_id?: string
+          recipient_email?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'share_grant_created_by_member_id_fkey'
+            columns: ['created_by_member_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'share_grant_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: true
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       super_contribution: {
         Row: {
           amount_cents: number | null
@@ -1889,6 +1934,13 @@ export type Database = {
           invite_code_expires_at: string
         }[]
       }
+      create_share_grant: {
+        Args: { p_financial_year: number; p_recipient_email: string }
+        Returns: {
+          expires_at: string
+          token: string
+        }[]
+      }
       current_member_ids: { Args: never; Returns: string[] }
       hidden_gift_budget_ids_for_current_member: {
         Args: never
@@ -1936,7 +1988,9 @@ export type Database = {
         Args: { p_household_id: string; p_member_id: string }
         Returns: number
       }
+      resend_api_key: { Args: never; Returns: string }
       revoke_invite_code: { Args: never; Returns: undefined }
+      revoke_share_grant: { Args: never; Returns: undefined }
       set_household_pay_account: {
         Args: { p_account_id: string | null }
         Returns: undefined

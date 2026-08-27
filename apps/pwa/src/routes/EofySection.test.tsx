@@ -237,4 +237,29 @@ describe('EofySection', () => {
       { id: 'r1', deduction_id: 'd1', file_name: 'a.pdf', storage_path: 'p1' },
     ])
   })
+
+  it('passes only payslips with an attached document as payslip documents, using usePayslips.signedUrl', () => {
+    mockLoaded()
+    const signedUrl = vi.fn()
+    hooks.usePayslips.mockReturnValue({
+      loading: false,
+      signedUrl,
+      payslips: [
+        makePayslip({
+          id: 'ps1',
+          member_id: 'm1',
+          paid_on: '2027-01-15',
+          file_path: 'h1/ps1/x.pdf',
+        }),
+        makePayslip({ id: 'ps2', member_id: 'm1', paid_on: '2027-02-01', file_path: null }),
+      ],
+    })
+
+    render(<EofySection householdId="h1" />)
+
+    expect(hooks.screenProps?.payslipDocuments).toEqual([
+      { id: 'ps1', memberId: 'm1', paidOn: '2027-01-15', filePath: 'h1/ps1/x.pdf' },
+    ])
+    expect(hooks.screenProps?.payslipSignedUrl).toBe(signedUrl)
+  })
 })

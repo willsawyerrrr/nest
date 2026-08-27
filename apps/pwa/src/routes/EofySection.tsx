@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { configsByYear, financialYearForDate } from '@nest/tax'
-import { EofyScreen } from '../components/EofyScreen'
+import { EofyScreen, type EofyPayslipDocument } from '../components/EofyScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
@@ -81,6 +81,20 @@ export function EofySection({ householdId }: { householdId: string }) {
     deductionIds.has(receipt.deduction_id),
   )
 
+  // Only slips with an attached document have anything for this section to link.
+  const payslipDocuments: EofyPayslipDocument[] = payslipRows.flatMap((payslip) =>
+    payslip.file_path
+      ? [
+          {
+            id: payslip.id,
+            memberId: payslip.member_id,
+            paidOn: payslip.paid_on,
+            filePath: payslip.file_path,
+          },
+        ]
+      : [],
+  )
+
   return (
     <EofyScreen
       members={members}
@@ -95,6 +109,8 @@ export function EofySection({ householdId }: { householdId: string }) {
       payslipCounts={payslipCountByMember(payslipRows)}
       receipts={receiptRows}
       signedUrl={receipts.signedUrl}
+      payslipDocuments={payslipDocuments}
+      payslipSignedUrl={payslips.signedUrl}
     />
   )
 }

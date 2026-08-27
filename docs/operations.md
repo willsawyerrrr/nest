@@ -230,6 +230,7 @@ Vault holds every secret that must never reach a client:
 | `vapid_public_key`       | the Web Push VAPID public key, base64url (see below)       |
 | `vapid_private_key`      | the Web Push VAPID private key, base64url                  |
 | `vapid_subject`          | the `mailto:` contact URI the VAPID JWT carries            |
+| `resend_api_key`         | the `share-create` function's Resend API key (see below)   |
 
 Up tokens are written/read/cleared only by the service-role-only SECURITY
 DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
@@ -442,6 +443,51 @@ aggressive and is the default, because iOS evicts service workers and caches out
 from under installed PWAs and WebKit has a history of serving stale precached
 assets after a deploy; it always lands on the new build, where the fast path only
 does so when a waiting worker proves the new build is already local.
+
+## `resend_api_key` and `PWA_APP_URL` setup (EOFY sharing)
+
+`share-create` mints a household's EOFY share link and, when Resend is
+configured, emails it to the tax agent the household names. Nothing in the app
+writes the key — the operator sets it by hand, same pattern as
+`anthropic_api_key`:
+
+```sql
+select vault.create_secret('re_...', 'resend_api_key', 'Resend API key for EOFY share emails');
+```
+
+Rotating it is a Vault update, not a re-migration or a redeploy:
+
+```sql
+select vault.update_secret(
+  (select id from vault.secrets where name = 'resend_api_key'),
+  're_...'
+);
+```
+
+The only read path is `public.resend_api_key()`
+(`20260831000000_share_grant.sql`) — SECURITY DEFINER, `revoke execute from
+public`, granted to `service_role` alone — mirroring `vapid_keys()` and
+`anthropic_api_key()`. Until the secret is set, `share-create` still mints the
+grant and returns its token (`emailSent: false`), so the feature ships and
+degrades to the PWA's Copy Link fallback until the operator sets the secret.
+
+Two plain environment variables (not Vault, since neither is a secret) round
+out the setup, set the same way as `GITHUB_CHANGELOG_TOKEN` above:
+
+- **`PWA_APP_URL`** — the PWA's base URL (`https://nest.willsawyerrrr.dev` in
+  prod), which `share-create` prefixes onto the token to build the link the
+  email carries (`{PWA_APP_URL}/share/eofy/{token}`). Unset, it builds a
+  link with an empty origin, which is why prod must set it before the emailed
+  link is usable — the PWA's own **Copy Link** button on the EOFY tab builds
+  the same path from `window.location.origin` instead, so it works either way.
+- **`RESEND_FROM_ADDRESS`** — the sending identity, e.g. `Nest
+  <share@notifications.nest.willsawyerrrr.dev>`. Defaults to Resend's shared
+  `onboarding@resend.dev` test address, which only delivers to the Resend
+  account's own verified email — a real domain must be verified with Resend
+  and set here before emailing an arbitrary tax agent's address will work.
+
+Set both in prod with `supabase secrets set PWA_APP_URL=... RESEND_FROM_ADDRESS=... --project-ref dgfeittjtxjtgbretdkj`
+and locally in `supabase/functions/.env`.
 
 ## Auth
 

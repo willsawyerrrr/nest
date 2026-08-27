@@ -236,6 +236,32 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   VAPID keypair — read only through the service-role-only `vapid_keys()` — and the
   Anthropic API key, read only through the service-role-only
   `anthropic_api_key()`.
+- **A scoped bearer token is a narrower boundary than RLS, for a caller RLS
+  cannot reach at all.** `share_grant` (EOFY sharing) is the first table
+  designed for a reader with no `auth.uid()` — a tax agent holding a link,
+  never a Supabase session — so the household's own `household_id in
+  (select household_ids_for_current_user())` policies would refuse it
+  outright even if the anonymous functions tried to read through them. The
+  `eofy-share` / `eofy-share-file` functions therefore run
+  `verify_jwt = false` (the same posture `up-webhook` uses for Up's
+  unauthenticated deliveries) and hash the caller's bearer token
+  (`_shared/shareGrant.ts`) to look `share_grant` up by `token_hash` with a
+  service-role client, deliberately bypassing RLS the same way a SECURITY
+  DEFINER function does — the token match is the security check, standing in
+  for `auth.uid()`. Every table the shared view then reads is scoped **by
+  hand** to the resolved grant's household (and financial year, where the
+  authenticated hook is FY-scoped) inside the function itself, since no
+  RLS policy is doing that scoping for it. `eofy-share-file`'s own database
+  lookup — confirming a requested Storage path genuinely belongs to a
+  deduction or payslip in that same household and financial year — is the
+  same idiom applied to file access: Storage's own membership policy never
+  matches an `auth.uid()`-less caller either, so the function's scope check
+  is the entire boundary, not a convenience layered on Storage RLS. The
+  credential itself never round-trips as plaintext: `share_grant` stores
+  only `sha256(token)`, and even the household's own read of its live share
+  (`select` under ordinary RLS) is denied `token_hash` by a column-level
+  grant, so the one place the plaintext ever exists is the moment
+  `create_share_grant` returns it.
 
 ## Cross-cutting conventions
 

@@ -119,25 +119,31 @@ export function EofyShareSection() {
   )
 
   return (
-    <EofyScreen
-      members={data.members}
-      financialYear={data.financialYear}
-      // A single-entry list reuses FinancialYearSelect unmodified as a fixed,
-      // non-changeable display — the share is scoped to one financial year.
-      availableFinancialYears={[data.financialYear]}
-      onFinancialYearChange={() => {}}
-      showTabLinks={false}
-      disclaimerNote={SHARE_DISCLAIMER_NOTE}
-      estimate={estimate}
-      capSummaries={capSummaries}
-      helpDebts={data.helpDebts}
-      helpPayoff={helpPayoff}
-      deductions={data.deductions}
-      payslipCounts={payslipCountByMember(data.payslips)}
-      receipts={data.deductionReceipts}
-      signedUrl={signedUrl}
-      payslipDocuments={payslipDocuments}
-      payslipSignedUrl={payslipSignedUrl}
-    />
+    // `.page` gives this standalone route the same margins, max-width, and
+    // safe-area padding HouseholdApp's <main> gives every authenticated
+    // route — this route sits outside HouseholdApp entirely, so without it
+    // EofyScreen would render edge-to-edge with no shell around it.
+    <main className="page">
+      <EofyScreen
+        members={data.members}
+        financialYear={data.financialYear}
+        // A single-entry list reuses FinancialYearSelect unmodified as a fixed,
+        // non-changeable display — the share is scoped to one financial year.
+        availableFinancialYears={[data.financialYear]}
+        onFinancialYearChange={() => {}}
+        showTabLinks={false}
+        disclaimerNote={SHARE_DISCLAIMER_NOTE}
+        estimate={estimate}
+        capSummaries={capSummaries}
+        helpDebts={data.helpDebts}
+        helpPayoff={helpPayoff}
+        deductions={data.deductions}
+        payslipCounts={payslipCountByMember(data.payslips)}
+        receipts={data.deductionReceipts}
+        signedUrl={signedUrl}
+        payslipDocuments={payslipDocuments}
+        payslipSignedUrl={payslipSignedUrl}
+      />
+    </main>
   )
 }

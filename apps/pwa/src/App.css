@@ -179,10 +179,12 @@
 
 /*
  * Below `sm` the top bar and its hamburger drawer replace the sidebar: reserve
- * room for the fixed top bar above the content.
+ * room for the fixed top bar above the content. Scoped to `.app-shell .page`
+ * rather than every `.page` — a standalone page (e.g. the public EOFY share
+ * view) reuses `.page` for its margins/max-width but has no top bar to clear.
  */
 @media (max-width: 48em) {
-  .page {
+  .app-shell .page {
     padding-top: calc(56px + env(safe-area-inset-top) + var(--mantine-spacing-md));
   }
 }

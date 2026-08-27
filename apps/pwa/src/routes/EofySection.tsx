@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { Stack } from '@mantine/core'
 import { configsByYear, financialYearForDate } from '@nest/tax'
 import { EofyScreen, type EofyPayslipDocument } from '../components/EofyScreen'
+import { EofyShareControl } from '../components/EofyShareControl'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
@@ -8,6 +10,7 @@ import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { usePayslips } from '../hooks/usePayslips'
+import { useShareGrant } from '../hooks/useShareGrant'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -32,6 +35,7 @@ export function EofySection({ householdId }: { householdId: string }) {
   const deductions = useDeductions(householdId, financialYear)
   const receipts = useDeductionReceipts(householdId)
   const payslips = usePayslips(householdId, financialYear)
+  const shareGrant = useShareGrant()
 
   if (
     membersLoading ||
@@ -96,21 +100,30 @@ export function EofySection({ householdId }: { householdId: string }) {
   )
 
   return (
-    <EofyScreen
-      members={members}
-      financialYear={financialYear}
-      availableFinancialYears={availableFinancialYears}
-      onFinancialYearChange={setFinancialYear}
-      estimate={estimate}
-      capSummaries={capSummaries}
-      helpDebts={helpDebts.helpDebts ?? []}
-      helpPayoff={helpPayoff}
-      deductions={deductionRows}
-      payslipCounts={payslipCountByMember(payslipRows)}
-      receipts={receiptRows}
-      signedUrl={receipts.signedUrl}
-      payslipDocuments={payslipDocuments}
-      payslipSignedUrl={payslips.signedUrl}
-    />
+    <Stack gap="md">
+      <EofyShareControl
+        status={shareGrant.status}
+        financialYear={financialYear}
+        availableFinancialYears={availableFinancialYears}
+        onCreate={shareGrant.create}
+        onRevoke={shareGrant.revoke}
+      />
+      <EofyScreen
+        members={members}
+        financialYear={financialYear}
+        availableFinancialYears={availableFinancialYears}
+        onFinancialYearChange={setFinancialYear}
+        estimate={estimate}
+        capSummaries={capSummaries}
+        helpDebts={helpDebts.helpDebts ?? []}
+        helpPayoff={helpPayoff}
+        deductions={deductionRows}
+        payslipCounts={payslipCountByMember(payslipRows)}
+        receipts={receiptRows}
+        signedUrl={receipts.signedUrl}
+        payslipDocuments={payslipDocuments}
+        payslipSignedUrl={payslips.signedUrl}
+      />
+    </Stack>
   )
 }

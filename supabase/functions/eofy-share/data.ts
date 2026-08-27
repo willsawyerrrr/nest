@@ -26,7 +26,12 @@ export interface FlowResult {
 export type Row = Record<string, unknown>
 
 export interface EofyShareRows {
-  /** `{ id, name }` only — never email or user_id, which the shared view has no use for. */
+  /**
+   * `{ id, name, date_of_birth }` — never email or user_id, which the shared
+   * view has no use for. `date_of_birth` is not rendered; it feeds
+   * `estimateHouseholdTaxFromRows`'s preservation-age check for a one-off
+   * termination payment, so the shared estimate agrees with the household's own.
+   */
   members: Row[]
   /** Unfiltered by financial year: proration across a member's inflow history needs the whole set, matching `useInflows`. */
   inflows: Row[]

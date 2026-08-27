@@ -75,9 +75,14 @@ async function loadEofyShareRows(
   admin: SupabaseClient,
   { householdId, financialYear }: ShareGrant,
 ): Promise<EofyShareRows> {
+  // date_of_birth travels too (never email or user_id): estimateHouseholdTaxFromRows
+  // reads it to price a one-off termination payment's tax-free amount against the
+  // member's age at preservation, so leaving it out would silently mis-tax a
+  // genuine redundancy for the shared view alone. It is not rendered anywhere —
+  // a tax agent needs it for real filing regardless.
   const { data: membersData, error: membersError } = await admin
     .from('members')
-    .select('id, name')
+    .select('id, name, date_of_birth')
     .eq('household_id', householdId)
     .order('name')
   if (membersError) {

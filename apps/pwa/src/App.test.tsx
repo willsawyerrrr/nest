@@ -83,6 +83,9 @@ vi.mock('./routes/ChangelogSection', () => ({
   ChangelogSection: () => <div>ChangelogSection</div>,
 }))
 vi.mock('./routes/HomeSection', () => ({ HomeSection: () => <div>HomeSection</div> }))
+vi.mock('./routes/EofyShareSection', () => ({
+  EofyShareSection: () => <div>EofyShareSection</div>,
+}))
 
 const session = { user: { id: 'u1' } } as unknown as Session
 const household = { id: 'h1', name: 'Home' } as Household
@@ -203,5 +206,18 @@ describe('App', () => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp([path])
     expect(await screen.findByText(section)).toBeInTheDocument()
+  })
+
+  it('renders the public share route without ever checking the session', async () => {
+    mocks.getSession.mockReturnValue(new Promise(() => {})) // never resolves
+    renderApp(['/share/eofy/a-token'])
+    expect(await screen.findByText('EofyShareSection')).toBeInTheDocument()
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('matches the share route ahead of the session gate even when signed out', async () => {
+    renderApp(['/share/eofy/a-token'])
+    expect(await screen.findByText('EofyShareSection')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /continue with google/i })).not.toBeInTheDocument()
   })
 })

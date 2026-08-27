@@ -29,6 +29,11 @@ const DeductionsSection = lazy(() =>
 const EofySection = lazy(() =>
   import('./routes/EofySection').then((m) => ({ default: m.EofySection })),
 )
+// Never imports `supabase.auth` — the public share view carries no session at
+// all, only its own bearer token, resolved by `useEofyShareData`.
+const EofyShareSection = lazy(() =>
+  import('./routes/EofyShareSection').then((m) => ({ default: m.EofyShareSection })),
+)
 const EquitySection = lazy(() =>
   import('./routes/EquitySection').then((m) => ({ default: m.EquitySection })),
 )
@@ -66,7 +71,30 @@ const TaxSection = lazy(() =>
   import('./routes/TaxSection').then((m) => ({ default: m.TaxSection })),
 )
 
+/**
+ * The public `/share/eofy/:token` route is matched before the session gate
+ * below, so a tax agent opening a shared link never touches
+ * `supabase.auth.getSession()` or waits on it — every other path falls
+ * through to {@link AuthGate}, unchanged.
+ */
 export default function App() {
+  return (
+    <Routes>
+      <Route
+        path="/share/eofy/:token"
+        element={
+          <Suspense fallback={<LoadingScreen />}>
+            <EofyShareSection />
+          </Suspense>
+        }
+      />
+      <Route path="*" element={<AuthGate />} />
+    </Routes>
+  )
+}
+
+/** The signed-in session gate: sign-in, onboarding, or the authenticated app. */
+function AuthGate() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 

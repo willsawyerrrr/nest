@@ -8,7 +8,7 @@ Deno.test('resolveMemberWithAdmin resolves a member and captures its admin clien
   const admin = { marker: 'admin' } as unknown as SupabaseClient
   const resolution = resolveMemberWithAdmin(
     request,
-    () => Promise.resolve({ caller: { admin, memberId: 'm-1' } }),
+    () => Promise.resolve({ caller: { admin, asUser: admin, memberId: 'm-1' } }),
   )
 
   assertEquals(await resolution.resolveMember(), { memberId: 'm-1' })
@@ -30,7 +30,9 @@ Deno.test('resolveMemberWithAdmin passes the request to the resolver', async () 
   let seen: Request | null = null
   const resolution = resolveMemberWithAdmin(request, (req) => {
     seen = req
-    return Promise.resolve({ caller: { admin: {} as SupabaseClient, memberId: 'm-1' } })
+    return Promise.resolve({
+      caller: { admin: {} as SupabaseClient, asUser: {} as SupabaseClient, memberId: 'm-1' },
+    })
   })
 
   await resolution.resolveMember()

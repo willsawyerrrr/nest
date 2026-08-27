@@ -459,7 +459,11 @@ export function estimateHouseholdTaxFromRows(
   deductions: readonly DeductionRow[] = [],
   config: TaxYearConfig = currentTaxConfig(),
   paygWithheld?: ReadonlyMap<string, number>,
-  members: readonly Member[] = [],
+  // Narrowed to what this reads (id, date_of_birth) rather than the full
+  // `Member` row, so the EOFY share view — whose members carry no email or
+  // user_id — can call this with exactly the same result the household's own
+  // tab gets.
+  members: readonly Pick<Member, 'id' | 'date_of_birth'>[] = [],
 ): HouseholdTaxEstimate {
   // Keyed to allow a null member id, which a taxable inflow can carry: it simply
   // matches no member, and an unknown date of birth reads as the higher rate.

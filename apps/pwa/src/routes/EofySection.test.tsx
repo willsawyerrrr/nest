@@ -31,7 +31,9 @@ const hooks = vi.hoisted(() => ({
   useDeductions: vi.fn(),
   useDeductionReceipts: vi.fn(),
   usePayslips: vi.fn(),
+  useShareGrant: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
+  shareControlProps: null as Record<string, unknown> | null,
   taxViewProps: null as Record<string, unknown> | null,
 }))
 
@@ -51,10 +53,17 @@ vi.mock('../hooks/useDeductionReceipts', () => ({
   useDeductionReceipts: hooks.useDeductionReceipts,
 }))
 vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
+vi.mock('../hooks/useShareGrant', () => ({ useShareGrant: hooks.useShareGrant }))
 vi.mock('../components/EofyScreen', () => ({
   EofyScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
     return <div data-testid="eofy-screen" />
+  },
+}))
+vi.mock('../components/EofyShareControl', () => ({
+  EofyShareControl: (props: Record<string, unknown>) => {
+    hooks.shareControlProps = props
+    return <div data-testid="eofy-share-control" />
   },
 }))
 // The Tax tab is rendered from the same mocked hooks to hold its estimate against
@@ -78,6 +87,13 @@ function mockLoaded() {
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
   hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [], signedUrl: vi.fn() })
   hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+  hooks.useShareGrant.mockReturnValue({
+    status: null,
+    loading: false,
+    create: vi.fn(),
+    revoke: vi.fn(),
+    reload: vi.fn(),
+  })
 }
 
 /** The member estimate the mocked screen was handed, which every test has one of. */
@@ -236,5 +252,51 @@ describe('EofySection', () => {
     expect(hooks.screenProps?.receipts).toEqual([
       { id: 'r1', deduction_id: 'd1', file_name: 'a.pdf', storage_path: 'p1' },
     ])
+  })
+
+  it('passes only payslips with an attached document as payslip documents, using usePayslips.signedUrl', () => {
+    mockLoaded()
+    const signedUrl = vi.fn()
+    hooks.usePayslips.mockReturnValue({
+      loading: false,
+      signedUrl,
+      payslips: [
+        makePayslip({
+          id: 'ps1',
+          member_id: 'm1',
+          paid_on: '2027-01-15',
+          file_path: 'h1/ps1/x.pdf',
+        }),
+        makePayslip({ id: 'ps2', member_id: 'm1', paid_on: '2027-02-01', file_path: null }),
+      ],
+    })
+
+    render(<EofySection householdId="h1" />)
+
+    expect(hooks.screenProps?.payslipDocuments).toEqual([
+      { id: 'ps1', memberId: 'm1', paidOn: '2027-01-15', filePath: 'h1/ps1/x.pdf' },
+    ])
+    expect(hooks.screenProps?.payslipSignedUrl).toBe(signedUrl)
+  })
+
+  it('wires the share control to useShareGrant and the selected financial year', () => {
+    mockLoaded()
+    const create = vi.fn()
+    const revoke = vi.fn()
+    const status = {
+      household_id: 'h1',
+      financial_year: currentFy,
+      recipient_email: 'agent@example.com',
+      expires_at: '2027-01-08T00:00:00Z',
+      created_at: '2027-01-01T00:00:00Z',
+    }
+    hooks.useShareGrant.mockReturnValue({ status, loading: false, create, revoke, reload: vi.fn() })
+
+    render(<EofySection householdId="h1" />)
+
+    expect(hooks.shareControlProps?.status).toBe(status)
+    expect(hooks.shareControlProps?.financialYear).toBe(currentFy)
+    expect(hooks.shareControlProps?.onCreate).toBe(create)
+    expect(hooks.shareControlProps?.onRevoke).toBe(revoke)
   })
 })

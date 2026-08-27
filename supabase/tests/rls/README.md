@@ -49,13 +49,22 @@ instance and can also be run locally.
   `full_amount_cents` at `work_use_percent`, the percentage must fall in (0, 100],
   a distance-basis row is pinned at 100%, and the add path's
   `create_deduction_with_receipts` carries the apportioning it is given.
+- `share_grant.sql` — the assertions that an EOFY share grant is minted,
+  replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
+  a fresh household has no share, creating one returns a 64-hex-char token and
+  the row it describes, a second call replaces the row (mints a new token
+  rather than adding a second row), `token_hash` is never selectable by
+  `authenticated` while the other columns are, a direct insert/update/delete on
+  `share_grant` as `authenticated` is refused outright, a co-member's household
+  cannot see another household's share, and `revoke_share_grant` deletes the
+  row (a no-op when there is none).
 
 ## What runs
 
 `setup_auth.sql` → every file in `supabase/migrations/` in order →
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
-`deduction_group.sql` → `deduction_work_use.sql`.
+`deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -78,5 +87,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_lines.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 docker rm -f pba-rls
 ```

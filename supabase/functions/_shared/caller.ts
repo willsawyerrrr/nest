@@ -2,8 +2,10 @@
  * Resolves the caller of a JWT-verified edge function to their own member row.
  *
  * The member is derived from the Authorization JWT — never from the request
- * body — so a caller can only ever act on their own Up connection. Returns a
- * service-role client (for the trusted Vault RPCs) alongside the member id, or a
+ * body — so a caller can only ever act on their own data. Returns a
+ * service-role client (for trusted Vault RPCs and reads that must bypass RLS)
+ * alongside a client scoped to the caller's own JWT (for an RPC that must run
+ * as them, so `auth.uid()` resolves) and the member id, or a
  * `{ status, message }` error when the caller cannot be resolved.
  */
 
@@ -11,6 +13,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export interface ResolvedCaller {
   admin: SupabaseClient
+  /** The caller's own JWT-scoped client — RLS applies, so `auth.uid()` resolves as them. */
+  asUser: SupabaseClient
   memberId: string
 }
 
@@ -57,7 +61,7 @@ export async function resolveCaller(
     return { error: { status: 404, message: 'No household membership for this user' } }
   }
 
-  return { caller: { admin, memberId: member.id as string } }
+  return { caller: { admin, asUser, memberId: member.id as string } }
 }
 
 /**

@@ -607,6 +607,38 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   Deciding **when** to notify is out of scope: there is no scheduled evaluation
   pass and no buffer / goal / expiry trigger, so a push happens only when a member
   asks for a test.
+- EOFY sharing: a household gives a tax agent read-only access to its EOFY
+  summary (estimate, withholding position, deductions with receipts, super,
+  HELP debt, payslip documents) via a scoped, time-limited bearer link — never
+  by inviting them as a member and never a raw export. `share_grant` holds at
+  most one live share per household (`household_id` is its primary key), a
+  7-day expiry, and `token_hash` — never the plaintext token, which
+  `create_share_grant` returns once and nothing stores — minted/replaced and
+  revoked only through SECURITY DEFINER RPCs; `authenticated` gets a
+  column-level grant that withholds `token_hash` even from the household
+  itself. Three edge functions do the work: `share-create` (JWT-verified)
+  mints the grant as the caller and emails the link via Resend when
+  `resend_api_key` is set (minting either way, so an email failure never
+  costs the household its link); `eofy-share` and `eofy-share-file`
+  (`verify_jwt = false`, matching `up-webhook`) resolve the bearer token
+  against `share_grant` with a service-role client — an anonymous holder has
+  no `auth.uid()` for any table's own RLS to match — and serve the same rows
+  the EOFY tab loads, and a 5-minute signed Storage URL per receipt/payslip
+  document scoped by its own database check (the file access boundary here,
+  not Storage RLS). The shared view is `EofyScreen.tsx` itself, fed by
+  `EofyShareSection.tsx` at `/share/eofy/:token` (matched ahead of the
+  session gate in `App.tsx`, so a tax agent never touches
+  `supabase.auth.getSession()`) composing `eofy-share`'s rows through the
+  same `estimateHouseholdTaxFromRows`/`superCapSummaryFromRows`/
+  `helpPayoffByMember` pure functions `EofySection.tsx` uses, so the two
+  views agree by construction rather than by a second implementation kept in
+  sync — including `members[].date_of_birth`, which prices a one-off
+  termination payment's tax-free amount and would otherwise silently
+  mis-tax a redundancy near preservation age on the shared view alone.
+  `EofyShareControl.tsx` on the EOFY tab shows the freshly minted link once
+  — the household's own app never stores it either, so it cannot be
+  recovered on a later visit — alongside Revoke. See
+  [`docs/eofy-sharing.md`](docs/eofy-sharing.md).
 
 ## Conventions
 

@@ -14,8 +14,22 @@ import { PageSection } from './PageSection'
 import { SuperCapsSummary } from './SuperCapsSummary'
 import { WithholdingPosition } from './WithholdingPosition'
 
+/**
+ * A payslip document to list against its member: the printed date the pay
+ * landed (or null, for a slip carrying none) and the object path
+ * `payslipSignedUrl` resolves for viewing. Deliberately narrower than
+ * `Tables<'payslip'>` — a document link is all this section shows.
+ */
+export interface EofyPayslipDocument {
+  id: string
+  memberId: string
+  paidOn: string | null
+  filePath: string
+}
+
 interface EofyScreenProps {
-  members: Member[]
+  /** `{ id, name }` is all this screen shows; a narrower type than `Member` so a shared payload carrying only those two type-checks without a parallel prop. */
+  members: readonly Pick<Member, 'id' | 'name'>[]
   financialYear: number
   /** Financial years with a published tax config, most recent first. */
   availableFinancialYears: readonly number[]
@@ -36,6 +50,21 @@ interface EofyScreenProps {
   /** The selected FY's deductions' receipts; the caller has already filtered out any other year's. */
   receipts: readonly DeductionReceiptRow[]
   signedUrl: (path: string) => Promise<string | null>
+  /**
+   * Hides the Tax/Payslips/Deductions/Super/HELP debt anchor links, which point
+   * at authenticated routes a viewer without a session (the shared EOFY view)
+   * has no access to. Defaults to true, so the authenticated route is unaffected.
+   */
+  showTabLinks?: boolean
+  /** A second dimmed note alongside the "excludes capital gains tax" line; omitted where the caller has none. */
+  disclaimerNote?: string
+  /**
+   * The selected year's payslip attachments, for a "Payslip documents"
+   * subsection per member. Rendered only when this and `payslipSignedUrl` are
+   * both supplied.
+   */
+  payslipDocuments?: readonly EofyPayslipDocument[]
+  payslipSignedUrl?: (path: string) => Promise<string | null>
 }
 
 /** A dimmed label over its money figure, right-aligned, for a dense filing-figure list. */
@@ -243,6 +272,40 @@ function EofyHelpDebtSummary({
   )
 }
 
+/** A member's attached payslip documents for the year, each opening a signed URL on click. */
+function EofyPayslipDocumentsSummary({
+  documents,
+  signedUrl,
+}: {
+  documents: readonly EofyPayslipDocument[]
+  signedUrl: (path: string) => Promise<string | null>
+}) {
+  if (documents.length === 0) {
+    return <EmptyState>No payslip documents attached.</EmptyState>
+  }
+  const openDocument = async (path: string) => {
+    const url = await signedUrl(path)
+    if (url) {
+      window.open(url, '_blank', 'noopener')
+    }
+  }
+  return (
+    <Group gap="xs" wrap="wrap">
+      {documents.map((document) => (
+        <Anchor
+          key={document.id}
+          size="xs"
+          component="button"
+          type="button"
+          onClick={() => void openDocument(document.filePath)}
+        >
+          {document.paidOn ? formatIsoDate(document.paidOn) : 'Payslip'}
+        </Anchor>
+      ))}
+    </Group>
+  )
+}
+
 /** A subsection heading, sized to sit within a member's card beneath their name. */
 function SubsectionTitle({ children }: { children: string }) {
   return (
@@ -269,8 +332,10 @@ function EofyMemberCard({
   deductions,
   receipts,
   signedUrl,
+  payslipDocuments,
+  payslipSignedUrl,
 }: {
-  member: Member
+  member: Pick<Member, 'id' | 'name'>
   financialYear: number
   memberEstimate: MemberTaxEstimate | undefined
   payslipCount: number
@@ -280,6 +345,9 @@ function EofyMemberCard({
   deductions: readonly DeductionRow[]
   receipts: readonly DeductionReceiptRow[]
   signedUrl: (path: string) => Promise<string | null>
+  /** This member's payslip documents; omitted (with `payslipSignedUrl`) when the section is off. */
+  payslipDocuments?: readonly EofyPayslipDocument[]
+  payslipSignedUrl?: (path: string) => Promise<string | null>
 }) {
   return (
     <Card component="section" aria-label={member.name} withBorder radius="md" p="md">
@@ -320,6 +388,16 @@ function EofyMemberCard({
             payoff={helpPayoffProjection}
           />
         </Stack>
+
+        {payslipDocuments && payslipSignedUrl && (
+          <Stack gap="xs">
+            <SubsectionTitle>Payslip documents</SubsectionTitle>
+            <EofyPayslipDocumentsSummary
+              documents={payslipDocuments}
+              signedUrl={payslipSignedUrl}
+            />
+          </Stack>
+        )}
       </Stack>
     </Card>
   )
@@ -345,8 +423,13 @@ export function EofyScreen({
   payslipCounts,
   receipts,
   signedUrl,
+  showTabLinks = true,
+  disclaimerNote,
+  payslipDocuments,
+  payslipSignedUrl,
 }: EofyScreenProps) {
   const helpDebtByMember = new Map(helpDebts.map((debt) => [debt.member_id, debt]))
+  const showPayslipDocuments = payslipDocuments !== undefined && payslipSignedUrl !== undefined
 
   return (
     <PageSection
@@ -359,23 +442,25 @@ export function EofyScreen({
           availableFinancialYears={availableFinancialYears}
           onChange={onFinancialYearChange}
         />
-        <Group gap="md" wrap="wrap">
-          <Anchor component={Link} to="/tax" size="sm">
-            Tax
-          </Anchor>
-          <Anchor component={Link} to="/payslips" size="sm">
-            Payslips
-          </Anchor>
-          <Anchor component={Link} to="/deductions" size="sm">
-            Deductions
-          </Anchor>
-          <Anchor component={Link} to="/super" size="sm">
-            Super
-          </Anchor>
-          <Anchor component={Link} to="/help-debt" size="sm">
-            HELP debt
-          </Anchor>
-        </Group>
+        {showTabLinks && (
+          <Group gap="md" wrap="wrap">
+            <Anchor component={Link} to="/tax" size="sm">
+              Tax
+            </Anchor>
+            <Anchor component={Link} to="/payslips" size="sm">
+              Payslips
+            </Anchor>
+            <Anchor component={Link} to="/deductions" size="sm">
+              Deductions
+            </Anchor>
+            <Anchor component={Link} to="/super" size="sm">
+              Super
+            </Anchor>
+            <Anchor component={Link} to="/help-debt" size="sm">
+              HELP debt
+            </Anchor>
+          </Group>
+        )}
       </Group>
 
       {members.length === 0 ? (
@@ -394,6 +479,12 @@ export function EofyScreen({
             deductions={deductions.filter((deduction) => deduction.member_id === member.id)}
             receipts={receipts}
             signedUrl={signedUrl}
+            {...(showPayslipDocuments && {
+              payslipDocuments: payslipDocuments.filter(
+                (document) => document.memberId === member.id,
+              ),
+              payslipSignedUrl,
+            })}
           />
         ))
       )}
@@ -401,6 +492,11 @@ export function EofyScreen({
       <Text size="xs" c="dimmed">
         This estimate excludes capital gains tax, which is not tracked.
       </Text>
+      {disclaimerNote && (
+        <Text size="xs" c="dimmed">
+          {disclaimerNote}
+        </Text>
+      )}
     </PageSection>
   )
 }

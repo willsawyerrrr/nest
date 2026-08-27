@@ -110,13 +110,16 @@ directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
-`payslip-extract`, and `deduction-extract` are JWT-verified (the default, so they
-carry no `config.toml` entry) — the caller is resolved from their JWT, so a
-member can only touch their own token, their own devices, and files in their own
-household, and `up-sync`'s PWA Refresh carries the member's JWT while its hourly
-cron presents the service-role key. `up-webhook` is the only entry in
-`config.toml`, setting `verify_jwt = false` so Up can call it unauthenticated;
-its HMAC signature check is the security boundary.
+`payslip-extract`, `deduction-extract`, and `share-create` are JWT-verified (the
+default, so they carry no `config.toml` entry) — the caller is resolved from
+their JWT, so a member can only touch their own token, their own devices, files
+in their own household, and their own household's share; `up-sync`'s PWA
+Refresh carries the member's JWT while its hourly cron presents the
+service-role key. `up-webhook`, `eofy-share`, and `eofy-share-file` are the
+`config.toml` entries setting `verify_jwt = false`: Up calls the first
+unauthenticated (its HMAC signature check is the security boundary), and a tax
+agent opening a shared EOFY link carries no Supabase session at all (their
+`share_grant` bearer token, resolved by `_shared/shareGrant.ts`, is theirs).
 
 Serve locally against the running stack, or deploy a single function by hand:
 
@@ -127,6 +130,9 @@ supabase functions serve up-webhook
 supabase functions serve up-sync
 supabase functions serve payslip-extract
 supabase functions serve deduction-extract
+supabase functions serve eofy-share
+supabase functions serve eofy-share-file
+supabase functions serve share-create
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -241,6 +247,61 @@ key (`anthropic_api_key`).
   each extraction function calls with its own service-role client. It is never
   returned to a client. The operator sets it by hand; see
   [`docs/operations.md`](../../docs/operations.md).
+
+## EOFY sharing
+
+A household shares its EOFY summary with a tax agent via a scoped, time-limited,
+read-only bearer token (`share_grant` — see
+[`../migrations/20260831000000_share_grant.sql`](../migrations/20260831000000_share_grant.sql)),
+never a Supabase account or Google OAuth. Three functions:
+
+- **`share-create`** — JWT-verified, called from the EOFY tab. Runs
+  `create_share_grant` as the caller (their own JWT-scoped client, so
+  `auth.uid()` resolves and the RPC's own household lookup applies), which
+  mints a 64-hex-char token and replaces any grant the household already had.
+  When `resend_api_key` is set, emails the link
+  (`{PWA_APP_URL}/share/eofy/{token}`) to the recipient via the Resend API. The
+  grant is minted either way — an email failure never leaves the household
+  without a link — and the response's `{ token, expiresAt, emailSent }` lets
+  the PWA show/copy the link as a fallback whatever `emailSent` says. Pure flow
+  logic (the resolve-then-mint-then-email ordering) lives in `create.ts`,
+  DI-tested against fakes.
+- **`eofy-share`** — `verify_jwt = false`. Takes `POST { token }`, resolves it
+  against `share_grant` (`_shared/shareGrant.ts`), and — on a service-role
+  client, since the caller has no `auth.uid()` for the household's own RLS to
+  match — returns the same raw rows `EofySection.tsx` loads for the
+  household's own EOFY tab (inflows, tax profiles, super contributions and
+  profiles, HELP debts, deductions, and payslips), scoped by hand to the
+  grant's household and, where the corresponding hook is FY-scoped, its
+  financial year. `deductionReceipts` is pre-filtered to the deductions
+  already in scope. Data shaping lives in `data.ts`, DI-tested against fakes.
+- **`eofy-share-file`** — `verify_jwt = false`. Takes
+  `POST { token, bucket, path }` (`bucket` is `'receipts'` or `'payslips'`) and
+  signs a 5-minute Storage URL for one deduction receipt or payslip document —
+  shorter than the household's own hour-long signed URLs, since this is a
+  lower-trust anonymous bearer. This is the feature's main new security
+  surface: an anonymous bearer's token grants no blanket Storage access, only
+  a signed URL for a file the scope check proves belongs to the resolved
+  grant's household and financial year (the path's household-prefix check,
+  then a database lookup of the receipt/payslip row itself) — the whole of the
+  boundary, not a convenience on top of Storage RLS, which never matches an
+  `auth.uid()`-less caller anyway. Logic lives in `file.ts`, DI-tested against
+  fakes covering a path from another household, one from an out-of-scope
+  financial year, and one with no matching row.
+
+Both anonymous functions report the identical generic 401 whether a token is
+malformed, matches nothing, or has expired — `_shared/shareGrant.ts` never
+distinguishes "expired" from "never existed" in the response.
+
+### Secret
+
+- **`resend_api_key`** — the Resend API key `share-create` emails with, held
+  in Vault and readable only by the SECURITY DEFINER `resend_api_key()`
+  function granted to `service_role` alone
+  (`20260831000000_share_grant.sql`), mirroring `anthropic_api_key()`. It is
+  never returned to a client. Two plain environment variables,
+  `PWA_APP_URL` and `RESEND_FROM_ADDRESS`, round out the setup — see
+  [`docs/operations.md`](../../docs/operations.md#resend_api_key-and-pwa_app_url-setup-eofy-sharing).
 
 ## Changelog ("What's new")
 

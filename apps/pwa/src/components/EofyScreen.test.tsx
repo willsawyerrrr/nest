@@ -5,10 +5,21 @@ import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown, TaxInput } 
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
+import { formatIsoDate } from '../lib/dates'
 import type { SuperCapSummary } from '../lib/tax'
 import { makeMember } from '../test/fixtures'
 import { render, screen, within } from '../test/render'
-import { EofyScreen } from './EofyScreen'
+import { EofyScreen, type EofyPayslipDocument } from './EofyScreen'
+
+function makeDocument(overrides: Partial<EofyPayslipDocument> = {}): EofyPayslipDocument {
+  return {
+    id: 'doc1',
+    memberId: 'm1',
+    paidOn: '2027-01-15',
+    filePath: 'h1/p1/payslip.pdf',
+    ...overrides,
+  }
+}
 
 function makeBreakdown(overrides: Partial<TaxBreakdown> = {}): TaxBreakdown {
   return {
@@ -361,5 +372,86 @@ describe('EofyScreen', () => {
   it('shows an empty state when the household has no members', () => {
     renderScreen({ members: [] })
     expect(screen.getByText(/no household members yet/i)).toBeInTheDocument()
+  })
+
+  it('hides the tab links when showTabLinks is false', () => {
+    renderScreen({ showTabLinks: false })
+    expect(screen.queryByRole('link', { name: 'Tax' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Payslips' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Deductions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Super' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'HELP debt' })).not.toBeInTheDocument()
+  })
+
+  it('shows the tab links by default', () => {
+    renderScreen()
+    expect(screen.getByRole('link', { name: 'Tax' })).toBeInTheDocument()
+  })
+
+  it('shows a disclaimer note when supplied, alongside the capital gains tax note', () => {
+    renderScreen({ disclaimerNote: 'These figures are estimates, not a filed tax return.' })
+    expect(
+      screen.getByText('These figures are estimates, not a filed tax return.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/excludes capital gains tax/i)).toBeInTheDocument()
+  })
+
+  it('shows no disclaimer note when none is supplied', () => {
+    renderScreen()
+    expect(screen.queryByText(/not a filed tax return/i)).not.toBeInTheDocument()
+  })
+
+  it('omits the payslip documents section when it is not supplied', () => {
+    renderScreen()
+    expect(screen.queryByText('Payslip documents')).not.toBeInTheDocument()
+  })
+
+  it("lists a member's payslip documents and opens a signed URL on click", async () => {
+    const payslipSignedUrl = vi.fn().mockResolvedValue('https://example.com/payslip.pdf')
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const user = userEvent.setup()
+
+    renderScreen({
+      payslipDocuments: [makeDocument({ id: 'doc1', memberId: 'm1', paidOn: '2027-01-15' })],
+      payslipSignedUrl,
+    })
+
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).getByText('Payslip documents')).toBeInTheDocument()
+    const link = within(card).getByRole('button', { name: formatIsoDate('2027-01-15') })
+
+    await user.click(link)
+    expect(payslipSignedUrl).toHaveBeenCalledWith('h1/p1/payslip.pdf')
+    expect(openSpy).toHaveBeenCalled()
+
+    openSpy.mockRestore()
+  })
+
+  it('shows an empty state when a member has no payslip documents', () => {
+    renderScreen({ payslipDocuments: [], payslipSignedUrl: vi.fn() })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).getByText(/no payslip documents attached/i)).toBeInTheDocument()
+  })
+
+  it("filters payslip documents to each member's own", () => {
+    renderScreen({
+      payslipDocuments: [
+        makeDocument({ id: 'doc1', memberId: 'm1', paidOn: '2027-01-15' }),
+        makeDocument({ id: 'doc2', memberId: 'other-member', paidOn: '2027-02-01' }),
+      ],
+      payslipSignedUrl: vi.fn(),
+    })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(
+      within(card).getByRole('button', { name: formatIsoDate('2027-01-15') }),
+    ).toBeInTheDocument()
+    expect(
+      within(card).queryByRole('button', { name: formatIsoDate('2027-02-01') }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('accepts a members list narrowed to just id and name', () => {
+    renderScreen({ members: [{ id: 'm1', name: 'Alex' }] })
+    expect(screen.getByRole('region', { name: 'Alex' })).toBeInTheDocument()
   })
 })

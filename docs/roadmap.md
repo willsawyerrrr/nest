@@ -128,7 +128,10 @@ Recurring shorthand:
   parsing entirely by returning structured data over CDR for 100+ AU/NZ banks,
   at the cost of a recurring subscription and an unconfirmed multi-person
   connection model — see [`redbark-ingestion.md`](redbark-ingestion.md) for the
-  detailed design and open questions.
+  detailed design and open questions, and
+  [`cdr-pay-splitting-goals.md`](cdr-pay-splitting-goals.md) for what it takes
+  to route pay splits and link savings goals to the non-Up accounts it brings
+  in.
 
 #### 6. Superannuation & brokerage balances → net worth inputs (incl. CDR super auto-fetch)
 
@@ -275,7 +278,10 @@ Recurring shorthand:
   real balance drives progress/ETA is shipped. The unshipped remainder is the
   same for **Temporary items** — link a
   Temporary item to a saver so its real balance populates `current_cents` instead
-  of manual entry. `budget-and-savings.md` lists this as deferred.
+  of manual entry. `budget-and-savings.md` lists this as deferred. Widening
+  "saver" from Up-specific to any synced savings account (once a second
+  ingestion source exists) is its own small generalisation — see
+  [`cdr-pay-splitting-goals.md`](cdr-pay-splitting-goals.md).
 - **Effort.** S–M — reuse the goal's `linked_account_id` pattern for temporary
   items + pull the balance.
 - **Touches.** Up API (via **ingestion**; token in Vault). Schema: a

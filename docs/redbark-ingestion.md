@@ -236,3 +236,8 @@ own phase. It lands after the Up ledger sync foundation, since
 it shares the same `accounts` / `transactions` tables and the same
 `(source, external_id)` dedupe pattern, and is worth building once an actual
 second bank need exists rather than ahead of one.
+
+Everything above stops at `accounts` / `account_balance` / `transactions` —
+what a Redbark-sourced account then unlocks in **pay splits** and **savings
+goals** (both already built on top of these same tables) is its own sketch:
+see [`cdr-pay-splitting-goals.md`](cdr-pay-splitting-goals.md).

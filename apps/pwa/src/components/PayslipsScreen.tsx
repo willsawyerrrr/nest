@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
-import { Group, SimpleGrid, Stack, Text } from '@mantine/core'
+import { useMemo, useState } from 'react'
+import { Alert, Group, Modal, SimpleGrid, Stack, Text } from '@mantine/core'
 import type { PayslipVariance, PayslipYearPosition, UnmeasuredInflowPosition } from '@nest/plan'
 import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
+import type { DocumentIntakeRow } from '../hooks/useDocumentIntake'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { PayslipLineRow } from '../hooks/usePayslipLines'
@@ -17,6 +18,7 @@ import {
   unmeasuredPositionsFor,
   type PayslipReconciliation,
 } from '../lib/payslips'
+import { DocumentIntakeInbox } from './DocumentIntakeInbox'
 import { EditableList } from './EditableList'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
@@ -40,6 +42,109 @@ interface PayslipsScreenProps {
   onUpdate: (id: string, submission: PayslipSubmission) => Promise<void>
   onDelete: (id: string) => Promise<void>
   signedUrl: (path: string) => Promise<string | null>
+  /** Files staged by document-intake, awaiting review; every kind, filtered here to `'payslip'`. */
+  documentIntake: {
+    items: readonly DocumentIntakeRow[]
+    download: (item: DocumentIntakeRow) => Promise<File>
+    clear: (item: DocumentIntakeRow) => Promise<void>
+  }
+}
+
+/**
+ * The intake inbox and its review flow: downloading a staged file and opening
+ * it in the ordinary add-payslip form, exactly as picking it by hand would.
+ * `PayslipForm`'s own upload copies the file into the `payslips` bucket under
+ * the new slip's id, so the staged copy is redundant the moment a review is
+ * saved — `documentIntake.clear` drops it then, or immediately on Dismiss
+ * without ever opening the form. Cancelling the review modal leaves the
+ * staged item exactly as it was, for another look later.
+ */
+function PayslipIntakeInbox({
+  members,
+  inflows,
+  attachments,
+  documentIntake,
+  onCreate,
+}: {
+  members: Member[]
+  inflows: Inflow[]
+  attachments: PayslipAttachments
+  documentIntake: PayslipsScreenProps['documentIntake']
+  onCreate: (submission: PayslipSubmission) => Promise<void>
+}) {
+  const items = documentIntake.items.filter((item) => item.kind === 'payslip')
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [reviewing, setReviewing] = useState<{ item: DocumentIntakeRow; file: File } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const memberName = (memberId: string) =>
+    members.find((member) => member.id === memberId)?.name ?? 'Unknown member'
+  const reviewingMember = reviewing
+    ? members.find((member) => member.id === reviewing.item.member_id)
+    : undefined
+
+  const review = async (item: DocumentIntakeRow) => {
+    setError(null)
+    setBusyId(item.id)
+    try {
+      const file = await documentIntake.download(item)
+      setReviewing({ item, file })
+    } catch {
+      setError('Could not download this document. Try again.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const dismiss = async (item: DocumentIntakeRow) => {
+    setError(null)
+    setBusyId(item.id)
+    try {
+      await documentIntake.clear(item)
+    } catch {
+      setError('Could not dismiss this document. Try again.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <>
+      <DocumentIntakeInbox
+        items={items}
+        memberName={memberName}
+        busyId={busyId}
+        onReview={(item) => void review(item)}
+        onDismiss={(item) => void dismiss(item)}
+      />
+      {error && (
+        <Alert color="warning" variant="light" p="xs">
+          <Text size="xs">{error}</Text>
+        </Alert>
+      )}
+      <Modal
+        opened={reviewing !== null}
+        onClose={() => setReviewing(null)}
+        title="Review payslip"
+        size="lg"
+      >
+        {reviewing && reviewingMember && (
+          <PayslipForm
+            member={reviewingMember}
+            inflows={inflows}
+            attachments={attachments}
+            initialFile={reviewing.file}
+            onSubmit={async (submission) => {
+              await onCreate(submission)
+              await documentIntake.clear(reviewing.item)
+              setReviewing(null)
+            }}
+            onCancel={() => setReviewing(null)}
+          />
+        )}
+      </Modal>
+    </>
+  )
 }
 
 /**
@@ -330,6 +435,7 @@ export function PayslipsScreen({
   onUpdate,
   onDelete,
   signedUrl,
+  documentIntake,
 }: PayslipsScreenProps) {
   // Household-wide and read by every card, so built once for the whole screen
   // rather than per member and per slip.
@@ -340,6 +446,14 @@ export function PayslipsScreen({
       title={`Payslips (FY${financialYear})`}
       intro="What each pay event actually paid, measured line by line against the projected inflows and the tax estimate. Withholding entered here is what turns the Tax tab’s estimated liability into a refund or a bill; withholding more than the plan expects points to a refund, not a problem."
     >
+      <PayslipIntakeInbox
+        members={members}
+        inflows={inflows}
+        attachments={attachments}
+        documentIntake={documentIntake}
+        onCreate={onCreate}
+      />
+
       {members.map((member) => (
         <MemberPayslips
           key={member.id}

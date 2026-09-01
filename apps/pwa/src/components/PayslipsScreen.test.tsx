@@ -76,6 +76,7 @@ function renderScreen(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> =
     onDelete: vi.fn().mockResolvedValue(undefined),
     signedUrl: vi.fn().mockResolvedValue('https://signed/url'),
     attachments: { upload: vi.fn(), discard: vi.fn(), read: vi.fn() },
+    documentIntake: { items: [], download: vi.fn(), clear: vi.fn() },
     ...overrides,
   }
   render(<PayslipsScreen {...props} />)

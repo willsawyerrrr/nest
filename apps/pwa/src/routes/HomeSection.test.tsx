@@ -10,6 +10,7 @@ const hooks = vi.hoisted(() => ({
   useUpConnection: vi.fn(),
   useNotificationPreferences: vi.fn(),
   useCalendarFeed: vi.fn(),
+  useDocumentIntakeTokens: vi.fn(),
   signOut: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -30,6 +31,9 @@ vi.mock('../hooks/useNotificationPreferences', () => ({
   useNotificationPreferences: hooks.useNotificationPreferences,
 }))
 vi.mock('../hooks/useCalendarFeed', () => ({ useCalendarFeed: hooks.useCalendarFeed }))
+vi.mock('../hooks/useDocumentIntakeTokens', () => ({
+  useDocumentIntakeTokens: hooks.useDocumentIntakeTokens,
+}))
 vi.mock('../lib/supabase', () => ({ supabase: { auth: { signOut: hooks.signOut } } }))
 vi.mock('../components/HomeScreen', () => ({
   HomeScreen: (props: Record<string, unknown>) => {
@@ -60,6 +64,13 @@ describe('HomeSection', () => {
       reload: vi.fn(),
       create: vi.fn().mockResolvedValue('tok'),
       revoke: vi.fn().mockResolvedValue(undefined),
+    })
+    hooks.useDocumentIntakeTokens.mockReturnValue({
+      statuses: [],
+      loading: false,
+      busy: false,
+      create: vi.fn(),
+      revoke: vi.fn(),
     })
   })
 

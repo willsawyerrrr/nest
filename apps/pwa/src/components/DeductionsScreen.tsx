@@ -6,12 +6,14 @@ import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionGroupInput, DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionInput, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
+import type { DocumentIntakeRow } from '../hooks/useDocumentIntake'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { formatCents } from '../lib/money'
 import { AppCard } from './AppCard'
 import { DeductionForm } from './DeductionForm'
 import { DeductionGroup, DeductionGroupForm } from './DeductionGroup'
+import { DeductionIntakeInbox } from './DeductionIntakeInbox'
 import { EditableList, type ItemControls } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
 import { FinancialYearSelect } from './FinancialYearSelect'
@@ -41,6 +43,12 @@ interface DeductionsScreenProps {
   onRemoveReceipt: (receipt: DeductionReceiptRow) => Promise<void>
   onRenameReceipt: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
   signedUrl: (path: string) => Promise<string | null>
+  /** Files staged by document-intake, awaiting review; every kind, filtered here to `'deduction'`. */
+  documentIntake: {
+    items: readonly DocumentIntakeRow[]
+    download: (item: DocumentIntakeRow) => Promise<File>
+    clear: (item: DocumentIntakeRow) => Promise<void>
+  }
 }
 
 /** A day-month-year label for an ISO date string, built without a timezone shift. */
@@ -512,6 +520,7 @@ export function DeductionsScreen({
   onRemoveReceipt,
   onRenameReceipt,
   signedUrl,
+  documentIntake,
 }: DeductionsScreenProps) {
   return (
     <PageSection
@@ -522,6 +531,15 @@ export function DeductionsScreen({
         financialYear={financialYear}
         availableFinancialYears={availableFinancialYears}
         onChange={onFinancialYearChange}
+      />
+
+      <DeductionIntakeInbox
+        members={members}
+        groups={groups}
+        attachments={attachments}
+        financialYear={financialYear}
+        documentIntake={documentIntake}
+        onCreate={onCreate}
       />
 
       {members.map((member) => (

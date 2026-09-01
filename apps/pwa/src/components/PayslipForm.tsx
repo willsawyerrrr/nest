@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, FileInput, Group, Loader, SimpleGrid, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
@@ -32,6 +32,13 @@ interface PayslipFormProps {
   /** Storing, discarding, and reading the document the member attaches. */
   attachments: PayslipAttachments
   initial?: PayslipRow | undefined
+  /**
+   * A file to attach automatically the moment the form opens — a document
+   * intake item the member is reviewing, downloaded ahead of time — driving
+   * the exact same `attachments.upload` + read pipeline a picked file goes
+   * through. Applied once; a later change to this prop is not re-applied.
+   */
+  initialFile?: File | undefined
   onSubmit: (submission: PayslipSubmission) => void | Promise<void>
   onCancel?: () => void
 }
@@ -166,6 +173,7 @@ export function PayslipForm({
   initialLines = [],
   attachments,
   initial,
+  initialFile,
   onSubmit,
   onCancel,
 }: PayslipFormProps) {
@@ -202,6 +210,17 @@ export function PayslipForm({
     }),
   })
   const [note, setNote] = useState(initial?.note ?? '')
+
+  // Applies a document-intake file the moment the form opens, exactly once —
+  // through the same `choose` a member picking a file themselves would call.
+  const appliedInitialFile = useRef(false)
+  useEffect(() => {
+    if (initialFile && !appliedInitialFile.current) {
+      appliedInitialFile.current = true
+      void slip.choose(initialFile)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFile])
 
   const { values } = fields
   const { lines } = drafts

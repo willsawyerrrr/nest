@@ -2,13 +2,11 @@
 
 Background research and a design sketch for using [Redbark](https://redbark.com)
 as a second ledger source alongside Up. Nothing here is committed — this is the
-detail behind roadmap ideas
-[**5** (CSV / multi-source bank import)](roadmap.md#5-csv--multi-source-bank-import)
-and
-[**6** (super/brokerage balances)](roadmap.md#6-superannuation--brokerage-balances--net-worth-inputs-incl-cdr-super-auto-fetch),
-written up the way [`up-ledger-sync.md`](up-ledger-sync.md) writes up the Up
-ledger phase: close enough to the schema and edge-function patterns already
-shipped that building it later is mostly wiring, not design.
+detail behind two tracked ideas, the CSV / multi-source bank import and automated
+super/brokerage balances, written up the way
+[`up-ledger-sync.md`](up-ledger-sync.md) writes up the Up ledger phase: close
+enough to the schema and edge-function patterns already shipped that building it
+later is mostly wiring, not design.
 
 ## Background
 
@@ -47,15 +45,16 @@ data rides a separate provider (see below):
 
 ### Why it's relevant here
 
-Ingestion in this app is Up-only. Two roadmap ideas already name the gap
+Ingestion in this app is Up-only. Two tracked ideas already name the gap
 Redbark fills, and both currently rate the automated path as hard specifically
 because of CDR accreditation:
 
-- **Idea 5** wants a source-agnostic import path beyond Up — a joint account
-  elsewhere, a credit card, a mortgage offset. Its plan was a hand-rolled CSV
-  importer with a column-mapping wizard, because no other structured source
-  was in reach.
-- **Idea 6** wants automated super/brokerage balances for net worth, and rates
+- **The multi-source import idea** wants a source-agnostic import path beyond Up
+  — a joint account elsewhere, a credit card, a mortgage offset. Its plan was a
+  hand-rolled CSV importer with a column-mapping wizard, because no other
+  structured source was in reach.
+- **The super/brokerage-balances idea** wants automated super/brokerage balances
+  for net worth, and rates
   this infeasible without "a CDR (Open Banking) aggregator or a service like
   Basiq/Frollo" — accreditation this household has no reason to carry on its
   own for a two-person app. Redbark is exactly that class of service: a
@@ -64,8 +63,8 @@ because of CDR accreditation:
 
 Both ideas become "call an API with a key" instead of "become CDR-accredited"
 or "parse arbitrary bank CSVs" once Redbark (or an equivalent) is in the
-picture — though the brokerage half of idea 6 does not run on CDR at all
-(next section).
+picture — though the brokerage half of that second idea does not run on CDR at
+all (next section).
 
 ### Brokerage is a separate rail (SnapTrade), not CDR
 
@@ -142,8 +141,8 @@ function.
   row exactly as they take an Up one.
 - `holdings` and `trades` have **no home in the current schema** and are out
   of scope for this sketch. `equity_grant` models startup equity (options and
-  shares with a vesting schedule), not market-listed securities, so roadmap
-  idea 6's brokerage balances would need their own table and reconcile pass.
+  shares with a vesting schedule), not market-listed securities, so that idea's
+  brokerage balances would need their own table and reconcile pass.
   Everything below covers only the `transactions` / `accounts` bank path.
 
 ### Secrets
@@ -224,12 +223,12 @@ Based on the documented fields, not yet verified against a live response:
    on only once a brokerage balance genuinely needs to be in net worth, and
    as its own phase after the bank path.
 
-### Where this lands relative to the roadmap
+### Where this lands
 
 This is not a substitute for the Up ledger sync phase
-([`up-ledger-sync.md`](up-ledger-sync.md)) — it is roadmap idea 5 done through
-a paid CDR aggregator instead of a hand-rolled CSV importer, and it is what
-turns roadmap idea 6's super/brokerage automation from infeasible to a
+([`up-ledger-sync.md`](up-ledger-sync.md)) — it is the multi-source import idea
+done through a paid CDR aggregator instead of a hand-rolled CSV importer, and it
+is what turns the super/brokerage-automation idea from infeasible to a
 developer-API integration — brokerage via SnapTrade's credential rail on the
 Professional tier, and needing a holdings table this sketch leaves for its
 own phase. It lands after the Up ledger sync foundation, since

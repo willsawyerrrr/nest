@@ -51,7 +51,7 @@ ways to authenticate a tax agent to have a look at the information."
   MIME-type allow-list; every "download" hit is downloading an attached
   file blob from Storage.
 - No `jspdf`, `papaparse`, `file-saver`, or similar dependency.
-- Prior art exists only as an **unbuilt roadmap idea**: `docs/roadmap.md`
+- Prior art exists only as an **unbuilt idea** (tracked in Linear),
   "Data export & backup (CSV / spreadsheet)" — scoped as a household-facing
   backup/escape hatch, not an advisor-sharing feature ("client-side CSV
   generation from data already loaded, or an edge function for a full
@@ -208,5 +208,5 @@ household via their own email) — effectively (A) with nicer packaging
   extend (no magic-link/OTP for advisors) unless told otherwise — options
   A/B/D avoid needing new household-side auth entirely.
 - "Export" means a rendered, human-readable artifact (report or CSV) of
-  data already computed in-app, not a raw database dump — the roadmap's
+  data already computed in-app, not a raw database dump — the separate
   CSV-dump idea is a different, complementary feature.

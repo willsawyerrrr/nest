@@ -102,10 +102,10 @@ copy pass, not a migration.
    is more defensive against a source that syncs something savings-shaped but
    shouldn't be goal-linkable (unclear such a source exists yet).
 
-## Where this lands relative to the roadmap
+## Where this lands
 
-This is the pay-splitting/goal-saving half of roadmap idea 5 and a
-generalisation of idea 15 ("Up Saver ↔ temporary-item linking") to "any
+This is the pay-splitting/goal-saving half of the multi-source import idea and a
+generalisation of the "Up Saver ↔ temporary-item linking" idea to "any
 synced saver" rather than Up specifically — see
 [`redbark-ingestion.md`](redbark-ingestion.md) for the ingestion half this
 depends on. It lands after that ingestion sketch is built: there is nothing

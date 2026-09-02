@@ -1,6 +1,7 @@
 import { assertEquals } from '@std/assert'
 import {
   accountName,
+  type AccountReconcile,
   type AccountRow,
   buildAccountRows,
   type ConnectedMember,
@@ -112,6 +113,7 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
     listAccounts: () => Promise.resolve([account()]),
     upsertAccounts: () => Promise.resolve(),
     listGiftTransactions: () => Promise.resolve([]),
+    reconcileAccounts: () => Promise.resolve(),
     // Every Up account resolves to a local row named after it.
     listSyncedAccounts: (externalIds) =>
       Promise.resolve(externalIds.map((externalId) => ({
@@ -130,6 +132,16 @@ function recordWindows(windows: GiftTransactionWindow[]): Partial<SyncDeps> {
   return {
     syncGiftTransactions: (window) => {
       windows.push(window)
+      return Promise.resolve()
+    },
+  }
+}
+
+/** Records every account reconcile a run runs. */
+function recordReconciles(reconciles: AccountReconcile[]): Partial<SyncDeps> {
+  return {
+    reconcileAccounts: (reconcile) => {
+      reconciles.push(reconcile)
       return Promise.resolve()
     },
   }
@@ -338,4 +350,61 @@ Deno.test("runSync keeps going when one member's gift window fails", async () =>
   assertEquals(result, { members: 2, accounts: 2, transactions: 1 })
   assertEquals(windows.length, 1)
   assertEquals(windows[0].rows.map((row) => row.external_id), ['tx-1'])
+})
+
+Deno.test('runSync reconciles each synced member against the ids their token returned', async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const joint = account({ ownershipType: 'JOINT', displayName: '2Up' }, 'joint-1')
+  const reconciles: AccountReconcile[] = []
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    listAccounts: (token) => Promise.resolve([joint, account({}, `${token}-own`)]),
+    ...recordReconciles(reconciles),
+  }))
+
+  // One reconcile per member, each carrying that member's own household and the
+  // full id set their token returned — the joint id included, though the RPC
+  // scopes itself to individually-owned rows.
+  assertEquals(reconciles, [
+    { memberId: 'm-1', householdId: 'h-1', presentExternalIds: ['joint-1', 'tok-m-1-own'] },
+    { memberId: 'm-2', householdId: 'h-1', presentExternalIds: ['joint-1', 'tok-m-2-own'] },
+  ])
+})
+
+Deno.test('runSync reconciles a member with no Up accounts against an empty set', async () => {
+  const reconciles: AccountReconcile[] = []
+  await runSync(deps({
+    listAccounts: () => Promise.resolve([]),
+    ...recordReconciles(reconciles),
+  }))
+
+  assertEquals(reconciles, [
+    { memberId: 'm-1', householdId: 'h-1', presentExternalIds: [] },
+  ])
+})
+
+Deno.test('runSync does not reconcile a member whose token is unreadable', async () => {
+  const reconciles: AccountReconcile[] = []
+  await runSync(deps({ tokenFor: () => Promise.resolve(null), ...recordReconciles(reconciles) }))
+  assertEquals(reconciles.length, 0)
+})
+
+Deno.test("runSync keeps going when one member's reconcile fails", async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const windows: GiftTransactionWindow[] = []
+  const result = await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    listAccounts: (token) => Promise.resolve([account({}, `${token}-own`)]),
+    reconcileAccounts: (reconcile) =>
+      reconcile.memberId === 'm-1'
+        ? Promise.reject(new Error('reconcile RPC 500'))
+        : Promise.resolve(),
+    ...recordWindows(windows),
+  }))
+
+  // Both members' balances and gift windows still land.
+  assertEquals(result, { members: 2, accounts: 2, transactions: 0 })
+  assertEquals(windows.length, 2)
 })

@@ -167,6 +167,7 @@ export function makeSaver(overrides: Partial<Saver> = {}): Saver {
     balance_cents: 0,
     currency: 'AUD',
     exclude_from_net_worth: false,
+    deleted_from_source_at: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -183,6 +184,7 @@ export function makeAccountDirectoryEntry(
     name: 'Up Saver',
     type: 'savings',
     source: 'up',
+    deleted_from_source_at: null,
     ...overrides,
   }
 }

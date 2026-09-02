@@ -20,7 +20,9 @@ describe('useAccountDirectory', () => {
     const { result } = renderHook(() => useAccountDirectory())
     await waitFor(() => expect(result.current.accounts).toEqual([makeAccountDirectoryEntry()]))
     expect(result.current.loading).toBe(false)
-    expect(builder.select).toHaveBeenCalledWith('id,name,type,source,owner_member_id')
+    expect(builder.select).toHaveBeenCalledWith(
+      'id,name,type,source,owner_member_id,deleted_from_source_at',
+    )
   })
 
   it('propagates a load error', async () => {

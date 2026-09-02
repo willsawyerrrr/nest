@@ -340,6 +340,33 @@ describe('GoalList', () => {
     expect(within(house).getByText('From Up saver Up House')).toBeInTheDocument()
   })
 
+  it('flags a goal whose linked saver was deleted in Up and prompts a relink', () => {
+    const goals = [
+      goal({ id: 'g1', name: 'House', target_amount_cents: 1_000_000, linked_account_id: 'a1' }),
+    ]
+    render(
+      <GoalList
+        goals={goals}
+        lines={[]}
+        savers={[
+          saver({
+            id: 'a1',
+            name: 'Up House',
+            balance_cents: 600_000,
+            deleted_from_source_at: '2026-09-01T00:00:00Z',
+          }),
+        ]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const house = card('House')
+    expect(within(house).getByText('Deleted in Up')).toBeInTheDocument()
+    expect(within(house).getByText(/relink the goal to a current saver/i)).toBeInTheDocument()
+  })
+
   it('uses the manual balance for an unlinked goal', () => {
     const goals = [
       goal({

@@ -7,6 +7,7 @@ import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { AppCard } from './AppCard'
+import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
 import { FortnightlyAmount } from './FortnightlyAmount'
@@ -114,7 +115,12 @@ interface GoalItemProps {
  */
 function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
   const { percent, status, eta } = goalDisplay(goal, saver, contributionCents)
-  const caption = saver ? `${eta} · From Up saver ${saver.name}` : eta
+  const saverDeleted = Boolean(saver?.deleted_from_source_at)
+  const caption = saver
+    ? `${eta} · From Up saver ${saver.name}${
+        saverDeleted ? ' — deleted in Up, relink this goal' : ''
+      }`
+    : eta
   return (
     <ListRow caption={caption}>
       <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
@@ -124,6 +130,7 @@ function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemP
         <Badge size="xs" variant="light" color={status.color}>
           {status.label}
         </Badge>
+        {saverDeleted && <DeletedInUpBadge />}
       </Group>
       <Text size="sm" fw={600} ta="right" style={{ width: '3rem', flexShrink: 0 }}>
         {Math.round(percent)}%
@@ -183,8 +190,16 @@ function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItem
 
         <Text size="xs">{eta}</Text>
         {saver && (
+          <Group gap="xs" wrap="nowrap">
+            <Text size="xs" c="dimmed">
+              From Up saver {saver.name}
+            </Text>
+            {saver.deleted_from_source_at && <DeletedInUpBadge />}
+          </Group>
+        )}
+        {saver?.deleted_from_source_at && (
           <Text size="xs" c="dimmed">
-            From Up saver {saver.name}
+            This saver was deleted in Up. Relink the goal to a current saver.
           </Text>
         )}
         {contributionCents > 0 && (

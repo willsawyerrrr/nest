@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Select, Text, TextInput } from '@mantine/core'
+import { Alert, Select, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Goal, GoalInput } from '../hooks/useGoals'
@@ -29,6 +29,9 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
     initial?.linked_account_id ?? null,
   )
   const canSubmit = name.trim() !== '' && targetAmount !== ''
+  const linkedSaverDeleted = savers.some(
+    (saver) => saver.id === linkedAccountId && saver.deleted_from_source_at !== null,
+  )
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
@@ -98,7 +101,10 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
           clearable
           searchable
           nothingFoundMessage="No matching savers"
-          data={savers.map((saver) => ({ value: saver.id, label: saver.name }))}
+          data={savers.map((saver) => ({
+            value: saver.id,
+            label: saver.deleted_from_source_at ? `${saver.name} (deleted in Up)` : saver.name,
+          }))}
           value={linkedAccountId}
           onChange={handleSaverChange}
         />
@@ -106,6 +112,13 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
         <Text size="xs" c="dimmed">
           Connect Up and sync to link a saver.
         </Text>
+      )}
+
+      {linkedSaverDeleted && (
+        <Alert color="warning" variant="light" p="xs">
+          This saver was deleted in Up. Link the goal to a current saver, or clear the link and
+          track the balance manually.
+        </Alert>
       )}
 
       {linkedAccountId === null && (

@@ -96,6 +96,7 @@ export type Database = {
         Row: {
           created_at: string
           currency: string
+          deleted_from_source_at: string | null
           exclude_from_net_worth: boolean
           external_id: string | null
           household_id: string
@@ -109,6 +110,7 @@ export type Database = {
         Insert: {
           created_at?: string
           currency?: string
+          deleted_from_source_at?: string | null
           exclude_from_net_worth?: boolean
           external_id?: string | null
           household_id: string
@@ -122,6 +124,7 @@ export type Database = {
         Update: {
           created_at?: string
           currency?: string
+          deleted_from_source_at?: string | null
           exclude_from_net_worth?: boolean
           external_id?: string | null
           household_id?: string
@@ -1831,6 +1834,7 @@ export type Database = {
     Views: {
       account_directory: {
         Row: {
+          deleted_from_source_at: string | null
           household_id: string
           id: string
           name: string
@@ -1839,6 +1843,7 @@ export type Database = {
           type: Database['public']['Enums']['account_type']
         }
         Insert: {
+          deleted_from_source_at?: string | null
           household_id?: string
           id?: string
           name?: string
@@ -1847,6 +1852,7 @@ export type Database = {
           type?: Database['public']['Enums']['account_type']
         }
         Update: {
+          deleted_from_source_at?: string | null
           household_id?: string
           id?: string
           name?: string
@@ -1876,6 +1882,7 @@ export type Database = {
           balance_cents: number
           created_at: string
           currency: string
+          deleted_from_source_at: string | null
           exclude_from_net_worth: boolean
           external_id: string | null
           household_id: string
@@ -1987,6 +1994,14 @@ export type Database = {
       reconcile_gift_total: {
         Args: { p_household_id: string; p_member_id: string }
         Returns: number
+      }
+      reconcile_up_accounts: {
+        Args: {
+          p_household_id: string
+          p_owner_member_id: string
+          p_present_external_ids: string[]
+        }
+        Returns: undefined
       }
       resend_api_key: { Args: never; Returns: string }
       revoke_invite_code: { Args: never; Returns: undefined }

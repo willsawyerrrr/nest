@@ -118,6 +118,23 @@ describe('GoalForm', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue('House deposit')
   })
 
+  it('marks a deleted-in-Up saver in the picker and warns when it is the linked one', async () => {
+    const user = userEvent.setup()
+    render(
+      <GoalForm
+        initial={makeGoal({ linked_account_id: 'a1' })}
+        savers={[saver({ deleted_from_source_at: '2026-09-01T00:00:00Z' })]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(/this saver was deleted in up/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    expect(
+      await screen.findByRole('option', { name: 'Up House Saver (deleted in Up)' }),
+    ).toBeInTheDocument()
+  })
+
   it('ignores a form submit while required fields are missing', () => {
     const onSubmit = vi.fn()
     render(<GoalForm savers={[]} onSubmit={onSubmit} />)

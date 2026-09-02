@@ -6,6 +6,10 @@
  * Two passes per member, in order: every Up account's balance, then the
  * gift-category transactions over a trailing window. The account pass runs first
  * so a transaction resolves against an account that is certain to be present.
+ * The account pass also reconciles: the ids a member's token returned are the
+ * authoritative set for that member's individually-owned Up accounts, and one
+ * the token no longer reports is deleted when nothing references it or flagged
+ * `deleted_from_source_at` when something does.
  */
 
 import type { UpAccount, UpTransaction } from '../_shared/up.ts'
@@ -80,6 +84,14 @@ export interface GiftTransactionWindow {
   rows: TransactionUpsert[]
 }
 
+/** One member's authoritative Up-account set for the reconcile pass. */
+export interface AccountReconcile {
+  memberId: string
+  householdId: string
+  /** Every Up account id this member's token returned this run. */
+  presentExternalIds: string[]
+}
+
 export interface SyncDeps {
   /** Members whose Up token is stored (up_connected_at is not null). */
   listConnectedMembers: () => Promise<ConnectedMember[]>
@@ -89,6 +101,13 @@ export interface SyncDeps {
   listAccounts: (token: string) => Promise<UpAccount[]>
   /** Upserts account rows on conflict (source, external_id). */
   upsertAccounts: (rows: AccountRow[]) => Promise<void>
+  /**
+   * Reconciles a member's individually-owned Up accounts against the ids their
+   * token returned: deletes the unreferenced ones the token dropped and flags
+   * the referenced ones `deleted_from_source_at`. Called only for a member whose
+   * token read succeeded.
+   */
+  reconcileAccounts: (reconcile: AccountReconcile) => Promise<void>
   /** Lists the token owner's gift-category transactions created since `since`. */
   listGiftTransactions: (token: string, since: Date) => Promise<UpTransaction[]>
   /** Resolves the local ledger rows for the given Up account ids. */
@@ -205,6 +224,13 @@ async function syncGiftWindow(
  * it is processed once, on its first sighting, so its shared ownership stays
  * stable rather than being rewritten by whichever member syncs last.
  *
+ * Between the two, the account reconcile runs against the ids the member's token
+ * just returned: it deletes that member's individually-owned Up accounts the
+ * token no longer reports and flags the ones something still references. It is
+ * reached only past the token read, so an unreadable token reconciles nothing;
+ * joint accounts, owned by neither member, are out of scope. A failure in it
+ * costs only that member's reconcile.
+ *
  * A member's gift window is settled independently of the balances: it runs after
  * the account upsert, so every account a transaction can name is already in the
  * ledger, and a failure in it costs only that member's candidates rather than
@@ -237,6 +263,20 @@ export async function runSync(
     }
 
     const externalIds = upAccounts.map((account) => account.id)
+
+    // The token read succeeded, so its ids are authoritative for this member's
+    // own Up accounts: drop the ones it no longer reports, flag the referenced
+    // ones. A failure here costs only this member's reconcile.
+    try {
+      await deps.reconcileAccounts({
+        memberId: member.memberId,
+        householdId: member.householdId,
+        presentExternalIds: externalIds,
+      })
+    } catch (error) {
+      console.error(`Account reconcile failed for member ${member.memberId}:`, error)
+    }
+
     try {
       transactions += await syncGiftWindow(deps, member, token, externalIds, since)
     } catch (error) {

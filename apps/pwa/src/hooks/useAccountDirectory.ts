@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 
 export type AccountDirectoryEntry = Pick<
   Tables<'account_directory'>,
-  'id' | 'name' | 'type' | 'source' | 'owner_member_id'
+  'id' | 'name' | 'type' | 'source' | 'owner_member_id' | 'deleted_from_source_at'
 >
 
 export interface UseAccountDirectoryResult {
@@ -26,7 +26,7 @@ export function useAccountDirectory(): UseAccountDirectoryResult {
   const reload = useCallback(async () => {
     const { data, error } = await supabase
       .from('account_directory')
-      .select('id,name,type,source,owner_member_id')
+      .select('id,name,type,source,owner_member_id,deleted_from_source_at')
       .order('name')
     if (error) {
       throw error

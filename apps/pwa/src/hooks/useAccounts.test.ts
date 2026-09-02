@@ -6,7 +6,16 @@ import { useAccounts } from './useAccounts'
 const { builder } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
   return {
-    builder: makeSupabaseBuilder(['select', 'insert', 'update', 'upsert', 'eq', 'order', 'single']),
+    builder: makeSupabaseBuilder([
+      'select',
+      'insert',
+      'update',
+      'delete',
+      'upsert',
+      'eq',
+      'order',
+      'single',
+    ]),
   }
 })
 
@@ -65,6 +74,18 @@ describe('useAccounts', () => {
     )
   })
 
+  it('removes an account by id', async () => {
+    const { result } = renderHook(() => useAccounts('h1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    builder.result = { data: null, error: null }
+    await act(async () => {
+      await result.current.remove('a1')
+    })
+    expect(builder.delete).toHaveBeenCalled()
+    expect(builder.eq).toHaveBeenCalledWith('id', 'a1')
+  })
+
   it('propagates load, insert, update, and balance errors', async () => {
     const { result } = renderHook(() => useAccounts('h1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -79,6 +100,7 @@ describe('useAccounts', () => {
       }),
     ).rejects.toThrow('boom')
     await expect(result.current.update('a1', {})).rejects.toThrow('boom')
+    await expect(result.current.remove('a1')).rejects.toThrow('boom')
     await expect(result.current.upsertBalance('a1', 0)).rejects.toThrow('boom')
   })
 })

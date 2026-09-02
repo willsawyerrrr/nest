@@ -15,6 +15,12 @@ export interface UseAccountsResult {
   reload: () => Promise<void>
   insert: (account: Omit<TablesInsert<'accounts'>, 'household_id'>) => Promise<string>
   update: (id: string, changes: TablesUpdate<'accounts'>) => Promise<void>
+  /**
+   * Deletes an account (its balance cascades). RLS allows this for a shared or
+   * self-owned row; used to remove an Up account Up has dropped once its
+   * dependencies are cleared.
+   */
+  remove: (id: string) => Promise<void>
   /** Upserts an account's balance in `account_balance`, keyed on the account id. */
   upsertBalance: (accountId: string, balanceCents: number) => Promise<void>
 }
@@ -63,6 +69,17 @@ export function useAccounts(householdId: string): UseAccountsResult {
     [reload],
   )
 
+  const remove = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('accounts').delete().eq('id', id)
+      if (error) {
+        throw error
+      }
+      await reload()
+    },
+    [reload],
+  )
+
   const upsertBalance = useCallback(
     async (accountId: string, balanceCents: number) => {
       const { error } = await supabase
@@ -83,5 +100,5 @@ export function useAccounts(householdId: string): UseAccountsResult {
     void reload()
   }, [reload])
 
-  return { accounts, loading: accounts === null, reload, insert, update, upsertBalance }
+  return { accounts, loading: accounts === null, reload, insert, update, remove, upsertBalance }
 }

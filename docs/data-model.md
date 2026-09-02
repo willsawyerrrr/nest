@@ -738,8 +738,10 @@ stays unpopulated and a synced row's `category_id` is null.
     `source` (`up` | `manual`), `external_id`,
     `currency` (default `AUD`), `exclude_from_net_worth` (default `false` — a
     shared, household-wide flag that drops the account from net-worth totals
-    only, leaving retirement projection and budgeting untouched), `created_at`,
-    `updated_at`.
+    only, leaving retirement projection and budgeting untouched),
+    `deleted_from_source_at` (nullable — set by `up-sync` when the source stops
+    reporting a still-referenced account, cleared if it reappears; the PWA shows
+    such an account as "deleted in Up"), `created_at`, `updated_at`.
   - `unique (source, external_id)` is the sync's dedupe key — global rather than
     household-scoped, since an Up account id is globally unique and a joint
     account seen by both partners must collapse to the one shared row.
@@ -768,7 +770,7 @@ stays unpopulated and a synced row's `category_id` is null.
     `select`/`insert`/`update` for the sync.
 - **account_directory** (view) — an identity-only surface over `accounts` for
   budgeting and splits: `id`, `household_id`, `owner_member_id`, `name`, `type`,
-  `source` — never a balance. It carries shared accounts, the caller's own
+  `source`, `deleted_from_source_at` — never a balance. It carries shared accounts, the caller's own
   accounts, and any member's `transaction` account, so a co-member's spending
   account can be named as a budget-line funding destination and summed into the
   pay split without exposing its balance; a co-member's savers and super accounts
@@ -956,6 +958,14 @@ that live in Vault:
   the pass did not return — over exactly `account_ids` and from `since` forward,
   keeping any transaction a purchase links to. An empty `rows` clears the window,
   the case where the last gift candidate was recategorised away in the Up app.
+- `reconcile_up_accounts(household_id, owner_member_id, present_external_ids text[])`
+  — the `up-sync` account reconcile: over one member's individually-owned
+  `source = 'up'` accounts, clears `deleted_from_source_at` on the ones in the
+  list, deletes the absent ones nothing references (`account_balance` cascades),
+  and stamps `deleted_from_source_at` on the absent ones a `savings_goal`,
+  `budget_line`, `households.pay_account_id`, or `super_profile` still holds. An
+  empty list is a valid "this member has no Up accounts" result. Joint accounts
+  and other households' rows are out of scope.
 - `vapid_keys()` — the Web Push VAPID credential set (base64url public key,
   base64url private key, `mailto:` subject) as one row, nulls when unset. One
   function rather than three: the sender needs all of it in the same breath (the

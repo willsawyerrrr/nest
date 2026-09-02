@@ -59,9 +59,9 @@ A pitch-level summary; the full locked list is canonical in
   + reconciliation phase.
 - [`docs/payslips.md`](docs/payslips.md) — expected vs actual income and tax from
   payslips.
-- [`docs/spreadsheet-parity.md`](docs/spreadsheet-parity.md) — feature-parity audit
-  against the household's spreadsheet.
-- [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan and idea backlog.
+
+Planned and in-progress work is tracked in the
+[Nest project in Linear](https://linear.app/willsawyerrrr-dev/project/nest-277c083e9a78).
 
 ## Repository layout
 
@@ -118,6 +118,7 @@ link a goal to a synced Up saver, so goal progress tracks the real balance (sync
 on demand and hourly). The same sync ingests one slice of the ledger: each member's
 gift-category card spend, which the Gifts tab offers as candidate purchases to link
 against a gift budget. Ingestion across every category plus reconciliation (ledger
-UI, actual spend vs budget, actual tax paid) is the next phase. See
-[`docs/roadmap.md`](docs/roadmap.md) for the plan and
+UI, actual spend vs budget, actual tax paid) is the next phase, designed in
+[`docs/up-ledger-sync.md`](docs/up-ledger-sync.md) and tracked in
+[Linear](https://linear.app/willsawyerrrr-dev/project/nest-277c083e9a78). See
 [`docs/operations.md`](docs/operations.md) for what is deployed and how.

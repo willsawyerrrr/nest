@@ -191,8 +191,8 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   `notificationclick`.
 - **Not built:** anything that decides *when* to notify. There is no scheduled
   evaluation pass and no buffer / goal / expiry trigger — a send happens only
-  when a member asks for a test. Those triggers are the follow-on slice
-  ([`roadmap.md`](roadmap.md)).
+  when a member asks for a test. Those triggers are a follow-on slice, tracked
+  in Linear.
 - VAPID setup and rotation, and the iOS install/version requirements, are in
   [`operations.md`](operations.md#web-push-vapid-keypair-setup).
 

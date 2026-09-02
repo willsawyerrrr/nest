@@ -1,9 +1,9 @@
 # Up ledger + reconciliation
 
-An uncommitted, deprioritised roadmap phase (in **Later**): pull *all* actual Up
+An uncommitted, deprioritised phase (tracked in Linear): pull *all* actual Up
 transactions to reconcile spend and tax against the plan. This is a large phase,
 layered on top of the plan-only app, Up savers, super, and gifts. It breaks into
-four ROADMAP checkboxes:
+four stages:
 
 - [ ] Account/transaction sync: webhook + scheduled poll; dedupe on `external_id`.
 - [ ] Ledger UI (accounts + transactions) over synced data.
@@ -380,8 +380,8 @@ the more accurate one):
 - **Payslips (more accurate).** A payslip states gross, PAYG withheld, and super
   per pay period directly. If payslip capture is built ([`payslips.md`](payslips.md)),
   summing withheld across the FY gives true actual PAYG, and the refund/bill =
-  actual withheld − estimated liability. This is the real source for the ROADMAP
-  checkbox; the transaction path only corroborates net.
+  actual withheld − estimated liability. This is the real source for this
+  stage; the transaction path only corroborates net.
 
 Design decisions (open questions): whether this phase ships on **salary-credit
 inference** (approximate, needs only sync) or waits on a **payslip** source

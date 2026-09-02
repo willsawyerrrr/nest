@@ -1,6 +1,13 @@
 import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { usePlanningMode } from '../components/PlanningModeProvider'
 import type { Database } from '../lib/database.types'
+import {
+  applyOverrides,
+  isPlanningTable,
+  type PlanningRow,
+  type PlanningTable,
+} from '../lib/planningMode'
 import { supabase } from '../lib/supabase'
 
 /** A public table whose rows a household owns. */
@@ -150,6 +157,19 @@ export function useHouseholdCollection<
     queryFn: async () => (await loadRows(table, match, order, config.descending)) as Row<T>[],
   })
 
+  // Planning mode sandboxes the three cash-flow tables: reads apply the override
+  // layer, writes route into it, and nothing touches PostgREST. `usePlanningMode`
+  // is called unconditionally — a hook cannot be conditional — and every other
+  // table, and the whole `useHouseholdUpsertCollection` path, is left untouched.
+  const planning = usePlanningMode()
+  const sandboxed = planning.active && isPlanningTable(table)
+  const planningTable = table as PlanningTable
+  const layer = sandboxed ? planning.layerFor(planningTable) : undefined
+  const rows = useMemo(
+    () => (sandboxed ? applyOverrides((query.data ?? []) as PlanningRow[], layer) : query.data),
+    [sandboxed, query.data, layer],
+  ) as Row<T>[] | undefined
+
   const reload = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [table, householdId] }),
@@ -161,42 +181,51 @@ export function useHouseholdCollection<
 
   const create = useCallback(
     async (input: CreateInput) => {
-      const { error } = await from(table).insert({
-        ...input,
-        ...insertDefaults,
-        household_id: householdId,
-      })
+      const row = { ...input, ...insertDefaults, household_id: householdId }
+      if (sandboxed) {
+        planning.applyCreate(planningTable, { id: crypto.randomUUID(), ...row })
+        return
+      }
+      const { error } = await from(table).insert(row)
       if (error) {
         throw error
       }
       await reload()
     },
-    [table, insertDefaults, householdId, reload],
+    [sandboxed, planning, planningTable, table, insertDefaults, householdId, reload],
   )
 
   const update = useCallback(
     async (id: string, input: UpdateInput) => {
+      if (sandboxed) {
+        planning.applyUpdate(planningTable, id, input as unknown as Record<string, unknown>)
+        return
+      }
       const { error } = await from(table).update(input).eq('id', id)
       if (error) {
         throw error
       }
       await reload()
     },
-    [table, reload],
+    [sandboxed, planning, planningTable, table, reload],
   )
 
   const remove = useCallback(
     async (id: string) => {
+      if (sandboxed) {
+        planning.applyDelete(planningTable, id)
+        return
+      }
       const { error } = await from(table).delete().eq('id', id)
       if (error) {
         throw error
       }
       await reload()
     },
-    [table, reload],
+    [sandboxed, planning, planningTable, table, reload],
   )
 
-  return { rows: query.data ?? null, loading: query.isPending, reload, create, update, remove }
+  return { rows: rows ?? null, loading: query.isPending, reload, create, update, remove }
 }
 
 /** The load and upsert surface of a financial-year-keyed household collection. */

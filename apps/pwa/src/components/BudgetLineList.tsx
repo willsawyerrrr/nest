@@ -46,8 +46,12 @@ interface BudgetLineListProps {
   breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
   onUpdate: (id: string, input: BudgetLineInput) => Promise<void>
-  /** Saves a derived line's edit, fanning the name/group to its breakdown and the funding account to the line. */
-  onUpdateDerivedLine?: (lineId: string, values: DerivedLineValues) => Promise<void>
+  /**
+   * Saves a derived line's edit, fanning the name/group to its breakdown and the
+   * funding account to the line. Omitted in planning mode, where a derived line is
+   * read-only.
+   */
+  onUpdateDerivedLine?: ((lineId: string, values: DerivedLineValues) => Promise<void>) | undefined
   onDelete: (id: string) => void
 }
 

@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
+import { PlanningModeBanner } from './components/PlanningModeBanner'
+import { PlanningModeProvider } from './components/PlanningModeProvider'
 import { SignInScreen } from './components/SignInScreen'
 import { NAV_SECTIONS, TabBar } from './components/TabBar'
 import { useHousehold, type Household } from './hooks/useHousehold'
@@ -171,47 +173,56 @@ function HouseholdApp({
   onRevokeInviteCode: () => Promise<void>
 }) {
   return (
-    <div className="app-shell">
-      <main className="page">
-        <Suspense fallback={<LoadingScreen />}>
-          <Routes>
-            <Route path="/summary" element={<SummarySection householdId={household.id} />} />
-            <Route path="/net-worth" element={<NetWorthSection householdId={household.id} />} />
-            <Route path="/inflows" element={<InflowsSection householdId={household.id} />} />
-            <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
-            <Route path="/splits" element={<SplitsSection householdId={household.id} />} />
-            <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
-            <Route path="/tax" element={<TaxSection householdId={household.id} />} />
-            <Route path="/payslips" element={<PayslipsSection householdId={household.id} />} />
-            <Route path="/deductions" element={<DeductionsSection householdId={household.id} />} />
-            <Route path="/super" element={<SuperSection householdId={household.id} />} />
-            <Route path="/help-debt" element={<HelpDebtSection householdId={household.id} />} />
-            <Route path="/eofy" element={<EofySection householdId={household.id} />} />
-            <Route path="/equity" element={<EquitySection householdId={household.id} />} />
-            <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
-            <Route path="/breakdowns" element={<BreakdownsSection householdId={household.id} />} />
-            <Route
-              path="/breakdowns/:id"
-              element={<BreakdownDetailSection householdId={household.id} />}
-            />
-            <Route path="/whats-new" element={<ChangelogSection />} />
-            <Route
-              path="/household"
-              element={
-                <HomeSection
-                  household={household}
-                  session={session}
-                  onCreateInviteCode={onCreateInviteCode}
-                  onRevokeInviteCode={onRevokeInviteCode}
-                />
-              }
-            />
-            <Route path="/" element={<Navigate to="/summary" replace />} />
-            <Route path="*" element={<Navigate to="/summary" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <TabBar sections={NAV_SECTIONS} />
-    </div>
+    <PlanningModeProvider householdId={household.id}>
+      <div className="app-shell">
+        <main className="page">
+          <PlanningModeBanner />
+          <Suspense fallback={<LoadingScreen />}>
+            <Routes>
+              <Route path="/summary" element={<SummarySection householdId={household.id} />} />
+              <Route path="/net-worth" element={<NetWorthSection householdId={household.id} />} />
+              <Route path="/inflows" element={<InflowsSection householdId={household.id} />} />
+              <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
+              <Route path="/splits" element={<SplitsSection householdId={household.id} />} />
+              <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
+              <Route path="/tax" element={<TaxSection householdId={household.id} />} />
+              <Route path="/payslips" element={<PayslipsSection householdId={household.id} />} />
+              <Route
+                path="/deductions"
+                element={<DeductionsSection householdId={household.id} />}
+              />
+              <Route path="/super" element={<SuperSection householdId={household.id} />} />
+              <Route path="/help-debt" element={<HelpDebtSection householdId={household.id} />} />
+              <Route path="/eofy" element={<EofySection householdId={household.id} />} />
+              <Route path="/equity" element={<EquitySection householdId={household.id} />} />
+              <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
+              <Route
+                path="/breakdowns"
+                element={<BreakdownsSection householdId={household.id} />}
+              />
+              <Route
+                path="/breakdowns/:id"
+                element={<BreakdownDetailSection householdId={household.id} />}
+              />
+              <Route path="/whats-new" element={<ChangelogSection />} />
+              <Route
+                path="/household"
+                element={
+                  <HomeSection
+                    household={household}
+                    session={session}
+                    onCreateInviteCode={onCreateInviteCode}
+                    onRevokeInviteCode={onRevokeInviteCode}
+                  />
+                }
+              />
+              <Route path="/" element={<Navigate to="/summary" replace />} />
+              <Route path="*" element={<Navigate to="/summary" replace />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <TabBar sections={NAV_SECTIONS} />
+      </div>
+    </PlanningModeProvider>
   )
 }

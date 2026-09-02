@@ -966,6 +966,17 @@ that live in Vault:
   `budget_line`, `households.pay_account_id`, or `super_profile` still holds. An
   empty list is a valid "this member has no Up accounts" result. Joint accounts
   and other households' rows are out of scope.
+- `reconcile_joint_up_accounts(household_id, present_external_ids text[])` — the
+  joint twin of the above: over one household's joint (`owner_member_id is
+  null`) `source = 'up'` accounts, clears `deleted_from_source_at` on the ones
+  in the list, deletes the absent ones nothing references (`account_balance`
+  cascades), and stamps `deleted_from_source_at` on the absent ones a
+  `savings_goal`, `budget_line`, `households.pay_account_id`, or `super_profile`
+  still holds. `up-sync` calls it once per household, only when every connected
+  member synced with a readable token, passing the union of the ids those
+  tokens returned. An empty list is a valid "no member reported any Up account"
+  result. Individually-owned accounts and other households' rows are out of
+  scope.
 - `vapid_keys()` — the Web Push VAPID credential set (base64url public key,
   base64url private key, `mailto:` subject) as one row, nulls when unset. One
   function rather than three: the sender needs all of it in the same breath (the

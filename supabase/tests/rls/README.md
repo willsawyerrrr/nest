@@ -55,6 +55,13 @@ instance and can also be run locally.
   (its `account_balance` cascading away), flags `deleted_from_source_at` when a
   savings goal still holds it, clears the flag when the account reappears, and
   leaves joint accounts and other households' rows alone.
+- `reconcile_joint_up_accounts.sql` — the assertions that the joint twin of that
+  RPC (SECURITY DEFINER, `service_role` only) reconciles a household's joint
+  (`owner_member_id is null`) `source = 'up'` accounts against the union of its
+  members' tokens' ids: it deletes an unreferenced joint account no token
+  reports (its `account_balance` cascading away), flags `deleted_from_source_at`
+  when a savings goal still holds it, clears the flag when the account reappears,
+  and leaves individually-owned accounts and other households' rows alone.
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and
@@ -71,7 +78,7 @@ instance and can also be run locally.
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
 `deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql` →
-`reconcile_up_accounts.sql`.
+`reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -96,5 +103,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
 docker rm -f pba-rls
 ```

@@ -158,10 +158,22 @@ RLS.
   still holds it; an account that reappears in a later sync has the stamp
   cleared. The PWA shows a stamped account as "deleted in Up" with a
   Remove-from-Nest action (a direct RLS delete) once its dependency is cleared.
-  A failed or absent token read reconciles nothing, and joint accounts (owned by
-  neither member) are out of scope — reconciling them safely needs every
-  connected member's read to have succeeded in the same run, which this pass
-  does not yet coordinate.
+  A failed or absent token read reconciles nothing.
+- **Joint account reconcile** — a joint account (owned by neither member)
+  surfaces through every partner's token, so one member's token dropping it is
+  no proof it was deleted in Up. After the member loop, `up-sync` reconciles
+  each household's joint (`owner_member_id is null`) `source = 'up'` accounts
+  once, through `reconcile_joint_up_accounts` (the joint twin of the RPC above,
+  same three rules keyed on `owner_member_id is null`, same references checked,
+  SECURITY DEFINER, `service_role` only). It runs for a household only when
+  every connected member in scope synced with a readable token this run, and
+  against the union of the Up account ids those members' tokens returned — so a
+  joint account is deleted or flagged only when it is absent from every read
+  that should have seen it. A household with a member whose token was unreadable
+  or unsynced is left until a run that covers all of it; a single-member
+  household reconciles against just that member's set, since nothing else can
+  see the joint account. A failure in it costs only that household's joint
+  reconcile.
 - **Gift-category transactions** — after the account pass, `up-sync` polls each
   member's `gifts-and-charity` transactions and settles them through the
   `sync_up_gift_transactions` RPC (one call per member, over that member's own

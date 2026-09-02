@@ -9,7 +9,10 @@
  * The account pass also reconciles: the ids a member's token returned are the
  * authoritative set for that member's individually-owned Up accounts, and one
  * the token no longer reports is deleted when nothing references it or flagged
- * `deleted_from_source_at` when something does.
+ * `deleted_from_source_at` when something does. Joint accounts need every
+ * connected member of the household to have synced with a readable token in the
+ * same run, so they are reconciled once per household after the member loop,
+ * against the union of the ids those members' tokens returned.
  */
 
 import type { UpAccount, UpTransaction } from '../_shared/up.ts'
@@ -92,6 +95,21 @@ export interface AccountReconcile {
   presentExternalIds: string[]
 }
 
+/**
+ * One household's authoritative joint-Up-account set for the joint reconcile
+ * pass. Only built for a household where every connected member in scope synced
+ * with a readable token this run.
+ */
+export interface JointAccountReconcile {
+  householdId: string
+  /**
+   * The union of every Up account id the household's members' tokens returned
+   * this run — the set a joint account must be absent from to count as deleted
+   * in Up.
+   */
+  presentExternalIds: string[]
+}
+
 export interface SyncDeps {
   /** Members whose Up token is stored (up_connected_at is not null). */
   listConnectedMembers: () => Promise<ConnectedMember[]>
@@ -108,6 +126,14 @@ export interface SyncDeps {
    * token read succeeded.
    */
   reconcileAccounts: (reconcile: AccountReconcile) => Promise<void>
+  /**
+   * Reconciles one household's joint (`owner_member_id IS NULL`) Up accounts
+   * against the union of the ids its members' tokens returned: deletes the
+   * unreferenced ones no member reports any more and flags the referenced ones
+   * `deleted_from_source_at`. Called once per household, and only when every
+   * connected member of that household synced with a readable token this run.
+   */
+  reconcileJointAccounts: (reconcile: JointAccountReconcile) => Promise<void>
   /** Lists the token owner's gift-category transactions created since `since`. */
   listGiftTransactions: (token: string, since: Date) => Promise<UpTransaction[]>
   /** Resolves the local ledger rows for the given Up account ids. */
@@ -227,9 +253,16 @@ async function syncGiftWindow(
  * Between the two, the account reconcile runs against the ids the member's token
  * just returned: it deletes that member's individually-owned Up accounts the
  * token no longer reports and flags the ones something still references. It is
- * reached only past the token read, so an unreadable token reconciles nothing;
- * joint accounts, owned by neither member, are out of scope. A failure in it
- * costs only that member's reconcile.
+ * reached only past the token read, so an unreadable token reconciles nothing.
+ * A failure in it costs only that member's reconcile.
+ *
+ * Joint accounts (owned by neither member) surface through every partner's
+ * token, so one token dropping one is no proof it was deleted in Up. They are
+ * reconciled once per household after the member loop, against the union of the
+ * ids the household's members' tokens returned — and only for a household where
+ * every connected member in scope synced with a readable token this run, since
+ * an absent joint account could otherwise just be hidden by the missing read. A
+ * failure in it costs only that household's joint reconcile.
  *
  * A member's gift window is settled independently of the balances: it runs after
  * the account upsert, so every account a transaction can name is already in the
@@ -249,6 +282,20 @@ export async function runSync(
   let accounts = 0
   let transactions = 0
 
+  // Per household in scope: how many connected members it has, how many of them
+  // synced with a readable token this run, and the union of the Up account ids
+  // their tokens returned — the inputs the joint reconcile is gated on.
+  const households = new Map<
+    string,
+    { connected: number; synced: number; presentExternalIds: Set<string> }
+  >()
+  for (const member of members) {
+    const household = households.get(member.householdId) ??
+      { connected: 0, synced: 0, presentExternalIds: new Set<string>() }
+    household.connected += 1
+    households.set(member.householdId, household)
+  }
+
   for (const member of members) {
     const token = await deps.tokenFor(member.memberId)
     if (!token) continue
@@ -263,6 +310,12 @@ export async function runSync(
     }
 
     const externalIds = upAccounts.map((account) => account.id)
+
+    // The token read succeeded: this member counts towards their household's
+    // joint-reconcile guard, and their ids join its union.
+    const household = households.get(member.householdId)!
+    household.synced += 1
+    for (const externalId of externalIds) household.presentExternalIds.add(externalId)
 
     // The token read succeeded, so its ids are authoritative for this member's
     // own Up accounts: drop the ones it no longer reports, flag the referenced
@@ -281,6 +334,23 @@ export async function runSync(
       transactions += await syncGiftWindow(deps, member, token, externalIds, since)
     } catch (error) {
       console.error(`Gift transaction sync failed for member ${member.memberId}:`, error)
+    }
+  }
+
+  // Every connected member of a household synced this run, so the union of their
+  // tokens' ids is authoritative for that household's joint Up accounts: drop
+  // the ones no member reports any more, flag the referenced ones. A household
+  // with a gap is left until a run that covers all of it. A failure here costs
+  // only that household's joint reconcile.
+  for (const [householdId, household] of households) {
+    if (household.synced !== household.connected) continue
+    try {
+      await deps.reconcileJointAccounts({
+        householdId,
+        presentExternalIds: [...household.presentExternalIds],
+      })
+    } catch (error) {
+      console.error(`Joint account reconcile failed for household ${householdId}:`, error)
     }
   }
 

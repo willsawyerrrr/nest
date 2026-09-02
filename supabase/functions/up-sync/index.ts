@@ -105,6 +105,16 @@ Deno.serve(async (request) => {
       })
       if (error) throw new Error(`Failed to reconcile accounts: ${error.message}`)
     },
+    // The joint twin of the above, keyed on `owner_member_id IS NULL`. Called
+    // once per household, and only when every connected member synced with a
+    // readable token, against the union of the ids their tokens returned.
+    reconcileJointAccounts: async ({ householdId, presentExternalIds }) => {
+      const { error } = await supabase.rpc('reconcile_joint_up_accounts', {
+        p_household_id: householdId,
+        p_present_external_ids: presentExternalIds,
+      })
+      if (error) throw new Error(`Failed to reconcile joint accounts: ${error.message}`)
+    },
     listGiftTransactions: (token, since) =>
       new UpClient(token).listTransactions({ since, category: UP_GIFT_CATEGORY }),
     // The account rows the pass above upserted, read back for their local ids:

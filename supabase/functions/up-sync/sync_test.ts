@@ -8,6 +8,7 @@ import {
   GIFT_WINDOW_DAYS,
   type GiftTransactionWindow,
   giftWindowStart,
+  type JointAccountReconcile,
   membersToSync,
   runSync,
   type SyncDeps,
@@ -114,6 +115,7 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
     upsertAccounts: () => Promise.resolve(),
     listGiftTransactions: () => Promise.resolve([]),
     reconcileAccounts: () => Promise.resolve(),
+    reconcileJointAccounts: () => Promise.resolve(),
     // Every Up account resolves to a local row named after it.
     listSyncedAccounts: (externalIds) =>
       Promise.resolve(externalIds.map((externalId) => ({
@@ -141,6 +143,16 @@ function recordWindows(windows: GiftTransactionWindow[]): Partial<SyncDeps> {
 function recordReconciles(reconciles: AccountReconcile[]): Partial<SyncDeps> {
   return {
     reconcileAccounts: (reconcile) => {
+      reconciles.push(reconcile)
+      return Promise.resolve()
+    },
+  }
+}
+
+/** Records every joint-account reconcile a run runs. */
+function recordJointReconciles(reconciles: JointAccountReconcile[]): Partial<SyncDeps> {
+  return {
+    reconcileJointAccounts: (reconcile) => {
       reconciles.push(reconcile)
       return Promise.resolve()
     },
@@ -407,4 +419,110 @@ Deno.test("runSync keeps going when one member's reconcile fails", async () => {
   // Both members' balances and gift windows still land.
   assertEquals(result, { members: 2, accounts: 2, transactions: 0 })
   assertEquals(windows.length, 2)
+})
+
+Deno.test("runSync reconciles a household's joint accounts against the union of its members' ids", async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const joint = account({ ownershipType: 'JOINT', displayName: '2Up' }, 'joint-1')
+  const jointReconciles: JointAccountReconcile[] = []
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    // Only Alex's token still reports the joint account; Sam's has dropped it.
+    listAccounts: (token) =>
+      token === 'tok-m-1'
+        ? Promise.resolve([joint, account({}, 'tok-m-1-own')])
+        : Promise.resolve([account({}, 'tok-m-2-own')]),
+    ...recordJointReconciles(jointReconciles),
+  }))
+
+  // One call for the household, carrying the union of both tokens' ids: the
+  // joint id survives because one member still reports it.
+  assertEquals(jointReconciles, [
+    { householdId: 'h-1', presentExternalIds: ['joint-1', 'tok-m-1-own', 'tok-m-2-own'] },
+  ])
+})
+
+Deno.test('runSync passes a joint account absent from every member to the joint reconcile', async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const jointReconciles: JointAccountReconcile[] = []
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    listAccounts: (token) => Promise.resolve([account({}, `${token}-own`)]),
+    ...recordJointReconciles(jointReconciles),
+  }))
+
+  // Neither token reports 'joint-1', so it is absent from the union the RPC
+  // reconciles against, and the RPC deletes or flags it.
+  assertEquals(jointReconciles, [
+    { householdId: 'h-1', presentExternalIds: ['tok-m-1-own', 'tok-m-2-own'] },
+  ])
+})
+
+Deno.test('runSync reconciles the joint accounts of a household with a single connected member', async () => {
+  const jointReconciles: JointAccountReconcile[] = []
+  await runSync(deps({ ...recordJointReconciles(jointReconciles) }))
+
+  // Nothing but this member can see the joint account, so their set is the
+  // whole union.
+  assertEquals(jointReconciles, [
+    { householdId: 'h-1', presentExternalIds: ['acc-1'] },
+  ])
+})
+
+Deno.test('runSync skips the joint reconcile for a household with an unreadable-token member', async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const jointReconciles: JointAccountReconcile[] = []
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(id === 'm-2' ? null : 'tok-m-1'),
+    listAccounts: () => Promise.resolve([account({}, 'a-1')]),
+    ...recordJointReconciles(jointReconciles),
+  }))
+
+  // Sam's token is unreadable, so an absent joint account could just be hidden
+  // by the missing read — the household is left until a run that covers it.
+  assertEquals(jointReconciles, [])
+})
+
+Deno.test('runSync reconciles a fully-synced household and skips one with a gap in the same run', async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const jo: ConnectedMember = { memberId: 'm-3', householdId: 'h-2', name: 'Jo' }
+  const kit: ConnectedMember = { memberId: 'm-4', householdId: 'h-2', name: 'Kit' }
+  const jointReconciles: JointAccountReconcile[] = []
+  await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam, jo, kit]),
+    // h-1 syncs fully; h-2's second member (Kit) has an unreadable token.
+    tokenFor: (id) => Promise.resolve(id === 'm-4' ? null : `tok-${id}`),
+    listAccounts: (token) => Promise.resolve([account({}, `${token}-own`)]),
+    ...recordJointReconciles(jointReconciles),
+  }))
+
+  assertEquals(jointReconciles, [
+    { householdId: 'h-1', presentExternalIds: ['tok-m-1-own', 'tok-m-2-own'] },
+  ])
+})
+
+Deno.test('runSync keeps going when a joint reconcile fails', async () => {
+  const jo: ConnectedMember = { memberId: 'm-3', householdId: 'h-2', name: 'Jo' }
+  const jointReconciles: JointAccountReconcile[] = []
+  const result = await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, jo]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    listAccounts: (token) => Promise.resolve([account({}, `${token}-own`)]),
+    reconcileJointAccounts: (reconcile) => {
+      if (reconcile.householdId === 'h-1') {
+        return Promise.reject(new Error('joint reconcile RPC 500'))
+      }
+      jointReconciles.push(reconcile)
+      return Promise.resolve()
+    },
+  }))
+
+  // h-1's joint reconcile is lost; h-2's still runs and the run still returns.
+  assertEquals(result, { members: 2, accounts: 2, transactions: 0 })
+  assertEquals(jointReconciles, [
+    { householdId: 'h-2', presentExternalIds: ['tok-m-3-own'] },
+  ])
 })

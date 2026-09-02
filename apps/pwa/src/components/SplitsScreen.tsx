@@ -85,6 +85,11 @@ interface SplitsScreenProps {
   onSetPayAccount: (accountId: string | null) => void | Promise<void>
   /** Records the amount the household has confirmed as set in Up for an account. */
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
+  /**
+   * Clears an account's confirmed split, reverting it to an unconfirmed
+   * recommendation flagged as needing to be set up again.
+   */
+  onClear: (accountId: string) => void | Promise<void>
 }
 
 /** Whether an account is a synced Up saver (as opposed to a spending transaction account). */
@@ -183,37 +188,74 @@ interface RecommendedSplitProps {
   fortnightlyCents: number
   configuredCents: number | null
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
+  onClear: (accountId: string) => void | Promise<void>
 }
 
-/** A recommended row's drift line: the change from the configured amount and a Confirm control. */
-function DriftNote({
+/**
+ * A recommended row's caption controls: the drift line (change from the
+ * configured amount and a Confirm) when the split needs an update, and a Clear
+ * control on any account with a confirmed split, which deletes it so the account
+ * falls back to an unconfirmed recommendation the household re-establishes.
+ */
+function RowControls({
   account,
   configuredCents,
   roundedCents,
+  needsUpdate,
   onConfirm,
+  onClear,
 }: {
   account: AccountDirectoryEntry
   configuredCents: number | null
   roundedCents: number
+  needsUpdate: boolean
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
+  onClear: (accountId: string) => void | Promise<void>
 }) {
   return (
     <Group justify="space-between" wrap="nowrap" gap="sm">
-      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <Badge size="xs" variant="light" color="warning" style={{ flexShrink: 0 }}>
-          Update
-        </Badge>
-        <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
-          {configuredCents === null
-            ? 'Not set in Up yet'
-            : `was ${formatCents(configuredCents)} → ${formatPerFortnight(roundedCents)}`}
-        </Text>
+      {needsUpdate ? (
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Badge size="xs" variant="light" color="warning" style={{ flexShrink: 0 }}>
+            Update
+          </Badge>
+          <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
+            {configuredCents === null
+              ? 'Not set in Up yet'
+              : `was ${formatCents(configuredCents)} → ${formatPerFortnight(roundedCents)}`}
+          </Text>
+        </Group>
+      ) : (
+        <Box style={{ flex: 1 }} />
+      )}
+      <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+        {needsUpdate && (
+          <Button
+            size="compact-xs"
+            variant="light"
+            onClick={() => onConfirm(account.id, roundedCents)}
+          >
+            {configuredCents === null ? 'Mark as set' : 'Confirm'}
+          </Button>
+        )}
+        {configuredCents !== null && (
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            color="gray"
+            onClick={() => onClear(account.id)}
+          >
+            Clear
+          </Button>
+        )}
       </Group>
-      <Button size="compact-xs" variant="light" onClick={() => onConfirm(account.id, roundedCents)}>
-        {configuredCents === null ? 'Mark as set' : 'Confirm'}
-      </Button>
     </Group>
   )
+}
+
+/** Whether a recommended row shows any caption controls (a drift note or a Clear). */
+function hasRowControls(needsUpdate: boolean, configuredCents: number | null): boolean {
+  return needsUpdate || configuredCents !== null
 }
 
 /** A recommended account's split as a dense table-like row for desktop, drift note on the caption line. */
@@ -222,6 +264,7 @@ function RecommendedSplitRow({
   fortnightlyCents,
   configuredCents,
   onConfirm,
+  onClear,
 }: RecommendedSplitProps) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
@@ -229,12 +272,14 @@ function RecommendedSplitRow({
     <ListRow
       gap="sm"
       caption={
-        needsUpdate ? (
-          <DriftNote
+        hasRowControls(needsUpdate, configuredCents) ? (
+          <RowControls
             account={account}
             configuredCents={configuredCents}
             roundedCents={rounded}
+            needsUpdate={needsUpdate}
             onConfirm={onConfirm}
+            onClear={onClear}
           />
         ) : undefined
       }
@@ -266,6 +311,7 @@ function RecommendedSplitCard({
   fortnightlyCents,
   configuredCents,
   onConfirm,
+  onClear,
 }: RecommendedSplitProps) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
@@ -282,13 +328,15 @@ function RecommendedSplitCard({
           <FortnightlyAmount cents={rounded} />
         </Group>
       </Group>
-      {needsUpdate && (
+      {hasRowControls(needsUpdate, configuredCents) && (
         <Box mt={6}>
-          <DriftNote
+          <RowControls
             account={account}
             configuredCents={configuredCents}
             roundedCents={rounded}
+            needsUpdate={needsUpdate}
             onConfirm={onConfirm}
+            onClear={onClear}
           />
         </Box>
       )}
@@ -301,9 +349,11 @@ function RecommendedSplitCard({
  * currently configured. When the rounded recommendation differs from the
  * configured amount (or it has never been confirmed), the row is flagged, shows
  * the change, and offers a Confirm to record the new amount; otherwise it renders
- * plainly, with no status indicator. Rendered as a dense table-like row from the
- * `sm` breakpoint up and as a compact bordered card below it. The configured
- * amount is source-agnostic — see `SplitsScreenProps`.
+ * plainly, with no status indicator. Any account with a confirmed split also
+ * carries a Clear control that deletes it, reverting the account to an
+ * unconfirmed recommendation. Rendered as a dense table-like row from the `sm`
+ * breakpoint up and as a compact bordered card below it. The configured amount is
+ * source-agnostic — see `SplitsScreenProps`.
  */
 function RecommendedSplitItem(props: RecommendedSplitProps) {
   const wide = useIsWide()
@@ -319,8 +369,10 @@ function RecommendedSplitItem(props: RecommendedSplitProps) {
  * savers are recommended and spending accounts are shown as staying put. Each
  * recommended row compares its recommendation against the split currently
  * configured for that account (`configuredByAccount`) and, when they differ, flags
- * the drift and offers a Confirm to record the new amount. Savings/Investments
- * lines route via their goal's linked saver; every other line routes via its own
+ * the drift and offers a Confirm to record the new amount. A confirmed row also
+ * offers a Clear that deletes the split, so an account left without a live split —
+ * after leaving an employer, say — falls back to an unconfirmed recommendation.
+ * Savings/Investments lines route via their goal's linked saver; every other line routes via its own
  * funding account. Presentational — persistence lives in the caller.
  */
 export function SplitsScreen({
@@ -331,6 +383,7 @@ export function SplitsScreen({
   payAccountId,
   onSetPayAccount,
   onConfirm,
+  onClear,
 }: SplitsScreenProps) {
   const { byAccount, unassignedFortnightlyCents } = assignmentsByAccount(
     lines.map((line) => ({
@@ -476,6 +529,7 @@ export function SplitsScreen({
               fortnightlyCents={row.fortnightlyCents}
               configuredCents={configuredByAccount.get(row.account.id) ?? null}
               onConfirm={onConfirm}
+              onClear={onClear}
             />
           ))}
         </Stack>

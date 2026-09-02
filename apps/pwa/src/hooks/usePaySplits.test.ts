@@ -4,7 +4,7 @@ import { usePaySplits } from './usePaySplits'
 
 const { builder } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
-  return { builder: makeSupabaseBuilder(['select', 'upsert', 'eq']) }
+  return { builder: makeSupabaseBuilder(['select', 'upsert', 'delete', 'eq']) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
@@ -41,11 +41,23 @@ describe('usePaySplits', () => {
     )
   })
 
-  it('propagates load and confirm errors', async () => {
+  it('clears a split, reloading afterwards', async () => {
+    const { result } = renderHook(() => usePaySplits('h1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.clear('a1')
+    })
+    expect(builder.delete).toHaveBeenCalledTimes(1)
+    expect(builder.eq).toHaveBeenCalledWith('account_id', 'a1')
+  })
+
+  it('propagates load, confirm, and clear errors', async () => {
     const { result } = renderHook(() => usePaySplits('h1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
     builder.result = { data: null, error: new Error('boom') }
     await expect(result.current.reload()).rejects.toThrow('boom')
     await expect(result.current.confirm('a2', 1)).rejects.toThrow('boom')
+    await expect(result.current.clear('a2')).rejects.toThrow('boom')
   })
 })

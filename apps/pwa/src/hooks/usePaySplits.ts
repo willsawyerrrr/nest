@@ -11,6 +11,11 @@ export interface UsePaySplitsResult {
   reload: () => Promise<void>
   /** Records the split the household has confirmed as set in Up for an account. */
   confirm: (accountId: string, fortnightlyCents: number) => Promise<void>
+  /**
+   * Clears an account's confirmed split, reverting it to an unconfirmed
+   * recommendation the household is prompted to set up again.
+   */
+  clear: (accountId: string) => Promise<void>
 }
 
 /**
@@ -48,6 +53,17 @@ export function usePaySplits(householdId: string): UsePaySplitsResult {
     [householdId, reload],
   )
 
+  const clear = useCallback(
+    async (accountId: string) => {
+      const { error } = await supabase.from('pay_split').delete().eq('account_id', accountId)
+      if (error) {
+        throw error
+      }
+      await reload()
+    },
+    [reload],
+  )
+
   useEffect(() => {
     void reload()
   }, [reload])
@@ -56,5 +72,5 @@ export function usePaySplits(householdId: string): UsePaySplitsResult {
     (splits ?? []).map((split) => [split.account_id, split.confirmed_fortnightly_cents]),
   )
 
-  return { configuredByAccount, loading: splits === null, reload, confirm }
+  return { configuredByAccount, loading: splits === null, reload, confirm, clear }
 }

@@ -307,7 +307,7 @@ describe('SplitsScreen', () => {
       onClear,
     })
 
-    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    await user.click(screen.getByRole('button', { name: 'Clear pay split' }))
     expect(onClear).toHaveBeenCalledWith('s1')
   })
 
@@ -321,7 +321,7 @@ describe('SplitsScreen', () => {
     })
 
     expect(screen.getByText('Not set in Up yet')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear pay split' })).not.toBeInTheDocument()
   })
 
   it('offers Clear alongside Confirm on a drifted confirmed split', async () => {
@@ -337,7 +337,7 @@ describe('SplitsScreen', () => {
     })
 
     expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    await user.click(screen.getByRole('button', { name: 'Clear pay split' }))
     expect(onClear).toHaveBeenCalledWith('s1')
   })
 })

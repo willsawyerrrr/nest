@@ -255,6 +255,44 @@ describe('NetWorthSection', () => {
     expect(updated).toHaveLength(6)
   })
 
+  it('maps linked goal names per account and removes a deleted-in-Up account', async () => {
+    mockLoaded()
+    const remove = vi.fn().mockResolvedValue(undefined)
+    const reload = vi.fn().mockResolvedValue(undefined)
+    hooks.useAccounts.mockReturnValue({
+      loading: false,
+      update: vi.fn(),
+      remove,
+      accounts: [
+        {
+          id: 'acc1',
+          name: 'House deposit',
+          balance_cents: 8_000_00,
+          exclude_from_net_worth: false,
+          deleted_from_source_at: '2026-09-01T00:00:00Z',
+        },
+      ],
+    })
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      reload,
+      goals: [
+        { id: 'g1', name: 'House', target_amount_cents: 10_000_00, linked_account_id: 'acc1' },
+        { id: 'g2', name: 'Rainy day', target_amount_cents: 5_000_00, linked_account_id: null },
+      ],
+    })
+    render(<NetWorthSection householdId="h1" />)
+
+    const linked = hooks.screenProps?.linkedGoalNamesByAccount as Map<string, string[]>
+    expect(linked.get('acc1')).toEqual(['House'])
+    expect(linked.has('g2')).toBe(false)
+
+    const onRemoveAccount = hooks.screenProps?.onRemoveAccount as (id: string) => Promise<void>
+    await onRemoveAccount('acc1')
+    expect(remove).toHaveBeenCalledWith('acc1')
+    expect(reload).toHaveBeenCalled()
+  })
+
   it('toggling exclusion updates the account with the flag', () => {
     mockLoaded()
     const update = vi.fn().mockResolvedValue(undefined)

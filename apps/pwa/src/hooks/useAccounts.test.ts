@@ -100,6 +100,7 @@ describe('useAccounts', () => {
       }),
     ).rejects.toThrow('boom')
     await expect(result.current.update('a1', {})).rejects.toThrow('boom')
+    await expect(result.current.remove('a1')).rejects.toThrow('boom')
     await expect(result.current.upsertBalance('a1', 0)).rejects.toThrow('boom')
   })
 })

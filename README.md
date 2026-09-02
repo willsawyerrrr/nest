@@ -59,6 +59,8 @@ A pitch-level summary; the full locked list is canonical in
   + reconciliation phase.
 - [`docs/payslips.md`](docs/payslips.md) — expected vs actual income and tax from
   payslips.
+- [`docs/planning-mode.md`](docs/planning-mode.md) — the non-persisted what-if
+  sandbox over pays, bills, and savings goals.
 
 Planned and in-progress work is tracked in the
 [Nest project in Linear](https://linear.app/willsawyerrrr-dev/project/nest-277c083e9a78).

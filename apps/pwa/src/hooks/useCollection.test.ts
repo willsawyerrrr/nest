@@ -1,7 +1,9 @@
 import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PlanningModeProvider, usePlanningMode } from '../components/PlanningModeProvider'
+import { planningStorageKey } from '../lib/planningMode'
 import { makeWrapper } from '../test/queryWrapper'
 import { useHouseholdCollection, useHouseholdUpsertCollection } from './useCollection'
 
@@ -227,5 +229,133 @@ describe('useHouseholdUpsertCollection', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     builder.result = { data: null, error: new Error('upsert failed') }
     await expect(result.current.upsert({} as never)).rejects.toThrow('upsert failed')
+  })
+})
+
+describe('useHouseholdCollection in planning mode', () => {
+  afterEach(() => localStorage.clear())
+
+  /** A `QueryClientProvider` wrapped in a `PlanningModeProvider` for household `h1`. */
+  function planningWrapper() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return ({ children }: { children: ReactNode }) =>
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(PlanningModeProvider, { householdId: 'h1' }, children),
+      )
+  }
+
+  /** Renders a whitelisted collection alongside the planning-mode controls. */
+  function renderSandboxed(table: 'inflows' | 'savings_goal' = 'inflows') {
+    return renderHook(
+      () => ({
+        col: useHouseholdCollection('h1', { table, orderBy: 'name' }),
+        planning: usePlanningMode(),
+      }),
+      { wrapper: planningWrapper() },
+    )
+  }
+
+  it('applies overrides to rows and moves a derived total without a PostgREST write', async () => {
+    builder.result = { data: [{ id: '1', name: 'A', amount_cents: 100 }], error: null }
+    const { result } = renderSandboxed()
+    await waitFor(() =>
+      expect(result.current.col.rows).toEqual([{ id: '1', name: 'A', amount_cents: 100 }]),
+    )
+
+    const totalBefore = (result.current.col.rows ?? []).reduce(
+      (sum, row) => sum + (row as { amount_cents: number }).amount_cents,
+      0,
+    )
+
+    act(() => result.current.planning.enter())
+    await act(async () => {
+      await result.current.col.update('1', { amount_cents: 999 } as never)
+    })
+
+    expect(result.current.col.rows).toEqual([{ id: '1', name: 'A', amount_cents: 999 }])
+    const totalAfter = (result.current.col.rows ?? []).reduce(
+      (sum, row) => sum + (row as { amount_cents: number }).amount_cents,
+      0,
+    )
+    expect(totalAfter).toBe(totalBefore + 899)
+    expect(builder.update).not.toHaveBeenCalled()
+    expect(localStorage.getItem(planningStorageKey('h1'))).toContain('999')
+  })
+
+  it('applies overrides over an empty base while the first load is still pending', () => {
+    localStorage.setItem(
+      planningStorageKey('h1'),
+      JSON.stringify({
+        active: true,
+        overrides: {
+          inflows: { updates: {}, creates: [{ id: 'n1', name: 'Draft' }], deletes: [] },
+        },
+      }),
+    )
+    const { result } = renderSandboxed()
+    expect(result.current.col.loading).toBe(true)
+    expect(result.current.col.rows).toEqual([{ id: 'n1', name: 'Draft' }])
+  })
+
+  it('appends a sandbox-created row without calling insert', async () => {
+    builder.result = { data: [{ id: '1', name: 'A' }], error: null }
+    const { result } = renderSandboxed()
+    await waitFor(() => expect(result.current.col.rows).toHaveLength(1))
+
+    act(() => result.current.planning.enter())
+    await act(async () => {
+      await result.current.col.create({ name: 'B' } as never)
+    })
+
+    expect(result.current.col.rows).toHaveLength(2)
+    expect(result.current.col.rows?.[1]).toMatchObject({ name: 'B', household_id: 'h1' })
+    expect(result.current.col.rows?.[1]?.id).toEqual(expect.any(String))
+    expect(builder.insert).not.toHaveBeenCalled()
+  })
+
+  it('hides a sandbox-deleted row without calling delete', async () => {
+    builder.result = { data: [{ id: '1', name: 'A' }], error: null }
+    const { result } = renderSandboxed()
+    await waitFor(() => expect(result.current.col.rows).toHaveLength(1))
+
+    act(() => result.current.planning.enter())
+    await act(async () => {
+      await result.current.col.remove('1')
+    })
+
+    expect(result.current.col.rows).toEqual([])
+    expect(builder.delete).not.toHaveBeenCalled()
+  })
+
+  it('leaves a whitelisted table writing real data until planning mode is entered', async () => {
+    const { result } = renderSandboxed()
+    await waitFor(() => expect(result.current.col.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.col.update('1', { name: 'y' } as never)
+    })
+    expect(builder.update).toHaveBeenCalledWith({ name: 'y' })
+  })
+
+  it('does not sandbox a table outside the whitelist even while planning mode is on', async () => {
+    builder.result = { data: [{ id: '1', name: 'A' }], error: null }
+    const { result } = renderHook(
+      () => ({
+        col: useHouseholdCollection('h1', { table: 'temporary_item', orderBy: 'name' }),
+        planning: usePlanningMode(),
+      }),
+      { wrapper: planningWrapper() },
+    )
+    await waitFor(() => expect(result.current.col.rows).toHaveLength(1))
+
+    act(() => result.current.planning.enter())
+    await act(async () => {
+      await result.current.col.update('1', { name: 'y' } as never)
+    })
+
+    expect(builder.update).toHaveBeenCalledWith({ name: 'y' })
+    expect(result.current.col.rows).toEqual([{ id: '1', name: 'A' }])
   })
 })

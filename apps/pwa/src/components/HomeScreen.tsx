@@ -15,6 +15,7 @@ import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
 import type { TaxProfile, TaxProfileSubmission } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
 import { PageSection } from './PageSection'
+import { PlanningModeControl } from './PlanningModeControl'
 import { PushNotificationsCard } from './PushNotificationsCard'
 import { TaxProfileList } from './TaxProfileList'
 
@@ -166,6 +167,8 @@ export function HomeScreen({
           </Button>
         </Stack>
       </AppCard>
+
+      <PlanningModeControl />
 
       <Stack gap="sm">
         <Title order={3} size="h5">

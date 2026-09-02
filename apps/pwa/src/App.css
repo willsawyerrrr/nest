@@ -30,6 +30,25 @@
 }
 
 /*
+ * Planning-mode banner: sticks to the top of the content column so the "changes
+ * aren't saved" reminder and its Exit action stay in view while the page
+ * scrolls. Its z-index sits below the fixed nav (200), and on mobile it stops
+ * at the bottom edge of the fixed top bar rather than sliding under it.
+ */
+.planning-banner {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top));
+  z-index: 100;
+  margin-bottom: var(--mantine-spacing-md);
+}
+
+@media (max-width: 48em) {
+  .planning-banner {
+    top: calc(56px + env(safe-area-inset-top));
+  }
+}
+
+/*
  * Desktop sidebar: a fixed, always-visible left rail listing every nav item.
  * `TabBar` shows it from `sm` up; the shell reserves its width so content never
  * slides under it. It clears the left and vertical safe-area insets and scrolls

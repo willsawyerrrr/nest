@@ -89,7 +89,11 @@ RLS.
   switches render cached data and background-revalidate. A write invalidates its
   table's whole `[table, householdId]` cache prefix, so both a match-scoped detail
   query and the unscoped roll-up of the same table refetch together — a derived
-  value edited on one tab propagates live to every tab that reads it.
+  value edited on one tab propagates live to every tab that reads it. Planning
+  mode layers a per-device, per-household `localStorage` sandbox over `inflows`,
+  `budget_line`, and `savings_goal` inside the same factory, so every projection
+  recomputes from the edited rows with nothing written to Postgres — see
+  [`planning-mode.md`](planning-mode.md).
 - **Design system** — a dark-first Mantine theme (custom `brand`/`dark`/semantic
   scales, Space Grotesk + Inter, tabular money) plus shared primitives
   (`AppCard`, `PageSection`, `ListRow`, `MoneyText`, and friends) that components

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BudgetScreen } from '../components/BudgetScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { usePlanningMode } from '../components/PlanningModeProvider'
 import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines } from '../hooks/useBudgetLines'
@@ -45,6 +46,11 @@ export function BudgetSection({ householdId }: { householdId: string }) {
     updateLine: budgetLines.update,
   })
 
+  // A derived line's edit writes its breakdown or gift row — real data the
+  // sandbox does not cover, and which cannot reflow without the DB trigger. In
+  // planning mode those lines are read-only; only manual lines stay editable.
+  const { active: planning } = usePlanningMode()
+
   if (
     budgetLines.loading ||
     temporaryItems.loading ||
@@ -78,7 +84,7 @@ export function BudgetSection({ householdId }: { householdId: string }) {
       temporaryItems={temporaryItems.items ?? []}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
-      onUpdateDerivedLine={handleUpdateDerivedLine}
+      onUpdateDerivedLine={planning ? undefined : handleUpdateDerivedLine}
       onDeleteLine={budgetLines.remove}
       onCreateItem={temporaryItems.create}
       onUpdateItem={temporaryItems.update}

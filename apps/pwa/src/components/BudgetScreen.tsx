@@ -15,8 +15,12 @@ interface BudgetScreenProps {
   temporaryItems: TemporaryItem[]
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
-  /** Saves a derived line's edit, fanning the name/group to its breakdown and the funding account to the line. */
-  onUpdateDerivedLine: (lineId: string, values: DerivedLineValues) => Promise<void>
+  /**
+   * Saves a derived line's edit, fanning the name/group to its breakdown and the
+   * funding account to the line. Omitted in planning mode, where a derived line —
+   * whose edit writes real breakdown/gift data — is read-only.
+   */
+  onUpdateDerivedLine?: ((lineId: string, values: DerivedLineValues) => Promise<void>) | undefined
   onDeleteLine: (id: string) => Promise<void>
   onCreateItem: (input: TemporaryItemInput) => Promise<void>
   onUpdateItem: (id: string, input: TemporaryItemInput) => Promise<void>

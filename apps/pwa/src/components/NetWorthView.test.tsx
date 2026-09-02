@@ -12,6 +12,7 @@ function account(
     household_id: 'h1',
     currency: 'AUD',
     exclude_from_net_worth: false,
+    deleted_from_source_at: null,
     external_id: null,
     owner_member_id: null,
     source: 'manual',
@@ -404,6 +405,63 @@ describe('NetWorthView', () => {
     expect(within(control).getByText('To retirement')).toBeInTheDocument()
     fireEvent.click(within(control).getByText('5y'))
     expect(onHorizonChange).toHaveBeenCalledWith('5y')
+  })
+
+  it('badges a deleted-in-Up account and removes it after confirming, warning about linked goals', async () => {
+    const onRemoveAccount = vi.fn().mockResolvedValue(undefined)
+    render(
+      <NetWorthView
+        accounts={[
+          account({
+            id: 'a3',
+            name: 'Holiday saver',
+            balance_cents: 200000,
+            source: 'up',
+            deleted_from_source_at: '2026-09-01T00:00:00Z',
+          }),
+        ]}
+        superIds={new Set()}
+        equity={[]}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+        onRemoveAccount={onRemoveAccount}
+        linkedGoalNamesByAccount={new Map([['a3', ['Bali trip']]])}
+      />,
+    )
+
+    const other = screen.getByRole('region', { name: 'Other accounts' })
+    expect(within(other).getByText('Deleted in Up')).toBeInTheDocument()
+
+    fireEvent.click(within(other).getByRole('button', { name: 'Remove from Nest' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/Bali trip/)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Delete$/ }))
+
+    await screen.findByRole('region', { name: 'Other accounts' })
+    expect(onRemoveAccount).toHaveBeenCalledWith('a3')
+  })
+
+  it('omits the Remove-from-Nest action when no handler is supplied', () => {
+    render(
+      <NetWorthView
+        accounts={[
+          account({
+            id: 'a3',
+            name: 'Holiday saver',
+            balance_cents: 200000,
+            source: 'up',
+            deleted_from_source_at: '2026-09-01T00:00:00Z',
+          }),
+        ]}
+        superIds={new Set()}
+        equity={[]}
+        liabilities={[]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Deleted in Up')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove from Nest' })).not.toBeInTheDocument()
   })
 
   it('offers no Edit affordance when only super accounts exist', () => {

@@ -16,6 +16,7 @@ function account(id: string, balanceCents: number, excludeFromNetWorth = false):
     household_id: 'h1',
     currency: 'AUD',
     exclude_from_net_worth: excludeFromNetWorth,
+    deleted_from_source_at: null,
     external_id: null,
     owner_member_id: null,
     source: 'manual',

@@ -184,9 +184,11 @@ and `select`/`insert`/`update` on `accounts` (migration
 `20260719050000_service_role_ledger_grants.sql`), plus the same three on
 `account_balance` (`20260802000000_split_account_balance.sql`). The Up functions
 read `members` and `accounts` under those grants; every write goes through a
-SECURITY DEFINER RPC — the token reads, `upsert_up_accounts`, and
-`sync_up_gift_transactions` — which runs as its owner, so `transactions` carries no
-`service_role` grant at all. Any future server-side code touching other public
+SECURITY DEFINER RPC — the token reads, `upsert_up_accounts`,
+`sync_up_gift_transactions`, and `reconcile_up_accounts` — which runs as its
+owner, so `transactions` carries no `service_role` grant at all and the sync can
+delete a stale `accounts` row through `reconcile_up_accounts` despite holding no
+`delete` on the table itself. Any future server-side code touching other public
 tables must add its own grants deliberately — the stance is surgical, per-feature.
 
 ## Storage buckets

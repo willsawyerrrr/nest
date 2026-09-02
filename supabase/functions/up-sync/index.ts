@@ -93,6 +93,18 @@ Deno.serve(async (request) => {
       const { error } = await supabase.rpc('upsert_up_accounts', { rows })
       if (error) throw new Error(`Failed to upsert accounts: ${error.message}`)
     },
+    // A SECURITY DEFINER RPC: service_role has no delete on `accounts`. It
+    // reconciles only this member's individually-owned Up accounts against the
+    // ids the token returned — deleting the unreferenced ones Up dropped and
+    // flagging the referenced ones.
+    reconcileAccounts: async ({ memberId, householdId, presentExternalIds }) => {
+      const { error } = await supabase.rpc('reconcile_up_accounts', {
+        p_household_id: householdId,
+        p_owner_member_id: memberId,
+        p_present_external_ids: presentExternalIds,
+      })
+      if (error) throw new Error(`Failed to reconcile accounts: ${error.message}`)
+    },
     listGiftTransactions: (token, since) =>
       new UpClient(token).listTransactions({ since, category: UP_GIFT_CATEGORY }),
     // The account rows the pass above upserted, read back for their local ids:

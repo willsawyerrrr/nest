@@ -27,6 +27,7 @@ import { formatCents, formatPerFortnight } from '../lib/money'
 import { sortBy, type SortPreference } from '../lib/sort'
 import { AccountIcon } from './AccountIcon'
 import { AppCard } from './AppCard'
+import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { ListRow } from './ListRow'
 import { PageSection } from './PageSection'
@@ -96,14 +97,18 @@ function isSpending(account: AccountDirectoryEntry): boolean {
   return account.type === 'transaction'
 }
 
-/** An account's identity column: its icon and displayed (emoji-stripped) name, growing to fill. */
-function AccountName({ name }: { name: string }) {
+/**
+ * An account's identity column: its icon and displayed (emoji-stripped) name,
+ * growing to fill, with a "Deleted in Up" badge when the sync has flagged it.
+ */
+function AccountName({ account }: { account: AccountDirectoryEntry }) {
   return (
     <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-      <AccountIcon name={name} size={16} />
+      <AccountIcon name={account.name} size={16} />
       <Text fw={600} size="sm" truncate>
-        {accountLabel(name)}
+        {accountLabel(account.name)}
       </Text>
+      {account.deleted_from_source_at && <DeletedInUpBadge />}
     </Group>
   )
 }
@@ -131,7 +136,7 @@ function StaysRow({
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   return (
     <ListRow gap="sm">
-      <AccountName name={account.name} />
+      <AccountName account={account} />
       <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
       <FortnightlyAmount
         cents={rounded}
@@ -154,7 +159,7 @@ function StaysCard({
   return (
     <AppCard withBorder padding="sm">
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <AccountName name={account.name} />
+        <AccountName account={account} />
         <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
           <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
           <FortnightlyAmount cents={rounded} />
@@ -234,7 +239,7 @@ function RecommendedSplitRow({
         ) : undefined
       }
     >
-      <AccountName name={account.name} />
+      <AccountName account={account} />
       <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
       <FortnightlyAmount
         cents={rounded}
@@ -271,7 +276,7 @@ function RecommendedSplitCard({
       style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-warning-6)' } : undefined}
     >
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <AccountName name={account.name} />
+        <AccountName account={account} />
         <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
           <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
           <FortnightlyAmount cents={rounded} />

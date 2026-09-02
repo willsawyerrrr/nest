@@ -25,9 +25,11 @@ import {
 } from '@tabler/icons-react'
 import type { NetWorthProjectionPoint } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
+import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { ProjectionHorizonOption } from '../lib/retirement'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
 import { netWorthColorName } from '../lib/tokens'
+import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { EmptyState } from './EmptyState'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
@@ -40,6 +42,10 @@ interface NetWorthViewProps {
   equity: EquityHolding[]
   liabilities: Liability[]
   onToggleExclude: (accountId: string, exclude: boolean) => void
+  /** Removes an account Up has dropped from Nest, once its dependencies are cleared. */
+  onRemoveAccount?: (accountId: string) => void | Promise<void>
+  /** Names of the savings goals still linked to each account, keyed by account id. */
+  linkedGoalNamesByAccount?: Map<string, string[]>
   /** The net worth projected forward, and the calendar year of its first point. */
   projection?: NetWorthProjectionPoint[]
   projectionBaseYear?: number
@@ -94,6 +100,7 @@ function AccountGroup({
   accentIcon,
   collapsible = false,
   onToggleExclude,
+  onRequestRemove,
 }: {
   title: string
   accounts: Account[]
@@ -106,6 +113,8 @@ function AccountGroup({
   accentIcon: ReactNode
   collapsible?: boolean
   onToggleExclude: (accountId: string, exclude: boolean) => void
+  /** Opens the Remove-from-Nest confirm for an account Up has dropped. */
+  onRequestRemove?: (account: Account) => void
 }) {
   const [opened, { toggle }] = useDisclosure(false)
 
@@ -128,10 +137,31 @@ function AccountGroup({
     ) : (
       <Stack gap={0}>
         {accounts.map((account) => (
-          <ListRow key={account.id} gap="sm">
+          <ListRow
+            key={account.id}
+            gap="sm"
+            caption={
+              account.deleted_from_source_at && onRequestRemove ? (
+                <Group gap="xs" wrap="nowrap">
+                  <Text size="xs" c="dimmed">
+                    Deleted in Up.
+                  </Text>
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    color="red"
+                    onClick={() => onRequestRemove(account)}
+                  >
+                    Remove from Nest
+                  </Button>
+                </Group>
+              ) : undefined
+            }
+          >
             <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
               {account.name}
             </Text>
+            {account.deleted_from_source_at && <DeletedInUpBadge />}
             <MoneyText
               cents={account.balance_cents}
               size="sm"
@@ -293,6 +323,8 @@ export function NetWorthView({
   equity,
   liabilities,
   onToggleExclude,
+  onRemoveAccount,
+  linkedGoalNamesByAccount,
   projection,
   projectionBaseYear,
   horizon,
@@ -300,6 +332,24 @@ export function NetWorthView({
 }: NetWorthViewProps) {
   const breakdown = netWorthBreakdown(accounts, superIds, liabilities, equity)
   const [editing, { toggle: toggleEditing }] = useDisclosure(false)
+  const { confirm, modal } = useConfirmDelete()
+
+  const requestRemove = onRemoveAccount
+    ? (account: Account) => {
+        const linkedGoals = linkedGoalNamesByAccount?.get(account.id) ?? []
+        confirm({
+          title: 'Remove from Nest?',
+          itemLabel: account.name,
+          description:
+            linkedGoals.length > 0
+              ? `Up no longer has this account. ${linkedGoals.join(
+                  ', ',
+                )} still links to it and will fall back to a manually entered balance.`
+              : 'Up no longer has this account and nothing links to it.',
+          onConfirm: () => onRemoveAccount(account.id),
+        })
+      }
+    : undefined
   // Super always counts towards net worth, so only the other and excluded
   // groups can be edited; without any such account there is nothing to edit.
   const hasTogglable = breakdown.otherAccounts.length > 0 || breakdown.excludedAccounts.length > 0
@@ -360,6 +410,7 @@ export function NetWorthView({
         accentColor={netWorthColorName.cash}
         accentIcon={<IconWallet size={14} />}
         onToggleExclude={onToggleExclude}
+        {...(requestRemove && { onRequestRemove: requestRemove })}
       />
       {breakdown.equityHoldings.length > 0 && (
         <EquityGroup
@@ -385,8 +436,10 @@ export function NetWorthView({
           accentColor={netWorthColorName.excluded}
           accentIcon={<IconEyeOff size={14} />}
           onToggleExclude={onToggleExclude}
+          {...(requestRemove && { onRequestRemove: requestRemove })}
         />
       )}
+      {modal}
     </PageSection>
   )
 }

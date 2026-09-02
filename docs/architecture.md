@@ -143,6 +143,21 @@ RLS.
   it no-ops where they are absent. Sync writes go through the
   `upsert_up_accounts` RPC, which upserts each account's identity (dedupe on
   `(source, external_id)`) and its balance (on `account_id`) in one transaction.
+- **Account reconcile** — after the upsert, for a member whose token read
+  succeeded, the ids that token returned are authoritative for that member's
+  individually-owned `source = 'up'` accounts, and `reconcile_up_accounts`
+  (SECURITY DEFINER, `service_role` only — `service_role` has no delete on
+  `accounts`) settles the rest: an account the token no longer reports is
+  deleted when nothing references it (its `account_balance` cascades) or kept
+  and stamped `accounts.deleted_from_source_at` when a savings goal, a budget
+  line's funding account, the household pay account, or a member's super link
+  still holds it; an account that reappears in a later sync has the stamp
+  cleared. The PWA shows a stamped account as "deleted in Up" with a
+  Remove-from-Nest action (a direct RLS delete) once its dependency is cleared.
+  A failed or absent token read reconciles nothing, and joint accounts (owned by
+  neither member) are out of scope — reconciling them safely needs every
+  connected member's read to have succeeded in the same run, which this pass
+  does not yet coordinate.
 - **Gift-category transactions** — after the account pass, `up-sync` polls each
   member's `gifts-and-charity` transactions and settles them through the
   `sync_up_gift_transactions` RPC (one call per member, over that member's own

@@ -35,6 +35,7 @@ const account: Account = {
   balance_cents: 100_000_00,
   currency: 'AUD',
   exclude_from_net_worth: false,
+  deleted_from_source_at: null,
   owner_member_id: 'm1',
   created_at: '',
   updated_at: '',

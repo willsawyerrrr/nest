@@ -33,6 +33,23 @@ describe('SplitsScreen', () => {
     expect(screen.getByText('$500.00')).toBeInTheDocument()
   })
 
+  it('badges a routed saver that the sync flagged as deleted in Up', () => {
+    const saver = account({
+      id: 's1',
+      name: 'Emergency',
+      source: 'up',
+      type: 'savings',
+      deleted_from_source_at: '2026-09-01T00:00:00Z',
+    })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+    })
+
+    expect(screen.getByText('Deleted in Up')).toBeInTheDocument()
+  })
+
   it('strips a saver’s leading emoji from its displayed name', () => {
     const saver = account({ id: 's1', name: '🏖️ Holiday', source: 'up', type: 'savings' })
     renderScreen({

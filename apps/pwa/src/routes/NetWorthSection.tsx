@@ -146,6 +146,17 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     effectiveAccounts.map((account) => [account.id, account.balance_cents]),
   )
   const savingsGoals = netWorthGoals(goals.goals ?? [], budgetLines.lines ?? [], balanceByAccountId)
+  // The goals still linked to each account, so removing one Up has dropped can
+  // warn which goals fall back to a manual balance.
+  const linkedGoalNamesByAccount = new Map<string, string[]>()
+  for (const goal of goals.goals ?? []) {
+    if (goal.linked_account_id === null) {
+      continue
+    }
+    const names = linkedGoalNamesByAccount.get(goal.linked_account_id) ?? []
+    names.push(goal.name)
+    linkedGoalNamesByAccount.set(goal.linked_account_id, names)
+  }
   // Split the other accounts so a negative-balance account (credit card, loan)
   // becomes its own debt band rather than sinking the cash asset band.
   const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
@@ -175,8 +186,13 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
       projectionBaseYear={today.getFullYear()}
       horizon={horizon}
       onHorizonChange={changeHorizon}
+      linkedGoalNamesByAccount={linkedGoalNamesByAccount}
       onToggleExclude={(id, exclude) => {
         void accounts.update(id, { exclude_from_net_worth: exclude })
+      }}
+      onRemoveAccount={async (id) => {
+        await accounts.remove(id)
+        await goals.reload()
       }}
     />
   )

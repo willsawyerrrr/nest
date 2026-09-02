@@ -646,6 +646,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (`willsawyerrrr-dev` / WSD team). Do not produce ad-hoc chat plans or
   planning documents outside Linear — capture scope, decisions, and
   breakdown as Linear issues/documents on the Nest project instead.
+- Every piece of implementation work traces to a Linear issue. Before
+  starting, there is an issue for it (create one if not); the branch name
+  carries the issue key (`willsawyerrrr/wsd-<n>-<slug>`, Linear's own
+  format) so the PR links automatically, and the PR body names the issue.
+- The work drives the issue's lifecycle: move it to **In Progress** when a
+  branch is cut, **In Review** when the PR opens (attach the PR to the
+  issue), and let the merge move it to **Done**. Never leave a merged PR's
+  issue sitting in Backlog/Todo, or an unmerged issue marked Done.
+- Anything found along the way that is not part of the current issue —
+  a deferred slice, a follow-up, a bug, a polish pass on already-merged
+  work — gets its own new Linear issue (related to the originating one),
+  not just a note in a PR description. One issue per shippable change.
 - Money is stored as integer minor units (cents); never floats.
 - Integer-cent numeric literals are grouped to read as dollars: a trailing `_NN`
   for the cents, then `_NNN` groups for the dollars (e.g. `18_200_00` = $18,200.00).

@@ -38,6 +38,7 @@ export function SplitsSection({ householdId }: { householdId: string }) {
       payAccountId={payAccount.payAccountId}
       onSetPayAccount={(id) => void payAccount.setPayAccount(id)}
       onConfirm={(id, cents) => void paySplits.confirm(id, cents)}
+      onClear={(id) => void paySplits.clear(id)}
     />
   )
 }

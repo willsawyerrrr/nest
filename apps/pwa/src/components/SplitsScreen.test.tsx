@@ -14,6 +14,7 @@ function renderScreen(overrides: Partial<Parameters<typeof SplitsScreen>[0]> = {
       payAccountId={null}
       onSetPayAccount={vi.fn()}
       onConfirm={vi.fn()}
+      onClear={vi.fn()}
       {...overrides}
     />,
   )
@@ -275,5 +276,51 @@ describe('SplitsScreen', () => {
     expect(screen.queryByText(/to update/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Update')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /confirm|mark as set/i })).not.toBeInTheDocument()
+  })
+
+  it('clears a confirmed split even when it matches the recommendation', async () => {
+    const user = userEvent.setup()
+    const onClear = vi.fn()
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+      configuredByAccount: new Map([['s1', 500_00]]),
+      onClear,
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(onClear).toHaveBeenCalledWith('s1')
+  })
+
+  it('offers no Clear on a recommendation that was never confirmed', () => {
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+      configuredByAccount: new Map(),
+    })
+
+    expect(screen.getByText('Not set in Up yet')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
+  })
+
+  it('offers Clear alongside Confirm on a drifted confirmed split', async () => {
+    const user = userEvent.setup()
+    const onClear = vi.fn()
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 501_00, goal_id: 'g1' })],
+      configuredByAccount: new Map([['s1', 350_00]]),
+      onClear,
+    })
+
+    expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(onClear).toHaveBeenCalledWith('s1')
   })
 })

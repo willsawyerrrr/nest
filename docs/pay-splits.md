@@ -33,6 +33,13 @@ drift, offering a Confirm to record the new amount and clear the alert.
   household has confirmed as set in Up (one `pay_split` row per account),
   compares it to the recommendation to surface drift, and offers a Confirm to
   record the new amount. The confirmation is app-side — it is not read from Up.
+- **Clearing a confirmed split.** A confirmed account offers a Clear that deletes
+  its `pay_split` row. The account then reverts to an unconfirmed recommendation
+  (`configuredCents === null`), which the Splits tab already flags as "Not set in
+  Up yet" with a "Mark as set" button — the signal that the split needs
+  establishing, as when the splits an employer paid are gone after a job change.
+  A plain delete, one account at a time: no bulk "clear all", no separate
+  paused or inactive state.
 - **One household pay account.** The household designates a single spending
   (`type = 'transaction'`) account as the source pay lands in
   (`households.pay_account_id`). It affects the Splits view only — pay stays
@@ -153,7 +160,10 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   yellow left border and an "Update" badge), shows the change ("was $350 → $400 /
   fn", or "Not set in Up yet"), and offers a Confirm button that records the
   rounded recommendation. A "N to update" badge by the heading summarises how many
-  accounts need a re-confirm.
+  accounts need a re-confirm. Any row with a confirmed split — drifting or not —
+  also carries a subdued Clear button that deletes the `pay_split` row (via
+  `usePaySplits`'s `clear`), dropping the account back to an unconfirmed
+  recommendation flagged "Not set in Up yet".
 
 ## Out of scope / future
 
@@ -181,4 +191,6 @@ non-Savings/Investments lines (Savings/Investments show the goal-derived route);
 and the Splits tab (between Budget and Goals) designates the pay account, lists
 every other routed account's recommended fortnightly split rounded up to the
 nearest $5, flags accounts whose confirmed split has drifted (or is unset) with a
-Confirm to record the new amount, and shows an Unassigned nudge.
+Confirm to record the new amount, offers a Clear on any confirmed account that
+deletes its `pay_split` row and reverts it to an unconfirmed recommendation, and
+shows an Unassigned nudge.

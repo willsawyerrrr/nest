@@ -42,8 +42,9 @@ describe('SplitsSection', () => {
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
-  it('renders the splits screen and forwards confirmations', () => {
+  it('renders the splits screen and forwards confirmations and clears', () => {
     const confirm = vi.fn()
+    const clear = vi.fn()
     hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
     hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
     hooks.useAccountDirectory.mockReturnValue({
@@ -51,7 +52,7 @@ describe('SplitsSection', () => {
       accounts: [{ id: 'a1', name: 'Spending' }],
     })
     hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
-    hooks.usePaySplits.mockReturnValue({ loading: false, configuredByAccount: {}, confirm })
+    hooks.usePaySplits.mockReturnValue({ loading: false, configuredByAccount: {}, confirm, clear })
     const setPayAccount = vi.fn()
     hooks.usePayAccount.mockReturnValue({ loading: false, payAccountId: null, setPayAccount })
     render(<SplitsSection householdId="h1" />)
@@ -66,5 +67,9 @@ describe('SplitsSection', () => {
     const onSetPayAccount = hooks.screenProps?.onSetPayAccount as (id: string | null) => void
     onSetPayAccount('a1')
     expect(setPayAccount).toHaveBeenCalledWith('a1')
+
+    const onClear = hooks.screenProps?.onClear as (id: string) => void
+    onClear('a1')
+    expect(clear).toHaveBeenCalledWith('a1')
   })
 })

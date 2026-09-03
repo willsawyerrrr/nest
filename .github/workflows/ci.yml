@@ -64,6 +64,15 @@ jobs:
     # time budget. Each shard records a blob report of its coverage; the `test`
     # job merges them. A single shard covers only part of the suite, so it skips
     # the thresholds (they are enforced on the merged result instead).
+    #
+    # The shard runs the `default` reporter alongside `blob`. The v8 worker
+    # sends its coverage payload to the host over a fire-and-forget RPC that
+    # nothing awaits, so with `blob` as the only reporter — it does no
+    # end-of-run terminal work — the process reaches coverage finalisation
+    # before the last payload lands, reads a coverage chunk that is not on
+    # disk yet, and exits non-zero with every test passing. The `default`
+    # reporter's end-of-run rendering yields the event loop long enough for
+    # that payload to arrive first. `blob` stays for `--merge-reports`.
     env:
       VITEST_SKIP_COVERAGE_THRESHOLDS: '1'
       COREPACK_HOME: ${{ github.workspace }}/.corepack
@@ -95,7 +104,7 @@ jobs:
           key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: pnpm-store-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/6 --coverage --reporter=blob
+      - run: pnpm exec vitest run --shard=${{ matrix.shard }}/6 --coverage --reporter=default --reporter=blob
       - uses: actions/upload-artifact@v7
         with:
           name: blob-${{ matrix.shard }}

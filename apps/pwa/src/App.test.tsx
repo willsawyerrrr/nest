@@ -83,6 +83,7 @@ vi.mock('./routes/ChangelogSection', () => ({
   ChangelogSection: () => <div>ChangelogSection</div>,
 }))
 vi.mock('./routes/HomeSection', () => ({ HomeSection: () => <div>HomeSection</div> }))
+vi.mock('./routes/PlanningSection', () => ({ PlanningSection: () => <div>PlanningSection</div> }))
 vi.mock('./routes/EofyShareSection', () => ({
   EofyShareSection: () => <div>EofyShareSection</div>,
 }))
@@ -202,10 +203,23 @@ describe('App', () => {
     ['/breakdowns/b1', 'BreakdownDetailSection'],
     ['/whats-new', 'ChangelogSection'],
     ['/household', 'HomeSection'],
+    ['/planning', 'PlanningSection'],
   ])('routes to %s', async (path, section) => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp([path])
     expect(await screen.findByText(section)).toBeInTheDocument()
+  })
+
+  it('shows the Planning nav entry only while planning mode is active', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp()
+    await screen.findByText('SummarySection')
+    expect(screen.queryByRole('link', { name: 'Planning' })).not.toBeInTheDocument()
+
+    localStorage.setItem('planning-mode:h1', JSON.stringify({ active: true, overrides: {} }))
+    renderApp()
+    expect((await screen.findAllByRole('link', { name: 'Planning' })).length).toBeGreaterThan(0)
+    localStorage.clear()
   })
 
   it('renders the public share route without ever checking the session', async () => {

@@ -43,6 +43,16 @@ describe('GoalScreen refresh', () => {
     expect(screen.getByText(/could not refresh balances/i)).toBeInTheDocument()
   })
 
+  it('passes a real goal and line baseline through to the list when given', () => {
+    renderScreen({
+      goals: [makeGoal({ id: 'g1', name: 'Trip', target_amount_cents: 2_000_000 })],
+      baselineGoals: [makeGoal({ id: 'g1', name: 'Trip', target_amount_cents: 1_000_000 })],
+      baselineLines: [],
+    })
+    // The goal still renders; the baseline props are threaded to GoalList.
+    expect(screen.getByText('Trip')).toBeInTheDocument()
+  })
+
   it('deletes a goal through the list', async () => {
     const user = userEvent.setup()
     const onDeleteGoal = vi.fn().mockResolvedValue(undefined)

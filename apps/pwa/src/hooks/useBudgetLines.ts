@@ -25,6 +25,8 @@ export interface BudgetLineInput {
 
 export interface UseBudgetLinesResult {
   lines: BudgetLine[] | null
+  /** The budget lines before any planning-mode overrides — the real baseline for comparison. */
+  baselineLines: BudgetLine[] | null
   loading: boolean
   reload: () => Promise<void>
   create: (input: BudgetLineInput) => Promise<void>
@@ -34,9 +36,9 @@ export interface UseBudgetLinesResult {
 
 /** Loads and mutates the household's budget lines. RLS scopes reads to the household. */
 export function useBudgetLines(householdId: string): UseBudgetLinesResult {
-  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+  const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'budget_line',
     BudgetLineInput
   >(householdId, { table: 'budget_line', orderBy: 'name' })
-  return { lines: rows, loading, reload, create, update, remove }
+  return { lines: rows, baselineLines: baselineRows, loading, reload, create, update, remove }
 }

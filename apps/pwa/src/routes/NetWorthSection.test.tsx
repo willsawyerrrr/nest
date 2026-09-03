@@ -16,11 +16,15 @@ const hooks = vi.hoisted(() => ({
   useGoals: vi.fn(),
   useBudgetLines: vi.fn(),
   useMembers: vi.fn(),
+  planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
 
 vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
+}))
+vi.mock('../components/PlanningModeProvider', () => ({
+  usePlanningMode: () => ({ active: hooks.planningActive }),
 }))
 vi.mock('../hooks/useAccounts', () => ({ useAccounts: hooks.useAccounts }))
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
@@ -54,6 +58,28 @@ function mockLoaded() {
   hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
   hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
   hooks.useMembers.mockReturnValue({ loading: false, members: [] })
+}
+
+/** A taxable annual salary inflow, so employer SG produces a net super contribution. */
+function salaryInflow() {
+  return {
+    id: 'i1',
+    household_id: 'h1',
+    member_id: 'm1',
+    name: 'Salary',
+    taxable: true,
+    attracts_super: true,
+    type: 'salary',
+    schedule: 'annual',
+    interval_count: null,
+    amount_cents: 100_000_00,
+    hourly_rate_cents: null,
+    hours_per_period: null,
+    starts_on: null,
+    ends_on: null,
+    created_at: '',
+    updated_at: '',
+  }
 }
 
 /** A fully vested share grant fixture, valued at quantity × price per share. */
@@ -291,6 +317,27 @@ describe('NetWorthSection', () => {
     await onRemoveAccount('acc1')
     expect(remove).toHaveBeenCalledWith('acc1')
     expect(reload).toHaveBeenCalled()
+  })
+
+  it('passes a baseline total and projected net worth while planning mode is active', () => {
+    hooks.planningActive = true
+    mockLoaded()
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [{ ...salaryInflow(), amount_cents: 200_000_00 }],
+      baselineInflows: [salaryInflow()],
+    })
+    hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], baselineLines: [] })
+    render(<NetWorthSection householdId="h1" />)
+    hooks.planningActive = false
+
+    expect(typeof hooks.screenProps?.baselineTotalCents).toBe('number')
+    // The bigger salary accrues more super, so the proposed projection ends higher.
+    const projection = hooks.screenProps?.projection as { totalCents: number }[]
+    const proposedEnd = projection[projection.length - 1]?.totalCents ?? 0
+    expect(hooks.screenProps?.baselineProjectionEndCents).toBeLessThan(proposedEnd)
   })
 
   it('toggling exclusion updates the account with the flag', () => {

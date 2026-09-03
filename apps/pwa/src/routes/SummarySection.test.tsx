@@ -13,11 +13,15 @@ const hooks = vi.hoisted(() => ({
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
   useMembers: vi.fn(),
+  planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
 
 vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
+}))
+vi.mock('../components/PlanningModeProvider', () => ({
+  usePlanningMode: () => ({ active: hooks.planningActive }),
 }))
 vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
 vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles }))
@@ -68,5 +72,24 @@ describe('SummarySection', () => {
     render(<SummarySection householdId="h1" />)
     expect(screen.getByTestId('summary-view')).toBeInTheDocument()
     expect(hooks.screenProps).toHaveProperty('summary')
+    expect(hooks.screenProps).not.toHaveProperty('baseline')
+  })
+
+  it('also computes a baseline reconciliation while planning mode is active', () => {
+    hooks.planningActive = true
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [], baselineInflows: [] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], baselineLines: [] })
+    hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
+    hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [] })
+    render(<SummarySection householdId="h1" />)
+    hooks.planningActive = false
+
+    expect(hooks.screenProps).toHaveProperty('baseline')
   })
 })

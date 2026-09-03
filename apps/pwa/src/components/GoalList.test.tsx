@@ -1,8 +1,18 @@
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { planningStorageKey } from '../lib/planningMode'
 import { makeGoal as goal, makeBudgetLine as line, makeSaver as saver } from '../test/fixtures'
 import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { GoalList } from './GoalList'
+import { PlanningModeProvider } from './PlanningModeProvider'
+
+afterEach(() => localStorage.clear())
+
+/** Renders a `GoalList` inside an active planning-mode sandbox. */
+function renderPlanning(ui: React.ReactElement) {
+  localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
+  return render(<PlanningModeProvider householdId="h1">{ui}</PlanningModeProvider>)
+}
 
 function card(name: string): HTMLElement {
   return screen.getByText(name).closest('.mantine-Card-root') as HTMLElement
@@ -391,6 +401,74 @@ describe('GoalList', () => {
     expect(within(manual).getByText('$2,500.00 of $10,000.00')).toBeInTheDocument()
     expect(within(manual).getByText('25%')).toBeInTheDocument()
     expect(within(manual).queryByText(/from up saver/i)).toBeNull()
+  })
+
+  describe('planning-mode comparison', () => {
+    it('shows a required-contribution move for a dated goal whose target changed', () => {
+      const goals = [
+        goal({ id: 'g1', name: 'Trip', target_amount_cents: 2_000_000, target_date: '2035-01-01' }),
+      ]
+      const baselineGoals = [
+        goal({ id: 'g1', name: 'Trip', target_amount_cents: 1_000_000, target_date: '2035-01-01' }),
+      ]
+      renderPlanning(
+        <GoalList
+          goals={goals}
+          lines={[]}
+          savers={[]}
+          baselineGoals={baselineGoals}
+          baselineLines={[]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+      const trip = card('Trip')
+      expect(within(trip).getByText(/needs/)).toBeInTheDocument()
+      expect(within(trip).getByText(/→/)).toBeInTheDocument()
+    })
+
+    it('shows an ETA move for an undated goal whose contribution changed', () => {
+      const goals = [goal({ id: 'g1', name: 'Car', target_amount_cents: 1_000_000 })]
+      const lines = [line({ goal_id: 'g1', amount_cents: 100_000, frequency: 'fortnightly' })]
+      const baselineLines = [
+        line({ goal_id: 'g1', amount_cents: 25_000, frequency: 'fortnightly' }),
+      ]
+      renderPlanning(
+        <GoalList
+          goals={goals}
+          lines={lines}
+          savers={[]}
+          baselineGoals={goals}
+          baselineLines={baselineLines}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+      const car = card('Car')
+      // The faster contribution brings the completion date sooner.
+      expect(within(car).getByText(/sooner\)/)).toBeInTheDocument()
+    })
+
+    it('keeps the plain ETA string when nothing moved it', () => {
+      const goals = [goal({ id: 'g1', name: 'Car', target_amount_cents: 1_000_000 })]
+      const lines = [line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]
+      renderPlanning(
+        <GoalList
+          goals={goals}
+          lines={lines}
+          savers={[]}
+          baselineGoals={goals}
+          baselineLines={lines}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+      expect(within(card('Car')).getByText(/fortnights —/)).toBeInTheDocument()
+      expect(within(card('Car')).queryByText(/→/)).not.toBeInTheDocument()
+    })
   })
 
   describe('on desktop', () => {

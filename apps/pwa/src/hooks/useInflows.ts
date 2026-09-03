@@ -63,6 +63,8 @@ export interface InflowInput {
 
 export interface UseInflowsResult {
   inflows: Inflow[] | null
+  /** The inflows before any planning-mode overrides — the real baseline for comparison. */
+  baselineInflows: Inflow[] | null
   loading: boolean
   reload: () => Promise<void>
   create: (input: InflowInput) => Promise<void>
@@ -72,9 +74,9 @@ export interface UseInflowsResult {
 
 /** Loads and mutates the household's inflows. RLS scopes reads to the household. */
 export function useInflows(householdId: string): UseInflowsResult {
-  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+  const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'inflows',
     InflowInput
   >(householdId, { table: 'inflows', orderBy: 'name' })
-  return { inflows: rows, loading, reload, create, update, remove }
+  return { inflows: rows, baselineInflows: baselineRows, loading, reload, create, update, remove }
 }

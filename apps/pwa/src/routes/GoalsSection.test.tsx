@@ -8,11 +8,15 @@ const hooks = vi.hoisted(() => ({
   useSavers: vi.fn(),
   useUpSync: vi.fn(),
   refreshArg: null as (() => Promise<void>) | null,
+  planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
 
 vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
+}))
+vi.mock('../components/PlanningModeProvider', () => ({
+  usePlanningMode: () => ({ active: hooks.planningActive }),
 }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
 vi.mock('../hooks/useBudgetLines', () => ({ useBudgetLines: hooks.useBudgetLines }))
@@ -70,5 +74,31 @@ describe('GoalsSection', () => {
     const onRefresh = hooks.screenProps!.onRefresh as () => void
     onRefresh()
     expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it('passes the real goals and lines to the screen while planning mode is active', () => {
+    hooks.planningActive = true
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [{ id: 'g1', name: 'Proposed' }],
+      baselineGoals: [{ id: 'g1', name: 'Real' }],
+      reload: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    })
+    hooks.useBudgetLines.mockReturnValue({
+      loading: false,
+      lines: [{ id: 'b1' }],
+      baselineLines: [],
+      reload: vi.fn(),
+    })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [], reload: vi.fn() })
+    hooks.useUpSync.mockReturnValue({ refresh: vi.fn(), refreshing: false, error: null })
+    render(<GoalsSection householdId="h1" />)
+    hooks.planningActive = false
+
+    expect(hooks.screenProps?.baselineGoals).toEqual([{ id: 'g1', name: 'Real' }])
+    expect(hooks.screenProps?.baselineLines).toEqual([])
   })
 })

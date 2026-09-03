@@ -29,6 +29,7 @@ import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { ProjectionHorizonOption } from '../lib/retirement'
 import { netWorthBreakdown, type EquityHolding, type Liability } from '../lib/super'
 import { netWorthColorName } from '../lib/tokens'
+import { ComparedAmount } from './ComparedAmount'
 import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { EmptyState } from './EmptyState'
 import { ListRow } from './ListRow'
@@ -49,6 +50,13 @@ interface NetWorthViewProps {
   /** The net worth projected forward, and the calendar year of its first point. */
   projection?: NetWorthProjectionPoint[]
   projectionBaseYear?: number
+  /**
+   * The real total net worth and projected end net worth, from the
+   * un-sandboxed rows. Supplied while planning mode is active; the total and the
+   * projection figure then show their `real → proposed (±Δ)` move.
+   */
+  baselineTotalCents?: number
+  baselineProjectionEndCents?: number
   /** The selected projection horizon and a callback to change it. */
   horizon?: ProjectionHorizonOption
   onHorizonChange?: (horizon: ProjectionHorizonOption) => void
@@ -329,8 +337,11 @@ export function NetWorthView({
   projectionBaseYear,
   horizon,
   onHorizonChange,
+  baselineTotalCents,
+  baselineProjectionEndCents,
 }: NetWorthViewProps) {
   const breakdown = netWorthBreakdown(accounts, superIds, liabilities, equity)
+  const projectionEndCents = projection?.at(-1)?.totalCents ?? 0
   const [editing, { toggle: toggleEditing }] = useDisclosure(false)
   const { confirm, modal } = useConfirmDelete()
 
@@ -374,17 +385,33 @@ export function NetWorthView({
           <Text size="xs" c="dimmed">
             Total net worth
           </Text>
-          <MoneyText cents={breakdown.totalCents} colored fw={700} fz="xl" />
+          <ComparedAmount
+            baselineCents={baselineTotalCents ?? breakdown.totalCents}
+            proposedCents={breakdown.totalCents}
+            colored
+            fw={700}
+            fz="xl"
+          />
         </Stack>
       </Card>
 
       {projection && (
-        <NetWorthProjectionChart
-          points={projection}
-          baseYear={projectionBaseYear ?? 0}
-          horizon={horizon}
-          onHorizonChange={onHorizonChange}
-        />
+        <>
+          <NetWorthProjectionChart
+            points={projection}
+            baseYear={projectionBaseYear ?? 0}
+            horizon={horizon}
+            onHorizonChange={onHorizonChange}
+          />
+          <Text size="xs" c="dimmed" ta="center">
+            Projected net worth{' '}
+            <ComparedAmount
+              span
+              baselineCents={baselineProjectionEndCents ?? projectionEndCents}
+              proposedCents={projectionEndCents}
+            />
+          </Text>
+        </>
       )}
 
       <AccountGroup

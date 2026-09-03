@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Alert, Button, Group, Text } from '@mantine/core'
 import { IconFlask } from '@tabler/icons-react'
 import { usePlanningMode } from './PlanningModeProvider'
@@ -25,9 +26,14 @@ export function PlanningModeBanner() {
           Changes to pays, bills, and savings goals aren’t saved
           {pendingCount > 0 && ` — ${pendingCount} pending change${pendingCount === 1 ? '' : 's'}`}.
         </Text>
-        <Button size="xs" color="warning" variant="filled" onClick={exit} style={{ flexShrink: 0 }}>
-          Exit planning mode
-        </Button>
+        <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Button size="xs" color="warning" variant="light" component={Link} to="/planning">
+            Review
+          </Button>
+          <Button size="xs" color="warning" variant="filled" onClick={exit}>
+            Exit planning mode
+          </Button>
+        </Group>
       </Group>
     </Alert>
   )

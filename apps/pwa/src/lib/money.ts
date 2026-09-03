@@ -54,12 +54,27 @@ export function formatPerYear(cents: number): string {
  */
 export function moneyColor(cents: number): string | undefined {
   if (cents > 0) {
-    return 'light-dark(var(--mantine-color-positive-7), var(--mantine-color-positive-4))'
+    return POSITIVE_MONEY_COLOR
   }
   if (cents < 0) {
-    return 'light-dark(var(--mantine-color-negative-7), var(--mantine-color-negative-4))'
+    return NEGATIVE_MONEY_COLOR
   }
   return undefined
+}
+
+const POSITIVE_MONEY_COLOR =
+  'light-dark(var(--mantine-color-positive-7), var(--mantine-color-positive-4))'
+const NEGATIVE_MONEY_COLOR =
+  'light-dark(var(--mantine-color-negative-7), var(--mantine-color-negative-4))'
+
+/**
+ * The money-sign colour for a figure known to be non-zero — a delta between two
+ * different amounts, or a shift that has already been shown to move. Always
+ * defined: positive amounts take the `positive` token, everything else the
+ * `negative` one, so a caller need not thread `undefined` through.
+ */
+export function signMoneyColor(cents: number): string {
+  return cents > 0 ? POSITIVE_MONEY_COLOR : NEGATIVE_MONEY_COLOR
 }
 
 /** Integer cents as a dollars number for a `NumberInput` value, or `''` when unset. */

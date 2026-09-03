@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react'
 import { Badge, Group, Progress, Stack, Text } from '@mantine/core'
-import { fortnightlyCents, projectGoal } from '@nest/plan'
+import { fortnightlyCents, projectGoal, type GoalProjection } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import { useIsWide } from '../hooks/useIsWide'
@@ -7,6 +8,7 @@ import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { AppCard } from './AppCard'
+import { ComparedAmount, ComparedDate } from './ComparedAmount'
 import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
@@ -18,6 +20,10 @@ interface GoalListProps {
   goals: Goal[]
   lines: BudgetLine[]
   savers: Saver[]
+  /** The real goals a planning-mode comparison reads; defaults to `goals` (no delta). */
+  baselineGoals?: Goal[]
+  /** The real budget lines a planning-mode comparison reads; defaults to `lines` (no delta). */
+  baselineLines?: BudgetLine[]
   onCreate: (input: GoalInput) => Promise<void>
   onUpdate: (id: string, input: GoalInput) => Promise<void>
   onDelete: (id: string) => void
@@ -41,20 +47,28 @@ function pluraliseFortnights(count: number): string {
   return `${count} ${count === 1 ? 'fortnight' : 'fortnights'}`
 }
 
-/** A goal's derived display: its effective balance, progress, status flag, and ETA text. */
+/** A goal's derived display: its effective balance, progress, status flag, and ETA. */
 interface GoalDisplay {
   currentBalanceCents: number
   percent: number
   status: { label: string; color: string }
-  eta: string
+  /**
+   * The ETA line. Where a `baseline` projection was passed and the sandbox has
+   * moved the figure, the required contribution (dated goal) or the projected
+   * completion date (undated goal) reads `real → proposed (±Δ)`.
+   */
+  eta: ReactNode
 }
 
-/** Derives a goal's progress, status flag, and ETA from its target and contribution. */
-function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: number): GoalDisplay {
+/** A goal's raw projection from its effective balance and fortnightly contribution. */
+function goalProjection(
+  goal: Goal,
+  saver: Saver | undefined,
+  contributionCents: number,
+): GoalProjection {
   // A linked saver's synced balance overrides the manually entered one.
   const currentBalanceCents = saver ? saver.balance_cents : goal.current_balance_cents
-
-  const projection = projectGoal(
+  return projectGoal(
     {
       targetAmountCents: goal.target_amount_cents,
       currentBalanceCents,
@@ -63,6 +77,23 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
     contributionCents,
     new Date(),
   )
+}
+
+/**
+ * Derives a goal's progress, status flag, and ETA from its target and
+ * contribution. `baseline`, when given, is the same projection from the real
+ * rows: the ETA line then shows what the sandbox edit moved.
+ */
+function goalDisplay(
+  goal: Goal,
+  saver: Saver | undefined,
+  contributionCents: number,
+  baseline?: GoalProjection,
+): GoalDisplay {
+  // A linked saver's synced balance overrides the manually entered one.
+  const currentBalanceCents = saver ? saver.balance_cents : goal.current_balance_cents
+
+  const projection = goalProjection(goal, saver, contributionCents)
 
   const percent =
     goal.target_amount_cents > 0
@@ -70,7 +101,7 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
       : 100
 
   let status: { label: string; color: string }
-  let eta: string
+  let eta: ReactNode
   if (projection.alreadyMet) {
     status = { label: 'Reached', color: 'positive' }
     eta = 'Goal reached.'
@@ -80,17 +111,36 @@ function goalDisplay(goal: Goal, saver: Saver | undefined, contributionCents: nu
     status = onTrack
       ? { label: 'On track', color: 'positive' }
       : { label: 'Behind', color: 'warning' }
-    eta = `By ${formatIsoDate(goal.target_date)} needs ${formatPerFortnight(required)}${
-      onTrack ? '' : ` (contributing ${formatPerFortnight(contributionCents)})`
-    }`
+    const suffix = onTrack ? '' : ` (contributing ${formatPerFortnight(contributionCents)})`
+    const baselineRequired = baseline?.requiredFortnightlyContributionCents ?? required
+    const lead = `By ${formatIsoDate(goal.target_date)} needs `
+    eta =
+      baselineRequired === required ? (
+        `${lead}${formatPerFortnight(required)}${suffix}`
+      ) : (
+        <>
+          {lead}
+          <ComparedAmount span baselineCents={baselineRequired} proposedCents={required} />
+          {` / fn${suffix}`}
+        </>
+      )
   } else if (
     projection.fortnightsToTarget !== null &&
     projection.projectedCompletionDate !== null
   ) {
     status = { label: 'On track', color: 'positive' }
-    eta = `${pluraliseFortnights(projection.fortnightsToTarget)} — ${formatIsoDate(
-      projection.projectedCompletionDate,
-    )}`
+    const completionIso = projection.projectedCompletionDate
+    const baselineIso = baseline?.projectedCompletionDate ?? completionIso
+    const lead = `${pluraliseFortnights(projection.fortnightsToTarget)} — `
+    eta =
+      baselineIso === completionIso ? (
+        `${lead}${formatIsoDate(completionIso)}`
+      ) : (
+        <>
+          {lead}
+          <ComparedDate span baselineIso={baselineIso} proposedIso={completionIso} />
+        </>
+      )
   } else {
     status = { label: 'No ETA', color: 'gray' }
     eta = 'Link a savings item to project an ETA.'
@@ -103,6 +153,10 @@ interface GoalItemProps {
   goal: Goal
   saver: Saver | undefined
   contributionCents: number
+  /** The real fortnightly contribution funding the goal, for the planning-mode delta. */
+  baselineContributionCents: number
+  /** The goal's projection from the real rows, for the ETA delta. */
+  baselineProjection: GoalProjection
   onEdit: () => void
   onDelete: () => void
 }
@@ -113,14 +167,24 @@ interface GoalItemProps {
  * right-aligned in fixed columns, the controls at the end, and the ETA on a
  * dimmed caption line.
  */
-function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
-  const { percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+function GoalRow({
+  goal,
+  saver,
+  contributionCents,
+  baselineContributionCents,
+  baselineProjection,
+  onEdit,
+  onDelete,
+}: GoalItemProps) {
+  const { percent, status, eta } = goalDisplay(goal, saver, contributionCents, baselineProjection)
   const saverDeleted = Boolean(saver?.deleted_from_source_at)
-  const caption = saver
-    ? `${eta} · From Up saver ${saver.name}${
-        saverDeleted ? ' — deleted in Up, relink this goal' : ''
-      }`
-    : eta
+  const caption = (
+    <Text size="xs" c="dimmed" component="div">
+      {eta}
+      {saver &&
+        ` · From Up saver ${saver.name}${saverDeleted ? ' — deleted in Up, relink this goal' : ''}`}
+    </Text>
+  )
   return (
     <ListRow caption={caption}>
       <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
@@ -144,6 +208,7 @@ function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemP
       />
       <FortnightlyAmount
         cents={contributionCents}
+        baselineCents={baselineContributionCents}
         justify="flex-end"
         style={{ width: '7rem', flexShrink: 0 }}
       />
@@ -155,8 +220,20 @@ function GoalRow({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemP
 }
 
 /** One goal as a compact bordered card for mobile: progress toward its target and its ETA. */
-function GoalCard({ goal, saver, contributionCents, onEdit, onDelete }: GoalItemProps) {
-  const { currentBalanceCents, percent, status, eta } = goalDisplay(goal, saver, contributionCents)
+function GoalCard({
+  goal,
+  saver,
+  contributionCents,
+  baselineProjection,
+  onEdit,
+  onDelete,
+}: GoalItemProps) {
+  const { currentBalanceCents, percent, status, eta } = goalDisplay(
+    goal,
+    saver,
+    contributionCents,
+    baselineProjection,
+  )
   return (
     <AppCard withBorder padding="sm">
       <Stack gap="xs">
@@ -222,11 +299,33 @@ function GoalItem(props: GoalItemProps) {
 }
 
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
-export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }: GoalListProps) {
+export function GoalList({
+  goals,
+  lines,
+  savers,
+  baselineGoals = goals,
+  baselineLines = lines,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: GoalListProps) {
   // Goals with an active linked contribution lead, each partition keeping its original order.
   const funded = goals.filter((goal) => contributionForGoal(goal.id, lines) > 0)
   const unfunded = goals.filter((goal) => contributionForGoal(goal.id, lines) === 0)
   const orderedGoals = [...funded, ...unfunded]
+
+  const baselineGoalById = new Map(baselineGoals.map((goal) => [goal.id, goal]))
+  // The real projection each goal is compared against: its baseline row (falling
+  // back to the sandbox row for a goal created in the sandbox) at the real
+  // funding rate.
+  const baselineFor = (goal: Goal) => {
+    const realGoal = baselineGoalById.get(goal.id) ?? goal
+    const realContributionCents = contributionForGoal(goal.id, baselineLines)
+    return {
+      contributionCents: realContributionCents,
+      projection: goalProjection(realGoal, linkedSaver(realGoal, savers), realContributionCents),
+    }
+  }
 
   return (
     <Stack gap="sm">
@@ -238,15 +337,20 @@ export function GoalList({ goals, lines, savers, onCreate, onUpdate, onDelete }:
         onCreate={onCreate}
         onUpdate={onUpdate}
         onDelete={onDelete}
-        renderItem={(goal, { onEdit, onDelete: onDeleteItem }) => (
-          <GoalItem
-            goal={goal}
-            saver={linkedSaver(goal, savers)}
-            contributionCents={contributionForGoal(goal.id, lines)}
-            onEdit={onEdit}
-            onDelete={onDeleteItem}
-          />
-        )}
+        renderItem={(goal, { onEdit, onDelete: onDeleteItem }) => {
+          const baseline = baselineFor(goal)
+          return (
+            <GoalItem
+              goal={goal}
+              saver={linkedSaver(goal, savers)}
+              contributionCents={contributionForGoal(goal.id, lines)}
+              baselineContributionCents={baseline.contributionCents}
+              baselineProjection={baseline.projection}
+              onEdit={onEdit}
+              onDelete={onDeleteItem}
+            />
+          )
+        }}
         renderForm={({ initial, onSubmit, onCancel }) => (
           <GoalForm initial={initial} savers={savers} onSubmit={onSubmit} onCancel={onCancel} />
         )}

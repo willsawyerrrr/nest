@@ -332,9 +332,9 @@ the workflow token is scoped `contents: read`:
   typecheck / build (~49s). Not the binding constraint.
 - **test** — the Vitest workspace, sharded across six parallel runners with V8
   coverage. A `test-shard` matrix job runs
-  `vitest run --shard=N/6 --coverage --reporter=blob` on six runners (each
-  covering a sixth of the files, the union running every test) and uploads its
-  blob report; a `test` job downloads all six and merges them with
+  `vitest run --shard=N/6 --coverage --reporter=default --reporter=blob` on six
+  runners (each covering a sixth of the files, the union running every test) and
+  uploads its blob report; a `test` job downloads all six and merges them with
   `vitest run --merge-reports --coverage`, failing if a package drops below its
   threshold: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at
   100% statements / functions / lines with a branch floor (currently 93). The
@@ -344,7 +344,10 @@ the workflow token is scoped `contents: read`:
   only when all six pass. Alongside the packages and the app, the repo scripts
   carry their own Vitest project (`scripts/vitest.config.js`) so the drift checks'
   comparison logic is exercised against fixtures; it sits outside the coverage
-  thresholds, which measure the money-critical packages and the app.
+  thresholds, which measure the money-critical packages and the app. The shard
+  pairs the `default` reporter with `blob` to sidestep a Vitest coverage race
+  that fails a shard with every test green (the `ci.yml` comment has the
+  detail); `blob` stays for the merge.
 - **rls** — Postgres service; applies the auth shim, every migration in order,
   then the `supabase/tests/rls/` isolation assertions. The shim
   (`setup_auth.sql`) stands in for the Supabase-only primitives the policies read

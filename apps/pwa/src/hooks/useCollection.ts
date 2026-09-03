@@ -62,6 +62,14 @@ export interface CollectionConfig<T extends HouseholdTable> {
 /** The load, create, update, and remove surface of a household collection. */
 export interface HouseholdCollection<RowType, CreateInput, UpdateInput> {
   rows: RowType[] | null
+  /**
+   * The rows exactly as PostgREST returned them, before any planning-mode
+   * override layer. Identical to `rows` outside planning mode and for a table
+   * planning mode does not sandbox; while the sandbox is active over a
+   * whitelisted table it is the real baseline a section recomputes its proposed
+   * derived view against, so the two can be shown side by side.
+   */
+  baselineRows: RowType[] | null
   loading: boolean
   reload: () => Promise<void>
   create: (input: CreateInput) => Promise<void>
@@ -225,7 +233,15 @@ export function useHouseholdCollection<
     [sandboxed, planning, planningTable, table, reload],
   )
 
-  return { rows: rows ?? null, loading: query.isPending, reload, create, update, remove }
+  return {
+    rows: rows ?? null,
+    baselineRows: (query.data as Row<T>[] | undefined) ?? null,
+    loading: query.isPending,
+    reload,
+    create,
+    update,
+    remove,
+  }
 }
 
 /** The load and upsert surface of a financial-year-keyed household collection. */

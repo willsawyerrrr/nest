@@ -1,6 +1,7 @@
 import { Stack, Text } from '@mantine/core'
 import type { TaxBreakdown } from '@nest/tax'
 import { moneyColor } from '../lib/money'
+import { ComparedAmount } from './ComparedAmount'
 import { MoneyText } from './MoneyText'
 
 /**
@@ -12,9 +13,21 @@ import { MoneyText } from './MoneyText'
  * same position in the same words; each decides for itself when a member has
  * enough actuals for a position to mean anything.
  */
-export function WithholdingPosition({ breakdown }: { breakdown: TaxBreakdown }) {
+export function WithholdingPosition({
+  breakdown,
+  baseline,
+}: {
+  breakdown: TaxBreakdown
+  /** The same breakdown from the real rows, for the `real → proposed` balance move in planning mode. */
+  baseline?: TaxBreakdown | undefined
+}) {
   const { paygWithheldCents, totalLiabilityCents, balanceCents } = breakdown
   const color = moneyColor(-balanceCents)
+  // A move that keeps the direction (still a refund, still a bill) reads as a
+  // delta on the same magnitude; one that flips it just shows the new figure,
+  // the surrounding words already having changed.
+  const sameDirection =
+    baseline !== undefined && Math.sign(baseline.balanceCents) === Math.sign(balanceCents)
   return (
     <Stack gap={2}>
       <Text size="sm">
@@ -26,7 +39,15 @@ export function WithholdingPosition({ breakdown }: { breakdown: TaxBreakdown }) 
           'Tracking toward no refund or bill.'
         ) : (
           <>
-            Tracking toward a <MoneyText span fw={600} cents={Math.abs(balanceCents)} />{' '}
+            Tracking toward a{' '}
+            <ComparedAmount
+              span
+              fw={600}
+              baselineCents={
+                sameDirection ? Math.abs(baseline.balanceCents) : Math.abs(balanceCents)
+              }
+              proposedCents={Math.abs(balanceCents)}
+            />{' '}
             {balanceCents < 0 ? 'refund' : 'bill'}.
           </>
         )}

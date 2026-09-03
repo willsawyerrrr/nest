@@ -14,6 +14,8 @@ export interface GoalInput {
 
 export interface UseGoalsResult {
   goals: Goal[] | null
+  /** The goals before any planning-mode overrides — the real baseline for comparison. */
+  baselineGoals: Goal[] | null
   loading: boolean
   reload: () => Promise<void>
   create: (input: GoalInput) => Promise<void>
@@ -23,9 +25,9 @@ export interface UseGoalsResult {
 
 /** Loads and mutates the household's savings goals. RLS scopes reads to the household. */
 export function useGoals(householdId: string): UseGoalsResult {
-  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+  const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'savings_goal',
     GoalInput
   >(householdId, { table: 'savings_goal', orderBy: 'name' })
-  return { goals: rows, loading, reload, create, update, remove }
+  return { goals: rows, baselineGoals: baselineRows, loading, reload, create, update, remove }
 }

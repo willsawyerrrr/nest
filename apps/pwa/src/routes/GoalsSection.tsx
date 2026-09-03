@@ -1,12 +1,14 @@
 import { useCallback } from 'react'
 import { GoalScreen } from '../components/GoalScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { usePlanningMode } from '../components/PlanningModeProvider'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGoals } from '../hooks/useGoals'
 import { useSavers } from '../hooks/useSavers'
 import { useUpSync } from '../hooks/useUpSync'
 
 export function GoalsSection({ householdId }: { householdId: string }) {
+  const { active: planning } = usePlanningMode()
   const goals = useGoals(householdId)
   const budgetLines = useBudgetLines(householdId)
   const savers = useSavers()
@@ -32,6 +34,10 @@ export function GoalsSection({ householdId }: { householdId: string }) {
       goals={goals.goals ?? []}
       lines={budgetLines.lines ?? []}
       savers={savers.savers ?? []}
+      {...(planning && {
+        baselineGoals: goals.baselineGoals ?? [],
+        baselineLines: budgetLines.baselineLines ?? [],
+      })}
       onCreateGoal={goals.create}
       onUpdateGoal={goals.update}
       onDeleteGoal={goals.remove}

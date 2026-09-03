@@ -16,6 +16,7 @@ import type { Amounts, BudgetSummary } from '@nest/plan'
 import { useIsWide } from '../hooks/useIsWide'
 import { formatCents } from '../lib/money'
 import { chartColors } from '../lib/tokens'
+import { ComparedAmount } from './ComparedAmount'
 import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
 import { MoneyText } from './MoneyText'
@@ -41,6 +42,12 @@ const INCOME_BASIS_STORAGE_KEY = 'summary-income-basis'
 
 interface SummaryViewProps {
   summary: BudgetSummary
+  /**
+   * The same reconciliation computed from the real (un-sandboxed) rows. Supplied
+   * only while planning mode is active; each ledger row then shows its
+   * `real → proposed (±Δ)` fortnightly move.
+   */
+  baseline?: BudgetSummary
 }
 
 const percent = new Intl.NumberFormat('en-AU', {
@@ -287,12 +294,14 @@ function AllocationDonut({
 function ReconRow({
   label,
   amounts,
+  baselineFortnightlyCents,
   portion,
   running = false,
   signed = false,
 }: {
   label: string
   amounts: Amounts
+  baselineFortnightlyCents?: number | undefined
   portion: number
   running?: boolean
   signed?: boolean | undefined
@@ -312,12 +321,12 @@ function ReconRow({
         {label}
       </Text>
       <Group gap="sm" wrap="nowrap" justify="flex-end" style={{ flexShrink: 0 }}>
-        <MoneyText
-          cents={amounts.fortnightlyCents}
+        <ComparedAmount
+          baselineCents={baselineFortnightlyCents ?? amounts.fortnightlyCents}
+          proposedCents={amounts.fortnightlyCents}
           colored={signed}
           fw={700}
           size="sm"
-          w={92}
           ta="right"
         />
         <Text fw={700} size="xs" c="dimmed" w={48} ta="right">
@@ -332,11 +341,13 @@ function ReconRow({
 function RunningRow({
   label,
   amounts,
+  baselineFortnightlyCents,
   portion,
   signed = false,
 }: {
   label: string
   amounts: Amounts
+  baselineFortnightlyCents?: number | undefined
   portion: number
   signed?: boolean | undefined
 }) {
@@ -346,7 +357,12 @@ function RunningRow({
         {label}
       </Table.Th>
       <Table.Td ta="right" fw={700}>
-        <MoneyText span cents={amounts.fortnightlyCents} colored={signed} />
+        <ComparedAmount
+          span
+          baselineCents={baselineFortnightlyCents ?? amounts.fortnightlyCents}
+          proposedCents={amounts.fortnightlyCents}
+          colored={signed}
+        />
       </Table.Td>
       <Table.Td ta="right" fw={700}>
         <MoneyText span cents={amounts.annualCents} />
@@ -359,14 +375,26 @@ function RunningRow({
 }
 
 /** A non-running group's row in the wide-screen table. */
-function GroupTableRow({ row, portion }: { row: LedgerRow; portion: number }) {
+function GroupTableRow({
+  row,
+  baselineFortnightlyCents,
+  portion,
+}: {
+  row: LedgerRow
+  baselineFortnightlyCents?: number | undefined
+  portion: number
+}) {
   return (
     <Table.Tr>
       <Table.Th scope="row" c="dimmed">
         {row.label}
       </Table.Th>
       <Table.Td ta="right">
-        <MoneyText span cents={row.amounts.fortnightlyCents} />
+        <ComparedAmount
+          span
+          baselineCents={baselineFortnightlyCents ?? row.amounts.fortnightlyCents}
+          proposedCents={row.amounts.fortnightlyCents}
+        />
       </Table.Td>
       <Table.Td ta="right">
         <MoneyText span cents={row.amounts.annualCents} />
@@ -432,7 +460,7 @@ function OneOffNote({ oneOffCents }: { oneOffCents: number }) {
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  * Any one-off money the year carries is reported under the ledger, outside it.
  */
-export function SummaryView({ summary }: SummaryViewProps) {
+export function SummaryView({ summary, baseline }: SummaryViewProps) {
   const wide = useIsWide()
   const [mode, setMode] = useLocalStorage<IncomeBasis>({
     key: INCOME_BASIS_STORAGE_KEY,
@@ -444,6 +472,13 @@ export function SummaryView({ summary }: SummaryViewProps) {
   const portionOf = (amounts: Amounts): number =>
     portionAgainst(amounts.fortnightlyCents, basisFortnightly)
   const rows = ledgerRows(summary, mode)
+  // Same ledger from the real rows, keyed by label so each row can show its move.
+  const baselineFortnightlyByLabel = new Map(
+    (baseline ? ledgerRows(baseline, mode) : []).map((row) => [
+      row.label,
+      row.amounts.fortnightlyCents,
+    ]),
+  )
 
   const hasData =
     summary.available.annualCents !== 0 ||
@@ -483,11 +518,17 @@ export function SummaryView({ summary }: SummaryViewProps) {
                       key={row.label}
                       label={row.label}
                       amounts={row.amounts}
+                      baselineFortnightlyCents={baselineFortnightlyByLabel.get(row.label)}
                       portion={portionOf(row.amounts)}
                       signed={row.signed}
                     />
                   ) : (
-                    <GroupTableRow key={row.label} row={row} portion={portionOf(row.amounts)} />
+                    <GroupTableRow
+                      key={row.label}
+                      row={row}
+                      baselineFortnightlyCents={baselineFortnightlyByLabel.get(row.label)}
+                      portion={portionOf(row.amounts)}
+                    />
                   ),
                 )}
               </Table.Tbody>
@@ -500,6 +541,7 @@ export function SummaryView({ summary }: SummaryViewProps) {
                     key={row.label}
                     label={row.label}
                     amounts={row.amounts}
+                    baselineFortnightlyCents={baselineFortnightlyByLabel.get(row.label)}
                     portion={portionOf(row.amounts)}
                     running={row.running}
                     signed={row.signed}

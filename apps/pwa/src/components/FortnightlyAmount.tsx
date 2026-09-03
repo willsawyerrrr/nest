@@ -1,9 +1,15 @@
 import { Group, Text, type GroupProps } from '@mantine/core'
-import { MoneyText } from './MoneyText'
+import { ComparedAmount } from './ComparedAmount'
 
 interface FortnightlyAmountProps extends GroupProps {
   /** The fortnightly figure, in integer cents. */
   cents: number
+  /**
+   * The real figure this one was proposed over. When given and different (and
+   * planning mode is on), the amount reads `real → proposed (±Δ)` via
+   * {@link ComparedAmount}; otherwise it is the plain figure.
+   */
+  baselineCents?: number
 }
 
 /**
@@ -11,10 +17,15 @@ interface FortnightlyAmountProps extends GroupProps {
  * Extra `Group` props (alignment, width) spread onto the wrapper so a caller can
  * place it in a fixed-width, right-aligned column.
  */
-export function FortnightlyAmount({ cents, ...groupProps }: FortnightlyAmountProps) {
+export function FortnightlyAmount({ cents, baselineCents, ...groupProps }: FortnightlyAmountProps) {
   return (
     <Group gap={2} wrap="nowrap" align="baseline" {...groupProps}>
-      <MoneyText cents={cents} fw={700} size="sm" />
+      <ComparedAmount
+        baselineCents={baselineCents ?? cents}
+        proposedCents={cents}
+        fw={700}
+        size="sm"
+      />
       <Text size="xs" c="dimmed">
         / fn
       </Text>

@@ -1,4 +1,5 @@
 import { LoadingScreen } from '../components/LoadingScreen'
+import { usePlanningMode } from '../components/PlanningModeProvider'
 import { TaxEstimateView } from '../components/TaxEstimateView'
 import { useDeductions } from '../hooks/useDeductions'
 import { useHelpDebts } from '../hooks/useHelpDebts'
@@ -18,6 +19,7 @@ import {
 } from '../lib/tax'
 
 export function TaxSection({ householdId }: { householdId: string }) {
+  const { active: planning } = usePlanningMode()
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows(householdId)
   const taxProfiles = useTaxProfiles(householdId)
@@ -65,9 +67,26 @@ export function TaxSection({ householdId }: { householdId: string }) {
   )
   const helpPayoff = helpPayoffByMember(estimate, helpDebts.helpDebts ?? [])
 
+  // The same estimate from the real inflows, so each card can show what the
+  // sandbox's inflow edits move. Everything else feeding the estimate is
+  // unsandboxed, so only the inflow list is swapped.
+  const baseline = planning
+    ? estimateHouseholdTaxFromRows(
+        inflows.baselineInflows ?? [],
+        taxProfiles.profiles ?? [],
+        contributions.contributions ?? [],
+        helpDebts.helpDebts ?? [],
+        deductions.deductions ?? [],
+        config,
+        paygWithheldFromRows(payslips.payslips ?? []),
+        members,
+      )
+    : undefined
+
   return (
     <TaxEstimateView
       estimate={estimate}
+      {...(baseline && { baseline })}
       financialYear={taxProfiles.financialYear}
       memberName={(id) => memberName(members, id)}
       config={config}

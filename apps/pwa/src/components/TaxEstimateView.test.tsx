@@ -8,7 +8,9 @@ import {
   type TaxBreakdown,
   type TaxInput,
 } from '@nest/tax'
+import { planningStorageKey } from '../lib/planningMode'
 import { render, screen, within } from '../test/render'
+import { PlanningModeProvider } from './PlanningModeProvider'
 import { TaxEstimateView } from './TaxEstimateView'
 
 const config = FY2027_CONFIG
@@ -173,6 +175,43 @@ describe('TaxEstimateView', () => {
     const samCard = card('Sam')
     expect(within(samCard).getByText('$1,923.07')).toBeInTheDocument()
     expect(within(samCard).getByText('$50,000.00')).toBeInTheDocument()
+  })
+
+  it('shows real → proposed on take-home, tax, and the balance while planning mode is active', () => {
+    localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
+    const realWill = withWithholding(will, 3_000_000, 2_200_000)
+    const proposedWill: MemberTaxEstimate = {
+      ...realWill,
+      annualAfterTaxCents: 6_000_000,
+      annualTaxCents: 4_000_000,
+      breakdown: { ...realWill.breakdown, balanceCents: -500_000 },
+    }
+    const real: HouseholdTaxEstimate = { ...estimate, members: [realWill, sam] }
+    const proposed: HouseholdTaxEstimate = {
+      ...estimate,
+      annualAfterTaxCents: 11_000_000,
+      members: [proposedWill, sam],
+    }
+    render(
+      <PlanningModeProvider householdId="h1">
+        <TaxEstimateView
+          estimate={proposed}
+          baseline={real}
+          financialYear={2027}
+          memberName={memberName}
+          config={config}
+        />
+      </PlanningModeProvider>,
+    )
+    const willCard = card('Will')
+    // Take-home annual moved $75,000 → $60,000.
+    expect(within(willCard).getByText('$75,000.00')).toBeInTheDocument()
+    expect(within(willCard).getByText('$60,000.00')).toBeInTheDocument()
+    // The tracked bill/refund figure moved too.
+    expect(within(willCard).getByText(/refund/)).toBeInTheDocument()
+    // The household card compares its own take-home.
+    expect(within(card('Household')).getByText('$125,000.00')).toBeInTheDocument()
+    expect(within(card('Household')).getByText('$110,000.00')).toBeInTheDocument()
   })
 
   it('shows a nil take-home-versus-tax split for a member with no gross income', () => {

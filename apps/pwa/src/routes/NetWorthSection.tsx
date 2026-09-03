@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { grantValueCents, projectNetWorth } from '@nest/plan'
+import { grantValueCents } from '@nest/plan'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { NetWorthView } from '../components/NetWorthView'
+import { usePlanningMode } from '../components/PlanningModeProvider'
 import { useAccounts } from '../hooks/useAccounts'
-import { useBudgetLines } from '../hooks/useBudgetLines'
+import { useBudgetLines, type BudgetLine } from '../hooks/useBudgetLines'
 import { useDeductions } from '../hooks/useDeductions'
 import { useEquityGrants } from '../hooks/useEquityGrants'
-import { useGoals } from '../hooks/useGoals'
+import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
-import { useInflows } from '../hooks/useInflows'
+import { useInflows, type Inflow } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
@@ -16,11 +17,10 @@ import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { equityGrantToPlan } from '../lib/equity'
 import { memberName } from '../lib/members'
 import {
-  combinedHelpCentsByYear,
-  netWorthGoals,
+  computeNetWorth,
   projectionHorizonYears,
   resolveHorizonYears,
-  splitCashAndDebt,
+  type NetWorthComputeResult,
 } from '../lib/netWorth'
 import {
   readAssumptions,
@@ -29,20 +29,10 @@ import {
   writeProjectionHorizon,
   type ProjectionHorizonOption,
 } from '../lib/retirement'
-import {
-  accountsWithEffectiveSuperBalances,
-  netWorthBreakdown,
-  superAccountIds,
-  type EquityHolding,
-  type Liability,
-} from '../lib/super'
-import {
-  estimateHouseholdTaxFromRows,
-  helpPayoffByMember,
-  netAnnualSuperContributionFromRows,
-} from '../lib/tax'
+import { superAccountIds, type EquityHolding, type Liability } from '../lib/super'
 
 export function NetWorthSection({ householdId }: { householdId: string }) {
+  const { active: planning } = usePlanningMode()
   const accounts = useAccounts(householdId)
   const superProfiles = useSuperProfiles(householdId)
   const contributions = useSuperContributions(householdId)
@@ -74,11 +64,9 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
   }
 
   const profileRows = superProfiles.profiles ?? []
-  const inflowRows = inflows.inflows ?? []
   const contributionRows = contributions.contributions ?? []
   const helpDebtRows = helpDebts.helpDebts ?? []
   const grantRows = equityGrants.grants ?? []
-  const netContributionByMember = netAnnualSuperContributionFromRows(inflowRows, contributionRows)
 
   const liabilities: Liability[] = helpDebtRows
     .filter((debt) => debt.balance_cents > 0)
@@ -96,14 +84,7 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     }))
     .filter((holding) => holding.valueCents > 0)
 
-  const effectiveAccounts = accountsWithEffectiveSuperBalances(
-    accounts.accounts ?? [],
-    profileRows,
-    netContributionByMember,
-    today,
-  )
   const superIds = superAccountIds(profileRows)
-  const breakdown = netWorthBreakdown(effectiveAccounts, superIds)
 
   const changeHorizon = (option: ProjectionHorizonOption) => {
     setHorizon(option)
@@ -117,35 +98,43 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     assumptions.retirementAge,
   )
   const horizonYears = resolveHorizonYears(horizon, retirementHorizonYears)
-  const estimate = estimateHouseholdTaxFromRows(
-    inflowRows,
-    taxProfiles.profiles ?? [],
-    contributionRows,
-    helpDebtRows,
-    deductions.deductions ?? [],
-    undefined,
-    undefined,
-    members,
-  )
-  const helpNowCents = helpDebtRows.reduce(
-    (total, debt) => total + Math.max(0, debt.balance_cents),
-    0,
-  )
-  const helpCentsByYear = combinedHelpCentsByYear(
-    helpPayoffByMember(estimate, helpDebtRows).values(),
-    helpNowCents,
-    horizonYears,
-  )
-  const totalNetContributionCents = [...netContributionByMember.values()].reduce(
-    (total, cents) => total + cents,
-    0,
-  )
-  // A linked goal's saver balance is already in the account totals, so goals fold
-  // in only their future contributions on top, resolved from that same balance.
-  const balanceByAccountId = new Map(
-    effectiveAccounts.map((account) => [account.id, account.balance_cents]),
-  )
-  const savingsGoals = netWorthGoals(goals.goals ?? [], budgetLines.lines ?? [], balanceByAccountId)
+
+  // The net worth and its projection from one set of the sandboxed row lists.
+  // Planning mode swaps in the real rows and computes the baseline the same way,
+  // so the two agree by construction.
+  const outcomeFor = (
+    inflowRows: Inflow[],
+    goalRows: Goal[],
+    lineRows: BudgetLine[],
+  ): NetWorthComputeResult =>
+    computeNetWorth({
+      accounts: accounts.accounts ?? [],
+      superProfiles: profileRows,
+      contributions: contributionRows,
+      taxProfiles: taxProfiles.profiles ?? [],
+      helpDebts: helpDebtRows,
+      deductions: deductions.deductions ?? [],
+      members,
+      planGrants,
+      liabilities,
+      equity,
+      inflows: inflowRows,
+      goals: goalRows,
+      budgetLines: lineRows,
+      assumptions,
+      horizonYears,
+      now: today,
+    })
+
+  const outcome = outcomeFor(inflows.inflows ?? [], goals.goals ?? [], budgetLines.lines ?? [])
+  const baseline = planning
+    ? outcomeFor(
+        inflows.baselineInflows ?? [],
+        goals.baselineGoals ?? [],
+        budgetLines.baselineLines ?? [],
+      )
+    : undefined
+
   // The goals still linked to each account, so removing one Up has dropped can
   // warn which goals fall back to a manual balance.
   const linkedGoalNamesByAccount = new Map<string, string[]>()
@@ -157,35 +146,20 @@ export function NetWorthSection({ householdId }: { householdId: string }) {
     names.push(goal.name)
     linkedGoalNamesByAccount.set(goal.linked_account_id, names)
   }
-  // Split the other accounts so a negative-balance account (credit card, loan)
-  // becomes its own debt band rather than sinking the cash asset band.
-  const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
-  const projection = projectNetWorth({
-    asOf: today,
-    horizonYears,
-    superInput: {
-      currentBalanceCents: breakdown.superTotalCents,
-      annualContributionCents: totalNetContributionCents,
-      nominalReturnRate: assumptions.expectedReturnPct / 100,
-      contributionGrowthRate: assumptions.contributionGrowthPct / 100,
-    },
-    otherCents: cashCents,
-    equityGrants: planGrants,
-    helpCentsByYear,
-    savingsGoals,
-    debtCents,
-  })
-
   return (
     <NetWorthView
-      accounts={effectiveAccounts}
+      accounts={outcome.effectiveAccounts}
       superIds={superIds}
       equity={equity}
       liabilities={liabilities}
-      projection={projection}
+      projection={outcome.projection}
       projectionBaseYear={today.getFullYear()}
       horizon={horizon}
       onHorizonChange={changeHorizon}
+      {...(baseline && {
+        baselineTotalCents: baseline.totalCents,
+        baselineProjectionEndCents: baseline.projection.at(-1)?.totalCents ?? 0,
+      })}
       linkedGoalNamesByAccount={linkedGoalNamesByAccount}
       onToggleExclude={(id, exclude) => {
         void accounts.update(id, { exclude_from_net_worth: exclude })

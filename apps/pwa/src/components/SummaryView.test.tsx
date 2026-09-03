@@ -2,7 +2,9 @@ import { useMediaQuery } from '@mantine/hooks'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BudgetSummary, GroupSummary } from '@nest/plan'
+import { planningStorageKey } from '../lib/planningMode'
 import { render, screen, within } from '../test/render'
+import { PlanningModeProvider } from './PlanningModeProvider'
 import { SummaryView } from './SummaryView'
 
 vi.mock('@mantine/hooks', async (importOriginal) => {
@@ -42,6 +44,33 @@ const summary: BudgetSummary = {
 }
 
 describe('SummaryView', () => {
+  it('shows a real → proposed move on the buffer while planning mode is active', () => {
+    const baseline: BudgetSummary = {
+      ...summary,
+      afterSaving: { fortnightlyCents: 10_000, annualCents: 260_000 },
+    }
+    localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
+    render(
+      <PlanningModeProvider householdId="h1">
+        <SummaryView summary={summary} baseline={baseline} />
+      </PlanningModeProvider>,
+    )
+    const card = screen.getByRole('region', { name: 'After Saving' })
+    // was $100.00 → now $250.00 (+$150.00)
+    expect(within(card).getByText('$100.00')).toBeInTheDocument()
+    expect(within(card).getByText('$250.00')).toBeInTheDocument()
+    expect(within(card).getByText('(+$150.00)')).toBeInTheDocument()
+  })
+
+  it('stays a plain figure when a baseline is supplied but planning mode is off', () => {
+    const baseline: BudgetSummary = {
+      ...summary,
+      afterSaving: { fortnightlyCents: 10_000, annualCents: 260_000 },
+    }
+    render(<SummaryView summary={summary} baseline={baseline} />)
+    expect(screen.queryByText(/→/)).not.toBeInTheDocument()
+  })
+
   it('renders available fortnightly and portion, omitting annual on the narrow ledger', () => {
     render(<SummaryView summary={summary} />)
 

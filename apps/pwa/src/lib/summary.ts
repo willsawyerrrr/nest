@@ -1,10 +1,16 @@
-import type { SummaryInput } from '@nest/plan'
+import { summarise, type BudgetSummary, type SummaryInput } from '@nest/plan'
 import { isDateInFinancialYear } from '@nest/tax'
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { DeductionRow } from '../hooks/useDeductions'
+import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
+import type { Member } from '../hooks/useMembers'
+import type { SuperContribution } from '../hooks/useSuperContributions'
+import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
 import type { DerivedAmountContext } from './breakdowns'
 import { applyBreakdownAmounts } from './derivedBudget'
+import { estimateHouseholdTaxFromRows } from './tax'
 
 /** The household rows a Summary is built from, before adapting to the plan's shape. */
 export interface SummarySources {
@@ -86,4 +92,70 @@ export function toSummaryInput({
       targetDate: item.target_date,
     })),
   }
+}
+
+/** The household rows the reconciliation and its tax estimate are built from. */
+export interface HouseholdSummarySources {
+  inflows: Inflow[]
+  budgetLines: BudgetLine[]
+  taxProfiles: TaxProfile[]
+  financialYear: number
+  contributions: SuperContribution[]
+  helpDebts: HelpDebt[]
+  deductions: DeductionRow[]
+  members: readonly Pick<Member, 'id' | 'date_of_birth'>[]
+  derivedAmounts: DerivedAmountContext
+  temporaryItems: TemporaryItem[]
+  now?: Date
+}
+
+/**
+ * The whole Summary reconciliation from the household's rows: estimates the
+ * year's tax from the (possibly sandboxed) inflows, then reconciles the
+ * after-tax cash against the budget lines and temporary items. One-off money is
+ * reported beside the plan, never inside it, so the take-home the ledger divides
+ * is net of it, as are the tax and salary-sacrifice slices the gross basis
+ * rebuilds Gross from. Pure — the Summary tab and the planning roll-up both call
+ * it, once per row set, so their figures agree by construction.
+ */
+export function summariseHousehold({
+  inflows,
+  budgetLines,
+  taxProfiles,
+  financialYear,
+  contributions,
+  helpDebts,
+  deductions,
+  members,
+  derivedAmounts,
+  temporaryItems,
+  now = new Date(),
+}: HouseholdSummarySources): BudgetSummary {
+  const estimate = estimateHouseholdTaxFromRows(
+    inflows,
+    taxProfiles,
+    contributions,
+    helpDebts,
+    deductions,
+    undefined,
+    undefined,
+    members,
+  )
+  const oneOffTaxCents = estimate.annualOneOffGrossCents - estimate.annualOneOffAfterTaxCents
+  return summarise(
+    toSummaryInput({
+      afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents - estimate.annualOneOffAfterTaxCents,
+      financialYear,
+      inflows,
+      budgetLines,
+      derivedAmounts,
+      temporaryItems,
+      salarySacrificeAnnualCents: estimate.annualNetConcessionalSuperCents,
+      taxAnnualCents:
+        estimate.annualTaxCents -
+        oneOffTaxCents +
+        (estimate.annualConcessionalContributionsCents - estimate.annualNetConcessionalSuperCents),
+    }),
+    now,
+  )
 }

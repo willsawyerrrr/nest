@@ -61,6 +61,24 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
+/** The Planning tab, shown in the nav only while planning mode is on. */
+export const PLANNING_NAV_ITEM: NavItem = { path: '/planning', label: 'Planning' }
+
+/**
+ * The nav sections for the current planning-mode state: the standing sections,
+ * with the Planning tab spliced in beside Summary while the sandbox is on so it
+ * is reachable without the banner.
+ */
+export function navSections(planningActive: boolean): NavSection[] {
+  if (!planningActive) {
+    return NAV_SECTIONS
+  }
+  // Spliced in right after Summary (the first entry), so it sits beside it.
+  return NAV_SECTIONS.flatMap((section, index) =>
+    index === 0 ? [section, PLANNING_NAV_ITEM] : [section],
+  )
+}
+
 /** Whether `section` gathers items rather than being one itself. */
 export function isNavGroup(section: NavSection): section is NavGroup {
   return 'items' in section

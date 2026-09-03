@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { planningStorageKey, type PlanningState } from '../lib/planningMode'
@@ -13,7 +14,11 @@ function seed(state: PlanningState) {
 }
 
 function renderBanner(children: ReactNode = <PlanningModeBanner />) {
-  return render(<PlanningModeProvider householdId="h1">{children}</PlanningModeProvider>)
+  return render(
+    <MemoryRouter>
+      <PlanningModeProvider householdId="h1">{children}</PlanningModeProvider>
+    </MemoryRouter>,
+  )
 }
 
 describe('PlanningModeBanner', () => {

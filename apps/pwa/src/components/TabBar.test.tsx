@@ -2,7 +2,14 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { render, screen, within } from '../test/render'
-import { cycleIndex, flattenNavItems, isNavGroup, NAV_SECTIONS, TabBar } from './TabBar'
+import {
+  cycleIndex,
+  flattenNavItems,
+  isNavGroup,
+  NAV_SECTIONS,
+  navSections,
+  TabBar,
+} from './TabBar'
 
 /** Resizes happy-dom's viewport so responsive (`hiddenFrom`/`visibleFrom`) rules resolve. */
 function setViewportWidth(width: number) {
@@ -296,6 +303,22 @@ describe('TabBar mobile drawer', () => {
       'false',
     )
     expect(within(nav).getByRole('link', { name: 'Goals' })).toBeVisible()
+  })
+})
+
+describe('navSections', () => {
+  it('returns the standing sections unchanged when planning mode is off', () => {
+    expect(navSections(false)).toBe(NAV_SECTIONS)
+  })
+
+  it('splices the Planning tab in right after Summary when planning mode is on', () => {
+    const withPlanning = navSections(true)
+    expect(withPlanning).toHaveLength(NAV_SECTIONS.length + 1)
+    expect(
+      flattenNavItems(withPlanning)
+        .map((item) => item.path)
+        .slice(0, 2),
+    ).toEqual(['/summary', '/planning'])
   })
 })
 

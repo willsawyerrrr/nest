@@ -13,11 +13,15 @@ const hooks = vi.hoisted(() => ({
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
   usePayslips: vi.fn(),
+  planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
 
 vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
+}))
+vi.mock('../components/PlanningModeProvider', () => ({
+  usePlanningMode: () => ({ active: hooks.planningActive }),
 }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
@@ -95,6 +99,29 @@ describe('TaxSection', () => {
     const member = estimate.members[0]!
     expect(member.breakdown.paygWithheldCents).toBe(30_000_00)
     expect(member.breakdown.balanceCents).toBe(member.breakdown.totalLiabilityCents - 30_000_00)
+  })
+
+  it('passes a baseline estimate from the real inflows while planning mode is active', () => {
+    hooks.planningActive = true
+    hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [makeInflow({ amount_cents: 200_000_00 })],
+      baselineInflows: [makeInflow({ amount_cents: 100_000_00 })],
+    })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+    render(<TaxSection householdId="h1" />)
+    hooks.planningActive = false
+
+    const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
+    const baseline = hooks.screenProps?.baseline as HouseholdTaxEstimate
+    expect(baseline.annualGrossCents).toBeGreaterThan(0)
+    expect(estimate.annualGrossCents).toBe(baseline.annualGrossCents * 2)
   })
 
   it('leaves the estimate unoffset when no payslip has been entered', () => {

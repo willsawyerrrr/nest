@@ -10,6 +10,9 @@ interface GoalScreenProps {
   goals: Goal[]
   lines: BudgetLine[]
   savers: Saver[]
+  /** The real goals and lines for the planning-mode comparison; omit outside planning mode. */
+  baselineGoals?: Goal[]
+  baselineLines?: BudgetLine[]
   onCreateGoal: (input: GoalInput) => Promise<void>
   onUpdateGoal: (id: string, input: GoalInput) => Promise<void>
   onDeleteGoal: (id: string) => Promise<void>
@@ -23,6 +26,8 @@ export function GoalScreen({
   goals,
   lines,
   savers,
+  baselineGoals,
+  baselineLines,
   onCreateGoal,
   onUpdateGoal,
   onDeleteGoal,
@@ -52,6 +57,8 @@ export function GoalScreen({
         goals={goals}
         lines={lines}
         savers={savers}
+        {...(baselineGoals && { baselineGoals })}
+        {...(baselineLines && { baselineLines })}
         onCreate={onCreateGoal}
         onUpdate={onUpdateGoal}
         onDelete={(id) => void onDeleteGoal(id)}

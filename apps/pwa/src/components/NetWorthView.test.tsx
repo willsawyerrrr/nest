@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { NetWorthProjectionPoint } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
+import { planningStorageKey } from '../lib/planningMode'
 import { fireEvent, render, screen, within } from '../test/render'
 import { NetWorthView } from './NetWorthView'
+import { PlanningModeProvider } from './PlanningModeProvider'
 
 afterEach(() => localStorage.clear())
 
@@ -266,6 +269,40 @@ describe('NetWorthView', () => {
       />,
     )
     expect(screen.queryByRole('region', { name: 'Net worth projection' })).not.toBeInTheDocument()
+  })
+
+  it('shows real → proposed on the total and projected net worth while planning mode is on', () => {
+    localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
+    const point = (year: number, totalCents: number): NetWorthProjectionPoint => ({
+      year,
+      superCents: totalCents,
+      otherCents: 0,
+      equityCents: 0,
+      helpCents: 0,
+      debtCents: 0,
+      totalCents,
+    })
+    render(
+      <PlanningModeProvider householdId="h1">
+        <NetWorthView
+          accounts={accounts}
+          superIds={new Set(['a1', 'a2'])}
+          equity={[]}
+          liabilities={[]}
+          projection={[point(0, 20_000_000), point(1, 30_000_000)]}
+          projectionBaseYear={2026}
+          baselineTotalCents={18_000_000}
+          baselineProjectionEndCents={25_000_000}
+          onToggleExclude={vi.fn()}
+        />
+      </PlanningModeProvider>,
+    )
+    const total = screen.getByRole('region', { name: 'Total net worth' })
+    expect(within(total).getByText('$180,000.00')).toBeInTheDocument()
+    expect(within(total).getByText('$202,000.00')).toBeInTheDocument()
+    // Projected net worth line: $250,000.00 → $300,000.00
+    expect(screen.getByText('$250,000.00')).toBeInTheDocument()
+    expect(screen.getByText('$300,000.00')).toBeInTheDocument()
   })
 
   it('renders the projection chart when points carry data', () => {

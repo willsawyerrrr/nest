@@ -10,6 +10,8 @@ export interface GoalInput {
   target_date: string | null
   current_balance_cents: number
   linked_account_id: string | null
+  /** Modelled effective annual interest rate in basis points; null models no interest. */
+  annual_interest_bps: number | null
 }
 
 export interface UseGoalsResult {

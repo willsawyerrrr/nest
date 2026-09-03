@@ -351,6 +351,7 @@ export function PlanningSection({ householdId }: { householdId: string }) {
         targetAmountCents: goal.target_amount_cents,
         currentBalanceCents,
         ...(goal.target_date != null && { targetDate: goal.target_date }),
+        annualInterestBps: goal.annual_interest_bps,
       },
       contributionCents,
       today,

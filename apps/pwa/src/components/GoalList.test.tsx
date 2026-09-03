@@ -41,6 +41,33 @@ describe('GoalList', () => {
     expect(within(car).getByText('0%')).toBeInTheDocument()
   })
 
+  it('notes the assumed interest rate beside the ETA and brings the target forward', () => {
+    const goals = [
+      goal({
+        id: 'g1',
+        name: 'Car',
+        target_amount_cents: 1_000_000,
+        annual_interest_bps: 2000,
+      }),
+    ]
+    const lines = [line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={lines}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const car = card('Car')
+    expect(within(car).getByText(/20\.00% p\.a\. assumed/)).toBeInTheDocument()
+    // Pure linear math needs 20 fortnights; fortnightly compounding at 20% is quicker.
+    expect(within(car).getByText(/19 fortnights/)).toBeInTheDocument()
+  })
+
   it('shows the required contribution and on-track status for a dated goal', () => {
     const goals = [
       goal({

@@ -38,8 +38,30 @@ describe('GoalForm', () => {
         target_date: null,
         current_balance_cents: 250_050,
         linked_account_id: null,
+        annual_interest_bps: null,
       }),
     )
+  })
+
+  it('converts the modelled interest rate from a percent to basis points', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<GoalForm savers={[]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Emergency fund')
+    await user.type(screen.getByLabelText(/target amount/i), '10000')
+    await user.type(screen.getByLabelText(/modelled interest rate/i), '4.5')
+    await user.click(screen.getByRole('button', { name: /add goal/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ annual_interest_bps: 450 })),
+    )
+  })
+
+  it('prefills the modelled interest rate as a percent when editing', () => {
+    render(<GoalForm initial={goal({ annual_interest_bps: 375 })} savers={[]} onSubmit={vi.fn()} />)
+
+    expect(screen.getByLabelText(/modelled interest rate/i)).toHaveValue('3.75%')
   })
 
   it('disables submit until name and target amount are filled', async () => {
@@ -93,6 +115,7 @@ describe('GoalForm', () => {
         target_date: null,
         current_balance_cents: 0,
         linked_account_id: 'a1',
+        annual_interest_bps: null,
       }),
     )
   })
@@ -176,6 +199,7 @@ describe('GoalForm', () => {
         target_date: null,
         current_balance_cents: 250_000,
         linked_account_id: null,
+        annual_interest_bps: null,
       }),
     )
   })

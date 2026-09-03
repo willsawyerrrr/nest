@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Alert, Select, Text, TextInput } from '@mantine/core'
+import { Alert, NumberInput, Select, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import type { Saver } from '../hooks/useSavers'
+import { interestBpsToPercent, interestPercentToBps } from '../lib/goals'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
@@ -28,6 +29,9 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
   const [linkedAccountId, setLinkedAccountId] = useState<string | null>(
     initial?.linked_account_id ?? null,
   )
+  const [interestRate, setInterestRate] = useState<number | string>(
+    interestBpsToPercent(initial?.annual_interest_bps),
+  )
   const canSubmit = name.trim() !== '' && targetAmount !== ''
   const linkedSaverDeleted = savers.some(
     (saver) => saver.id === linkedAccountId && saver.deleted_from_source_at !== null,
@@ -43,6 +47,7 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
       target_date: targetDate,
       current_balance_cents: dollarsToCents(currentBalance) ?? 0,
       linked_account_id: linkedAccountId,
+      annual_interest_bps: interestPercentToBps(interestRate),
     }),
   })
 
@@ -90,6 +95,19 @@ export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps)
         clearable
         value={targetDate}
         onChange={setTargetDate}
+      />
+
+      <NumberInput
+        label="Modelled interest rate (% p.a.)"
+        size="sm"
+        description="Optional. Compounds fortnightly in the projected ETA and required contribution."
+        suffix="%"
+        decimalScale={2}
+        min={0}
+        max={100}
+        hideControls
+        value={interestRate}
+        onChange={setInterestRate}
       />
 
       {savers.length > 0 ? (

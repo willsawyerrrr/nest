@@ -6,6 +6,7 @@ import type { Goal, GoalInput } from '../hooks/useGoals'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Saver } from '../hooks/useSavers'
 import { formatIsoDate } from '../lib/dates'
+import { assumedInterestNote } from '../lib/goals'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { AppCard } from './AppCard'
 import { ComparedAmount, ComparedDate } from './ComparedAmount'
@@ -73,6 +74,7 @@ function goalProjection(
       targetAmountCents: goal.target_amount_cents,
       currentBalanceCents,
       ...(goal.target_date != null && { targetDate: goal.target_date }),
+      annualInterestBps: goal.annual_interest_bps,
     },
     contributionCents,
     new Date(),
@@ -144,6 +146,15 @@ function goalDisplay(
   } else {
     status = { label: 'No ETA', color: 'gray' }
     eta = 'Link a savings item to project an ETA.'
+  }
+
+  const rateNote = projection.alreadyMet ? null : assumedInterestNote(goal.annual_interest_bps)
+  if (rateNote !== null) {
+    eta = (
+      <>
+        {eta} · {rateNote}
+      </>
+    )
   }
 
   return { currentBalanceCents, percent, status, eta }

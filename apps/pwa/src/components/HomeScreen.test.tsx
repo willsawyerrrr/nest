@@ -38,6 +38,13 @@ function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
       onDisconnectUp={vi.fn()}
       upBusy={false}
       push={push}
+      notificationPreferences={[
+        { trigger: 'buffer_negative', enabled: true },
+        { trigger: 'goal_eta_slipped', enabled: true },
+        { trigger: 'temporary_item_expiring', enabled: true },
+        { trigger: 'fy_boundary', enabled: true },
+      ]}
+      onToggleNotificationPreference={vi.fn()}
       onSignOut={vi.fn()}
       {...overrides}
     />,

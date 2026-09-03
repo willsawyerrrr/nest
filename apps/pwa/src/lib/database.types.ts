@@ -1131,6 +1131,93 @@ export type Database = {
           },
         ]
       }
+      notification_log: {
+        Row: {
+          dedupe_key: string
+          household_id: string
+          id: string
+          member_id: string
+          sent_at: string
+          trigger: Database['public']['Enums']['notification_trigger']
+        }
+        Insert: {
+          dedupe_key: string
+          household_id: string
+          id?: string
+          member_id: string
+          sent_at?: string
+          trigger: Database['public']['Enums']['notification_trigger']
+        }
+        Update: {
+          dedupe_key?: string
+          household_id?: string
+          id?: string
+          member_id?: string
+          sent_at?: string
+          trigger?: Database['public']['Enums']['notification_trigger']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_log_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_log_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      notification_preference: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          household_id: string
+          id: string
+          member_id: string
+          trigger: Database['public']['Enums']['notification_trigger']
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          household_id: string
+          id?: string
+          member_id: string
+          trigger: Database['public']['Enums']['notification_trigger']
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          household_id?: string
+          id?: string
+          member_id?: string
+          trigger?: Database['public']['Enums']['notification_trigger']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_preference_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_preference_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       pay_split: {
         Row: {
           account_id: string
@@ -2107,6 +2194,8 @@ export type Database = {
         | 'every_n_months'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
       ledger_source: 'up' | 'manual'
+      notification_trigger:
+        'buffer_negative' | 'goal_eta_slipped' | 'temporary_item_expiring' | 'fy_boundary'
       one_off_tax_treatment:
         'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
@@ -2258,6 +2347,12 @@ export const Constants = {
       ],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement', 'hobby', 'gift'],
       ledger_source: ['up', 'manual'],
+      notification_trigger: [
+        'buffer_negative',
+        'goal_eta_slipped',
+        'temporary_item_expiring',
+        'fy_boundary',
+      ],
       one_off_tax_treatment: [
         'ordinary',
         'genuine_redundancy',

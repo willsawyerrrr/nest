@@ -91,9 +91,15 @@ function OverrideRow({ override, onReset }: { override: PlanningOverride; onRese
   )
 }
 
-/** Humanises a column name for display: `amount_cents` → `amount`, `target_date` → `target date`. */
+/**
+ * Humanises a column name for display: `amount_cents` → `amount`,
+ * `target_date` → `target date`, `destination_account_id` → `destination account`.
+ */
 export function fieldLabel(field: string): string {
-  return field.replace(/_cents$/, '').replace(/_/g, ' ')
+  return field
+    .replace(/_cents$/, '')
+    .replace(/_id$/, '')
+    .replace(/_/g, ' ')
 }
 
 /**

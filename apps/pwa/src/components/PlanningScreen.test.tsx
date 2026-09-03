@@ -81,6 +81,16 @@ describe('PlanningScreen', () => {
     expect(screen.getByText(/amount: \$1,000\.00 → \$1,500\.00/)).toBeInTheDocument()
   })
 
+  it('labels an id field without the _id suffix', () => {
+    renderScreen([
+      {
+        ...anUpdate,
+        changes: [{ field: 'destination_account_id', was: '—', now: 'Everyday' }],
+      },
+    ])
+    expect(screen.getByText(/destination account: — → Everyday/)).toBeInTheDocument()
+  })
+
   it('resets one row through its Reset control', async () => {
     const onResetRow = vi.fn()
     renderScreen([anUpdate], { onResetRow })

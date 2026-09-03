@@ -42,16 +42,42 @@ const TABLE_LABEL: Record<PlanningTable, string> = {
 
 type FieldRow = Record<string, unknown>
 
+/** Display-name lookups for the id-typed fields a sandbox patch can carry. */
+export interface NameLookups {
+  member: Map<string, string>
+  goal: Map<string, string>
+  account: Map<string, string>
+  breakdown: Map<string, string>
+}
+
+/** Which lookup resolves each id-typed field's value to a display name. */
+const ID_FIELD: Record<string, keyof NameLookups> = {
+  member_id: 'member',
+  gift_recipient_member_id: 'member',
+  goal_id: 'goal',
+  destination_account_id: 'account',
+  linked_account_id: 'account',
+  breakdown_id: 'breakdown',
+}
+
 /** A row's display name, falling back to its id when the row is gone or unnamed. */
 function rowName(row: FieldRow | undefined, id: string): string {
   const name = row?.['name']
   return typeof name === 'string' && name.length > 0 ? name : id
 }
 
-/** Formats a field value for the was → now line: money fields as currency, the rest plainly. */
-function formatFieldValue(field: string, value: unknown): string {
+/**
+ * Formats a field value for the was → now line: an id-typed field as the row's
+ * display name (its id when nothing resolves), money fields as currency, the rest
+ * plainly.
+ */
+function formatFieldValue(field: string, value: unknown, lookups: NameLookups): string {
   if (value === null || value === undefined) {
     return '—'
+  }
+  const lookup = ID_FIELD[field]
+  if (lookup && typeof value === 'string') {
+    return lookups[lookup].get(value) ?? value
   }
   if (typeof value === 'boolean') {
     return value ? 'yes' : 'no'
@@ -62,11 +88,17 @@ function formatFieldValue(field: string, value: unknown): string {
   return String(value)
 }
 
+/** Whether a patched field's value matches the baseline's — `undefined` and `null` counting as one. */
+function unchanged(was: unknown, now: unknown): boolean {
+  return (was ?? null) === (now ?? null)
+}
+
 /** Every held row for one table as `PlanningOverride`s: updates, then creates, then deletes. */
 function overridesForTable(
   table: PlanningTable,
   layer: PlanningLayer | undefined,
   baselineRows: readonly { id: string }[],
+  lookups: NameLookups,
 ): PlanningOverride[] {
   if (!layer) {
     return []
@@ -79,17 +111,23 @@ function overridesForTable(
       continue
     }
     const row = byId.get(id)
+    const changes = Object.entries(patch)
+      .filter(([field, now]) => !unchanged(row?.[field], now))
+      .map(([field, now]) => ({
+        field,
+        was: formatFieldValue(field, row?.[field], lookups),
+        now: formatFieldValue(field, now, lookups),
+      }))
+    if (changes.length === 0) {
+      continue
+    }
     result.push({
       table,
       tableLabel: TABLE_LABEL[table],
       id,
       rowName: rowName(row, id),
       kind: 'update',
-      changes: Object.entries(patch).map(([field, now]) => ({
-        field,
-        was: formatFieldValue(field, row?.[field]),
-        now: formatFieldValue(field, now),
-      })),
+      changes,
     })
   }
   for (const row of layer.creates) {
@@ -165,10 +203,22 @@ export function PlanningSection({ householdId }: { householdId: string }) {
   const proposedLines = budgetLines.lines ?? []
   const proposedGoals = goals.goals ?? []
 
+  const lookups: NameLookups = {
+    member: new Map(members.map((member) => [member.id, member.name])),
+    goal: new Map([...baselineGoals, ...proposedGoals].map((goal) => [goal.id, goal.name])),
+    account: new Map<string, string>([
+      ...(accounts.accounts ?? []).map((account) => [account.id, account.name] as const),
+      ...(savers.savers ?? []).map((saver) => [saver.id, saver.name] as const),
+    ]),
+    breakdown: new Map(
+      (breakdowns.breakdowns ?? []).map((breakdown) => [breakdown.id, breakdown.name]),
+    ),
+  }
+
   const overrides: PlanningOverride[] = [
-    ...overridesForTable('inflows', planning.layerFor('inflows'), baselineInflows),
-    ...overridesForTable('budget_line', planning.layerFor('budget_line'), baselineLines),
-    ...overridesForTable('savings_goal', planning.layerFor('savings_goal'), baselineGoals),
+    ...overridesForTable('inflows', planning.layerFor('inflows'), baselineInflows, lookups),
+    ...overridesForTable('budget_line', planning.layerFor('budget_line'), baselineLines, lookups),
+    ...overridesForTable('savings_goal', planning.layerFor('savings_goal'), baselineGoals, lookups),
   ]
 
   const context = derivedAmountContext(

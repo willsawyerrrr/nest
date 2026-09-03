@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '../test/render'
+import { setBudgetDraft, takeBudgetDraft } from '../lib/promoteDraft'
+import { act, render, screen } from '../test/render'
 import { BudgetSection } from './BudgetSection'
 
 const hooks = vi.hoisted(() => ({
@@ -117,6 +118,18 @@ describe('BudgetSection', () => {
     expect(hooks.screenProps?.accounts).toEqual([{ id: 'a1', name: 'Spending' }])
     expect(hooks.screenProps?.breakdowns).toEqual([{ id: 'b1', name: 'Meds', line_group: 'needs' }])
     expect(hooks.screenProps?.onUpdateDerivedLine).toBe(hooks.derivedEditor)
+  })
+
+  it('hands a promoted wishlist draft to the screen and clears it once consumed', () => {
+    setBudgetDraft({ name: 'New couch', amountCents: 3_500_00 })
+    loadedHooks()
+    render(<BudgetSection householdId="h1" />)
+
+    expect(hooks.screenProps?.promoteDraft).toEqual({ name: 'New couch', amountCents: 3_500_00 })
+    expect(takeBudgetDraft()).toBeNull()
+
+    act(() => (hooks.screenProps!.onPromoteConsumed as () => void)())
+    expect(hooks.screenProps?.promoteDraft).toBeNull()
   })
 
   it('withholds the derived-line editor in planning mode so derived lines are read-only', () => {

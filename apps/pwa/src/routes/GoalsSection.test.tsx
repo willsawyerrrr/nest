@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '../test/render'
+import { setGoalDraft, takeGoalDraft } from '../lib/promoteDraft'
+import { act, render, screen } from '../test/render'
 import { GoalsSection } from './GoalsSection'
 
 const hooks = vi.hoisted(() => ({
@@ -74,6 +75,31 @@ describe('GoalsSection', () => {
     const onRefresh = hooks.screenProps!.onRefresh as () => void
     onRefresh()
     expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it('hands a promoted wishlist draft to the screen and clears it once consumed', () => {
+    setGoalDraft({ name: 'Espresso machine', amountCents: 1_200_00 })
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [],
+      reload: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], reload: vi.fn() })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [], reload: vi.fn() })
+    hooks.useUpSync.mockReturnValue({ refresh: vi.fn(), refreshing: false, error: null })
+    render(<GoalsSection householdId="h1" />)
+
+    expect(hooks.screenProps?.promoteDraft).toEqual({
+      name: 'Espresso machine',
+      amountCents: 1_200_00,
+    })
+    expect(takeGoalDraft()).toBeNull()
+
+    act(() => (hooks.screenProps!.onPromoteConsumed as () => void)())
+    expect(hooks.screenProps?.promoteDraft).toBeNull()
   })
 
   it('passes the real goals and lines to the screen while planning mode is active', () => {

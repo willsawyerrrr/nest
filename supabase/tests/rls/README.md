@@ -55,6 +55,12 @@ instance and can also be run locally.
   (its `account_balance` cascading away), flags `deleted_from_source_at` when a
   savings goal still holds it, clears the flag when the account reappears, and
   leaves joint accounts and other households' rows alone.
+- `wishlist_item.sql` — the assertions that `wishlist_item` carries the same
+  household-wide policy as the other planning tables: a member reads and writes
+  only their own household's rows, its amount must be positive, `set_updated_at`
+  stamps every update, a second household is fully isolated and cannot write in,
+  and a co-member who joins sees every wishlist row — the `member_id` tag is a
+  display label, not a privacy boundary.
 - `reconcile_joint_up_accounts.sql` — the assertions that the joint twin of that
   RPC (SECURITY DEFINER, `service_role` only) reconciles a household's joint
   (`owner_member_id is null`) `source = 'up'` accounts against the union of its
@@ -78,7 +84,8 @@ instance and can also be run locally.
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
 `deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql` →
-`reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql`.
+`reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
+`wishlist_item.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -104,5 +111,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
 docker rm -f pba-rls
 ```

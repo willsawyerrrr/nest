@@ -205,12 +205,12 @@ describe('TabBar', () => {
 
     expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'false')
 
-    // Ninth in flattened order: Summary, then Plan's five, then Net worth, Goals, Super.
+    // Ninth in flattened order: Summary, then Plan's five, then Net worth, Goals, Wishlist.
     await user.keyboard('{Control>}9{/Control}')
 
-    expect(pathname()).toBe('/super')
+    expect(pathname()).toBe('/wishlist')
     expect(groupHeader('Grow')).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('link', { name: 'Super' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Wishlist' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('cycles to the next tab on mod+shift+ArrowRight', async () => {
@@ -341,6 +341,7 @@ describe('flattenNavItems', () => {
       '/splits',
       '/net-worth',
       '/goals',
+      '/wishlist',
       '/super',
       '/equity',
       '/tax',

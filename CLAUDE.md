@@ -551,6 +551,20 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   **confirms** the amount it set into the `pay_split` table; the Pay splits tab flags
   when the recommendation later drifts from the confirmed amount and offers a
   Confirm to re-record it.
+- Wishlist: the household keeps a list of aspirational purchases on its own
+  Wishlist tab (`/wishlist`, the `wishlist_item` table) — a name, a positive
+  `amount_cents` rough cost, an optional `member_id` tag naming whose wish it is,
+  and an optional `note`. The `member_id` tag is a DISPLAY and reporting label
+  only — money stays pooled, there are no per-person budgets, and it feeds
+  nothing downstream (`on delete set null` if the member goes). A wishlist item
+  carries no cadence, funds nothing, and is absent from the fortnightly buffer,
+  the tax estimate, and pay splits. Two per-item promote actions open a target
+  tab's add form prefilled and leave the wishlist row in place (no "promoted"
+  state): "Make a savings goal" seeds a `savings_goal` with the item's name and
+  `target_amount_cents` and no date; "Add to budget" seeds a `budget_line` with
+  the name and amount, group defaulting to Discretionary and the frequency left
+  for the household (a wishlist amount is a lump sum). Household-wide RLS, exactly
+  as `savings_goal` / `budget_line` / `temporary_item`.
 - Ingestion: both partners bank with Up. The account-balance slice is built and
   deployed — members connect an Up personal-access token (held in Vault), and
   `up-sync` polls every Up account (savers and spending alike) into `accounts`

@@ -12,6 +12,8 @@ import { MoneyInput } from './MoneyInput'
 
 interface BudgetLineFormProps {
   initial?: BudgetLine
+  /** Seeds a new line's name and amount from a wishlist item; ignored when editing. */
+  draft?: { name: string; amountCents: number } | undefined
   defaultGroup?: BudgetGroup
   /** The household's goals, offered as a link target on savings/investments lines. */
   goals?: { id: string; name: string }[]
@@ -29,6 +31,7 @@ function groupLinksGoal(group: BudgetGroup): boolean {
 /** Presentational add/edit form for a single manual budget line. Persistence lives in the caller. */
 export function BudgetLineForm({
   initial,
+  draft,
   defaultGroup,
   goals = [],
   accounts = [],
@@ -36,10 +39,12 @@ export function BudgetLineForm({
   onCancel,
 }: BudgetLineFormProps) {
   const [group, setGroup] = useState<BudgetGroup>(initial?.line_group ?? defaultGroup ?? 'needs')
-  const [name, setName] = useState(initial?.name ?? '')
+  const [name, setName] = useState(initial?.name ?? draft?.name ?? '')
   const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
   const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
-  const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
+  const [amount, setAmount] = useState<number | string>(
+    centsToDollars(initial?.amount_cents ?? draft?.amountCents),
+  )
   const [goalId, setGoalId] = useState<string | null>(initial?.goal_id ?? null)
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
     initial?.destination_account_id ?? null,

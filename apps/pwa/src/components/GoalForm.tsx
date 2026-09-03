@@ -11,16 +11,18 @@ import { MoneyInput } from './MoneyInput'
 
 interface GoalFormProps {
   initial?: Goal | undefined
+  /** Seeds a new goal's name and target from a wishlist item; ignored when editing. */
+  draft?: { name: string; amountCents: number } | undefined
   savers: Saver[]
   onSubmit: (input: GoalInput) => void | Promise<void>
   onCancel?: () => void
 }
 
 /** Presentational add/edit form for a single savings goal. Persistence lives in the caller. */
-export function GoalForm({ initial, savers, onSubmit, onCancel }: GoalFormProps) {
-  const [name, setName] = useState(initial?.name ?? '')
+export function GoalForm({ initial, draft, savers, onSubmit, onCancel }: GoalFormProps) {
+  const [name, setName] = useState(initial?.name ?? draft?.name ?? '')
   const [targetAmount, setTargetAmount] = useState<number | string>(
-    centsToDollars(initial?.target_amount_cents),
+    centsToDollars(initial?.target_amount_cents ?? draft?.amountCents),
   )
   const [targetDate, setTargetDate] = useState<string | null>(initial?.target_date ?? null)
   const [currentBalance, setCurrentBalance] = useState<number | string>(

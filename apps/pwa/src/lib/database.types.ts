@@ -1833,6 +1833,54 @@ export type Database = {
           },
         ]
       }
+      wishlist_item: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          household_id: string
+          id: string
+          member_id: string | null
+          name: string
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          household_id: string
+          id?: string
+          member_id?: string | null
+          name: string
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          member_id?: string | null
+          name?: string
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'wishlist_item_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'wishlist_item_member_id_fkey'
+            columns: ['member_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       account_directory: {

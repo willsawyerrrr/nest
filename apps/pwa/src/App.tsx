@@ -75,6 +75,9 @@ const SuperSection = lazy(() =>
 const TaxSection = lazy(() =>
   import('./routes/TaxSection').then((m) => ({ default: m.TaxSection })),
 )
+const WishlistSection = lazy(() =>
+  import('./routes/WishlistSection').then((m) => ({ default: m.WishlistSection })),
+)
 
 /**
  * The public `/share/eofy/:token` route is matched before the session gate
@@ -212,6 +215,7 @@ function HouseholdShell({
             <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
             <Route path="/splits" element={<SplitsSection householdId={household.id} />} />
             <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
+            <Route path="/wishlist" element={<WishlistSection householdId={household.id} />} />
             <Route path="/tax" element={<TaxSection householdId={household.id} />} />
             <Route path="/payslips" element={<PayslipsSection householdId={household.id} />} />
             <Route path="/deductions" element={<DeductionsSection householdId={household.id} />} />

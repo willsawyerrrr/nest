@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { BudgetScreen } from '../components/BudgetScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { usePlanningMode } from '../components/PlanningModeProvider'
@@ -12,6 +12,7 @@ import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
 import { derivedAmountContext } from '../lib/breakdowns'
 import { applyBreakdownAmounts } from '../lib/derivedBudget'
+import { takeBudgetDraft } from '../lib/promoteDraft'
 import { superAccountIds } from '../lib/super'
 
 export function BudgetSection({ householdId }: { householdId: string }) {
@@ -22,6 +23,8 @@ export function BudgetSection({ householdId }: { householdId: string }) {
   const breakdowns = useBreakdowns(householdId)
   const accounts = useAccountDirectory()
   const superProfiles = useSuperProfiles(householdId)
+  // A wishlist item promoted from the Wishlist tab, picked up once on mount.
+  const [promoteDraft, setPromoteDraft] = useState(takeBudgetDraft)
 
   const giftBudgets = useMemo(() => gifts.budgets ?? [], [gifts.budgets])
   const giftRecipients = useMemo(() => gifts.recipients ?? [], [gifts.recipients])
@@ -89,6 +92,8 @@ export function BudgetSection({ householdId }: { householdId: string }) {
       onCreateItem={temporaryItems.create}
       onUpdateItem={temporaryItems.update}
       onDeleteItem={temporaryItems.remove}
+      promoteDraft={promoteDraft}
+      onPromoteConsumed={() => setPromoteDraft(null)}
     />
   )
 }

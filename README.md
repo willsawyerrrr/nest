@@ -12,6 +12,8 @@ liability, plan spending, and track savings goals.
   against tax already withheld.
 - **Spending plans** — budget by category and period; track actuals against plan.
 - **Savings goals** — set targets with dates and track progress.
+- **Wishlist** — a per-item list of aspirational purchases kept apart from the
+  budget, each promotable to a savings goal or a Discretionary budget line.
 - **Superannuation & net worth** — model per-person super (contributions, caps,
   Division 293, co-contribution) with its tax impact and a retirement projection,
   and total balances into a net-worth view.
@@ -49,7 +51,7 @@ A pitch-level summary; the full locked list is canonical in
   deploys it, and per-service setup.
 - [`docs/tax.md`](docs/tax.md) — AU tax modelling design.
 - [`docs/budget-and-savings.md`](docs/budget-and-savings.md) — plan-only budget,
-  savings, and Summary math.
+  savings, the wishlist, and Summary math.
 - [`docs/super-and-net-worth.md`](docs/super-and-net-worth.md) — super modelling
   and the net-worth view.
 - [`docs/breakdowns.md`](docs/breakdowns.md) — user-created itemised derived lines.

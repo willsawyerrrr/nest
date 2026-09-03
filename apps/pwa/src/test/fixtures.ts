@@ -8,6 +8,7 @@ import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipRow } from '../hooks/usePayslips'
 import type { Saver } from '../hooks/useSavers'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import type { WishlistItem } from '../hooks/useWishlist'
 import {
   GIFT_TRANSACTION_CATEGORY,
   type GiftTransaction,
@@ -288,6 +289,21 @@ export function makeTemporaryItem(overrides: Partial<TemporaryItem> = {}): Tempo
     name: 'Holiday',
     contribution_cents: 12000,
     target_date: '2027-08-03',
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+/** Builds a wishlist item, defaulting to an untagged aspirational purchase. */
+export function makeWishlistItem(overrides: Partial<WishlistItem> = {}): WishlistItem {
+  return {
+    id: 'w1',
+    household_id: 'h1',
+    name: 'Espresso machine',
+    amount_cents: 1_200_00,
+    member_id: null,
+    note: null,
     created_at: '',
     updated_at: '',
     ...overrides,

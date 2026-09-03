@@ -37,9 +37,11 @@ injectable `fetch` for stubbing HTTP, `up-sync/map.ts` holds the ledger mappers,
 `up-webhook/signature.ts` holds the HMAC verification, `up-connect/connect.ts`
 / `up-disconnect/disconnect.ts` hold the connect/disconnect flows with their I/O
 injected so the validate-then-store ordering is tested against fakes, and
-`push-key/key.ts` / `push-test/send.ts` do the same for the push flows —
-`push-test/webpush.ts` is exercised against a stubbed `fetch`, so the real VAPID
-signature and aes128gcm framing are asserted without a push service. On the same
+`push-key/key.ts` / `push-test/send.ts` do the same for the push flows, and
+`_shared/webpush.ts` — the VAPID-sign + aes128gcm + POST + 404/410 send path
+that `push-test` and `notify-eval` share — is exercised against a stubbed
+`fetch`, so the real VAPID signature and aes128gcm framing are asserted without
+a push service. On the same
 pattern, `_shared/money.ts` holds the cents/date conversion shared by both
 document-reading functions, `payslip-extract/{fields,extract}.ts` and
 `deduction-extract/{fields,extract}.ts` hold their own field shaping and
@@ -357,10 +359,12 @@ a member reaches only their own devices.
   worker's `notificationclick`.
 
 The crypto is `@negrel/webpush` (WebCrypto only, no npm shims), pinned in
-`deno.json` and `deno.lock` like every other dependency. `push-test/webpush.ts`
-supplies the two pieces the library leaves to the caller: converting the stored
-base64url keypair into the JWK pair WebCrypto imports, and classifying a failure
-as a dead endpoint or a transient one.
+`deno.json` and `deno.lock` like every other dependency. `_shared/webpush.ts` is
+the send path both `push-test` and `notify-eval` call: `createPushSender` binds
+one application server to the Vault keypair and returns a per-device sender, and
+the module supplies the two pieces the library leaves to the caller — converting
+the stored base64url keypair into the JWK pair WebCrypto imports, and classifying
+a failure as a dead endpoint or a transient one.
 
 Nothing here decides _when_ to notify — there is no scheduled evaluation and no
 buffer / goal / expiry trigger. A push happens only when a member asks for a test.

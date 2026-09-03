@@ -1,9 +1,8 @@
 import { assert, assertEquals, assertRejects, assertThrows } from '@std/assert'
 import * as webpush from '@negrel/webpush'
 import { decodeBase64Url, encodeBase64Url } from '@std/encoding/base64url'
-import type { VapidKeys } from '../_shared/vapid.ts'
-import { createSender, isGone, vapidJwkFromRaw } from './webpush.ts'
-import type { PushDevice } from './send.ts'
+import type { VapidKeys } from './vapid.ts'
+import { createPushSender, isGone, type PushDevice, vapidJwkFromRaw } from './webpush.ts'
 
 const encoder = new TextEncoder()
 
@@ -90,12 +89,12 @@ Deno.test('vapidJwkFromRaw rejects a malformed private key', async () => {
   )
 })
 
-Deno.test('createSender posts an aes128gcm push signed with a verifiable VAPID JWT', async () => {
+Deno.test('createPushSender posts an aes128gcm push signed with a verifiable VAPID JWT', async () => {
   const keys = await storedVapidKeys()
   const device = await subscribedDevice()
   const stub = stubFetch(201)
   try {
-    const send = await createSender(keys)
+    const send = await createPushSender(keys)
     assertEquals(await send(device, { title: 'T', body: 'B', url: '/household' }), {
       delivered: true,
     })
@@ -147,7 +146,7 @@ Deno.test('createSender posts an aes128gcm push signed with a verifiable VAPID J
   }
 })
 
-Deno.test('createSender reports 404 and 410 as gone, and other failures as transient', async () => {
+Deno.test('createPushSender reports 404 and 410 as gone, and other failures as transient', async () => {
   const keys = await storedVapidKeys()
   const device = await subscribedDevice()
   const payload = { title: 'T', body: 'B', url: '/household' }
@@ -155,7 +154,7 @@ Deno.test('createSender reports 404 and 410 as gone, and other failures as trans
   for (const [status, gone] of [[404, true], [410, true], [500, false], [429, false]] as const) {
     const stub = stubFetch(status)
     try {
-      const send = await createSender(keys)
+      const send = await createPushSender(keys)
       assertEquals(await send(device, payload), { delivered: false, gone }, `status ${status}`)
     } finally {
       stub.restore()
@@ -168,10 +167,10 @@ Deno.test('isGone ignores an error that is not a push failure', () => {
   assertEquals(isGone(undefined), false)
 })
 
-Deno.test('createSender rejects a malformed stored keypair before any push', async () => {
+Deno.test('createPushSender rejects a malformed stored keypair before any push', async () => {
   const keys = await storedVapidKeys()
   await assertRejects(
-    () => createSender({ ...keys, publicKey: 'not-a-key' }),
+    () => createPushSender({ ...keys, publicKey: 'not-a-key' }),
     Error,
     'vapid_public_key',
   )

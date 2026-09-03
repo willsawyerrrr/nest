@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { EquityGrant } from './equity'
-import { projectNetWorth, type NetWorthProjectionInput } from './netWorthProjection'
+import type { EquityGrant } from './equity.ts'
+import { projectNetWorth, type NetWorthProjectionInput } from './netWorthProjection.ts'
 
 const flatSuper = {
   currentBalanceCents: 0,

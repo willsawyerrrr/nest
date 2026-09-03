@@ -220,10 +220,26 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   a 5xx is transient, not an unsubscribe.
 - The payload is `{ title, body, url }`; the service worker navigates to `url` on
   `notificationclick`.
-- **Not built:** anything that decides *when* to notify. There is no scheduled
-  evaluation pass and no buffer / goal / expiry trigger — a send happens only
-  when a member asks for a test. Those triggers are a follow-on slice, tracked
-  in Linear.
+- `notify-eval` decides *when* to notify. A `pg_cron` job POSTs it once a day
+  (one fixed UTC hour, ≈ morning AEST) with the service-role key; it reads every
+  household's plan with a service-role client, checks four conditions against
+  today's data with the pure `@nest/plan` / `@nest/tax` engines, and pushes to
+  each member with a device who has not turned that trigger off
+  (`notification_preference`, absent ⇒ on) and has no matching
+  `notification_log` row in the dedupe window:
+  - **buffer_negative** — `summarise().afterSaving.fortnightlyCents` is below
+    zero. Dedupe: the financial year, re-sent after 14 days.
+  - **goal_eta_slipped** — a dated goal's `projectGoal()` completion is past its
+    `target_date` or unreachable. Dedupe: `<goal_id>:<target_date>`.
+  - **temporary_item_expiring** — a `temporary_item.target_date` within 14 days.
+    Dedupe: the item id.
+  - **fy_boundary** — within 14 days of 30 June. Dedupe: the financial year.
+
+  It appends a `notification_log` row only once a device took the push, so a
+  transient total failure is retried next day, and prunes `404`/`410` endpoints.
+  The decision logic is the pure, DI-tested `notify-eval/eval.ts`. Deposit-landed
+  and bill-due triggers need ingestion and are out of scope; per-member,
+  per-timezone scheduling is a follow-up.
 - VAPID setup and rotation, and the iOS install/version requirements, are in
   [`operations.md`](operations.md#web-push-vapid-keypair-setup).
 
@@ -243,13 +259,18 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   `accounts_with_balance` are plain invoker views (`security_invoker = on`), so no
   view reads past the caller's RLS. Tested deliberately (pgTAP / integration
   tests), not by inspection.
-- **Push subscriptions are per-member, not per-household.** A push endpoint is a
-  bearer capability to make someone's phone buzz, so `push_subscription` is the
-  one table where household membership grants nothing: per-command policies gate
-  select/insert/update/delete on `current_member_ids()`, and an upsert on a
-  co-member's endpoint is refused rather than silently reassigning their device.
-  `service_role` holds only `select` (to send) and `delete` (to prune dead
-  endpoints).
+- **Push subscriptions and notification choices are per-member, not
+  per-household.** A push endpoint is a bearer capability to make someone's phone
+  buzz, so `push_subscription` is the one table where household membership grants
+  nothing: per-command policies gate select/insert/update/delete on
+  `current_member_ids()`, and an upsert on a co-member's endpoint is refused
+  rather than silently reassigning their device. `notification_preference` — a
+  member's on/off choice per trigger — draws the same boundary. `service_role`
+  holds `select` on both plus `delete` on `push_subscription` (to prune dead
+  endpoints). `notification_log`, the evaluator's dedupe ledger, is
+  `service_role`-only (`select`/`insert`) with no `authenticated` grant at all —
+  a member sees that a notification arrived, never the ledger of which devices
+  got what.
 - **Storage is gated by the same membership check.** Every bucket is private and
   every object key starts with the owning `<household_id>`, so a
   `for all to authenticated` policy on `storage.objects` matching that first path

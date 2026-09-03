@@ -11,8 +11,8 @@
  * year is the unit only where there is no cycle to read.
  */
 
-import type { Frequency, Money } from './index'
-import { MONTHS_PER_YEAR, periodsPerYear, WEEKS_PER_YEAR } from './normalize'
+import type { Frequency, Money } from './index.ts'
+import { MONTHS_PER_YEAR, periodsPerYear, WEEKS_PER_YEAR } from './normalize.ts'
 
 /** Milliseconds in a day, for inclusive calendar-day arithmetic. */
 const MS_PER_DAY = 24 * 60 * 60 * 1000

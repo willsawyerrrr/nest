@@ -9,11 +9,11 @@
  * and debt-account balances are held flat.
  */
 
-import { equityTotalCents, type EquityGrant } from './equity'
-import { projectGoal } from './goal'
-import type { Money } from './index'
-import { FORTNIGHTS_PER_YEAR } from './normalize'
-import { projectSuperBalance } from './retirement'
+import { equityTotalCents, type EquityGrant } from './equity.ts'
+import { projectGoal } from './goal.ts'
+import type { Money } from './index.ts'
+import { FORTNIGHTS_PER_YEAR } from './normalize.ts'
+import { projectSuperBalance } from './retirement.ts'
 
 /**
  * The super side of the projection, aggregated across members: because the

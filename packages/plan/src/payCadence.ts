@@ -17,8 +17,8 @@
  * no turn to measure a period against; its amount is already the whole of it.
  */
 
-import type { Frequency, Money } from './index'
-import { annualCents, periodsPerYear } from './normalize'
+import type { Frequency, Money } from './index.ts'
+import { annualCents, periodsPerYear } from './normalize.ts'
 import {
   cadenceSpan,
   cadenceTurnDays,
@@ -33,7 +33,7 @@ import {
   type CadenceSpan,
   type PayPeriod,
   type ProrationUnit,
-} from './payPeriod'
+} from './payPeriod.ts'
 
 /** Whether a nullable stored value — a figure or an effective date — was entered. */
 export function isEntered<T>(value: T | null | undefined): value is T {

@@ -6,8 +6,8 @@
  * into Up by hand — the plan is the source of truth, Up holds the real splits.
  */
 
-import type { BudgetGroup, BudgetLine, Money } from './index'
-import { fortnightlyCents } from './normalize'
+import type { BudgetGroup, BudgetLine, Money } from './index.ts'
+import { fortnightlyCents } from './normalize.ts'
 
 /** A budget line with its optional routing: a funding goal, or a direct destination account. */
 export interface AssignableLine extends BudgetLine {

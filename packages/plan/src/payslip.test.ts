@@ -23,7 +23,7 @@ import {
   type ReconciledInflow,
   type SuperGuaranteeConfig,
   type UnmeasuredPositionRow,
-} from './index'
+} from './index.ts'
 
 /** FY2027 — 1 Jul 2026 – 30 Jun 2027, 365 days. */
 const FY = 2027

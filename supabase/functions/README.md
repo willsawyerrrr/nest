@@ -112,12 +112,13 @@ directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
-`payslip-extract`, `deduction-extract`, and `share-create` are JWT-verified (the
-default, so they carry no `config.toml` entry) — the caller is resolved from
-their JWT, so a member can only touch their own token, their own devices, files
-in their own household, and their own household's share; `up-sync`'s PWA
-Refresh carries the member's JWT while its hourly cron presents the
-service-role key. `up-webhook`, `eofy-share`, and `eofy-share-file` are the
+`payslip-extract`, `deduction-extract`, `share-create`, and `notify-eval` are
+JWT-verified (the default, so they carry no `config.toml` entry) — the caller is
+resolved from their JWT, so a member can only touch their own token, their own
+devices, files in their own household, and their own household's share;
+`up-sync`'s PWA Refresh carries the member's JWT while its hourly cron presents
+the service-role key, and `notify-eval` is cron-only — the gateway verifies the
+bearer and the handler admits nothing but a `service_role` one. `up-webhook`, `eofy-share`, and `eofy-share-file` are the
 `config.toml` entries setting `verify_jwt = false`: Up calls the first
 unauthenticated (its HMAC signature check is the security boundary), and a tax
 agent opening a shared EOFY link carries no Supabase session at all (their
@@ -135,6 +136,7 @@ supabase functions serve deduction-extract
 supabase functions serve eofy-share
 supabase functions serve eofy-share-file
 supabase functions serve share-create
+supabase functions serve notify-eval
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -163,6 +165,25 @@ select vault.create_secret('<service-role-key>', 'up_sync_cron_key');
 The job (`up-sync-hourly`) is idempotent across re-runs (it unschedules any prior
 job first) and is skipped when the secrets are absent. Verify with
 `select * from cron.job where jobname = 'up-sync-hourly';`.
+
+### Daily notification schedule (prod)
+
+`notify-eval` is scheduled once a day (`0 21 * * *` UTC ≈ 07:00 AEST) by
+`20260905000000_notification_triggers.sql`, on the same `pg_cron` + `pg_net`
+pattern and the same skip-if-absent guard. Activate it in prod by deploying
+`notify-eval` and setting two Vault secrets, then re-running the migration:
+
+- `notify_cron_url` — `https://<project-ref>.supabase.co/functions/v1/notify-eval`
+- `notify_cron_key` — the project service-role key
+
+```sql
+select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/notify-eval', 'notify_cron_url');
+select vault.create_secret('<service-role-key>', 'notify_cron_key');
+```
+
+The job (`notify-eval-daily`) unschedules any prior job first and is skipped
+when the secrets are absent. Verify with
+`select * from cron.job where jobname = 'notify-eval-daily';`.
 
 ## Payslip extraction
 
@@ -341,8 +362,9 @@ the function proxies the API.
 Alerts reach the installed PWA over Web Push — payload encryption per
 [RFC 8291](https://www.rfc-editor.org/rfc/rfc8291) (aes128gcm) and application
 server auth per [RFC 8292](https://www.rfc-editor.org/rfc/rfc8292) (a VAPID JWT,
-ES256). Both functions are JWT-verified and resolve the caller from their JWT, so
-a member reaches only their own devices.
+ES256). `push-key` and `push-test` are JWT-verified and resolve the caller from
+their JWT, so a member reaches only their own devices; `notify-eval` is the
+daily cron that decides when to notify.
 
 - **`push-key`** — returns `{ publicKey }`, the VAPID public key the client passes
   to `pushManager.subscribe({ applicationServerKey })`. Served rather than baked
@@ -358,6 +380,34 @@ a member reaches only their own devices.
   `{ title, body, url }`, with `url` (`/household`) the target for the service
   worker's `notificationclick`.
 
+- **`notify-eval`** — the once-daily evaluator that decides _when_ to notify.
+  A `pg_cron` schedule (`20260905000000_notification_triggers.sql`) POSTs it
+  with the service-role key; the default JWT posture verifies that key and the
+  handler rejects anything but a `service_role` bearer, so only the cron starts
+  a run. With a service-role client it reads every household's plan, checks
+  four conditions against today's data with the pure `@nest/plan` / `@nest/tax`
+  engines —
+
+  - **buffer_negative** — the fortnightly buffer (`summarise().afterSaving`) is
+    below zero. Dedupe key: the financial year, re-notified after 14 days.
+  - **goal_eta_slipped** — a dated savings goal's `projectGoal()` completion is
+    past its `target_date` (or unreachable). Dedupe key: `<goal_id>:<target_date>`.
+  - **temporary_item_expiring** — a `temporary_item.target_date` is within 14
+    days. Dedupe key: the item id.
+  - **fy_boundary** — within 14 days of 30 June. Dedupe key: the financial year.
+
+  — and for each member with a device, the trigger left on
+  (`notification_preference`), and no matching `notification_log` row in the
+  dedupe window, sends `{ title, body, url }` via `_shared/webpush.ts` and
+  appends a `notification_log` row. A row is written only once a device took
+  the push, so a run where every endpoint failed transiently is retried the
+  next day. Dead endpoints (`404`/`410`) are pruned. The decision logic is the
+  pure, DI-tested `notify-eval/eval.ts`; the row → engine-input shaping is
+  `notify-eval/tax.ts`, a Deno mirror of the buffer slice of
+  `apps/pwa/src/lib/tax.ts`'s `estimateHouseholdTaxFromRows` (the runtime
+  cannot import the PWA's `lib/`, so the row shaping is per-consumer — the
+  tax math itself stays in `@nest/tax`).
+
 The crypto is `@negrel/webpush` (WebCrypto only, no npm shims), pinned in
 `deno.json` and `deno.lock` like every other dependency. `_shared/webpush.ts` is
 the send path both `push-test` and `notify-eval` call: `createPushSender` binds
@@ -366,8 +416,8 @@ the module supplies the two pieces the library leaves to the caller — converti
 the stored base64url keypair into the JWK pair WebCrypto imports, and classifying
 a failure as a dead endpoint or a transient one.
 
-Nothing here decides _when_ to notify — there is no scheduled evaluation and no
-buffer / goal / expiry trigger. A push happens only when a member asks for a test.
+Deciding **per-member, per-timezone** when the daily run fires is a follow-up;
+the schedule is one fixed UTC hour (≈ morning AEST) for every household.
 
 ### Secrets
 

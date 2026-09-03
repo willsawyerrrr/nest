@@ -6,7 +6,7 @@ import {
   grossVestedValueCents,
   vestedQuantity,
   type EquityGrant,
-} from './equity'
+} from './equity.ts'
 
 /** A 48-unit grant on a 12-month cliff / 48-month / monthly schedule from 2024-01-15. */
 function grant(overrides: Partial<EquityGrant> = {}): EquityGrant {

@@ -3,8 +3,8 @@
  * aside, leaving a buffer. Mirrors the household's spreadsheet Summary.
  */
 
-import type { BudgetGroup, BudgetLine, Money, NonTaxableInflow, TemporaryItem } from './index'
-import { annualCents, fortnightlyCents, FORTNIGHTS_PER_YEAR } from './normalize'
+import type { BudgetGroup, BudgetLine, Money, NonTaxableInflow, TemporaryItem } from './index.ts'
+import { annualCents, fortnightlyCents, FORTNIGHTS_PER_YEAR } from './normalize.ts'
 
 /** A figure expressed in both the plan's primary fortnightly period and annually. */
 export interface Amounts {

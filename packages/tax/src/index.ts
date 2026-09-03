@@ -4,26 +4,26 @@
  * computation lives in exactly one place. Pure — no I/O, no side effects.
  */
 
-import type { OneOffConcession } from './oneOff'
+import type { OneOffConcession } from './oneOff.ts'
 
-export { FY2026_CONFIG, FY2027_CONFIG, configsByYear } from './configs'
+export { FY2026_CONFIG, FY2027_CONFIG, configsByYear } from './configs.ts'
 
-export { annualGrossCents, estimateHouseholdTax } from './estimate'
+export { annualGrossCents, estimateHouseholdTax } from './estimate.ts'
 export type {
   HouseholdTaxEstimate,
   IncomeInput,
   IncomeSchedule,
   MemberTaxEstimate,
   TaxProfileInput,
-} from './estimate'
+} from './estimate.ts'
 
-export { splitOneOffPayment } from './oneOff'
+export { splitOneOffPayment } from './oneOff.ts'
 export type {
   OneOffConcession,
   OneOffPaymentInput,
   OneOffPaymentSplit,
   OneOffTaxTreatment,
-} from './oneOff'
+} from './oneOff.ts'
 
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number

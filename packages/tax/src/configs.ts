@@ -12,7 +12,7 @@
  * published or legislated 2026-27 values.
  */
 
-import type { FinancialYear, TaxYearConfig } from './index'
+import type { FinancialYear, TaxYearConfig } from './index.ts'
 
 /**
  * Resident config for FY2026 (1 Jul 2025 – 30 Jun 2026), a closed financial

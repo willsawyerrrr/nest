@@ -614,20 +614,31 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   payload encryption, RFC 8292 VAPID auth) — no push vendor and no native app. A
   member opts in **per device**: the subscription (endpoint plus its two keys)
   lands in `push_subscription`, upserted on the globally unique `endpoint` so a
-  re-subscribe refreshes the row. That table is the one exception to the
+  re-subscribe refreshes the row. That table, and `notification_preference` (a
+  member's on/off choice per trigger, absent ⇒ on), are the exceptions to the
   shared-household rule — an endpoint is a bearer capability to make someone's
   phone buzz, so RLS scopes all four commands to the owning member
   (`current_member_ids()`), a co-member can neither read nor delete nor reassign
-  it, and `service_role` holds only `select` (to send) and `delete` (to prune).
-  The VAPID keypair and its `mailto:` subject live in Vault, read only through the
-  service-role-only `vapid_keys()` RPC and set by hand; `push-key` serves the
-  public key so rotating the pair needs no rebuild, and `push-test` sends a
-  verification notification to the caller's own devices, pruning a row only on a
-  `404`/`410` and reporting `{ devices, sent, pruned, failed }`. The payload is
-  `{ title, body, url }`, the URL being where `notificationclick` navigates.
-  Deciding **when** to notify is out of scope: there is no scheduled evaluation
-  pass and no buffer / goal / expiry trigger, so a push happens only when a member
-  asks for a test.
+  it, and `service_role` holds only `select`/`delete` on `push_subscription` and
+  `select` on `notification_preference`. The VAPID keypair and its `mailto:`
+  subject live in Vault, read only through the service-role-only `vapid_keys()`
+  RPC and set by hand; `push-key` serves the public key so rotating the pair
+  needs no rebuild, and `push-test` sends a verification notification to the
+  caller's own devices, pruning a row only on a `404`/`410` and reporting
+  `{ devices, sent, pruned, failed }`. The payload is `{ title, body, url }`, the
+  URL being where `notificationclick` navigates. **Deciding when to notify** is
+  the `notify-eval` edge function: a daily `pg_cron` POST evaluates four
+  today's-data triggers per household with the pure `@nest/plan` / `@nest/tax`
+  engines — the fortnightly buffer going negative
+  (`summarise().afterSaving` < 0), a dated goal's `projectGoal()` ETA past its
+  `target_date`, a `temporary_item` within 14 days of its target date, and
+  within 14 days of 30 June — and pushes to each member with a device who has
+  left that trigger on and has no matching `notification_log` row in the dedupe
+  window (`notification_log` being a `service_role`-only ledger: buffer re-sends
+  after 14 days, the rest fire once per goal target / item / financial year).
+  A log row is written only once a device took the push, so a transient failure
+  retries next day. Deposit-landed and bill-due triggers need ingestion and are
+  out of scope; per-member, per-timezone scheduling is a follow-up.
 - EOFY sharing: a household gives a tax agent read-only access to its EOFY
   summary (estimate, withholding position, deductions with receipts, super,
   HELP debt, payslip documents) via a scoped, time-limited bearer link — never

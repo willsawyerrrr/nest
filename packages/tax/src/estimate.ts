@@ -22,13 +22,13 @@ import {
   type TaxBreakdown,
   type TaxInput,
   type TaxYearConfig,
-} from './index'
+} from './index.ts'
 import {
   splitOneOffPayment,
   type OneOffConcession,
   type OneOffPaymentInput,
   type OneOffTaxTreatment,
-} from './oneOff'
+} from './oneOff.ts'
 
 /**
  * How often an income is received. Drives periods-per-year for annualisation.

@@ -9,7 +9,7 @@ import {
   type PayslipPositionRow,
   type ReconciledInflow,
   type SuperGuaranteeConfig,
-} from './index'
+} from './index.ts'
 
 /** FY2027 — 1 Jul 2026 – 30 Jun 2027. */
 const FY = 2027

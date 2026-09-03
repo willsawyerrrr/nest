@@ -4,7 +4,7 @@ import {
   projectSuperBalance,
   toProjectionInput,
   yearsToRetirement,
-} from './retirement'
+} from './retirement.ts'
 
 describe('projectSuperBalance', () => {
   it('returns the current balance when years is zero or negative', () => {

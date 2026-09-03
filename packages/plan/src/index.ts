@@ -15,13 +15,19 @@ export {
   PERIODS_PER_YEAR,
   periodsPerYear,
   WEEKS_PER_YEAR,
-} from './normalize'
+} from './normalize.ts'
 
-export { isActiveOn, isTemporaryActive, summarise } from './summary'
-export type { Amounts, BudgetSummary, EffectiveWindow, GroupSummary, SummaryInput } from './summary'
+export { isActiveOn, isTemporaryActive, summarise } from './summary.ts'
+export type {
+  Amounts,
+  BudgetSummary,
+  EffectiveWindow,
+  GroupSummary,
+  SummaryInput,
+} from './summary.ts'
 
-export { projectGoal } from './goal'
-export type { GoalProjection } from './goal'
+export { projectGoal } from './goal.ts'
+export type { GoalProjection } from './goal.ts'
 
 export {
   accruedBalanceCents,
@@ -29,16 +35,16 @@ export {
   projectSuperBalance,
   toProjectionInput,
   yearsToRetirement,
-} from './retirement'
-export type { RetirementAssumptions, SuperProjection, SuperProjectionInput } from './retirement'
+} from './retirement.ts'
+export type { RetirementAssumptions, SuperProjection, SuperProjectionInput } from './retirement.ts'
 
-export { projectNetWorth } from './netWorthProjection'
+export { projectNetWorth } from './netWorthProjection.ts'
 export type {
   NetWorthGoal,
   NetWorthProjectionInput,
   NetWorthProjectionPoint,
   NetWorthSuperInput,
-} from './netWorthProjection'
+} from './netWorthProjection.ts'
 
 export {
   equityTotalCents,
@@ -46,8 +52,8 @@ export {
   grantValueCents,
   grossVestedValueCents,
   vestedQuantity,
-} from './equity'
-export type { EquityGrant, EquityInstrumentType, VestingFrequency } from './equity'
+} from './equity.ts'
+export type { EquityGrant, EquityInstrumentType, VestingFrequency } from './equity.ts'
 
 export {
   assignmentsByAccount,
@@ -55,24 +61,24 @@ export {
   paySplitNeedsUpdate,
   resolveDestinationAccountId,
   roundCentsUpToStep,
-} from './splits'
-export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits'
+} from './splits.ts'
+export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits.ts'
 
-export { financialYearDayCount, financialYearPeriod, prorateAnnualToPeriod } from './payPeriod'
-export type { PayPeriod } from './payPeriod'
+export { financialYearDayCount, financialYearPeriod, prorateAnnualToPeriod } from './payPeriod.ts'
+export type { PayPeriod } from './payPeriod.ts'
 
 export {
   annualInflowGrossCents,
   expectedPeriodGrossCents,
   isOneOff,
   isPeriodOnCadence,
-} from './payCadence'
+} from './payCadence.ts'
 export type {
   ExpectationBasis,
   OneOffInflow,
   PartCycleReason,
   ReconciledInflow,
-} from './payCadence'
+} from './payCadence.ts'
 
 export {
   latestReportedYearToDate,
@@ -82,7 +88,7 @@ export {
   payslipYearToDate,
   payslipYearToDateByMember,
   unmeasuredInflowPositions,
-} from './payslip'
+} from './payslip.ts'
 export type {
   PayslipActuals,
   PayslipAttribution,
@@ -101,14 +107,14 @@ export type {
   SuperGuaranteeConfig,
   UnmeasuredInflowPosition,
   UnmeasuredPositionRow,
-} from './payslip'
+} from './payslip.ts'
 
-export { payslipYearPositions } from './payslipYearPosition'
+export { payslipYearPositions } from './payslipYearPosition.ts'
 export type {
   PayslipPositionRow,
   PayslipYearPosition,
   PayslipYearPositions,
-} from './payslipYearPosition'
+} from './payslipYearPosition.ts'
 
 /** A monetary amount in integer minor units (cents). Never a float. */
 export type Money = number

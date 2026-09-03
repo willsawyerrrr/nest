@@ -68,6 +68,17 @@ instance and can also be run locally.
   reports (its `account_balance` cascading away), flags `deleted_from_source_at`
   when a savings goal still holds it, clears the flag when the account reappears,
   and leaves individually-owned accounts and other households' rows alone.
+- `notification_preference.sql` — the assertions that a member's notification
+  on/off choices are theirs alone, the same boundary `push_subscription` draws:
+  a member reads and changes only their own rows, cannot attribute one to a
+  co-member, a co-member's update/delete of their row matches nothing, the
+  `(member, trigger)` pair is unique, a separate household sees none, and
+  `service_role` (the evaluator) holds `select` and nothing else.
+- `notification_log.sql` — the assertions that the evaluator's dedupe ledger is
+  its own: `authenticated` has no grant and no policy (a direct select is
+  refused), RLS is enabled, `service_role` holds `select`/`insert` only, and the
+  `(member, trigger, dedupe_key)` unique key rejects a repeat send while a fresh
+  key is a distinct notification.
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and
@@ -84,6 +95,7 @@ instance and can also be run locally.
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
 `deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql` →
+`notification_preference.sql` → `notification_log.sql` →
 `reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `wishlist_item.sql`.
 Because the real migrations and policies are applied, the assertions test the
@@ -109,6 +121,8 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql

@@ -148,6 +148,7 @@ export function makeGoal(overrides: Partial<Goal> = {}): Goal {
     target_date: null,
     current_balance_cents: 0,
     linked_account_id: null,
+    annual_interest_bps: null,
     created_at: '',
     updated_at: '',
     ...overrides,

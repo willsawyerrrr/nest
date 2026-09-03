@@ -198,4 +198,11 @@ export interface SavingsGoal {
   readonly currentBalanceCents: Money
   /** ISO date (YYYY-MM-DD) the goal is aimed to be met by, if any. */
   readonly targetDate?: string
+  /**
+   * Modelled effective annual interest rate in basis points (`450` = 4.50%
+   * p.a.), compounded fortnightly on the running balance in the projection.
+   * Null, zero, or absent models no interest and the projection is pure linear
+   * contribution math.
+   */
+  readonly annualInterestBps?: number | null
 }

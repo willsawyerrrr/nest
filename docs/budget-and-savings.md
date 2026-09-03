@@ -127,6 +127,20 @@ math).
   goal's fortnightly contribution is the sum of its linked lines. Only the
   contribution is entered, never derived.
 - Progress and ETA are projected from `current + contribution × fortnights`.
+- A goal may carry a **modelled interest rate** (`annual_interest_bps`, basis
+  points, entered as a percent per annum). It is a household modelling
+  assumption — Up publishes no clean per-account rate — and applies whether or
+  not the goal links a saver. Treated as the effective annual rate, it compounds
+  fortnightly: the per-fortnight growth factor is `f = (1 + bps/10000)^(1/26)`,
+  and each fortnight the running balance grows by `f` before the contribution is
+  added. Null or `0` models no interest and the projection is exactly the linear
+  result. With a rate set:
+  - the fortnights to target come from stepping the balance forward until it
+    reaches the target (null past a ~200-year cap), so growth alone can reach an
+    undated goal even with no contribution;
+  - the contribution required to hit a `targetDate` is the closed-form annuity
+    `(target − balance₀·fⁿ)·(f − 1)/(fⁿ − 1)`, rounded up and floored at zero.
+  - Interest as assessable income is out of scope (tracked separately).
 
 ### Temporary item (date-driven)
 
@@ -251,7 +265,7 @@ database access. It handles:
 - **Summary reconciliation** — Available, Outgoings, Savings block, remaining
   buffer, and per-group portions.
 - **Goal projection** — progress and ETA from current balance, summed
-  contribution, and target.
+  contribution, target, and an optional fortnightly-compounding interest rate.
 - **Temporary expiry** — determine whether a temporary item is still an active
   fortnightly outflow from its target date.
 
@@ -264,8 +278,8 @@ reload-safe; keyboard shortcuts jump between them.
   search, and sort (Default / Name / Amount + direction, persisted to
   localStorage).
 - **Summary screen** — the reconciliation dashboard, led by an allocation donut.
-- **Goals screen** — targets, dates, current balance, progress + ETA; link
-  Savings lines to a goal.
+- **Goals screen** — targets, dates, current balance, modelled interest rate,
+  progress + ETA; link Savings lines to a goal.
 
 ## Build slices
 

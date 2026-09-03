@@ -1385,6 +1385,7 @@ export type Database = {
       }
       savings_goal: {
         Row: {
+          annual_interest_bps: number | null
           created_at: string
           current_balance_cents: number
           household_id: string
@@ -1396,6 +1397,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          annual_interest_bps?: number | null
           created_at?: string
           current_balance_cents?: number
           household_id: string
@@ -1407,6 +1409,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          annual_interest_bps?: number | null
           created_at?: string
           current_balance_cents?: number
           household_id?: string

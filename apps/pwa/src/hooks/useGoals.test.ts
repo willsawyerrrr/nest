@@ -17,6 +17,7 @@ const input: GoalInput = {
   target_date: null,
   current_balance_cents: 0,
   linked_account_id: null,
+  annual_interest_bps: null,
 }
 
 beforeEach(() => {

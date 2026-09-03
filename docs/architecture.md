@@ -348,8 +348,10 @@ so overall wall-clock is the slowest single job, not the sum. A push supersedes
 an in-flight run for the same ref (`concurrency` with `cancel-in-progress`), and
 the workflow token is scoped `contents: read`:
 
-- **check** — migration-version uniqueness (`scripts/check-migration-versions.js`,
-  ahead of the install so it fails in milliseconds), then lint / format /
+- **check** — migration-version uniqueness (`scripts/check-migration-versions.js`)
+  and edge-vendor sync (`scripts/vendor-edge-packages.js --check`, asserting
+  `supabase/functions/_shared/vendor/` still matches `packages/{plan,tax}/src`),
+  both ahead of the install so they fail in milliseconds, then lint / format /
   typecheck / build (~49s). Not the binding constraint.
 - **test** — the Vitest workspace, sharded across six parallel runners with V8
   coverage. A `test-shard` matrix job runs

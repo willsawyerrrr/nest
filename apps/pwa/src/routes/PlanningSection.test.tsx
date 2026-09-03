@@ -180,7 +180,7 @@ describe('PlanningSection', () => {
     expect(hooks.screenProps?.overrides).toEqual([])
   })
 
-  it('shows an account by name, and its id when nothing resolves', () => {
+  it('resolves account, saver, and breakdown ids to names, and shows the id when nothing resolves', () => {
     mockLoaded()
     const line = (id: string) =>
       makeBudgetLine({ id, name: `Line ${id}`, destination_account_id: null })
@@ -193,24 +193,43 @@ describe('PlanningSection', () => {
       loading: false,
       accounts: [{ id: 'acc1', name: 'Everyday' }],
     })
+    hooks.useSavers.mockReturnValue({
+      loading: false,
+      savers: [makeSaver({ id: 's1', name: 'Emergency fund' })],
+    })
+    hooks.useBreakdowns.mockReturnValue({
+      loading: false,
+      breakdowns: [{ id: 'bd1', name: 'Medications' }],
+      items: [],
+    })
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [makeGoal({ id: 'g1', name: 'Car', linked_account_id: 's1' })],
+      baselineGoals: [makeGoal({ id: 'g1', name: 'Car', linked_account_id: null })],
+    })
     hooks.planning.layerFor.mockImplementation((table: string) =>
       table === 'budget_line'
         ? {
             updates: {
-              b1: { destination_account_id: 'acc1' },
+              b1: { destination_account_id: 'acc1', breakdown_id: 'bd1' },
               b2: { destination_account_id: 'gone' },
             },
             creates: [],
             deletes: [],
           }
-        : undefined,
+        : table === 'savings_goal'
+          ? { updates: { g1: { linked_account_id: 's1' } }, creates: [], deletes: [] }
+          : undefined,
     )
     renderSection()
 
     const overrides = hooks.screenProps?.overrides as PlanningOverride[]
-    const byRow = Object.fromEntries(overrides.map((o) => [o.rowName, o.changes[0]?.now]))
-    expect(byRow['Line b1']).toBe('Everyday')
-    expect(byRow['Line b2']).toBe('gone')
+    const changeFor = (rowName: string, field: string) =>
+      overrides.find((o) => o.rowName === rowName)?.changes.find((c) => c.field === field)?.now
+    expect(changeFor('Line b1', 'destination_account_id')).toBe('Everyday')
+    expect(changeFor('Line b1', 'breakdown_id')).toBe('Medications')
+    expect(changeFor('Line b2', 'destination_account_id')).toBe('gone')
+    expect(changeFor('Car', 'linked_account_id')).toBe('Emergency fund')
   })
 
   it('rolls up the buffer, tax, take-home, net worth, and each goal ETA', () => {

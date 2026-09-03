@@ -406,7 +406,16 @@ daily cron that decides when to notify.
   `notify-eval/tax.ts`, a Deno mirror of the buffer slice of
   `apps/pwa/src/lib/tax.ts`'s `estimateHouseholdTaxFromRows` (the runtime
   cannot import the PWA's `lib/`, so the row shaping is per-consumer — the
-  tax math itself stays in `@nest/tax`).
+  tax math itself stays in the shared packages).
+
+`@nest/plan` and `@nest/tax` reach the edge runtime through
+`_shared/vendor/`. The Supabase CLI bundles each function inside a container
+that sees only `supabase/functions/`, so an import that reaches `../../packages`
+fails the deploy. `scripts/vendor-edge-packages.js` (`pnpm vendor:edge`) copies
+`packages/{plan,tax}/src` verbatim into `_shared/vendor/`, `deno.json` maps the
+two specifiers there, and CI's `pnpm check:vendor-edge` fails when the copy has
+drifted from the packages, which stay the single source of truth. `deno fmt`
+and `deno lint` skip the vendored tree; `deno check` still type-checks it.
 
 The crypto is `@negrel/webpush` (WebCrypto only, no npm shims), pinned in
 `deno.json` and `deno.lock` like every other dependency. `_shared/webpush.ts` is

@@ -8,8 +8,8 @@
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveMemberWithAdmin } from '../_shared/caller.ts'
 import { loadVapidKeys } from '../_shared/vapid.ts'
+import { createPushSender } from '../_shared/webpush.ts'
 import { type PushDevice, runPushTest } from './send.ts'
-import { createSender } from './webpush.ts'
 
 Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
@@ -33,7 +33,7 @@ Deno.serve(async (request) => {
       const keys = await loadVapidKeys(admin())
       if (!keys) return null
       try {
-        return await createSender(keys)
+        return await createPushSender(keys)
       } catch {
         // A malformed stored keypair is a misconfiguration, reported as one.
         return null

@@ -1,17 +1,55 @@
 /**
- * The real Web Push sender: an ES256 VAPID JWT (RFC 8292) plus an aes128gcm
- * payload encrypted to the subscription's keys (RFC 8291).
+ * The Web Push send path, shared by every function that pushes to a device: an
+ * ES256 VAPID JWT (RFC 8292) plus an aes128gcm payload encrypted to the
+ * subscription's keys (RFC 8291).
  *
  * `@negrel/webpush` does the ECDH → HKDF → AES-GCM chain over WebCrypto alone,
- * so none of it is hand-rolled here; this module supplies the two things the
+ * so none of it is hand-rolled here; this module supplies the three things the
  * library leaves to the caller — converting the stored base64url keypair into the
- * JWK pair it imports, and classifying a failure as dead-endpoint or transient.
+ * JWK pair it imports, classifying a failure as dead-endpoint or transient, and
+ * binding one application server to the configured keypair so a whole pass of
+ * devices is served from a single ECDH keypair.
+ *
+ * `push-test` sends to the caller's own devices; `notify-eval` sends a trigger
+ * alert to a household member's devices. Both bind one sender with
+ * {@link createPushSender} and attempt each device independently, deleting the
+ * rows {@link isGone} identifies (each function owns its own delete — the row's
+ * table and the client are the function's, not this module's).
  */
 
 import * as webpush from '@negrel/webpush'
 import { decodeBase64Url, encodeBase64Url } from '@std/encoding/base64url'
-import type { VapidKeys } from '../_shared/vapid.ts'
-import type { DeliveryOutcome, PushSender } from './send.ts'
+import type { VapidKeys } from './vapid.ts'
+
+/** One opted-in device, as stored in `push_subscription`. */
+export interface PushDevice {
+  id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+}
+
+/** The notification body the service worker renders and routes on. */
+export interface PushPayload {
+  title: string
+  body: string
+  /** Where `notificationclick` navigates. */
+  url: string
+}
+
+/** The outcome of one device's delivery attempt. */
+export type DeliveryOutcome =
+  | { delivered: true }
+  /**
+   * `gone` is true only when the push service reported the subscription as
+   * absent (404) or expired (410) — the device unsubscribed, so its row is dead.
+   * Every other failure (a 5xx, a timeout, a rejected VAPID token) leaves the
+   * row alone: it may well deliver on the next attempt.
+   */
+  | { delivered: false; gone: boolean }
+
+/** Sends one encrypted push. Resolves — never throws — with the outcome. */
+export type PushSender = (device: PushDevice, payload: PushPayload) => Promise<DeliveryOutcome>
 
 /** An uncompressed P-256 point is the 0x04 tag plus a 32-byte X and Y. */
 const UNCOMPRESSED_POINT_BYTES = 65
@@ -65,9 +103,11 @@ export function isGone(error: unknown): boolean {
 /**
  * Bind a sender to the configured VAPID keys. One application server (and so one
  * ECDH keypair) serves every device in a pass; the per-message salt keeps each
- * payload's encryption distinct.
+ * payload's encryption distinct. The returned function resolves — never throws —
+ * so one failing endpoint neither aborts a `Promise.all` over the others nor
+ * loses the run's summary.
  */
-export async function createSender(keys: VapidKeys): Promise<PushSender> {
+export async function createPushSender(keys: VapidKeys): Promise<PushSender> {
   const server = await webpush.ApplicationServer.new({
     contactInformation: keys.subject,
     vapidKeys: await webpush.importVapidKeys(vapidJwkFromRaw(keys), { extractable: false }),

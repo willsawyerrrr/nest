@@ -8,36 +8,9 @@
  */
 
 import type { FlowResult, MemberOutcome } from '../up-connect/connect.ts'
+import type { DeliveryOutcome, PushDevice, PushPayload, PushSender } from '../_shared/webpush.ts'
 
-/** One opted-in device, as stored in `push_subscription`. */
-export interface PushDevice {
-  id: string
-  endpoint: string
-  p256dh: string
-  auth: string
-}
-
-/** The notification body the service worker renders and routes on. */
-export interface PushPayload {
-  title: string
-  body: string
-  /** Where `notificationclick` navigates. */
-  url: string
-}
-
-/** The outcome of one device's delivery attempt. */
-export type DeliveryOutcome =
-  | { delivered: true }
-  /**
-   * `gone` is true only when the push service reported the subscription as
-   * absent (404) or expired (410) — the device unsubscribed, so its row is dead.
-   * Every other failure (a 5xx, a timeout, a rejected VAPID token) leaves the
-   * row alone: it may well deliver on the next attempt.
-   */
-  | { delivered: false; gone: boolean }
-
-/** Sends one encrypted push. Resolves — never throws — with the outcome. */
-export type PushSender = (device: PushDevice, payload: PushPayload) => Promise<DeliveryOutcome>
+export type { DeliveryOutcome, PushDevice, PushPayload, PushSender }
 
 export interface PushTestDeps {
   /** Resolves the caller's own member id, or an error outcome. */

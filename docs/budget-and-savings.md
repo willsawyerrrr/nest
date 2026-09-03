@@ -29,6 +29,13 @@ inflows never reach the tax engine.
 A capped-but-always-spent work reimbursement is modelled as a fixed regular
 non-taxable inflow at the cap amount.
 
+A recurring inflow of either kind may carry optional effective dates
+(`starts_on` / `ends_on`); blank both means it applies all financial year, blank
+either side is open-ended. A fixed-term arrangement — a reimbursement that runs
+to a project's end, hobby income for one season — is a single dated inflow. How
+each side of the app reads the window differs: see the Summary section below and
+[`tax.md`](tax.md).
+
 An inflow is also either **recurring** or **one-off**, and states one or the other:
 `schedule` is the cadence it recurs on, `paid_on` the single day it lands on, never
 both and never neither. A one-off is severance, a bonus, or a gift — money that
@@ -139,7 +146,14 @@ The Summary mirrors the household's existing spreadsheet: it reconciles availabl
 money against outgoings and money set aside, leaving a buffer.
 
 - **Available** = after-tax income (from the tax estimate over taxable inflows) +
-  non-taxable inflows, both recurring only.
+  non-taxable inflows, both recurring only. A non-taxable inflow with an
+  effective window (`starts_on` / `ends_on`) is gated fully in or out by whether
+  it is active **now**: counted at its full fortnightly and annual rate while
+  `now` is within `[starts_on, ends_on]` (either side open-ended), excluded
+  entirely otherwise — the same active-at-`now` test that expires a temporary
+  item. This is deliberately not the FY-share proration the tax estimate applies
+  to a taxable inflow, which is the right basis only for a whole-of-year
+  progressive assessment.
 - **Outgoings** = Needs + Wants + Discretionary + Temporary.
 - **Savings block** = Savings + Investments.
 - **Remaining buffer** = Available − Outgoings − Savings block.

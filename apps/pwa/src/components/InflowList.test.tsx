@@ -167,6 +167,23 @@ describe('InflowList', () => {
     expect(screen.getByText('1 July 2026 – 14 Sept 2099')).toBeInTheDocument()
   })
 
+  it('captions a non-taxable inflow’s effective window the same as a taxable one', () => {
+    renderList([
+      makeInflow({
+        id: 'i13',
+        member_id: null,
+        name: 'Project reimbursement',
+        taxable: false,
+        type: 'reimbursement',
+        schedule: 'monthly',
+        amount_cents: 8000,
+        starts_on: '2026-07-01',
+        ends_on: '2027-06-30',
+      }),
+    ])
+    expect(screen.getByText('1 July 2026 – 30 June 2027')).toBeInTheDocument()
+  })
+
   it('captions an open-ended effective start as a from-date', () => {
     renderList([makeInflow({ id: 'i6', name: 'New salary', starts_on: '2026-09-15' })])
     expect(screen.getByText('from 15 Sept 2026')).toBeInTheDocument()

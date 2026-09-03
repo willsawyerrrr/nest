@@ -76,12 +76,35 @@ export interface BudgetSummary {
 }
 
 /**
+ * An optional effective window, both ends ISO dates (YYYY-MM-DD) and each side
+ * open when null or absent.
+ */
+export interface EffectiveWindow {
+  readonly startsOn?: string | null
+  readonly endsOn?: string | null
+}
+
+/**
+ * Whether `now` falls within an effective window — at or after its `startsOn` and
+ * at or before its `endsOn`, either side open when unset. The bounds are parsed
+ * as UTC midnight, the same instant comparison the buffer uses to expire a
+ * temporary item.
+ */
+export function isActiveOn(window: EffectiveWindow, now: Date): boolean {
+  const nowMs = now.getTime()
+  return (
+    (window.startsOn == null || Date.parse(window.startsOn) <= nowMs) &&
+    (window.endsOn == null || nowMs <= Date.parse(window.endsOn))
+  )
+}
+
+/**
  * Whether a temporary item is still an active fortnightly outflow at `now`:
  * active while `now` is at or before the instant of its `targetDate`, expired
  * (and excluded from the buffer) thereafter.
  */
 export function isTemporaryActive(item: TemporaryItem, now: Date): boolean {
-  return now.getTime() <= Date.parse(item.targetDate)
+  return isActiveOn({ endsOn: item.targetDate }, now)
 }
 
 /** Sums two `Amounts` field-wise. */
@@ -102,12 +125,17 @@ function addAmounts(a: Amounts, b: Amounts): Amounts {
  * reported beside the plan rather than spent by it.
  */
 export function summarise(input: SummaryInput, now: Date): BudgetSummary {
-  const inflowFortnightly = input.nonTaxableInflows.reduce(
+  // A non-taxable inflow with an effective window counts in full while `now` is
+  // within it and not at all otherwise — the steady "what lands each fortnight
+  // right now" reading, deliberately not the FY-share proration the tax estimate
+  // applies to a taxable inflow.
+  const activeInflows = input.nonTaxableInflows.filter((inflow) => isActiveOn(inflow, now))
+  const inflowFortnightly = activeInflows.reduce(
     (total, inflow) =>
       total + fortnightlyCents(inflow.amountCents, inflow.frequency, inflow.interval),
     0,
   )
-  const inflowAnnual = input.nonTaxableInflows.reduce(
+  const inflowAnnual = activeInflows.reduce(
     (total, inflow) => total + annualCents(inflow.amountCents, inflow.frequency, inflow.interval),
     0,
   )

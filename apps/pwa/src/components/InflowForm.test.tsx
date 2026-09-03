@@ -399,13 +399,67 @@ describe('InflowForm', () => {
     )
   })
 
-  it('hides the effective-date inputs on the non-taxable branch', async () => {
+  it('keeps the effective-date inputs on the non-taxable branch', async () => {
     const user = userEvent.setup()
     render(<InflowForm members={members} onSubmit={vi.fn()} />)
 
     expect(screen.getByLabelText(/effective from/i)).toBeInTheDocument()
     await user.click(screen.getByText('Non-taxable inflow'))
-    expect(screen.queryByLabelText(/effective from/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/effective from/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/effective until/i)).toBeInTheDocument()
+  })
+
+  it('carries a non-taxable recurring inflow’s effective dates through on submit', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await user.click(screen.getByText('Non-taxable inflow'))
+    await user.type(screen.getByLabelText(/name/i), 'Project reimbursement')
+    await user.type(screen.getByLabelText(/amount/i), '80')
+    await user.type(screen.getByLabelText(/effective from/i), '15 Sep 2026')
+    await user.type(screen.getByLabelText(/effective until/i), '30 Jun 2027')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taxable: false,
+          starts_on: '2026-09-15',
+          ends_on: '2027-06-30',
+        }),
+      ),
+    )
+  })
+
+  it('prefills and round-trips a non-taxable inflow’s effective dates when editing', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const inflow = makeInflow({
+      taxable: false,
+      member_id: null,
+      type: 'reimbursement',
+      starts_on: '2026-09-15',
+      ends_on: '2027-06-30',
+    })
+    render(<InflowForm members={members} initial={inflow} onSubmit={onSubmit} />)
+
+    expect(screen.getByLabelText(/effective from/i)).toHaveValue('15 Sep 2026')
+    expect(screen.getByLabelText(/effective until/i)).toHaveValue('30 Jun 2027')
+
+    await user.clear(screen.getByLabelText(/effective until/i))
+    await user.type(screen.getByLabelText(/effective until/i), '31 Dec 2026')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taxable: false,
+          starts_on: '2026-09-15',
+          ends_on: '2026-12-31',
+        }),
+      ),
+    )
   })
 
   it('disables submit until required fields are filled', async () => {
@@ -900,6 +954,9 @@ describe('InflowForm one-off mode', () => {
           paid_on: '2026-09-12',
           one_off_tax_treatment: null,
           years_of_service: null,
+          // A one-off carries no effective window, whatever its taxability.
+          starts_on: null,
+          ends_on: null,
         }),
       ),
     )

@@ -25,6 +25,11 @@ the whole year. The steady-rate `annualGrossCents` is unchanged; it remains the
 per-inflow display figure and the base for percent-of-salary super contributions,
 which apply to the current rate rather than the part-year figure.
 
+FY-share proration is a tax-estimate concept only. A non-taxable inflow carries
+the same `starts_on` / `ends_on` dates but never reaches the tax engine; the
+fortnightly budget gates it fully in or out by whether it is active now (see
+[`budget-and-savings.md`](budget-and-savings.md)).
+
 ## One-off payments and termination concessions
 
 An inflow is either **recurring** — it states the cadence it arrives on — or

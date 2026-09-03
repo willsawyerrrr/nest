@@ -49,6 +49,43 @@ describe('BudgetScreen', () => {
     await waitFor(() => expect(onDeleteLine).toHaveBeenCalledWith('l1'))
   })
 
+  it('opens a prefilled Discretionary add form for a promoted wishlist item and clears it on save', async () => {
+    const user = userEvent.setup()
+    const onCreateLine = vi.fn().mockResolvedValue(undefined)
+    const onPromoteConsumed = vi.fn()
+    renderScreen({
+      promoteDraft: { name: 'New couch', amountCents: 3_500_00 },
+      onCreateLine,
+      onPromoteConsumed,
+    })
+
+    expect(screen.getByText(/new budget item from your wishlist item/i)).toBeInTheDocument()
+    const form = screen.getByText(/new budget item from your wishlist item/i).closest('div')!
+    expect(within(form).getByLabelText(/name/i)).toHaveValue('New couch')
+
+    await user.click(within(form).getByRole('button', { name: /add item/i }))
+    await waitFor(() =>
+      expect(onCreateLine).toHaveBeenCalledWith(
+        expect.objectContaining({
+          line_group: 'discretionary',
+          name: 'New couch',
+          amount_cents: 3_500_00,
+        }),
+      ),
+    )
+    expect(onPromoteConsumed).toHaveBeenCalledOnce()
+  })
+
+  it('clears a promoted wishlist budget draft when its form is cancelled', async () => {
+    const user = userEvent.setup()
+    const onPromoteConsumed = vi.fn()
+    renderScreen({ promoteDraft: { name: 'New couch', amountCents: 3_500_00 }, onPromoteConsumed })
+
+    const form = screen.getByText(/new budget item from your wishlist item/i).closest('div')!
+    await user.click(within(form).getByRole('button', { name: /cancel/i }))
+    expect(onPromoteConsumed).toHaveBeenCalledOnce()
+  })
+
   it('routes a temporary-item delete through onDeleteItem', async () => {
     const user = userEvent.setup()
     const onDeleteItem = vi.fn()

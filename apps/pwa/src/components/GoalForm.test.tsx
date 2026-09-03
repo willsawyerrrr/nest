@@ -64,6 +64,28 @@ describe('GoalForm', () => {
     expect(screen.getByLabelText(/modelled interest rate/i)).toHaveValue('3.75%')
   })
 
+  it('seeds the name and target from a wishlist promote draft on a new goal', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <GoalForm
+        draft={{ name: 'Espresso machine', amountCents: 1_200_00 }}
+        savers={[]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    expect(screen.getByLabelText(/name/i)).toHaveValue('Espresso machine')
+    expect(screen.getByLabelText(/target amount/i)).toHaveValue('$1,200.00')
+
+    await user.click(screen.getByRole('button', { name: /add goal/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Espresso machine', target_amount_cents: 1_200_00 }),
+      ),
+    )
+  })
+
   it('disables submit until name and target amount are filled', async () => {
     const user = userEvent.setup()
     render(<GoalForm savers={[]} onSubmit={vi.fn()} />)

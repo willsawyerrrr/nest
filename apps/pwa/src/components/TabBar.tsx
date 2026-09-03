@@ -38,6 +38,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/net-worth', label: 'Net worth' },
       { path: '/goals', label: 'Goals' },
+      { path: '/wishlist', label: 'Wishlist' },
       { path: '/super', label: 'Super' },
       { path: '/equity', label: 'Equity' },
     ],

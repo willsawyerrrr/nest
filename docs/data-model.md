@@ -548,6 +548,17 @@ no per-member scoping; each line stands alone under the household.
   expires.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
     `target_date` (not null), `created_at`, `updated_at`.
+- **wishlist_item** — an aspirational purchase kept apart from the budget.
+  - `id`, `household_id`, `name`, `amount_cents` (`> 0`), `member_id`
+    (nullable), `note` (nullable), `created_at`, `updated_at`.
+  - `member_id` is a single-column FK to `members (id)`, `on delete set null` —
+    a display and reporting tag naming whose wish it is, not a privacy boundary
+    and not a per-person budget.
+  - Feeds no projection, no pay split, and no tax figure. The Wishlist tab
+    promotes an item to a `savings_goal` or a Discretionary `budget_line`,
+    prefilling the target form; the wishlist row stays until deleted.
+  - Household-wide RLS (`household_ids_for_current_user()`), matching
+    `savings_goal` / `budget_line` / `temporary_item`.
 
 ## Breakdowns
 

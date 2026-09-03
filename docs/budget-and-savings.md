@@ -154,6 +154,31 @@ math).
   no auto-expire-when-funded calculation and no app-owned target-amount funding
   math.
 
+## Wishlist
+
+The **Wishlist** tab (`/wishlist`) holds the household's aspirational purchases —
+things it wants to buy one day, kept apart from the budget. A wishlist item is a
+name, a rough cost (`amount_cents`, always positive), an optional `member_id`
+tag naming whose wish it is, and an optional `note`. The tab lists the items
+sorted by title or amount, with add / edit / delete.
+
+The `member_id` tag is a **display and reporting label only** — money stays fully
+pooled, there are no per-person budgets, and the tag feeds nothing downstream. It
+clears to null if the member is removed.
+
+A wishlist item carries no cadence, funds nothing, and feeds no projection: it is
+absent from the fortnightly buffer, the tax estimate, and pay splits. It sits
+beside the plan until the household **promotes** it:
+
+- **Make a savings goal** opens the Goals tab's add form prefilled with the
+  item's name and `target_amount_cents`, no target date.
+- **Add to budget** opens the Budget tab's add form prefilled with the item's
+  name and amount, group defaulting to Discretionary, the frequency left for the
+  household to choose (a wishlist amount is a lump sum, not a rate).
+
+Promoting does not consume the item — it stays on the wishlist until the
+household deletes it, and there is no "promoted" state.
+
 ## Summary / reconciliation
 
 The Summary mirrors the household's existing spreadsheet: it reconciles available
@@ -246,6 +271,11 @@ income tables.
 - **TemporaryItem** — a date-driven budget line.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
     `target_date`.
+- **WishlistItem** — an aspirational purchase kept apart from the budget.
+  - `id`, `household_id`, `name`, `amount_cents` (> 0), `member_id` (nullable;
+    a display tag only, `on delete set null`), `note` (nullable).
+  - Feeds no projection; promotable to a savings goal or a Discretionary budget
+    line, prefilled from the item, which leaves the item in place.
 
 ### Derived / computed (not stored)
 

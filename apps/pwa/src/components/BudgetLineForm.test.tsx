@@ -40,6 +40,32 @@ describe('BudgetLineForm', () => {
     )
   })
 
+  it('seeds the name and amount from a wishlist promote draft', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <BudgetLineForm
+        draft={{ name: 'New couch', amountCents: 3_500_00 }}
+        defaultGroup="discretionary"
+        onSubmit={onSubmit}
+      />,
+    )
+
+    expect(screen.getByLabelText(/name/i)).toHaveValue('New couch')
+    expect(screen.getByLabelText(/amount/i)).toHaveValue('$3,500.00')
+
+    await user.click(screen.getByRole('button', { name: /add item/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          line_group: 'discretionary',
+          name: 'New couch',
+          amount_cents: 3_500_00,
+        }),
+      ),
+    )
+  })
+
   it('submits a savings line with a null goal', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

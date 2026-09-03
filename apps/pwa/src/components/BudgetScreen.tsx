@@ -1,6 +1,9 @@
+import { Stack, Text } from '@mantine/core'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import type { BudgetGroup } from '../lib/domain'
+import type { PromoteDraft } from '../lib/promoteDraft'
+import { BudgetLineForm } from './BudgetLineForm'
 import { BudgetLineList } from './BudgetLineList'
 import type { DerivedLineValues } from './DerivedBudgetLineForm'
 import { PageSection } from './PageSection'
@@ -25,6 +28,10 @@ interface BudgetScreenProps {
   onCreateItem: (input: TemporaryItemInput) => Promise<void>
   onUpdateItem: (id: string, input: TemporaryItemInput) => Promise<void>
   onDeleteItem: (id: string) => Promise<void>
+  /** A wishlist item promoted to a budget line: opens a prefilled add form above the list. */
+  promoteDraft?: PromoteDraft | null
+  /** Called once the promoted draft has been saved or dismissed, to clear it. */
+  onPromoteConsumed?: () => void
 }
 
 /** Presentational budget-line + temporary-item management. Persistence lives in the caller. */
@@ -41,9 +48,30 @@ export function BudgetScreen({
   onCreateItem,
   onUpdateItem,
   onDeleteItem,
+  promoteDraft,
+  onPromoteConsumed,
 }: BudgetScreenProps) {
   return (
     <PageSection title="Budget">
+      {promoteDraft && (
+        <Stack gap="xs">
+          <Text size="sm" c="dimmed">
+            New budget item from your wishlist item “{promoteDraft.name}”. Pick a frequency for the
+            amount, adjust, and save it — or cancel to leave the wishlist item as it is.
+          </Text>
+          <BudgetLineForm
+            draft={promoteDraft}
+            defaultGroup="discretionary"
+            goals={goals}
+            accounts={accounts}
+            onSubmit={async (input) => {
+              await onCreateLine(input)
+              onPromoteConsumed?.()
+            }}
+            onCancel={() => onPromoteConsumed?.()}
+          />
+        </Stack>
+      )}
       <BudgetLineList
         lines={lines}
         goals={goals}

@@ -140,6 +140,98 @@ describe('PlanningSection', () => {
     expect(overrides.some((o) => o.kind === 'delete' && o.rowName === 'Gym')).toBe(true)
   })
 
+  it('lists only the fields an edit actually moved', () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [makeInflow({ id: 'i1', name: 'Day job', amount_cents: 150_000 })],
+      baselineInflows: [makeInflow({ id: 'i1', name: 'Day job', amount_cents: 100_000 })],
+    })
+    hooks.planning.layerFor.mockImplementation((table: string) =>
+      table === 'inflows'
+        ? {
+            updates: { i1: { name: 'Day job', amount_cents: 150_000, taxable: true } },
+            creates: [],
+            deletes: [],
+          }
+        : undefined,
+    )
+    renderSection()
+
+    const overrides = hooks.screenProps?.overrides as PlanningOverride[]
+    const update = overrides.find((o) => o.kind === 'update')!
+    expect(update.changes.map((c) => c.field)).toEqual(['amount_cents'])
+  })
+
+  it('drops an edit whose fields all match the baseline', () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [makeInflow({ id: 'i1', name: 'Day job' })],
+      baselineInflows: [makeInflow({ id: 'i1', name: 'Day job' })],
+    })
+    hooks.planning.layerFor.mockImplementation((table: string) =>
+      table === 'inflows'
+        ? { updates: { i1: { name: 'Day job', amount_cents: 500000 } }, creates: [], deletes: [] }
+        : undefined,
+    )
+    renderSection()
+
+    expect(hooks.screenProps?.overrides).toEqual([])
+  })
+
+  it('resolves account, saver, and breakdown ids to names, and shows the id when nothing resolves', () => {
+    mockLoaded()
+    const line = (id: string) =>
+      makeBudgetLine({ id, name: `Line ${id}`, destination_account_id: null })
+    hooks.useBudgetLines.mockReturnValue({
+      loading: false,
+      lines: [line('b1'), line('b2')],
+      baselineLines: [line('b1'), line('b2')],
+    })
+    hooks.useAccounts.mockReturnValue({
+      loading: false,
+      accounts: [{ id: 'acc1', name: 'Everyday' }],
+    })
+    hooks.useSavers.mockReturnValue({
+      loading: false,
+      savers: [makeSaver({ id: 's1', name: 'Emergency fund' })],
+    })
+    hooks.useBreakdowns.mockReturnValue({
+      loading: false,
+      breakdowns: [{ id: 'bd1', name: 'Medications' }],
+      items: [],
+    })
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [makeGoal({ id: 'g1', name: 'Car', linked_account_id: 's1' })],
+      baselineGoals: [makeGoal({ id: 'g1', name: 'Car', linked_account_id: null })],
+    })
+    hooks.planning.layerFor.mockImplementation((table: string) =>
+      table === 'budget_line'
+        ? {
+            updates: {
+              b1: { destination_account_id: 'acc1', breakdown_id: 'bd1' },
+              b2: { destination_account_id: 'gone' },
+            },
+            creates: [],
+            deletes: [],
+          }
+        : table === 'savings_goal'
+          ? { updates: { g1: { linked_account_id: 's1' } }, creates: [], deletes: [] }
+          : undefined,
+    )
+    renderSection()
+
+    const overrides = hooks.screenProps?.overrides as PlanningOverride[]
+    const changeFor = (rowName: string, field: string) =>
+      overrides.find((o) => o.rowName === rowName)?.changes.find((c) => c.field === field)?.now
+    expect(changeFor('Line b1', 'destination_account_id')).toBe('Everyday')
+    expect(changeFor('Line b1', 'breakdown_id')).toBe('Medications')
+    expect(changeFor('Line b2', 'destination_account_id')).toBe('gone')
+    expect(changeFor('Car', 'linked_account_id')).toBe('Emergency fund')
+  })
+
   it('rolls up the buffer, tax, take-home, net worth, and each goal ETA', () => {
     mockLoaded()
     hooks.useGoals.mockReturnValue({

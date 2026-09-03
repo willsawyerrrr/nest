@@ -38,9 +38,11 @@ export interface SummarySources {
 
 /**
  * Adapts the household's rows to the plan's `SummaryInput`: non-taxable inflows
- * become the available-cash top-up, each budget line contributes its normalised
- * amount (a derived line taking its breakdown's rolled-up annual total), and each
- * temporary item its dated contribution. Pure — no React, no I/O.
+ * become the available-cash top-up, carrying their effective window so `summarise`
+ * can gate each one in or out by whether it is active at `now`; each budget line
+ * contributes its normalised amount (a derived line taking its breakdown's
+ * rolled-up annual total), and each temporary item its dated contribution. Pure —
+ * no React, no I/O.
  *
  * ONE-OFF money — taxable and non-taxable alike — is gathered into `oneOffCents` and
  * kept out of the available-cash top-up. A payment that lands once has no
@@ -78,6 +80,8 @@ export function toSummaryInput({
               amountCents: inflow.amount_cents ?? 0,
               frequency: inflow.schedule,
               ...(inflow.interval_count != null && { interval: inflow.interval_count }),
+              ...(inflow.starts_on != null && { startsOn: inflow.starts_on }),
+              ...(inflow.ends_on != null && { endsOn: inflow.ends_on }),
             },
           ],
     ),

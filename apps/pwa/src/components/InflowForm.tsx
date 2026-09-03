@@ -309,8 +309,8 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       amount_cents: isWage ? null : dollarsToCents(amount),
       hourly_rate_cents: isWage ? dollarsToCents(hourlyRate) : null,
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
-      starts_on: taxable && !isOneOff ? startsOn : null,
-      ends_on: taxable && !isOneOff ? endsOn : null,
+      starts_on: isOneOff ? null : startsOn,
+      ends_on: isOneOff ? null : endsOn,
       ...(isOneOff ? oneOffRecurrenceInput(oneOff, taxable) : RECURRING_RECURRENCE_INPUT),
     }),
   })
@@ -510,12 +510,12 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         />
       )}
 
-      {taxable && !isOneOff && (
+      {!isOneOff && (
         <Group grow align="flex-start">
           <DateInput
             label="Effective from"
             size="sm"
-            description="Leave blank if this income applies all year. To model a pay rise, set an end date and add a second inflow starting the next day."
+            description="Leave blank if this applies all financial year. To model a change — a pay rise, or an arrangement that ends — set an end date and add a second inflow starting the next day."
             valueFormat="D MMM YYYY"
             clearable
             value={startsOn}

@@ -17,8 +17,8 @@ export {
   WEEKS_PER_YEAR,
 } from './normalize'
 
-export { isTemporaryActive, summarise } from './summary'
-export type { Amounts, BudgetSummary, GroupSummary, SummaryInput } from './summary'
+export { isActiveOn, isTemporaryActive, summarise } from './summary'
+export type { Amounts, BudgetSummary, EffectiveWindow, GroupSummary, SummaryInput } from './summary'
 
 export { projectGoal } from './goal'
 export type { GoalProjection } from './goal'
@@ -163,6 +163,15 @@ export interface NonTaxableInflow {
    * `frequency`.
    */
   readonly interval?: number
+  /**
+   * ISO date (YYYY-MM-DD) the inflow first applies from; null or absent means it
+   * has always applied. The Summary counts the inflow in full while `now` is
+   * within `[startsOn, endsOn]` and not at all otherwise — an in/out gate, not
+   * the FY-share proration the tax estimate applies to a taxable inflow.
+   */
+  readonly startsOn?: string | null
+  /** ISO date (YYYY-MM-DD) the inflow last applies on, inclusive; null or absent means open-ended. */
+  readonly endsOn?: string | null
 }
 
 /**

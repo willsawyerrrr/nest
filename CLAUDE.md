@@ -88,10 +88,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   payments can sit a few cents either side of the annual figure; the form names
   the gap where there is one. Salary or wage money arriving once a year draws an
   advisory note pointing at the pay-cadence picker, which never blocks a save.
-  An inflow may carry optional effective-from/until dates (`starts_on` /
-  `ends_on`); the FY tax estimate prorates each rate by its active share of the
-  year (by calendar days), so income that changes mid-year — a pay rise modelled
-  as the old rate ending and a new dated inflow starting — is estimated correctly.
+  A recurring inflow, taxable or non-taxable, may carry optional
+  effective-from/until dates (`starts_on` / `ends_on`); blank either side is
+  open-ended and blank both means the whole financial year. The two sides read
+  the window differently by design: the FY tax estimate prorates a taxable
+  inflow's rate by its active share of the year (by calendar days), so income
+  that changes mid-year — a pay rise modelled as the old rate ending and a new
+  dated inflow starting — is estimated correctly, whereas the fortnightly budget
+  gates a non-taxable inflow fully in or out by whether it is active at `now`,
+  counting it at its full fortnightly/annual rate within the window and excluding
+  it entirely outside, the same way a temporary item drops out of the buffer once
+  it expires.
   A taxable inflow also records whether it is ordinary time earnings
   (`attracts_super`, default true). An allowance paid on top of ordinary hours —
   on-call or standby pay, each tier its own inflow — is taxed in full but earns

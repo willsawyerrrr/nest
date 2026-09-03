@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isTemporaryActive, summarise, type SummaryInput, type TemporaryItem } from './index'
+import {
+  isActiveOn,
+  isTemporaryActive,
+  summarise,
+  type SummaryInput,
+  type TemporaryItem,
+} from './index'
 
 const NOW = new Date('2026-07-19T00:00:00Z')
 
@@ -23,6 +29,31 @@ const HOUSEHOLD: SummaryInput = {
     { contributionCents: 75_00, targetDate: '2026-06-30' }, // expired before NOW
   ],
 }
+
+describe('isActiveOn', () => {
+  const now = new Date('2026-09-04T00:00:00Z')
+
+  it('is active when no dates are set', () => {
+    expect(isActiveOn({}, now)).toBe(true)
+    expect(isActiveOn({ startsOn: null, endsOn: null }, now)).toBe(true)
+  })
+
+  it('honours an open-ended start (active from startsOn onwards)', () => {
+    expect(isActiveOn({ startsOn: '2026-09-04' }, now)).toBe(true)
+    expect(isActiveOn({ startsOn: '2026-09-05' }, now)).toBe(false)
+  })
+
+  it('honours an open-ended end (active up to and including endsOn)', () => {
+    expect(isActiveOn({ endsOn: '2026-09-04' }, now)).toBe(true)
+    expect(isActiveOn({ endsOn: '2026-09-03' }, now)).toBe(false)
+  })
+
+  it('requires now to fall within a closed window', () => {
+    expect(isActiveOn({ startsOn: '2026-09-01', endsOn: '2026-09-30' }, now)).toBe(true)
+    expect(isActiveOn({ startsOn: '2026-01-01', endsOn: '2026-06-30' }, now)).toBe(false)
+    expect(isActiveOn({ startsOn: '2026-10-01', endsOn: '2026-12-31' }, now)).toBe(false)
+  })
+})
 
 describe('isTemporaryActive', () => {
   it('is active up to and including the target date, expired after', () => {
@@ -77,6 +108,31 @@ describe('summarise', () => {
     )
     expect(expiredOnly.groups.temporary.fortnightlyCents).toBe(0)
     expect(expiredOnly.groups.temporary.annualCents).toBe(0)
+  })
+
+  it('counts a non-taxable inflow only while its effective window contains now', () => {
+    const base = { amountCents: 200_00, frequency: 'fortnightly' } as const
+    const at = (window: { startsOn?: string; endsOn?: string }) =>
+      summarise({ ...HOUSEHOLD, nonTaxableInflows: [{ ...base, ...window }] }, NOW).available
+
+    // NOW is 2026-07-19. Within, before, and after a closed window.
+    expect(at({ startsOn: '2026-07-01', endsOn: '2026-12-31' })).toEqual(summary.available)
+    expect(at({ startsOn: '2026-08-01', endsOn: '2026-12-31' }).annualCents).toBe(120_000_00)
+    expect(at({ startsOn: '2026-08-01', endsOn: '2026-12-31' }).fortnightlyCents).toBe(
+      Math.round(120_000_00 / 26),
+    )
+    expect(at({ startsOn: '2026-01-01', endsOn: '2026-06-30' }).annualCents).toBe(120_000_00)
+
+    // Open-ended each side: active when the set bound still contains NOW.
+    expect(at({ startsOn: '2026-07-01' })).toEqual(summary.available)
+    expect(at({ endsOn: '2026-12-31' })).toEqual(summary.available)
+    expect(at({ startsOn: '2026-08-01' }).annualCents).toBe(120_000_00)
+    expect(at({ endsOn: '2026-06-30' }).annualCents).toBe(120_000_00)
+  })
+
+  it('leaves a non-taxable inflow with no effective dates in available', () => {
+    // The HOUSEHOLD reimbursement carries no window and is counted in full.
+    expect(summary.available.annualCents).toBe(125_200_00)
   })
 
   it('reconciles outgoings, savings block, and the running remainders', () => {

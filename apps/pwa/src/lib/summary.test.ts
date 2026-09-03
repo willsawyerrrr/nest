@@ -138,6 +138,46 @@ describe('toSummaryInput', () => {
     ])
   })
 
+  it('maps a non-taxable inflow’s effective window onto startsOn / endsOn', () => {
+    const result = toSummaryInput({
+      financialYear: 2027,
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [
+        inflow({
+          taxable: false,
+          amount_cents: 200_00,
+          schedule: 'fortnightly',
+          starts_on: '2026-08-01',
+          ends_on: '2027-01-31',
+        }),
+      ],
+      budgetLines: [],
+      derivedAmounts: context(),
+      temporaryItems: [],
+    })
+    expect(result.nonTaxableInflows).toEqual([
+      {
+        amountCents: 200_00,
+        frequency: 'fortnightly',
+        startsOn: '2026-08-01',
+        endsOn: '2027-01-31',
+      },
+    ])
+  })
+
+  it('omits startsOn / endsOn for a non-taxable inflow with no effective dates', () => {
+    const result = toSummaryInput({
+      financialYear: 2027,
+      afterTaxIncomeAnnualCents: 0,
+      inflows: [inflow({ taxable: false, amount_cents: 200_00, schedule: 'fortnightly' })],
+      budgetLines: [],
+      derivedAmounts: context(),
+      temporaryItems: [],
+    })
+    expect(result.nonTaxableInflows[0]).not.toHaveProperty('startsOn')
+    expect(result.nonTaxableInflows[0]).not.toHaveProperty('endsOn')
+  })
+
   it('defaults a non-taxable inflow with no amount to zero cents', () => {
     const result = toSummaryInput({
       financialYear: 2027,

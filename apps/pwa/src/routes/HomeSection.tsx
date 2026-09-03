@@ -3,6 +3,10 @@ import { HomeScreen } from '../components/HomeScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { type Household } from '../hooks/useHousehold'
 import { useMembers } from '../hooks/useMembers'
+import {
+  NOTIFICATION_TRIGGERS,
+  useNotificationPreferences,
+} from '../hooks/useNotificationPreferences'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useUpConnection } from '../hooks/useUpConnection'
@@ -26,6 +30,7 @@ export function HomeSection({
   // members load; null until then, which only blocks subscribing.
   const currentMemberId = members?.find((member) => member.user_id === session.user.id)?.id ?? null
   const push = usePushNotifications(household.id, currentMemberId)
+  const notificationPreferences = useNotificationPreferences(household.id, currentMemberId)
 
   if (membersLoading || taxProfiles.loading || !members) {
     return <LoadingScreen />
@@ -51,6 +56,13 @@ export function HomeSection({
       onDisconnectUp={up.disconnect}
       upBusy={up.busy}
       push={push}
+      notificationPreferences={NOTIFICATION_TRIGGERS.map((trigger) => ({
+        trigger,
+        enabled: notificationPreferences.enabled(trigger),
+      }))}
+      onToggleNotificationPreference={(trigger, next) =>
+        void notificationPreferences.setEnabled(trigger, next)
+      }
       onSignOut={() => void supabase.auth.signOut()}
     />
   )

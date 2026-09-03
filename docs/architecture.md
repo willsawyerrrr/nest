@@ -224,9 +224,9 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   (one fixed UTC hour, ≈ morning AEST) with the service-role key; it reads every
   household's plan with a service-role client, checks four conditions against
   today's data with the pure `@nest/plan` / `@nest/tax` engines, and pushes to
-  each member with a device who has not turned that trigger off
-  (`notification_preference`, absent ⇒ on) and has no matching
-  `notification_log` row in the dedupe window:
+  each member with a device who has not turned that trigger off — a per-trigger
+  toggle in the Household screen's Notifications card, `notification_preference`,
+  absent ⇒ on — and has no matching `notification_log` row in the dedupe window:
   - **buffer_negative** — `summarise().afterSaving.fortnightlyCents` is below
     zero. Dedupe: the financial year, re-sent after 14 days.
   - **goal_eta_slipped** — a dated goal's `projectGoal()` completion is past its

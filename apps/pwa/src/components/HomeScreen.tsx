@@ -11,12 +11,13 @@ import {
   Title,
 } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
+import type { NotificationTrigger } from '../hooks/useNotificationPreferences'
 import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
 import type { TaxProfile, TaxProfileSubmission } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
 import { PageSection } from './PageSection'
 import { PlanningModeControl } from './PlanningModeControl'
-import { PushNotificationsCard } from './PushNotificationsCard'
+import { PushNotificationsCard, type NotificationPreferenceToggle } from './PushNotificationsCard'
 import { TaxProfileList } from './TaxProfileList'
 
 interface HomeScreenProps {
@@ -35,6 +36,8 @@ interface HomeScreenProps {
   onDisconnectUp: () => Promise<void>
   upBusy: boolean
   push: UsePushNotificationsResult
+  notificationPreferences: NotificationPreferenceToggle[]
+  onToggleNotificationPreference: (trigger: NotificationTrigger, next: boolean) => void
   onSignOut: () => void
 }
 
@@ -147,6 +150,8 @@ export function HomeScreen({
   onDisconnectUp,
   upBusy,
   push,
+  notificationPreferences,
+  onToggleNotificationPreference,
   onSignOut,
 }: HomeScreenProps) {
   const codeActive =
@@ -193,6 +198,8 @@ export function HomeScreen({
         onEnable={() => void push.subscribe()}
         onDisable={() => void push.unsubscribe()}
         onSendTest={() => void push.sendTest()}
+        preferences={notificationPreferences}
+        onTogglePreference={onToggleNotificationPreference}
       />
 
       <AppCard>

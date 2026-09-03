@@ -1,6 +1,44 @@
-import { Alert, Badge, Button, Group, Loader, Stack, Text, Title } from '@mantine/core'
+import {
+  Alert,
+  Badge,
+  Button,
+  Divider,
+  Group,
+  Loader,
+  Stack,
+  Switch,
+  Text,
+  Title,
+} from '@mantine/core'
+import type { NotificationTrigger } from '../hooks/useNotificationPreferences'
 import type { PushAction, PushStatus } from '../hooks/usePushNotifications'
 import { AppCard } from './AppCard'
+
+/** One trigger's on/off state for the signed-in member. */
+export interface NotificationPreferenceToggle {
+  trigger: NotificationTrigger
+  enabled: boolean
+}
+
+/** How each trigger reads in the settings list. */
+const TRIGGER_COPY: Record<NotificationTrigger, { label: string; detail: string }> = {
+  buffer_negative: {
+    label: 'Buffer goes negative',
+    detail: "When this fortnight's plan spends more than comes in.",
+  },
+  goal_eta_slipped: {
+    label: 'A savings goal slips',
+    detail: 'When a dated goal falls behind its target date.',
+  },
+  temporary_item_expiring: {
+    label: 'A temporary item is ending',
+    detail: "About two weeks before a temporary item's end date.",
+  },
+  fy_boundary: {
+    label: 'End of the financial year',
+    detail: 'About two weeks before 30 June, to review your tax settings.',
+  },
+}
 
 export interface PushNotificationsCardProps {
   status: PushStatus
@@ -10,6 +48,10 @@ export interface PushNotificationsCardProps {
   onEnable: () => void
   onDisable: () => void
   onSendTest: () => void
+  /** The signed-in member's per-trigger choices; shown only once this device is on. */
+  preferences: NotificationPreferenceToggle[]
+  /** Toggles one trigger for the signed-in member. */
+  onTogglePreference: (trigger: NotificationTrigger, next: boolean) => void
 }
 
 /**
@@ -65,6 +107,8 @@ export function PushNotificationsCard({
   onEnable,
   onDisable,
   onSendTest,
+  preferences,
+  onTogglePreference,
 }: PushNotificationsCardProps) {
   return (
     <AppCard>
@@ -117,6 +161,26 @@ export function PushNotificationsCard({
             >
               Send test notification
             </Button>
+
+            {status === 'subscribed' && preferences.length > 0 && (
+              <>
+                <Divider mt="xs" label="Notify me about" labelPosition="left" />
+                <Stack gap="sm">
+                  {preferences.map(({ trigger, enabled }) => (
+                    <Switch
+                      key={trigger}
+                      checked={enabled}
+                      onChange={(event) => onTogglePreference(trigger, event.currentTarget.checked)}
+                      label={TRIGGER_COPY[trigger].label}
+                      description={TRIGGER_COPY[trigger].detail}
+                    />
+                  ))}
+                </Stack>
+                <Text size="xs" c="dimmed">
+                  These apply to every device you've turned on.
+                </Text>
+              </>
+            )}
           </Stack>
         )}
 

@@ -869,7 +869,9 @@ sets the split in Up by hand and confirms the amount app-side. See
     receives every trigger. Composite FK `(member_id, household_id)` → `members`
     `on delete cascade`.
   - `trigger` is the `notification_trigger` enum: `buffer_negative`,
-    `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`.
+    `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`. Each is a
+    per-trigger toggle in the Household screen's Notifications card
+    (`useNotificationPreferences`), shown once a device is subscribed.
   - RLS is own-member-only (four per-command policies gated on
     `current_member_ids()`), like `push_subscription`. `authenticated` holds all
     four grants; `service_role` holds `select` alone — the evaluator reads

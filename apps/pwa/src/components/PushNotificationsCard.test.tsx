@@ -12,6 +12,13 @@ function renderCard(overrides: Partial<Parameters<typeof PushNotificationsCard>[
       onEnable={vi.fn()}
       onDisable={vi.fn()}
       onSendTest={vi.fn()}
+      preferences={[
+        { trigger: 'buffer_negative', enabled: true },
+        { trigger: 'goal_eta_slipped', enabled: false },
+        { trigger: 'temporary_item_expiring', enabled: true },
+        { trigger: 'fy_boundary', enabled: true },
+      ]}
+      onTogglePreference={vi.fn()}
       {...overrides}
     />,
   )
@@ -111,5 +118,30 @@ describe('PushNotificationsCard', () => {
 
     expect(testButton()).toHaveAttribute('data-loading')
     expect(screen.getByRole('button', { name: /turn off/i })).not.toHaveAttribute('data-loading')
+  })
+
+  it('shows the per-trigger switches only once the device is on', () => {
+    renderCard({ status: 'not-subscribed' })
+    expect(screen.queryByText('Notify me about')).not.toBeInTheDocument()
+
+    renderCard({ status: 'subscribed' })
+    expect(screen.getByText('Notify me about')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: /buffer goes negative/i })).toBeChecked()
+    expect(screen.getByRole('switch', { name: /a savings goal slips/i })).not.toBeChecked()
+  })
+
+  it('toggles a trigger for the member', () => {
+    const onTogglePreference = vi.fn()
+    renderCard({ status: 'subscribed', onTogglePreference })
+
+    fireEvent.click(screen.getByRole('switch', { name: /a savings goal slips/i }))
+
+    expect(onTogglePreference).toHaveBeenCalledWith('goal_eta_slipped', true)
+  })
+
+  it('hides the switches when no preferences are supplied', () => {
+    renderCard({ status: 'subscribed', preferences: [] })
+
+    expect(screen.queryByText('Notify me about')).not.toBeInTheDocument()
   })
 })

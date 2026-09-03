@@ -637,8 +637,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   window (`notification_log` being a `service_role`-only ledger: buffer re-sends
   after 14 days, the rest fire once per goal target / item / financial year).
   A log row is written only once a device took the push, so a transient failure
-  retries next day. Deposit-landed and bill-due triggers need ingestion and are
-  out of scope; per-member, per-timezone scheduling is a follow-up.
+  retries next day. Each member turns a trigger off with a per-trigger toggle in
+  the Household screen's Notifications card, shown once a device is on
+  (`useNotificationPreferences`); an absent `notification_preference` row means
+  the trigger is on, so a member who never opens the settings gets everything.
+  Deposit-landed and bill-due triggers need ingestion and are out of scope;
+  per-member, per-timezone scheduling is a follow-up.
 - EOFY sharing: a household gives a tax agent read-only access to its EOFY
   summary (estimate, withholding position, deductions with receipts, super,
   HELP debt, payslip documents) via a scoped, time-limited bearer link — never

@@ -861,6 +861,34 @@ sets the split in Up by hand and confirms the amount app-side. See
     send) and `delete` (to prune the endpoints a push service reports gone). It
     never inserts one — only a device's own browser mints a subscription.
 
+- **notification_preference** — one member's on/off choice for one notification
+  trigger, the same own-member boundary as `push_subscription`.
+  - `id`, `household_id`, `member_id`, `trigger`, `enabled` (`not null default
+    true`), `created_at`, `updated_at`. `unique (member_id, trigger)`; an absent
+    row means the trigger is on, so a member who never opens the settings
+    receives every trigger. Composite FK `(member_id, household_id)` → `members`
+    `on delete cascade`.
+  - `trigger` is the `notification_trigger` enum: `buffer_negative`,
+    `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`.
+  - RLS is own-member-only (four per-command policies gated on
+    `current_member_ids()`), like `push_subscription`. `authenticated` holds all
+    four grants; `service_role` holds `select` alone — the evaluator reads
+    preferences and never writes one.
+
+- **notification_log** — the evaluator's dedupe ledger: one row per push
+  `notify-eval` sent.
+  - `id`, `household_id`, `member_id`, `trigger`, `dedupe_key`, `sent_at`
+    (`default now()`). `unique (member_id, trigger, dedupe_key)` is the dedupe —
+    a key already present (within the trigger's re-notify window) is not re-sent.
+    Composite FK `(member_id, household_id)` → `members` `on delete cascade`;
+    indexed on `(household_id)` and `(member_id, trigger, sent_at)`.
+  - `dedupe_key` per trigger: the financial year for `buffer_negative`
+    (re-notified after 14 days) and `fy_boundary`, `<goal_id>:<target_date>` for
+    `goal_eta_slipped`, the item id for `temporary_item_expiring`.
+  - RLS is enabled with **no `authenticated` policy and no `authenticated`
+    grant** — a member sees that a notification arrived, never the ledger.
+    `service_role` holds `select` and `insert` only.
+
 ## Storage buckets
 
 Files live in **private** Supabase Storage buckets, never public. Every object key

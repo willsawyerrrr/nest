@@ -191,6 +191,22 @@ delete a stale `accounts` row through `reconcile_up_accounts` despite holding no
 `delete` on the table itself. Any future server-side code touching other public
 tables must add its own grants deliberately — the stance is surgical, per-feature.
 
+Two more read paths add their own `select` grants the same way. `eofy-share` /
+`eofy-share-file` read the EOFY source tables (`members`, `inflows`,
+`tax_profile`, `super_contribution`, `super_profile`, `help_debt`, `deduction`,
+`deduction_receipt`, `payslip`) with a service-role client — an anonymous share
+token holder has no `auth.uid()` for those tables' RLS to match
+(`20260831000000_share_grant.sql`). `notify-eval`, the daily notification
+evaluator, reads the plan tables it reconciles the buffer and goal ETAs from:
+`budget_line`, `savings_goal`, and `temporary_item` gain a `service_role`
+`select`, joining the EOFY set (`members`, `inflows`, `tax_profile`,
+`super_contribution`, `help_debt`, `deduction`) and `account_balance` it already
+had (`20260905000000_notification_triggers.sql`). It reads `budget_line`
+straight — the reconcile triggers keep its derived rows canonical, so it needs
+neither the breakdown nor the gift tables. It also holds `select` on
+`notification_preference` and `select`/`insert` on `notification_log`; every
+write to a preference is a member's own.
+
 ## Storage buckets
 
 Both buckets are created by migration, not by hand in the dashboard, so a fresh
@@ -227,6 +243,8 @@ Vault holds every secret that must never reach a client:
 | `up_token:<member_id>`   | a member's Up personal access token                        |
 | `up_sync_cron_url`       | the hourly cron's `up-sync` invocation URL                 |
 | `up_sync_cron_key`       | the service-role key the cron POSTs with                   |
+| `notify_cron_url`        | the daily cron's `notify-eval` invocation URL              |
+| `notify_cron_key`        | the service-role key that cron POSTs with                  |
 | `anthropic_api_key`      | the `payslip-extract`/`deduction-extract` functions' Anthropic key (see below) |
 | `GITHUB_CHANGELOG_TOKEN` | the `changelog` function's GitHub PAT (see below)          |
 | `vapid_public_key`       | the Web Push VAPID public key, base64url (see below)       |
@@ -313,6 +331,33 @@ and local Postgres and only schedules on Supabase. To bring it up in prod:
    ```sql
    select * from cron.job where jobname = 'up-sync-hourly';
    ```
+
+## notify-eval daily cron (prod only)
+
+Migration `20260905000000_notification_triggers.sql` schedules
+`notify-eval-daily` (`0 21 * * *` UTC ≈ 07:00 AEST) on the same `pg_cron` +
+`pg_net` pattern and the same skip-if-absent guard as the up-sync cron. Bring it
+up the same way:
+
+1. The function auto-deploys via CD.
+2. Set the two Vault secrets:
+
+   ```sql
+   select vault.create_secret('https://dgfeittjtxjtgbretdkj.supabase.co/functions/v1/notify-eval', 'notify_cron_url');
+   select vault.create_secret('<service-role-key>', 'notify_cron_key');
+   ```
+
+3. Replay the migration's SQL in the dashboard once the secrets exist so the job
+   schedules (it unschedules any prior `notify-eval-daily` first). Verify with:
+
+   ```sql
+   select * from cron.job where jobname = 'notify-eval-daily';
+   ```
+
+The run reports `{ households, firings, notified, sent, pruned, skipped, failed }`
+so a `net.http_post` response row (or a manual `curl` with the service-role
+bearer) says what a day's evaluation did. Push delivery still needs the VAPID
+keypair set (below); without it `notify-eval` answers `503` and sends nothing.
 
 ## `anthropic_api_key` setup
 

@@ -6,7 +6,7 @@ import {
   type IncomeInput,
   type IncomeSchedule,
   type TaxProfileInput,
-} from './index'
+} from './index.ts'
 
 /** Builds a salary income of `amountCents` per period on `schedule`. */
 function salary(schedule: IncomeSchedule, amountCents: number): IncomeInput {

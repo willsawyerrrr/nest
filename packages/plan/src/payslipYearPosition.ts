@@ -17,8 +17,8 @@
  * the two cannot disagree.
  */
 
-import type { Money } from './index'
-import type { PayslipVariance } from './payslip'
+import type { Money } from './index.ts'
+import type { PayslipVariance } from './payslip.ts'
 
 /**
  * One payslip as the year's position reads it: the actual figures it paid,

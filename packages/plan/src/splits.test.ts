@@ -7,7 +7,7 @@ import {
   roundCentsUpToStep,
   type AssignableLine,
   type RoutableGoal,
-} from './index'
+} from './index.ts'
 
 const GOALS: RoutableGoal[] = [
   { id: 'goal-linked', linkedAccountId: 'saver-emergency' },

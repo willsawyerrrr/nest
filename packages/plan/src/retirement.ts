@@ -6,7 +6,7 @@
  * projection input.
  */
 
-import type { Money } from './index'
+import type { Money } from './index.ts'
 
 /**
  * The inputs to a super projection. `years` is the whole number of years the

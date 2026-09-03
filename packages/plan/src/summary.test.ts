@@ -5,7 +5,7 @@ import {
   summarise,
   type SummaryInput,
   type TemporaryItem,
-} from './index'
+} from './index.ts'
 
 const NOW = new Date('2026-07-19T00:00:00Z')
 

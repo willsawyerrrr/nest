@@ -9,7 +9,7 @@
  * marginal brackets, so `oneOffConcessionOffset` lives with them in `index.ts`.
  */
 
-import type { Money, TaxYearConfig } from './index'
+import type { Money, TaxYearConfig } from './index.ts'
 
 /**
  * How a one-off payment is taxed.

@@ -50,7 +50,7 @@
  * is known reads the same whichever year it is filed under.
  */
 
-import type { Money } from './index'
+import type { Money } from './index.ts'
 import {
   activeDaysInPeriod,
   annualInflowGrossCents,
@@ -66,7 +66,7 @@ import {
   type OneOffInflow,
   type PartCycleReason,
   type ReconciledInflow,
-} from './payCadence'
+} from './payCadence.ts'
 import {
   financialYearDayCount,
   financialYearPeriod,
@@ -75,7 +75,7 @@ import {
   prorateAnnualAcrossUnit,
   type PayPeriod,
   type ProrationUnit,
-} from './payPeriod'
+} from './payPeriod.ts'
 
 /** The dates a payslip is attributed by, both ISO (`YYYY-MM-DD`). */
 export interface PayslipAttribution {

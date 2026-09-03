@@ -25,7 +25,7 @@ import {
   type AssessableIncome,
   type TaxInput,
   type TaxYearConfig,
-} from './index'
+} from './index.ts'
 
 /**
  * FIXTURE — deliberately round, made-up figures, NOT official ATO rates or

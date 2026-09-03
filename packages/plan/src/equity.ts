@@ -4,7 +4,7 @@
  * the `asOf` date is passed in, never read from the clock here.
  */
 
-import type { Money } from './index'
+import type { Money } from './index.ts'
 
 /** Whether a grant is options (exercisable at a strike) or shares held outright. */
 export type EquityInstrumentType = 'option' | 'share'

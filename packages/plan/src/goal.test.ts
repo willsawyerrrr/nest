@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { projectGoal } from './index'
+import { projectGoal } from './index.ts'
 
 const NOW = new Date('2026-07-19T00:00:00Z')
 

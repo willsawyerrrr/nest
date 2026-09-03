@@ -3,7 +3,7 @@
  * balance and a fortnightly contribution.
  */
 
-import type { Money, SavingsGoal } from './index'
+import type { Money, SavingsGoal } from './index.ts'
 
 /** Milliseconds in a fortnight; ETAs advance by whole fortnights. */
 const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000

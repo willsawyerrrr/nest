@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annualCents, fortnightlyCents, periodsPerYear, perPeriodCents } from './index'
+import { annualCents, fortnightlyCents, periodsPerYear, perPeriodCents } from './index.ts'
 
 describe('annualCents', () => {
   it('annualises an amount across every frequency', () => {

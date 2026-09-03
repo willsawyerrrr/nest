@@ -4,7 +4,7 @@
  * primary fortnightly figure.
  */
 
-import type { Frequency, Money } from './index'
+import type { Frequency, Money } from './index.ts'
 
 /** Fortnights per year; fortnightly figures divide an annual by this. */
 export const FORTNIGHTS_PER_YEAR = 26

@@ -13,6 +13,16 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
 
 ## Deployment
 
+Every deploy runs through the workflows below. The Supabase GitHub integration
+is deliberately disconnected — with it connected, Supabase's own "deploy to
+production" applied migrations on merge in parallel with
+`deploy-migrations.yml`, a second writer against one migration history that
+surfaced as a failing "Supabase Preview" check when the two disagreed. The
+repo's workflows plus the six-hourly drift checks are the whole of the
+migration and function deploy path; nothing is applied from the Supabase
+dashboard. Reconnecting the integration means turning "deploy to production"
+off in its settings.
+
 - **Migrations** auto-deploy on merge via
   `.github/workflows/deploy-migrations.yml`: a push to `main` touching
   `supabase/migrations/**` links the production project and runs

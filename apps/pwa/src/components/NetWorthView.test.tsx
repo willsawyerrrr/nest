@@ -128,6 +128,34 @@ describe('NetWorthView', () => {
     expect(within(total).getByText('-$35,000.00')).toBeInTheDocument()
   })
 
+  it('shows a home-loan account as an amount owed under Liabilities, off the assets', () => {
+    render(
+      <NetWorthView
+        accounts={[
+          account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 }),
+          // Up reports the balance owing as a negative number.
+          account({ id: 'a2', name: 'Home loan', balance_cents: -40000000, type: 'home_loan' }),
+        ]}
+        superIds={new Set()}
+        equity={[]}
+        liabilities={[{ label: "Will's HELP debt", balanceCents: 1000000 }]}
+        onToggleExclude={vi.fn()}
+      />,
+    )
+
+    const other = screen.getByRole('region', { name: 'Other accounts' })
+    expect(within(other).queryByText('Home loan')).not.toBeInTheDocument()
+
+    const liabilities = screen.getByRole('region', { name: 'Liabilities' })
+    // The home loan leads the group, shown as a negative figure for the amount owed.
+    expect(within(liabilities).getByText('Home loan')).toBeInTheDocument()
+    expect(within(liabilities).getByText('-$400,000.00')).toBeInTheDocument()
+
+    // Grand total: $5,000 assets − $400,000 home loan − $10,000 HELP = −$405,000.
+    const total = screen.getByRole('region', { name: 'Total net worth' })
+    expect(within(total).getByText('-$405,000.00')).toBeInTheDocument()
+  })
+
   it('omits the liabilities group when there are none', () => {
     render(
       <NetWorthView

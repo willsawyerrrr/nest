@@ -2178,7 +2178,7 @@ export type Database = {
       visible_balance_account_ids: { Args: never; Returns: string[] }
     }
     Enums: {
-      account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other'
+      account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other' | 'home_loan'
       breakdown_kind: 'generic'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
@@ -2330,7 +2330,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      account_type: ['transaction', 'savings', 'credit', 'offset', 'other'],
+      account_type: ['transaction', 'savings', 'credit', 'offset', 'other', 'home_loan'],
       breakdown_kind: ['generic'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],

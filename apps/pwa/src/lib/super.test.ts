@@ -3,12 +3,19 @@ import type { Account } from '../hooks/useAccounts'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import {
   accountsWithEffectiveSuperBalances,
+  homeLoanLiabilities,
+  homeLoanOwedCents,
   netWorthBreakdown,
   superAccountIds,
   superAccountName,
 } from './super'
 
-function account(id: string, balanceCents: number, excludeFromNetWorth = false): Account {
+function account(
+  id: string,
+  balanceCents: number,
+  excludeFromNetWorth = false,
+  type: Account['type'] = 'savings',
+): Account {
   return {
     id,
     name: id,
@@ -20,7 +27,7 @@ function account(id: string, balanceCents: number, excludeFromNetWorth = false):
     external_id: null,
     owner_member_id: null,
     source: 'manual',
-    type: 'savings',
+    type,
     created_at: '',
     updated_at: '',
   }
@@ -128,6 +135,38 @@ describe('netWorthBreakdown', () => {
     expect(breakdown.totalCents).toBe(100000)
   })
 
+  it('turns a home-loan account into a named liability ahead of the passed ones', () => {
+    const accounts = [
+      account('cash', 10_000_00, false, 'transaction'),
+      // Up reports the balance owing as a negative number.
+      account('mortgage', -450_000_00, false, 'home_loan'),
+    ]
+    const breakdown = netWorthBreakdown(accounts, new Set(), [
+      { label: 'Will HELP debt', balanceCents: 20_000_00 },
+    ])
+
+    expect(breakdown.otherAccounts.map((a) => a.id)).toEqual(['cash'])
+    expect(breakdown.liabilities).toEqual([
+      { label: 'mortgage', balanceCents: 450_000_00 },
+      { label: 'Will HELP debt', balanceCents: 20_000_00 },
+    ])
+    expect(breakdown.liabilitiesTotalCents).toBe(470_000_00)
+    // cash 10_000 − mortgage 450_000 − HELP 20_000 = −460_000.
+    expect(breakdown.totalCents).toBe(-460_000_00)
+  })
+
+  it('leaves an excluded home loan out of the liabilities and off the total', () => {
+    const accounts = [
+      account('cash', 10_000_00, false, 'transaction'),
+      account('mortgage', -450_000_00, true, 'home_loan'),
+    ]
+    const breakdown = netWorthBreakdown(accounts, new Set())
+
+    expect(breakdown.liabilities).toEqual([])
+    expect(breakdown.excludedAccounts.map((a) => a.id)).toEqual(['mortgage'])
+    expect(breakdown.totalCents).toBe(10_000_00)
+  })
+
   it('adds vested equity as an asset and subtracts liabilities in the total', () => {
     const accounts = [account('a1', 100000), account('a2', 50000)]
     const breakdown = netWorthBreakdown(
@@ -145,5 +184,23 @@ describe('netWorthBreakdown', () => {
     expect(breakdown.liabilitiesTotalCents).toBe(20000)
     // super 100000 + other 50000 + equity 40000 − liabilities 20000 = 170000.
     expect(breakdown.totalCents).toBe(170000)
+  })
+})
+
+describe('homeLoanOwedCents', () => {
+  it('is the magnitude of the balance, whichever sign Up sends', () => {
+    expect(homeLoanOwedCents({ balance_cents: -450_000_00 })).toBe(450_000_00)
+    expect(homeLoanOwedCents({ balance_cents: 450_000_00 })).toBe(450_000_00)
+  })
+})
+
+describe('homeLoanLiabilities', () => {
+  it('maps each included home-loan account to a named amount owed', () => {
+    const accounts = [
+      account('cash', 10_000_00, false, 'transaction'),
+      account('mortgage', -450_000_00, false, 'home_loan'),
+      account('old-mortgage', -1_00, true, 'home_loan'),
+    ]
+    expect(homeLoanLiabilities(accounts)).toEqual([{ label: 'mortgage', balanceCents: 450_000_00 }])
   })
 })

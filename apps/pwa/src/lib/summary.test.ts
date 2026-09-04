@@ -342,6 +342,8 @@ describe('summariseHousehold — active-now fortnightly basis', () => {
     helpDebts: [],
     deductions: [],
     members: [],
+    goals: [],
+    accounts: [],
     derivedAmounts: context(),
     temporaryItems: [],
     now,

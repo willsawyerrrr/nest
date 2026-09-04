@@ -132,7 +132,19 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
   balance is a single standing figure (the `help_debt` table, not FY-scoped),
   edited on its own HELP debt tab, that feeds the tax estimate and counts as a
-  net-worth liability. A taxable ONE-OFF is assessed under the concession its
+  net-worth liability. A savings goal's modelled interest rate
+  (`annual_interest_bps`) is assessable: the estimate adds each goal a projected
+  annual figure — `startingBalance × annual_interest_bps / 10000`, a simple
+  non-compounding number, off the linked saver's real balance where the goal
+  links one, else `current_balance_cents` — as `other` income, attributed wholly
+  to an individually-owned linked saver's owner and split 50/50 across the
+  household's members for a joint saver or a goal with no resolvable link. It is
+  a PWA-adapter concern (`lib/tax.ts`'s `projectedInterestIncomeInputs`,
+  `splitAcrossMembers`), threaded through `estimateHouseholdTaxFromRows` so it
+  reaches the whole-year Tax/EOFY figures and, via the same adapter, the
+  fortnightly buffer's active-now estimate; `@nest/tax` and `@nest/plan` are
+  untouched. The `eofy-share` edge function serves `savings_goal` and a minimal
+  account set so the shared EOFY view estimates the same figure. A taxable ONE-OFF is assessed under the concession its
   treatment names rather than as ordinary salary, which would overstate a
   redundancy by thousands: a genuine redundancy's tax-free amount (a base limit
   plus a per-year amount for each completed year of service) is excluded from
@@ -452,7 +464,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   of each member's startup-equity grants, less each member's HELP debt; any
   account can be excluded via a shared household-wide flag that drops it from
   net-worth totals alone — not retirement projection or budgeting), and projects
-  to retirement under client-side (localStorage) return/age assumptions.
+  to retirement under client-side (localStorage) return/age assumptions. A
+  savings goal's modelled interest rate (`annual_interest_bps`) drives its own
+  balance projection and is assessable income in the tax estimate (see Tax).
 - Equity: each member owns many startup-equity grants (options or shares) on their
   own Equity tab (the `equity_grant` table), with a cliff and vesting schedule.
   Entry is manual — there is no Cake or cap-table API — so the household maintains

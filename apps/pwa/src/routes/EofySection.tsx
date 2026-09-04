@@ -6,10 +6,12 @@ import { EofyShareControl } from '../components/EofyShareControl'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
+import { useGoals } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { usePayslips } from '../hooks/usePayslips'
+import { useSavers } from '../hooks/useSavers'
 import { useShareGrant } from '../hooks/useShareGrant'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
@@ -20,6 +22,7 @@ import {
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
   helpPayoffByMember,
+  projectedInterestIncomeInputs,
   superCapSummaryFromRows,
 } from '../lib/tax'
 
@@ -35,6 +38,8 @@ export function EofySection({ householdId }: { householdId: string }) {
   const deductions = useDeductions(householdId, financialYear)
   const receipts = useDeductionReceipts(householdId)
   const payslips = usePayslips(householdId, financialYear)
+  const goals = useGoals(householdId)
+  const savers = useSavers()
   const shareGrant = useShareGrant()
 
   if (
@@ -47,6 +52,8 @@ export function EofySection({ householdId }: { householdId: string }) {
     deductions.loading ||
     receipts.loading ||
     payslips.loading ||
+    goals.loading ||
+    savers.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -69,6 +76,7 @@ export function EofySection({ householdId }: { householdId: string }) {
     config,
     paygWithheldFromRows(payslipRows),
     members,
+    projectedInterestIncomeInputs(goals.goals ?? [], savers.savers ?? [], members),
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],

@@ -5,9 +5,11 @@ import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines, type BudgetLine } from '../hooks/useBudgetLines'
 import { useDeductions } from '../hooks/useDeductions'
 import { useGifts } from '../hooks/useGifts'
+import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
+import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
@@ -26,6 +28,8 @@ export function SummarySection({ householdId }: { householdId: string }) {
   const breakdowns = useBreakdowns(householdId)
   const helpDebts = useHelpDebts(householdId)
   const deductions = useDeductions(householdId)
+  const goals = useGoals(householdId)
+  const savers = useSavers()
 
   if (
     membersLoading ||
@@ -38,6 +42,8 @@ export function SummarySection({ householdId }: { householdId: string }) {
     breakdowns.loading ||
     helpDebts.loading ||
     deductions.loading ||
+    goals.loading ||
+    savers.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -53,7 +59,7 @@ export function SummarySection({ householdId }: { householdId: string }) {
   // The reconciliation from one set of the two sandboxed row lists. Planning
   // mode swaps in the real rows to compute the baseline the same way, so the two
   // agree by construction rather than a second implementation.
-  const buildSummary = (inflowRows: Inflow[], budgetLineRows: BudgetLine[]) =>
+  const buildSummary = (inflowRows: Inflow[], budgetLineRows: BudgetLine[], goalRows: Goal[]) =>
     summariseHousehold({
       inflows: inflowRows,
       budgetLines: budgetLineRows,
@@ -63,13 +69,19 @@ export function SummarySection({ householdId }: { householdId: string }) {
       helpDebts: helpDebts.helpDebts ?? [],
       deductions: deductions.deductions ?? [],
       members,
+      goals: goalRows,
+      accounts: savers.savers ?? [],
       derivedAmounts: context,
       temporaryItems: temporaryItems.items ?? [],
     })
 
-  const summary = buildSummary(inflows.inflows ?? [], budgetLines.lines ?? [])
+  const summary = buildSummary(inflows.inflows ?? [], budgetLines.lines ?? [], goals.goals ?? [])
   const baseline = planning
-    ? buildSummary(inflows.baselineInflows ?? [], budgetLines.baselineLines ?? [])
+    ? buildSummary(
+        inflows.baselineInflows ?? [],
+        budgetLines.baselineLines ?? [],
+        goals.baselineGoals ?? [],
+      )
     : undefined
 
   return <SummaryView summary={summary} {...(baseline && { baseline })} />

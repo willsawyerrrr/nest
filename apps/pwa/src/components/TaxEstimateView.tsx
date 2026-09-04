@@ -32,6 +32,8 @@ interface TaxEstimateViewProps {
   concessionalCapCentsByMember?: ReadonlyMap<string, number>
   /** Each member's HELP/HECS payoff projection, keyed by member id (positive debts only). */
   helpPayoff?: ReadonlyMap<string, HelpPayoffProjection>
+  /** Each member's projected annual savings interest in cents, keyed by member id; shown as an income build-up line where non-zero. */
+  projectedInterestCentsByMember?: ReadonlyMap<string, number>
 }
 
 interface Row {
@@ -241,6 +243,7 @@ function FiguresCard({
   concessionalCapCents,
   helpPayoff,
   oneOffTaxFreeCents = 0,
+  projectedInterestCents = 0,
 }: {
   name: string
   row: Row
@@ -255,6 +258,8 @@ function FiguresCard({
   helpPayoff?: HelpPayoffProjection | undefined
   /** A one-off's amount excluded from assessable income entirely, for the build-up. */
   oneOffTaxFreeCents?: number
+  /** Projected annual savings interest inside gross income, for the build-up. */
+  projectedInterestCents?: number
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="md">
@@ -294,6 +299,7 @@ function FiguresCard({
                 deductionsCents={deductionsCents}
                 oneOffGrossCents={row.annualOneOffGrossCents}
                 oneOffTaxFreeCents={oneOffTaxFreeCents}
+                projectedInterestCents={projectedInterestCents}
               />
             </Stack>
           </Disclosure>
@@ -322,6 +328,7 @@ export function TaxEstimateView({
   config,
   concessionalCapCentsByMember,
   helpPayoff,
+  projectedInterestCentsByMember,
 }: TaxEstimateViewProps) {
   const baselineMemberById = new Map(
     (baseline?.members ?? []).map((member) => [member.memberId, member]),
@@ -350,6 +357,7 @@ export function TaxEstimateView({
               config={config}
               concessionalCapCents={concessionalCapCentsByMember?.get(member.memberId)}
               helpPayoff={helpPayoff?.get(member.memberId)}
+              projectedInterestCents={projectedInterestCentsByMember?.get(member.memberId) ?? 0}
               oneOffTaxFreeCents={
                 member.annualOneOffGrossCents -
                 member.input.assessableIncome.employmentTerminationCents

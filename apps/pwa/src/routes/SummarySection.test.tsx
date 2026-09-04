@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeGoal, makeInflow, makeSaver, makeTaxProfile } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { SummarySection } from './SummarySection'
 
@@ -15,6 +16,8 @@ const hooks = vi.hoisted(() => ({
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
   useMembers: vi.fn(),
+  useGoals: vi.fn(),
+  useSavers: vi.fn(),
   planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -37,6 +40,8 @@ vi.mock('../hooks/useBreakdowns', () => ({ useBreakdowns: hooks.useBreakdowns })
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
+vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
+vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
 vi.mock('../components/SummaryView', () => ({
   SummaryView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -45,6 +50,11 @@ vi.mock('../components/SummaryView', () => ({
 }))
 
 describe('SummarySection', () => {
+  beforeEach(() => {
+    hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
+  })
+
   it('shows the loading screen until data loads', () => {
     hooks.useInflows.mockReturnValue({ loading: true })
     hooks.useTaxProfiles.mockReturnValue({ loading: false })
@@ -138,6 +148,47 @@ describe('SummarySection', () => {
     expect(summary.available.fortnightlyCents).toBe(0)
     // ...while the annual figure keeps the whole-year estimate's part-year income.
     expect(summary.available.annualCents).toBeGreaterThan(0)
+  })
+
+  it('counts a goal’s projected savings interest in the after-tax income', () => {
+    const setup = () => {
+      hooks.useInflows.mockReturnValue({
+        loading: false,
+        inflows: [makeInflow({ schedule: 'annual', amount_cents: 120_000_00 })],
+      })
+      hooks.useTaxProfiles.mockReturnValue({
+        loading: false,
+        profiles: [makeTaxProfile()],
+        financialYear: 2027,
+      })
+      hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+      hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+      hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+      hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
+      hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+      hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+      hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+      hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    }
+    const availableAnnual = () =>
+      (hooks.screenProps!.summary as { available: { annualCents: number } }).available.annualCents
+
+    setup()
+    render(<SummarySection householdId="h1" />)
+    const withoutInterest = availableAnnual()
+
+    setup()
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [makeGoal({ current_balance_cents: 50_000_00, annual_interest_bps: 400 })],
+      baselineGoals: [],
+    })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [makeSaver()] })
+    render(<SummarySection householdId="h1" />)
+
+    // $2,000 more assessable income lifts after-tax income, by less than the full $2,000.
+    expect(availableAnnual()).toBeGreaterThan(withoutInterest)
+    expect(availableAnnual()).toBeLessThan(withoutInterest + 2_000_00)
   })
 
   it('also computes a baseline reconciliation while planning mode is active', () => {

@@ -32,7 +32,7 @@ import type { PlanningLayer, PlanningTable } from '../lib/planningMode'
 import { readAssumptions, readMemberAges, readProjectionHorizon } from '../lib/retirement'
 import { summariseHousehold } from '../lib/summary'
 import type { EquityHolding, Liability } from '../lib/super'
-import { estimateHouseholdTaxFromRows } from '../lib/tax'
+import { estimateHouseholdTaxFromRows, projectedInterestIncomeInputs } from '../lib/tax'
 
 const TABLE_LABEL: Record<PlanningTable, string> = {
   inflows: 'Inflow',
@@ -234,7 +234,8 @@ export function PlanningSection({ householdId }: { householdId: string }) {
   const grantRows = equityGrants.grants ?? []
   const today = new Date()
 
-  const summaryFor = (inf: Inflow[], lines: BudgetLine[]) =>
+  const saverRows = savers.savers ?? []
+  const summaryFor = (inf: Inflow[], lines: BudgetLine[], gls: Goal[]) =>
     summariseHousehold({
       inflows: inf,
       budgetLines: lines,
@@ -244,11 +245,13 @@ export function PlanningSection({ householdId }: { householdId: string }) {
       helpDebts: helpDebtRows,
       deductions: deductionRows,
       members,
+      goals: gls,
+      accounts: saverRows,
       derivedAmounts: context,
       temporaryItems: temporaryItems.items ?? [],
       now: today,
     })
-  const estimateFor = (inf: Inflow[]) =>
+  const estimateFor = (inf: Inflow[], gls: Goal[]) =>
     estimateHouseholdTaxFromRows(
       inf,
       profileRows,
@@ -258,6 +261,7 @@ export function PlanningSection({ householdId }: { householdId: string }) {
       undefined,
       undefined,
       members,
+      projectedInterestIncomeInputs(gls, saverRows, members),
     )
 
   const liabilities: Liability[] = helpDebtRows
@@ -302,10 +306,10 @@ export function PlanningSection({ householdId }: { householdId: string }) {
       now: today,
     })
 
-  const realSummary = summaryFor(baselineInflows, baselineLines)
-  const proposedSummary = summaryFor(proposedInflows, proposedLines)
-  const realEstimate = estimateFor(baselineInflows)
-  const proposedEstimate = estimateFor(proposedInflows)
+  const realSummary = summaryFor(baselineInflows, baselineLines, baselineGoals)
+  const proposedSummary = summaryFor(proposedInflows, proposedLines, proposedGoals)
+  const realEstimate = estimateFor(baselineInflows, baselineGoals)
+  const proposedEstimate = estimateFor(proposedInflows, proposedGoals)
   const realNetWorth = netWorthFor(baselineInflows, baselineGoals, baselineLines)
   const proposedNetWorth = netWorthFor(proposedInflows, proposedGoals, proposedLines)
 

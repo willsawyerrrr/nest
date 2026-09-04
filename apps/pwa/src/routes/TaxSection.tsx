@@ -2,10 +2,12 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { usePlanningMode } from '../components/PlanningModeProvider'
 import { TaxEstimateView } from '../components/TaxEstimateView'
 import { useDeductions } from '../hooks/useDeductions'
+import { useGoals } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
 import { usePayslips } from '../hooks/usePayslips'
+import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -15,6 +17,7 @@ import {
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
   helpPayoffByMember,
+  projectedInterestIncomeInputs,
   superCapSummaryFromRows,
 } from '../lib/tax'
 
@@ -28,6 +31,8 @@ export function TaxSection({ householdId }: { householdId: string }) {
   const helpDebts = useHelpDebts(householdId)
   const deductions = useDeductions(householdId)
   const payslips = usePayslips(householdId)
+  const goals = useGoals(householdId)
+  const savers = useSavers()
 
   if (
     membersLoading ||
@@ -38,12 +43,26 @@ export function TaxSection({ householdId }: { householdId: string }) {
     helpDebts.loading ||
     deductions.loading ||
     payslips.loading ||
+    goals.loading ||
+    savers.loading ||
     !members
   ) {
     return <LoadingScreen />
   }
 
   const config = currentTaxConfig()
+  const saverRows = savers.savers ?? []
+  // A goal modelling an interest rate adds projected savings interest to the
+  // estimate as assessable `other` income, attributed by its linked saver's
+  // ownership (else split across the household).
+  const interestIncomes = projectedInterestIncomeInputs(goals.goals ?? [], saverRows, members)
+  const projectedInterestCentsByMember = new Map<string, number>()
+  for (const income of interestIncomes) {
+    projectedInterestCentsByMember.set(
+      income.memberId,
+      (projectedInterestCentsByMember.get(income.memberId) ?? 0) + (income.amountCents ?? 0),
+    )
+  }
   // Actual withholding from this year's payslips nets against each member's
   // estimated liability, turning it into a refund or an amount owing. With no
   // payslips the map is empty and every figure is the bare estimate.
@@ -56,6 +75,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
     config,
     paygWithheldFromRows(payslips.payslips ?? []),
     members,
+    interestIncomes,
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],
@@ -80,6 +100,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
         config,
         paygWithheldFromRows(payslips.payslips ?? []),
         members,
+        projectedInterestIncomeInputs(goals.baselineGoals ?? [], saverRows, members),
       )
     : undefined
 
@@ -92,6 +113,7 @@ export function TaxSection({ householdId }: { householdId: string }) {
       config={config}
       concessionalCapCentsByMember={concessionalCapCentsByMember}
       helpPayoff={helpPayoff}
+      projectedInterestCentsByMember={projectedInterestCentsByMember}
     />
   )
 }

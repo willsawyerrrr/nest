@@ -7,6 +7,7 @@ import type { Member } from '../hooks/useMembers'
 import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipRow } from '../hooks/usePayslips'
 import type { Saver } from '../hooks/useSavers'
+import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
 import type { WishlistItem } from '../hooks/useWishlist'
 import {
@@ -137,6 +138,21 @@ export function makePayslipTaxLine(overrides: Partial<PayslipLineRow> = {}): Pay
     attracts_super: null,
     ...overrides,
   })
+}
+
+/** Builds a `tax_profile` row: a resident with no private hospital cover. */
+export function makeTaxProfile(overrides: Partial<TaxProfile> = {}): TaxProfile {
+  return {
+    id: 'tp1',
+    household_id: 'h1',
+    member_id: 'm1',
+    financial_year: 2027,
+    residency: 'resident',
+    has_private_hospital_cover: false,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
 }
 
 /** Builds a savings-goal row with a manual balance and no linked saver. */

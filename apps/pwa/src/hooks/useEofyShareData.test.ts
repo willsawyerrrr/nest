@@ -17,6 +17,8 @@ const shareData: EofyShareData = {
   deductions: [],
   deductionReceipts: [],
   payslips: [],
+  savingsGoals: [],
+  accounts: [],
 }
 
 beforeEach(() => {

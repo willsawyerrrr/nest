@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HouseholdTaxEstimate } from '@nest/tax'
-import { makeInflow, makePayslip } from '../test/fixtures'
+import { estimateHouseholdTaxFromRows } from '../lib/tax'
+import { makeGoal, makeInflow, makePayslip } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { TaxSection } from './TaxSection'
 
@@ -13,6 +14,8 @@ const hooks = vi.hoisted(() => ({
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
   usePayslips: vi.fn(),
+  useGoals: vi.fn(),
+  useSavers: vi.fn(),
   planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -33,6 +36,8 @@ vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperPr
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
+vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
+vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
 vi.mock('../components/TaxEstimateView', () => ({
   TaxEstimateView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -41,6 +46,11 @@ vi.mock('../components/TaxEstimateView', () => ({
 }))
 
 describe('TaxSection', () => {
+  beforeEach(() => {
+    hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
+  })
+
   it('shows the loading screen until data loads', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useInflows.mockReturnValue({ loading: false })
@@ -122,6 +132,32 @@ describe('TaxSection', () => {
     const baseline = hooks.screenProps?.baseline as HouseholdTaxEstimate
     expect(baseline.annualGrossCents).toBeGreaterThan(0)
     expect(estimate.annualGrossCents).toBe(baseline.annualGrossCents * 2)
+  })
+
+  it('feeds a goal’s projected savings interest into the estimate and surfaces it per member', () => {
+    hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [makeGoal({ current_balance_cents: 100_000_00, annual_interest_bps: 450 })],
+      baselineGoals: [],
+    })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
+    render(<TaxSection householdId="h1" />)
+
+    const withInterest = hooks.screenProps?.estimate as HouseholdTaxEstimate
+    const byMember = hooks.screenProps?.projectedInterestCentsByMember as Map<string, number>
+    // 4.5% of $100,000, split across the single member.
+    expect(byMember.get('m1')).toBe(4_500_00)
+    expect(withInterest.members[0]!.annualGrossCents).toBe(
+      estimateHouseholdTaxFromRows([makeInflow()], []).members[0]!.annualGrossCents + 4_500_00,
+    )
   })
 
   it('leaves the estimate unoffset when no payslip has been entered', () => {

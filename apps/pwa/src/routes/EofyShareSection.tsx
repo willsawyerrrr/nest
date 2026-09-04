@@ -12,6 +12,7 @@ import {
   currentTaxConfig,
   estimateHouseholdTaxFromRows,
   helpPayoffByMember,
+  projectedInterestIncomeInputs,
   superCapSummaryFromRows,
 } from '../lib/tax'
 
@@ -96,6 +97,7 @@ export function EofyShareSection() {
     config,
     paygWithheldFromRows(data.payslips),
     data.members,
+    projectedInterestIncomeInputs(data.savingsGoals, data.accounts, data.members),
   )
   const capSummaries = superCapSummaryFromRows(
     data.inflows,

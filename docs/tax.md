@@ -131,6 +131,15 @@ one-off is shown as the separate figure it is.
   a year is $6,600 of assessable income however few of the year's fortnights it
   lands in. Those two columns bear on a payslip period's expectations alone — see
   [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods).
+- Projected savings interest: each goal with an interest rate
+  (`annual_interest_bps`) contributes `startingBalance × annual_interest_bps /
+  10000` of `other` income — a simple non-compounding annual estimate. The
+  starting balance is the linked saver's real balance where the goal links one,
+  else its manual `current_balance_cents`. Goals carry no member, so the figure
+  is attributed by the linked saver: wholly to an individually-owned saver's
+  owner, split 50/50 across the household's members for a joint saver or a goal
+  with no resolvable link. Added in the PWA adapter
+  (`lib/tax.ts`'s `projectedInterestIncomeInputs`); `@nest/tax` is untouched.
 - Deductions (work-related, etc.).
 - Residency status (resident vs non-resident brackets differ).
 - Claims tax-free threshold (affects withholding expectations).
@@ -375,9 +384,12 @@ surcharge, the HELP/HECS repayment, and Division 293 tax — culminating in the
 total tax, then the gross → less super → less tax → take-home framing. Income
 tax, the Medicare levy, and the total always show; the optional components appear
 only when they apply, with any nil components named beneath so a reader knows
-they were considered. Because the surcharge is a household assessment, each
-member's surcharge line already reflects the combined-income family tier. A
-footnote reiterates that the estimate excludes capital gains tax.
+they were considered. A member whose gross includes projected savings interest
+gets an indented "Investment income (projected)" line beneath gross income,
+detailing the part of gross that is modelled interest rather than a step in the
+running total. Because the surcharge is a household assessment, each member's
+surcharge line already reflects the combined-income family tier. A footnote
+reiterates that the estimate excludes capital gains tax.
 
 The **withholding position** (`WithholdingPosition`) names where the year's actual
 withholding sits against that liability: what the member's payslips withheld, of

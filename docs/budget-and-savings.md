@@ -23,8 +23,9 @@ Money in is modelled as **inflows**, split by taxability:
   `type` is a reporting label only; taxability, not type, decides whether an
   inflow is taxed.
 
-The tax computation sums only taxable inflows into assessable income; non-taxable
-inflows never reach the tax engine.
+The tax computation sums taxable inflows into assessable income, plus each
+household member's share of projected savings-goal interest (see [Savings
+goal](#savings-goal-persists)); non-taxable inflows never reach the tax engine.
 
 A capped-but-always-spent work reimbursement is modelled as a fixed regular
 non-taxable inflow at the cap amount.
@@ -140,7 +141,16 @@ math).
     undated goal even with no contribution;
   - the contribution required to hit a `targetDate` is the closed-form annuity
     `(target − balance₀·fⁿ)·(f − 1)/(fⁿ − 1)`, rounded up and floored at zero.
-  - Interest as assessable income is out of scope (tracked separately).
+  - The rate also feeds the **tax estimate**: interest earned in a saver is
+    assessable, so a goal with `annual_interest_bps` above zero adds a projected
+    annual figure — `startingBalance × annual_interest_bps / 10000`, a simple
+    non-compounding estimate — as `other` income. The starting balance is the
+    linked saver's real balance when `linked_account_id` resolves, else
+    `current_balance_cents`. Attribution follows the linked saver: wholly to an
+    individually-owned saver's owner, split 50/50 across the household's members
+    for a joint saver or a goal with no resolvable link. It is a PWA-adapter
+    concern (`lib/tax.ts`'s `projectedInterestIncomeInputs`), so `@nest/tax` and
+    `@nest/plan` are untouched.
 
 ### Temporary item (date-driven)
 

@@ -247,6 +247,48 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
 - VAPID setup and rotation, and the iOS install/version requirements, are in
   [`operations.md`](operations.md#web-push-vapid-keypair-setup).
 
+### Calendar feed
+
+The household's money dates belong in whatever calendar its members already
+keep, so `calendar-ics` publishes them as a read-only iCalendar (RFC 5545) feed
+a calendar app subscribes to by URL — no Google Calendar write scope and no
+consent-screen change. It is the anonymous-bearer pattern EOFY sharing
+established (see *Security*), applied to a feed rather than a page:
+
+- `calendar_feed` holds at most one row per household (`household_id` is the
+  primary key) with `token_hash` — `sha256(token)` hex, never the plaintext.
+  `create_calendar_feed_token()` mints (or replaces) the token and returns it
+  once; `revoke_calendar_feed_token()` deletes the row. Both are SECURITY
+  DEFINER, granted to `authenticated`, and a column-level `select` grant
+  withholds `token_hash` from the household's own read. Unlike `share_grant`
+  there is no expiry — a calendar subscription refreshes indefinitely, and the
+  household ends a feed by regenerating (which replaces the token) or revoking.
+- `calendar-ics` runs `verify_jwt = false` — a subscribing client carries no
+  session — and takes the token from a trailing path segment or `?token=`. It
+  hashes the token (`_shared/calendarFeed.ts`), looks `calendar_feed` up by
+  `token_hash` with a service-role client, and answers a bare `404` for a
+  missing, malformed, or unknown token alike, so a guessed token learns nothing.
+- Events are derived by hand from the household's own rows, scoped to the
+  resolved feed's household, over a rolling −1-month … +12-month window:
+  - each **recurring inflow**'s expected deposits, stepped from its pay cadence
+    (`pay_schedule` + `pay_interval_count`, else `schedule` + `interval_count`),
+    honouring `starts_on` / `ends_on`; an inflow with no usable cadence is
+    skipped, and one anchored on no `starts_on` is stepped from a fixed epoch so
+    its dates do not move between fetches;
+  - each **one-off inflow** on its `paid_on`;
+  - each dated **savings goal** and **temporary item** on its target date;
+  - the **30 June / 1 July** financial-year boundary for every year the window
+    spans.
+- Every event is all-day (`DTSTART;VALUE=DATE`) with a stable
+  `<kind>-<rowId>-<date>@nest` `UID`, so a re-fetch updates an event in place
+  rather than duplicating it. Derivation and the small inline ICS serialiser
+  (text escaping + 75-octet line folding, no dependency) are the pure,
+  DI-tested `calendar-ics/events.ts`; `feed.ts` is the token-before-read flow
+  and `index.ts` wires the service-role reads. The Household screen's
+  *Calendar feed* card generates, shows once, regenerates, and revokes the URL.
+- `service_role` `select` grants for the read are in
+  [`operations.md`](operations.md#service_role-grants).
+
 ## Security
 
 - **RLS is the security boundary.** Policies grant access when `auth.uid()` maps
@@ -317,7 +359,11 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   only `sha256(token)`, and even the household's own read of its live share
   (`select` under ordinary RLS) is denied `token_hash` by a column-level
   grant, so the one place the plaintext ever exists is the moment
-  `create_share_grant` returns it.
+  `create_share_grant` returns it. `calendar_feed` (the calendar feed) is the
+  same shape for a subscribing calendar client — `verify_jwt = false`,
+  `token_hash` resolved by a service-role client, `token_hash` withheld from the
+  household's own read — differing only in that it carries no expiry and every
+  invalid token gets an identical bare `404`.
 
 ## Cross-cutting conventions
 

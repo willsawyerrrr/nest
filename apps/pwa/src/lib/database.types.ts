@@ -342,6 +342,32 @@ export type Database = {
           },
         ]
       }
+      calendar_feed: {
+        Row: {
+          created_at: string
+          household_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'calendar_feed_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: true
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -2064,6 +2090,7 @@ export type Database = {
         Returns: Record<string, unknown>
       }
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
+      create_calendar_feed_token: { Args: never; Returns: string }
       create_deduction_with_receipts: {
         Args: { p_deduction: Json; p_receipts: Json }
         Returns: string
@@ -2142,6 +2169,7 @@ export type Database = {
         Returns: undefined
       }
       resend_api_key: { Args: never; Returns: string }
+      revoke_calendar_feed_token: { Args: never; Returns: undefined }
       revoke_invite_code: { Args: never; Returns: undefined }
       revoke_share_grant: { Args: never; Returns: undefined }
       set_household_pay_account: {

@@ -9,6 +9,7 @@ const hooks = vi.hoisted(() => ({
   useTaxProfiles: vi.fn(),
   useUpConnection: vi.fn(),
   useNotificationPreferences: vi.fn(),
+  useCalendarFeed: vi.fn(),
   signOut: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -28,6 +29,7 @@ vi.mock('../hooks/useNotificationPreferences', () => ({
   ],
   useNotificationPreferences: hooks.useNotificationPreferences,
 }))
+vi.mock('../hooks/useCalendarFeed', () => ({ useCalendarFeed: hooks.useCalendarFeed }))
 vi.mock('../lib/supabase', () => ({ supabase: { auth: { signOut: hooks.signOut } } }))
 vi.mock('../components/HomeScreen', () => ({
   HomeScreen: (props: Record<string, unknown>) => {
@@ -51,6 +53,13 @@ describe('HomeSection', () => {
       loading: false,
       enabled: () => true,
       setEnabled: vi.fn().mockResolvedValue(undefined),
+    })
+    hooks.useCalendarFeed.mockReturnValue({
+      status: null,
+      loading: false,
+      reload: vi.fn(),
+      create: vi.fn().mockResolvedValue('tok'),
+      revoke: vi.fn().mockResolvedValue(undefined),
     })
   })
 
@@ -136,6 +145,42 @@ describe('HomeSection', () => {
     ) => void
     toggle('goal_eta_slipped', false)
     expect(setEnabled).toHaveBeenCalledWith('goal_eta_slipped', false)
+  })
+
+  it('wires the calendar feed status and actions through to the screen', () => {
+    const create = vi.fn().mockResolvedValue('tok')
+    const revoke = vi.fn().mockResolvedValue(undefined)
+    hooks.useCalendarFeed.mockReturnValue({
+      status: { household_id: 'h1', created_at: '2027-01-01T00:00:00Z' },
+      loading: false,
+      reload: vi.fn(),
+      create,
+      revoke,
+    })
+    hooks.useMembers.mockReturnValue({
+      members: [{ id: 'u1', name: 'Alex' }],
+      loading: false,
+      reload: vi.fn(),
+    })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useUpConnection.mockReturnValue({ connect: vi.fn(), disconnect: vi.fn(), busy: false })
+    render(
+      <HomeSection
+        household={household}
+        session={session}
+        onCreateInviteCode={vi.fn()}
+        onRevokeInviteCode={vi.fn()}
+      />,
+    )
+
+    const calendarFeed = hooks.screenProps!.calendarFeed as {
+      status: { household_id: string } | null
+      onCreate: () => Promise<string>
+      onRevoke: () => Promise<void>
+    }
+    expect(calendarFeed.status).toEqual({ household_id: 'h1', created_at: '2027-01-01T00:00:00Z' })
+    expect(calendarFeed.onCreate).toBe(create)
+    expect(calendarFeed.onRevoke).toBe(revoke)
   })
 
   it('defaults the email to an empty string when absent', () => {

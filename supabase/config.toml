@@ -389,9 +389,10 @@ deno_version = 2
 # HMAC-SHA256 signature check is the security boundary. A tax agent opening a
 # shared EOFY link likewise carries no Supabase session, so eofy-share and
 # eofy-share-file skip JWT verification too — their share_grant bearer token
-# is their security boundary, resolved by _shared/shareGrant.ts. Every other
-# function keeps the default (verify_jwt = true) and resolves the caller from
-# their JWT.
+# is their security boundary, resolved by _shared/shareGrant.ts. calendar-ics
+# serves an anonymous calendar client the same way, its calendar_feed token the
+# boundary. Every other function keeps the default (verify_jwt = true) and
+# resolves the caller from their JWT.
 [functions.up-webhook]
 verify_jwt = false
 
@@ -399,6 +400,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.eofy-share-file]
+verify_jwt = false
+
+[functions.calendar-ics]
 verify_jwt = false
 
 [analytics]

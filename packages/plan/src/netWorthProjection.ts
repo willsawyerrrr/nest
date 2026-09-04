@@ -11,6 +11,11 @@
 
 import { equityTotalCents, type EquityGrant } from './equity.ts'
 import { projectGoal } from './goal.ts'
+import {
+  queuedGoalCashByFortnight,
+  type ActiveGoalFunding,
+  type QueuedGoalFunding,
+} from './goalQueue.ts'
 import type { Money } from './index.ts'
 import { FORTNIGHTS_PER_YEAR } from './normalize.ts'
 import { projectSuperBalance } from './retirement.ts'
@@ -34,11 +39,22 @@ export interface NetWorthSuperInput {
  * saver's synced balance, or the money a manual goal is saved in), so only future
  * contributions are added on top — never the current balance. Contributions accrue
  * at `fortnightlyContributionCents` and stop once the target is reached.
+ *
+ * A goal with `fortnightlyContributionCents === 0` is **queued**: it accrues no
+ * cash until the goals ahead of it in `queuePosition` order are met, then draws
+ * from their freed contributions (capped at `plannedContributionCents` when
+ * set), mirroring `projectGoalQueue`. A goal funded now
+ * (`fortnightlyContributionCents > 0`) is active regardless of `queuePosition`
+ * and accrues in parallel from year 0.
  */
 export interface NetWorthGoal {
   readonly targetAmountCents: Money
   readonly currentBalanceCents: Money
   readonly fortnightlyContributionCents: Money
+  /** Queue order among unfunded goals; null or absent means active (parallel from year 0). */
+  readonly queuePosition?: number | null
+  /** Cap on the queued goal's fortnightly draw from freed capacity; null draws the whole pool. */
+  readonly plannedContributionCents?: Money | null
 }
 
 /**
@@ -103,6 +119,47 @@ interface GoalAccrual {
   readonly annualContributionCents: Money
 }
 
+/**
+ * Splits the goals into those funded now — active, accruing in parallel from
+ * year 0 — and those queued behind them, sorted into `queuePosition` order
+ * (unpositioned goals last, keeping their given order) and reduced to the
+ * `projectGoalQueue` funding shape.
+ */
+function splitGoals(goals: readonly NetWorthGoal[]): {
+  active: NetWorthGoal[]
+  activeFundings: ActiveGoalFunding[]
+  queued: QueuedGoalFunding[]
+} {
+  const active: NetWorthGoal[] = []
+  const queuedGoals: NetWorthGoal[] = []
+  for (const goal of goals) {
+    if (goal.fortnightlyContributionCents > 0) {
+      active.push(goal)
+    } else {
+      queuedGoals.push(goal)
+    }
+  }
+  queuedGoals.sort(
+    (a, b) =>
+      (a.queuePosition ?? Number.POSITIVE_INFINITY) - (b.queuePosition ?? Number.POSITIVE_INFINITY),
+  )
+  const fundingGoal = (goal: NetWorthGoal) => ({
+    targetAmountCents: goal.targetAmountCents,
+    currentBalanceCents: goal.currentBalanceCents,
+  })
+  return {
+    active,
+    activeFundings: active.map((goal) => ({
+      goal: fundingGoal(goal),
+      fortnightlyContributionCents: goal.fortnightlyContributionCents,
+    })),
+    queued: queuedGoals.map((goal) => ({
+      goal: fundingGoal(goal),
+      plannedContributionCents: goal.plannedContributionCents ?? null,
+    })),
+  }
+}
+
 /** Reduces each goal to its remaining-to-target cap and annualised contribution. */
 function goalAccruals(goals: readonly NetWorthGoal[], asOf: Date): GoalAccrual[] {
   return goals.map((goal) => ({
@@ -132,7 +189,8 @@ function goalsSavedByYear(accruals: readonly GoalAccrual[], year: number): Money
  * Super is compounded and accrued via `projectSuperBalance` in nominal terms (so
  * inflation is not applied); cash starts at `otherCents` and grows by the
  * `savingsGoals` contributions accrued to that year (each capped at its
- * remaining-to-target); equity is the vested value of the grants at that future
+ * remaining-to-target) — the active goals in parallel, the queued goals only
+ * once the goals ahead of them are met; equity is the vested value of the grants at that future
  * date; HELP is read from `helpCentsByYear`; debt accounts stay at `debtCents`. The
  * total is the asset bands (super, cash, equity) less the liability bands (HELP,
  * debt). A `horizonYears` below 0 yields the single year-0 point.
@@ -149,7 +207,15 @@ export function projectNetWorth(input: NetWorthProjectionInput): NetWorthProject
     debtCents,
   } = input
   const lastYear = Math.max(0, Math.floor(horizonYears))
-  const accruals = goalAccruals(savingsGoals, asOf)
+  const { active, activeFundings, queued } = splitGoals(savingsGoals)
+  const accruals = goalAccruals(active, asOf)
+  const years = Array.from({ length: lastYear + 1 }, (_, year) => year)
+  const queuedCashByYear = queuedGoalCashByFortnight(
+    activeFundings,
+    queued,
+    asOf,
+    years.map((year) => year * FORTNIGHTS_PER_YEAR),
+  )
   const points: NetWorthProjectionPoint[] = []
   for (let year = 0; year <= lastYear; year++) {
     const superCents = projectSuperBalance({
@@ -160,7 +226,7 @@ export function projectNetWorth(input: NetWorthProjectionInput): NetWorthProject
       inflationRate: 0,
       contributionGrowthRate: superInput.contributionGrowthRate,
     }).nominalCents
-    const cashCents = otherCents + goalsSavedByYear(accruals, year)
+    const cashCents = otherCents + goalsSavedByYear(accruals, year) + queuedCashByYear[year]!
     const equityCents = equityTotalCents(equityGrants, addYears(asOf, year))
     const helpCents = helpAt(helpCentsByYear, year)
     points.push({

@@ -152,6 +152,100 @@ describe('projectNetWorth', () => {
     expect(points.map((p) => p.otherCents)).toEqual([5_000_00, 5_000_00, 5_000_00])
   })
 
+  it('holds a queued goal at zero cash until the active goal ahead of it is met', () => {
+    // Active goal: $2,600 target at $100/fn ($2,600/yr) → met after year 1, when
+    // its contribution frees. The queued goal ($0/fn) draws it only from then.
+    const points = projectNetWorth(
+      input({
+        horizonYears: 2,
+        otherCents: 0,
+        savingsGoals: [
+          {
+            targetAmountCents: 2_600_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 100_00,
+          },
+          {
+            targetAmountCents: 1_000_000_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 0,
+            queuePosition: 0,
+          },
+        ],
+      }),
+    )
+    // Year 1: active is full ($2,600); the queue has drawn one fortnight ($100).
+    // The parallel model would have counted the queued goal at $2,600 here.
+    expect(points.map((p) => p.otherCents)).toEqual([0, 2_700_00, 5_300_00])
+  })
+
+  it('funds the second queued goal only once the first is filled', () => {
+    const points = projectNetWorth(
+      input({
+        horizonYears: 3,
+        otherCents: 0,
+        savingsGoals: [
+          {
+            targetAmountCents: 2_600_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 100_00,
+          },
+          {
+            targetAmountCents: 3_000_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 0,
+            queuePosition: 0,
+          },
+          {
+            targetAmountCents: 1_000_000_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 0,
+            queuePosition: 1,
+          },
+        ],
+      }),
+    )
+    // Through year 2 the freed $100/fn all goes to the first queued goal, so the
+    // second stays at zero; only in year 3 does it begin to draw.
+    expect(points.map((p) => p.otherCents)).toEqual([0, 2_700_00, 5_300_00, 7_900_00])
+  })
+
+  it('caps a queued goal at its planned contribution so its cash accrues more slowly', () => {
+    const goals = (plannedContributionCents: number | null) => [
+      {
+        targetAmountCents: 2_600_00,
+        currentBalanceCents: 0,
+        fortnightlyContributionCents: 200_00,
+      },
+      {
+        targetAmountCents: 10_000_00,
+        currentBalanceCents: 0,
+        fortnightlyContributionCents: 0,
+        queuePosition: 0,
+        plannedContributionCents,
+      },
+      {
+        targetAmountCents: 300_00,
+        currentBalanceCents: 0,
+        fortnightlyContributionCents: 0,
+        queuePosition: 1,
+      },
+    ]
+    const capped = projectNetWorth(
+      input({ horizonYears: 1, otherCents: 0, savingsGoals: goals(50_00) }),
+    )
+    const uncapped = projectNetWorth(
+      input({ horizonYears: 1, otherCents: 0, savingsGoals: goals(null) }),
+    )
+
+    // Uncapped, the first queued goal takes the whole $200/fn freed from
+    // fortnight 13. Capped at $50/fn it draws far less, and once the tiny second
+    // goal is filled the rest of the freed capacity has nowhere to go.
+    expect(capped[1]!.otherCents).toBeLessThan(uncapped[1]!.otherCents)
+    expect(capped[1]!.otherCents).toBe(3_600_00)
+    expect(uncapped[1]!.otherCents).toBe(5_400_00)
+  })
+
   it('grows the equity line as a grant vests over time', () => {
     // 12-month vesting, no cliff: half vested after 6 months, fully after a year.
     const grant: EquityGrant = {

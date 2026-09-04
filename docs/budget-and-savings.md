@@ -190,9 +190,22 @@ money against outgoings and money set aside, leaving a buffer.
   it is active **now**: counted at its full fortnightly and annual rate while
   `now` is within `[starts_on, ends_on]` (either side open-ended), excluded
   entirely otherwise — the same active-at-`now` test that expires a temporary
-  item. This is deliberately not the FY-share proration the tax estimate applies
-  to a taxable inflow, which is the right basis only for a whole-of-year
-  progressive assessment.
+  item.
+  - The **fortnightly** after-tax figure gates taxable inflows the same way. A
+    second tax estimate runs over only the taxable inflows active at `now` —
+    each active recurring inflow at its **full** annual rate (its `starts_on` /
+    `ends_on` cleared), each inactive one dropped, one-offs already excluded — and
+    that estimate's after-tax (and, for the gross basis, its tax and salary
+    sacrifice) is what the fortnightly slices divide by 26. A $130k salary that
+    ended in March feeds the fortnightly buffer nothing; one that starts in three
+    months feeds it nothing yet.
+  - The **annual** after-tax figure stays the whole-year estimate, which prorates
+    each dated taxable inflow by its FY-active share — the right basis for a
+    whole-of-year progressive assessment. So the annual and fortnightly figures
+    **deliberately disagree** for a dated inflow, exactly as they already do for
+    one-off money: an annual figure is a whole-year truth, a fortnightly one is
+    the income the household can count on landing right now. See
+    [`tax.md`](tax.md#effective-dated-income).
 - **Outgoings** = Needs + Wants + Discretionary + Temporary.
 - **Savings block** = Savings + Investments.
 - **Remaining buffer** = Available − Outgoings − Savings block.

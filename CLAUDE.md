@@ -90,15 +90,24 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   advisory note pointing at the pay-cadence picker, which never blocks a save.
   A recurring inflow, taxable or non-taxable, may carry optional
   effective-from/until dates (`starts_on` / `ends_on`); blank either side is
-  open-ended and blank both means the whole financial year. The two sides read
-  the window differently by design: the FY tax estimate prorates a taxable
-  inflow's rate by its active share of the year (by calendar days), so income
-  that changes mid-year — a pay rise modelled as the old rate ending and a new
-  dated inflow starting — is estimated correctly, whereas the fortnightly budget
-  gates a non-taxable inflow fully in or out by whether it is active at `now`,
-  counting it at its full fortnightly/annual rate within the window and excluding
-  it entirely outside, the same way a temporary item drops out of the buffer once
-  it expires.
+  open-ended and blank both means the whole financial year. The window is read as
+  a whole-of-year fact and an as-of-now fact, and the two disagree by design. The
+  ANNUAL figures — the Tax tab and the Summary's annual column — prorate a
+  taxable inflow's rate by its active share of the year (by calendar days), so
+  income that changes mid-year, a pay rise modelled as the old rate ending and a
+  new dated inflow starting, is estimated correctly. The Summary's FORTNIGHTLY
+  budget basis instead reads the income landing NOW: a non-taxable inflow is
+  gated fully in or out by whether `now` is within its window (full rate inside,
+  nothing outside, the same way a temporary item drops out of the buffer once it
+  expires), and the taxable side runs a SECOND tax estimate over only the taxable
+  inflows active at `now` — each at its full annual rate, inactive ones dropped —
+  whose after-tax (and, on the gross basis, tax and salary sacrifice) is what the
+  fortnightly slices divide by 26. So a salary that ended months ago or starts
+  months from now feeds the fortnightly buffer nothing while still shaping the
+  annual figures, the annual/fortnightly split being the same one one-off money
+  already draws. `@nest/tax` and `@nest/plan` are untouched — the active-now
+  estimate is a PWA-adapter concern (`lib/tax.ts`'s `activeNowTaxableInflows`,
+  threaded through `lib/summary.ts`'s `summariseHousehold`).
   A taxable inflow also records whether it is ordinary time earnings
   (`attracts_super`, default true). An allowance paid on top of ordinary hours —
   on-call or standby pay, each tier its own inflow — is taxed in full but earns

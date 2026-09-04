@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '../test/render'
 import { SummarySection } from './SummarySection'
+
+afterEach(() => vi.useRealTimers())
 
 const hooks = vi.hoisted(() => ({
   useInflows: vi.fn(),
@@ -73,6 +75,69 @@ describe('SummarySection', () => {
     expect(screen.getByTestId('summary-view')).toBeInTheDocument()
     expect(hooks.screenProps).toHaveProperty('summary')
     expect(hooks.screenProps).not.toHaveProperty('baseline')
+  })
+
+  it('bases the fortnightly buffer on the income landing now, keeping the annual whole-year', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-12-01T00:00:00Z'))
+    const salary = {
+      id: 'i1',
+      household_id: 'h1',
+      name: 'Old job',
+      taxable: true,
+      attracts_super: true,
+      member_id: 'm1',
+      type: 'salary',
+      schedule: 'annual',
+      interval_count: null,
+      pay_schedule: null,
+      pay_interval_count: null,
+      arrives_every_pay_period: true,
+      amount_cents: 120_000_00,
+      hourly_rate_cents: null,
+      hours_per_period: null,
+      starts_on: null,
+      ends_on: '2026-09-30',
+      paid_on: null,
+      one_off_tax_treatment: null,
+      years_of_service: null,
+      created_at: '',
+      updated_at: '',
+    }
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [salary] })
+    hooks.useTaxProfiles.mockReturnValue({
+      loading: false,
+      profiles: [
+        {
+          id: 'p1',
+          household_id: 'h1',
+          member_id: 'm1',
+          financial_year: 2027,
+          residency: 'resident',
+          has_private_hospital_cover: false,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+      financialYear: 2027,
+    })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+    hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
+    hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [] })
+    render(<SummarySection householdId="h1" />)
+
+    const summary = hooks.screenProps?.summary as {
+      available: { fortnightlyCents: number; annualCents: number }
+    }
+    // The salary ended well before now, so nothing lands this fortnight...
+    expect(summary.available.fortnightlyCents).toBe(0)
+    // ...while the annual figure keeps the whole-year estimate's part-year income.
+    expect(summary.available.annualCents).toBeGreaterThan(0)
   })
 
   it('also computes a baseline reconciliation while planning mode is active', () => {

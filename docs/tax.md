@@ -25,10 +25,16 @@ the whole year. The steady-rate `annualGrossCents` is unchanged; it remains the
 per-inflow display figure and the base for percent-of-salary super contributions,
 which apply to the current rate rather than the part-year figure.
 
-FY-share proration is a tax-estimate concept only. A non-taxable inflow carries
-the same `starts_on` / `ends_on` dates but never reaches the tax engine; the
-fortnightly budget gates it fully in or out by whether it is active now (see
-[`budget-and-savings.md`](budget-and-savings.md)).
+FY-share proration is a whole-of-year concept. The Tax tab and every annual
+figure use it. The **fortnightly budget basis does not**: the Summary runs a
+second estimate over only the taxable inflows active at `now`, each at its full
+annual rate, so the fortnightly buffer reflects the income landing this fortnight
+rather than a fraction of pay that has stopped or not yet started. The annual and
+fortnightly after-tax figures therefore diverge for a dated inflow, exactly as
+they already do for one-off money. A non-taxable inflow carries the same
+`starts_on` / `ends_on` dates but never reaches the tax engine; the fortnightly
+budget gates it fully in or out by whether it is active now. See
+[`budget-and-savings.md`](budget-and-savings.md).
 
 ## One-off payments and termination concessions
 

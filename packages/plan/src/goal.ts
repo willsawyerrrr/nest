@@ -3,19 +3,14 @@
  * balance and a fortnightly contribution.
  */
 
+import {
+  FORTNIGHT_MS,
+  fortnightGrowthFactor,
+  isoDate,
+  MAX_FORTNIGHTS,
+  requiredContributionCents,
+} from './goalMath.ts'
 import type { Money, SavingsGoal } from './index.ts'
-
-/** Milliseconds in a fortnight; ETAs advance by whole fortnights. */
-const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000
-
-/** Fortnights in a year; the modelled rate compounds once per fortnight. */
-const FORTNIGHTS_PER_YEAR = 26
-
-/**
- * Upper bound on the fortnight-by-fortnight walk (~200 years). A goal that has
- * not reached its target by then stays `null`, as an unreachable goal does.
- */
-const MAX_FORTNIGHTS = 5200
 
 /**
  * A goal's projected trajectory. `remainingCents` is what is still to be saved;
@@ -31,24 +26,6 @@ export interface GoalProjection {
   readonly fortnightsToTarget: number | null
   readonly projectedCompletionDate: string | null
   readonly requiredFortnightlyContributionCents: Money | null
-}
-
-/** Formats a Date as its ISO date part (YYYY-MM-DD). */
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-/**
- * The per-fortnight growth factor `f` for a goal's modelled interest: the
- * entered figure is the effective annual rate, so `f = (1 + bps/10000) ^ (1/26)`.
- * A null, zero, or negative rate gives `f = 1` — no growth, and the projection
- * collapses to pure linear contribution math.
- */
-function fortnightGrowthFactor(annualInterestBps: number | null | undefined): number {
-  if (annualInterestBps == null || annualInterestBps <= 0) {
-    return 1
-  }
-  return (1 + annualInterestBps / 10_000) ** (1 / FORTNIGHTS_PER_YEAR)
 }
 
 /**
@@ -126,22 +103,12 @@ export function projectGoal(
 
   let requiredFortnightlyContributionCents: Money | null = null
   if (goal.targetDate !== undefined) {
-    if (alreadyMet) {
-      requiredFortnightlyContributionCents = 0
-    } else {
-      const fortnightsLeft = Math.ceil((Date.parse(goal.targetDate) - now.getTime()) / FORTNIGHT_MS)
-      if (fortnightsLeft <= 0) {
-        requiredFortnightlyContributionCents = remainingCents
-      } else if (f > 1) {
-        const growthOverTerm = f ** fortnightsLeft
-        const annuity =
-          ((goal.targetAmountCents - currentBalanceCents * growthOverTerm) * (f - 1)) /
-          (growthOverTerm - 1)
-        requiredFortnightlyContributionCents = Math.max(0, Math.ceil(annuity))
-      } else {
-        requiredFortnightlyContributionCents = Math.ceil(remainingCents / fortnightsLeft)
-      }
-    }
+    const fortnightsLeft = Math.ceil((Date.parse(goal.targetDate) - now.getTime()) / FORTNIGHT_MS)
+    requiredFortnightlyContributionCents = requiredContributionCents(
+      goal,
+      currentBalanceCents,
+      fortnightsLeft,
+    )
   }
 
   return {

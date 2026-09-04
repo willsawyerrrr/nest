@@ -9,6 +9,7 @@ import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
 import { makeMember } from '../test/fixtures'
 import {
+  activeNowTaxableInflows,
   atPreservationAgeOn,
   concessionalByMember,
   currentTaxConfig,
@@ -375,6 +376,46 @@ describe('estimateHouseholdTaxFromRows effective dates', () => {
       amount_cents: 90_000_00,
     }
     expect(estimateHouseholdTaxFromRows([undated], [profile]).annualGrossCents).toBe(90_000_00)
+  })
+})
+
+describe('activeNowTaxableInflows', () => {
+  const now = new Date('2026-12-01T00:00:00Z')
+  const recurring: Inflow = { ...baseInflow, schedule: 'annual', interval_count: null }
+
+  it('keeps an active recurring inflow with its effective dates cleared', () => {
+    const dated: Inflow = { ...recurring, starts_on: '2026-07-01', ends_on: '2027-06-30' }
+    expect(activeNowTaxableInflows([dated], now)).toEqual([
+      { ...dated, starts_on: null, ends_on: null },
+    ])
+  })
+
+  it('keeps an open-ended recurring inflow untouched aside from the (already null) dates', () => {
+    expect(activeNowTaxableInflows([recurring], now)).toEqual([recurring])
+  })
+
+  it('drops a recurring inflow that ended before now', () => {
+    const ended: Inflow = { ...recurring, ends_on: '2026-09-30' }
+    expect(activeNowTaxableInflows([ended], now)).toEqual([])
+  })
+
+  it('drops a recurring inflow that starts after now', () => {
+    const future: Inflow = { ...recurring, starts_on: '2027-03-01' }
+    expect(activeNowTaxableInflows([future], now)).toEqual([])
+  })
+
+  it('passes a one-off through unchanged, dates and all', () => {
+    const oneOff: Inflow = {
+      ...baseInflow,
+      schedule: null,
+      interval_count: null,
+      paid_on: '2026-08-15',
+    }
+    expect(activeNowTaxableInflows([oneOff], now)).toEqual([oneOff])
+  })
+
+  it('drops a non-taxable inflow', () => {
+    expect(activeNowTaxableInflows([{ ...recurring, taxable: false }], now)).toEqual([])
   })
 })
 

@@ -5,7 +5,10 @@ import { makeBudgetLine, makeGoal, makeInflow, makeSaver } from '../test/fixture
 import { render, screen } from '../test/render'
 import { PlanningSection } from './PlanningSection'
 
-afterEach(() => localStorage.clear())
+afterEach(() => {
+  localStorage.clear()
+  vi.useRealTimers()
+})
 
 const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
@@ -251,6 +254,46 @@ describe('PlanningSection', () => {
     ])
     const goalEtas = hooks.screenProps?.goalEtas as { name: string }[]
     expect(goalEtas).toEqual([{ name: 'Car', proposedIso: null, baselineIso: null }])
+  })
+
+  it('moves the fortnightly buffer when a sandbox edit ends an inflow before now', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-12-01T00:00:00Z'))
+    mockLoaded()
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    hooks.useTaxProfiles.mockReturnValue({
+      loading: false,
+      profiles: [
+        {
+          id: 'p1',
+          household_id: 'h1',
+          member_id: 'm1',
+          financial_year: 2027,
+          residency: 'resident',
+          has_private_hospital_cover: false,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+      financialYear: 2027,
+    })
+    const salary = makeInflow({ id: 'i1', schedule: 'annual', amount_cents: 120_000_00 })
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [{ ...salary, ends_on: '2026-09-30' }],
+      baselineInflows: [salary],
+    })
+    renderSection()
+
+    const figures = hooks.screenProps?.figures as {
+      label: string
+      baselineCents: number
+      proposedCents: number
+    }[]
+    const buffer = figures.find((f) => f.label === 'Fortnightly buffer')!
+    // The proposed sandbox ends the salary in the past, so its buffer drops to
+    // the baseline's less the whole fortnightly take-home.
+    expect(buffer.proposedCents).toBeLessThan(buffer.baselineCents)
   })
 
   it('wires the reset, discard, and exit handlers straight to the provider', () => {

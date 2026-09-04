@@ -1,5 +1,11 @@
-import { summarise, type BudgetSummary, type SummaryInput } from '@nest/plan'
-import { isDateInFinancialYear } from '@nest/tax'
+import {
+  summarise,
+  type Amounts,
+  type BudgetSummary,
+  type GroupSummary,
+  type SummaryInput,
+} from '@nest/plan'
+import { isDateInFinancialYear, type HouseholdTaxEstimate } from '@nest/tax'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
@@ -10,7 +16,7 @@ import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
 import type { DerivedAmountContext } from './breakdowns'
 import { applyBreakdownAmounts } from './derivedBudget'
-import { estimateHouseholdTaxFromRows } from './tax'
+import { activeNowTaxableInflows, estimateHouseholdTaxFromRows } from './tax'
 
 /** The household rows a Summary is built from, before adapting to the plan's shape. */
 export interface SummarySources {
@@ -114,13 +120,60 @@ export interface HouseholdSummarySources {
 }
 
 /**
- * The whole Summary reconciliation from the household's rows: estimates the
- * year's tax from the (possibly sandboxed) inflows, then reconciles the
- * after-tax cash against the budget lines and temporary items. One-off money is
- * reported beside the plan, never inside it, so the take-home the ledger divides
- * is net of it, as are the tax and salary-sacrifice slices the gross basis
- * rebuilds Gross from. Pure — the Summary tab and the planning roll-up both call
- * it, once per row set, so their figures agree by construction.
+ * Combines two reconciliations of the same plan into the figures the Summary
+ * reports: every ANNUAL figure from `wholeYear` — the whole-of-financial-year tax
+ * estimate — and every FORTNIGHTLY figure, plus the group portions that divide
+ * by fortnightly available cash, from `activeNow` — the estimate run over only
+ * the income landing now. Budget lines, temporary items, and one-off money are
+ * identical in both runs and pass straight through.
+ *
+ * The two bases deliberately disagree for a dated inflow exactly as they already
+ * do for one-off money: an annual figure is a whole-year truth, a fortnightly one
+ * is what the household can count on landing each fortnight right now, so a salary
+ * that ended in March feeds the annual take-home its part-year share and the
+ * fortnightly buffer nothing.
+ */
+function reportedSummary(wholeYear: BudgetSummary, activeNow: BudgetSummary): BudgetSummary {
+  const merge = (annual: Amounts, fortnightly: Amounts): Amounts => ({
+    fortnightlyCents: fortnightly.fortnightlyCents,
+    annualCents: annual.annualCents,
+  })
+  const mergeGroup = (annual: GroupSummary, fortnightly: GroupSummary): GroupSummary => ({
+    ...merge(annual, fortnightly),
+    portion: fortnightly.portion,
+  })
+  const groupKeys = Object.keys(wholeYear.groups) as (keyof BudgetSummary['groups'])[]
+  return {
+    oneOffCents: wholeYear.oneOffCents,
+    available: merge(wholeYear.available, activeNow.available),
+    groups: Object.fromEntries(
+      groupKeys.map((key) => [key, mergeGroup(wholeYear.groups[key], activeNow.groups[key])]),
+    ) as BudgetSummary['groups'],
+    outgoings: merge(wholeYear.outgoings, activeNow.outgoings),
+    savingsBlock: merge(wholeYear.savingsBlock, activeNow.savingsBlock),
+    afterOutgoing: merge(wholeYear.afterOutgoing, activeNow.afterOutgoing),
+    afterSaving: merge(wholeYear.afterSaving, activeNow.afterSaving),
+    tax: merge(wholeYear.tax, activeNow.tax),
+    salarySacrifice: merge(wholeYear.salarySacrifice, activeNow.salarySacrifice),
+  }
+}
+
+/**
+ * The whole Summary reconciliation from the household's rows. Two tax estimates
+ * run over the (possibly sandboxed) inflows: the whole-year one, which prorates
+ * each dated inflow by its FY-active share and drives every ANNUAL figure; and a
+ * second one over only the taxable inflows active at `now`, each at its full
+ * annual rate ({@link activeNowTaxableInflows}), which drives the FORTNIGHTLY
+ * figures — so the buffer reflects the income landing this fortnight rather than
+ * a fraction of pay that has stopped or not yet started. The after-tax cash is
+ * then reconciled against the budget lines and temporary items.
+ *
+ * One-off money is reported beside the plan, never inside it, so the take-home
+ * the ledger divides is net of it in both estimates, as are the tax and
+ * salary-sacrifice slices the gross basis rebuilds Gross from. Pure — the Summary
+ * tab and the planning roll-up both call it, once per row set, so their figures
+ * agree by construction; in planning mode the baseline and proposed rows each run
+ * through the same active-now path, so a sandbox date edit moves the buffer.
  */
 export function summariseHousehold({
   inflows,
@@ -135,19 +188,9 @@ export function summariseHousehold({
   temporaryItems,
   now = new Date(),
 }: HouseholdSummarySources): BudgetSummary {
-  const estimate = estimateHouseholdTaxFromRows(
-    inflows,
-    taxProfiles,
-    contributions,
-    helpDebts,
-    deductions,
-    undefined,
-    undefined,
-    members,
-  )
-  const oneOffTaxCents = estimate.annualOneOffGrossCents - estimate.annualOneOffAfterTaxCents
-  return summarise(
-    toSummaryInput({
+  const inputFor = (estimate: HouseholdTaxEstimate): SummaryInput => {
+    const oneOffTaxCents = estimate.annualOneOffGrossCents - estimate.annualOneOffAfterTaxCents
+    return toSummaryInput({
       afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents - estimate.annualOneOffAfterTaxCents,
       financialYear,
       inflows,
@@ -159,7 +202,21 @@ export function summariseHousehold({
         estimate.annualTaxCents -
         oneOffTaxCents +
         (estimate.annualConcessionalContributionsCents - estimate.annualNetConcessionalSuperCents),
-    }),
-    now,
-  )
+    })
+  }
+  const estimateOver = (rows: Inflow[]): HouseholdTaxEstimate =>
+    estimateHouseholdTaxFromRows(
+      rows,
+      taxProfiles,
+      contributions,
+      helpDebts,
+      deductions,
+      undefined,
+      undefined,
+      members,
+    )
+
+  const wholeYear = summarise(inputFor(estimateOver(inflows)), now)
+  const activeNow = summarise(inputFor(estimateOver(activeNowTaxableInflows(inflows, now))), now)
+  return reportedSummary(wholeYear, activeNow)
 }

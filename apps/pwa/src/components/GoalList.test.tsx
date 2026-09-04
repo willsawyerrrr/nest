@@ -7,7 +7,29 @@ import { render, screen, setWideViewport, waitFor, within } from '../test/render
 import { GoalList } from './GoalList'
 import { PlanningModeProvider } from './PlanningModeProvider'
 
-afterEach(() => localStorage.clear())
+const dnd = vi.hoisted(() => ({ onDragEnd: undefined as ((event: unknown) => void) | undefined }))
+
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...actual,
+    DndContext: ({
+      children,
+      onDragEnd,
+    }: {
+      children: React.ReactNode
+      onDragEnd?: (event: unknown) => void
+    }) => {
+      dnd.onDragEnd = onDragEnd
+      return children
+    },
+  }
+})
+
+afterEach(() => {
+  localStorage.clear()
+  dnd.onDragEnd = undefined
+})
 
 /** Renders a `GoalList` inside an active planning-mode sandbox. */
 function renderPlanning(ui: React.ReactElement) {
@@ -299,6 +321,53 @@ describe('GoalList', () => {
     expect(nextQueueOrder(['a', 'b', 'c'], 'c', 'a')).toEqual(['c', 'a', 'b'])
     expect(nextQueueOrder(['a', 'b', 'c'], 'b', 'b')).toBeNull()
     expect(nextQueueOrder(['a', 'b', 'c'], 'x', 'a')).toBeNull()
+  })
+
+  it('reorders the queue on a drag that moves a row, and ignores a no-op drop', () => {
+    const onReorderQueue = vi.fn()
+    render(
+      <GoalList
+        goals={[
+          goal({ id: 'g1', name: 'Boat', queue_position: 0 }),
+          goal({ id: 'g2', name: 'Car', queue_position: 1 }),
+        ]}
+        lines={[]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        onReorderQueue={onReorderQueue}
+      />,
+    )
+
+    dnd.onDragEnd?.({ active: { id: 'g2' }, over: { id: 'g1' } })
+    expect(onReorderQueue).toHaveBeenCalledWith(['g2', 'g1'])
+
+    onReorderQueue.mockClear()
+    // A drop outside any row, and a drop back onto the same row: neither reorders.
+    dnd.onDragEnd?.({ active: { id: 'g1' }, over: null })
+    dnd.onDragEnd?.({ active: { id: 'g1' }, over: { id: 'g1' } })
+    expect(onReorderQueue).not.toHaveBeenCalled()
+  })
+
+  it('deletes an active goal after confirming', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    render(
+      <GoalList
+        goals={[goal({ id: 'g1', name: 'Car' })]}
+        lines={[line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+
+    await user.click(within(card('Car')).getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i }))
+
+    expect(onDelete).toHaveBeenCalledWith('g1')
   })
 
   it('edits a goal in place', async () => {

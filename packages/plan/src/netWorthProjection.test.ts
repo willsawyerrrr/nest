@@ -246,6 +246,35 @@ describe('projectNetWorth', () => {
     expect(uncapped[1]!.otherCents).toBe(5_400_00)
   })
 
+  it('keeps unpositioned queued goals in their given order behind the active goal', () => {
+    const points = projectNetWorth(
+      input({
+        horizonYears: 3,
+        otherCents: 0,
+        savingsGoals: [
+          {
+            targetAmountCents: 2_600_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 100_00,
+          },
+          // Neither queued goal carries a `queuePosition`, so the sort leaves
+          // them in input order: the $3,000 goal fills before the large one.
+          {
+            targetAmountCents: 3_000_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 0,
+          },
+          {
+            targetAmountCents: 1_000_000_00,
+            currentBalanceCents: 0,
+            fortnightlyContributionCents: 0,
+          },
+        ],
+      }),
+    )
+    expect(points.map((p) => p.otherCents)).toEqual([0, 2_700_00, 5_300_00, 7_900_00])
+  })
+
   it('grows the equity line as a grant vests over time', () => {
     // 12-month vesting, no cliff: half vested after 6 months, fully after a year.
     const grant: EquityGrant = {

@@ -102,6 +102,25 @@ describe('GoalForm', () => {
     expect(button).toBeEnabled()
   })
 
+  it('saves a zero target when the amount field holds no parseable number', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<GoalForm savers={[]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Car')
+    // A lone minus sign is a non-empty, unparseable value: the submit is allowed
+    // and the target amount falls back to zero. Submitting the form directly
+    // avoids the blur that would clamp the field back to empty.
+    await user.type(screen.getByLabelText(/target amount/i), '-')
+    fireEvent.submit(
+      screen.getByRole('button', { name: /add goal/i }).closest('form') as HTMLFormElement,
+    )
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ target_amount_cents: 0 })),
+    )
+  })
+
   it('prefills fields from an existing goal when editing', () => {
     render(<GoalForm initial={goal()} savers={[]} onSubmit={vi.fn()} />)
 

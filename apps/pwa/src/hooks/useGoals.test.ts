@@ -66,6 +66,25 @@ describe('useGoals', () => {
     expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ queue_position: 0 }))
     expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ queue_position: 1 }))
   })
+
+  it('writes nothing when a reorder leaves every goal where it was', async () => {
+    builder.result = {
+      data: [
+        makeGoal({ id: 'g1', name: 'A', queue_position: 0 }),
+        makeGoal({ id: 'g2', name: 'B', queue_position: 1 }),
+      ],
+      error: null,
+    }
+    const { result } = renderHook(() => useGoals('h1'), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.goals).toHaveLength(2))
+
+    await act(async () => {
+      // g1 and g2 keep their positions; an id no longer in the queue is skipped.
+      await result.current.reorderQueue(['g1', 'g2', 'gone'])
+    })
+
+    expect(builder.update).not.toHaveBeenCalled()
+  })
 })
 
 describe('goalInputFromRow', () => {

@@ -357,4 +357,20 @@ describe('queuedGoalCashByFortnight', () => {
       ),
     ).toEqual([0, 0])
   })
+
+  it('returns an empty array when no fortnights are asked for', () => {
+    expect(
+      queuedGoalCashByFortnight(
+        [
+          {
+            goal: { targetAmountCents: 5_000_00, currentBalanceCents: 0 },
+            fortnightlyContributionCents: 500_00,
+          },
+        ],
+        [{ goal: { targetAmountCents: 100_000_00, currentBalanceCents: 0 } }],
+        NOW,
+        [],
+      ),
+    ).toEqual([])
+  })
 })

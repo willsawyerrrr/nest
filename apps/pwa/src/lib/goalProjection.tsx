@@ -178,6 +178,9 @@ export function goalDisplay(
     status = { label: 'Reached', color: 'positive' }
     eta = 'Goal reached.'
   } else if (goal.target_date !== null) {
+    // `toSavingsGoal` gives the goal a `targetDate` here, so `projectGoal`
+    // always returns a required contribution — the `?? 0` never fires.
+    /* v8 ignore next */
     const required = projection.requiredFortnightlyContributionCents ?? 0
     const onTrack = contributionCents >= required
     status = onTrack

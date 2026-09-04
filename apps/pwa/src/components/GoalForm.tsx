@@ -60,11 +60,9 @@ export function GoalForm({ initial, draft, savers, onSubmit, onCancel }: GoalFor
 
   const handleSaverChange = (accountId: string | null) => {
     setLinkedAccountId(accountId)
-    if (accountId !== null && name.trim() === '') {
-      const saver = savers.find((candidate) => candidate.id === accountId)
-      if (saver) {
-        setName(saver.name)
-      }
+    const saver = savers.find((candidate) => candidate.id === accountId)
+    if (saver && name.trim() === '') {
+      setName(saver.name)
     }
   }
 

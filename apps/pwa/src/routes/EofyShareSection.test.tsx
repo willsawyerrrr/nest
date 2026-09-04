@@ -43,6 +43,8 @@ const shareData: EofyShareData = {
   deductions: [],
   deductionReceipts: [],
   payslips: [],
+  savingsGoals: [],
+  accounts: [],
 }
 
 describe('EofyShareSection', () => {
@@ -78,6 +80,61 @@ describe('EofyShareSection', () => {
       'These figures are estimates for planning purposes, not a filed tax return.',
     )
     expect((hooks.screenProps!.estimate as HouseholdTaxEstimate).members).toEqual([])
+  })
+
+  it('feeds a shared goal’s projected savings interest into the estimate', () => {
+    hooks.useEofyShareData.mockReturnValue({
+      status: 'ready',
+      data: {
+        ...shareData,
+        members: [{ id: 'm1', name: 'Alex', date_of_birth: null }],
+        inflows: [
+          {
+            id: 'i1',
+            household_id: 'h1',
+            member_id: 'm1',
+            name: 'Job',
+            taxable: true,
+            attracts_super: true,
+            type: 'salary',
+            schedule: 'annual',
+            interval_count: null,
+            pay_schedule: null,
+            pay_interval_count: null,
+            arrives_every_pay_period: true,
+            amount_cents: 120_000_00,
+            hourly_rate_cents: null,
+            hours_per_period: null,
+            starts_on: null,
+            ends_on: null,
+            paid_on: null,
+            one_off_tax_treatment: null,
+            years_of_service: null,
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+        savingsGoals: [
+          {
+            id: 'g1',
+            household_id: 'h1',
+            name: 'House',
+            target_amount_cents: 1_000_000_00,
+            target_date: null,
+            current_balance_cents: 100_000_00,
+            linked_account_id: null,
+            annual_interest_bps: 450,
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+      },
+    } satisfies EofyShareOutcome)
+    renderAt()
+
+    const member = (hooks.screenProps!.estimate as HouseholdTaxEstimate).members[0]!
+    // $4,500 of projected interest (4.5% of $100,000) on top of the $120,000 salary.
+    expect(member.annualGrossCents).toBe(124_500_00)
   })
 
   it('passes a no-op onFinancialYearChange, since the share is fixed to one year', () => {

@@ -97,6 +97,8 @@ async function loadEofyShareRows(
     helpDebts,
     deductions,
     payslips,
+    savingsGoals,
+    accounts,
   ] = await Promise.all([
     selectForHousehold(admin, 'inflows', householdId),
     selectForHousehold(admin, 'tax_profile', householdId, financialYear),
@@ -105,6 +107,10 @@ async function loadEofyShareRows(
     selectForHousehold(admin, 'help_debt', householdId),
     selectForHousehold(admin, 'deduction', householdId, financialYear),
     selectForHousehold(admin, 'payslip', householdId, financialYear),
+    // Unfiltered by financial year, matching `useGoals`; feeds projected savings
+    // interest into the shared tax estimate.
+    selectForHousehold(admin, 'savings_goal', householdId),
+    loadAccountsWithBalance(admin, householdId),
   ])
 
   const deductionIds = deductions.map((deduction) => deduction.id as string)
@@ -131,5 +137,33 @@ async function loadEofyShareRows(
     deductions,
     deductionReceipts,
     payslips,
+    savingsGoals,
+    accounts,
   }
+}
+
+/**
+ * Each household account's identity joined to its balance, as
+ * `accounts_with_balance` gives an authenticated caller — rebuilt here from the
+ * `accounts` and `account_balance` tables because that view is granted to
+ * `authenticated` alone, not the service role. Only `{ id, owner_member_id,
+ * balance_cents }` is kept: enough to resolve a goal's linked saver balance and
+ * its ownership for projected-interest attribution, and no balance is rendered.
+ */
+async function loadAccountsWithBalance(
+  admin: SupabaseClient,
+  householdId: string,
+): Promise<Row[]> {
+  const [accounts, balances] = await Promise.all([
+    selectForHousehold(admin, 'accounts', householdId),
+    selectForHousehold(admin, 'account_balance', householdId),
+  ])
+  const balanceByAccount = new Map(
+    balances.map((balance) => [balance.account_id as string, balance.balance_cents as number]),
+  )
+  return accounts.map((account) => ({
+    id: account.id,
+    owner_member_id: account.owner_member_id,
+    balance_cents: balanceByAccount.get(account.id as string) ?? 0,
+  }))
 }

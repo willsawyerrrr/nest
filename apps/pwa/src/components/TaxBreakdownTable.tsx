@@ -17,6 +17,11 @@ interface ComponentLine {
   alwaysShow?: boolean
   /** The built-up subtotal or total, emphasised. */
   total?: boolean
+  /**
+   * An indented sub-line detailing part of the line above (e.g. projected
+   * interest inside gross income): carries no sign and joins no running total.
+   */
+  detail?: boolean
 }
 
 /** Whether a line appears: core lines and totals always, others only when non-zero. */
@@ -25,12 +30,12 @@ function isVisible(line: ComponentLine): boolean {
 }
 
 /** One line's annual and fortnightly figures as a table body row headed by its label. */
-function ComponentRow({ label, annualCents, subtract, total }: ComponentLine) {
+function ComponentRow({ label, annualCents, subtract, total, detail }: ComponentLine) {
   const annual = subtract ? -annualCents : annualCents
   const fw = total ? 700 : undefined
   return (
     <Table.Tr>
-      <Table.Th scope="row" fw={fw} {...(!total && { c: 'dimmed' })}>
+      <Table.Th scope="row" fw={fw} {...(!total && { c: 'dimmed' })} {...(detail && { pl: 'md' })}>
         {label}
       </Table.Th>
       <Table.Td ta="right" fw={fw}>
@@ -84,6 +89,10 @@ function ComponentTable({ label, lines }: { label: string; lines: ComponentLine[
  * below the tables, because every fortnightly figure on the card is derived net of
  * one-off money and a reader comparing the two columns would otherwise read the gap
  * as an error.
+ *
+ * Projected savings interest is already inside gross income (the tax estimate
+ * counts it as `other` income), so it shows as an indented detail line under
+ * gross rather than a step in the running total.
  */
 export function BreakdownTable({
   breakdown,
@@ -92,6 +101,7 @@ export function BreakdownTable({
   deductionsCents,
   oneOffGrossCents = 0,
   oneOffTaxFreeCents = 0,
+  projectedInterestCents = 0,
 }: {
   breakdown: TaxBreakdown
   grossCents: number
@@ -101,9 +111,16 @@ export function BreakdownTable({
   oneOffGrossCents?: number
   /** The part of it excluded from assessable income entirely — a redundancy's tax-free amount. */
   oneOffTaxFreeCents?: number
+  /** Projected annual savings interest inside `grossCents`, shown as a detail line. */
+  projectedInterestCents?: number
 }) {
   const incomeLines: ComponentLine[] = [
     { label: 'Gross income', annualCents: grossCents, alwaysShow: true },
+    {
+      label: 'Investment income (projected)',
+      annualCents: projectedInterestCents,
+      detail: true,
+    },
     { label: 'Tax-free one-off payments', annualCents: oneOffTaxFreeCents, subtract: true },
     { label: 'Concessional super', annualCents: concessionalCents, subtract: true },
     { label: 'Deductions', annualCents: deductionsCents, subtract: true },

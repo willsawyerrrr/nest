@@ -17,7 +17,9 @@ import {
   type TaxProfileInput,
   type TaxYearConfig,
 } from '@nest/tax'
+import type { Account } from '../hooks/useAccounts'
 import type { DeductionRow } from '../hooks/useDeductions'
+import type { Goal } from '../hooks/useGoals'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow, OneOffTaxTreatment } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -115,6 +117,77 @@ export function activeNowTaxableInflows(inflows: readonly Inflow[], now: Date): 
     }
     return [{ ...inflow, starts_on: null, ends_on: null }]
   })
+}
+
+/**
+ * Splits `cents` equally across `memberIds`, the last member absorbing the
+ * remainder cent so the shares sum back to `cents` exactly. An empty list
+ * yields an empty array. Used to attribute pooled household money — projected
+ * savings interest here, joint income later — where no member owns it.
+ */
+export function splitAcrossMembers(cents: number, memberIds: readonly string[]): number[] {
+  if (memberIds.length === 0) {
+    return []
+  }
+  const each = Math.floor(cents / memberIds.length)
+  return memberIds.map((_, index) =>
+    index === memberIds.length - 1 ? cents - each * (memberIds.length - 1) : each,
+  )
+}
+
+/**
+ * Synthetic `other`-income inputs for each member's share of the household's
+ * projected annual savings interest, threaded into the tax estimate alongside
+ * the real inflows. Interest earned in a saver is assessable income, so a goal
+ * modelling an effective annual rate (`annual_interest_bps` above zero) adds
+ * `startingBalanceCents × annual_interest_bps / 10000` of it, rounded to cents:
+ * a simple non-compounding figure, a slight underestimate against the
+ * projection's fortnightly compounding and close enough for a tax estimate. The
+ * starting balance is the linked saver's real `balance_cents` from `accounts`
+ * when `linked_account_id` resolves, else the goal's own `current_balance_cents`.
+ *
+ * Goals carry no member and the household's money is pooled, so the interest is
+ * attributed by the linked saver: a goal linked to an individually-owned saver
+ * gives the whole figure to that saver's owner; a goal linked to a joint saver
+ * (`owner_member_id` null) or with no resolvable link splits 50/50 across
+ * `members` — the ATO default for joint-account interest, and the pooled-money
+ * default otherwise. Each non-zero share becomes one steady, always-active
+ * `annual` `other` input, so it reaches both the whole-year estimate and the
+ * budget's active-now rerun unchanged.
+ */
+export function projectedInterestIncomeInputs(
+  goals: readonly Goal[],
+  accounts: readonly Pick<Account, 'id' | 'balance_cents' | 'owner_member_id'>[],
+  members: readonly Pick<Member, 'id'>[],
+): IncomeInput[] {
+  const accountById = new Map(accounts.map((account) => [account.id, account]))
+  const memberIds = members.map((member) => member.id)
+  const inputs: IncomeInput[] = []
+  for (const goal of goals) {
+    const bps = goal.annual_interest_bps
+    if (bps == null || bps <= 0) {
+      continue
+    }
+    const linked =
+      goal.linked_account_id != null ? accountById.get(goal.linked_account_id) : undefined
+    const startingBalanceCents = linked ? linked.balance_cents : goal.current_balance_cents
+    const interestCents = Math.round((startingBalanceCents * bps) / 10_000)
+    if (interestCents === 0) {
+      continue
+    }
+    const shares =
+      linked?.owner_member_id != null
+        ? [[linked.owner_member_id, interestCents] as const]
+        : splitAcrossMembers(interestCents, memberIds).map(
+            (cents, index) => [memberIds[index] as string, cents] as const,
+          )
+    for (const [memberId, amountCents] of shares) {
+      if (amountCents !== 0) {
+        inputs.push({ memberId, type: 'other', schedule: 'annual', amountCents })
+      }
+    }
+  }
+  return inputs
 }
 
 /**
@@ -479,6 +552,11 @@ export function netAnnualSuperContributionFromRows(
  * `members`, when supplied, gives each member's date of birth, which decides the
  * concessional rate on a one-off termination payment; a member whose date of birth
  * is absent or unset is read as below preservation age — the higher rate.
+ * `extraIncomes`, when supplied, are synthetic income inputs concatenated with
+ * the mapped inflows — projected savings interest
+ * ({@link projectedInterestIncomeInputs}), assessable as `other` income and
+ * carrying no effective window, so the same figure reaches this whole-year
+ * estimate and the budget's active-now rerun.
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly Inflow[],
@@ -493,25 +571,29 @@ export function estimateHouseholdTaxFromRows(
   // user_id — can call this with exactly the same result the household's own
   // tab gets.
   members: readonly Pick<Member, 'id' | 'date_of_birth'>[] = [],
+  extraIncomes: readonly IncomeInput[] = [],
 ): HouseholdTaxEstimate {
   // Keyed to allow a null member id, which a taxable inflow can carry: it simply
   // matches no member, and an unknown date of birth reads as the higher rate.
   const dateOfBirthByMember = new Map<string | null, string | null>(
     members.map((member) => [member.id, member.date_of_birth]),
   )
-  const incomes = inflows
-    .filter((inflow) => inflow.taxable)
-    .map((inflow) =>
-      toIncomeInput(
-        inflow,
-        inflow.paid_on != null &&
-          atPreservationAgeOn(
-            dateOfBirthByMember.get(inflow.member_id) ?? null,
-            inflow.paid_on,
-            config,
-          ),
+  const incomes = [
+    ...inflows
+      .filter((inflow) => inflow.taxable)
+      .map((inflow) =>
+        toIncomeInput(
+          inflow,
+          inflow.paid_on != null &&
+            atPreservationAgeOn(
+              dateOfBirthByMember.get(inflow.member_id) ?? null,
+              inflow.paid_on,
+              config,
+            ),
+        ),
       ),
-    )
+    ...extraIncomes,
+  ]
   // Per-member annual gross salary, the base for percent-of-salary contributions.
   const grossByMember = grossByMemberFromInflows(inflows, config)
   const helpByMember = helpDebtCentsByMember(helpDebts)

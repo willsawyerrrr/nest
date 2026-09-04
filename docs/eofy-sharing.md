@@ -52,11 +52,17 @@ One table, `share_grant` (`supabase/migrations/20260831000000_share_grant.sql`):
   `authenticated` at all: every write goes through `create_share_grant` /
   `revoke_share_grant` (SECURITY DEFINER), so a direct PostgREST write is
   impossible.
-- **`service_role` reads `share_grant` by `token_hash`**, plus the seven
-  source tables `eofy-share` assembles (`members`, `inflows`, `tax_profile`,
+- **`service_role` reads `share_grant` by `token_hash`**, plus the source
+  tables `eofy-share` assembles (`members`, `inflows`, `tax_profile`,
   `super_contribution`, `super_profile`, `help_debt`, `deduction`,
-  `deduction_receipt`, `payslip`) — surgical per-feature grants, following
-  `docs/operations.md`'s `service_role` grants stance.
+  `deduction_receipt`, `payslip`, `savings_goal`, `accounts`,
+  `account_balance`) — surgical per-feature grants, following
+  `docs/operations.md`'s `service_role` grants stance. `savings_goal` and the
+  account identity/balance pair feed projected savings interest into the
+  shared tax estimate exactly as `useGoals`/`useSavers` do the household's own
+  (`accounts_with_balance` is granted to `authenticated` alone, so the
+  function rebuilds `{ id, owner_member_id, balance_cents }` from the two base
+  tables).
 
 ## Edge functions
 
@@ -119,6 +125,11 @@ the payment date (`members[].date_of_birth`), so `eofy-share`'s `members`
 query carries `date_of_birth` alongside `id`/`name` — never email or
 user_id, and never rendered — so the shared estimate cannot silently
 diverge from the household's own for a redundancy near preservation age.
+For the same reason `eofy-share` serves `savingsGoals` and a minimal
+`accounts` set (`{ id, owner_member_id, balance_cents }`): the shared
+`estimateHouseholdTaxFromRows` call passes them through
+`projectedInterestIncomeInputs` exactly as `EofySection.tsx` does, so a
+goal's projected savings interest lands in the shared estimate too.
 
 `App.tsx` matches `/share/eofy/:token` in its own top-level `<Routes>`,
 ahead of the session gate (renamed `AuthGate`, otherwise unchanged): a tax

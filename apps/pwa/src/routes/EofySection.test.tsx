@@ -1,7 +1,7 @@
 import { act } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { financialYearForDate, type HouseholdTaxEstimate } from '@nest/tax'
-import { makeInflow, makePayslip } from '../test/fixtures'
+import { makeGoal, makeInflow, makePayslip, makeSaver } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { EofySection } from './EofySection'
 import { TaxSection } from './TaxSection'
@@ -31,6 +31,8 @@ const hooks = vi.hoisted(() => ({
   useDeductions: vi.fn(),
   useDeductionReceipts: vi.fn(),
   usePayslips: vi.fn(),
+  useGoals: vi.fn(),
+  useSavers: vi.fn(),
   useShareGrant: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
   shareControlProps: null as Record<string, unknown> | null,
@@ -53,6 +55,8 @@ vi.mock('../hooks/useDeductionReceipts', () => ({
   useDeductionReceipts: hooks.useDeductionReceipts,
 }))
 vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
+vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
+vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
 vi.mock('../hooks/useShareGrant', () => ({ useShareGrant: hooks.useShareGrant }))
 vi.mock('../components/EofyScreen', () => ({
   EofyScreen: (props: Record<string, unknown>) => {
@@ -87,6 +91,8 @@ function mockLoaded() {
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
   hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [], signedUrl: vi.fn() })
   hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+  hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
+  hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
   hooks.useShareGrant.mockReturnValue({
     status: null,
     loading: false,
@@ -112,6 +118,8 @@ describe('EofySection', () => {
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false })
     hooks.usePayslips.mockReturnValue({ loading: false })
+    hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
     render(<EofySection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -230,6 +238,32 @@ describe('EofySection', () => {
     expect(eofy.balanceCents).toBe(tax.balanceCents)
     // Not a pair of zeroes agreeing: the withholding really did move the balance.
     expect(eofy.balanceCents).toBe(eofy.totalLiabilityCents - 30_000_00)
+  })
+
+  it('adds a goal’s projected savings interest to the estimate, raising tax and the balance', () => {
+    mockLoaded()
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.usePayslips.mockReturnValue({
+      loading: false,
+      payslips: [makePayslip({ tax_withheld_cents: 30_000_00 })],
+    })
+
+    render(<EofySection householdId="h1" />)
+    const withoutInterest = memberEstimate(hooks.screenProps).breakdown
+
+    hooks.useGoals.mockReturnValue({
+      loading: false,
+      goals: [makeGoal({ current_balance_cents: 80_000_00, annual_interest_bps: 500 })],
+      baselineGoals: [],
+    })
+    hooks.useSavers.mockReturnValue({ loading: false, savers: [makeSaver()] })
+    render(<EofySection householdId="h1" />)
+    const withInterest = memberEstimate(hooks.screenProps).breakdown
+
+    expect(withInterest.taxableIncomeCents).toBe(withoutInterest.taxableIncomeCents + 4_000_00)
+    expect(withInterest.totalLiabilityCents).toBeGreaterThan(withoutInterest.totalLiabilityCents)
+    // The withheld total is unchanged, so a larger liability means a larger bill.
+    expect(withInterest.balanceCents).toBeGreaterThan(withoutInterest.balanceCents)
   })
 
   it("filters deduction receipts to the selected FY's loaded deductions", () => {

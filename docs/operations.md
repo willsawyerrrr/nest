@@ -198,7 +198,11 @@ Two more read paths add their own `select` grants the same way. `eofy-share` /
 `tax_profile`, `super_contribution`, `super_profile`, `help_debt`, `deduction`,
 `deduction_receipt`, `payslip`) with a service-role client — an anonymous share
 token holder has no `auth.uid()` for those tables' RLS to match
-(`20260831000000_share_grant.sql`). `notify-eval`, the daily notification
+(`20260831000000_share_grant.sql`). `eofy-share` also reads `savings_goal`,
+`accounts`, and `account_balance` — reusing the `service_role` `select` grants
+`notify-eval` and the ledger already added — to feed a goal's projected savings
+interest into the shared tax estimate the same way the household's own tab does.
+`notify-eval`, the daily notification
 evaluator, reads the plan tables it reconciles the buffer and goal ETAs from:
 `budget_line`, `savings_goal`, and `temporary_item` gain a `service_role`
 `select`, joining the EOFY set (`members`, `inflows`, `tax_profile`,

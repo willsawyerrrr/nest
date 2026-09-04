@@ -7,7 +7,7 @@ import type { Inflow } from '../hooks/useInflows'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
-import { makeMember } from '../test/fixtures'
+import { makeGoal, makeMember, makeSaver } from '../test/fixtures'
 import {
   activeNowTaxableInflows,
   atPreservationAgeOn,
@@ -22,6 +22,8 @@ import {
   netAnnualSuperContributionByMember,
   netAnnualSuperContributionFromRows,
   nonConcessionalByMember,
+  projectedInterestIncomeInputs,
+  splitAcrossMembers,
   superCapSummaryByMember,
   superCapSummaryFromRows,
   toIncomeInput,
@@ -1067,5 +1069,143 @@ describe('one-off inflows in the super bases', () => {
         [contribution],
       ).get('m1'),
     ).toMatchObject({ coContributionCents: 0 })
+  })
+})
+
+describe('splitAcrossMembers', () => {
+  it('splits evenly when the amount divides cleanly', () => {
+    expect(splitAcrossMembers(100_00, ['m1', 'm2'])).toEqual([50_00, 50_00])
+  })
+
+  it('gives the remainder cent to the last member', () => {
+    expect(splitAcrossMembers(100_01, ['m1', 'm2'])).toEqual([50_00, 50_01])
+    expect(splitAcrossMembers(10, ['m1', 'm2', 'm3'])).toEqual([3, 3, 4])
+  })
+
+  it('returns an empty array for no members', () => {
+    expect(splitAcrossMembers(100_00, [])).toEqual([])
+  })
+})
+
+describe('projectedInterestIncomeInputs', () => {
+  const members = [makeMember({ id: 'm1' }), makeMember({ id: 'm2' })]
+
+  it('attributes a goal linked to an individually-owned saver wholly to its owner', () => {
+    const saver = makeSaver({ id: 'a1', owner_member_id: 'm2', balance_cents: 20_000_00 })
+    const goal = makeGoal({ linked_account_id: 'a1', annual_interest_bps: 500 })
+    expect(projectedInterestIncomeInputs([goal], [saver], members)).toEqual([
+      { memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 1_000_00 },
+    ])
+  })
+
+  it('splits a joint saver’s interest 50/50, the remainder cent to the last member', () => {
+    const saver = makeSaver({ id: 'a1', owner_member_id: null, balance_cents: 10_000_01 })
+    const goal = makeGoal({ linked_account_id: 'a1', annual_interest_bps: 100 })
+    // 1% of $10,000.01 = $100.0001 → rounds to $100.00, split 50/50.
+    expect(projectedInterestIncomeInputs([goal], [saver], members)).toEqual([
+      { memberId: 'm1', type: 'other', schedule: 'annual', amountCents: 50_00 },
+      { memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 50_00 },
+    ])
+    const bigger = makeSaver({ id: 'a1', owner_member_id: null, balance_cents: 33_333_00 })
+    // 3% of $33,333 = $999.99 → 49_999 / 50_000 split.
+    expect(
+      projectedInterestIncomeInputs(
+        [makeGoal({ linked_account_id: 'a1', annual_interest_bps: 300 })],
+        [bigger],
+        members,
+      ),
+    ).toEqual([
+      { memberId: 'm1', type: 'other', schedule: 'annual', amountCents: 49_999 },
+      { memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 50_000 },
+    ])
+  })
+
+  it('splits 50/50 off current_balance_cents when the goal has no linked account', () => {
+    const goal = makeGoal({
+      linked_account_id: null,
+      current_balance_cents: 40_000_00,
+      annual_interest_bps: 500,
+    })
+    expect(projectedInterestIncomeInputs([goal], [], members)).toEqual([
+      { memberId: 'm1', type: 'other', schedule: 'annual', amountCents: 1_000_00 },
+      { memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 1_000_00 },
+    ])
+  })
+
+  it('splits 50/50 off current_balance_cents when the linked account is unknown', () => {
+    const goal = makeGoal({
+      linked_account_id: 'missing',
+      current_balance_cents: 40_000_00,
+      annual_interest_bps: 500,
+    })
+    expect(projectedInterestIncomeInputs([goal], [], members).map((i) => i.amountCents)).toEqual([
+      1_000_00, 1_000_00,
+    ])
+  })
+
+  it('emits nothing for a goal with a null or zero interest rate, or a nil interest figure', () => {
+    expect(
+      projectedInterestIncomeInputs(
+        [
+          makeGoal({ id: 'g1', annual_interest_bps: null, current_balance_cents: 50_000_00 }),
+          makeGoal({ id: 'g2', annual_interest_bps: 0, current_balance_cents: 50_000_00 }),
+          makeGoal({ id: 'g3', annual_interest_bps: 500, current_balance_cents: 0 }),
+        ],
+        [],
+        members,
+      ),
+    ).toEqual([])
+  })
+
+  it('drops a member whose split share rounds to nothing', () => {
+    // 1% of $1.00 = 1 cent, split across two members → 0 / 1.
+    const goal = makeGoal({ annual_interest_bps: 100, current_balance_cents: 100 })
+    expect(projectedInterestIncomeInputs([goal], [], members)).toEqual([
+      { memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 1 },
+    ])
+    // No members and no owner: nothing to attribute to.
+    expect(
+      projectedInterestIncomeInputs(
+        [makeGoal({ annual_interest_bps: 500, current_balance_cents: 20_000_00 })],
+        [],
+        [],
+      ),
+    ).toEqual([])
+  })
+
+  it('raises annual tax and moves the EOFY balance when threaded into the estimate', () => {
+    const salary: Inflow = { ...baseInflow, schedule: 'annual', amount_cents: 120_000_00 }
+    const interest = projectedInterestIncomeInputs(
+      [makeGoal({ annual_interest_bps: 500, current_balance_cents: 100_000_00 })],
+      [],
+      [makeMember({ id: 'm1' })],
+    )
+    const withheld = new Map([['m1', 30_000_00]])
+    const withoutInterest = estimateHouseholdTaxFromRows(
+      [salary],
+      [profile],
+      [],
+      [],
+      [],
+      undefined,
+      withheld,
+      [],
+    )
+    const withInterest = estimateHouseholdTaxFromRows(
+      [salary],
+      [profile],
+      [],
+      [],
+      [],
+      undefined,
+      withheld,
+      [],
+      interest,
+    )
+    expect(withInterest.annualGrossCents).toBe(withoutInterest.annualGrossCents + 5_000_00)
+    expect(withInterest.annualTaxCents).toBeGreaterThan(withoutInterest.annualTaxCents)
+    expect(withInterest.members[0]!.breakdown.balanceCents).toBeGreaterThan(
+      withoutInterest.members[0]!.breakdown.balanceCents,
+    )
   })
 })

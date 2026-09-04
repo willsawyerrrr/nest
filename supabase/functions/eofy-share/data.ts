@@ -44,6 +44,20 @@ export interface EofyShareRows {
   /** Pre-filtered to the deductions already in scope, unlike `useDeductionReceipts` (which loads every year and lets the caller filter) — nothing here is served for a year outside the share. */
   deductionReceipts: Row[]
   payslips: Row[]
+  /**
+   * Savings goals, unfiltered by financial year (matching `useGoals`): a goal
+   * modelling an interest rate (`annual_interest_bps`) feeds projected savings
+   * interest into `estimateHouseholdTaxFromRows` as assessable `other` income,
+   * so the shared estimate agrees with the household's own.
+   */
+  savingsGoals: Row[]
+  /**
+   * `{ id, owner_member_id, balance_cents }` per household account — the
+   * identity joined to its balance, as `accounts_with_balance` gives the
+   * household's own tab. Resolves a goal's linked saver balance and its
+   * ownership for interest attribution; no balance is rendered anywhere.
+   */
+  accounts: Row[]
 }
 
 export interface EofyShareBody extends EofyShareRows {

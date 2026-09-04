@@ -355,6 +355,33 @@ describe('TaxEstimateView', () => {
     )
   })
 
+  it('shows an "Investment income (projected)" detail line only for a member with projected interest', async () => {
+    const user = userEvent.setup()
+    const noSuper: MemberTaxEstimate = {
+      ...will,
+      breakdown: { ...breakdown, taxableIncomeCents: 100_000_00 },
+    }
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [noSuper, sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+        projectedInterestCentsByMember={new Map([['m1', 4_500_00]])}
+      />,
+    )
+
+    await showBreakdown(user, 'Will')
+    expect(
+      within(incomeTable('Will')).getByRole('row', { name: /Investment income \(projected\)/ }),
+    ).toHaveTextContent('$4,500.00')
+
+    await showBreakdown(user, 'Sam')
+    expect(
+      within(incomeTable('Sam')).queryByRole('row', { name: /Investment income \(projected\)/ }),
+    ).toBeNull()
+  })
+
   it('shows gross and taxable income with no deduction row when there is no concessional super', async () => {
     const user = userEvent.setup()
     const noSuper: MemberTaxEstimate = {

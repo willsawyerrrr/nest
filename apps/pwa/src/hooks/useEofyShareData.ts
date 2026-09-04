@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import type { Account } from './useAccounts'
 import type { DeductionReceiptRow } from './useDeductionReceipts'
 import type { DeductionRow } from './useDeductions'
+import type { Goal } from './useGoals'
 import type { HelpDebt } from './useHelpDebts'
 import type { Inflow } from './useInflows'
 import type { Member } from './useMembers'
@@ -29,6 +31,9 @@ export interface EofyShareData {
   deductions: DeductionRow[]
   deductionReceipts: DeductionReceiptRow[]
   payslips: PayslipRow[]
+  savingsGoals: Goal[]
+  /** `{ id, owner_member_id, balance_cents }` per account — enough to attribute projected savings interest. */
+  accounts: Pick<Account, 'id' | 'owner_member_id' | 'balance_cents'>[]
 }
 
 export type EofyShareOutcome =

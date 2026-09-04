@@ -6,8 +6,10 @@ import {
   type SummaryInput,
 } from '@nest/plan'
 import { isDateInFinancialYear, type HouseholdTaxEstimate } from '@nest/tax'
+import type { Account } from '../hooks/useAccounts'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { DeductionRow } from '../hooks/useDeductions'
+import type { Goal } from '../hooks/useGoals'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -16,7 +18,11 @@ import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
 import type { DerivedAmountContext } from './breakdowns'
 import { applyBreakdownAmounts } from './derivedBudget'
-import { activeNowTaxableInflows, estimateHouseholdTaxFromRows } from './tax'
+import {
+  activeNowTaxableInflows,
+  estimateHouseholdTaxFromRows,
+  projectedInterestIncomeInputs,
+} from './tax'
 
 /** The household rows a Summary is built from, before adapting to the plan's shape. */
 export interface SummarySources {
@@ -114,6 +120,10 @@ export interface HouseholdSummarySources {
   helpDebts: HelpDebt[]
   deductions: DeductionRow[]
   members: readonly Pick<Member, 'id' | 'date_of_birth'>[]
+  /** Savings goals — a goal modelling an interest rate feeds projected interest into the tax estimate. */
+  goals: readonly Goal[]
+  /** Accounts with balances — resolves a goal's linked saver balance and its ownership for interest attribution. */
+  accounts: readonly Pick<Account, 'id' | 'balance_cents' | 'owner_member_id'>[]
   derivedAmounts: DerivedAmountContext
   temporaryItems: TemporaryItem[]
   now?: Date
@@ -184,10 +194,15 @@ export function summariseHousehold({
   helpDebts,
   deductions,
   members,
+  goals,
+  accounts,
   derivedAmounts,
   temporaryItems,
   now = new Date(),
 }: HouseholdSummarySources): BudgetSummary {
+  // Projected savings interest is steady, always-active `other` income, so the
+  // same inputs feed the whole-year estimate and the active-now rerun.
+  const interestIncomes = projectedInterestIncomeInputs(goals, accounts, members)
   const inputFor = (estimate: HouseholdTaxEstimate): SummaryInput => {
     const oneOffTaxCents = estimate.annualOneOffGrossCents - estimate.annualOneOffAfterTaxCents
     return toSummaryInput({
@@ -214,6 +229,7 @@ export function summariseHousehold({
       undefined,
       undefined,
       members,
+      interestIncomes,
     )
 
   const wholeYear = summarise(inputFor(estimateOver(inflows)), now)

@@ -535,8 +535,18 @@ no per-member scoping; each line stands alone under the household.
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
     (nullable), `current_balance_cents` (default 0), `linked_account_id`
-    (nullable), `created_at`, `updated_at`.
-  - Funded by the budget lines that reference it via `goal_id`.
+    (nullable), `annual_interest_bps` (nullable), `queue_position` (nullable
+    integer), `planned_contribution_cents` (nullable, `>= 0`), `created_at`,
+    `updated_at`.
+  - Funded by the budget lines that reference it via `goal_id`. A goal with no
+    linked line is **queued**: `queue_position` orders the household's queued
+    goals (blank sorts last; a client-managed sort key rewritten `0..n` on
+    drag-reorder, not unique-enforced, ignored once the goal has a linked line),
+    and `planned_contribution_cents` optionally caps the fortnightly amount it
+    draws from the capacity freed as active goals complete — null draws the whole
+    available pool and the remainder cascades to the next queued goal. The
+    projection is pure, in `@nest/plan`'s `projectGoalQueue`; queued goals derive
+    no budget line and no pay split.
   - `linked_account_id` optionally points at one of the household's accounts (in
     practice a synced Up saver); when set, the goal's current balance is read
     from that account's `balance_cents` rather than `current_balance_cents`. A

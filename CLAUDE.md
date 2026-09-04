@@ -51,6 +51,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tagged to a member
   for tax) and non-taxable inflows (reimbursement, hobby income, gift, or other —
   the type is a reporting label, excluded from tax and added to available cash).
+  A recurring taxable `other` inflow may be **joint** (`is_joint`): income both
+  partners are assessed on — joint interest, jointly-held dividends, a
+  jointly-owned rental. `member_id` is then the "primary" member and
+  `member_split_percent` (0–100, configurable per inflow for an unequally-owned
+  asset) is the share of its annualised amount assessed to them; the household's
+  other member is assessed the remainder. Salary, wage, non-taxable, and one-off
+  inflows cannot be joint (`inflows_joint_split`). The split is a tax-estimate
+  reading only — the FY estimate emits two `other` income inputs for a joint
+  inflow (`lib/tax.ts`'s `splitByPercent` / `inflowIncomeInputs`) — and touches
+  no projection: the whole amount is still the household's projected cash, out of
+  a single pay split and the fortnightly buffer as one figure.
   **An inflow is either RECURRING or a ONE-OFF, and says which.** It states the
   cadence it recurs on (`schedule`) or the single date it lands on (`paid_on`),
   never both and never neither. A one-off is money that arrives once — severance,

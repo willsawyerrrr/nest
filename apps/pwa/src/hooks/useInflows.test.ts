@@ -25,6 +25,8 @@ const input: InflowInput = {
   paid_on: null,
   one_off_tax_treatment: null,
   years_of_service: null,
+  is_joint: false,
+  member_split_percent: null,
   amount_cents: 5_000_00,
   hourly_rate_cents: null,
   hours_per_period: null,

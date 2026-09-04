@@ -130,7 +130,15 @@ one-off is shown as the separate figure it is.
   (`arrives_every_pay_period`) has any part in it: an on-call allowance worth $6,600
   a year is $6,600 of assessable income however few of the year's fortnights it
   lands in. Those two columns bear on a payslip period's expectations alone — see
-  [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods).
+  [`payslips.md`](payslips.md#pay-that-lands-in-only-some-periods). A recurring
+  taxable `other` inflow marked **joint** (`is_joint`) — joint interest,
+  jointly-held dividends, a jointly-owned rental — is assessed on both partners
+  instead of one: its annualised amount is split by `member_split_percent`
+  (0–100, the share to `member_id`, the household's other member taking the
+  remainder), each half a separate `other` income input carrying the inflow's
+  effective window so proration still applies. Added in the PWA adapter
+  (`lib/tax.ts`'s `splitByPercent` / `inflowIncomeInputs`); `@nest/tax` is
+  untouched, and every projection still reads the whole amount.
 - Projected savings interest: each goal with an interest rate
   (`annual_interest_bps`) contributes `startingBalance × annual_interest_bps /
   10000` of `other` income — a simple non-compounding annual estimate. The
@@ -387,7 +395,9 @@ only when they apply, with any nil components named beneath so a reader knows
 they were considered. A member whose gross includes projected savings interest
 gets an indented "Investment income (projected)" line beneath gross income,
 detailing the part of gross that is modelled interest rather than a step in the
-running total. Because the surcharge is a household assessment, each member's
+running total. A joint inflow contributes each partner their own share of its
+annualised amount, so it lifts both members' gross income at their own marginal
+rate rather than one member's. Because the surcharge is a household assessment, each member's
 surcharge line already reflects the combined-income family tier. A footnote
 reiterates that the estimate excludes capital gains tax.
 

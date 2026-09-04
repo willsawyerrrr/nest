@@ -49,6 +49,8 @@ describe('InflowForm', () => {
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
+        is_joint: false,
+        member_split_percent: null,
       }),
     )
   })
@@ -84,6 +86,8 @@ describe('InflowForm', () => {
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
+        is_joint: false,
+        member_split_percent: null,
       }),
     )
   })
@@ -120,6 +124,8 @@ describe('InflowForm', () => {
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
+        is_joint: false,
+        member_split_percent: null,
       }),
     )
   })
@@ -335,6 +341,8 @@ describe('InflowForm', () => {
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
+        is_joint: false,
+        member_split_percent: null,
       }),
     )
   })
@@ -378,6 +386,8 @@ describe('InflowForm', () => {
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
+        is_joint: false,
+        member_split_percent: null,
       }),
     )
   })
@@ -865,6 +875,8 @@ describe('InflowForm one-off mode', () => {
         paid_on: '2026-09-12',
         one_off_tax_treatment: 'ordinary',
         years_of_service: null,
+        is_joint: false,
+        member_split_percent: null,
       }),
     )
   })
@@ -958,6 +970,115 @@ describe('InflowForm one-off mode', () => {
           starts_on: null,
           ends_on: null,
         }),
+      ),
+    )
+  })
+})
+
+describe('InflowForm joint income', () => {
+  const fillNameAndAmount = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(screen.getByLabelText(/name/i), 'Rental')
+    await user.type(screen.getByLabelText(/amount per/i), '20000')
+  }
+
+  it('shows the joint switch only for a recurring taxable other inflow', async () => {
+    const user = userEvent.setup()
+    render(<InflowForm members={members} onSubmit={vi.fn()} />)
+
+    // Salary: no switch.
+    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
+
+    await selectOption(user, /type/i, 'Other')
+    expect(screen.getByLabelText(/joint income/i)).toBeInTheDocument()
+
+    // One-off: gone.
+    await user.click(screen.getByText('One-off'))
+    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
+
+    // Recurring non-taxable: gone.
+    await user.click(screen.getByText('Recurring'))
+    await user.click(screen.getByText('Non-taxable inflow'))
+    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
+  })
+
+  it('saves the split percentage and shows the other member’s share back', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await selectOption(user, /type/i, 'Other')
+    await fillNameAndAmount(user)
+    await user.click(screen.getByLabelText(/joint income/i))
+
+    const split = screen.getByLabelText(/split — % to will/i)
+    expect(split).toHaveValue('50')
+    await user.clear(split)
+    await user.type(split, '70')
+    expect(screen.getByText(/sam: 30%/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'other', is_joint: true, member_split_percent: 70 }),
+      ),
+    )
+  })
+
+  it('stores neither field when the switch is left off', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await selectOption(user, /type/i, 'Other')
+    await fillNameAndAmount(user)
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ is_joint: false, member_split_percent: null }),
+      ),
+    )
+  })
+
+  it('clears the joint choice when the type moves off other', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    await selectOption(user, /type/i, 'Other')
+    await fillNameAndAmount(user)
+    await user.click(screen.getByLabelText(/joint income/i))
+    await selectOption(user, /type/i, 'Salary')
+    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'salary', is_joint: false, member_split_percent: null }),
+      ),
+    )
+  })
+
+  it('round-trips an existing joint inflow into the form', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const joint = makeInflow({
+      name: 'Joint dividends',
+      type: 'other',
+      schedule: 'annual',
+      amount_cents: 12_000_00,
+      is_joint: true,
+      member_split_percent: 40,
+    })
+    render(<InflowForm members={members} initial={joint} onSubmit={onSubmit} />)
+
+    expect(screen.getByLabelText(/joint income/i)).toBeChecked()
+    expect(screen.getByLabelText(/split — % to will/i)).toHaveValue('40')
+
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ is_joint: true, member_split_percent: 40 }),
       ),
     )
   })

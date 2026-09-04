@@ -88,6 +88,12 @@ instance and can also be run locally.
   a direct insert/update/delete on `calendar_feed` as `authenticated` is refused,
   a co-member's household cannot see another household's feed, and
   `revoke_calendar_feed_token` deletes the row (a no-op when there is none).
+- `inflow_joint_split.sql` — the assertions that a joint inflow's `is_joint` and
+  `member_split_percent` are held to the `inflows_joint_split` check constraint:
+  a plain inflow defaults to not-joint with no percent, a recurring taxable
+  `other` inflow can be joint with a percent 0–100 (bounds included), and the
+  database refuses a percent without `is_joint`, an `is_joint` without a percent,
+  a percent outside the range, a joint salary, and a joint one-off.
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and
@@ -106,7 +112,7 @@ instance and can also be run locally.
 `deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql` →
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
-`wishlist_item.sql` → `calendar_feed.sql`.
+`wishlist_item.sql` → `calendar_feed.sql` → `inflow_joint_split.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -136,5 +142,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql
 docker rm -f pba-rls
 ```

@@ -24,6 +24,8 @@ function inflow(overrides: Partial<InflowRow> = {}): InflowRow {
     attracts_super: true,
     one_off_tax_treatment: null,
     years_of_service: null,
+    is_joint: false,
+    member_split_percent: null,
     ...overrides,
   }
 }
@@ -49,6 +51,32 @@ Deno.test('estimateHouseholdTaxFromRows runs a plain salary through the engine',
     'after-tax is less than gross',
   )
   assertEquals(estimate.annualOneOffGrossCents, 0)
+})
+
+Deno.test('estimateHouseholdTaxFromRows splits a joint inflow across both members', () => {
+  const jointRows = rows({
+    inflows: [
+      inflow({ member_id: 'm-1', type: 'salary', amount_cents: 90_000_00 }),
+      inflow({ member_id: 'm-2', type: 'salary', amount_cents: 90_000_00 }),
+      inflow({
+        member_id: 'm-1',
+        type: 'other',
+        amount_cents: 20_000_00,
+        is_joint: true,
+        member_split_percent: 50,
+      }),
+    ],
+    taxProfiles: [
+      { member_id: 'm-1', residency: 'resident', has_private_hospital_cover: false },
+      { member_id: 'm-2', residency: 'resident', has_private_hospital_cover: false },
+    ],
+    members: [{ id: 'm-1', date_of_birth: null }, { id: 'm-2', date_of_birth: null }],
+  })
+  const estimate = estimateHouseholdTaxFromRows(jointRows, FY2027_CONFIG)
+  const gross = (memberId: string) =>
+    estimate.members.find((member) => member.memberId === memberId)!.annualGrossCents
+  assertEquals(gross('m-1'), 100_000_00)
+  assertEquals(gross('m-2'), 100_000_00)
 })
 
 Deno.test('estimateHouseholdTaxFromRows lets a deduction lift after-tax cash', () => {

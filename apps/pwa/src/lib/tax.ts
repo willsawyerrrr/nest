@@ -136,6 +136,52 @@ export function splitAcrossMembers(cents: number, memberIds: readonly string[]):
 }
 
 /**
+ * Splits `cents` by `percent` (a whole-number 0–100): the first element is
+ * `percent`% of `cents` rounded to the nearest cent, the second is the exact
+ * remainder, so the two sum back to `cents`. Used to divide a joint inflow's
+ * annualised amount between the member it names and the household's other member,
+ * the named member carrying the rounding and the other absorbing the residual.
+ */
+export function splitByPercent(cents: number, percent: number): [number, number] {
+  const toMember = Math.round((cents * percent) / 100)
+  return [toMember, cents - toMember]
+}
+
+/**
+ * The engine income inputs one taxable inflow contributes. A non-joint inflow
+ * maps to a single {@link toIncomeInput}. A joint inflow — a recurring taxable
+ * `other` inflow both partners are assessed on — instead yields two `other`
+ * inputs: `member_split_percent`% of its annualised amount to `inflow.member_id`
+ * and the remainder to the household's other member (the one of `memberIds` that
+ * is not `member_id`), each carrying the inflow's effective window so FY
+ * proration still applies. If `memberIds` does not hold exactly two ids, or the
+ * inflow's own member is not among them, the whole amount is assessed to
+ * `member_id` rather than guessing who the other member is.
+ */
+export function inflowIncomeInputs(
+  inflow: Inflow,
+  memberIds: readonly string[],
+  atPreservationAge = false,
+): IncomeInput[] {
+  const base = toIncomeInput(inflow, atPreservationAge)
+  const otherMemberId =
+    memberIds.length === 2 ? memberIds.find((id) => id !== inflow.member_id) : undefined
+  if (!inflow.is_joint || inflow.member_split_percent == null || otherMemberId == null) {
+    return [base]
+  }
+  const [toMember, toOther] = splitByPercent(annualGrossCents(base), inflow.member_split_percent)
+  const half = (memberId: string, amountCents: number): IncomeInput => ({
+    memberId,
+    type: 'other',
+    schedule: 'annual',
+    amountCents,
+    ...(base.startsOn != null && { startsOn: base.startsOn }),
+    ...(base.endsOn != null && { endsOn: base.endsOn }),
+  })
+  return [half(base.memberId, toMember), half(otherMemberId, toOther)]
+}
+
+/**
  * Synthetic `other`-income inputs for each member's share of the household's
  * projected annual savings interest, threaded into the tax estimate alongside
  * the real inflows. Interest earned in a saver is assessable income, so a goal
@@ -551,7 +597,9 @@ export function netAnnualSuperContributionFromRows(
  * figure: omitting it leaves every liability and after-tax total identical.
  * `members`, when supplied, gives each member's date of birth, which decides the
  * concessional rate on a one-off termination payment; a member whose date of birth
- * is absent or unset is read as below preservation age — the higher rate.
+ * is absent or unset is read as below preservation age — the higher rate. Its ids
+ * also name the household's two members, so a joint inflow's annualised amount is
+ * split between the member it names and the other one ({@link inflowIncomeInputs}).
  * `extraIncomes`, when supplied, are synthetic income inputs concatenated with
  * the mapped inflows — projected savings interest
  * ({@link projectedInterestIncomeInputs}), assessable as `other` income and
@@ -578,12 +626,14 @@ export function estimateHouseholdTaxFromRows(
   const dateOfBirthByMember = new Map<string | null, string | null>(
     members.map((member) => [member.id, member.date_of_birth]),
   )
+  const memberIds = members.map((member) => member.id)
   const incomes = [
     ...inflows
       .filter((inflow) => inflow.taxable)
-      .map((inflow) =>
-        toIncomeInput(
+      .flatMap((inflow) =>
+        inflowIncomeInputs(
           inflow,
+          memberIds,
           inflow.paid_on != null &&
             atPreservationAgeOn(
               dateOfBirthByMember.get(inflow.member_id) ?? null,

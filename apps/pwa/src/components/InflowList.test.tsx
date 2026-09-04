@@ -151,6 +151,27 @@ describe('InflowList', () => {
     expect(screen.getByText('Paid fortnightly · Only some pay periods')).toBeInTheDocument()
   })
 
+  it('captions a joint inflow with its split between the two partners', () => {
+    renderList([
+      makeInflow({
+        id: 'i-joint',
+        name: 'Joint rental',
+        type: 'other',
+        schedule: 'annual',
+        amount_cents: 24_000_00,
+        is_joint: true,
+        member_split_percent: 70,
+      }),
+    ])
+
+    expect(screen.getByText('Joint · 70% / 30%')).toBeInTheDocument()
+  })
+
+  it('says nothing about a split for an inflow that is not joint', () => {
+    renderList([makeInflow({ id: 'i-solo', type: 'other', schedule: 'annual' })])
+    expect(screen.queryByText(/^Joint /)).not.toBeInTheDocument()
+  })
+
   it('says nothing about arrival for an inflow that lands every period', () => {
     renderList([makeInflow({ id: 'i12' })])
     expect(screen.queryByText(/Only some pay periods/)).not.toBeInTheDocument()

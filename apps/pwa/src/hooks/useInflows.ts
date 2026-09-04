@@ -42,6 +42,18 @@ export interface InflowInput {
   years_of_service: number | null
   interval_count: number | null
   /**
+   * Whether this recurring taxable `other` inflow is income both partners are
+   * assessed on (joint interest, jointly-held dividends, a jointly-owned rental).
+   * False on every other inflow, none of which can be joint.
+   */
+  is_joint: boolean
+  /**
+   * The share of a joint inflow assessed to `member_id`, as a whole-number
+   * percentage 0–100; the household's other member is assessed the remainder.
+   * Non-null exactly when `is_joint`.
+   */
+  member_split_percent: number | null
+  /**
    * The cadence the money arrives on; null when it arrives on the frequency the
    * amount is expressed in. Sets the pay cycle a payslip period is measured against.
    */

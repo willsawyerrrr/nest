@@ -110,6 +110,8 @@ describe('EofyShareSection', () => {
             paid_on: null,
             one_off_tax_treatment: null,
             years_of_service: null,
+            is_joint: false,
+            member_split_percent: null,
             created_at: '',
             updated_at: '',
           },

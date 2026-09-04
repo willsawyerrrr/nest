@@ -32,6 +32,8 @@ const SALARY = {
   attracts_super: true,
   one_off_tax_treatment: null,
   years_of_service: null,
+  is_joint: false,
+  member_split_percent: null,
 } as const
 
 /**

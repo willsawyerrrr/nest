@@ -19,11 +19,13 @@ import {
   helpPayoffByMember,
   helpPayoffForBreakdown,
   helpPayoffSummary,
+  inflowIncomeInputs,
   netAnnualSuperContributionByMember,
   netAnnualSuperContributionFromRows,
   nonConcessionalByMember,
   projectedInterestIncomeInputs,
   splitAcrossMembers,
+  splitByPercent,
   superCapSummaryByMember,
   superCapSummaryFromRows,
   toIncomeInput,
@@ -45,6 +47,8 @@ const baseInflow: Inflow = {
   paid_on: null,
   one_off_tax_treatment: null,
   years_of_service: null,
+  is_joint: false,
+  member_split_percent: null,
   amount_cents: 300_00,
   hourly_rate_cents: null,
   hours_per_period: null,
@@ -1084,6 +1088,186 @@ describe('splitAcrossMembers', () => {
 
   it('returns an empty array for no members', () => {
     expect(splitAcrossMembers(100_00, [])).toEqual([])
+  })
+})
+
+describe('splitByPercent', () => {
+  it('splits evenly at 50%', () => {
+    expect(splitByPercent(100_00, 50)).toEqual([50_00, 50_00])
+  })
+
+  it('splits 70/30 with the named member carrying the rounding', () => {
+    expect(splitByPercent(20_000_00, 70)).toEqual([14_000_00, 6_000_00])
+  })
+
+  it('assesses nothing to the named member at 0% and everything at 100%', () => {
+    expect(splitByPercent(1_234_57, 0)).toEqual([0, 1_234_57])
+    expect(splitByPercent(1_234_57, 100)).toEqual([1_234_57, 0])
+  })
+
+  it('rounds the named member’s share and lets the other absorb the residual', () => {
+    // 33% of $1,000.01 = $330.0033 → $330.00, remainder $670.01.
+    expect(splitByPercent(1_000_01, 33)).toEqual([330_00, 670_01])
+    const [a, b] = splitByPercent(999_99, 33)
+    expect(a + b).toBe(999_99)
+  })
+})
+
+describe('inflowIncomeInputs', () => {
+  const memberIds = ['m1', 'm2']
+  const jointInflow: Inflow = {
+    ...baseInflow,
+    schedule: 'annual',
+    interval_count: null,
+    type: 'other',
+    member_id: 'm1',
+    amount_cents: 20_000_00,
+    is_joint: true,
+    member_split_percent: 70,
+  }
+
+  it('maps a non-joint inflow to a single income input', () => {
+    expect(
+      inflowIncomeInputs(
+        { ...jointInflow, is_joint: false, member_split_percent: null },
+        memberIds,
+      ),
+    ).toEqual([toIncomeInput({ ...jointInflow, is_joint: false, member_split_percent: null })])
+  })
+
+  it('splits a joint inflow between the named member and the other one', () => {
+    expect(inflowIncomeInputs(jointInflow, memberIds)).toEqual([
+      { memberId: 'm1', type: 'other', schedule: 'annual', amountCents: 14_000_00 },
+      { memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 6_000_00 },
+    ])
+  })
+
+  it('carries the effective window onto both halves', () => {
+    const dated = { ...jointInflow, starts_on: '2026-09-15', ends_on: '2027-03-31' }
+    expect(inflowIncomeInputs(dated, memberIds)).toEqual([
+      {
+        memberId: 'm1',
+        type: 'other',
+        schedule: 'annual',
+        amountCents: 14_000_00,
+        startsOn: '2026-09-15',
+        endsOn: '2027-03-31',
+      },
+      {
+        memberId: 'm2',
+        type: 'other',
+        schedule: 'annual',
+        amountCents: 6_000_00,
+        startsOn: '2026-09-15',
+        endsOn: '2027-03-31',
+      },
+    ])
+  })
+
+  it('assesses the whole amount to the named member when the household is not exactly two', () => {
+    expect(inflowIncomeInputs(jointInflow, ['m1', 'm2', 'm3'])).toEqual([
+      toIncomeInput(jointInflow),
+    ])
+    expect(inflowIncomeInputs(jointInflow, ['m1'])).toEqual([toIncomeInput(jointInflow)])
+  })
+})
+
+describe('estimateHouseholdTaxFromRows for a joint inflow', () => {
+  const members = [makeMember({ id: 'm1' }), makeMember({ id: 'm2' })]
+  const profiles: TaxProfile[] = [profile, { ...profile, id: 'p2', member_id: 'm2' }]
+  const salaryFor = (memberId: string): Inflow => ({
+    ...baseInflow,
+    id: `salary-${memberId}`,
+    schedule: 'annual',
+    interval_count: null,
+    type: 'salary',
+    member_id: memberId,
+    amount_cents: 90_000_00,
+  })
+  const jointOther: Inflow = {
+    ...baseInflow,
+    id: 'joint',
+    schedule: 'annual',
+    interval_count: null,
+    type: 'other',
+    member_id: 'm1',
+    amount_cents: 20_000_00,
+    is_joint: true,
+    member_split_percent: 50,
+  }
+  const rowsWith = (split: number): Inflow[] => [
+    salaryFor('m1'),
+    salaryFor('m2'),
+    { ...jointOther, member_split_percent: split },
+  ]
+  const estimateFor = (rows: Inflow[]) =>
+    estimateHouseholdTaxFromRows(rows, profiles, [], [], [], undefined, undefined, members)
+
+  const memberGross = (rows: Inflow[], memberId: string) =>
+    estimateFor(rows).members.find((member) => member.memberId === memberId)!.annualGrossCents
+
+  it('puts half the joint amount on each member at 50/50', () => {
+    expect(memberGross(rowsWith(50), 'm1')).toBe(100_000_00)
+    expect(memberGross(rowsWith(50), 'm2')).toBe(100_000_00)
+  })
+
+  it('splits 70/30 to the member the inflow names', () => {
+    expect(memberGross(rowsWith(70), 'm1')).toBe(104_000_00)
+    expect(memberGross(rowsWith(70), 'm2')).toBe(96_000_00)
+  })
+
+  it('shifts each member’s tax toward their own marginal rate versus assessing it all to one', () => {
+    const jointEstimate = estimateFor(rowsWith(50))
+    const wholeToM1 = estimateFor([
+      salaryFor('m1'),
+      salaryFor('m2'),
+      { ...jointOther, is_joint: false, member_split_percent: null },
+    ])
+    const m1 = (e: typeof jointEstimate) => e.members.find((member) => member.memberId === 'm1')!
+    const m2 = (e: typeof jointEstimate) => e.members.find((member) => member.memberId === 'm2')!
+    expect(m1(jointEstimate).annualTaxCents).toBeLessThan(m1(wholeToM1).annualTaxCents)
+    expect(m2(jointEstimate).annualTaxCents).toBeGreaterThan(m2(wholeToM1).annualTaxCents)
+  })
+
+  it('leaves a non-joint other inflow assessed wholly to its member', () => {
+    const nonJoint = estimateFor([
+      salaryFor('m1'),
+      salaryFor('m2'),
+      { ...jointOther, is_joint: false, member_split_percent: null },
+    ])
+    expect(nonJoint.members.find((member) => member.memberId === 'm1')!.annualGrossCents).toBe(
+      110_000_00,
+    )
+    expect(nonJoint.members.find((member) => member.memberId === 'm2')!.annualGrossCents).toBe(
+      90_000_00,
+    )
+  })
+
+  it('prorates a dated joint inflow by each half’s active share of the year', () => {
+    const dated = rowsWith(50).map((row) =>
+      row.id === 'joint' ? { ...row, ends_on: '2026-09-14' } : row,
+    )
+    // The joint halves are active 1 Jul–14 Sep (76 of 365 days).
+    const share = Math.round((10_000_00 * 76) / 365)
+    expect(memberGross(dated, 'm1')).toBe(90_000_00 + share)
+    expect(memberGross(dated, 'm2')).toBe(90_000_00 + share)
+  })
+
+  it('assesses the whole joint amount to its member in a household that is not exactly two', () => {
+    const threeMembers = [...members, makeMember({ id: 'm3' })]
+    const estimate = estimateHouseholdTaxFromRows(
+      rowsWith(50),
+      profiles,
+      [],
+      [],
+      [],
+      undefined,
+      undefined,
+      threeMembers,
+    )
+    expect(estimate.members.find((member) => member.memberId === 'm1')!.annualGrossCents).toBe(
+      110_000_00,
+    )
   })
 })
 

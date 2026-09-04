@@ -1035,7 +1035,9 @@ export type Database = {
           household_id: string
           id: string
           interval_count: number | null
+          is_joint: boolean
           member_id: string | null
+          member_split_percent: number | null
           name: string
           one_off_tax_treatment: Database['public']['Enums']['one_off_tax_treatment'] | null
           paid_on: string | null
@@ -1059,7 +1061,9 @@ export type Database = {
           household_id: string
           id?: string
           interval_count?: number | null
+          is_joint?: boolean
           member_id?: string | null
+          member_split_percent?: number | null
           name: string
           one_off_tax_treatment?: Database['public']['Enums']['one_off_tax_treatment'] | null
           paid_on?: string | null
@@ -1083,7 +1087,9 @@ export type Database = {
           household_id?: string
           id?: string
           interval_count?: number | null
+          is_joint?: boolean
           member_id?: string | null
+          member_split_percent?: number | null
           name?: string
           one_off_tax_treatment?: Database['public']['Enums']['one_off_tax_treatment'] | null
           paid_on?: string | null

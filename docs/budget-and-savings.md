@@ -16,7 +16,12 @@ Money in is modelled as **inflows**, split by taxability:
 
 - **Taxable inflows** (income) — salary, wage, or other regular income. Each is
   attributed to one member and feeds the tax estimate, because AU tax is assessed
-  per person. A taxable inflow requires a member tag.
+  per person. A taxable inflow requires a member tag. A recurring `other` inflow
+  may instead be **joint** — income both partners are assessed on, such as joint
+  interest or a jointly-owned rental — splitting its annualised amount between the
+  member it names and the household's other member by a configurable percentage;
+  the tax estimate assesses each share at that member's marginal rate, and every
+  other figure still reads the whole amount.
 - **Non-taxable inflows** — money in that is excluded from assessable income
   (a reimbursement, hobby income, a gift, or other) and adds directly to
   available cash. Non-taxable inflows do not require a member tag. The chosen

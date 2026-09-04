@@ -196,6 +196,10 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     initial === undefined ? EMPTY_ONE_OFF_DRAFT : oneOffDraftFrom(initial),
   )
   const [isOneOff, setIsOneOff] = useState(initial?.paid_on != null)
+  const [isJoint, setIsJoint] = useState(initial?.is_joint ?? false)
+  const [splitPercent, setSplitPercent] = useState<number | string>(
+    initial?.member_split_percent ?? 50,
+  )
 
   const typeOptions = taxable
     ? isOneOff
@@ -203,13 +207,39 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       : TAXABLE_INFLOW_TYPE_OPTIONS
     : NON_TAXABLE_INFLOW_TYPE_OPTIONS
 
+  /**
+   * Only a recurring taxable `other` inflow can be joint, so any move off that —
+   * a type change, switching to a one-off, or dropping taxability — clears the
+   * joint choice rather than leaving it to reappear if the inflow returns to
+   * `other`.
+   */
+  const clearJointIfIneligible = (
+    nextTaxable: boolean,
+    nextType: InflowType,
+    nextIsOneOff: boolean,
+  ) => {
+    if (!(nextTaxable && nextType === 'other' && !nextIsOneOff)) {
+      setIsJoint(false)
+    }
+  }
+
   /** Switches taxability, resetting the type to the new mode's default if it no longer applies. */
   const handleTaxableChange = (nextTaxable: boolean) => {
     setTaxable(nextTaxable)
     const options = nextTaxable ? TAXABLE_INFLOW_TYPE_OPTIONS : NON_TAXABLE_INFLOW_TYPE_OPTIONS
-    if (!options.some((option) => option.value === type)) {
-      setType(nextTaxable ? DEFAULT_TYPE.taxable : DEFAULT_TYPE.nonTaxable)
-    }
+    const nextType = options.some((option) => option.value === type)
+      ? type
+      : nextTaxable
+        ? DEFAULT_TYPE.taxable
+        : DEFAULT_TYPE.nonTaxable
+    setType(nextType)
+    clearJointIfIneligible(nextTaxable, nextType, isOneOff)
+  }
+
+  /** Switches the inflow type, clearing the joint choice when it is no longer `other`. */
+  const handleTypeChange = (nextType: InflowType) => {
+    setType(nextType)
+    clearJointIfIneligible(taxable, nextType, isOneOff)
   }
 
   /**
@@ -222,6 +252,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     if (nextIsOneOff && type === 'wage') {
       setType(DEFAULT_TYPE.taxable)
     }
+    clearJointIfIneligible(taxable, type, nextIsOneOff)
   }
 
   const isWage = !isOneOff && taxable && type === 'wage'
@@ -244,6 +275,17 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   // that only lands in some, and only a taxable inflow is reconciled against a slip.
   const arrivesEvery = taxable && !isOneOff ? arrivesEveryPeriod : true
   const amountEntered = isWage ? hourlyRate !== '' && hours !== '' : amount !== ''
+
+  // Only a recurring taxable `other` inflow — joint interest, jointly-held
+  // dividends, a jointly-owned rental — can be split between both partners.
+  const jointEligible = !isOneOff && taxable && type === 'other'
+  const joint = jointEligible && isJoint
+  const splitPercentNum = Number(splitPercent)
+  const splitPercentValid =
+    Number.isInteger(splitPercentNum) && splitPercentNum >= 0 && splitPercentNum <= 100
+  const primaryMemberName = members.find((member) => member.id === memberId)?.name ?? 'this member'
+  const otherMemberName =
+    members.find((member) => member.id !== memberId)?.name ?? 'the other member'
 
   // The annual total the amount states, by the very arithmetic the payslip expectation
   // annualises with, so the derived per-payment figure shown below is the one a slip
@@ -285,7 +327,8 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
     (isOneOff
       ? isOneOffDraftComplete(oneOff, taxable)
       : (isEveryN ? interval !== '' && intervalValid : true) &&
-        (isPayEveryN ? payInterval !== '' && payIntervalValid : true))
+        (isPayEveryN ? payInterval !== '' && payIntervalValid : true) &&
+        (joint ? splitPercent !== '' && splitPercentValid : true))
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
@@ -311,6 +354,11 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
       starts_on: isOneOff ? null : startsOn,
       ends_on: isOneOff ? null : endsOn,
+      // Joint applies only to a recurring taxable `other` inflow; anything else
+      // stores neither field, and the database's `inflows_joint_split` check
+      // holds the same rule.
+      is_joint: joint,
+      member_split_percent: joint ? splitPercentNum : null,
       ...(isOneOff ? oneOffRecurrenceInput(oneOff, taxable) : RECURRING_RECURRENCE_INPUT),
     }),
   })
@@ -360,7 +408,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
         size="sm"
         data={typeOptions}
         value={type}
-        onChange={(value) => value && setType(value)}
+        onChange={(value) => value && handleTypeChange(value)}
         allowDeselect={false}
       />
 
@@ -507,6 +555,31 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           description="On for ordinary time earnings — salary and wages, which the super guarantee is paid on. Off for an allowance paid on top, such as on-call: it is taxed in full, but no super accrues on it."
           checked={attractsSuper}
           onChange={(event) => setAttractsSuper(event.currentTarget.checked)}
+        />
+      )}
+
+      {jointEligible && (
+        <Switch
+          size="sm"
+          label="Joint income"
+          description="On for income both partners are assessed on — joint interest, jointly-held dividends, a jointly-owned rental. The tax estimate splits it between you at the percentage below; every projection still counts the whole amount as household cash."
+          checked={isJoint}
+          onChange={(event) => setIsJoint(event.currentTarget.checked)}
+        />
+      )}
+
+      {joint && (
+        <NumberInput
+          label={`Split — % to ${primaryMemberName}`}
+          size="sm"
+          description={`${otherMemberName}: ${splitPercentValid ? 100 - splitPercentNum : '—'}%`}
+          min={0}
+          max={100}
+          step={1}
+          allowDecimal={false}
+          hideControls
+          value={splitPercent}
+          onChange={setSplitPercent}
         />
       )}
 

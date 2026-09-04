@@ -39,6 +39,8 @@ export interface InflowRow {
   attracts_super: boolean
   one_off_tax_treatment: string | null
   years_of_service: number | null
+  is_joint: boolean
+  member_split_percent: number | null
 }
 
 /** The `tax_profile` columns the estimate reads. */
@@ -131,6 +133,40 @@ export function toIncomeInput(inflow: InflowRow, atPreservationAge = false): Inc
       ...(inflow.years_of_service != null && { yearsOfService: inflow.years_of_service }),
     }),
   }
+}
+
+/**
+ * The engine income inputs one taxable inflow contributes — the Deno mirror of
+ * `lib/tax.ts`'s `inflowIncomeInputs`. A joint inflow (a recurring taxable
+ * `other` inflow both partners are assessed on) yields two `other` inputs:
+ * `member_split_percent`% of its annualised amount to `member_id` and the rest
+ * to the household's other member, each keeping the inflow's effective window.
+ * Anything else, or a member list that is not exactly the two members, maps to
+ * one input assessed wholly to `member_id`.
+ */
+function inflowIncomeInputs(
+  inflow: InflowRow,
+  memberIds: readonly string[],
+  atPreservationAge = false,
+): IncomeInput[] {
+  const base = toIncomeInput(inflow, atPreservationAge)
+  const otherMemberId = memberIds.length === 2
+    ? memberIds.find((id) => id !== inflow.member_id)
+    : undefined
+  if (!inflow.is_joint || inflow.member_split_percent == null || otherMemberId == null) {
+    return [base]
+  }
+  const annual = annualGrossCents(base)
+  const toMember = Math.round((annual * inflow.member_split_percent) / 100)
+  const half = (memberId: string, amountCents: number): IncomeInput => ({
+    memberId,
+    type: 'other',
+    schedule: 'annual',
+    amountCents,
+    ...(base.startsOn != null && { startsOn: base.startsOn }),
+    ...(base.endsOn != null && { endsOn: base.endsOn }),
+  })
+  return [half(base.memberId, toMember), half(otherMemberId, annual - toMember)]
 }
 
 /** A member's tax profile as the engine's `TaxProfileInput`. */
@@ -239,11 +275,13 @@ export function estimateHouseholdTaxFromRows(
   const dateOfBirthByMember = new Map<string | null, string | null>(
     members.map((member) => [member.id, member.date_of_birth]),
   )
+  const memberIds = members.map((member) => member.id)
   const incomes = inflows
     .filter((inflow) => inflow.taxable)
-    .map((inflow) =>
-      toIncomeInput(
+    .flatMap((inflow) =>
+      inflowIncomeInputs(
         inflow,
+        memberIds,
         inflow.paid_on != null &&
           atPreservationAgeOn(
             dateOfBirthByMember.get(inflow.member_id) ?? null,

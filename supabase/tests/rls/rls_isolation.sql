@@ -937,6 +937,36 @@ begin
     'Bob should read exactly 4 balances';
 end $$;
 
+-- 5b. A joint home-loan account (Up HOME_LOAN, owner_member_id null) follows the
+-- ordinary joint-account balance rules — both partners read its balance through
+-- accounts_with_balance — but account_directory excludes it by type, so it is
+-- never offered as a budget-line funding destination, a pay account, or a saver.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","email":"privacy-alice@example.com"}', true);
+insert into public.accounts (household_id, name, type, source, external_id)
+  values (current_setting('test.priv_hid')::uuid, 'Joint Home Loan', 'home_loan', 'up', 'up-priv-joint-home-loan')
+  returning id as priv_home_loan \gset
+select set_config('test.priv_home_loan', :'priv_home_loan', false);
+insert into public.account_balance (account_id, household_id, balance_cents)
+  values (current_setting('test.priv_home_loan')::uuid, current_setting('test.priv_hid')::uuid, -500_000_00);
+
+do $$
+begin
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_home_loan')::uuid),
+    'Alice should read the joint home-loan balance';
+  assert not exists (select 1 from public.account_directory where id = current_setting('test.priv_home_loan')::uuid),
+    'account_directory must exclude a home-loan account';
+end $$;
+
+-- Bob sees the same: the balance is joint, the directory still excludes it.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","email":"privacy-bob@example.com"}', true);
+do $$
+begin
+  assert exists (select 1 from public.accounts_with_balance where id = current_setting('test.priv_home_loan')::uuid),
+    'Bob should read the joint home-loan balance';
+  assert not exists (select 1 from public.account_directory where id = current_setting('test.priv_home_loan')::uuid),
+    'account_directory must exclude a home-loan account for Bob too';
+end $$;
+
 -- 6. No SECURITY DEFINER view remains anywhere in the public schema: every view
 -- is security_invoker = on, so no view reads past the caller's RLS. A view with
 -- the option absent or set off would reintroduce the boundary bypass the split

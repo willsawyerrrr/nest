@@ -147,6 +147,10 @@ RLS.
   it no-ops where they are absent. Sync writes go through the
   `upsert_up_accounts` RPC, which upserts each account's identity (dedupe on
   `(source, external_id)`) and its balance (on `account_id`) in one transaction.
+  Up's three account types map to `account_type`: `TRANSACTIONAL → transaction`,
+  `SAVER → savings`, `HOME_LOAN → home_loan`. A home loan's balance feeds net
+  worth as a liability (the amount owed) and it is excluded from the routing
+  surface — see [`super-and-net-worth.md`](super-and-net-worth.md#net-worth-tab).
 - **Account reconcile** — after the upsert, for a member whose token read
   succeeded, the ids that token returned are authoritative for that member's
   individually-owned `source = 'up'` accounts, and `reconcile_up_accounts`

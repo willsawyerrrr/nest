@@ -66,9 +66,9 @@ Deno.test('mapAccount maps a transactional account with cents passed through', (
   })
 })
 
-Deno.test('mapAccount maps SAVER to savings and HOME_LOAN to other', () => {
+Deno.test('mapAccount maps SAVER to savings and HOME_LOAN to home_loan', () => {
   assertEquals(mapAccount(account({ accountType: 'SAVER' })).type, 'savings')
-  assertEquals(mapAccount(account({ accountType: 'HOME_LOAN' })).type, 'other')
+  assertEquals(mapAccount(account({ accountType: 'HOME_LOAN' })).type, 'home_loan')
 })
 
 Deno.test('mapTransaction maps a settled expense, attributed to the account owner', () => {

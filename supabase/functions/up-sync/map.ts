@@ -9,7 +9,7 @@ import type { UpAccount, UpTransaction } from '../_shared/up.ts'
 export interface AccountUpsert {
   external_id: string
   name: string
-  type: 'transaction' | 'savings' | 'other'
+  type: 'transaction' | 'savings' | 'home_loan' | 'other'
   balance_cents: number
   currency: string
   source: 'up'
@@ -45,7 +45,7 @@ export function mapAccount(account: UpAccount): AccountUpsert {
   const typeByUp: Record<UpAccount['attributes']['accountType'], AccountUpsert['type']> = {
     TRANSACTIONAL: 'transaction',
     SAVER: 'savings',
-    HOME_LOAN: 'other',
+    HOME_LOAN: 'home_loan',
   }
   return {
     external_id: account.id,

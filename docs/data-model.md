@@ -745,7 +745,9 @@ stays unpopulated and a synced row's `category_id` is null.
 - **accounts** — an identity-only bank or savings account; its balance lives in
   `account_balance`.
   - `id`, `household_id`, `owner_member_id` (nullable = joint), `name`,
-    `type` (`transaction` | `savings` | `credit` | `offset` | `other`),
+    `type` (`transaction` | `savings` | `credit` | `offset` | `other` |
+    `home_loan` — a home loan synced from Up; net worth reads its balance as a
+    liability and the routing surface excludes it),
     `source` (`up` | `manual`), `external_id`,
     `currency` (default `AUD`), `exclude_from_net_worth` (default `false` — a
     shared, household-wide flag that drops the account from net-worth totals
@@ -785,8 +787,10 @@ stays unpopulated and a synced row's `category_id` is null.
   accounts, and any member's `transaction` account, so a co-member's spending
   account can be named as a budget-line funding destination and summed into the
   pay split without exposing its balance; a co-member's savers and super accounts
-  are absent. A plain invoker view (`security_invoker = on`): it reads under the
-  caller's own `accounts` RLS, then narrows to the directory rule.
+  are absent, as is every `home_loan` account (a liability, never a routing
+  destination — a joint one would otherwise pass the ownership rule). A plain
+  invoker view (`security_invoker = on`): it reads under the caller's own
+  `accounts` RLS, then narrows to the directory rule.
 - **accounts_with_balance** (view) — account identity joined to its balance for
   the balance-visible set (shared, own, and household super accounts), exposing
   the account columns plus `balance_cents`. A plain invoker view

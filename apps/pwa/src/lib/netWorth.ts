@@ -20,6 +20,7 @@ import type { TaxProfile } from '../hooks/useTaxProfiles'
 import type { ProjectionHorizonOption } from './retirement'
 import {
   accountsWithEffectiveSuperBalances,
+  homeLoanLiabilities,
   netWorthBreakdown,
   superAccountIds,
   type EquityHolding,
@@ -234,6 +235,13 @@ export function computeNetWorth({
   )
   const savingsGoals = netWorthGoals(goals, budgetLines, balanceByAccountId)
   const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
+  // A home loan is split out of the accounts into its own liability, so its owed
+  // amount joins the projection's debt band alongside the negative-balance
+  // accounts and is held flat.
+  const homeLoanDebtCents = homeLoanLiabilities(effectiveAccounts).reduce(
+    (total, liability) => total + liability.balanceCents,
+    0,
+  )
   const projection = projectNetWorth({
     asOf: now,
     horizonYears,
@@ -247,7 +255,7 @@ export function computeNetWorth({
     equityGrants: planGrants,
     helpCentsByYear,
     savingsGoals,
-    debtCents,
+    debtCents: debtCents + homeLoanDebtCents,
   })
   return { effectiveAccounts, totalCents, projection }
 }

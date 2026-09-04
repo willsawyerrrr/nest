@@ -265,6 +265,46 @@ describe('NetWorthSection', () => {
     })
   })
 
+  it('counts a home loan as a liability, in the debt band and off the total', () => {
+    mockLoaded()
+    hooks.useAccounts.mockReturnValue({
+      loading: false,
+      update: vi.fn(),
+      accounts: [
+        { id: 'a1', name: 'Everyday', balance_cents: 20_000_00, exclude_from_net_worth: false },
+        // Up reports a home-loan balance as a negative number (the amount owing).
+        {
+          id: 'a2',
+          name: 'Home loan',
+          balance_cents: -400_000_00,
+          exclude_from_net_worth: false,
+          type: 'home_loan',
+        },
+        {
+          id: 'a3',
+          name: 'Old loan',
+          balance_cents: -50_000_00,
+          exclude_from_net_worth: true,
+          type: 'home_loan',
+        },
+      ],
+    })
+    render(<NetWorthSection householdId="h1" />)
+
+    // The view gets the home loan as a positive amount owed; the excluded one drops.
+    expect(hooks.screenProps?.liabilities).toEqual([])
+    const projection = hooks.screenProps?.projection as {
+      otherCents: number
+      debtCents: number
+      totalCents: number
+    }[]
+    expect(projection.at(0)).toMatchObject({
+      otherCents: 20_000_00,
+      debtCents: 400_000_00,
+      totalCents: -380_000_00,
+    })
+  })
+
   it('redraws the projection to the chosen horizon', () => {
     mockLoaded()
     render(<NetWorthSection householdId="h1" />)

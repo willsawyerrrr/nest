@@ -320,10 +320,10 @@ function EquityGroup({
 /**
  * Presentational net worth: assets less liabilities across every included
  * account, split into super and other accounts with per-account balances and
- * subtotals, plus each grant's vested equity value as an asset, then each
- * member's HELP debt as a liability subtracted from the total. Accounts the
- * household has excluded from tracking are listed in a muted group at the bottom,
- * off the total, each toggleable back in.
+ * subtotals, plus each grant's vested equity value as an asset, then the
+ * liabilities subtracted from the total — each home loan at its amount owed and
+ * each member's HELP debt. Accounts the household has excluded from tracking are
+ * listed in a muted group at the bottom, off the total, each toggleable back in.
  */
 export function NetWorthView({
   accounts,

@@ -68,6 +68,25 @@ export interface Liability {
 }
 
 /**
+ * The amount owed on a home-loan account, as a positive figure. Up reports a
+ * home loan's balance as a negative number — the amount still owing — so the
+ * debt is its magnitude.
+ */
+export function homeLoanOwedCents(account: Pick<Account, 'balance_cents'>): number {
+  return Math.abs(account.balance_cents)
+}
+
+/**
+ * Each home-loan account as a named liability, its balance the positive amount
+ * owed. Accounts flagged `exclude_from_net_worth` are left out, like any account.
+ */
+export function homeLoanLiabilities(accounts: readonly Account[]): Liability[] {
+  return accounts
+    .filter((account) => account.type === 'home_loan' && !account.exclude_from_net_worth)
+    .map((account) => ({ label: account.name, balanceCents: homeLoanOwedCents(account) }))
+}
+
+/**
  * A named equity holding that adds to net worth: the current vested value of a
  * member's equity grant, already valued as of the reporting date.
  */
@@ -103,11 +122,13 @@ function sumBalances(accounts: readonly Account[]): number {
 
 /**
  * Splits the included accounts into super accounts (those whose id is a
- * `super_account_id`) and everything else, with per-group subtotals. Accounts
- * flagged `exclude_from_net_worth` are collected separately and left out of every
+ * `super_account_id`) and everything else, with per-group subtotals. A home-loan
+ * account is not an "other" account: it becomes a named liability (the amount
+ * owed), listed ahead of the supplied `liabilities`. Accounts flagged
+ * `exclude_from_net_worth` are collected separately and left out of every
  * subtotal and the total. The grand total is assets (super, other accounts, and
- * the supplied vested `equityHoldings`) less the supplied `liabilities` (e.g.
- * each member's HELP debt).
+ * the supplied vested `equityHoldings`) less the liabilities (the home loans and
+ * the supplied ones, e.g. each member's HELP debt).
  */
 export function netWorthBreakdown(
   accounts: readonly Account[],
@@ -118,11 +139,13 @@ export function netWorthBreakdown(
   const excludedAccounts = accounts.filter((account) => account.exclude_from_net_worth)
   const includedAccounts = accounts.filter((account) => !account.exclude_from_net_worth)
   const superAccounts = includedAccounts.filter((account) => superIds.has(account.id))
-  const otherAccounts = includedAccounts.filter((account) => !superIds.has(account.id))
+  const nonSuperAccounts = includedAccounts.filter((account) => !superIds.has(account.id))
+  const otherAccounts = nonSuperAccounts.filter((account) => account.type !== 'home_loan')
+  const allLiabilities = [...homeLoanLiabilities(nonSuperAccounts), ...liabilities]
   const superTotalCents = sumBalances(superAccounts)
   const otherTotalCents = sumBalances(otherAccounts)
   const equityTotalCents = equityHoldings.reduce((total, holding) => total + holding.valueCents, 0)
-  const liabilitiesTotalCents = liabilities.reduce(
+  const liabilitiesTotalCents = allLiabilities.reduce(
     (total, liability) => total + liability.balanceCents,
     0,
   )
@@ -131,7 +154,7 @@ export function netWorthBreakdown(
     otherAccounts,
     excludedAccounts,
     equityHoldings: [...equityHoldings],
-    liabilities: [...liabilities],
+    liabilities: allLiabilities,
     superTotalCents,
     otherTotalCents,
     equityTotalCents,

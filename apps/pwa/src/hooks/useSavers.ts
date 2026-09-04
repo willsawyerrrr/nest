@@ -28,7 +28,8 @@ export function useSavers(): UseSaversResult {
     if (error) {
       throw error
     }
-    setSavers(data)
+    // The view never returns a null in these columns; see `Account` in domain.ts.
+    setSavers(data as Saver[])
   }, [])
 
   useEffect(() => {

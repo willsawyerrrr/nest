@@ -34,7 +34,10 @@ export function usePayAccount(householdId: string): UsePayAccountResult {
   const setPayAccount = useCallback(
     async (accountId: string | null) => {
       const { error } = await supabase.rpc('set_household_pay_account', {
-        p_account_id: accountId,
+        // The RPC clears the pay account when this is null; `gen types` types
+        // every uuid parameter as non-null, as a Postgres parameter carries no
+        // nullability of its own.
+        p_account_id: accountId as string,
       })
       if (error) {
         throw error

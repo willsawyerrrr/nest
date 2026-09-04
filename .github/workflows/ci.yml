@@ -200,11 +200,38 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      COREPACK_HOME: ${{ github.workspace }}/.corepack
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Cache corepack pnpm binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.COREPACK_HOME }}
+          key: corepack-${{ runner.os }}-pnpm-11.14.0
+      - name: Enable corepack (provides pnpm@11.14.0)
+        run: |
+          corepack enable
+          for attempt in 1 2 3; do
+            corepack prepare pnpm@11.14.0 --activate && break
+            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
+            sleep 5
+          done
+          pnpm --version
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
       - name: Apply auth shim, migrations, and RLS assertions
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/setup_auth.sql
@@ -225,6 +252,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
+      # The migrated schema above is the reference `supabase gen types` runs
+      # against: this fails if `apps/pwa/src/lib/database.types.ts` no longer
+      # matches what the migrations produce (`check-migration-drift.yml` compares
+      # migrations to prod, not the generated types).
+      - name: Assert database.types.ts matches the migrations
+        run: node scripts/gen-db-types.js --check --db-url "postgresql://postgres:postgres@localhost:5432/postgres"
 
   ci-status:
     name: CI Status

@@ -114,3 +114,22 @@ $$;
 grant usage on schema storage to anon, authenticated, service_role;
 grant select on storage.buckets to anon, authenticated, service_role;
 grant select, insert, update, delete on storage.objects to authenticated;
+
+-- Shim of the pg_graphql surface. Supabase exposes a `graphql_public` schema
+-- whose single `graphql()` function the generated `database.types.ts` carries,
+-- so `supabase gen types` run against plain Postgres in CI reproduces that block
+-- and the committed file matches byte for byte. The signature mirrors
+-- pg_graphql's; the body is irrelevant to type generation. Not applied to
+-- production (Supabase provides the real pg_graphql there).
+create schema if not exists graphql_public;
+
+create or replace function graphql_public.graphql(
+  "operationName" text default null,
+  query text default null,
+  variables jsonb default null,
+  extensions jsonb default null
+) returns jsonb
+  language sql
+as $$
+  select '{}'::jsonb
+$$;

@@ -88,13 +88,25 @@ pnpm dev       # start the local Supabase stack, apply migrations, seed a dev
                # OAuth needed locally
 ```
 
-`pnpm dev` (`scripts/dev-app.js`) is idempotent — rerun it any time, including
-after a `supabase db reset`. To drive the pieces separately instead:
+`pnpm dev` (`scripts/dev-app.js`) is idempotent — rerun it any time. It applies
+pending migrations only; pass `pnpm dev --reset` to drop the local database and
+replay every migration when the schema has drifted from `supabase/migrations/`.
+To drive the pieces separately instead:
 
 ```sh
 cp apps/pwa/.env.example apps/pwa/.env   # fill in Supabase URL + anon key
 pnpm --filter @nest/pwa dev              # run the PWA
 pnpm supabase start                      # start the local Postgres/API stack (Docker)
+```
+
+`apps/pwa/src/lib/database.types.ts` is generated from the schema. After changing
+a migration, regenerate it against an up-to-date local stack and commit the
+result; CI fails when it drifts:
+
+```sh
+pnpm dev --reset   # if the local schema is behind the migrations
+pnpm db:types      # regenerate apps/pwa/src/lib/database.types.ts
+pnpm check:types   # what CI asserts — no diff against the migrations
 ```
 
 Workspace-wide checks (also run in CI):

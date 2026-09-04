@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Tables, TablesInsert, TablesUpdate } from '../lib/database.types'
+import type { TablesInsert, TablesUpdate } from '../lib/database.types'
+import type { Account } from '../lib/domain'
 import { supabase } from '../lib/supabase'
 
-/**
- * An account's identity joined to its balance, read from the
- * `accounts_with_balance` view: the account identity plus `balance_cents`, scoped
- * to the balance-visible set.
- */
-export type Account = Tables<'accounts_with_balance'>
+export type { Account }
 
 export interface UseAccountsResult {
   accounts: Account[] | null
@@ -39,7 +35,8 @@ export function useAccounts(householdId: string): UseAccountsResult {
     if (error) {
       throw error
     }
-    setAccounts(data)
+    // The view never returns a null in these columns; see `Account` in domain.ts.
+    setAccounts(data as Account[])
   }, [])
 
   const insert = useCallback(

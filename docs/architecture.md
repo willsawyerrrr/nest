@@ -374,7 +374,17 @@ established (see *Security*), applied to a feed rather than a page:
 ## Local dev & delivery
 
 - **Supabase CLI** runs the full stack locally in Docker; SQL migrations are
-  version-controlled; TypeScript types are generated from the schema.
+  version-controlled. `pnpm dev` (`scripts/dev-app.js`) brings the stack up and
+  applies pending migrations; `pnpm dev --reset` replays every migration from a
+  dropped database, for when the local schema has drifted from
+  `supabase/migrations/`.
+- **`apps/pwa/src/lib/database.types.ts`** is generated from the schema by
+  `pnpm db:types` (`scripts/gen-db-types.js`), which runs
+  `supabase gen types typescript` against the local stack, trims the telemetry
+  line the CLI sometimes trails, and formats the result. It is committed, and
+  the `rls` CI job regenerates it against a Postgres with every migration applied
+  and fails on any difference (`pnpm check:types`), so a hand-edit that a
+  build cannot catch does not reach `main`.
 - Migrations auto-deploy via `.github/workflows/deploy-migrations.yml` on any
   push to `main` touching `supabase/migrations/**`; edge functions auto-deploy
   via `.github/workflows/deploy-functions.yml` on any push to `main` touching
@@ -422,11 +432,17 @@ the workflow token is scoped `contents: read`:
   that fails a shard with every test green (the `ci.yml` comment has the
   detail); `blob` stays for the merge.
 - **rls** — Postgres service; applies the auth shim, every migration in order,
-  then the `supabase/tests/rls/` isolation assertions. The shim
+  then the `supabase/tests/rls/` isolation assertions, then regenerates
+  `database.types.ts` against that schema and fails on any diff
+  (`scripts/gen-db-types.js --check`). The shim
   (`setup_auth.sql`) stands in for the Supabase-only primitives the policies read
-  — `auth.uid()` / `auth.jwt()` and the API roles, Vault, and Storage
-  (`storage.buckets` / `storage.objects` / `storage.foldername`) — so the bucket
-  policies are exercised on plain Postgres alongside the table policies.
+  — `auth.uid()` / `auth.jwt()` and the API roles, Vault, Storage
+  (`storage.buckets` / `storage.objects` / `storage.foldername`), and the
+  `graphql_public.graphql()` function `gen types` reproduces — so the bucket
+  policies are exercised on plain Postgres alongside the table policies and the
+  generated types match what `pnpm db:types` produces from the local stack. The
+  job carries the pnpm toolchain (Node, the store cache) for the type check; the
+  isolation assertions themselves are still plain `psql`.
 - **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
   `supabase/functions` (the edge functions live outside the pnpm workspace, with
   their own Deno harness).
@@ -444,7 +460,7 @@ way: `functions` proves the sources are well formed, and
 `check-function-drift.yml` — a credentialed read of the project — proves prod is
 running them.
 
-Each pnpm job (`check`, `test-shard`, `test`) sets up the toolchain the same way:
+Each pnpm job (`check`, `test-shard`, `test`, `rls`) sets up the toolchain the same way:
 `actions/setup-node` installs Node, then `corepack enable` /
 `corepack prepare pnpm@11.14.0 --activate` provides the pnpm version pinned in the
 root `package.json` `packageManager` field — no separate `pnpm/action-setup`.

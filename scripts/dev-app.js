@@ -12,8 +12,14 @@
 // `supabase db reset`, or with the stack already up, converges to the same
 // state rather than erroring or duplicating rows.
 //
+// `migration up` only applies versions the local database has not recorded, so
+// a migration edited in place after it was first applied leaves the local schema
+// behind the repo. `--reset` swaps it for `supabase db reset`, which drops the
+// database and replays every migration from scratch — the one command to run
+// when `pnpm db:types` or the app disagree with `supabase/migrations/`.
+//
 // Usage:
-//   node scripts/dev-app.js [--port=<n>]
+//   node scripts/dev-app.js [--port=<n>] [--reset]
 
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -46,6 +52,8 @@ function parsePort(argv) {
   }
   return 5173 // Vite's own default — also the port docs/README.md tells a developer to expect.
 }
+
+const wantsReset = (argv) => argv.includes('--reset')
 
 function supabase(args, errorHint) {
   try {
@@ -176,14 +184,21 @@ function ensureEnvFile(status) {
 }
 
 async function main() {
-  const port = parsePort(process.argv.slice(2))
+  const argv = process.argv.slice(2)
+  const port = parsePort(argv)
+  const reset = wantsReset(argv)
   const redirectTo = `http://127.0.0.1:${port}`
 
   console.log('Starting the local Supabase stack...')
   console.log(supabase(['start'], 'Could not start the local stack — is Docker running?'))
 
-  console.log('Applying any pending migrations...')
-  console.log(supabase(['migration', 'up', '--local'], 'Could not apply pending migrations'))
+  if (reset) {
+    console.log('Resetting the local database and replaying every migration...')
+    console.log(supabase(['db', 'reset', '--local'], 'Could not reset the local database'))
+  } else {
+    console.log('Applying any pending migrations...')
+    console.log(supabase(['migration', 'up', '--local'], 'Could not apply pending migrations'))
+  }
 
   const status = readStatus()
   ensureEnvFile(status)

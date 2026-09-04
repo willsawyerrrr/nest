@@ -1999,30 +1999,30 @@ export type Database = {
       account_directory: {
         Row: {
           deleted_from_source_at: string | null
-          household_id: string
-          id: string
-          name: string
+          household_id: string | null
+          id: string | null
+          name: string | null
           owner_member_id: string | null
-          source: Database['public']['Enums']['ledger_source']
-          type: Database['public']['Enums']['account_type']
+          source: Database['public']['Enums']['ledger_source'] | null
+          type: Database['public']['Enums']['account_type'] | null
         }
         Insert: {
           deleted_from_source_at?: string | null
-          household_id?: string
-          id?: string
-          name?: string
+          household_id?: string | null
+          id?: string | null
+          name?: string | null
           owner_member_id?: string | null
-          source?: Database['public']['Enums']['ledger_source']
-          type?: Database['public']['Enums']['account_type']
+          source?: Database['public']['Enums']['ledger_source'] | null
+          type?: Database['public']['Enums']['account_type'] | null
         }
         Update: {
           deleted_from_source_at?: string | null
-          household_id?: string
-          id?: string
-          name?: string
+          household_id?: string | null
+          id?: string | null
+          name?: string | null
           owner_member_id?: string | null
-          source?: Database['public']['Enums']['ledger_source']
-          type?: Database['public']['Enums']['account_type']
+          source?: Database['public']['Enums']['ledger_source'] | null
+          type?: Database['public']['Enums']['account_type'] | null
         }
         Relationships: [
           {
@@ -2043,19 +2043,19 @@ export type Database = {
       }
       accounts_with_balance: {
         Row: {
-          balance_cents: number
-          created_at: string
-          currency: string
+          balance_cents: number | null
+          created_at: string | null
+          currency: string | null
           deleted_from_source_at: string | null
-          exclude_from_net_worth: boolean
+          exclude_from_net_worth: boolean | null
           external_id: string | null
-          household_id: string
-          id: string
-          name: string
+          household_id: string | null
+          id: string | null
+          name: string | null
           owner_member_id: string | null
-          source: Database['public']['Enums']['ledger_source']
-          type: Database['public']['Enums']['account_type']
-          updated_at: string
+          source: Database['public']['Enums']['ledger_source'] | null
+          type: Database['public']['Enums']['account_type'] | null
+          updated_at: string | null
         }
         Relationships: [
           {
@@ -2160,6 +2160,10 @@ export type Database = {
         Args: { p_household_id: string; p_member_id: string }
         Returns: number
       }
+      reconcile_joint_up_accounts: {
+        Args: { p_household_id: string; p_present_external_ids: string[] }
+        Returns: undefined
+      }
       reconcile_up_accounts: {
         Args: {
           p_household_id: string
@@ -2173,7 +2177,7 @@ export type Database = {
       revoke_invite_code: { Args: never; Returns: undefined }
       revoke_share_grant: { Args: never; Returns: undefined }
       set_household_pay_account: {
-        Args: { p_account_id: string | null }
+        Args: { p_account_id: string }
         Returns: undefined
       }
       store_up_token: {

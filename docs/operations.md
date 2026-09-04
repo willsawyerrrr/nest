@@ -86,6 +86,15 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
     workflows check out with `fetch-depth: 0`; a file with no commit behind it
     gets no grace. The post-deploy step passes no grace window at all: the push
     has just returned, so anything unapplied there is unapplied for good.
+- **Generated-types drift** is a separate, PR-time gate: the `rls` CI job stands
+  up Postgres, applies every migration, and runs
+  `node scripts/gen-db-types.js --check` (`pnpm check:types`), failing when
+  `apps/pwa/src/lib/database.types.ts` differs from what
+  `supabase gen types typescript` produces from that schema. Unlike the drift
+  check above it needs no credential — it introspects a local database, not prod
+  — so it lives in `ci.yml` on the required-check path. Regenerate with
+  `pnpm db:types` against an up-to-date local stack (`pnpm dev --reset` first if
+  the local schema is behind) and commit the result.
 - **Edge functions** auto-deploy on merge via
   `.github/workflows/deploy-functions.yml`: a push to `main` touching
   `supabase/functions/**` or `supabase/config.toml` runs

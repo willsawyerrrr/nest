@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Tables } from '../lib/database.types'
+import type { AccountDirectoryRow } from '../lib/domain'
 import { supabase } from '../lib/supabase'
 
 export type AccountDirectoryEntry = Pick<
-  Tables<'account_directory'>,
+  AccountDirectoryRow,
   'id' | 'name' | 'type' | 'source' | 'owner_member_id' | 'deleted_from_source_at'
 >
 
@@ -31,7 +31,8 @@ export function useAccountDirectory(): UseAccountDirectoryResult {
     if (error) {
       throw error
     }
-    setAccounts(data)
+    // The view never returns a null in these columns; see domain.ts.
+    setAccounts(data as AccountDirectoryEntry[])
   }, [])
 
   useEffect(() => {

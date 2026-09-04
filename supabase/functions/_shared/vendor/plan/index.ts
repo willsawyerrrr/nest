@@ -33,6 +33,14 @@ export type {
 export { projectGoal } from './goal.ts'
 export type { GoalProjection } from './goal.ts'
 
+export { projectGoalQueue } from './goalQueue.ts'
+export type {
+  ActiveGoalFunding,
+  GoalQueueProjection,
+  QueuedGoalFunding,
+  QueuedGoalProjection,
+} from './goalQueue.ts'
+
 export {
   accruedBalanceCents,
   DEFAULT_ASSUMPTIONS,

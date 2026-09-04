@@ -44,6 +44,7 @@ export function GoalsSection({ householdId }: { householdId: string }) {
       onCreateGoal={goals.create}
       onUpdateGoal={goals.update}
       onDeleteGoal={goals.remove}
+      onReorderQueue={goals.reorderQueue}
       onRefresh={() => void refresh.refresh()}
       refreshing={refresh.refreshing}
       refreshError={refresh.error}

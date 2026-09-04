@@ -39,6 +39,8 @@ describe('GoalForm', () => {
         current_balance_cents: 250_050,
         linked_account_id: null,
         annual_interest_bps: null,
+        queue_position: null,
+        planned_contribution_cents: null,
       }),
     )
   })
@@ -138,6 +140,8 @@ describe('GoalForm', () => {
         current_balance_cents: 0,
         linked_account_id: 'a1',
         annual_interest_bps: null,
+        queue_position: null,
+        planned_contribution_cents: null,
       }),
     )
   })
@@ -222,6 +226,8 @@ describe('GoalForm', () => {
         current_balance_cents: 250_000,
         linked_account_id: null,
         annual_interest_bps: null,
+        queue_position: null,
+        planned_contribution_cents: null,
       }),
     )
   })

@@ -15,6 +15,7 @@ function renderScreen(overrides: Partial<Parameters<typeof GoalScreen>[0]> = {})
       onCreateGoal={vi.fn()}
       onUpdateGoal={vi.fn()}
       onDeleteGoal={vi.fn()}
+      onReorderQueue={vi.fn()}
       onRefresh={noop}
       refreshing={false}
       refreshError={null}

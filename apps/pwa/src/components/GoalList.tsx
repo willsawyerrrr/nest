@@ -1,15 +1,40 @@
 import type { ReactNode } from 'react'
-import { Badge, Group, Progress, Stack, Text } from '@mantine/core'
-import { fortnightlyCents, projectGoal, type GoalProjection } from '@nest/plan'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Badge, Group, Progress, Stack, Text, Title } from '@mantine/core'
+import { IconGripVertical } from '@tabler/icons-react'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Saver } from '../hooks/useSavers'
-import { formatIsoDate } from '../lib/dates'
-import { assumedInterestNote } from '../lib/goals'
+import {
+  contributionForGoal,
+  goalDisplay,
+  goalProjection,
+  linkedSaver,
+  nextQueueOrder,
+  partitionGoals,
+  queuedGoalDisplay,
+  queuedProjectionsById,
+  type GoalDisplay,
+} from '../lib/goalProjection'
 import { formatCents, formatPerFortnight } from '../lib/money'
 import { AppCard } from './AppCard'
-import { ComparedAmount, ComparedDate } from './ComparedAmount'
 import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
@@ -28,146 +53,20 @@ interface GoalListProps {
   onCreate: (input: GoalInput) => Promise<void>
   onUpdate: (id: string, input: GoalInput) => Promise<void>
   onDelete: (id: string) => void
-}
-
-/** The account a goal links to, when set and still visible to the household. */
-function linkedSaver(goal: Goal, savers: Saver[]): Saver | undefined {
-  return goal.linked_account_id === null
-    ? undefined
-    : savers.find((saver) => saver.id === goal.linked_account_id)
-}
-
-/** The fortnightly contribution funding a goal: the sum of its linked budget lines. */
-function contributionForGoal(goalId: string, lines: BudgetLine[]): number {
-  return lines
-    .filter((line) => line.goal_id === goalId)
-    .reduce((total, line) => total + fortnightlyCents(line.amount_cents, line.frequency), 0)
-}
-
-function pluraliseFortnights(count: number): string {
-  return `${count} ${count === 1 ? 'fortnight' : 'fortnights'}`
-}
-
-/** A goal's derived display: its effective balance, progress, status flag, and ETA. */
-interface GoalDisplay {
-  currentBalanceCents: number
-  percent: number
-  status: { label: string; color: string }
-  /**
-   * The ETA line. Where a `baseline` projection was passed and the sandbox has
-   * moved the figure, the required contribution (dated goal) or the projected
-   * completion date (undated goal) reads `real → proposed (±Δ)`.
-   */
-  eta: ReactNode
-}
-
-/** A goal's raw projection from its effective balance and fortnightly contribution. */
-function goalProjection(
-  goal: Goal,
-  saver: Saver | undefined,
-  contributionCents: number,
-): GoalProjection {
-  // A linked saver's synced balance overrides the manually entered one.
-  const currentBalanceCents = saver ? saver.balance_cents : goal.current_balance_cents
-  return projectGoal(
-    {
-      targetAmountCents: goal.target_amount_cents,
-      currentBalanceCents,
-      ...(goal.target_date != null && { targetDate: goal.target_date }),
-      annualInterestBps: goal.annual_interest_bps,
-    },
-    contributionCents,
-    new Date(),
-  )
-}
-
-/**
- * Derives a goal's progress, status flag, and ETA from its target and
- * contribution. `baseline`, when given, is the same projection from the real
- * rows: the ETA line then shows what the sandbox edit moved.
- */
-function goalDisplay(
-  goal: Goal,
-  saver: Saver | undefined,
-  contributionCents: number,
-  baseline?: GoalProjection,
-): GoalDisplay {
-  // A linked saver's synced balance overrides the manually entered one.
-  const currentBalanceCents = saver ? saver.balance_cents : goal.current_balance_cents
-
-  const projection = goalProjection(goal, saver, contributionCents)
-
-  const percent =
-    goal.target_amount_cents > 0
-      ? Math.min(100, (currentBalanceCents / goal.target_amount_cents) * 100)
-      : 100
-
-  let status: { label: string; color: string }
-  let eta: ReactNode
-  if (projection.alreadyMet) {
-    status = { label: 'Reached', color: 'positive' }
-    eta = 'Goal reached.'
-  } else if (goal.target_date !== null) {
-    const required = projection.requiredFortnightlyContributionCents ?? 0
-    const onTrack = contributionCents >= required
-    status = onTrack
-      ? { label: 'On track', color: 'positive' }
-      : { label: 'Behind', color: 'warning' }
-    const suffix = onTrack ? '' : ` (contributing ${formatPerFortnight(contributionCents)})`
-    const baselineRequired = baseline?.requiredFortnightlyContributionCents ?? required
-    const lead = `By ${formatIsoDate(goal.target_date)} needs `
-    eta =
-      baselineRequired === required ? (
-        `${lead}${formatPerFortnight(required)}${suffix}`
-      ) : (
-        <>
-          {lead}
-          <ComparedAmount span baselineCents={baselineRequired} proposedCents={required} />
-          {` / fn${suffix}`}
-        </>
-      )
-  } else if (
-    projection.fortnightsToTarget !== null &&
-    projection.projectedCompletionDate !== null
-  ) {
-    status = { label: 'On track', color: 'positive' }
-    const completionIso = projection.projectedCompletionDate
-    const baselineIso = baseline?.projectedCompletionDate ?? completionIso
-    const lead = `${pluraliseFortnights(projection.fortnightsToTarget)} — `
-    eta =
-      baselineIso === completionIso ? (
-        `${lead}${formatIsoDate(completionIso)}`
-      ) : (
-        <>
-          {lead}
-          <ComparedDate span baselineIso={baselineIso} proposedIso={completionIso} />
-        </>
-      )
-  } else {
-    status = { label: 'No ETA', color: 'gray' }
-    eta = 'Link a savings item to project an ETA.'
-  }
-
-  const rateNote = projection.alreadyMet ? null : assumedInterestNote(goal.annual_interest_bps)
-  if (rateNote !== null) {
-    eta = (
-      <>
-        {eta} · {rateNote}
-      </>
-    )
-  }
-
-  return { currentBalanceCents, percent, status, eta }
+  /** Persists a new order for the queued goals; drag-reorder is inert without it. */
+  onReorderQueue?: (orderedIds: readonly string[]) => Promise<void>
 }
 
 interface GoalItemProps {
   goal: Goal
   saver: Saver | undefined
+  display: GoalDisplay
+  /** The fortnightly contribution shown in the amount column; 0 hides it (a queued goal). */
   contributionCents: number
-  /** The real fortnightly contribution funding the goal, for the planning-mode delta. */
+  /** The real fortnightly contribution, for the planning-mode delta. */
   baselineContributionCents: number
-  /** The goal's projection from the real rows, for the ETA delta. */
-  baselineProjection: GoalProjection
+  /** A drag handle rendered beside the row's controls, for a reorderable queued goal. */
+  dragHandle?: ReactNode
   onEdit: () => void
   onDelete: () => void
 }
@@ -181,13 +80,14 @@ interface GoalItemProps {
 function GoalRow({
   goal,
   saver,
+  display,
   contributionCents,
   baselineContributionCents,
-  baselineProjection,
+  dragHandle,
   onEdit,
   onDelete,
 }: GoalItemProps) {
-  const { percent, status, eta } = goalDisplay(goal, saver, contributionCents, baselineProjection)
+  const { percent, status, eta } = display
   const saverDeleted = Boolean(saver?.deleted_from_source_at)
   const caption = (
     <Text size="xs" c="dimmed" component="div">
@@ -217,13 +117,18 @@ function GoalRow({
         aria-label={`${goal.name} progress`}
         style={{ width: '6rem', flexShrink: 0 }}
       />
-      <FortnightlyAmount
-        cents={contributionCents}
-        baselineCents={baselineContributionCents}
-        justify="flex-end"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
+      {contributionCents > 0 ? (
+        <FortnightlyAmount
+          cents={contributionCents}
+          baselineCents={baselineContributionCents}
+          justify="flex-end"
+          style={{ width: '7rem', flexShrink: 0 }}
+        />
+      ) : (
+        <div style={{ width: '7rem', flexShrink: 0 }} />
+      )}
       <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
+        {dragHandle}
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>
@@ -234,17 +139,13 @@ function GoalRow({
 function GoalCard({
   goal,
   saver,
+  display,
   contributionCents,
-  baselineProjection,
+  dragHandle,
   onEdit,
   onDelete,
 }: GoalItemProps) {
-  const { currentBalanceCents, percent, status, eta } = goalDisplay(
-    goal,
-    saver,
-    contributionCents,
-    baselineProjection,
-  )
+  const { currentBalanceCents, percent, status, eta } = display
   return (
     <AppCard withBorder padding="sm">
       <Stack gap="xs">
@@ -256,6 +157,7 @@ function GoalCard({
             <Badge size="xs" variant="light" color={status.color}>
               {status.label}
             </Badge>
+            {dragHandle}
             <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
           </Group>
         </Group>
@@ -309,6 +211,80 @@ function GoalItem(props: GoalItemProps) {
   return wide ? <GoalRow {...props} /> : <GoalCard {...props} />
 }
 
+/** The grip button that starts a keyboard or pointer drag of a queued goal. */
+function DragHandle({
+  handleProps,
+  label,
+}: {
+  handleProps: Record<string, unknown>
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        border: 'none',
+        background: 'transparent',
+        padding: 2,
+        cursor: 'grab',
+        color: 'var(--mantine-color-dimmed)',
+        touchAction: 'none',
+      }}
+      {...handleProps}
+    >
+      <IconGripVertical size={16} />
+    </button>
+  )
+}
+
+/** A queued goal row wrapped in a `@dnd-kit` sortable, with its projected trajectory. */
+function SortableGoalItem({
+  goal,
+  saver,
+  display,
+  onEdit,
+  onDelete,
+}: {
+  goal: Goal
+  saver: Saver | undefined
+  display: GoalDisplay
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: goal.id,
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : undefined,
+      }}
+    >
+      <GoalItem
+        goal={goal}
+        saver={saver}
+        display={display}
+        contributionCents={0}
+        baselineContributionCents={0}
+        dragHandle={
+          <DragHandle
+            handleProps={{ ...attributes, ...listeners }}
+            label={`Reorder ${goal.name}`}
+          />
+        }
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    </div>
+  )
+}
+
 /** The household's savings goals with progress and ETA, plus inline add/edit forms. */
 export function GoalList({
   goals,
@@ -319,11 +295,12 @@ export function GoalList({
   onCreate,
   onUpdate,
   onDelete,
+  onReorderQueue,
 }: GoalListProps) {
-  // Goals with an active linked contribution lead, each partition keeping its original order.
-  const funded = goals.filter((goal) => contributionForGoal(goal.id, lines) > 0)
-  const unfunded = goals.filter((goal) => contributionForGoal(goal.id, lines) === 0)
-  const orderedGoals = [...funded, ...unfunded]
+  const now = new Date()
+  const { active, queued } = partitionGoals(goals, lines)
+  const queuedProjections = queuedProjectionsById(goals, lines, savers, now)
+  const baselineQueuedProjections = queuedProjectionsById(baselineGoals, baselineLines, savers, now)
 
   const baselineGoalById = new Map(baselineGoals.map((goal) => [goal.id, goal]))
   // The real projection each goal is compared against: its baseline row (falling
@@ -338,25 +315,47 @@ export function GoalList({
     }
   }
 
+  const queuedIds = queued.map((goal) => goal.id)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (!event.over) {
+      return
+    }
+    const reordered = nextQueueOrder(queuedIds, String(event.active.id), String(event.over.id))
+    if (reordered) {
+      void onReorderQueue?.(reordered)
+    }
+  }
+
   return (
-    <Stack gap="sm">
+    <Stack gap="lg">
       <EditableList<Goal, GoalInput>
-        items={orderedGoals}
+        items={active}
         addLabel="Add goal"
-        emptyMessage="No goals yet."
+        emptyMessage="No goals yet. A new goal waits under Upcoming until a Savings or Investments budget line funds it."
         deleteTarget={(goal) => ({ title: 'Delete goal?', itemLabel: goal.name })}
         onCreate={onCreate}
         onUpdate={onUpdate}
         onDelete={onDelete}
         renderItem={(goal, { onEdit, onDelete: onDeleteItem }) => {
           const baseline = baselineFor(goal)
+          const contributionCents = contributionForGoal(goal.id, lines)
           return (
             <GoalItem
               goal={goal}
               saver={linkedSaver(goal, savers)}
-              contributionCents={contributionForGoal(goal.id, lines)}
+              display={goalDisplay(
+                goal,
+                linkedSaver(goal, savers),
+                contributionCents,
+                baseline.projection,
+              )}
+              contributionCents={contributionCents}
               baselineContributionCents={baseline.contributionCents}
-              baselineProjection={baseline.projection}
               onEdit={onEdit}
               onDelete={onDeleteItem}
             />
@@ -366,6 +365,58 @@ export function GoalList({
           <GoalForm initial={initial} savers={savers} onSubmit={onSubmit} onCancel={onCancel} />
         )}
       />
+
+      {queued.length > 0 && (
+        <Stack gap="xs">
+          <Title order={2} size="h5">
+            Upcoming
+          </Title>
+          <Text size="xs" c="dimmed">
+            Saved towards once the goals above finish. Drag to reorder. A new goal waits here until
+            a Savings or Investments budget line funds it.
+          </Text>
+          <DndContext
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          >
+            <SortableContext items={queuedIds} strategy={verticalListSortingStrategy}>
+              <EditableList<Goal, GoalInput>
+                items={queued}
+                addLabel="Add goal"
+                showAdd={false}
+                emptyMessage="No upcoming goals."
+                deleteTarget={(goal) => ({ title: 'Delete goal?', itemLabel: goal.name })}
+                onCreate={onCreate}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                renderItem={(goal, { onEdit, onDelete: onDeleteItem }) => (
+                  <SortableGoalItem
+                    goal={goal}
+                    saver={linkedSaver(goal, savers)}
+                    display={queuedGoalDisplay(
+                      goal,
+                      linkedSaver(goal, savers),
+                      queuedProjections.get(goal.id)!,
+                      baselineQueuedProjections.get(goal.id),
+                    )}
+                    onEdit={onEdit}
+                    onDelete={onDeleteItem}
+                  />
+                )}
+                renderForm={({ initial, onSubmit, onCancel }) => (
+                  <GoalForm
+                    initial={initial}
+                    savers={savers}
+                    onSubmit={onSubmit}
+                    onCancel={onCancel}
+                  />
+                )}
+              />
+            </SortableContext>
+          </DndContext>
+        </Stack>
+      )}
     </Stack>
   )
 }

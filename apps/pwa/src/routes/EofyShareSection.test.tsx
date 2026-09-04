@@ -126,6 +126,8 @@ describe('EofyShareSection', () => {
             current_balance_cents: 100_000_00,
             linked_account_id: null,
             annual_interest_bps: 450,
+            queue_position: null,
+            planned_contribution_cents: null,
             created_at: '',
             updated_at: '',
           },

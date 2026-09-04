@@ -157,6 +157,42 @@ math).
     concern (`lib/tax.ts`'s `projectedInterestIncomeInputs`), so `@nest/tax` and
     `@nest/plan` are untouched.
 
+#### Queued goals — the "Upcoming" list
+
+A goal with no linked Savings/Investments line is **queued**: it is saved
+towards only once the goals ahead of it are met. Queued goals form one ordered
+list (`queue_position`, rewritten `0..n` by drag-reorder; a client-managed sort
+key, not unique-enforced, blank sorting last) rendered under the funded goals in
+an **Upcoming** section. Linking a budget line to a queued goal activates it and
+it moves up to the funded list; removing its last line drops it back into the
+queue.
+
+The app projects each queued goal's start and completion from a **growing freed
+pool** (`@nest/plan`'s `projectGoalQueue`):
+
+- Active goals project independently at their linked-line rate, each with a
+  projected completion date. One whose ETA runs past the ~200-year walk never
+  joins the pool.
+- The pool at fortnight `t` is the summed contribution of every active goal
+  completed by then — it only grows.
+- The queued goals, in order, waterfall the pool each fortnight: the first
+  incomplete goal draws the whole remaining pool, or `planned_contribution_cents`
+  when that cap is set, and the remainder **cascades** to the next queued goal
+  (so a capped goal lets the goal below it fund concurrently). A goal that fills
+  mid-fortnight passes its leftover draw down the same fortnight.
+- Per queued goal: a projected start date (first fortnight it draws), a projected
+  completion date, and — for a dated goal — the fortnightly contribution needed
+  from that projected start to hit the date (with an "on track" / "behind" flag).
+  When the pool is empty (no active goal, or none has completed) the row says
+  there is no projected start.
+
+Queued goals are **projection only** — they derive no budget line and no pay
+split, and nothing is auto-created or retargeted when an active goal completes;
+the household reallocates its budget lines by hand. The net-worth projection
+funds queued goals sequentially too: a queued goal adds nothing to the projected
+cash line until the goals ahead of it are met, then draws from their freed
+contributions.
+
 ### Temporary item (date-driven)
 
 - The app does **not** calculate contributions, funding, or expiry from a target
@@ -294,8 +330,12 @@ income tables.
 - **SavingsGoal** — a persistent target.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),
     `current_cents` (manual fallback), `linked_account_id` (nullable → a synced
-    Up saver; supplies the current balance when set).
-  - Many budget lines link to one goal.
+    Up saver; supplies the current balance when set), `annual_interest_bps`
+    (nullable modelled rate), `queue_position` (nullable; orders the queued
+    goals, blank sorting last), `planned_contribution_cents` (nullable; caps a
+    queued goal's draw from freed capacity).
+  - Many budget lines link to one goal. A goal with none is **queued** and shown
+    under "Upcoming", projected from the capacity freed as active goals finish.
 - **TemporaryItem** — a date-driven budget line.
   - `id`, `household_id`, `name`, `contribution_cents` (fortnightly),
     `target_date`.

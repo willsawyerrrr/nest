@@ -23,6 +23,8 @@ interface EditableListProps<T extends { id: string }, I> {
   items: T[]
   /** The label for the add affordance, e.g. `Add goal`. */
   addLabel: string
+  /** Hides the add button and add form — for a list whose adds happen elsewhere. */
+  showAdd?: boolean
   /** The message shown when the list is empty and not adding. */
   emptyMessage: ReactNode
   /** Renders a settled row, given its wired edit and delete callbacks. */
@@ -45,6 +47,7 @@ interface EditableListProps<T extends { id: string }, I> {
 export function EditableList<T extends { id: string }, I>({
   items,
   addLabel,
+  showAdd = true,
   emptyMessage,
   renderItem,
   renderForm,
@@ -79,17 +82,18 @@ export function EditableList<T extends { id: string }, I>({
         </Fragment>
       ))}
 
-      {adding ? (
-        renderForm({
-          onSubmit: async (input) => {
-            await onCreate(input)
-            close()
-          },
-          onCancel: close,
-        })
-      ) : (
-        <AddButton label={addLabel} onClick={() => startAdding(true)} />
-      )}
+      {showAdd &&
+        (adding ? (
+          renderForm({
+            onSubmit: async (input) => {
+              await onCreate(input)
+              close()
+            },
+            onCancel: close,
+          })
+        ) : (
+          <AddButton label={addLabel} onClick={() => startAdding(true)} />
+        ))}
 
       {modal}
     </>

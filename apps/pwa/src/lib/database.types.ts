@@ -1511,6 +1511,8 @@ export type Database = {
           id: string
           linked_account_id: string | null
           name: string
+          planned_contribution_cents: number | null
+          queue_position: number | null
           target_amount_cents: number
           target_date: string | null
           updated_at: string
@@ -1523,6 +1525,8 @@ export type Database = {
           id?: string
           linked_account_id?: string | null
           name: string
+          planned_contribution_cents?: number | null
+          queue_position?: number | null
           target_amount_cents: number
           target_date?: string | null
           updated_at?: string
@@ -1535,6 +1539,8 @@ export type Database = {
           id?: string
           linked_account_id?: string | null
           name?: string
+          planned_contribution_cents?: number | null
+          queue_position?: number | null
           target_amount_cents?: number
           target_date?: string | null
           updated_at?: string

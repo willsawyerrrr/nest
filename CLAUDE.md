@@ -585,6 +585,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   **confirms** the amount it set into the `pay_split` table; the Pay splits tab flags
   when the recommendation later drifts from the confirmed amount and offers a
   Confirm to re-record it.
+  Savings goals are ordered into one list. A goal with a linked
+  Savings/Investments budget line is **active** and funds now; a goal with none is
+  **queued** — it renders in an "Upcoming" section, drag-ordered by
+  `savings_goal.queue_position` (a client-managed sort key, blank last, rewritten
+  `0..n` on reorder, not unique-enforced), and the app projects when it will start
+  and finish from a **growing freed pool**: as each active goal completes its
+  fortnightly contribution joins the pool, and the queued goals waterfall it in
+  order — the first incomplete goal draws the whole pool, or its
+  `planned_contribution_cents` cap, and the remainder cascades to the next. The
+  math is pure, in `@nest/plan`'s `projectGoalQueue` (shared with the net-worth
+  projection, which funds queued goals sequentially rather than in parallel).
+  Queued goals derive no budget line and no pay split — nothing is auto-created
+  or retargeted when an active goal completes; the household reallocates its
+  budget lines by hand and a goal moves between the two sections on its own as
+  its linked lines change.
 - Wishlist: the household keeps a list of aspirational purchases on its own
   Wishlist tab (`/wishlist`, the `wishlist_item` table) — a name, a positive
   `amount_cents` rough cost, an optional `member_id` tag naming whose wish it is,

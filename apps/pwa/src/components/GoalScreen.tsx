@@ -18,6 +18,7 @@ interface GoalScreenProps {
   onCreateGoal: (input: GoalInput) => Promise<void>
   onUpdateGoal: (id: string, input: GoalInput) => Promise<void>
   onDeleteGoal: (id: string) => Promise<void>
+  onReorderQueue: (orderedIds: readonly string[]) => Promise<void>
   onRefresh: () => void
   refreshing: boolean
   refreshError: string | null
@@ -37,6 +38,7 @@ export function GoalScreen({
   onCreateGoal,
   onUpdateGoal,
   onDeleteGoal,
+  onReorderQueue,
   onRefresh,
   refreshing,
   refreshError,
@@ -87,6 +89,7 @@ export function GoalScreen({
         onCreate={onCreateGoal}
         onUpdate={onUpdateGoal}
         onDelete={(id) => void onDeleteGoal(id)}
+        onReorderQueue={onReorderQueue}
       />
     </PageSection>
   )

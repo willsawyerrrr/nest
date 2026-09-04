@@ -34,6 +34,9 @@ export function GoalForm({ initial, draft, savers, onSubmit, onCancel }: GoalFor
   const [interestRate, setInterestRate] = useState<number | string>(
     interestBpsToPercent(initial?.annual_interest_bps),
   )
+  const [plannedContribution, setPlannedContribution] = useState<number | string>(
+    centsToDollars(initial?.planned_contribution_cents),
+  )
   const canSubmit = name.trim() !== '' && targetAmount !== ''
   const linkedSaverDeleted = savers.some(
     (saver) => saver.id === linkedAccountId && saver.deleted_from_source_at !== null,
@@ -50,16 +53,16 @@ export function GoalForm({ initial, draft, savers, onSubmit, onCancel }: GoalFor
       current_balance_cents: dollarsToCents(currentBalance) ?? 0,
       linked_account_id: linkedAccountId,
       annual_interest_bps: interestPercentToBps(interestRate),
+      queue_position: initial?.queue_position ?? null,
+      planned_contribution_cents: dollarsToCents(plannedContribution),
     }),
   })
 
   const handleSaverChange = (accountId: string | null) => {
     setLinkedAccountId(accountId)
-    if (accountId !== null && name.trim() === '') {
-      const saver = savers.find((candidate) => candidate.id === accountId)
-      if (saver) {
-        setName(saver.name)
-      }
+    const saver = savers.find((candidate) => candidate.id === accountId)
+    if (saver && name.trim() === '') {
+      setName(saver.name)
     }
   }
 
@@ -110,6 +113,16 @@ export function GoalForm({ initial, draft, savers, onSubmit, onCancel }: GoalFor
         hideControls
         value={interestRate}
         onChange={setInterestRate}
+      />
+
+      <MoneyInput
+        label="Planned fortnightly contribution"
+        size="sm"
+        description="Optional. What this goal draws from freed-up saving once the goals above it finish. Blank draws the whole available amount."
+        min={0}
+        hideControls
+        value={plannedContribution}
+        onChange={setPlannedContribution}
       />
 
       {savers.length > 0 ? (

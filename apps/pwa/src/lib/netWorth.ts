@@ -112,6 +112,8 @@ export function netWorthGoals(
       targetAmountCents: goal.target_amount_cents,
       currentBalanceCents,
       fortnightlyContributionCents,
+      queuePosition: goal.queue_position,
+      plannedContributionCents: goal.planned_contribution_cents,
     }
   })
 }

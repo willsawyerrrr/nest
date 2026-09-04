@@ -1,12 +1,35 @@
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextQueueOrder } from '../lib/goalProjection'
 import { planningStorageKey } from '../lib/planningMode'
 import { makeGoal as goal, makeBudgetLine as line, makeSaver as saver } from '../test/fixtures'
 import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { GoalList } from './GoalList'
 import { PlanningModeProvider } from './PlanningModeProvider'
 
-afterEach(() => localStorage.clear())
+const dnd = vi.hoisted(() => ({ onDragEnd: undefined as ((event: unknown) => void) | undefined }))
+
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...actual,
+    DndContext: ({
+      children,
+      onDragEnd,
+    }: {
+      children: React.ReactNode
+      onDragEnd?: (event: unknown) => void
+    }) => {
+      dnd.onDragEnd = onDragEnd
+      return children
+    },
+  }
+})
+
+afterEach(() => {
+  localStorage.clear()
+  dnd.onDragEnd = undefined
+})
 
 /** Renders a `GoalList` inside an active planning-mode sandbox. */
 function renderPlanning(ui: React.ReactElement) {
@@ -182,7 +205,7 @@ describe('GoalList', () => {
     expect(within(fund).getByText('100%')).toBeInTheDocument()
   })
 
-  it('handles a goal with no linked contribution gracefully', () => {
+  it('shows an unfunded goal under Upcoming with no projected start', () => {
     const goals = [goal({ id: 'g1', name: 'Someday', target_amount_cents: 1_000_000 })]
     render(
       <GoalList
@@ -195,9 +218,10 @@ describe('GoalList', () => {
       />,
     )
 
+    expect(screen.getByRole('heading', { name: 'Upcoming' })).toBeInTheDocument()
     const someday = card('Someday')
     expect(within(someday).getByText('No ETA')).toBeInTheDocument()
-    expect(within(someday).getByText(/link a savings item/i)).toBeInTheDocument()
+    expect(within(someday).getByText(/no projected start/i)).toBeInTheDocument()
     expect(within(someday).queryByText(/linked contribution/i)).toBeNull()
   })
 
@@ -239,6 +263,111 @@ describe('GoalList', () => {
 
     const cards = screen.getAllByText(/Someday|Funded/)
     expect(cards.map((node) => node.textContent)).toEqual(['Funded', 'Someday'])
+  })
+
+  it('projects a queued goal from the fortnight the active goal frees its funding', () => {
+    const goals = [
+      goal({ id: 'a1', name: 'Car', target_amount_cents: 500_000, current_balance_cents: 0 }),
+      goal({ id: 'g1', name: 'Boat', target_amount_cents: 1_000_000, current_balance_cents: 0 }),
+    ]
+    const lines = [line({ goal_id: 'a1', amount_cents: 50_000, frequency: 'fortnightly' })]
+    render(
+      <GoalList
+        goals={goals}
+        lines={lines}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const boat = card('Boat')
+    expect(within(boat).getByText('Upcoming')).toBeInTheDocument()
+    expect(within(boat).getByText(/^Starts /)).toBeInTheDocument()
+    expect(within(boat).getByText(/fortnights —/)).toBeInTheDocument()
+  })
+
+  it('shows a later completion for a queued goal capped by its planned contribution', () => {
+    const base = {
+      id: 'g1',
+      name: 'Boat',
+      target_amount_cents: 5_000_000,
+      current_balance_cents: 0,
+    } as const
+    const activeGoal = goal({ id: 'a1', name: 'Car', target_amount_cents: 500_000 })
+    const lines = [line({ goal_id: 'a1', amount_cents: 100_000, frequency: 'fortnightly' })]
+
+    const completion = (planned: number | null) => {
+      const { unmount } = render(
+        <GoalList
+          goals={[activeGoal, goal({ ...base, planned_contribution_cents: planned })]}
+          lines={lines}
+          savers={[]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+      const text = within(card('Boat')).getByText(/fortnights —/).textContent ?? ''
+      unmount()
+      return text
+    }
+
+    expect(completion(20_000)).not.toEqual(completion(null))
+  })
+
+  it('reorders the queued ids when a row is dropped onto another', () => {
+    expect(nextQueueOrder(['a', 'b', 'c'], 'c', 'a')).toEqual(['c', 'a', 'b'])
+    expect(nextQueueOrder(['a', 'b', 'c'], 'b', 'b')).toBeNull()
+    expect(nextQueueOrder(['a', 'b', 'c'], 'x', 'a')).toBeNull()
+  })
+
+  it('reorders the queue on a drag that moves a row, and ignores a no-op drop', () => {
+    const onReorderQueue = vi.fn()
+    render(
+      <GoalList
+        goals={[
+          goal({ id: 'g1', name: 'Boat', queue_position: 0 }),
+          goal({ id: 'g2', name: 'Car', queue_position: 1 }),
+        ]}
+        lines={[]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        onReorderQueue={onReorderQueue}
+      />,
+    )
+
+    dnd.onDragEnd?.({ active: { id: 'g2' }, over: { id: 'g1' } })
+    expect(onReorderQueue).toHaveBeenCalledWith(['g2', 'g1'])
+
+    onReorderQueue.mockClear()
+    // A drop outside any row, and a drop back onto the same row: neither reorders.
+    dnd.onDragEnd?.({ active: { id: 'g1' }, over: null })
+    dnd.onDragEnd?.({ active: { id: 'g1' }, over: { id: 'g1' } })
+    expect(onReorderQueue).not.toHaveBeenCalled()
+  })
+
+  it('deletes an active goal after confirming', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    render(
+      <GoalList
+        goals={[goal({ id: 'g1', name: 'Car' })]}
+        lines={[line({ goal_id: 'g1', amount_cents: 50_000, frequency: 'fortnightly' })]}
+        savers={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+
+    await user.click(within(card('Car')).getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i }))
+
+    expect(onDelete).toHaveBeenCalledWith('g1')
   })
 
   it('edits a goal in place', async () => {
@@ -431,20 +560,25 @@ describe('GoalList', () => {
   })
 
   describe('planning-mode comparison', () => {
-    it('shows a required-contribution move for a dated goal whose target changed', () => {
+    it('shows a required-contribution move for a dated queued goal whose target changed', () => {
+      // An active goal funds the queue; the dated queued goal's target moves.
+      const active = goal({ id: 'a1', name: 'Car', target_amount_cents: 1_000_000 })
+      const activeLine = line({ goal_id: 'a1', amount_cents: 50_000, frequency: 'fortnightly' })
       const goals = [
+        active,
         goal({ id: 'g1', name: 'Trip', target_amount_cents: 2_000_000, target_date: '2035-01-01' }),
       ]
       const baselineGoals = [
+        active,
         goal({ id: 'g1', name: 'Trip', target_amount_cents: 1_000_000, target_date: '2035-01-01' }),
       ]
       renderPlanning(
         <GoalList
           goals={goals}
-          lines={[]}
+          lines={[activeLine]}
           savers={[]}
           baselineGoals={baselineGoals}
-          baselineLines={[]}
+          baselineLines={[activeLine]}
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onDelete={vi.fn()}

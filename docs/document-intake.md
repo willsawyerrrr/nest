@@ -98,44 +98,50 @@ RLS regardless of policy.
 
 ## Building the Shortcut
 
-These are the steps as of iOS 18's Shortcuts app; menu wording may drift with
-future iOS releases, but the shape (a share-sheet input, one HTTP action)
-should stay the same.
+These steps follow the iOS 26 Shortcuts app. iOS 26 folded Apple Intelligence
+actions into Shortcuts but left the pieces this flow needs — a Share Sheet
+input and one **Get Contents of URL** action — unchanged, so the shape carries
+forward; only menu wording tends to drift between releases.
 
-1. **Generate a token.** Open Nest → Household tab → **Document intake**,
-   and tap **Generate token**. Copy the endpoint URL shown on the same card,
-   and copy the token — it is shown once and Nest never stores it, so if you
-   lose it, generate a new one (this replaces the old one, which stops
-   working).
-2. **Open the Shortcuts app** → **+** to create a new shortcut.
-3. **Set the input type.** Tap the shortcut's settings (the `⋯` icon) →
-   **Details** → turn on **Show in Share Sheet**, and under **Share Sheet
-   Types** select **Files** and **Images** — this is what makes the Shortcut
-   appear when you share a PDF or a photo from Mail, Files, or elsewhere.
-4. **Add "Get Contents of URL".** Search the action library for it and drag
-   it into the shortcut.
-   - Set the **URL** to the endpoint you copied (ends in
+1. **Generate a token.** Open Nest → Household tab → **Document intake**, and
+   tap **Generate token**. Copy the endpoint URL shown on the same card, and
+   copy the token — it is shown once and Nest never stores it, so if you lose
+   it, generate a new one (this replaces the old one, which stops working).
+2. **Open the Shortcuts app** → **+** (top right) to create a new shortcut.
+3. **Turn on the Share Sheet input.** Tap the shortcut's name at the top of
+   the editor to open its settings, choose **Details**, and turn on **Show in
+   Share Sheet**. Under **Accepted Types** (shown once the toggle is on),
+   leave **Files** and **Images** selected and turn the rest off — that is
+   what makes the Shortcut appear when you share a PDF or a photo from Mail,
+   Files, or elsewhere. The editor adds a **Receive Files and images input
+   from Share Sheet** action at the top automatically; leave its "If there's
+   no input" set to **Continue** so a stray run without a file fails cleanly
+   rather than posting nothing.
+4. **Add "Get Contents of URL".** Tap **+ Add Action**, search for
+   *Get Contents of URL*, and add it. Expand **Show More** and set:
+   - **URL** — the endpoint you copied (ends in
      `/functions/v1/document-intake`).
-   - Set **Method** to `POST`.
-   - Add a **Header**: name `Authorization`, value `Bearer <your token>`
-     (paste your token in place of `<your token>`, keeping the word
-     `Bearer` and the space).
-   - Set **Request Body** to **Form**, and add two fields:
-     - `kind` — a fixed text value, either `payslip` or `deduction` (see step
-       6 for why you'll want two Shortcuts, one of each).
-     - `file` — tap the field's value and choose **Shortcut Input**, so it
-       carries whatever file was shared in.
-5. **Name it** something like "Nest — Add payslip" (or "Add deduction") so
-   it's recognisable in the share sheet, and save.
+   - **Method** — `POST`.
+   - **Headers** — add one: key `Authorization`, value `Bearer <your token>`
+     (paste your token after the word `Bearer` and a space).
+   - **Request Body** — **Form**, then **Add new field** twice:
+     - `kind` — a **Text** field, value `payslip` or `deduction` (see step 6
+       for why you'll build one Shortcut of each).
+     - `file` — a **File** field; tap its value and pick the **Shortcut Input**
+       variable so it carries whatever file was shared in.
+5. **Name it** something recognisable in the share sheet — "Nest — Add
+   payslip" or "Nest — Add deduction" — and tap **Done**.
 6. **Build a second copy for the other kind.** A Shortcut posts one fixed
-   `kind`, so duplicate it (⋯ → **Duplicate**) and change only the `kind`
-   field and the name — "Nest — Add payslip" and "Nest — Add deduction" side
-   by side in the share sheet, both using the same token.
+   `kind`, so from the Shortcuts grid touch and hold the shortcut →
+   **Duplicate**, then change only the `kind` field's value and the name.
+   "Nest — Add payslip" and "Nest — Add deduction" sit side by side in the
+   share sheet, both using the same token.
 
 From then on: open a payslip PDF (in Mail, or after scanning one with the
-Files app), tap Share, choose "Nest — Add payslip", and it lands in Nest's
-Payslips tab inbox within moments — ready to review, never saved until you
-confirm it.
+Files app), tap **Share**, choose "Nest — Add payslip", and it lands in
+Nest's Payslips tab inbox within moments — ready to review, never saved until
+you confirm it. The first run asks once for permission to send the file to the
+endpoint; tap **Allow Always** to skip it thereafter.
 
 ## Limits
 

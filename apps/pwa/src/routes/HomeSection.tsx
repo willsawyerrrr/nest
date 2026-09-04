@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { HomeScreen } from '../components/HomeScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useCalendarFeed } from '../hooks/useCalendarFeed'
 import { type Household } from '../hooks/useHousehold'
 import { useMembers } from '../hooks/useMembers'
 import {
@@ -31,6 +32,7 @@ export function HomeSection({
   const currentMemberId = members?.find((member) => member.user_id === session.user.id)?.id ?? null
   const push = usePushNotifications(household.id, currentMemberId)
   const notificationPreferences = useNotificationPreferences(household.id, currentMemberId)
+  const calendarFeed = useCalendarFeed()
 
   if (membersLoading || taxProfiles.loading || !members) {
     return <LoadingScreen />
@@ -63,6 +65,11 @@ export function HomeSection({
       onToggleNotificationPreference={(trigger, next) =>
         void notificationPreferences.setEnabled(trigger, next)
       }
+      calendarFeed={{
+        status: calendarFeed.status,
+        onCreate: calendarFeed.create,
+        onRevoke: calendarFeed.revoke,
+      }}
       onSignOut={() => void supabase.auth.signOut()}
     />
   )

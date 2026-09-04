@@ -45,6 +45,11 @@ function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
         { trigger: 'fy_boundary', enabled: true },
       ]}
       onToggleNotificationPreference={vi.fn()}
+      calendarFeed={{
+        status: null,
+        onCreate: vi.fn().mockResolvedValue('tok'),
+        onRevoke: vi.fn().mockResolvedValue(undefined),
+      }}
       onSignOut={vi.fn()}
       {...overrides}
     />,
@@ -62,6 +67,15 @@ describe('HomeScreen', () => {
 
     expect(screen.getByRole('heading', { name: 'The Sawyers' })).toBeInTheDocument()
     expect(screen.getByText(/will@example\.com/)).toBeInTheDocument()
+  })
+
+  it('renders the calendar feed card and generates a feed', async () => {
+    const onCreate = vi.fn().mockResolvedValue('tok')
+    renderHome({ calendarFeed: { status: null, onCreate, onRevoke: vi.fn() } })
+
+    expect(screen.getByRole('heading', { name: 'Calendar feed' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /generate calendar feed/i }))
+    expect(onCreate).toHaveBeenCalledOnce()
   })
 
   it('renders tax profiles above the invite section', () => {

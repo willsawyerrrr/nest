@@ -224,6 +224,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
 
   ci-status:
     name: CI Status

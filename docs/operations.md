@@ -91,7 +91,9 @@ and the one-off setup each moving part needs. For the conceptual pipeline see
   `supabase/functions/**` or `supabase/config.toml` runs
   `pnpm exec supabase functions deploy --project-ref dgfeittjtxjtgbretdkj`,
   deploying every function and honouring each one's `verify_jwt` from
-  `config.toml` (`up-webhook` is pinned `false`; the rest default to `true`). It
+  `config.toml` (`up-webhook`, `eofy-share`, `eofy-share-file`, and
+  `calendar-ics` are pinned `false` — each carries its own bearer or signature
+  check; the rest default to `true`). It
   authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret.
   - The CLI comes from the `supabase` devDependency in the root
     `package.json`, installed by `pnpm install --frozen-lockfile`, so
@@ -206,6 +208,16 @@ straight — the reconcile triggers keep its derived rows canonical, so it needs
 neither the breakdown nor the gift tables. It also holds `select` on
 `notification_preference` and `select`/`insert` on `notification_log`; every
 write to a preference is a member's own.
+
+`calendar-ics`, the anonymous iCalendar feed, reads the tables whose dated rows
+become events with a service-role client (a subscribing calendar client has no
+`auth.uid()`): `inflows`, `savings_goal`, and `temporary_item` are already
+granted (the EOFY-share and notification-evaluator paths); `households` gains a
+`service_role` `select` for the calendar's display name
+(`20260906020000_calendar_feed.sql`). It also holds `select` on `calendar_feed`
+itself, to resolve a feed token by `token_hash`; every write to that table goes
+through `create_calendar_feed_token` / `revoke_calendar_feed_token`
+(SECURITY DEFINER).
 
 ## Storage buckets
 

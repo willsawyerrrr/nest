@@ -10,11 +10,13 @@ import {
   Text,
   Title,
 } from '@mantine/core'
+import type { CalendarFeedRow } from '../hooks/useCalendarFeed'
 import type { Member } from '../hooks/useMembers'
 import type { NotificationTrigger } from '../hooks/useNotificationPreferences'
 import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
 import type { TaxProfile, TaxProfileSubmission } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
+import { CalendarFeedControl } from './CalendarFeedControl'
 import { PageSection } from './PageSection'
 import { PlanningModeControl } from './PlanningModeControl'
 import { PushNotificationsCard, type NotificationPreferenceToggle } from './PushNotificationsCard'
@@ -38,6 +40,11 @@ interface HomeScreenProps {
   push: UsePushNotificationsResult
   notificationPreferences: NotificationPreferenceToggle[]
   onToggleNotificationPreference: (trigger: NotificationTrigger, next: boolean) => void
+  calendarFeed: {
+    status: CalendarFeedRow | null
+    onCreate: () => Promise<string>
+    onRevoke: () => Promise<void>
+  }
   onSignOut: () => void
 }
 
@@ -152,6 +159,7 @@ export function HomeScreen({
   push,
   notificationPreferences,
   onToggleNotificationPreference,
+  calendarFeed,
   onSignOut,
 }: HomeScreenProps) {
   const codeActive =
@@ -200,6 +208,12 @@ export function HomeScreen({
         onSendTest={() => void push.sendTest()}
         preferences={notificationPreferences}
         onTogglePreference={onToggleNotificationPreference}
+      />
+
+      <CalendarFeedControl
+        status={calendarFeed.status}
+        onCreate={calendarFeed.onCreate}
+        onRevoke={calendarFeed.onRevoke}
       />
 
       <AppCard>

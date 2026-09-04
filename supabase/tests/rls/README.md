@@ -79,6 +79,15 @@ instance and can also be run locally.
   refused), RLS is enabled, `service_role` holds `select`/`insert` only, and the
   `(member, trigger, dedupe_key)` unique key rejects a repeat send while a fresh
   key is a distinct notification.
+- `calendar_feed.sql` — the assertions that a household's calendar-feed token
+  is minted, replaced, and revoked only through `create_calendar_feed_token` /
+  `revoke_calendar_feed_token`: a fresh household has no feed, creating one
+  returns a 64-hex-char token whose `sha256` hex is the only thing stored, a
+  second call replaces the row (a new token, not a second row), `token_hash` is
+  never selectable by `authenticated` while `household_id` and `created_at` are,
+  a direct insert/update/delete on `calendar_feed` as `authenticated` is refused,
+  a co-member's household cannot see another household's feed, and
+  `revoke_calendar_feed_token` deletes the row (a no-op when there is none).
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and
@@ -97,7 +106,7 @@ instance and can also be run locally.
 `deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql` →
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
-`wishlist_item.sql`.
+`wishlist_item.sql` → `calendar_feed.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -126,5 +135,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
 docker rm -f pba-rls
 ```

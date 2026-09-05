@@ -67,7 +67,14 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Settings',
-    items: [{ path: '/household', label: 'Household' }],
+    items: [
+      { path: '/settings/account', label: 'Account' },
+      { path: '/settings/members', label: 'Members & tax profiles' },
+      { path: '/settings/partner', label: 'Partner' },
+      { path: '/settings/connections', label: 'Connections' },
+      { path: '/settings/notifications', label: 'Notifications' },
+      { path: '/settings/planning-mode', label: 'Planning mode' },
+    ],
   },
 ]
 

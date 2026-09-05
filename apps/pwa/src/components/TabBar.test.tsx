@@ -150,9 +150,9 @@ describe('TabBar', () => {
     renderTabBar('/budget')
 
     await user.click(groupHeader('Settings'))
-    await user.click(screen.getByRole('link', { name: 'Household' }))
+    await user.click(screen.getByRole('link', { name: 'Account' }))
 
-    expect(pathname()).toBe('/household')
+    expect(pathname()).toBe('/settings/account')
     expect(groupHeader('Settings')).toHaveAttribute('aria-expanded', 'true')
     expect(groupHeader('Plan')).toHaveAttribute('aria-expanded', 'false')
   })
@@ -244,7 +244,7 @@ describe('TabBar', () => {
 
     await user.keyboard('{Control>}{Shift>}{ArrowLeft}{/Shift}{/Control}')
 
-    expect(pathname()).toBe('/household')
+    expect(pathname()).toBe('/settings/planning-mode')
     expect(groupHeader('Settings')).toHaveAttribute('aria-expanded', 'true')
   })
 })
@@ -391,7 +391,12 @@ describe('flattenNavItems', () => {
       '/deductions',
       '/help-debt',
       '/eofy',
-      '/household',
+      '/settings/account',
+      '/settings/members',
+      '/settings/partner',
+      '/settings/connections',
+      '/settings/notifications',
+      '/settings/planning-mode',
     ])
   })
 })

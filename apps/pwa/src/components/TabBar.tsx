@@ -119,11 +119,15 @@ function activeGroupLabel(sections: NavSection[], pathname: string) {
 const DRAWER_ID = 'primary-nav-drawer'
 
 /**
- * Icon-button entry point for the "What's new" changelog, sized and styled to
- * sit beside `ColorSchemeToggle`. Carries a lime dot — the same fill as the
- * active nav item's leading bar — once the changelog has reported a build
- * newer than the one running; the dot never triggers its own changelog fetch,
- * so it stays hidden until that has happened elsewhere this session.
+ * Icon-button entry point for the "What's new" changelog, sitting beside
+ * `ColorSchemeToggle` but styled to read as a destination rather than a
+ * sibling toggle: `subtle` and tinted in the brand colour, against the
+ * toggle's neutral bordered square, so the two don't blur into one control
+ * cluster despite sharing a size and a spot. Carries a lime dot — the same
+ * fill as the active nav item's leading bar — once the changelog has reported
+ * a build newer than the one running; the dot never triggers its own
+ * changelog fetch, so it stays hidden until that has happened elsewhere this
+ * session.
  */
 function WhatsNewButton() {
   const navigate = useNavigate()
@@ -135,7 +139,8 @@ function WhatsNewButton() {
       classNames={{ indicator: 'whats-new-button__dot' }}
     >
       <ActionIcon
-        variant="default"
+        variant="subtle"
+        color="brand"
         size="lg"
         aria-label="What's new"
         onClick={() => navigate('/whats-new')}

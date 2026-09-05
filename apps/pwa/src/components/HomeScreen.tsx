@@ -11,12 +11,17 @@ import {
   Title,
 } from '@mantine/core'
 import type { CalendarFeedRow } from '../hooks/useCalendarFeed'
+import type {
+  DocumentIntakeTokenStatus,
+  MintedDocumentIntakeToken,
+} from '../hooks/useDocumentIntakeTokens'
 import type { Member } from '../hooks/useMembers'
 import type { NotificationTrigger } from '../hooks/useNotificationPreferences'
 import type { UsePushNotificationsResult } from '../hooks/usePushNotifications'
 import type { TaxProfile, TaxProfileSubmission } from '../hooks/useTaxProfiles'
 import { AppCard } from './AppCard'
 import { CalendarFeedControl } from './CalendarFeedControl'
+import { DocumentIntakeTokenCard } from './DocumentIntakeTokenCard'
 import { PageSection } from './PageSection'
 import { PlanningModeControl } from './PlanningModeControl'
 import { PushNotificationsCard, type NotificationPreferenceToggle } from './PushNotificationsCard'
@@ -37,6 +42,10 @@ interface HomeScreenProps {
   onConnectUp: (token: string) => Promise<void>
   onDisconnectUp: () => Promise<void>
   upBusy: boolean
+  documentIntakeStatuses: DocumentIntakeTokenStatus[]
+  documentIntakeBusy: boolean
+  onCreateDocumentIntakeToken: () => Promise<MintedDocumentIntakeToken>
+  onRevokeDocumentIntakeToken: () => Promise<void>
   push: UsePushNotificationsResult
   notificationPreferences: NotificationPreferenceToggle[]
   onToggleNotificationPreference: (trigger: NotificationTrigger, next: boolean) => void
@@ -156,6 +165,10 @@ export function HomeScreen({
   onConnectUp,
   onDisconnectUp,
   upBusy,
+  documentIntakeStatuses,
+  documentIntakeBusy,
+  onCreateDocumentIntakeToken,
+  onRevokeDocumentIntakeToken,
   push,
   notificationPreferences,
   onToggleNotificationPreference,
@@ -196,6 +209,15 @@ export function HomeScreen({
         onConnectUp={onConnectUp}
         onDisconnectUp={onDisconnectUp}
         upBusy={upBusy}
+      />
+
+      <DocumentIntakeTokenCard
+        currentUserId={currentUserId}
+        members={members}
+        statuses={documentIntakeStatuses}
+        busy={documentIntakeBusy}
+        onCreate={onCreateDocumentIntakeToken}
+        onRevoke={onRevokeDocumentIntakeToken}
       />
 
       <PushNotificationsCard

@@ -13,6 +13,7 @@ const hooks = vi.hoisted(() => ({
   useSuperContributions: vi.fn(),
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
+  useDocumentIntake: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -29,6 +30,7 @@ vi.mock('../hooks/useSuperContributions', () => ({
 }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
+vi.mock('../hooks/useDocumentIntake', () => ({ useDocumentIntake: hooks.useDocumentIntake }))
 vi.mock('../components/PayslipsScreen', () => ({
   PayslipsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -73,6 +75,12 @@ function stubHooks(payslips = [makePayslip()]) {
   hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+  hooks.useDocumentIntake.mockReturnValue({
+    loading: false,
+    items: [],
+    download: vi.fn(),
+    clear: vi.fn(),
+  })
   return { save, remove, signedUrl, attachments }
 }
 

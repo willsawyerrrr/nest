@@ -37,6 +37,10 @@ function renderHome(overrides: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
       onConnectUp={vi.fn()}
       onDisconnectUp={vi.fn()}
       upBusy={false}
+      documentIntakeStatuses={[]}
+      documentIntakeBusy={false}
+      onCreateDocumentIntakeToken={vi.fn()}
+      onRevokeDocumentIntakeToken={vi.fn()}
       push={push}
       notificationPreferences={[
         { trigger: 'buffer_negative', enabled: true },
@@ -119,9 +123,12 @@ describe('HomeScreen', () => {
     renderHome(activeCode)
 
     expect(screen.getByText('abcd1234')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /regenerate/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /revoke/i })).toBeInTheDocument()
+    // Scoped to the invite card: the document-intake card below it has its own
+    // Copy/Regenerate/Revoke buttons for an unrelated token.
+    const card = screen.getByText('abcd1234').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: /regenerate/i })).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: /revoke/i })).toBeInTheDocument()
     expect(screen.getByText(/Expires in \d+ days/)).toBeInTheDocument()
     expect(screen.getByText(/Share this code with others/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /create invite code/i })).not.toBeInTheDocument()

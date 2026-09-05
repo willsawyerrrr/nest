@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js'
 import { HomeScreen } from '../components/HomeScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useCalendarFeed } from '../hooks/useCalendarFeed'
+import { useDocumentIntakeTokens } from '../hooks/useDocumentIntakeTokens'
 import { type Household } from '../hooks/useHousehold'
 import { useMembers } from '../hooks/useMembers'
 import {
@@ -27,6 +28,7 @@ export function HomeSection({
   const { members, loading: membersLoading, reload: reloadMembers, setDateOfBirth } = useMembers()
   const taxProfiles = useTaxProfiles(household.id)
   const up = useUpConnection(reloadMembers)
+  const documentIntakeTokens = useDocumentIntakeTokens(household.id)
   // A push subscription is tagged to the signed-in member, so it waits on the
   // members load; null until then, which only blocks subscribing.
   const currentMemberId = members?.find((member) => member.user_id === session.user.id)?.id ?? null
@@ -57,6 +59,10 @@ export function HomeSection({
       onConnectUp={up.connect}
       onDisconnectUp={up.disconnect}
       upBusy={up.busy}
+      documentIntakeStatuses={documentIntakeTokens.statuses}
+      documentIntakeBusy={documentIntakeTokens.busy}
+      onCreateDocumentIntakeToken={documentIntakeTokens.create}
+      onRevokeDocumentIntakeToken={documentIntakeTokens.revoke}
       push={push}
       notificationPreferences={NOTIFICATION_TRIGGERS.map((trigger) => ({
         trigger,

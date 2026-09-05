@@ -326,6 +326,34 @@ distinguishes "expired" from "never existed" in the response.
   `PWA_APP_URL` and `RESEND_FROM_ADDRESS`, round out the setup — see
   [`docs/operations.md`](../../docs/operations.md#resend_api_key-and-pwa_app_url-setup-eofy-sharing).
 
+## Document intake
+
+Lets a payslip or deduction receipt reach Nest from outside the PWA — an iOS
+Shortcut run from the system share sheet in Mail, Files, or a scanned
+document — without App Intents or the Web Share Target API, neither of which
+a PWA on iOS can use (App Intents is a native-app-only framework; Safari does
+not implement `share_target`). A member mints a long-lived bearer token from
+the Household tab (`document_intake_token` — see
+[`../migrations/20260909000000_document_intake.sql`](../migrations/20260909000000_document_intake.sql)),
+pastes it into a Shortcut they build following
+[`../../docs/document-intake.md`](../../docs/document-intake.md), and sharing
+a file to that Shortcut posts it here. One function:
+
+- **`document-intake`** — `verify_jwt = false`. Takes a `multipart/form-data`
+  `POST` — `kind` (`payslip` or `deduction`) and `file` — with the bearer
+  token as `Authorization: Bearer <token>`, resolves it against
+  `document_intake_token` (`_shared/documentIntakeToken.ts`), validates the
+  file's type (PDF, JPEG, PNG, or WebP) and size (the same per-kind caps
+  `payslip-extract`/`deduction-extract` apply at read time), and — on a
+  service-role client, since the token holder has no `auth.uid()` — stores it
+  in the private `document-intake` bucket and inserts a `document_intake`
+  staging row. It never reads the file's contents or writes a payslip or
+  deduction: it only stages the upload for a member to review from the
+  Payslips or Deductions tab, where opening it runs the file through the same
+  `payslip-extract`/`deduction-extract` pre-fill a picked file already goes
+  through, and the member's own save is what persists. Logic lives in
+  `intake.ts`, DI-tested against fakes.
+
 ## Changelog ("What's new")
 
 The in-app changelog reads recent user-facing changes from GitHub at runtime.

@@ -576,6 +576,87 @@ export type Database = {
           },
         ]
       }
+      document_intake: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          kind: string
+          member_id: string
+          original_filename: string | null
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          kind: string
+          member_id: string
+          original_filename?: string | null
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          kind?: string
+          member_id?: string
+          original_filename?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'document_intake_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'document_intake_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      document_intake_token: {
+        Row: {
+          created_at: string
+          household_id: string
+          member_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          member_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          member_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'document_intake_token_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'document_intake_token_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       equity_grant: {
         Row: {
           cliff_months: number
@@ -2107,6 +2188,13 @@ export type Database = {
         Args: { p_deduction: Json; p_receipts: Json }
         Returns: string
       }
+      create_document_intake_token: {
+        Args: never
+        Returns: {
+          created_at: string
+          token: string
+        }[]
+      }
       create_household: {
         Args: { p_member_name: string; p_name: string }
         Returns: string
@@ -2186,6 +2274,7 @@ export type Database = {
       }
       resend_api_key: { Args: never; Returns: string }
       revoke_calendar_feed_token: { Args: never; Returns: undefined }
+      revoke_document_intake_token: { Args: never; Returns: undefined }
       revoke_invite_code: { Args: never; Returns: undefined }
       revoke_share_grant: { Args: never; Returns: undefined }
       set_household_pay_account: {

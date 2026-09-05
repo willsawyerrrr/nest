@@ -434,6 +434,36 @@ describe('PayslipForm extraction', () => {
     expect(read).toHaveBeenCalledWith(submission.attachment!.path)
   })
 
+  it('applies a document-intake file the moment the form opens, exactly once', async () => {
+    const file = new File(['x'], 'slip.pdf', { type: 'application/pdf' })
+    const { rerender } = render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        initialFile={file}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByLabelText('Gross')).toHaveValue('$4,120.50'))
+    expect(upload).toHaveBeenCalledOnce()
+    expect(upload).toHaveBeenCalledWith(expect.any(String), file)
+
+    // A later change to the prop is not re-applied.
+    const otherFile = new File(['y'], 'other.pdf', { type: 'application/pdf' })
+    rerender(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        initialFile={otherFile}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(upload).toHaveBeenCalledOnce()
+  })
+
   it('says the figures were extracted and asks for a check, without restating them', async () => {
     const user = userEvent.setup()
     read.mockResolvedValue({

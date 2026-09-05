@@ -84,6 +84,7 @@ function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]>
     onRemoveReceipt: vi.fn().mockResolvedValue(undefined),
     onRenameReceipt: vi.fn().mockResolvedValue(undefined),
     signedUrl: vi.fn().mockResolvedValue('https://signed/url'),
+    documentIntake: { items: [], download: vi.fn(), clear: vi.fn() },
     ...overrides,
   }
   render(<DeductionsScreen {...props} />)

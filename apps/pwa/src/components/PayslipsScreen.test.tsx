@@ -1,6 +1,9 @@
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
+import type { DocumentIntakeRow } from '../hooks/useDocumentIntake'
+import type { PayslipAttachments } from '../hooks/usePayslips'
+import { EXTRACTION_UNCONFIGURED_MESSAGE, type ExtractionOutcome } from '../lib/payslipExtraction'
 import { estimateHouseholdTaxFromRows } from '../lib/tax'
 import {
   makeInflow,
@@ -840,5 +843,190 @@ describe('PayslipsScreen', () => {
     const [, samCard] = screen.getAllByRole('button', { expanded: false })
     expect(samCard).toHaveTextContent('$900.00')
     expect(screen.getAllByText('YTD gross')[1]!.parentElement).toHaveTextContent('$900.00')
+  })
+})
+
+describe('PayslipsScreen intake inbox', () => {
+  function makeIntakeItem(overrides: Partial<DocumentIntakeRow> = {}): DocumentIntakeRow {
+    return {
+      id: 'doc1',
+      household_id: 'h1',
+      member_id: 'm1',
+      kind: 'payslip',
+      storage_path: 'h1/doc1/slip.pdf',
+      original_filename: 'slip.pdf',
+      created_at: '2027-01-01T00:00:00Z',
+      ...overrides,
+    }
+  }
+
+  const upload = vi.fn()
+  const discard = vi.fn()
+  const read = vi.fn()
+  const attachments: PayslipAttachments = { upload, discard, read }
+  const download = vi.fn()
+  const clear = vi.fn()
+
+  /** The file every `download` resolves to, ready to hand to the add-payslip form. */
+  const downloadedFile = new File(['x'], 'slip.pdf', { type: 'application/pdf' })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    upload.mockImplementation(async (payslipId: string, file: File) => ({
+      payslipId,
+      path: `h1/${payslipId}/uuid-${file.name}`,
+    }))
+    discard.mockResolvedValue(undefined)
+    // No key configured, so the modal's fields stay blank for the test to fill in
+    // rather than pre-filled by an extraction this suite is not exercising.
+    read.mockResolvedValue({
+      status: 'not-configured',
+      message: EXTRACTION_UNCONFIGURED_MESSAGE,
+    } satisfies ExtractionOutcome)
+    download.mockResolvedValue(downloadedFile)
+    clear.mockResolvedValue(undefined)
+  })
+
+  function renderIntake(overrides: Partial<Parameters<typeof PayslipsScreen>[0]> = {}) {
+    return renderScreen({
+      payslips: [],
+      attachments,
+      documentIntake: { items: [makeIntakeItem()], download, clear },
+      ...overrides,
+    })
+  }
+
+  /** Fills the review modal's required quartet and saves it. */
+  async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+    await user.type(within(dialog).getByLabelText('Gross'), '5000')
+    await user.type(within(dialog).getByLabelText('Tax withheld'), '1000')
+    await user.type(within(dialog).getByLabelText('Super'), '600')
+    await user.type(within(dialog).getByLabelText('Net'), '4000')
+    await user.click(within(dialog).getByRole('button', { name: /^add payslip$/i }))
+  }
+
+  it('only offers items staged for payslips, leaving deduction items to their own tab', () => {
+    renderIntake({
+      documentIntake: {
+        items: [
+          makeIntakeItem({ id: 'd1', kind: 'payslip' }),
+          makeIntakeItem({ id: 'd2', kind: 'deduction' }),
+        ],
+        download,
+        clear,
+      },
+    })
+    expect(screen.getAllByRole('button', { name: /review/i })).toHaveLength(1)
+  })
+
+  it('downloads a staged file and opens it in the add-payslip form for its member', async () => {
+    const user = userEvent.setup()
+    const item = makeIntakeItem()
+    renderIntake({ documentIntake: { items: [item], download, clear } })
+
+    await user.click(screen.getByRole('button', { name: /review/i }))
+
+    expect(download).toHaveBeenCalledWith(item)
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Review payslip')
+    // The downloaded file drives the same store-and-read pipeline a picked
+    // document would, pre-filling the form exactly as attaching it by hand would.
+    await waitFor(() => expect(upload).toHaveBeenCalledWith(expect.any(String), downloadedFile))
+  })
+
+  it('shows an error when the download fails, and never opens the form', async () => {
+    const user = userEvent.setup()
+    download.mockRejectedValue(new Error('nope'))
+    renderIntake()
+
+    await user.click(screen.getByRole('button', { name: /review/i }))
+
+    expect(await screen.findByText(/could not download this document/i)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('dismisses a staged item without downloading or opening the form', async () => {
+    const user = userEvent.setup()
+    const item = makeIntakeItem()
+    renderIntake({ documentIntake: { items: [item], download, clear } })
+
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    await waitFor(() => expect(clear).toHaveBeenCalledWith(item))
+    expect(download).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows an error when dismissing fails', async () => {
+    const user = userEvent.setup()
+    clear.mockRejectedValue(new Error('nope'))
+    renderIntake()
+
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    expect(await screen.findByText(/could not dismiss this document/i)).toBeInTheDocument()
+  })
+
+  it('closes the review modal on cancel, leaving the item staged for another look', async () => {
+    const user = userEvent.setup()
+    renderIntake()
+
+    await user.click(screen.getByRole('button', { name: /review/i }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(clear).not.toHaveBeenCalled()
+  })
+
+  it('closes the review modal via its own close control too, leaving the item staged', async () => {
+    const user = userEvent.setup()
+    renderIntake()
+
+    await user.click(screen.getByRole('button', { name: /review/i }))
+    await screen.findByRole('dialog')
+    // Mantine's own close button carries no accessible name of its own.
+    await user.click(document.querySelector('.mantine-Modal-close')!)
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(clear).not.toHaveBeenCalled()
+  })
+
+  it('creates the payslip, clears the staged item, and closes the form on save', async () => {
+    const user = userEvent.setup()
+    const item = makeIntakeItem()
+    const { onCreate } = renderIntake({ documentIntake: { items: [item], download, clear } })
+
+    await user.click(screen.getByRole('button', { name: /review/i }))
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() => expect(upload).toHaveBeenCalled())
+
+    await fillAndSubmit(user, dialog)
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalled())
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ input: expect.objectContaining({ member_id: 'm1' }) }),
+    )
+    await waitFor(() => expect(clear).toHaveBeenCalledWith(item))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('does not report the save as failed when clearing the staged item afterwards fails', async () => {
+    const user = userEvent.setup()
+    const item = makeIntakeItem()
+    clear.mockRejectedValue(new Error('boom'))
+    const { onCreate } = renderIntake({ documentIntake: { items: [item], download, clear } })
+
+    await user.click(screen.getByRole('button', { name: /review/i }))
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() => expect(upload).toHaveBeenCalled())
+
+    await fillAndSubmit(user, dialog)
+
+    // The payslip was saved and that is what matters here — a failure clearing the
+    // now-redundant staged copy is litter, not a save gone wrong.
+    await waitFor(() => expect(onCreate).toHaveBeenCalled())
+    await waitFor(() => expect(clear).toHaveBeenCalledWith(item))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByText(/could not save this payslip/i)).not.toBeInTheDocument()
   })
 })

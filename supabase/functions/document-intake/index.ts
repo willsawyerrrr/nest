@@ -13,6 +13,11 @@
  * staging; this file only wires the token resolution, the Storage upload, and
  * the row insert, all against a service-role client since the token holder
  * has no `auth.uid()` for RLS to apply to.
+ *
+ * The token is resolved before the body is ever read: an invalid or missing
+ * one is rejected without parsing the multipart form at all, so an
+ * unauthenticated caller cannot force a large file to be buffered into memory
+ * just by hitting the endpoint.
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -38,6 +43,11 @@ Deno.serve(async (request) => {
   const authHeader = request.headers.get('Authorization') ?? ''
   const token = authHeader.replace(/^Bearer\s+/i, '').trim()
 
+  const tokenResult = await resolveDocumentIntakeToken(admin, token)
+  if ('error' in tokenResult) {
+    return json({ error: tokenResult.error.message }, tokenResult.error.status)
+  }
+
   let form: FormData
   try {
     form = await request.formData()
@@ -56,7 +66,9 @@ Deno.serve(async (request) => {
     : null
 
   const result = await runDocumentIntake(token, kind, file, {
-    resolveToken: (candidate) => resolveDocumentIntakeToken(admin, candidate),
+    // Already resolved above, before the body was read; `runDocumentIntake`
+    // still owns checking it first among the request's own contents.
+    resolveToken: () => Promise.resolve(tokenResult),
     uploadObject: async (path, uploaded) => {
       const { error } = await admin.storage.from(BUCKET).upload(path, uploaded.bytes, {
         contentType: uploaded.contentType ?? undefined,

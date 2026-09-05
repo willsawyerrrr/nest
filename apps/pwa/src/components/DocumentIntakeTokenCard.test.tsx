@@ -68,6 +68,21 @@ describe('DocumentIntakeTokenCard', () => {
     expect(screen.getByText(/paste this into your shortcut/i)).toBeInTheDocument()
   })
 
+  it('regenerates an already-active token, replacing it with the new one shown', async () => {
+    const onCreate = vi
+      .fn()
+      .mockResolvedValue({ token: 'b'.repeat(64), createdAt: '2027-02-01T00:00:00Z' })
+    renderCard({
+      statuses: [{ member_id: 'm1', created_at: '2027-01-01T00:00:00Z' }],
+      onCreate,
+    })
+
+    fireEvent.click(within(card()).getByRole('button', { name: /regenerate/i }))
+    await screen.findByText('b'.repeat(64))
+
+    expect(onCreate).toHaveBeenCalledOnce()
+  })
+
   it('revoking clears a freshly shown token', async () => {
     const onCreate = vi
       .fn()

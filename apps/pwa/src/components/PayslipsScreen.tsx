@@ -136,8 +136,17 @@ function PayslipIntakeInbox({
             initialFile={reviewing.file}
             onSubmit={async (submission) => {
               await onCreate(submission)
-              await documentIntake.clear(reviewing.item)
               setReviewing(null)
+              // The payslip is already saved — the staged copy is now redundant
+              // regardless of whether clearing it succeeds, so a failure here must
+              // not read back to the form as a failed save.
+              try {
+                await documentIntake.clear(reviewing.item)
+              } catch {
+                // Best effort, matching `useDocumentIntake.clear`'s own storage-side
+                // swallow: an orphaned staging row is litter, not a failure the
+                // member can act on from this form.
+              }
             }}
             onCancel={() => setReviewing(null)}
           />

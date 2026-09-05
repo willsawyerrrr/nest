@@ -265,6 +265,52 @@ describe('DeductionForm', () => {
 })
 
 describe('DeductionForm receipt extraction', () => {
+  it('applies a document-intake file the moment the add form opens, exactly once', async () => {
+    const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
+    const { rerender } = render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initialFile={file}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByLabelText(/description/i)).toHaveValue('Officeworks'))
+    expect(upload).toHaveBeenCalledOnce()
+    expect(upload).toHaveBeenCalledWith(expect.any(String), file)
+
+    // A later change to the prop is not re-applied.
+    const otherFile = new File(['y'], 'other.pdf', { type: 'application/pdf' })
+    rerender(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initialFile={otherFile}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(upload).toHaveBeenCalledOnce()
+  })
+
+  it('never applies a document-intake file while editing, which offers no receipt picker', () => {
+    const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction()}
+        initialFile={file}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(upload).not.toHaveBeenCalled()
+  })
+
   it('pre-fills the fields read off an attached receipt and saves them in cents', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

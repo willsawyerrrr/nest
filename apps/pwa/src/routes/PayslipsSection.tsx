@@ -1,7 +1,6 @@
 import { LoadingScreen } from '../components/LoadingScreen'
 import { PayslipsScreen } from '../components/PayslipsScreen'
 import { useDeductions } from '../hooks/useDeductions'
-import { useDocumentIntake } from '../hooks/useDocumentIntake'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
@@ -20,7 +19,6 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
   const contributions = useSuperContributions(householdId)
   const helpDebts = useHelpDebts(householdId)
   const deductions = useDeductions(householdId)
-  const documentIntake = useDocumentIntake(householdId)
 
   if (
     membersLoading ||
@@ -31,7 +29,6 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
     contributions.loading ||
     helpDebts.loading ||
     deductions.loading ||
-    documentIntake.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -67,11 +64,6 @@ export function PayslipsSection({ householdId }: { householdId: string }) {
       onUpdate={(_id, submission) => payslips.save(submission)}
       onDelete={payslips.remove}
       signedUrl={payslips.signedUrl}
-      documentIntake={{
-        items: documentIntake.items ?? [],
-        download: documentIntake.download,
-        clear: documentIntake.clear,
-      }}
     />
   )
 }

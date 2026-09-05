@@ -82,7 +82,7 @@ async function loadCalendarRows(
     selectForHousehold<CalendarInflowRow>(
       admin,
       'inflows',
-      'id, name, schedule, paid_on, interval_count, pay_schedule, pay_interval_count, starts_on, ends_on',
+      'id, name, schedule, paid_on, interval_count, pay_schedule, pay_interval_count, starts_on, ends_on, pay_anchor_date',
       householdId,
     ),
     selectForHousehold<CalendarDatedRow>(

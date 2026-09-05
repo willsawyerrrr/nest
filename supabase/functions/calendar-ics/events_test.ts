@@ -26,6 +26,7 @@ function inflow(overrides: Partial<CalendarInflowRow> = {}): CalendarInflowRow {
     pay_interval_count: null,
     starts_on: null,
     ends_on: null,
+    pay_anchor_date: null,
     ...overrides,
   }
 }
@@ -81,6 +82,23 @@ Deno.test('inflowOccurrences steps a fortnightly inflow from starts_on, inside t
   for (const date of dates) {
     assert(date >= WINDOW.start && date <= WINDOW.end)
   }
+})
+
+Deno.test('inflowOccurrences prefers pay_anchor_date over starts_on', () => {
+  const dates = inflowOccurrences(
+    inflow({ starts_on: '2027-03-01', pay_anchor_date: '2027-03-04' }),
+    WINDOW,
+  )
+  assertEquals(dates[0], '2027-03-04')
+  assertEquals(dates[1], '2027-03-18')
+})
+
+Deno.test('inflowOccurrences treats an invalid pay_anchor_date as absent, falling back to starts_on', () => {
+  const dates = inflowOccurrences(
+    inflow({ starts_on: '2027-03-01', pay_anchor_date: 'not-a-date' }),
+    WINDOW,
+  )
+  assertEquals(dates[0], '2027-03-01')
 })
 
 Deno.test('inflowOccurrences anchors an inflow with no starts_on to a fixed epoch, stable across windows', () => {

@@ -656,7 +656,26 @@ describe('GoalList', () => {
       // The saver-linked goal shows its saver in the caption; the plain goal does not.
       expect(screen.getByText(/From Up saver Up Car/)).toBeInTheDocument()
       expect(screen.getByText('50%')).toBeInTheDocument()
+      // Both goals' target amounts read as a column of their own.
+      expect(screen.getAllByText('$10,000.00')).toHaveLength(2)
       expect(screen.getAllByRole('button', { name: /edit/i })).toHaveLength(2)
+    })
+
+    it("shows a queued goal's target amount in its dense row", () => {
+      setWideViewport()
+      const goals = [goal({ id: 'g1', name: 'Someday', target_amount_cents: 250_000 })]
+      render(
+        <GoalList
+          goals={goals}
+          lines={[]}
+          savers={[]}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByText('$2,500.00')).toBeInTheDocument()
     })
   })
 })

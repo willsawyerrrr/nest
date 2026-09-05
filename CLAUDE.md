@@ -173,7 +173,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   create a refund on its own and leaves the Medicare levy untouched (the config's
   rates therefore EXCLUDE the levy, which is why they read 2% under the commonly
   quoted figures). The ETP rate turns on the member's age at the payment date, so
-  `members.date_of_birth` — optional, entered on the Home tab beside their tax
+  `members.date_of_birth` — optional, entered on the Members & tax profiles settings
+  page beside their tax
   profile — is tested against the year's preservation age; unset reads as below
   it, the higher rate. **The annual and fortnightly figures deliberately disagree
   about one-off money**: the annual ones are whole-year truths that include it,
@@ -686,8 +687,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   window (`notification_log` being a `service_role`-only ledger: buffer re-sends
   after 14 days, the rest fire once per goal target / item / financial year).
   A log row is written only once a device took the push, so a transient failure
-  retries next day. Each member turns a trigger off with a per-trigger toggle in
-  the Household screen's Notifications card, shown once a device is on
+  retries next day. Each member turns a trigger off with a per-trigger toggle on
+  the Notifications settings page, shown once a device is on
   (`useNotificationPreferences`); an absent `notification_preference` row means
   the trigger is on, so a member who never opens the settings gets everything.
   Deposit-landed and bill-due triggers need ingestion and are out of scope;

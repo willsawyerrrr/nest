@@ -2,7 +2,7 @@
 
 Letting a payslip or deduction receipt reach Nest from **outside the PWA** —
 shared straight from Mail, Files, or a scanned document, without opening the
-app first. A member mints a bearer token from the Household tab, builds a
+app first. A member mints a bearer token from the Connections settings page, builds a
 one-off iOS Shortcut around it (steps below), and from then on sharing a file
 to that Shortcut posts it to Nest, where it waits in an inbox on the Payslips
 or Deductions tab to be reviewed and confirmed.
@@ -103,7 +103,7 @@ actions into Shortcuts but left the pieces this flow needs — a Share Sheet
 input and one **Get Contents of URL** action — unchanged, so the shape carries
 forward; only menu wording tends to drift between releases.
 
-1. **Generate a token.** Open Nest → Household tab → **Document intake**, and
+1. **Generate a token.** Open Nest → Settings → Connections → **Document intake**, and
    tap **Generate token**. Copy the endpoint URL shown on the same card, and
    copy the token — it is shown once and Nest never stores it, so if you lose
    it, generate a new one (this replaces the old one, which stops working).

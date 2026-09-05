@@ -229,7 +229,7 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   household's plan with a service-role client, checks four conditions against
   today's data with the pure `@nest/plan` / `@nest/tax` engines, and pushes to
   each member with a device who has not turned that trigger off — a per-trigger
-  toggle in the Household screen's Notifications card, `notification_preference`,
+  toggle on the Notifications settings page, `notification_preference`,
   absent ⇒ on — and has no matching `notification_log` row in the dedupe window:
   - **buffer_negative** — `summarise().afterSaving.fortnightlyCents` is below
     zero. Dedupe: the financial year, re-sent after 14 days.
@@ -284,7 +284,7 @@ established (see *Security*), applied to a feed rather than a page:
   rather than duplicating it. Derivation and the small inline ICS serialiser
   (text escaping + 75-octet line folding, no dependency) are the pure,
   DI-tested `calendar-ics/events.ts`; `feed.ts` is the token-before-read flow
-  and `index.ts` wires the service-role reads. The Household screen's
+  and `index.ts` wires the service-role reads. The Connections settings page's
   *Calendar feed* card generates, shows once, regenerates, and revokes the URL.
 - `service_role` `select` grants for the read are in
   [`operations.md`](operations.md#service_role-grants).

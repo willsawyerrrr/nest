@@ -328,7 +328,7 @@ hand, so there is no store RPC to abuse.
    value that is neither is refused rather than sent, because a push service
    answers a bad `sub` claim with an opaque 400.
 
-3. Verify the chain end to end: opt a device in from the Household tab and send a
+3. Verify the chain end to end: opt a device in from the Notifications settings page and send a
    test push. `push-test` answers `{ devices, sent, pruned, failed }`.
 
 To rotate, `select vault.update_secret(id, '<new-key>', name, null)` for both

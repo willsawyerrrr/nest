@@ -1,9 +1,21 @@
 /* eslint-disable react/only-export-components -- co-locate the nav item table with the tab bar that renders it. */
 import { useEffect, useId, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Box, Burger, Collapse, Drawer, Group, Stack, Text, UnstyledButton } from '@mantine/core'
+import {
+  ActionIcon,
+  Box,
+  Burger,
+  Collapse,
+  Drawer,
+  Group,
+  Indicator,
+  Stack,
+  Text,
+  UnstyledButton,
+} from '@mantine/core'
 import { useDisclosure, useHotkeys, type HotkeyItem } from '@mantine/hooks'
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronRight, IconSpeakerphone } from '@tabler/icons-react'
+import { useChangelogUpdateAvailable } from '../hooks/useChangelogUpdateAvailable'
 import { ColorSchemeToggle } from './ColorSchemeToggle'
 import { Logo } from './Logo'
 
@@ -55,10 +67,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Settings',
-    items: [
-      { path: '/household', label: 'Household' },
-      { path: '/whats-new', label: "What's new" },
-    ],
+    items: [{ path: '/household', label: 'Household' }],
   },
 ]
 
@@ -108,6 +117,34 @@ function activeGroupLabel(sections: NavSection[], pathname: string) {
 }
 
 const DRAWER_ID = 'primary-nav-drawer'
+
+/**
+ * Icon-button entry point for the "What's new" changelog, sized and styled to
+ * sit beside `ColorSchemeToggle`. Carries a lime dot — the same fill as the
+ * active nav item's leading bar — once the changelog has reported a build
+ * newer than the one running; the dot never triggers its own changelog fetch,
+ * so it stays hidden until that has happened elsewhere this session.
+ */
+function WhatsNewButton() {
+  const navigate = useNavigate()
+  const updateAvailable = useChangelogUpdateAvailable()
+  return (
+    <Indicator
+      disabled={!updateAvailable}
+      size={8}
+      classNames={{ indicator: 'whats-new-button__dot' }}
+    >
+      <ActionIcon
+        variant="default"
+        size="lg"
+        aria-label="What's new"
+        onClick={() => navigate('/whats-new')}
+      >
+        <IconSpeakerphone size={18} />
+      </ActionIcon>
+    </Indicator>
+  )
+}
 
 /** One nav destination, highlighted while its route is the current one. */
 function NavItemLink({
@@ -288,6 +325,7 @@ export function TabBar({ sections }: { sections: NavSection[] }) {
           <Logo variant="mark" size={28} />
           <Group gap="xs" wrap="nowrap">
             <ColorSchemeToggle />
+            <WhatsNewButton />
             <Burger
               opened={drawerOpened}
               onClick={drawer.toggle}
@@ -322,6 +360,7 @@ export function TabBar({ sections }: { sections: NavSection[] }) {
         </Box>
         <Group className="sidebar__footer" justify="flex-end" px="xs" pt="sm">
           <ColorSchemeToggle />
+          <WhatsNewButton />
         </Group>
       </Box>
     </>

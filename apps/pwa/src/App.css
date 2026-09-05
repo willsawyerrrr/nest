@@ -180,6 +180,15 @@
 }
 
 /*
+ * The "What's new" button's update-available dot, the same lime fill as the
+ * active nav item's leading bar and a collapsed group's own dot, so all three
+ * read as one system.
+ */
+.whats-new-button__dot {
+  background-color: var(--mantine-primary-color-filled);
+}
+
+/*
  * The nav drawer is anchored to the left edge and spans the full height, so it
  * abuts the top, left, and bottom safe-area insets. The header stacks its
  * default padding on top of the notch inset so the title and close button sit

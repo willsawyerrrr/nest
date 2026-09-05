@@ -1,6 +1,10 @@
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import {
+  resetChangelogUpdateAvailable,
+  setChangelogUpdateAvailable,
+} from '../hooks/useChangelogUpdateAvailable'
 import { render, screen, within } from '../test/render'
 import {
   cycleIndex,
@@ -54,6 +58,8 @@ function groupItems(label: string) {
 }
 
 describe('TabBar', () => {
+  beforeEach(() => resetChangelogUpdateAvailable())
+
   it('renders a link per nav item with its route as href', () => {
     renderTabBar('/summary')
 
@@ -103,7 +109,6 @@ describe('TabBar', () => {
     }
     expect(screen.getByText('Net worth')).not.toBeVisible()
     expect(screen.getByText('Estimate')).not.toBeVisible()
-    expect(screen.getByText("What's new")).not.toBeVisible()
   })
 
   it('leaves every group closed on a route that sits outside them', () => {
@@ -239,8 +244,45 @@ describe('TabBar', () => {
 
     await user.keyboard('{Control>}{Shift>}{ArrowLeft}{/Shift}{/Control}')
 
-    expect(pathname()).toBe('/whats-new')
+    expect(pathname()).toBe('/household')
     expect(groupHeader('Settings')).toHaveAttribute('aria-expanded', 'true')
+  })
+})
+
+describe('TabBar what’s new button', () => {
+  beforeEach(() => resetChangelogUpdateAvailable())
+
+  it('navigates to the changelog from the sidebar footer, beside the color-scheme toggle', async () => {
+    const user = userEvent.setup()
+    renderTabBar('/summary')
+
+    const footer = document.querySelector('.sidebar__footer')
+    if (!footer) throw new Error('No sidebar footer')
+    expect(within(footer as HTMLElement).getAllByRole('button')).toHaveLength(2)
+    const whatsNew = within(footer as HTMLElement).getByRole('button', { name: "What's new" })
+
+    await user.click(whatsNew)
+
+    expect(pathname()).toBe('/whats-new')
+  })
+
+  it('shows no dot on any placement until the changelog reports an update available', () => {
+    renderTabBar('/summary')
+
+    for (const whatsNew of screen.getAllByRole('button', { name: "What's new" })) {
+      expect(
+        whatsNew.parentElement?.querySelector('.whats-new-button__dot'),
+      ).not.toBeInTheDocument()
+    }
+  })
+
+  it('shows a dot on every placement once the changelog reports an update available', () => {
+    setChangelogUpdateAvailable(true)
+    renderTabBar('/summary')
+
+    for (const whatsNew of screen.getAllByRole('button', { name: "What's new" })) {
+      expect(whatsNew.parentElement?.querySelector('.whats-new-button__dot')).toBeInTheDocument()
+    }
   })
 })
 
@@ -350,7 +392,6 @@ describe('flattenNavItems', () => {
       '/help-debt',
       '/eofy',
       '/household',
-      '/whats-new',
     ])
   })
 })

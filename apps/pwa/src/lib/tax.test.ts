@@ -54,6 +54,7 @@ const baseInflow: Inflow = {
   hours_per_period: null,
   starts_on: null,
   ends_on: null,
+  pay_anchor_date: null,
   created_at: '',
   updated_at: '',
 }

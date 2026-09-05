@@ -192,6 +192,9 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
   const [hours, setHours] = useState<number | string>(initial?.hours_per_period ?? '')
   const [startsOn, setStartsOn] = useState<string | null>(initial?.starts_on ?? null)
   const [endsOn, setEndsOn] = useState<string | null>(initial?.ends_on ?? null)
+  const [payAnchorDate, setPayAnchorDate] = useState<string | null>(
+    initial?.pay_anchor_date ?? null,
+  )
   const [oneOff, setOneOff] = useState(
     initial === undefined ? EMPTY_ONE_OFF_DRAFT : oneOffDraftFrom(initial),
   )
@@ -354,6 +357,7 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
       hours_per_period: isWage ? (hours === '' ? null : Number(hours)) : null,
       starts_on: isOneOff ? null : startsOn,
       ends_on: isOneOff ? null : endsOn,
+      pay_anchor_date: isOneOff ? null : payAnchorDate,
       // Joint applies only to a recurring taxable `other` inflow; anything else
       // stores neither field, and the database's `inflows_joint_split` check
       // holds the same rule.
@@ -580,6 +584,18 @@ export function InflowForm({ members, initial, onSubmit, onCancel }: InflowFormP
           hideControls
           value={splitPercent}
           onChange={setSplitPercent}
+        />
+      )}
+
+      {!isOneOff && (
+        <DateInput
+          label="Confirmed payday"
+          size="sm"
+          description="A real date this money has landed on, if you know one. Anchors the calendar feed's dates to it instead of a placeholder guess."
+          valueFormat="D MMM YYYY"
+          clearable
+          value={payAnchorDate}
+          onChange={setPayAnchorDate}
         />
       )}
 

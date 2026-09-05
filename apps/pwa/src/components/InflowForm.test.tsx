@@ -46,6 +46,7 @@ describe('InflowForm', () => {
         hours_per_period: null,
         starts_on: null,
         ends_on: null,
+        pay_anchor_date: null,
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
@@ -83,6 +84,7 @@ describe('InflowForm', () => {
         hours_per_period: 38,
         starts_on: null,
         ends_on: null,
+        pay_anchor_date: null,
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
@@ -121,6 +123,7 @@ describe('InflowForm', () => {
         hours_per_period: null,
         starts_on: null,
         ends_on: null,
+        pay_anchor_date: null,
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
@@ -338,6 +341,7 @@ describe('InflowForm', () => {
         hours_per_period: null,
         starts_on: null,
         ends_on: null,
+        pay_anchor_date: null,
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
@@ -383,6 +387,7 @@ describe('InflowForm', () => {
         hours_per_period: null,
         starts_on: null,
         ends_on: null,
+        pay_anchor_date: null,
         paid_on: null,
         one_off_tax_treatment: null,
         years_of_service: null,
@@ -406,6 +411,38 @@ describe('InflowForm', () => {
       expect(onSubmit).toHaveBeenCalledWith(
         expect.objectContaining({ starts_on: '2026-09-15', ends_on: '2027-06-30' }),
       ),
+    )
+  })
+
+  it('prefills and carries a confirmed payday through on submit as an ISO string', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const inflow = makeInflow({ pay_anchor_date: '2026-09-11' })
+    render(<InflowForm members={members} initial={inflow} onSubmit={onSubmit} />)
+
+    expect(screen.getByLabelText(/confirmed payday/i)).toHaveValue('11 Sep 2026')
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ pay_anchor_date: '2026-09-11' }),
+      ),
+    )
+  })
+
+  it('leaves an unset confirmed payday blank and null on submit', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<InflowForm members={members} onSubmit={onSubmit} />)
+
+    expect(screen.getByLabelText(/confirmed payday/i)).toHaveValue('')
+
+    await user.type(screen.getByLabelText(/name/i), 'Day job')
+    await user.type(screen.getByLabelText(/amount/i), '100')
+    await user.click(screen.getByRole('button', { name: /add inflow/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ pay_anchor_date: null })),
     )
   })
 
@@ -872,6 +909,7 @@ describe('InflowForm one-off mode', () => {
         hours_per_period: null,
         starts_on: null,
         ends_on: null,
+        pay_anchor_date: null,
         paid_on: '2026-09-12',
         one_off_tax_treatment: 'ordinary',
         years_of_service: null,
@@ -895,6 +933,7 @@ describe('InflowForm one-off mode', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: /employer super/i })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/effective from/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/confirmed payday/i)).not.toBeInTheDocument()
   })
 
   it('turns a wage into a salary, an amount paid once pricing no hours', async () => {

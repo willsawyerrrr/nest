@@ -52,6 +52,7 @@ export function makeInflow(overrides: Partial<Inflow> = {}): Inflow {
     hours_per_period: null,
     starts_on: null,
     ends_on: null,
+    pay_anchor_date: null,
     paid_on: null,
     one_off_tax_treatment: null,
     years_of_service: null,

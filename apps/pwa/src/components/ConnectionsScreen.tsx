@@ -1,14 +1,9 @@
 import { useState } from 'react'
 import { Badge, Button, Group, PasswordInput, Stack, Text, Title } from '@mantine/core'
 import type { CalendarFeedRow } from '../hooks/useCalendarFeed'
-import type {
-  DocumentIntakeTokenStatus,
-  MintedDocumentIntakeToken,
-} from '../hooks/useDocumentIntakeTokens'
 import type { Member } from '../hooks/useMembers'
 import { AppCard } from './AppCard'
 import { CalendarFeedControl } from './CalendarFeedControl'
-import { DocumentIntakeTokenCard } from './DocumentIntakeTokenCard'
 import { PageSection } from './PageSection'
 
 interface ConnectionsScreenProps {
@@ -17,10 +12,6 @@ interface ConnectionsScreenProps {
   onConnectUp: (token: string) => Promise<void>
   onDisconnectUp: () => Promise<void>
   upBusy: boolean
-  documentIntakeStatuses: DocumentIntakeTokenStatus[]
-  documentIntakeBusy: boolean
-  onCreateDocumentIntakeToken: () => Promise<MintedDocumentIntakeToken>
-  onRevokeDocumentIntakeToken: () => Promise<void>
   calendarFeed: {
     status: CalendarFeedRow | null
     onCreate: () => Promise<string>
@@ -110,17 +101,13 @@ function ConnectUpCard({
   )
 }
 
-/** Presentational outside-source connections: Up, calendar feed, and document intake. */
+/** Presentational outside-source connections: Up and the calendar feed. */
 export function ConnectionsScreen({
   currentUserId,
   members,
   onConnectUp,
   onDisconnectUp,
   upBusy,
-  documentIntakeStatuses,
-  documentIntakeBusy,
-  onCreateDocumentIntakeToken,
-  onRevokeDocumentIntakeToken,
   calendarFeed,
 }: ConnectionsScreenProps) {
   return (
@@ -137,15 +124,6 @@ export function ConnectionsScreen({
         status={calendarFeed.status}
         onCreate={calendarFeed.onCreate}
         onRevoke={calendarFeed.onRevoke}
-      />
-
-      <DocumentIntakeTokenCard
-        currentUserId={currentUserId}
-        members={members}
-        statuses={documentIntakeStatuses}
-        busy={documentIntakeBusy}
-        onCreate={onCreateDocumentIntakeToken}
-        onRevoke={onRevokeDocumentIntakeToken}
       />
     </PageSection>
   )

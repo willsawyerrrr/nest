@@ -17,10 +17,6 @@ function renderConnections(overrides: Partial<Parameters<typeof ConnectionsScree
       onConnectUp={vi.fn()}
       onDisconnectUp={vi.fn()}
       upBusy={false}
-      documentIntakeStatuses={[]}
-      documentIntakeBusy={false}
-      onCreateDocumentIntakeToken={vi.fn()}
-      onRevokeDocumentIntakeToken={vi.fn()}
       calendarFeed={{
         status: null,
         onCreate: vi.fn().mockResolvedValue('tok'),

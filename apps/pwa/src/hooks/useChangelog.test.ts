@@ -2,6 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from '../lib/supabase'
 import { useChangelog } from './useChangelog'
+import {
+  resetChangelogUpdateAvailable,
+  useChangelogUpdateAvailable,
+} from './useChangelogUpdateAvailable'
 
 vi.mock('../lib/supabase', () => ({ supabase: { functions: { invoke: vi.fn() } } }))
 
@@ -10,6 +14,7 @@ const invoke = vi.mocked(supabase.functions.invoke)
 describe('useChangelog', () => {
   beforeEach(() => {
     invoke.mockReset()
+    resetChangelogUpdateAvailable()
     invoke.mockResolvedValue({
       data: { configured: true, implemented: [], inProgress: [] },
       error: null,
@@ -62,6 +67,29 @@ describe('useChangelog', () => {
     const { result } = renderHook(() => useChangelog())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.available).toEqual([])
+  })
+
+  it('reports no update available to shared subscribers when the list is empty', async () => {
+    const { result: available } = renderHook(() => useChangelogUpdateAvailable())
+    const { result } = renderHook(() => useChangelog())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(available.current).toBe(false)
+  })
+
+  it('reports an update available to shared subscribers when the list is non-empty', async () => {
+    invoke.mockResolvedValue({
+      data: {
+        configured: true,
+        available: [{ type: 'feat', scope: null, description: 'z', date: 'd', sha: 'n' }],
+        implemented: [],
+        inProgress: [],
+      },
+      error: null,
+    })
+    const { result: available } = renderHook(() => useChangelogUpdateAvailable())
+    const { result } = renderHook(() => useChangelog())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(available.current).toBe(true)
   })
 
   it('surfaces an error when the function fails', async () => {

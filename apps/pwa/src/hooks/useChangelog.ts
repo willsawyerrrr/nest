@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { setChangelogUpdateAvailable } from './useChangelogUpdateAvailable'
 
 export interface ImplementedEntry {
   type: string
@@ -65,10 +66,12 @@ export function useChangelog(): UseChangelogResult {
           setError("Could not load what's new. Try again later.")
           return
         }
+        const availableEntries = data.available ?? []
         setConfigured(data.configured)
-        setAvailable(data.available ?? [])
+        setAvailable(availableEntries)
         setImplemented(data.implemented)
         setInProgress(data.inProgress)
+        setChangelogUpdateAvailable(availableEntries.length > 0)
       })
       .finally(() => {
         if (active) {

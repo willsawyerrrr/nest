@@ -58,9 +58,10 @@ updates an event in place rather than duplicating it:
 - **Expected inflow deposits** — for each recurring inflow, its occurrences
   stepped from the pay cadence (`pay_schedule` + `pay_interval_count`, else
   `schedule` + `interval_count`), clipped to `starts_on` / `ends_on`. An inflow
-  with no usable cadence is skipped. One with no `starts_on` is stepped from a
-  fixed financial-year epoch, so its dates stay put between fetches even though
-  the projection stores no real payday for it.
+  with no usable cadence is skipped. The cadence is anchored on `pay_anchor_date`
+  when the household has confirmed one, else on `starts_on`, else on a fixed
+  financial-year epoch, so an inflow with neither stays put between fetches even
+  though the projection stores no real payday for it.
 - **One-off inflows** — a single event on `paid_on`.
 - **Savings-goal and temporary-item target dates** — one event each.
 - **Financial-year boundary** — 30 June (year ends) and 1 July (new FY — review

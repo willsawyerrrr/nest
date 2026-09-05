@@ -71,6 +71,13 @@ export interface InflowInput {
   hours_per_period: number | null
   starts_on: string | null
   ends_on: string | null
+  /**
+   * One confirmed date this recurring inflow's money actually lands on, which
+   * the calendar feed steps its cadence forward and backward from; distinct
+   * from `starts_on`, which is the effective-from date and may differ from
+   * the first real payday. Null on a one-off, which has no cadence to anchor.
+   */
+  pay_anchor_date: string | null
 }
 
 export interface UseInflowsResult {

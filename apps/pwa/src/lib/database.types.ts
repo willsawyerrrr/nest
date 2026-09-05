@@ -1122,6 +1122,7 @@ export type Database = {
           name: string
           one_off_tax_treatment: Database['public']['Enums']['one_off_tax_treatment'] | null
           paid_on: string | null
+          pay_anchor_date: string | null
           pay_interval_count: number | null
           pay_schedule: Database['public']['Enums']['frequency'] | null
           schedule: Database['public']['Enums']['frequency'] | null
@@ -1148,6 +1149,7 @@ export type Database = {
           name: string
           one_off_tax_treatment?: Database['public']['Enums']['one_off_tax_treatment'] | null
           paid_on?: string | null
+          pay_anchor_date?: string | null
           pay_interval_count?: number | null
           pay_schedule?: Database['public']['Enums']['frequency'] | null
           schedule?: Database['public']['Enums']['frequency'] | null
@@ -1174,6 +1176,7 @@ export type Database = {
           name?: string
           one_off_tax_treatment?: Database['public']['Enums']['one_off_tax_treatment'] | null
           paid_on?: string | null
+          pay_anchor_date?: string | null
           pay_interval_count?: number | null
           pay_schedule?: Database['public']['Enums']['frequency'] | null
           schedule?: Database['public']['Enums']['frequency'] | null

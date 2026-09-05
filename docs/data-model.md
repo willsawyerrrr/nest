@@ -73,9 +73,9 @@ and so without the trigger.
     `pay_interval_count` (nullable), `arrives_every_pay_period` (default true),
     `amount_cents` (nullable),
     `hourly_rate_cents` (nullable), `hours_per_period` (nullable), `starts_on`
-    (date, nullable), `ends_on` (date, nullable), `paid_on` (date, nullable),
-    `one_off_tax_treatment` (nullable), `years_of_service` (int, nullable),
-    `created_at`, `updated_at`.
+    (date, nullable), `ends_on` (date, nullable), `pay_anchor_date` (date,
+    nullable), `paid_on` (date, nullable), `one_off_tax_treatment` (nullable),
+    `years_of_service` (int, nullable), `created_at`, `updated_at`.
   - **Recurring or one-off.** A CHECK (`inflows_recurrence`) requires exactly one
     of `schedule` and `paid_on`: a recurring inflow states the cadence its money
     comes on, a one-off states the single date it lands on. Severance, a bonus, or
@@ -85,11 +85,11 @@ and so without the trigger.
     reads as a household permanently ahead and then permanently behind.
   - A one-off carries none of the machinery a cadence needs, held by a CHECK
     (`inflows_one_off_shape`): where `paid_on` is set, `interval_count`,
-    `pay_schedule`, `pay_interval_count`, `starts_on`, and `ends_on` are all null,
-    `arrives_every_pay_period` is true, and `type` is not `wage` — an amount paid
-    once has no hours to price. `amount_cents` is the whole payment, since the day
-    it lands on is the only period it covers. A recurring inflow is unconstrained
-    by the rule.
+    `pay_schedule`, `pay_interval_count`, `starts_on`, `ends_on`, and
+    `pay_anchor_date` are all null, `arrives_every_pay_period` is true, and
+    `type` is not `wage` — an amount paid once has no hours to price.
+    `amount_cents` is the whole payment, since the day it lands on is the only
+    period it covers. A recurring inflow is unconstrained by the rule.
   - A **taxable** one-off states how it is taxed. `one_off_tax_treatment` is the
     `one_off_tax_treatment` enum — `ordinary` (a bonus, commission, or back-pay:
     assessable in full at marginal rates), `genuine_redundancy`,
@@ -111,6 +111,15 @@ and so without the trigger.
     [`tax.md`](tax.md#effective-dated-income). A one-off sets neither: its
     `paid_on` is both its first day and its last, and it counts in full in the
     financial year that date falls in or not at all.
+  - `pay_anchor_date` is a separate fact from `starts_on`: one date the
+    household confirms the inflow's money actually lands on, which need not be
+    the effective-from date — an inflow effective from 1 July might not
+    actually pay until the 11th. It touches calendar placement only: the
+    [calendar feed](calendar-feed.md) steps a recurring inflow's cadence
+    forward and backward from it, in preference to `starts_on`, in preference
+    to a fixed fallback epoch. Annualisation, the tax estimate, and the
+    fortnightly budget never read it. Nullable, with no backfill; null on a
+    one-off, which has no cadence to anchor.
   - `taxable` inflows feed the per-member tax estimate and require `member_id`;
     non-taxable inflows (reimbursement, hobby income, gift, or other) add to
     available cash and may omit it. For non-taxable inflows `type` is a reporting

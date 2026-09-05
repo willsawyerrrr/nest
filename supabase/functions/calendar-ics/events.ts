@@ -18,12 +18,12 @@ export const WINDOW_MONTHS_BACK = 1
 export const WINDOW_MONTHS_FORWARD = 12
 
 /**
- * The anchor a recurring inflow with no `starts_on` is stepped from — a fixed AU
- * financial-year start, never `now`. A projection stores no payday for such an
- * inflow, so the exact day is indicative; anchoring it here rather than on the
- * moving window keeps each occurrence on the same date every fetch, so a
- * calendar updates its events in place instead of duplicating them as the
- * window rolls.
+ * The anchor a recurring inflow with neither `pay_anchor_date` nor `starts_on`
+ * is stepped from — a fixed AU financial-year start, never `now`. A projection
+ * stores no payday for such an inflow, so the exact day is indicative;
+ * anchoring it here rather than on the moving window keeps each occurrence on
+ * the same date every fetch, so a calendar updates its events in place
+ * instead of duplicating them as the window rolls.
  */
 const CADENCE_EPOCH = '2020-07-01'
 
@@ -43,6 +43,8 @@ export interface CalendarInflowRow {
   pay_interval_count: number | null
   starts_on: string | null
   ends_on: string | null
+  /** A confirmed real payday to anchor the cadence on, in preference to `starts_on`. */
+  pay_anchor_date: string | null
 }
 
 /** A savings goal or temporary item — a name and a single target date. */
@@ -158,9 +160,10 @@ function advance(ms: number, step: CadenceStep): number {
  * cadence is the inflow's PAY cadence where it states one (`pay_schedule` +
  * `pay_interval_count`), the amount's own `schedule` + `interval_count`
  * otherwise — the same precedence a payslip period reads. Occurrences are
- * anchored on `starts_on` when set, otherwise on {@link CADENCE_EPOCH} so the
- * dates stay fixed across fetches. `starts_on` / `ends_on` clip the series at
- * both ends. An inflow with no usable cadence yields nothing.
+ * anchored on `pay_anchor_date` when set — a real confirmed payday — else on
+ * `starts_on`, else on {@link CADENCE_EPOCH} so the dates stay fixed across
+ * fetches. `starts_on` / `ends_on` clip the series at both ends regardless of
+ * which anchor placed it. An inflow with no usable cadence yields nothing.
  */
 export function inflowOccurrences(inflow: CalendarInflowRow, window: DateWindow): string[] {
   const frequency = inflow.pay_schedule ?? inflow.schedule
@@ -185,7 +188,9 @@ export function inflowOccurrences(inflow: CalendarInflowRow, window: DateWindow)
     return []
   }
 
-  const anchorMs = inflow.starts_on && isValidIso(inflow.starts_on)
+  const anchorMs = inflow.pay_anchor_date && isValidIso(inflow.pay_anchor_date)
+    ? isoToMs(inflow.pay_anchor_date)
+    : inflow.starts_on && isValidIso(inflow.starts_on)
     ? isoToMs(inflow.starts_on)
     : isoToMs(CADENCE_EPOCH)
 

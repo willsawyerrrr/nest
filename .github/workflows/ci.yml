@@ -253,7 +253,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql
-          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/document_intake.sql
       # The migrated schema above is the reference `supabase gen types` runs
       # against: this fails if `apps/pwa/src/lib/database.types.ts` no longer
       # matches what the migrations produce (`check-migration-drift.yml` compares

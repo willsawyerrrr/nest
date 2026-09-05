@@ -18,6 +18,10 @@ begin
     drop policy if exists "household members read staged document objects" on storage.objects;
     drop policy if exists "household members delete staged document objects" on storage.objects;
 
+    -- storage.buckets guards direct deletes (`storage.protect_delete`) to catch
+    -- accidental data loss from orphaned objects; the bucket is empty, so the
+    -- guard is lifted for this statement alone.
+    set local storage.allow_delete_query = 'true';
     delete from storage.buckets where id = 'document-intake';
   end if;
 end $$;

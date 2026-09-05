@@ -6,7 +6,6 @@ import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
-import { useDocumentIntake } from '../hooks/useDocumentIntake'
 import { useMembers } from '../hooks/useMembers'
 import { availableFinancialYears } from '../lib/tax'
 
@@ -17,7 +16,6 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
   const deductions = useDeductions(householdId, financialYear)
   const groups = useDeductionGroups(householdId, financialYear)
   const receipts = useDeductionReceipts(householdId)
-  const documentIntake = useDocumentIntake(householdId)
 
   // Storing, discarding, and reading a receipt picked before a new deduction
   // exists, distinct from `upload`/`remove` which attach a receipt to an
@@ -31,14 +29,7 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
     [receipts.uploadPending, receipts.discardPending, receipts.extract],
   )
 
-  if (
-    membersLoading ||
-    deductions.loading ||
-    groups.loading ||
-    receipts.loading ||
-    documentIntake.loading ||
-    !members
-  ) {
+  if (membersLoading || deductions.loading || groups.loading || receipts.loading || !members) {
     return <LoadingScreen />
   }
 
@@ -62,11 +53,6 @@ export function DeductionsSection({ householdId }: { householdId: string }) {
       onRemoveReceipt={receipts.remove}
       onRenameReceipt={receipts.rename}
       signedUrl={receipts.signedUrl}
-      documentIntake={{
-        items: documentIntake.items ?? [],
-        download: documentIntake.download,
-        clear: documentIntake.clear,
-      }}
     />
   )
 }

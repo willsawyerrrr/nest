@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   ActionIcon,
   Alert,
@@ -50,14 +50,6 @@ interface DeductionFormProps {
    */
   groups?: DeductionGroupRow[]
   initial?: DeductionRow | undefined
-  /**
-   * A receipt to attach automatically the moment the form opens — a document
-   * intake item the member is reviewing, downloaded ahead of time — driving
-   * the exact same `attachments.upload` + read pipeline a picked file goes
-   * through. Applied once, and only while adding; a later change to this prop
-   * is not re-applied.
-   */
-  initialFile?: File | undefined
   onSubmit: (submission: DeductionSubmission) => void | Promise<void>
   onCancel?: () => void
 }
@@ -247,7 +239,6 @@ export function DeductionForm({
   groupId,
   groups = [],
   initial,
-  initialFile,
   onSubmit,
   onCancel,
 }: DeductionFormProps) {
@@ -278,18 +269,6 @@ export function DeductionForm({
     attachments,
     onExtracted: (extraction) => fields.prefill(extraction),
   })
-
-  // Applies a document-intake file the moment the add form opens, exactly
-  // once — through the same `addFile` a member picking a receipt themselves
-  // would call. Only meaningful while adding: an edit has no receipt picker.
-  const appliedInitialFile = useRef(false)
-  useEffect(() => {
-    if (adding && initialFile && !appliedInitialFile.current) {
-      appliedInitialFile.current = true
-      void receipts.addFile(initialFile)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adding, initialFile])
 
   const { values } = fields
   const config = configsByYear[financialYear] ?? currentTaxConfig()

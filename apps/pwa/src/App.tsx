@@ -265,7 +265,7 @@ function HouseholdShell({
             />
             <Route
               path="/settings/connections"
-              element={<ConnectionsSection householdId={household.id} session={session} />}
+              element={<ConnectionsSection session={session} />}
             />
             <Route
               path="/settings/notifications"

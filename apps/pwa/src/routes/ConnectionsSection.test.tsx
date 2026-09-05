@@ -7,7 +7,6 @@ const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
   useUpConnection: vi.fn(),
   useCalendarFeed: vi.fn(),
-  useDocumentIntakeTokens: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -17,9 +16,6 @@ vi.mock('../components/LoadingScreen', () => ({
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../hooks/useUpConnection', () => ({ useUpConnection: hooks.useUpConnection }))
 vi.mock('../hooks/useCalendarFeed', () => ({ useCalendarFeed: hooks.useCalendarFeed }))
-vi.mock('../hooks/useDocumentIntakeTokens', () => ({
-  useDocumentIntakeTokens: hooks.useDocumentIntakeTokens,
-}))
 vi.mock('../components/ConnectionsScreen', () => ({
   ConnectionsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -39,20 +35,13 @@ describe('ConnectionsSection', () => {
       create: vi.fn().mockResolvedValue('tok'),
       revoke: vi.fn().mockResolvedValue(undefined),
     })
-    hooks.useDocumentIntakeTokens.mockReturnValue({
-      statuses: [],
-      loading: false,
-      busy: false,
-      create: vi.fn(),
-      revoke: vi.fn(),
-    })
   })
 
   it('shows the loading screen until members load', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true, reload: vi.fn() })
     hooks.useUpConnection.mockReturnValue({ connect: vi.fn(), disconnect: vi.fn(), busy: false })
 
-    render(<ConnectionsSection householdId="h1" session={session} />)
+    render(<ConnectionsSection session={session} />)
 
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -65,7 +54,7 @@ describe('ConnectionsSection', () => {
     })
     hooks.useUpConnection.mockReturnValue({ connect: vi.fn(), disconnect: vi.fn(), busy: false })
 
-    render(<ConnectionsSection householdId="h1" session={session} />)
+    render(<ConnectionsSection session={session} />)
 
     expect(screen.getByTestId('connections-screen')).toBeInTheDocument()
     expect(hooks.screenProps).toMatchObject({ currentUserId: 'u1' })
@@ -88,7 +77,7 @@ describe('ConnectionsSection', () => {
     })
     hooks.useUpConnection.mockReturnValue({ connect: vi.fn(), disconnect: vi.fn(), busy: false })
 
-    render(<ConnectionsSection householdId="h1" session={session} />)
+    render(<ConnectionsSection session={session} />)
 
     const calendarFeed = hooks.screenProps!.calendarFeed as {
       status: { household_id: string } | null

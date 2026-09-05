@@ -7,7 +7,6 @@ const hooks = vi.hoisted(() => ({
   useDeductions: vi.fn(),
   useDeductionGroups: vi.fn(),
   useDeductionReceipts: vi.fn(),
-  useDocumentIntake: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -20,7 +19,6 @@ vi.mock('../hooks/useDeductionGroups', () => ({ useDeductionGroups: hooks.useDed
 vi.mock('../hooks/useDeductionReceipts', () => ({
   useDeductionReceipts: hooks.useDeductionReceipts,
 }))
-vi.mock('../hooks/useDocumentIntake', () => ({ useDocumentIntake: hooks.useDocumentIntake }))
 vi.mock('../components/DeductionsScreen', () => ({
   DeductionsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -34,7 +32,6 @@ describe('DeductionsSection', () => {
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.useDeductionGroups.mockReturnValue({ loading: false })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false })
-    hooks.useDocumentIntake.mockReturnValue({ loading: false })
     render(<DeductionsSection householdId="h1" />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -71,12 +68,6 @@ describe('DeductionsSection', () => {
       upload,
       remove: removeReceipt,
       signedUrl,
-    })
-    hooks.useDocumentIntake.mockReturnValue({
-      loading: false,
-      items: [],
-      download: vi.fn(),
-      clear: vi.fn(),
     })
     render(<DeductionsSection householdId="h1" />)
     expect(screen.getByTestId('deductions-screen')).toBeInTheDocument()

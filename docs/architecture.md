@@ -363,17 +363,7 @@ established (see *Security*), applied to a feed rather than a page:
   same shape for a subscribing calendar client — `verify_jwt = false`,
   `token_hash` resolved by a service-role client, `token_hash` withheld from the
   household's own read — differing only in that it carries no expiry and every
-  invalid token gets an identical bare `404`. `document_intake_token` (document
-  intake, see [`document-intake.md`](document-intake.md)) is the same shape again
-  for an iOS Shortcut posting a shared file, and the first of these whose token
-  authorises a **write**: `document-intake` resolves it with a service-role
-  client and, since the token acts as one specific member submitting their own
-  documents, the row is keyed on `member_id` and minted/revoked only by that
-  member (`create_document_intake_token` / `revoke_document_intake_token`),
-  mirroring `up-connect`'s own-member shape rather than `share_grant`'s
-  any-member-for-the-household one. The staged `document_intake` row it writes is
-  service-role-only for insert; `authenticated` gets household-wide `select` /
-  `delete` (review or dismiss), never `insert`.
+  invalid token gets an identical bare `404`.
 
 ## Cross-cutting conventions
 

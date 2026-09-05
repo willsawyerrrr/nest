@@ -1,6 +1,12 @@
 import { assertEquals } from '@std/assert'
 import { type RawDeductionFields } from './fields.ts'
-import { type ExtractDeps, householdSegment, normalisePath, runExtract } from './extract.ts'
+import {
+  type ExtractDeps,
+  householdSegment,
+  normaliseCategory,
+  normalisePath,
+  runExtract,
+} from './extract.ts'
 import { DEDUCTION_MODEL, MAX_IMAGE_BYTES } from './model.ts'
 
 const HOUSEHOLD = 'hh-1'
@@ -63,8 +69,68 @@ Deno.test('normalisePath rejects an absent, rooted, or traversing path', () => {
   assertEquals(normalisePath(`${HOUSEHOLD}//receipt.pdf`), '')
 })
 
+Deno.test('normaliseCategory accepts every deduction category', () => {
+  assertEquals(normaliseCategory('work_expense'), 'work_expense')
+  assertEquals(normaliseCategory('donation'), 'donation')
+  assertEquals(normaliseCategory('tax_agent_fees'), 'tax_agent_fees')
+})
+
+Deno.test('normaliseCategory defaults an absent or unrecognised category to work_expense', () => {
+  assertEquals(normaliseCategory(undefined), 'work_expense')
+  assertEquals(normaliseCategory(null), 'work_expense')
+  assertEquals(normaliseCategory('personal_deductible'), 'work_expense')
+  assertEquals(normaliseCategory(42), 'work_expense')
+})
+
+Deno.test('runExtract threads the category to the model', async () => {
+  const seen: string[] = []
+  const d = deps({
+    extract: (_file, _apiKey, category) => {
+      seen.push(category)
+      return Promise.resolve({ ok: true as const, fields: fields() })
+    },
+  })
+  await runExtract(PATH, 'donation', d)
+
+  assertEquals(seen, ['donation'])
+})
+
+Deno.test('runExtract normalises an unrecognised category to work_expense before sending it', async () => {
+  const seen: string[] = []
+  const d = deps({
+    extract: (_file, _apiKey, category) => {
+      seen.push(category)
+      return Promise.resolve({ ok: true as const, fields: fields() })
+    },
+  })
+  await runExtract(PATH, 'not-a-real-category', d)
+
+  assertEquals(seen, ['work_expense'])
+})
+
+Deno.test('runExtract rejects a non-receipt document with its category-specific message', async () => {
+  const result = await runExtract(
+    PATH,
+    'donation',
+    deps({
+      extract: () =>
+        Promise.resolve({
+          ok: true as const,
+          fields: fields({ is_receipt: false, not_receipt_reason: 'A bank statement.' }),
+        }),
+    }),
+  )
+
+  assertEquals(result.status, 422)
+  assertEquals(result.body, {
+    error: 'That file does not look like a donation tax receipt.',
+    notReceipt: true,
+    reason: 'A bank statement.',
+  })
+})
+
 Deno.test('runExtract returns the fields as integer cents alongside what was read', async () => {
-  const result = await runExtract(PATH, deps())
+  const result = await runExtract(PATH, 'work_expense', deps())
 
   assertEquals(result.status, 200)
   const body = result.body as Record<string, Record<string, unknown> | unknown>
@@ -85,7 +151,7 @@ Deno.test('runExtract threads the Vault key to the model and reads the object on
       return Promise.resolve({ ok: true as const, fields: fields() })
     },
   })
-  await runExtract(PATH, d)
+  await runExtract(PATH, 'work_expense', d)
 
   assertEquals(seen, ['sk-ant-test'])
   assertEquals(d.calls, ['resolveHousehold', 'apiKey', 'downloadObject', 'extract'])
@@ -95,6 +161,7 @@ Deno.test('runExtract succeeds on a partial receipt, reporting every null field'
   const empty = fields({ description: null, deduction_date: null, amount: null })
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({ extract: () => Promise.resolve({ ok: true as const, fields: empty }) }),
   )
 
@@ -106,7 +173,7 @@ Deno.test('runExtract succeeds on a partial receipt, reporting every null field'
 
 Deno.test('runExtract rejects a path outside the caller household before reading anything', async () => {
   const d = deps()
-  const result = await runExtract('hh-2/deduction-1/receipt.pdf', d)
+  const result = await runExtract('hh-2/deduction-1/receipt.pdf', 'work_expense', d)
 
   assertEquals(result.status, 403)
   assertEquals(d.calls, ['resolveHousehold'])
@@ -114,7 +181,7 @@ Deno.test('runExtract rejects a path outside the caller household before reading
 
 Deno.test('runExtract rejects a missing path before resolving the caller', async () => {
   const d = deps()
-  const result = await runExtract(undefined, d)
+  const result = await runExtract(undefined, 'work_expense', d)
 
   assertEquals(result.status, 400)
   assertEquals(d.calls, [])
@@ -123,6 +190,7 @@ Deno.test('runExtract rejects a missing path before resolving the caller', async
 Deno.test('runExtract surfaces a caller-resolution error', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       resolveHousehold: () => Promise.resolve({ error: { status: 401, message: 'nope' } }),
     }),
@@ -133,7 +201,7 @@ Deno.test('runExtract surfaces a caller-resolution error', async () => {
 
 Deno.test('runExtract degrades to manual entry when the API key is unset', async () => {
   const d = deps({ apiKey: () => Promise.resolve(null) })
-  const result = await runExtract(PATH, d)
+  const result = await runExtract(PATH, 'work_expense', d)
 
   assertEquals(result.status, 503)
   const body = result.body as Record<string, unknown>
@@ -154,6 +222,7 @@ Deno.test('runExtract degrades to manual entry when the API key is unset', async
 Deno.test('runExtract reports an exhausted credit balance as reading being off, not broken', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -179,6 +248,7 @@ Deno.test('runExtract reports an exhausted credit balance as reading being off, 
 Deno.test('runExtract reports a refused key as reading being off, not broken', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -203,7 +273,7 @@ Deno.test('runExtract reports a refused key as reading being off, not broken', a
 
 Deno.test('runExtract reports a file that is not in the bucket', async () => {
   const d = deps({ downloadObject: () => Promise.resolve(null) })
-  const result = await runExtract(PATH, d)
+  const result = await runExtract(PATH, 'work_expense', d)
 
   assertEquals(result.status, 404)
   assertEquals(d.calls, ['resolveHousehold', 'apiKey', 'downloadObject'])
@@ -212,6 +282,7 @@ Deno.test('runExtract reports a file that is not in the bucket', async () => {
 Deno.test('runExtract rejects an empty file', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       downloadObject: () =>
         Promise.resolve({ bytes: new Uint8Array(), contentType: 'application/pdf' }),
@@ -227,7 +298,7 @@ Deno.test('runExtract rejects an unsupported file type with the types it takes',
     downloadObject: () =>
       Promise.resolve({ bytes: new Uint8Array([1]), contentType: 'image/heic' }),
   })
-  const result = await runExtract(`${HOUSEHOLD}/deduction-1/receipt.heic`, d)
+  const result = await runExtract(`${HOUSEHOLD}/deduction-1/receipt.heic`, 'work_expense', d)
 
   assertEquals(result.status, 415)
   const error = (result.body as Record<string, string>).error
@@ -244,7 +315,7 @@ Deno.test('runExtract rejects an oversized file with its size and the limit', as
         contentType: 'image/jpeg',
       }),
   })
-  const result = await runExtract(`${HOUSEHOLD}/deduction-1/receipt.jpg`, d)
+  const result = await runExtract(`${HOUSEHOLD}/deduction-1/receipt.jpg`, 'work_expense', d)
 
   assertEquals(result.status, 413)
   const error = (result.body as Record<string, string>).error
@@ -257,6 +328,7 @@ Deno.test('runExtract rejects an oversized file with its size and the limit', as
 Deno.test('runExtract reports a document the model says is not a receipt', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -283,7 +355,7 @@ Deno.test('runExtract turns malformed model output into a clean error', async ()
         message: 'The model returned unreadable fields.',
       }),
   })
-  const result = await runExtract(PATH, d)
+  const result = await runExtract(PATH, 'work_expense', d)
 
   assertEquals(result.status, 502)
   assertEquals(
@@ -296,6 +368,7 @@ Deno.test('runExtract turns malformed model output into a clean error', async ()
 Deno.test('runExtract reports a model refusal as a content problem, not a server error', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -316,6 +389,7 @@ Deno.test('runExtract reports a model refusal as a content problem, not a server
 Deno.test('runExtract maps a model API failure to a bad gateway, offering a retry when one could work', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -337,6 +411,7 @@ Deno.test('runExtract maps a model API failure to a bad gateway, offering a retr
 Deno.test('runExtract still reads an unrelated bad request as a server fault, with no retry', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -358,6 +433,7 @@ Deno.test('runExtract still reads an unrelated bad request as a server fault, wi
 Deno.test('runExtract passes an upstream rate limit through so the client can back off', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({
@@ -375,6 +451,7 @@ Deno.test('runExtract passes an upstream rate limit through so the client can ba
 Deno.test('runExtract maps a model timeout to a gateway timeout', async () => {
   const result = await runExtract(
     PATH,
+    'work_expense',
     deps({
       extract: () =>
         Promise.resolve({

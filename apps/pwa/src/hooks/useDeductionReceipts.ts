@@ -9,6 +9,7 @@ import {
 import { receiptName } from '../lib/receiptName'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
+import type { DeductionCategory } from './useDeductions'
 
 export type DeductionReceiptRow = Tables<'deduction_receipt'>
 
@@ -69,8 +70,13 @@ export interface UseDeductionReceiptsResult {
    * failure is swallowed, not surfaced to the form.
    */
   discardPending: (path: string) => Promise<void>
-  /** Reads an uploaded receipt through `deduction-extract` so the add form can pre-fill. */
-  extract: (path: string) => Promise<ExtractionOutcome>
+  /**
+   * Reads an uploaded receipt through `deduction-extract` so the add form can
+   * pre-fill. `category` primes the model for the kind of document that
+   * category expects — a purchase receipt/invoice for `work_expense`, a
+   * donation tax receipt for `donation`, an invoice for `tax_agent_fees`.
+   */
+  extract: (path: string, category: DeductionCategory) => Promise<ExtractionOutcome>
 }
 
 /** How long a receipt's signed URL stays valid, in seconds (one hour). */
@@ -134,24 +140,27 @@ export function useDeductionReceipts(householdId: string): UseDeductionReceiptsR
     }
   }, [])
 
-  const extract = useCallback(async (path: string): Promise<ExtractionOutcome> => {
-    const { data, error, response } = await supabase.functions.invoke<unknown>(
-      'deduction-extract',
-      { body: { path } },
-    )
-    if (error) {
-      // A non-2xx carries the function's own specific message as JSON; a
-      // transport failure carries no response at all.
-      const body = response ? await response.json().catch(() => null) : null
-      return readExtractionFailure(body)
-    }
-    // A 2xx body is read rather than trusted, so a reply the form cannot render
-    // reads as a plain failure instead of throwing partway through the note.
-    const extraction = readExtraction(data)
-    return extraction === null
-      ? { status: 'failed', message: EXTRACTION_FAILED_MESSAGE }
-      : { status: 'read', extraction }
-  }, [])
+  const extract = useCallback(
+    async (path: string, category: DeductionCategory): Promise<ExtractionOutcome> => {
+      const { data, error, response } = await supabase.functions.invoke<unknown>(
+        'deduction-extract',
+        { body: { path, category } },
+      )
+      if (error) {
+        // A non-2xx carries the function's own specific message as JSON; a
+        // transport failure carries no response at all.
+        const body = response ? await response.json().catch(() => null) : null
+        return readExtractionFailure(body)
+      }
+      // A 2xx body is read rather than trusted, so a reply the form cannot render
+      // reads as a plain failure instead of throwing partway through the note.
+      const extraction = readExtraction(data)
+      return extraction === null
+        ? { status: 'failed', message: EXTRACTION_FAILED_MESSAGE }
+        : { status: 'read', extraction }
+    },
+    [],
+  )
 
   const removeReceipt = useCallback(
     async (receipt: DeductionReceiptRow) => {

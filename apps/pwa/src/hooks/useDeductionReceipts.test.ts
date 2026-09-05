@@ -152,10 +152,10 @@ describe('useDeductionReceipts', () => {
     const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
-    const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf')
+    const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')
 
     expect(invoke).toHaveBeenCalledWith('deduction-extract', {
-      body: { path: 'h1/d2/uuid-receipt.pdf' },
+      body: { path: 'h1/d2/uuid-receipt.pdf', category: 'work_expense' },
     })
     expect(outcome).toEqual({
       status: 'read',
@@ -175,7 +175,7 @@ describe('useDeductionReceipts', () => {
     const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
-    const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf')
+    const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')
 
     expect(outcome).toEqual({
       status: 'not-configured',
@@ -192,7 +192,7 @@ describe('useDeductionReceipts', () => {
     const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
-    expect(await result.current.extract('h1/d2/uuid-receipt.pdf')).toEqual({
+    expect(await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')).toEqual({
       status: 'failed',
       message: 'Could not read this receipt. Enter the details by hand.',
     })

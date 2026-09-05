@@ -212,8 +212,9 @@ and so without the trigger.
     `>= 0`), `deduction_date` (date), `financial_year` (int, ending year),
     `basis` (`deduction_basis` enum: `amount` default, or `distance`),
     `distance_km` (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
-    `>= 0`), `work_use_percent` (`numeric(5,2)`, default 100), `created_at`,
-    `updated_at`.
+    `>= 0`), `work_use_percent` (`numeric(5,2)`, default 100), `category`
+    (`deduction_category` enum: `work_expense` default, `donation`, or
+    `tax_agent_fees`), `created_at`, `updated_at`.
   - `financial_year` is the year the expense is claimed in and is stored rather
     than derived from `deduction_date`, with no constraint tying the two: an
     expense incurred near a year boundary is claimed in whichever year the
@@ -251,6 +252,22 @@ and so without the trigger.
     `payslip_line.attracts_super` with. A write naming no work-use figures at
     all is therefore claimed in full at 100%, through the RPC below or a direct
     insert alike.
+  - `category` says what kind of deductible expense this is: `work_expense`
+    (the default, apportionable by work use), `donation`, or `tax_agent_fees` —
+    extensible for a future kind that is not itself a super contribution (see
+    below). `deduction_work_use_basis` pins `work_use_percent` at 100 for
+    every category but `work_expense`, exactly as it already pins the
+    `distance` basis: a donation and tax agent fees are claimed in full or not
+    at all, never apportioned. `deduction-extract` reads `category` too,
+    priming the model to expect a purchase receipt/invoice for `work_expense`,
+    a donation tax receipt for `donation`, or an invoice for `tax_agent_fees`,
+    so a genuine DGR donation tax receipt is not rejected for failing to look
+    like a purchase. **Personal deductible super contributions are never a
+    `deduction` category.** They are entered on the Super tab as
+    `super_contribution.kind = 'personal_deductible'`, which already reduces
+    taxable income and feeds the concessional-cap tracking there; a
+    `deduction` row for one too would double-count it against taxable income
+    and bypass cap tracking entirely.
   - `member_id` is the tax attribution: a deduction reduces the taxable income of
     exactly one member, so it must be set (not null) even though the money is
     pooled. Composite FK `(member_id, household_id)` → `members`
@@ -986,8 +1003,8 @@ transaction, not for the privileges.
   on that same id, so a retried save rewrites the deduction and replaces its
   receipt set rather than duplicating either. It carries the deduction's `basis`
   and, on the distance basis, its `distance_km`; the group it is filed under
-  (`group_id`); and its work-use apportioning (`full_amount_cents`,
-  `work_use_percent`): the add form writes every new deduction through this
+  (`group_id`); its work-use apportioning (`full_amount_cents`,
+  `work_use_percent`); and its `category`: the add form writes every new deduction through this
   function, so a column it does not name is one the add path cannot set, and a
   work-travel deduction, a grouped payment, or a part-claimed expense would
   otherwise save wrong or fail the apportioning constraint outright. A payload

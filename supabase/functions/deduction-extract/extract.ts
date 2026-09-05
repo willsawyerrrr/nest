@@ -14,17 +14,46 @@
  * request carries the Storage object path rather than bytes. A client-supplied
  * path is not trusted: its first segment must be the caller's own household,
  * which is defence in depth on top of Storage RLS.
+ *
+ * The request also carries the deduction's `category` — `work_expense`,
+ * `donation`, or `tax_agent_fees`, the same kind picked on the add form before
+ * the file is chosen — so the model is primed for the right kind of document: a
+ * genuine donation tax receipt is not a purchase receipt or invoice, and asking
+ * for one rejects it outright. An absent or unrecognised category normalises to
+ * `work_expense`, today's only behaviour.
  */
 
 import { type DeductionExtraction, toExtraction } from './fields.ts'
 import {
   DEDUCTION_MODEL,
+  type DeductionCategory,
   maxBytesFor,
   type ModelResult,
   type ReceiptFile,
   resolveMediaType,
   SUPPORTED_MEDIA_TYPES,
 } from './model.ts'
+
+/** Every `deduction.category` extraction knows how to expect a document for. */
+const DEDUCTION_CATEGORIES: readonly DeductionCategory[] = [
+  'work_expense',
+  'donation',
+  'tax_agent_fees',
+]
+
+/** What the rejection message calls a document that failed this category's check. */
+const NOT_RECEIPT_MESSAGES: Record<DeductionCategory, string> = {
+  work_expense: 'That file does not look like a receipt.',
+  donation: 'That file does not look like a donation tax receipt.',
+  tax_agent_fees: 'That file does not look like a tax agent invoice.',
+}
+
+/** Reads a raw category, defaulting to `work_expense` when absent or unrecognised. */
+export function normaliseCategory(raw: unknown): DeductionCategory {
+  return (DEDUCTION_CATEGORIES as readonly string[]).includes(raw as string)
+    ? (raw as DeductionCategory)
+    : 'work_expense'
+}
 
 /** The private bucket the client uploads receipt files to. */
 export const RECEIPTS_BUCKET = 'receipts'
@@ -59,8 +88,8 @@ export interface ExtractDeps {
   apiKey: () => Promise<string | null>
   /** Downloads the object, or null when it is not in the bucket. */
   downloadObject: (path: string) => Promise<DownloadedObject | null>
-  /** Sends the file to the model. */
-  extract: (file: ReceiptFile, apiKey: string) => Promise<ModelResult>
+  /** Sends the file to the model, primed for the expected category of document. */
+  extract: (file: ReceiptFile, apiKey: string, category: DeductionCategory) => Promise<ModelResult>
 }
 
 /** The successful response body. */
@@ -87,8 +116,13 @@ export function householdSegment(path: string): string {
   return path.split('/')[0]
 }
 
-export async function runExtract(rawPath: unknown, deps: ExtractDeps): Promise<FlowResult> {
+export async function runExtract(
+  rawPath: unknown,
+  rawCategory: unknown,
+  deps: ExtractDeps,
+): Promise<FlowResult> {
   const path = normalisePath(rawPath)
+  const category = normaliseCategory(rawCategory)
   if (!path) {
     return { status: 400, body: { error: 'A receipt file path is required.' } }
   }
@@ -151,14 +185,14 @@ export async function runExtract(rawPath: unknown, deps: ExtractDeps): Promise<F
     }
   }
 
-  const result = await deps.extract({ mediaType, bytes: object.bytes }, apiKey)
+  const result = await deps.extract({ mediaType, bytes: object.bytes }, apiKey, category)
   if (!result.ok) return modelFailure(result)
 
   if (!result.fields.is_receipt) {
     return {
       status: 422,
       body: {
-        error: 'That file does not look like a receipt.',
+        error: NOT_RECEIPT_MESSAGES[category],
         notReceipt: true,
         reason: result.fields.not_receipt_reason,
       },

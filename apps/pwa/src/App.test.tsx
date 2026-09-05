@@ -83,7 +83,18 @@ vi.mock('./routes/BreakdownDetailSection', () => ({
 vi.mock('./routes/ChangelogSection', () => ({
   ChangelogSection: () => <div>ChangelogSection</div>,
 }))
-vi.mock('./routes/HomeSection', () => ({ HomeSection: () => <div>HomeSection</div> }))
+vi.mock('./routes/AccountSection', () => ({ AccountSection: () => <div>AccountSection</div> }))
+vi.mock('./routes/MembersSection', () => ({ MembersSection: () => <div>MembersSection</div> }))
+vi.mock('./routes/PartnerSection', () => ({ PartnerSection: () => <div>PartnerSection</div> }))
+vi.mock('./routes/ConnectionsSection', () => ({
+  ConnectionsSection: () => <div>ConnectionsSection</div>,
+}))
+vi.mock('./routes/NotificationsSection', () => ({
+  NotificationsSection: () => <div>NotificationsSection</div>,
+}))
+vi.mock('./routes/PlanningModeSection', () => ({
+  PlanningModeSection: () => <div>PlanningModeSection</div>,
+}))
 vi.mock('./routes/PlanningSection', () => ({ PlanningSection: () => <div>PlanningSection</div> }))
 vi.mock('./routes/EofyShareSection', () => ({
   EofyShareSection: () => <div>EofyShareSection</div>,
@@ -204,12 +215,23 @@ describe('App', () => {
     ['/breakdowns', 'BreakdownsSection'],
     ['/breakdowns/b1', 'BreakdownDetailSection'],
     ['/whats-new', 'ChangelogSection'],
-    ['/household', 'HomeSection'],
+    ['/settings/account', 'AccountSection'],
+    ['/settings/members', 'MembersSection'],
+    ['/settings/partner', 'PartnerSection'],
+    ['/settings/connections', 'ConnectionsSection'],
+    ['/settings/notifications', 'NotificationsSection'],
+    ['/settings/planning-mode', 'PlanningModeSection'],
     ['/planning', 'PlanningSection'],
   ])('routes to %s', async (path, section) => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp([path])
     expect(await screen.findByText(section)).toBeInTheDocument()
+  })
+
+  it('redirects the old /household route to the Account settings page', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp(['/household'])
+    expect(await screen.findByText('AccountSection')).toBeInTheDocument()
   })
 
   it('shows the Planning nav entry only while planning mode is active', async () => {

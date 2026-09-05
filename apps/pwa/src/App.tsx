@@ -13,6 +13,9 @@ import './App.css'
 
 // Each route section is loaded on demand so its screen and dependencies form
 // their own chunk, keeping the initial download to the auth/onboarding shell.
+const AccountSection = lazy(() =>
+  import('./routes/AccountSection').then((m) => ({ default: m.AccountSection })),
+)
 const BreakdownDetailSection = lazy(() =>
   import('./routes/BreakdownDetailSection').then((m) => ({ default: m.BreakdownDetailSection })),
 )
@@ -24,6 +27,9 @@ const BudgetSection = lazy(() =>
 )
 const ChangelogSection = lazy(() =>
   import('./routes/ChangelogSection').then((m) => ({ default: m.ChangelogSection })),
+)
+const ConnectionsSection = lazy(() =>
+  import('./routes/ConnectionsSection').then((m) => ({ default: m.ConnectionsSection })),
 )
 const DeductionsSection = lazy(() =>
   import('./routes/DeductionsSection').then((m) => ({ default: m.DeductionsSection })),
@@ -48,20 +54,29 @@ const GoalsSection = lazy(() =>
 const HelpDebtSection = lazy(() =>
   import('./routes/HelpDebtSection').then((m) => ({ default: m.HelpDebtSection })),
 )
-const HomeSection = lazy(() =>
-  import('./routes/HomeSection').then((m) => ({ default: m.HomeSection })),
-)
 const InflowsSection = lazy(() =>
   import('./routes/InflowsSection').then((m) => ({ default: m.InflowsSection })),
 )
+const MembersSection = lazy(() =>
+  import('./routes/MembersSection').then((m) => ({ default: m.MembersSection })),
+)
 const NetWorthSection = lazy(() =>
   import('./routes/NetWorthSection').then((m) => ({ default: m.NetWorthSection })),
+)
+const NotificationsSection = lazy(() =>
+  import('./routes/NotificationsSection').then((m) => ({ default: m.NotificationsSection })),
+)
+const PartnerSection = lazy(() =>
+  import('./routes/PartnerSection').then((m) => ({ default: m.PartnerSection })),
 )
 const PayslipsSection = lazy(() =>
   import('./routes/PayslipsSection').then((m) => ({ default: m.PayslipsSection })),
 )
 const PlanningSection = lazy(() =>
   import('./routes/PlanningSection').then((m) => ({ default: m.PlanningSection })),
+)
+const PlanningModeSection = lazy(() =>
+  import('./routes/PlanningModeSection').then((m) => ({ default: m.PlanningModeSection })),
 )
 const SplitsSection = lazy(() =>
   import('./routes/SplitsSection').then((m) => ({ default: m.SplitsSection })),
@@ -231,16 +246,33 @@ function HouseholdShell({
             />
             <Route path="/whats-new" element={<ChangelogSection />} />
             <Route
-              path="/household"
+              path="/settings/account"
+              element={<AccountSection household={household} session={session} />}
+            />
+            <Route
+              path="/settings/members"
+              element={<MembersSection householdId={household.id} />}
+            />
+            <Route
+              path="/settings/partner"
               element={
-                <HomeSection
+                <PartnerSection
                   household={household}
-                  session={session}
                   onCreateInviteCode={onCreateInviteCode}
                   onRevokeInviteCode={onRevokeInviteCode}
                 />
               }
             />
+            <Route
+              path="/settings/connections"
+              element={<ConnectionsSection householdId={household.id} session={session} />}
+            />
+            <Route
+              path="/settings/notifications"
+              element={<NotificationsSection householdId={household.id} session={session} />}
+            />
+            <Route path="/settings/planning-mode" element={<PlanningModeSection />} />
+            <Route path="/household" element={<Navigate to="/settings/account" replace />} />
             <Route path="/" element={<Navigate to="/summary" replace />} />
             <Route path="*" element={<Navigate to="/summary" replace />} />
           </Routes>

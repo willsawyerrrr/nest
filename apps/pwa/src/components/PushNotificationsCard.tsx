@@ -1,15 +1,4 @@
-import {
-  Alert,
-  Badge,
-  Button,
-  Divider,
-  Group,
-  Loader,
-  Stack,
-  Switch,
-  Text,
-  Title,
-} from '@mantine/core'
+import { Alert, Badge, Button, Divider, Group, Loader, Stack, Switch, Text } from '@mantine/core'
 import type { NotificationTrigger } from '../hooks/useNotificationPreferences'
 import type { PushAction, PushStatus } from '../hooks/usePushNotifications'
 import { AppCard } from './AppCard'
@@ -113,10 +102,6 @@ export function PushNotificationsCard({
   return (
     <AppCard>
       <Stack gap="md">
-        <Title order={3} size="h5">
-          Notifications
-        </Title>
-
         {status === 'checking' ? (
           <Group gap="xs">
             <Loader size="xs" />

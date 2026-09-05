@@ -579,8 +579,8 @@ Payslips are actuals about income and tax, so they surface where those are alrea
 shown — a **member-scoped payslips list** plus **variance callouts on the Tax
 tab**:
 
-- **Entry & list**: a per-member payslips list (candidate home: the Household tab
-  next to tax profiles and Up connection, or a dedicated section) showing each
+- **Entry & list**: a per-member payslips list (candidate home: the Members &
+  tax profiles or Connections settings page, or a dedicated section) showing each
   period's gross / withheld / super / net and its variance against the projection,
   most recent first, with an "Add payslip" form. A slip lists its earnings lines
   grouped by the inflow each draws on and its tax lines grouped by the component

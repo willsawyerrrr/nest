@@ -1,4 +1,4 @@
-import { Group, Stack, Switch, Text, Title } from '@mantine/core'
+import { Group, Stack, Switch, Text } from '@mantine/core'
 import { AppCard } from './AppCard'
 import { usePlanningMode } from './PlanningModeProvider'
 
@@ -13,9 +13,7 @@ export function PlanningModeControl() {
     <AppCard>
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap">
-          <Title order={3} size="h5">
-            Planning mode
-          </Title>
+          <Text fw={600}>Planning mode</Text>
           <Switch
             aria-label="Planning mode"
             checked={active}

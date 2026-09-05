@@ -3,7 +3,8 @@
 Putting the household's money dates into whatever calendar app its members
 already use, as a **read-only iCalendar (`.ics`) feed** they subscribe to by
 URL. No Google Calendar write scope, no consent-screen change: the feed is
-anonymous, resolved by a bearer token the household mints on the Household tab.
+anonymous, resolved by a bearer token the household mints on the Connections
+settings page.
 
 ## Decision: a subscribable `.ics` URL, not calendar write access
 
@@ -74,7 +75,7 @@ and 75-octet line folding, no dependency) are the pure, DI-tested
 
 ## Frontend
 
-The Household tab's **Calendar feed** card: *Generate* mints the token and shows
+The Connections settings page's **Calendar feed** card: *Generate* mints the token and shows
 the `https://…/calendar-ics?token=…` URL and its `webcal://` twin once, with
 copy buttons and a one-line "Subscribe from URL" hint. *Regenerate* mints a
 fresh token (the old URL stops resolving); *Revoke* deletes it. The plaintext

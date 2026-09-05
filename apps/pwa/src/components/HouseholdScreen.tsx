@@ -2,7 +2,10 @@ import { Button, Code, CopyButton, Group, Stack, Text, Title } from '@mantine/co
 import { AppCard } from './AppCard'
 import { PageSection } from './PageSection'
 
-interface PartnerScreenProps {
+interface HouseholdScreenProps {
+  householdName: string
+  email: string
+  onSignOut: () => void
   inviteCode: string | null
   inviteCodeExpiresAt: string | null
   onCreateInviteCode: () => Promise<void>
@@ -19,20 +22,38 @@ function expiryLabel(expiresAt: string): string {
   return `Expires in ${days} days`
 }
 
-/** Presentational partner invite: create, regenerate, or revoke the household's invite code. */
-export function PartnerScreen({
+/**
+ * Presentational household settings: household name, signed-in email, sign
+ * out, and the partner invite code (create, regenerate, or revoke).
+ */
+export function HouseholdScreen({
+  householdName,
+  email,
+  onSignOut,
   inviteCode,
   inviteCodeExpiresAt,
   onCreateInviteCode,
   onRevokeInviteCode,
-}: PartnerScreenProps) {
+}: HouseholdScreenProps) {
   const codeActive =
     inviteCode !== null &&
     inviteCodeExpiresAt !== null &&
     new Date(inviteCodeExpiresAt).getTime() > Date.now()
 
   return (
-    <PageSection title="Partner">
+    <PageSection title="Household">
+      <AppCard>
+        <Stack align="center" gap="md">
+          <Title order={1} ta="center">
+            {householdName}
+          </Title>
+          <Text c="dimmed">Signed in as {email}</Text>
+          <Button variant="default" fullWidth onClick={onSignOut}>
+            Sign out
+          </Button>
+        </Stack>
+      </AppCard>
+
       <AppCard>
         <Stack gap="md">
           <Title order={3} size="h5">

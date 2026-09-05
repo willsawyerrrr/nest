@@ -237,8 +237,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   column of the same row, which `DEFAULT` cannot express — so a
   `snapshot_deduction_full_amount` BEFORE INSERT trigger fills it from
   `amount_cents` when a write leaves it unstated, the same shape
-  `snapshot_payslip_line_attracts_super` fills `attracts_super` with. Each deduction may
-  carry stored receipts (`deduction_receipt`), the
+  `snapshot_payslip_line_attracts_super` fills `attracts_super` with. A
+  deduction also states its `category` (`work_expense`, the default,
+  `donation`, or `tax_agent_fees` — extensible for any future kind that is not
+  a super contribution) up front, before the receipt is picked, mirroring how
+  `basis` is a form choice. `deduction_work_use_basis` pins `work_use_percent`
+  at 100 for every category but `work_expense` too, the same rule as the
+  distance basis: a donation and tax agent fees are claimed in full or not at
+  all, so the "Work use %" field is pinned and hidden for them exactly as it
+  already is on the distance basis. **Personal deductible super contributions
+  are never a `deduction` category.** They are entered on the Super tab as
+  `super_contribution.kind = 'personal_deductible'`, which already reduces
+  taxable income and feeds the concessional-cap tracking there; a `deduction`
+  row for one too would double-count it against taxable income and bypass cap
+  tracking entirely. Each deduction may carry stored receipts
+  (`deduction_receipt`), the
   files held in a private Supabase Storage bucket (`receipts`) laid out under
   `<household_id>/<deduction_id>/…` so Storage RLS gates access by household
   membership. Adding a deduction lets the member pick receipt files as the
@@ -247,13 +260,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   (Storage has no foreign key, so this is safe ahead of the row — unlike
   `deduction_receipt.deduction_id`, a real, non-deferrable one). Picking the
   first file is what triggers extraction pre-fill: it is read with Claude Haiku
-  4.5 via the `deduction-extract` edge function, which fills in the
+  4.5 via the `deduction-extract` edge function, primed with the deduction's
+  `category` to expect the right kind of document — a purchase receipt/invoice
+  for `work_expense`, a donation tax receipt for `donation`, an invoice for
+  `tax_agent_fees` — so a genuine DGR donation tax receipt is not rejected for
+  failing to look like a purchase. It fills in the
   description, amount, and date that are not already the member's own — typed
   here already — with a note saying the details were extracted by AI and
   asking for them to be checked; every failure mode (an unconfigured key, a
-  file that is not a receipt, an unsupported type or size, a rate limit, a
-  model failure) reads as its own inline note and never blocks the save,
-  exactly as payslip extraction. Only the first picked file is read — a second
+  file that does not look like the expected document, an unsupported type or
+  size, a rate limit, a model failure) reads as its own inline note and never
+  blocks the save, exactly as payslip extraction. Only the first picked file is read — a second
   and further ones upload alongside it without a second read, since one
   confirmed read is what the form works from. Each picked file lists under a
   name field seeded with the file's own name, so a receipt is stored under

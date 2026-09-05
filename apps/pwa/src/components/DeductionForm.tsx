@@ -21,7 +21,7 @@ import {
 } from '../hooks/useDeductionAttachment'
 import { useDeductionFields } from '../hooks/useDeductionFields'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
-import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
+import type { DeductionCategory, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
@@ -55,6 +55,13 @@ interface DeductionFormProps {
 }
 
 type Basis = DeductionRow['basis']
+
+/** The category picker's options, in the order shown. */
+const CATEGORY_OPTIONS: { value: DeductionCategory; label: string }[] = [
+  { value: 'work_expense', label: 'Work expense' },
+  { value: 'donation', label: 'Donation' },
+  { value: 'tax_agent_fees', label: 'Tax agent fee' },
+]
 
 /**
  * The group picker's "no group" option. A Select's value is a
@@ -212,6 +219,13 @@ function PendingReceiptItem({
  * from its row in the deductions list, exactly as before, so this form shows
  * only its own fields.
  *
+ * Before any of that, the member says **what kind of deduction** this is — a
+ * work expense (the default), a donation, or a tax agent fee — asked up front,
+ * before the receipt is picked: it primes `deduction-extract` to expect the
+ * right kind of document (a purchase receipt/invoice, a donation tax receipt,
+ * or an invoice) rather than rejecting a genuine donation tax receipt for not
+ * being a purchase.
+ *
  * A deduction is entered on an **amount** basis (a dollar figure, typed
  * directly) or a **distance** basis (kilometres travelled for a work-related car
  * expense claimed under the ATO's cents-per-kilometre method), toggled by the
@@ -219,16 +233,19 @@ function PendingReceiptItem({
  * shown back, read-only, from `financialYear`'s published cents-per-km rate, and
  * a warning appears if the distance exceeds the ATO's cap on kilometres
  * claimable per car per year under this method — advisory only, it never blocks
- * a save. On the amount basis, "Amount" is what the expense cost in FULL, not
- * necessarily what is claimed: a "Work use %" field beside it (100 by default)
- * apportions it, showing back the claimable figure once the percentage departs
- * from 100. `full_amount_cents` and `work_use_percent` are the source figures;
- * `amount_cents` is the apportioned result every downstream reader uses, so
- * editing a part-claimed deduction reopens on its full cost — not the
- * apportioned amount — with the claim recomputed from it and the percentage. A
- * distance-basis claim is pinned at 100% work use, its kilometres being
- * work-related already; a percentage on top would discount the claim twice. The
- * basis, the distance, and the work-use percentage are all the member's own
+ * a save. On the amount basis, for a **work expense**, "Amount" is what the
+ * expense cost in FULL, not necessarily what is claimed: a "Work use %" field
+ * beside it (100 by default) apportions it, showing back the claimable figure
+ * once the percentage departs from 100. `full_amount_cents` and
+ * `work_use_percent` are the source figures; `amount_cents` is the apportioned
+ * result every downstream reader uses, so editing a part-claimed deduction
+ * reopens on its full cost — not the apportioned amount — with the claim
+ * recomputed from it and the percentage. Work use is pinned at 100% and the
+ * field is hidden wherever apportioning does not apply: on the distance basis,
+ * whose kilometres are work-related already, and for a **donation** or
+ * **tax agent fee**, which is claimed in full or not at all — a percentage on
+ * top would discount the claim twice, or make no sense at all. The category,
+ * the basis, the distance, and the work-use percentage are all the member's own
  * throughout: a receipt read fills the description, amount, and date alone, so
  * none of them is pre-fillable and all stay outside `useDeductionFields`.
  */
@@ -253,6 +270,7 @@ export function DeductionForm({
     amount: centsToDollars(initial?.full_amount_cents ?? initial?.amount_cents),
     deductionDate: initial?.deduction_date ?? todayIso(),
   })
+  const [category, setCategory] = useState<DeductionCategory>(initial?.category ?? 'work_expense')
   const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
   // Opened from a group the deduction belongs to that group and the picker is
   // not offered; otherwise it starts wherever the deduction already sits.
@@ -267,6 +285,7 @@ export function DeductionForm({
   )
   const receipts = useDeductionAttachment({
     attachments,
+    category,
     onExtracted: (extraction) => fields.prefill(extraction),
   })
 
@@ -280,13 +299,20 @@ export function DeductionForm({
   const computedAmountCents = distanceValid ? carExpenseDeductionCents(distanceKmNumber, config) : 0
   const overCap = isDistance && distanceValid && distanceKmNumber > config.carExpense.maxClaimableKm
   const fullAmountCents = dollarsToCents(values.amount) ?? 0
-  const workUsePercentNumber =
+  // Work use is pinned to 100% wherever it cannot be apportioned: the distance
+  // basis, whose kilometres are work-related already, or a non-work-expense
+  // category — a donation and tax agent fees are claimed in full or not at
+  // all, never split by work use.
+  const apportionable = !isDistance && category === 'work_expense'
+  const enteredWorkUsePercent =
     typeof workUsePercent === 'number' ? workUsePercent : Number.parseFloat(workUsePercent)
   const workUsePercentValid =
-    workUsePercent !== '' &&
-    Number.isFinite(workUsePercentNumber) &&
-    workUsePercentNumber > 0 &&
-    workUsePercentNumber <= 100
+    !apportionable ||
+    (workUsePercent !== '' &&
+      Number.isFinite(enteredWorkUsePercent) &&
+      enteredWorkUsePercent > 0 &&
+      enteredWorkUsePercent <= 100)
+  const workUsePercentNumber = apportionable ? enteredWorkUsePercent : 100
   const apportionedAmountCents = workUsePercentValid
     ? workUseAmountCents(fullAmountCents, workUsePercentNumber)
     : 0
@@ -316,12 +342,13 @@ export function DeductionForm({
         basis,
         distance_km: isDistance ? distanceKmNumber : null,
         group_id: groupId ?? pickedGroupId,
-        // A distance-basis claim is work-related in full — its kilometres are
-        // work kilometres already — so it is pinned at 100% regardless of
-        // whatever the percentage field last held from an earlier amount-basis
-        // edit; deduction_work_use_basis holds the database to the same rule.
+        category,
+        // Pinned at 100% wherever it cannot be apportioned, regardless of
+        // whatever the percentage field last held from an earlier
+        // work-expense/amount-basis edit; deduction_work_use_basis holds the
+        // database to the same rule.
         full_amount_cents: isDistance ? computedAmountCents : fullAmountCents,
-        work_use_percent: isDistance ? 100 : workUsePercentNumber,
+        work_use_percent: workUsePercentNumber,
       },
       // A name left blank is a receipt named nothing, which stores as `Receipt`
       // rather than holding the save over a label.
@@ -343,6 +370,15 @@ export function DeductionForm({
       addLabel={groupId ? 'payment' : 'deduction'}
       onCancel={onCancel}
     >
+      <EnumSegmentedControl
+        fullWidth
+        size="sm"
+        aria-label="What kind of deduction?"
+        value={category}
+        onChange={setCategory}
+        data={CATEGORY_OPTIONS}
+      />
+
       {adding && (
         <Stack gap={6}>
           <FileInput
@@ -423,25 +459,31 @@ export function DeductionForm({
           <MoneyInput
             label="Amount"
             size="sm"
-            description="What the expense cost in full."
+            description={
+              apportionable
+                ? 'What the expense cost in full.'
+                : 'The receipted amount, claimed in full.'
+            }
             min={0}
             hideControls
             value={values.amount}
             onChange={fields.setAmount}
           />
-          <NumberInput
-            label="Work use %"
-            size="sm"
-            description="The share used for work; 100% if it's for work only."
-            suffix="%"
-            decimalScale={2}
-            min={0.01}
-            max={100}
-            hideControls
-            value={workUsePercent}
-            onChange={setWorkUsePercent}
-          />
-          {workUsePercentValid && workUsePercentNumber !== 100 && (
+          {apportionable && (
+            <NumberInput
+              label="Work use %"
+              size="sm"
+              description="The share used for work; 100% if it's for work only."
+              suffix="%"
+              decimalScale={2}
+              min={0.01}
+              max={100}
+              hideControls
+              value={workUsePercent}
+              onChange={setWorkUsePercent}
+            />
+          )}
+          {apportionable && workUsePercentValid && workUsePercentNumber !== 100 && (
             <Text size="sm" c="dimmed">
               Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
             </Text>

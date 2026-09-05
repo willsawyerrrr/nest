@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DeductionExtraction, ExtractionFailure } from '../lib/deductionExtraction'
 import type { PrefillSummary } from './useDeductionFields'
 import type { PendingReceipt } from './useDeductionReceipts'
+import type { DeductionCategory } from './useDeductions'
 
 /** What the form says when a receipt itself could not be stored. */
 export const UPLOAD_FAILED_MESSAGE =
@@ -24,9 +25,13 @@ export interface DeductionAttachments {
    * an unreferenced object behind, which is not worth failing the form over.
    */
   discard: (path: string) => Promise<void>
-  /** Reads an uploaded receipt through `deduction-extract` so the form can pre-fill. */
+  /**
+   * Reads an uploaded receipt through `deduction-extract` so the form can
+   * pre-fill, primed for the category's expected kind of document.
+   */
   read: (
     path: string,
+    category: DeductionCategory,
   ) => Promise<{ status: 'read'; extraction: DeductionExtraction } | ExtractionFailure>
 }
 
@@ -57,6 +62,13 @@ export interface UseDeductionAttachmentResult {
 
 interface UseDeductionAttachmentOptions {
   attachments: DeductionAttachments
+  /**
+   * The deduction's category at the moment a file is read — chosen on the form
+   * before the file is picked, so extraction is primed for the right kind of
+   * document from the start. Read at read-time via a ref (see `extracted`
+   * below), so a render that changes it before the read completes is not lost.
+   */
+  category: DeductionCategory
   /** Applies a successful read to the form's fields, reporting what it did. */
   onExtracted: (extraction: DeductionExtraction) => PrefillSummary
 }
@@ -81,9 +93,15 @@ interface UseDeductionAttachmentOptions {
  * A file the member removes, or leaves behind when the form is cancelled or
  * closed, is deleted again, best effort — a delete that fails is swallowed,
  * and a closed tab runs no cleanup at all.
+ *
+ * The read is primed with the deduction's `category`, chosen on the form
+ * before the file is picked, so extraction expects the right kind of document
+ * from the start rather than rejecting a genuine donation tax receipt for not
+ * being a purchase receipt.
  */
 export function useDeductionAttachment({
   attachments,
+  category,
   onExtracted,
 }: UseDeductionAttachmentOptions): UseDeductionAttachmentResult {
   const [deductionId] = useState(() => crypto.randomUUID())
@@ -102,6 +120,10 @@ export function useDeductionAttachment({
   // caller whose callback changes identity every render.
   const extracted = useRef(onExtracted)
   extracted.current = onExtracted
+  // The category at the moment the read actually runs, not the one in scope
+  // when addFile was memoised.
+  const categoryRef = useRef(category)
+  categoryRef.current = category
 
   useEffect(
     () => () => {
@@ -147,7 +169,7 @@ export function useDeductionAttachment({
       }
 
       setState({ status: 'reading' })
-      const outcome = await attachments.read(stored.storage_path)
+      const outcome = await attachments.read(stored.storage_path, categoryRef.current)
       if (gone.current) {
         return
       }

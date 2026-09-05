@@ -7,6 +7,9 @@ import type { PendingReceipt } from './useDeductionReceipts'
 
 export type DeductionRow = Tables<'deduction'>
 
+/** What kind of deductible expense a deduction is; see `DeductionInput.category`. */
+export type DeductionCategory = DeductionRow['category']
+
 /**
  * The deduction fields a form supplies for a member; the household and financial
  * year are set by the hook. A member may claim many deductions, so deductions are
@@ -28,6 +31,13 @@ export type DeductionRow = Tables<'deduction'>
  * apportioned: the whole cost and the share of it claimed. Both default so an
  * unqualified deduction is claimed in full, matching what a deduction always
  * was before apportioning existed.
+ *
+ * `category` says what kind of deductible expense this is: `'work_expense'`
+ * (the default, apportionable by work use), `'donation'`, or
+ * `'tax_agent_fees'`. Every category but `'work_expense'` is claimed in full or
+ * not at all — never apportioned — so `deduction_work_use_basis` pins
+ * `work_use_percent` to 100 for it, the same treatment the distance basis
+ * already gets.
  */
 export interface DeductionInput {
   member_id: string
@@ -41,6 +51,7 @@ export interface DeductionInput {
   full_amount_cents?: number
   /** The share of `full_amount_cents` claimed, as a percentage; 100 for a wholly work-related expense. */
   work_use_percent?: number
+  category?: DeductionRow['category']
 }
 
 /**

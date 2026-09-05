@@ -25,8 +25,10 @@ function receipt(name = 'receipt.pdf') {
   return new File(['x'], name, { type: 'application/pdf' })
 }
 
-function renderAttachment() {
-  return renderHook(() => useDeductionAttachment({ attachments, onExtracted }))
+function renderAttachment(
+  category: 'work_expense' | 'donation' | 'tax_agent_fees' = 'work_expense',
+) {
+  return renderHook(() => useDeductionAttachment({ attachments, category, onExtracted }))
 }
 
 beforeEach(() => {
@@ -55,13 +57,21 @@ describe('useDeductionAttachment', () => {
     const [deductionId, uploaded] = upload.mock.calls[0]!
     expect(deductionId).toBe(result.current.deductionId)
     expect(uploaded).toBe(file)
-    expect(read).toHaveBeenCalledWith(`h1/${deductionId}/uuid-receipt.pdf`)
+    expect(read).toHaveBeenCalledWith(`h1/${deductionId}/uuid-receipt.pdf`, 'work_expense')
     expect(onExtracted).toHaveBeenCalledWith(extraction)
     expect(result.current.state).toEqual({ status: 'read', ...summary })
     expect(result.current.files).toEqual([
       { storage_path: `h1/${deductionId}/uuid-receipt.pdf`, file_name: 'receipt.pdf' },
     ])
     expect(result.current.busy).toBe(false)
+  })
+
+  it('primes the read with the category passed to the hook', async () => {
+    const { result } = renderAttachment('donation')
+
+    await act(async () => await result.current.addFile(receipt()))
+
+    expect(read).toHaveBeenCalledWith(expect.any(String), 'donation')
   })
 
   it('mints one id for the form, so every file lands under the same prefix', async () => {

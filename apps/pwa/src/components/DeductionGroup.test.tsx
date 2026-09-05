@@ -34,6 +34,7 @@ function makePayment(overrides: Partial<DeductionRow> = {}): DeductionRow {
     group_id: 'g1',
     full_amount_cents: 64_99,
     work_use_percent: 100,
+    category: 'work_expense',
     created_at: '',
     updated_at: '',
     ...overrides,

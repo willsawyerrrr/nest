@@ -440,6 +440,7 @@ describe('deductionsByMember', () => {
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
+    category: 'work_expense',
     created_at: '',
     updated_at: '',
   }
@@ -475,6 +476,7 @@ describe('estimateHouseholdTaxFromRows deductions', () => {
     group_id: null,
     full_amount_cents: 10_000_00,
     work_use_percent: 100,
+    category: 'work_expense',
     created_at: '',
     updated_at: '',
   }

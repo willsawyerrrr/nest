@@ -29,6 +29,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
+    category: 'work_expense',
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -193,6 +194,7 @@ describe('DeductionForm', () => {
         basis: 'amount',
         distance_km: null,
         group_id: null,
+        category: 'work_expense',
         full_amount_cents: 1_200_00,
         work_use_percent: 100,
       },
@@ -296,7 +298,7 @@ describe('DeductionForm receipt extraction', () => {
     expect(submission.receipts).toEqual([
       { storage_path: `h1/${submission.id}/uuid-receipt.pdf`, file_name: 'receipt.pdf' },
     ])
-    expect(read).toHaveBeenCalledWith(submission.receipts[0]!.storage_path)
+    expect(read).toHaveBeenCalledWith(submission.receipts[0]!.storage_path, 'work_expense')
   })
 
   it('says the details were extracted and asks for a check, without restating them', async () => {
@@ -386,7 +388,7 @@ describe('DeductionForm receipt extraction', () => {
     await attach(user, 'second.pdf')
 
     expect(read).toHaveBeenCalledTimes(1)
-    expect(read).toHaveBeenCalledWith(expect.stringContaining('first.pdf'))
+    expect(read).toHaveBeenCalledWith(expect.stringContaining('first.pdf'), 'work_expense')
     expect(screen.getByDisplayValue('first.pdf')).toBeInTheDocument()
     expect(screen.getByDisplayValue('second.pdf')).toBeInTheDocument()
   })
@@ -866,5 +868,117 @@ describe('DeductionForm work-use apportioning', () => {
         }),
       ),
     )
+  })
+})
+
+describe('DeductionForm category', () => {
+  it('defaults to a work expense, with the work-use field shown', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText(/work use/i)).toBeInTheDocument()
+  })
+
+  it('hides the work-use field and pins it at 100% for a donation', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByText('Donation'))
+    // A non-sequitur on a donation: it's claimed in full or not at all.
+    expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/description/i), 'Red Cross')
+    await user.type(screen.getByLabelText(/^amount/i), '250')
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            category: 'donation',
+            amount_cents: 250_00,
+            full_amount_cents: 250_00,
+            work_use_percent: 100,
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('hides the work-use field and pins it at 100% for tax agent fees', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByText('Tax agent fee'))
+    expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/description/i), 'Accountant')
+    await user.type(screen.getByLabelText(/^amount/i), '400')
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            category: 'tax_agent_fees',
+            amount_cents: 400_00,
+            work_use_percent: 100,
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('primes extraction with the chosen category before the file is read', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByText('Donation'))
+    await attach(user)
+
+    expect(read).toHaveBeenCalledWith(expect.any(String), 'donation')
+  })
+
+  it('reopens an existing donation on its own category, with the work-use field hidden', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction({ category: 'donation' })}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
   })
 })

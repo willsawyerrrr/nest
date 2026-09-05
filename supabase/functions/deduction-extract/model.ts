@@ -82,8 +82,14 @@ export interface ModelFailure {
 
 export type ModelResult = ModelSuccess | ModelFailure
 
-/** Sends a receipt to the model and reports the fields it read. */
-export type ReceiptExtractor = (file: ReceiptFile) => Promise<ModelResult>
+/**
+ * Sends a receipt to the model and reports the fields it read. `category`
+ * defaults to `work_expense`, the default `deduction.category`.
+ */
+export type ReceiptExtractor = (
+  file: ReceiptFile,
+  category?: DeductionCategory,
+) => Promise<ModelResult>
 
 /**
  * Resolves the media type to send, preferring what Storage recorded and
@@ -108,38 +114,78 @@ export function maxBytesFor(mediaType: SupportedMediaType): number {
   return mediaType === 'application/pdf' ? MAX_PDF_BYTES : MAX_IMAGE_BYTES
 }
 
-const SYSTEM_PROMPT = [
-  'You read receipts for tax-deductible expenses and report the figures printed',
-  'on them, for a person to confirm before saving. You never save anything',
-  'yourself.',
-  '',
-  'Report the amount as the literal text printed on the receipt, character for',
-  'character, including its thousands separators, decimal point, and any',
-  'currency sign — never a number you have computed, converted, rounded, or',
-  'reformatted. Report the TOTAL amount paid, never a subtotal, a GST or other',
-  'tax line, or a single line item where the receipt lists several.',
-  '',
-  'Report the description as the merchant or business name printed on the',
-  'receipt. Where no business name is printed, report what was purchased',
-  'instead, in a few words.',
-  '',
-  'Report the date as YYYY-MM-DD, converting the receipt’s own format',
-  '(Australian receipts write DD/MM/YYYY). Where a receipt prints more than one',
-  'date, report the date of purchase or transaction, never a statement or due',
-  'date.',
-  '',
-  'If the receipt does not show a field, report null for it: a null is filled',
-  'in by hand, while a guess becomes a wrong deduction nobody notices. Never',
-  'derive a figure by adding, subtracting, or estimating from others, and never',
-  'carry a figure over from a similar receipt you have seen.',
-  '',
-  'If the document is not a receipt or invoice for a purchase, set is_receipt to',
-  'false, say why in not_receipt_reason, and report null for every field.',
-].join('\n')
+/**
+ * A deduction's kind, mirroring the `deduction.category` column: `work_expense`
+ * (the default), `donation`, or `tax_agent_fees`. Personal deductible super
+ * contributions are never a deduction category — they are entered on the Super
+ * tab as `super_contribution.kind = 'personal_deductible'` — so extraction is
+ * never asked to read one.
+ */
+export type DeductionCategory = 'work_expense' | 'donation' | 'tax_agent_fees'
 
-/** The description shown to the model for each field it reads. */
-const FIELD_PROMPTS: Record<string, string> = {
-  description: 'The merchant/business name as printed, or — absent one — what was purchased.',
+/** What each category expects the model to read a document as. */
+interface CategoryExpectation {
+  /** Named in the rejection instruction and the `is_receipt` tool description. */
+  documentKind: string
+  /** What the description field should be read as, for this kind of document. */
+  descriptionGuidance: string
+  descriptionPrompt: string
+}
+
+const CATEGORY_EXPECTATIONS: Record<DeductionCategory, CategoryExpectation> = {
+  work_expense: {
+    documentKind: 'a receipt or invoice for a purchase',
+    descriptionGuidance:
+      'Report the description as the merchant or business name printed on the receipt. Where no business name is printed, report what was purchased instead, in a few words.',
+    descriptionPrompt:
+      'The merchant/business name as printed, or — absent one — what was purchased.',
+  },
+  donation: {
+    documentKind: 'a donation tax receipt from a deductible gift recipient (DGR)',
+    descriptionGuidance:
+      'Report the description as the charity or deductible gift recipient (DGR) name printed on the receipt.',
+    descriptionPrompt: 'The charity or DGR name as printed on the receipt.',
+  },
+  tax_agent_fees: {
+    documentKind: 'an invoice for tax agent or accountant fees',
+    descriptionGuidance:
+      'Report the description as the tax agent or accounting firm name printed on the invoice.',
+    descriptionPrompt: 'The tax agent or accounting firm name as printed on the invoice.',
+  },
+}
+
+function buildSystemPrompt(category: DeductionCategory): string {
+  const { documentKind, descriptionGuidance } = CATEGORY_EXPECTATIONS[category]
+  return [
+    'You read receipts for tax-deductible expenses and report the figures printed',
+    'on them, for a person to confirm before saving. You never save anything',
+    'yourself.',
+    '',
+    'Report the amount as the literal text printed on the receipt, character for',
+    'character, including its thousands separators, decimal point, and any',
+    'currency sign — never a number you have computed, converted, rounded, or',
+    'reformatted. Report the TOTAL amount paid, never a subtotal, a GST or other',
+    'tax line, or a single line item where the receipt lists several.',
+    '',
+    descriptionGuidance,
+    '',
+    'Report the date as YYYY-MM-DD, converting the receipt’s own format',
+    '(Australian receipts write DD/MM/YYYY). Where a receipt prints more than one',
+    'date, report the date of purchase or transaction, never a statement or due',
+    'date.',
+    '',
+    'If the receipt does not show a field, report null for it: a null is filled',
+    'in by hand, while a guess becomes a wrong deduction nobody notices. Never',
+    'derive a figure by adding, subtracting, or estimating from others, and never',
+    'carry a figure over from a similar receipt you have seen.',
+    '',
+    `If the document is not ${documentKind}, set is_receipt to`,
+    'false, say why in not_receipt_reason, and report null for every field.',
+  ].join('\n')
+}
+
+/** The description shown to the model for the date and amount fields, the same for every category. */
+const FIELD_PROMPTS = {
   deduction_date: 'The date of purchase, as printed.',
   amount: 'The total amount paid, as printed.',
 }
@@ -152,28 +198,33 @@ function nullableString(description: string) {
   }
 }
 
-/** The tool that carries the extraction; forcing it is what makes the answer structured. */
-export const RECEIPT_TOOL: Anthropic.Tool = {
-  name: 'record_receipt',
-  description:
-    'Report the fields read from a receipt so a person can confirm them. The amount is the literal text printed on the receipt.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      is_receipt: {
-        type: 'boolean',
-        description:
-          'True when this document is a receipt or invoice for a purchase; false for anything else.',
+/** The tool that carries the extraction, tailored to what a document of this category should look like. */
+export function buildReceiptTool(category: DeductionCategory): Anthropic.Tool {
+  const { documentKind, descriptionPrompt } = CATEGORY_EXPECTATIONS[category]
+  return {
+    name: 'record_receipt',
+    description:
+      'Report the fields read from a receipt so a person can confirm them. The amount is the literal text printed on the receipt.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        is_receipt: {
+          type: 'boolean',
+          description: `True when this document is ${documentKind}; false for anything else.`,
+        },
+        not_receipt_reason: nullableString('What the document is, when it is not a receipt.'),
+        description: nullableString(descriptionPrompt),
+        deduction_date: nullableString(FIELD_PROMPTS.deduction_date),
+        amount: nullableString(FIELD_PROMPTS.amount),
       },
-      not_receipt_reason: nullableString('What the document is, when it is not a receipt.'),
-      description: nullableString(FIELD_PROMPTS.description!),
-      deduction_date: nullableString(FIELD_PROMPTS.deduction_date!),
-      amount: nullableString(FIELD_PROMPTS.amount!),
+      required: ['is_receipt', 'not_receipt_reason', 'description', 'deduction_date', 'amount'],
+      additionalProperties: false,
     },
-    required: ['is_receipt', 'not_receipt_reason', 'description', 'deduction_date', 'amount'],
-    additionalProperties: false,
-  },
+  }
 }
+
+/** The `work_expense` tool schema — a receipt or invoice for a purchase, the default category. */
+export const RECEIPT_TOOL: Anthropic.Tool = buildReceiptTool('work_expense')
 
 /**
  * How long one extraction may take before the member is told to retry, and how
@@ -199,7 +250,7 @@ export function anthropicExtractor(apiKey: string, fetchImpl?: typeof fetch): Re
     timeout: REQUEST_TIMEOUT_MS,
     ...(fetchImpl ? { fetch: fetchImpl } : {}),
   })
-  return (file) => extractWithClient(client, file)
+  return (file, category = 'work_expense') => extractWithClient(client, file, category)
 }
 
 /** The document (or image) block for the file, placed before the instruction. */
@@ -257,16 +308,18 @@ function apiFailure(error: APIError): ModelFailure['failure'] {
 async function extractWithClient(
   client: Anthropic,
   file: ReceiptFile,
+  category: DeductionCategory,
 ): Promise<ModelResult> {
+  const tool = buildReceiptTool(category)
   let message: Anthropic.Message
   try {
     message = await client.messages.create({
       model: DEDUCTION_MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: SYSTEM_PROMPT,
-      tools: [RECEIPT_TOOL],
+      system: buildSystemPrompt(category),
+      tools: [tool],
       // Forcing the tool is what guarantees a structured answer rather than prose.
-      tool_choice: { type: 'tool', name: RECEIPT_TOOL.name },
+      tool_choice: { type: 'tool', name: tool.name },
       messages: [{
         role: 'user',
         content: [fileBlock(file), {

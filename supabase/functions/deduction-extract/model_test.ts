@@ -2,6 +2,7 @@ import { assertEquals } from '@std/assert'
 import { toExtraction } from './fields.ts'
 import {
   anthropicExtractor,
+  buildReceiptTool,
   DEDUCTION_MODEL,
   MAX_IMAGE_BYTES,
   MAX_PDF_BYTES,
@@ -119,6 +120,61 @@ Deno.test('every extracted field is nullable in the tool schema', () => {
   // receipt" is a valid answer.
   assertEquals(schema.required.includes('amount'), true)
   assertEquals(schema.required.includes('is_receipt'), true)
+})
+
+Deno.test('the donation tool schema expects a DGR donation tax receipt, not a purchase', () => {
+  const schema = buildReceiptTool('donation').input_schema as {
+    properties: Record<string, { description: string }>
+  }
+  const isReceiptDescription = schema.properties.is_receipt.description
+  assertEquals(isReceiptDescription.includes('donation tax receipt'), true)
+  assertEquals(isReceiptDescription.includes('DGR'), true)
+  // Never asked to reject a genuine donation receipt for not being a purchase.
+  assertEquals(isReceiptDescription.toLowerCase().includes('purchase'), false)
+})
+
+Deno.test('the tax agent fees tool schema expects an invoice for accountant fees', () => {
+  const schema = buildReceiptTool('tax_agent_fees').input_schema as {
+    properties: Record<string, { description: string }>
+  }
+  const isReceiptDescription = schema.properties.is_receipt.description
+  assertEquals(isReceiptDescription.includes('tax agent or accountant fees'), true)
+})
+
+Deno.test('the work expense tool schema keeps expecting a purchase receipt or invoice', () => {
+  const schema = buildReceiptTool('work_expense').input_schema as {
+    properties: Record<string, { description: string }>
+  }
+  assertEquals(
+    schema.properties.is_receipt.description.includes('a receipt or invoice for a purchase'),
+    true,
+  )
+})
+
+Deno.test('the extractor primes the model for the category it is given', async () => {
+  const { requests, fetchImpl } = stub(() => toolResponse(FIELDS))
+  await anthropicExtractor('sk-ant-test', fetchImpl)(
+    { mediaType: 'application/pdf', bytes: new Uint8Array([1, 2, 3]) },
+    'donation',
+  )
+
+  const [body] = requests
+  assertEquals(String(body.system).includes('donation tax receipt'), true)
+  assertEquals((body.tools as { name: string }[])[0]!.name, 'record_receipt')
+  const tool =
+    (body.tools as { input_schema: { properties: Record<string, { description: string }> } }[])[0]!
+  assertEquals(tool.input_schema.properties.is_receipt.description.includes('DGR'), true)
+})
+
+Deno.test('the extractor defaults to the work-expense category when none is given', async () => {
+  const { requests, fetchImpl } = stub(() => toolResponse(FIELDS))
+  await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1, 2, 3]),
+  })
+
+  const [body] = requests
+  assertEquals(String(body.system).includes('a receipt or invoice for a purchase'), true)
 })
 
 Deno.test('the extractor reports a response with no extraction as malformed', async () => {

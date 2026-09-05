@@ -29,5 +29,12 @@ coverage/
 *.swp
 .corepack/
 
+# Xcode (apps/ios) — the .xcodeproj and Info.plist are generated from
+# project.yml via xcodegen
+*.xcodeproj/
+apps/ios/Nest/Info.plist
+xcuserdata/
+DerivedData/
+
 # Personal, machine-specific Claude notes — never shared via CLAUDE.md
 CLAUDE.local.md

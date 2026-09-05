@@ -8,7 +8,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 
 ## Fixed scope decisions
 
-- Platform: one PWA for both iOS (installed via Safari) and web. No native app.
+- Platform: one PWA for both iOS (installed via Safari) and web. `apps/ios` is
+  an evaluation prototype only — a native shell embedding the PWA in a
+  `WKWebView`, built to inform a go/no-go call on investing in App Intents
+  (WSD-95) — not a committed platform change; the PWA remains the product. See
+  [`docs/ios-shell.md`](docs/ios-shell.md).
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
   Schema migrations under `supabase/migrations/` auto-deploy to prod on merge to

@@ -28,3 +28,6 @@ coverage/
 .vscode/
 *.swp
 .corepack/
+
+# Personal, machine-specific Claude notes — never shared via CLAUDE.md
+CLAUDE.local.md

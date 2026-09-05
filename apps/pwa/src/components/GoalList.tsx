@@ -117,6 +117,9 @@ function GoalRow({
         aria-label={`${goal.name} progress`}
         style={{ width: '6rem', flexShrink: 0 }}
       />
+      <Text size="sm" ta="right" style={{ width: '6rem', flexShrink: 0 }}>
+        {formatCents(goal.target_amount_cents)}
+      </Text>
       {contributionCents > 0 ? (
         <FortnightlyAmount
           cents={contributionCents}

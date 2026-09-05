@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '../test/render'
-import { PartnerScreen } from './PartnerScreen'
+import { HouseholdScreen } from './HouseholdScreen'
 
-function renderPartner(overrides: Partial<Parameters<typeof PartnerScreen>[0]> = {}) {
+function renderHousehold(overrides: Partial<Parameters<typeof HouseholdScreen>[0]> = {}) {
   return render(
-    <PartnerScreen
+    <HouseholdScreen
+      householdName="The Sawyers"
+      email="will@example.com"
+      onSignOut={vi.fn()}
       inviteCode={null}
       inviteCodeExpiresAt={null}
       onCreateInviteCode={vi.fn()}
@@ -19,15 +22,26 @@ const activeCode = {
   inviteCodeExpiresAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
 }
 
-describe('PartnerScreen', () => {
-  it('renders the page title', () => {
-    renderPartner()
+describe('HouseholdScreen', () => {
+  it('renders the page title, household name, and signed-in email', () => {
+    renderHousehold()
 
-    expect(screen.getByRole('heading', { name: 'Partner' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Household' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'The Sawyers' })).toBeInTheDocument()
+    expect(screen.getByText(/will@example\.com/)).toBeInTheDocument()
+  })
+
+  it('invokes onSignOut when the button is clicked', () => {
+    const onSignOut = vi.fn()
+    renderHousehold({ onSignOut })
+
+    fireEvent.click(screen.getByRole('button', { name: /sign out/i }))
+
+    expect(onSignOut).toHaveBeenCalledOnce()
   })
 
   it('offers to create a code and shows none when there is no active code', () => {
-    renderPartner()
+    renderHousehold()
 
     expect(screen.getByRole('button', { name: /create invite code/i })).toBeInTheDocument()
     expect(screen.queryByText('abcd1234')).not.toBeInTheDocument()
@@ -35,7 +49,7 @@ describe('PartnerScreen', () => {
   })
 
   it('treats an expired code as no active code', () => {
-    renderPartner({
+    renderHousehold({
       inviteCode: 'abcd1234',
       inviteCodeExpiresAt: new Date(Date.now() - 86_400_000).toISOString(),
     })
@@ -46,7 +60,7 @@ describe('PartnerScreen', () => {
 
   it('invokes onCreateInviteCode from the create button', () => {
     const onCreateInviteCode = vi.fn()
-    renderPartner({ onCreateInviteCode })
+    renderHousehold({ onCreateInviteCode })
 
     fireEvent.click(screen.getByRole('button', { name: /create invite code/i }))
 
@@ -54,7 +68,7 @@ describe('PartnerScreen', () => {
   })
 
   it('shows an active code with copy, expiry, regenerate, and revoke', () => {
-    renderPartner(activeCode)
+    renderHousehold(activeCode)
 
     expect(screen.getByText('abcd1234')).toBeInTheDocument()
     const card = screen.getByText('abcd1234').closest('.mantine-Card-root') as HTMLElement
@@ -67,7 +81,7 @@ describe('PartnerScreen', () => {
   })
 
   it('describes a code lapsing within a day', () => {
-    renderPartner({
+    renderHousehold({
       inviteCode: 'abcd1234',
       inviteCodeExpiresAt: new Date(Date.now() + 3 * 3_600_000).toISOString(),
     })
@@ -77,7 +91,7 @@ describe('PartnerScreen', () => {
 
   it('invokes onCreateInviteCode from the regenerate button', () => {
     const onCreateInviteCode = vi.fn()
-    renderPartner({ ...activeCode, onCreateInviteCode })
+    renderHousehold({ ...activeCode, onCreateInviteCode })
 
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
 
@@ -86,7 +100,7 @@ describe('PartnerScreen', () => {
 
   it('invokes onRevokeInviteCode from the revoke button', () => {
     const onRevokeInviteCode = vi.fn()
-    renderPartner({ ...activeCode, onRevokeInviteCode })
+    renderHousehold({ ...activeCode, onRevokeInviteCode })
 
     fireEvent.click(screen.getByRole('button', { name: /revoke/i }))
 

@@ -150,7 +150,7 @@ describe('TabBar', () => {
     renderTabBar('/budget')
 
     await user.click(groupHeader('Settings'))
-    await user.click(screen.getByRole('link', { name: 'Account' }))
+    await user.click(screen.getByRole('link', { name: 'Household' }))
 
     expect(pathname()).toBe('/settings/account')
     expect(groupHeader('Settings')).toHaveAttribute('aria-expanded', 'true')
@@ -393,7 +393,6 @@ describe('flattenNavItems', () => {
       '/eofy',
       '/settings/account',
       '/settings/members',
-      '/settings/partner',
       '/settings/connections',
       '/settings/notifications',
       '/settings/planning-mode',

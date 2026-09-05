@@ -83,9 +83,10 @@ vi.mock('./routes/BreakdownDetailSection', () => ({
 vi.mock('./routes/ChangelogSection', () => ({
   ChangelogSection: () => <div>ChangelogSection</div>,
 }))
-vi.mock('./routes/AccountSection', () => ({ AccountSection: () => <div>AccountSection</div> }))
+vi.mock('./routes/HouseholdSection', () => ({
+  HouseholdSection: () => <div>HouseholdSection</div>,
+}))
 vi.mock('./routes/MembersSection', () => ({ MembersSection: () => <div>MembersSection</div> }))
-vi.mock('./routes/PartnerSection', () => ({ PartnerSection: () => <div>PartnerSection</div> }))
 vi.mock('./routes/ConnectionsSection', () => ({
   ConnectionsSection: () => <div>ConnectionsSection</div>,
 }))
@@ -215,9 +216,8 @@ describe('App', () => {
     ['/breakdowns', 'BreakdownsSection'],
     ['/breakdowns/b1', 'BreakdownDetailSection'],
     ['/whats-new', 'ChangelogSection'],
-    ['/settings/account', 'AccountSection'],
+    ['/settings/account', 'HouseholdSection'],
     ['/settings/members', 'MembersSection'],
-    ['/settings/partner', 'PartnerSection'],
     ['/settings/connections', 'ConnectionsSection'],
     ['/settings/notifications', 'NotificationsSection'],
     ['/settings/planning-mode', 'PlanningModeSection'],
@@ -228,10 +228,16 @@ describe('App', () => {
     expect(await screen.findByText(section)).toBeInTheDocument()
   })
 
-  it('redirects the old /household route to the Account settings page', async () => {
+  it('redirects the old /household route to the Household settings page', async () => {
     mocks.getSession.mockResolvedValue({ data: { session } })
     renderApp(['/household'])
-    expect(await screen.findByText('AccountSection')).toBeInTheDocument()
+    expect(await screen.findByText('HouseholdSection')).toBeInTheDocument()
+  })
+
+  it('redirects the old /settings/partner route to the Household settings page', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp(['/settings/partner'])
+    expect(await screen.findByText('HouseholdSection')).toBeInTheDocument()
   })
 
   it('shows the Planning nav entry only while planning mode is active', async () => {

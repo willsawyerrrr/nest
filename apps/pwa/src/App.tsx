@@ -13,9 +13,6 @@ import './App.css'
 
 // Each route section is loaded on demand so its screen and dependencies form
 // their own chunk, keeping the initial download to the auth/onboarding shell.
-const AccountSection = lazy(() =>
-  import('./routes/AccountSection').then((m) => ({ default: m.AccountSection })),
-)
 const BreakdownDetailSection = lazy(() =>
   import('./routes/BreakdownDetailSection').then((m) => ({ default: m.BreakdownDetailSection })),
 )
@@ -54,6 +51,9 @@ const GoalsSection = lazy(() =>
 const HelpDebtSection = lazy(() =>
   import('./routes/HelpDebtSection').then((m) => ({ default: m.HelpDebtSection })),
 )
+const HouseholdSection = lazy(() =>
+  import('./routes/HouseholdSection').then((m) => ({ default: m.HouseholdSection })),
+)
 const InflowsSection = lazy(() =>
   import('./routes/InflowsSection').then((m) => ({ default: m.InflowsSection })),
 )
@@ -65,9 +65,6 @@ const NetWorthSection = lazy(() =>
 )
 const NotificationsSection = lazy(() =>
   import('./routes/NotificationsSection').then((m) => ({ default: m.NotificationsSection })),
-)
-const PartnerSection = lazy(() =>
-  import('./routes/PartnerSection').then((m) => ({ default: m.PartnerSection })),
 )
 const PayslipsSection = lazy(() =>
   import('./routes/PayslipsSection').then((m) => ({ default: m.PayslipsSection })),
@@ -247,22 +244,20 @@ function HouseholdShell({
             <Route path="/whats-new" element={<ChangelogSection />} />
             <Route
               path="/settings/account"
-              element={<AccountSection household={household} session={session} />}
-            />
-            <Route
-              path="/settings/members"
-              element={<MembersSection householdId={household.id} />}
-            />
-            <Route
-              path="/settings/partner"
               element={
-                <PartnerSection
+                <HouseholdSection
                   household={household}
+                  session={session}
                   onCreateInviteCode={onCreateInviteCode}
                   onRevokeInviteCode={onRevokeInviteCode}
                 />
               }
             />
+            <Route
+              path="/settings/members"
+              element={<MembersSection householdId={household.id} />}
+            />
+            <Route path="/settings/partner" element={<Navigate to="/settings/account" replace />} />
             <Route
               path="/settings/connections"
               element={<ConnectionsSection session={session} />}

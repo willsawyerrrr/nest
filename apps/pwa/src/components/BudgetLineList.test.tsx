@@ -95,10 +95,29 @@ describe('BudgetLineList', () => {
       />,
     )
 
-    // The route badge is a desktop-only affordance; on mobile the funding account is
-    // shown only in the edit form.
     expect(screen.getByText('Everyday')).toBeInTheDocument()
     expect(screen.getByText('House deposit')).toBeInTheDocument()
+  })
+
+  it('shows each line’s route badge on the mobile card', () => {
+    render(
+      <BudgetLineList
+        lines={[
+          line({ id: 'n', line_group: 'needs', name: 'Rent', destination_account_id: 'acc1' }),
+          line({ id: 's', line_group: 'savings', name: 'Deposit saver', goal_id: 'g1' }),
+        ]}
+        goals={[{ id: 'g1', name: 'House deposit' }]}
+        accounts={[{ id: 'acc1', name: 'Everyday' }]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const rent = screen.getByText('Rent').closest('.mantine-Card-root') as HTMLElement
+    expect(within(rent).getByText('Everyday')).toBeInTheDocument()
+    const saver = screen.getByText('Deposit saver').closest('.mantine-Card-root') as HTMLElement
+    expect(within(saver).getByText('House deposit')).toBeInTheDocument()
   })
 
   it('uses an account/goal emoji as the route icon and strips it from the label on desktop', () => {

@@ -206,12 +206,14 @@ function BudgetLineRow({
 }
 
 /**
- * One budget line as a compact bordered card for mobile: name stacked over
- * amount, frequency, and controls. A derived line shows an edit pencil and its
- * breakdown chevron in place of the edit/delete controls.
+ * One budget line as a compact bordered card for mobile: name (with its route
+ * badge alongside) stacked over amount, frequency, and controls. A derived line
+ * shows an edit pencil and its breakdown chevron in place of the edit/delete
+ * controls.
  */
 function BudgetLineCard({
   line,
+  route,
   source,
   onEdit,
   onDelete,
@@ -231,9 +233,12 @@ function BudgetLineCard({
     <AppCard withBorder padding="xs">
       <Group justify="space-between" wrap="nowrap" gap="sm">
         <Stack gap={2} style={{ minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate>
-            {line.name}
-          </Text>
+          <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+            <Text fw={600} size="sm" truncate>
+              {line.name}
+            </Text>
+            {route && <RouteBadge route={route} />}
+          </Group>
           <Group gap={6} wrap="nowrap">
             <MoneyText cents={line.amount_cents} size="xs" c="dimmed" />
             <Badge size="xs" variant="default">

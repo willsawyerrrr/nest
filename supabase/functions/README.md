@@ -112,10 +112,11 @@ directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
-`payslip-extract`, `deduction-extract`, `share-create`, and `notify-eval` are
-JWT-verified (the default, so they carry no `config.toml` entry) — the caller is
-resolved from their JWT, so a member can only touch their own token, their own
-devices, files in their own household, and their own household's share;
+`payslip-extract`, `deduction-extract`, `share-create`, `intent-summary`, and
+`notify-eval` are JWT-verified (the default, so they carry no `config.toml`
+entry) — the caller is resolved from their JWT, so a member can only touch their
+own token, their own devices, files in their own household, their own household's
+share, and their own household's buffer;
 `up-sync`'s PWA Refresh carries the member's JWT while its hourly cron presents
 the service-role key, and `notify-eval` is cron-only — the gateway verifies the
 bearer and the handler admits nothing but a `service_role` one. `up-webhook`, `eofy-share`, and `eofy-share-file` are the
@@ -137,6 +138,7 @@ supabase functions serve eofy-share
 supabase functions serve eofy-share-file
 supabase functions serve share-create
 supabase functions serve notify-eval
+supabase functions serve intent-summary
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -402,11 +404,8 @@ daily cron that decides when to notify.
   appends a `notification_log` row. A row is written only once a device took
   the push, so a run where every endpoint failed transiently is retried the
   next day. Dead endpoints (`404`/`410`) are pruned. The decision logic is the
-  pure, DI-tested `notify-eval/eval.ts`; the row → engine-input shaping is
-  `notify-eval/tax.ts`, a Deno mirror of the buffer slice of
-  `apps/pwa/src/lib/tax.ts`'s `estimateHouseholdTaxFromRows` (the runtime
-  cannot import the PWA's `lib/`, so the row shaping is per-consumer — the
-  tax math itself stays in the shared packages).
+  pure, DI-tested `notify-eval/eval.ts`; its `buffer_negative` figure is the
+  shared household buffer (see [Household buffer](#household-buffer)).
 
 `@nest/plan` and `@nest/tax` reach the edge runtime through
 `_shared/vendor/`. The Supabase CLI bundles each function inside a container
@@ -443,3 +442,29 @@ at once. There is no store RPC: the operator sets and rotates them by hand.
 Generation, the exact `vault.create_secret` calls, rotation, and the iOS
 install/version requirements are in
 [`docs/operations.md`](../../docs/operations.md#web-push-vapid-keypair-setup).
+
+## Household buffer
+
+`_shared/householdBuffer/` is the one React-free implementation of the PWA
+Summary's on-screen "fortnightly after saving" figure — the port of
+`apps/pwa/src/lib/summary.ts`'s `summariseHousehold` and its helpers
+(`lib/tax.ts`'s `estimateHouseholdTaxFromRows` / `activeNowTaxableInflows` /
+`projectedInterestIncomeInputs`, `lib/breakdowns.ts`'s `derivedAmountContext`,
+`lib/derivedBudget.ts`'s `applyBreakdownAmounts`, `lib/gifts.ts`'s
+`giftTotalsByMember`). The runtime cannot import the PWA's `lib/`, so the row
+shaping is done here against loose interfaces; the tax and plan math itself stays
+in `@nest/tax` / `@nest/plan`. `tax.ts` holds the row shaping, `adapters.ts` the
+parity adapters, `summary.ts`'s `summariseHouseholdFromRows` the whole-year +
+active-now double reconciliation, and `bundle.ts` (`loadBudgetSummaryBundle`) the
+service-role row load both consumers wire in. `notify-eval`'s `buffer_negative`
+trigger and `intent-summary` both call it, so the Siri figure and the app's
+Summary never disagree.
+
+- **`intent-summary`** — POST, no body, `Bearer` Supabase access token.
+  JWT-verified: `_shared/caller.ts` resolves the caller's member, then one
+  `members` read gives their household. The rows load on a service-role client
+  (the buffer reads across the whole household, past the per-account
+  balance-privacy boundary) and the response is
+  `{ fortnightlyAfterSavingCents: number }` — the exact on-screen Summary buffer.
+  The pure flow is `intent-summary/run.ts` (`runIntentSummary`), DI-tested
+  against fakes. Serves the iOS App Intent behind "what's my Nest buffer".

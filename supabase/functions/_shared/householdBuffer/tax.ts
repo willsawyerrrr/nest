@@ -1,7 +1,7 @@
 /**
  * Shapes a household's raw rows into the `@nest/tax` engine's inputs and runs
- * the estimate — the slice of `apps/pwa/src/lib/tax.ts`'s
- * `estimateHouseholdTaxFromRows` that the buffer trigger needs.
+ * the estimate — the React-free port of `apps/pwa/src/lib/tax.ts`'s
+ * `estimateHouseholdTaxFromRows` that the server-side buffer is built on.
  *
  * The Deno edge runtime cannot import the PWA's `lib/` (it pulls in React, the
  * Supabase client, and the generated database types), so the row shaping is
@@ -266,30 +266,38 @@ export interface TaxEstimateRows {
  * Estimates the household's tax for `config`'s financial year from raw rows —
  * the Deno mirror of `apps/pwa/src/lib/tax.ts`'s `estimateHouseholdTaxFromRows`.
  * Only taxable inflows feed it; a member with a HELP balance but no tax profile
- * still gets a default profile so their repayment is assessed.
+ * still gets a default profile so their repayment is assessed. `extraIncomes`,
+ * when supplied, are synthetic income inputs concatenated with the mapped
+ * inflows — projected savings interest, assessable as `other` income and
+ * carrying no effective window, so the same figure reaches this whole-year
+ * estimate and the budget's active-now rerun.
  */
 export function estimateHouseholdTaxFromRows(
   { inflows, taxProfiles, contributions, helpDebts, deductions, members }: TaxEstimateRows,
   config: TaxYearConfig,
+  extraIncomes: readonly IncomeInput[] = [],
 ): HouseholdTaxEstimate {
   const dateOfBirthByMember = new Map<string | null, string | null>(
     members.map((member) => [member.id, member.date_of_birth]),
   )
   const memberIds = members.map((member) => member.id)
-  const incomes = inflows
-    .filter((inflow) => inflow.taxable)
-    .flatMap((inflow) =>
-      inflowIncomeInputs(
-        inflow,
-        memberIds,
-        inflow.paid_on != null &&
-          atPreservationAgeOn(
-            dateOfBirthByMember.get(inflow.member_id) ?? null,
-            inflow.paid_on,
-            config,
-          ),
-      )
-    )
+  const incomes = [
+    ...inflows
+      .filter((inflow) => inflow.taxable)
+      .flatMap((inflow) =>
+        inflowIncomeInputs(
+          inflow,
+          memberIds,
+          inflow.paid_on != null &&
+            atPreservationAgeOn(
+              dateOfBirthByMember.get(inflow.member_id) ?? null,
+              inflow.paid_on,
+              config,
+            ),
+        )
+      ),
+    ...extraIncomes,
+  ]
   const grossByMember = grossByMemberFromInflows(inflows, config)
   const helpByMember = helpDebtCentsByMember(helpDebts)
   const profileInputByMember = new Map(

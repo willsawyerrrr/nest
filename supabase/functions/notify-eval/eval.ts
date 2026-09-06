@@ -11,17 +11,15 @@
  * present (within the trigger's re-notify window) is skipped.
  */
 
-import {
-  type BudgetGroup,
-  fortnightlyCents,
-  type Frequency,
-  projectGoal,
-  summarise,
-  type SummaryInput,
-} from '@nest/plan'
-import { configsByYear, financialYearForDate, FY2027_CONFIG } from '@nest/tax'
+import { fortnightlyCents, type Frequency, projectGoal } from '@nest/plan'
+import { financialYearForDate } from '@nest/tax'
 import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
-import { estimateHouseholdTaxFromRows, type InflowRow, type TaxEstimateRows } from './tax.ts'
+import type { BudgetLineRow as BufferBudgetLineRow } from '../_shared/householdBuffer/adapters.ts'
+import {
+  type BudgetSummaryBundle,
+  summariseHouseholdFromRows,
+  type TemporaryItemRow as BufferTemporaryItemRow,
+} from '../_shared/householdBuffer/summary.ts'
 
 /** The four today's-data conditions, matching the `notification_trigger` enum. */
 export type Trigger =
@@ -47,21 +45,15 @@ export interface SavingsGoalRow {
   linked_account_id: string | null
 }
 
-/** The `budget_line` columns the buffer and goal triggers read. */
-export interface BudgetLineRow {
-  line_group: string
-  amount_cents: number
-  frequency: string
-  interval_count: number | null
+/** The `budget_line` columns the goal trigger reads, on top of what the buffer needs. */
+export interface BudgetLineRow extends BufferBudgetLineRow {
   goal_id: string | null
 }
 
-/** The `temporary_item` columns the expiry trigger reads. */
-export interface TemporaryItemRow {
+/** The `temporary_item` columns the expiry trigger reads, on top of what the buffer needs. */
+export interface TemporaryItemRow extends BufferTemporaryItemRow {
   id: string
   name: string
-  contribution_cents: number
-  target_date: string
 }
 
 /** An `account_balance` row: a linked saver's synced balance overrides the goal's own. */
@@ -71,7 +63,7 @@ export interface AccountBalanceRow {
 }
 
 /** Everything one household's evaluation reads. */
-export interface HouseholdBundle extends TaxEstimateRows {
+export interface HouseholdBundle extends BudgetSummaryBundle {
   budgetLines: readonly BudgetLineRow[]
   savingsGoals: readonly SavingsGoalRow[]
   temporaryItems: readonly TemporaryItemRow[]
@@ -162,33 +154,12 @@ export function upcomingJune30(now: Date): string {
   return daysUntil(now, thisYear) >= 0 ? thisYear : `${year + 1}-06-30`
 }
 
-/** The household's fortnightly buffer — `summarise().afterSaving.fortnightlyCents`. */
+/**
+ * The household's fortnightly buffer — the PWA Summary's on-screen "fortnightly
+ * after saving" figure, computed by the one shared server-side implementation.
+ */
 function bufferFortnightlyCents(bundle: HouseholdBundle, now: Date): number {
-  const config = configsByYear[financialYearForDate(now)] ?? FY2027_CONFIG
-  const estimate = estimateHouseholdTaxFromRows(bundle, config)
-  const input: SummaryInput = {
-    afterTaxIncomeAnnualCents: estimate.annualAfterTaxCents - estimate.annualOneOffAfterTaxCents,
-    nonTaxableInflows: bundle.inflows.flatMap((inflow: InflowRow) =>
-      inflow.taxable || inflow.schedule == null ? [] : [{
-        amountCents: inflow.amount_cents ?? 0,
-        frequency: inflow.schedule as Frequency,
-        ...(inflow.interval_count != null && { interval: inflow.interval_count }),
-        ...(inflow.starts_on != null && { startsOn: inflow.starts_on }),
-        ...(inflow.ends_on != null && { endsOn: inflow.ends_on }),
-      }]
-    ),
-    budgetLines: bundle.budgetLines.map((line) => ({
-      group: line.line_group as BudgetGroup,
-      amountCents: line.amount_cents,
-      frequency: line.frequency as Frequency,
-      ...(line.interval_count != null && { interval: line.interval_count }),
-    })),
-    temporaryItems: bundle.temporaryItems.map((item) => ({
-      contributionCents: item.contribution_cents,
-      targetDate: item.target_date,
-    })),
-  }
-  return summarise(input, now).afterSaving.fortnightlyCents
+  return summariseHouseholdFromRows(bundle, now).afterSaving.fortnightlyCents
 }
 
 /** A dated goal whose projected completion is past its target (or unreachable). */

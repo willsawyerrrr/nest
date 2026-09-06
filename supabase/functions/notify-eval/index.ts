@@ -15,15 +15,20 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
+import { loadBudgetSummaryBundle } from '../_shared/householdBuffer/bundle.ts'
 import { loadVapidKeys } from '../_shared/vapid.ts'
 import { createPushSender } from '../_shared/webpush.ts'
 import { isServiceRoleToken } from '../up-sync/auth.ts'
 import {
+  type AccountBalanceRow,
+  type BudgetLineRow,
   type HouseholdBundle,
   type LogRow,
   type PreferenceRow,
   runNotifyEval,
+  type SavingsGoalRow,
   type SubscriptionRow,
+  type TemporaryItemRow,
 } from './eval.ts'
 
 /** How far back `notification_log` is read for the dedupe check. */
@@ -78,40 +83,16 @@ Deno.serve(async (request) => {
       return [...new Set((data ?? []).map((row) => row.household_id as string))]
     },
     loadBundle: async (householdId, financialYear): Promise<HouseholdBundle> => {
-      const [
-        inflows,
-        taxProfiles,
-        contributions,
-        helpDebts,
-        deductions,
-        members,
-        budgetLines,
-        savingsGoals,
-        temporaryItems,
-        accountBalances,
-      ] = await Promise.all([
-        forHousehold('inflows', householdId),
-        forHousehold('tax_profile', householdId, financialYear),
-        forHousehold('super_contribution', householdId, financialYear),
-        forHousehold('help_debt', householdId),
-        forHousehold('deduction', householdId, financialYear),
-        forHousehold('members', householdId),
-        forHousehold('budget_line', householdId),
-        forHousehold('savings_goal', householdId),
-        forHousehold('temporary_item', householdId),
+      const [base, accountBalances] = await Promise.all([
+        loadBudgetSummaryBundle(admin, householdId, financialYear),
         forHousehold('account_balance', householdId),
       ])
       return {
-        inflows,
-        taxProfiles,
-        contributions,
-        helpDebts,
-        deductions,
-        members,
-        budgetLines,
-        savingsGoals,
-        temporaryItems,
-        accountBalances,
+        ...base,
+        budgetLines: base.budgetLines as BudgetLineRow[],
+        savingsGoals: base.savingsGoals as SavingsGoalRow[],
+        temporaryItems: base.temporaryItems as TemporaryItemRow[],
+        accountBalances: accountBalances as AccountBalanceRow[],
       }
     },
     loadSubscriptions: async (householdId): Promise<SubscriptionRow[]> => {

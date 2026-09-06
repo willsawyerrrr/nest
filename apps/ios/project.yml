@@ -5,9 +5,14 @@ options:
     iOS: '17.0'
   createIntermediateGroups: true
 
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.55.0
+
 settings:
   base:
-    SWIFT_VERSION: '5.0'
+    SWIFT_VERSION: '6.0'
     TARGETED_DEVICE_FAMILY: '1'
     MARKETING_VERSION: '1.0'
     CURRENT_PROJECT_VERSION: '1'
@@ -19,6 +24,9 @@ targets:
     deploymentTarget: '17.0'
     sources:
       - path: Nest
+    dependencies:
+      - package: Supabase
+        product: Auth
     info:
       path: Nest/Info.plist
       properties:
@@ -32,6 +40,11 @@ targets:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: dev.willsawyerrrr.nest.ios
+            CFBundleURLSchemes:
+              - dev.willsawyerrrr.nest.ios
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios

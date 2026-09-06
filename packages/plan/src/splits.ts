@@ -11,10 +11,21 @@ import { fortnightlyCents } from './normalize.ts'
 
 /** A budget line with its optional routing: a funding goal, or a direct destination account. */
 export interface AssignableLine extends BudgetLine {
+  /** The line's id, a stable key for its entry in an account's breakdown. */
+  readonly id: string
+  /** The line's name, shown in an account's breakdown. */
+  readonly name: string
   /** Goal a Savings/Investments line funds; the goal's linked account supplies the route. */
   readonly goalId?: string | null
   /** Account a non-Savings/Investments line is funded from. */
   readonly destinationAccountId?: string | null
+}
+
+/** One budget line behind an account's split: its identity and its fortnightly share of the total. */
+export interface AssignmentLine {
+  readonly id: string
+  readonly name: string
+  readonly fortnightlyCents: Money
 }
 
 /** A goal and the account (a synced Up saver) it draws its balance from, if any. */
@@ -26,6 +37,11 @@ export interface RoutableGoal {
 /** Per-account fortnightly totals, plus the total of lines that resolve to no account. */
 export interface AccountAssignments {
   readonly byAccount: Readonly<Record<string, Money>>
+  /**
+   * The budget lines behind each account's total, keyed by account id and in
+   * input order. Each account's lines sum to its `byAccount` total.
+   */
+  readonly linesByAccount: Readonly<Record<string, readonly AssignmentLine[]>>
   readonly unassignedFortnightlyCents: Money
 }
 
@@ -54,16 +70,17 @@ export function resolveDestinationAccountId(
 }
 
 /**
- * Groups lines by their resolved funding account and sums each group's
- * fortnightly amount. Lines that resolve to no account fall into
- * `unassignedFortnightlyCents`. Routing is date-independent, so no `now` is
- * needed.
+ * Groups lines by their resolved funding account, summing each group's
+ * fortnightly amount and keeping the contributing lines behind it. Lines that
+ * resolve to no account fall into `unassignedFortnightlyCents`. Routing is
+ * date-independent, so no `now` is needed.
  */
 export function assignmentsByAccount(
   lines: readonly AssignableLine[],
   goals: readonly RoutableGoal[],
 ): AccountAssignments {
   const byAccount: Record<string, Money> = {}
+  const linesByAccount: Record<string, AssignmentLine[]> = {}
   let unassignedFortnightlyCents = 0
   for (const line of lines) {
     const fortnightly = fortnightlyCents(line.amountCents, line.frequency, line.interval)
@@ -72,9 +89,14 @@ export function assignmentsByAccount(
       unassignedFortnightlyCents += fortnightly
     } else {
       byAccount[accountId] = (byAccount[accountId] ?? 0) + fortnightly
+      ;(linesByAccount[accountId] ??= []).push({
+        id: line.id,
+        name: line.name,
+        fortnightlyCents: fortnightly,
+      })
     }
   }
-  return { byAccount, unassignedFortnightlyCents }
+  return { byAccount, linesByAccount, unassignedFortnightlyCents }
 }
 
 /**

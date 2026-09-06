@@ -70,7 +70,7 @@ export {
   resolveDestinationAccountId,
   roundCentsUpToStep,
 } from './splits.ts'
-export type { AccountAssignments, AssignableLine, RoutableGoal } from './splits.ts'
+export type { AccountAssignments, AssignableLine, AssignmentLine, RoutableGoal } from './splits.ts'
 
 export { financialYearDayCount, financialYearPeriod, prorateAnnualToPeriod } from './payPeriod.ts'
 export type { PayPeriod } from './payPeriod.ts'

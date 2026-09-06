@@ -9,6 +9,18 @@ import {
   type RoutableGoal,
 } from './index.ts'
 
+/** A routable budget line, defaulting id and name a test does not pin. */
+function makeLine(overrides: Partial<AssignableLine> = {}): AssignableLine {
+  return {
+    id: 'line',
+    name: 'Line',
+    group: 'needs',
+    amountCents: 100_00,
+    frequency: 'fortnightly',
+    ...overrides,
+  }
+}
+
 const GOALS: RoutableGoal[] = [
   { id: 'goal-linked', linkedAccountId: 'saver-emergency' },
   { id: 'goal-unlinked', linkedAccountId: null },
@@ -17,111 +29,127 @@ const GOALS: RoutableGoal[] = [
 
 describe('resolveDestinationAccountId', () => {
   it('routes a savings line through its goal’s linked account', () => {
-    const line: AssignableLine = {
-      group: 'savings',
-      amountCents: 500_00,
-      frequency: 'fortnightly',
-      goalId: 'goal-linked',
-    }
+    const line = makeLine({ group: 'savings', amountCents: 500_00, goalId: 'goal-linked' })
     expect(resolveDestinationAccountId(line, GOALS)).toBe('saver-emergency')
   })
 
   it('routes an investments line through its goal’s linked account', () => {
-    const line: AssignableLine = {
-      group: 'investments',
-      amountCents: 250_00,
-      frequency: 'fortnightly',
-      goalId: 'goal-linked',
-    }
+    const line = makeLine({ group: 'investments', amountCents: 250_00, goalId: 'goal-linked' })
     expect(resolveDestinationAccountId(line, GOALS)).toBe('saver-emergency')
   })
 
   it('resolves to null for a savings line whose goal is unlinked', () => {
-    const line: AssignableLine = {
-      group: 'savings',
-      amountCents: 500_00,
-      frequency: 'fortnightly',
-      goalId: 'goal-unlinked',
-    }
+    const line = makeLine({ group: 'savings', amountCents: 500_00, goalId: 'goal-unlinked' })
     expect(resolveDestinationAccountId(line, GOALS)).toBeNull()
   })
 
   it('resolves to null for a savings line with no goal', () => {
-    const line: AssignableLine = {
-      group: 'savings',
-      amountCents: 500_00,
-      frequency: 'fortnightly',
-      goalId: null,
-    }
+    const line = makeLine({ group: 'savings', amountCents: 500_00, goalId: null })
     expect(resolveDestinationAccountId(line, GOALS)).toBeNull()
   })
 
   it('ignores a savings line’s own destination, routing only via its goal', () => {
-    const line: AssignableLine = {
+    const line = makeLine({
       group: 'savings',
       amountCents: 500_00,
-      frequency: 'fortnightly',
       goalId: 'goal-unlinked',
       destinationAccountId: 'saver-emergency',
-    }
+    })
     expect(resolveDestinationAccountId(line, GOALS)).toBeNull()
   })
 
   it('routes a non-savings line through its own destination', () => {
-    const line: AssignableLine = {
+    const line = makeLine({
       group: 'needs',
       amountCents: 1_000_00,
-      frequency: 'fortnightly',
       destinationAccountId: 'txn-everyday',
-    }
+    })
     expect(resolveDestinationAccountId(line, GOALS)).toBe('txn-everyday')
   })
 
   it('resolves to null for a non-savings line with no destination', () => {
-    const line: AssignableLine = { group: 'wants', amountCents: 50_00, frequency: 'fortnightly' }
-    expect(resolveDestinationAccountId(line, GOALS)).toBeNull()
+    expect(
+      resolveDestinationAccountId(makeLine({ group: 'wants', amountCents: 50_00 }), GOALS),
+    ).toBeNull()
   })
 })
 
 describe('assignmentsByAccount', () => {
   it('sums each account’s fortnightly total across normalized frequencies', () => {
-    const lines: AssignableLine[] = [
+    const lines = [
       // $100/fortnightly + $260/monthly (annual 3_120_00 → 120_00/fn) to the same account.
-      {
-        group: 'needs',
-        amountCents: 100_00,
-        frequency: 'fortnightly',
+      makeLine({ group: 'needs', amountCents: 100_00, destinationAccountId: 'txn' }),
+      makeLine({
+        group: 'wants',
+        amountCents: 260_00,
+        frequency: 'monthly',
         destinationAccountId: 'txn',
-      },
-      { group: 'wants', amountCents: 260_00, frequency: 'monthly', destinationAccountId: 'txn' },
+      }),
       // Savings routed via its linked goal.
-      { group: 'savings', amountCents: 500_00, frequency: 'fortnightly', goalId: 'goal-linked' },
+      makeLine({ group: 'savings', amountCents: 500_00, goalId: 'goal-linked' }),
     ]
     const result = assignmentsByAccount(lines, GOALS)
     expect(result.byAccount).toEqual({ txn: 220_00, 'saver-emergency': 500_00 })
     expect(result.unassignedFortnightlyCents).toBe(0)
   })
 
+  it('returns the contributing lines per account, each summing to the account total', () => {
+    const lines = [
+      makeLine({
+        id: 'rent',
+        name: 'Rent',
+        group: 'needs',
+        amountCents: 100_00,
+        destinationAccountId: 'txn',
+      }),
+      makeLine({
+        id: 'sub',
+        name: 'Subscriptions',
+        group: 'wants',
+        amountCents: 260_00,
+        frequency: 'monthly',
+        destinationAccountId: 'txn',
+      }),
+      makeLine({
+        id: 'save',
+        name: 'Emergency fund',
+        group: 'savings',
+        amountCents: 500_00,
+        goalId: 'goal-linked',
+      }),
+    ]
+    const { linesByAccount, byAccount } = assignmentsByAccount(lines, GOALS)
+
+    expect(linesByAccount).toEqual({
+      txn: [
+        { id: 'rent', name: 'Rent', fortnightlyCents: 100_00 },
+        { id: 'sub', name: 'Subscriptions', fortnightlyCents: 120_00 },
+      ],
+      'saver-emergency': [{ id: 'save', name: 'Emergency fund', fortnightlyCents: 500_00 }],
+    })
+    for (const [accountId, accountLines] of Object.entries(linesByAccount)) {
+      const summed = accountLines.reduce((total, line) => total + line.fortnightlyCents, 0)
+      expect(summed).toBe(byAccount[accountId])
+    }
+  })
+
   it('collects unrouted lines into the unassigned bucket', () => {
-    const lines: AssignableLine[] = [
+    const lines = [
       // Investments whose goal has no linked account.
-      {
-        group: 'investments',
-        amountCents: 250_00,
-        frequency: 'fortnightly',
-        goalId: 'goal-unlinked',
-      },
+      makeLine({ group: 'investments', amountCents: 250_00, goalId: 'goal-unlinked' }),
       // A non-savings line with no destination set.
-      { group: 'discretionary', amountCents: 50_00, frequency: 'fortnightly' },
+      makeLine({ group: 'discretionary', amountCents: 50_00 }),
     ]
     const result = assignmentsByAccount(lines, GOALS)
     expect(result.byAccount).toEqual({})
+    expect(result.linesByAccount).toEqual({})
     expect(result.unassignedFortnightlyCents).toBe(300_00)
   })
 
   it('returns empty totals for no lines', () => {
     expect(assignmentsByAccount([], GOALS)).toEqual({
       byAccount: {},
+      linesByAccount: {},
       unassignedFortnightlyCents: 0,
     })
   })

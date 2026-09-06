@@ -16,6 +16,7 @@ import {
   isRecommendedSplitAccount,
   paySplitNeedsUpdate,
   roundCentsUpToStep,
+  type AssignmentLine,
 } from '@nest/plan'
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
 import type { BudgetLine } from '../hooks/useBudgetLines'
@@ -31,14 +32,17 @@ import { DeletedInUpBadge } from './DeletedInUpBadge'
 import { FortnightlyAmount } from './FortnightlyAmount'
 import { ListRow } from './ListRow'
 import { PageSection } from './PageSection'
+import { BreakdownPanel, BreakdownToggle, useSplitBreakdown } from './SplitBreakdown'
 
 /** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
 const ROUND_STEP_CENTS = 5_00
 
-/** One routed account: the account and its recommended fortnightly split. */
+/** One routed account: the account, its recommended fortnightly split, and the lines behind it. */
 interface SplitRowData {
   account: AccountDirectoryEntry
   fortnightlyCents: number
+  /** The budget lines routed to this account; they sum to `fortnightlyCents`. */
+  lines: readonly AssignmentLine[]
 }
 
 /** Which field the split rows are ordered by. */
@@ -134,21 +138,29 @@ function ExactNote({ exactCents, roundedCents }: { exactCents: number; roundedCe
 function StaysRow({
   account,
   fortnightlyCents,
+  lines,
 }: {
   account: AccountDirectoryEntry
   fortnightlyCents: number
+  lines: readonly AssignmentLine[]
 }) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
+  const { expanded, toggle, bodyId } = useSplitBreakdown(account.id)
   return (
-    <ListRow gap="sm">
-      <AccountName account={account} />
-      <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
-      <FortnightlyAmount
-        cents={rounded}
-        justify="flex-end"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
-    </ListRow>
+    <Stack gap={0}>
+      <ListRow gap="sm">
+        <BreakdownToggle expanded={expanded} onToggle={toggle} bodyId={bodyId}>
+          <AccountName account={account} />
+        </BreakdownToggle>
+        <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
+        <FortnightlyAmount
+          cents={rounded}
+          justify="flex-end"
+          style={{ width: '7rem', flexShrink: 0 }}
+        />
+      </ListRow>
+      <BreakdownPanel expanded={expanded} bodyId={bodyId} lines={lines} />
+    </Stack>
   )
 }
 
@@ -156,29 +168,40 @@ function StaysRow({
 function StaysCard({
   account,
   fortnightlyCents,
+  lines,
 }: {
   account: AccountDirectoryEntry
   fortnightlyCents: number
+  lines: readonly AssignmentLine[]
 }) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
+  const { expanded, toggle, bodyId } = useSplitBreakdown(account.id)
   return (
     <AppCard withBorder padding="sm">
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <AccountName account={account} />
+        <BreakdownToggle expanded={expanded} onToggle={toggle} bodyId={bodyId}>
+          <AccountName account={account} />
+        </BreakdownToggle>
         <Group gap={8} wrap="nowrap" align="baseline" style={{ flexShrink: 0 }}>
           <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
           <FortnightlyAmount cents={rounded} />
         </Group>
       </Group>
+      <BreakdownPanel expanded={expanded} bodyId={bodyId} lines={lines} />
     </AppCard>
   )
 }
 
 /**
  * One routed account that stays put, rendered as a dense table-like row from the
- * `sm` breakpoint up and as a compact bordered card below it.
+ * `sm` breakpoint up and as a compact bordered card below it. Expandable to the
+ * budget lines behind its total.
  */
-function StaysItem(props: { account: AccountDirectoryEntry; fortnightlyCents: number }) {
+function StaysItem(props: {
+  account: AccountDirectoryEntry
+  fortnightlyCents: number
+  lines: readonly AssignmentLine[]
+}) {
   const wide = useIsWide()
   return wide ? <StaysRow {...props} /> : <StaysCard {...props} />
 }
@@ -186,6 +209,7 @@ function StaysItem(props: { account: AccountDirectoryEntry; fortnightlyCents: nu
 interface RecommendedSplitProps {
   account: AccountDirectoryEntry
   fortnightlyCents: number
+  lines: readonly AssignmentLine[]
   configuredCents: number | null
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
   onClear: (accountId: string) => void | Promise<void>
@@ -253,12 +277,14 @@ function ClearSplitButton({
 function RecommendedSplitRow({
   account,
   fortnightlyCents,
+  lines,
   configuredCents,
   onConfirm,
   onClear,
 }: RecommendedSplitProps) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
+  const { expanded, toggle, bodyId } = useSplitBreakdown(account.id)
   const row = (
     <ListRow
       gap="sm"
@@ -273,7 +299,9 @@ function RecommendedSplitRow({
         ) : undefined
       }
     >
-      <AccountName account={account} />
+      <BreakdownToggle expanded={expanded} onToggle={toggle} bodyId={bodyId}>
+        <AccountName account={account} />
+      </BreakdownToggle>
       <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
       <FortnightlyAmount
         cents={rounded}
@@ -283,12 +311,17 @@ function RecommendedSplitRow({
       {configuredCents !== null && <ClearSplitButton account={account} onClear={onClear} />}
     </ListRow>
   )
-  return needsUpdate ? (
-    <Box pl="xs" style={{ borderLeft: '3px solid var(--mantine-color-warning-6)' }}>
-      {row}
-    </Box>
-  ) : (
-    row
+  return (
+    <Stack gap={0}>
+      {needsUpdate ? (
+        <Box pl="xs" style={{ borderLeft: '3px solid var(--mantine-color-warning-6)' }}>
+          {row}
+        </Box>
+      ) : (
+        row
+      )}
+      <BreakdownPanel expanded={expanded} bodyId={bodyId} lines={lines} />
+    </Stack>
   )
 }
 
@@ -299,12 +332,14 @@ function RecommendedSplitRow({
 function RecommendedSplitCard({
   account,
   fortnightlyCents,
+  lines,
   configuredCents,
   onConfirm,
   onClear,
 }: RecommendedSplitProps) {
   const rounded = roundCentsUpToStep(fortnightlyCents, ROUND_STEP_CENTS)
   const needsUpdate = paySplitNeedsUpdate(rounded, configuredCents)
+  const { expanded, toggle, bodyId } = useSplitBreakdown(account.id)
   return (
     <AppCard
       withBorder
@@ -312,7 +347,9 @@ function RecommendedSplitCard({
       style={needsUpdate ? { borderLeft: '3px solid var(--mantine-color-warning-6)' } : undefined}
     >
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <AccountName account={account} />
+        <BreakdownToggle expanded={expanded} onToggle={toggle} bodyId={bodyId}>
+          <AccountName account={account} />
+        </BreakdownToggle>
         <Group gap={8} wrap="nowrap" align="center" style={{ flexShrink: 0 }}>
           <ExactNote exactCents={fortnightlyCents} roundedCents={rounded} />
           <FortnightlyAmount cents={rounded} />
@@ -329,6 +366,7 @@ function RecommendedSplitCard({
           />
         </Box>
       )}
+      <BreakdownPanel expanded={expanded} bodyId={bodyId} lines={lines} />
     </AppCard>
   )
 }
@@ -363,7 +401,9 @@ function RecommendedSplitItem(props: RecommendedSplitProps) {
  * without a live split — after leaving an employer, say — falls back to an
  * unconfirmed recommendation.
  * Savings/Investments lines route via their goal's linked saver; every other line routes via its own
- * funding account. Presentational — persistence lives in the caller.
+ * funding account. Every row — recommended or staying put — expands to the budget
+ * lines behind its total, each with its own fortnightly figure. Presentational —
+ * persistence lives in the caller.
  */
 export function SplitsScreen({
   accounts,
@@ -375,8 +415,10 @@ export function SplitsScreen({
   onConfirm,
   onClear,
 }: SplitsScreenProps) {
-  const { byAccount, unassignedFortnightlyCents } = assignmentsByAccount(
+  const { byAccount, linesByAccount, unassignedFortnightlyCents } = assignmentsByAccount(
     lines.map((line) => ({
+      id: line.id,
+      name: line.name,
       group: line.line_group,
       amountCents: line.amount_cents,
       frequency: line.frequency,
@@ -399,7 +441,11 @@ export function SplitsScreen({
 
   const accountById = new Map(accounts.map((account) => [account.id, account]))
   const rows = Object.entries(byAccount)
-    .map(([id, fortnightlyCents]) => ({ account: accountById.get(id), fortnightlyCents }))
+    .map(([id, fortnightlyCents]) => ({
+      account: accountById.get(id),
+      fortnightlyCents,
+      lines: linesByAccount[id] ?? [],
+    }))
     .filter((row): row is SplitRowData => row.account !== undefined)
 
   const isRecommended = (row: SplitRowData) =>
@@ -494,6 +540,7 @@ export function SplitsScreen({
                 key={row.account.id}
                 account={row.account}
                 fortnightlyCents={row.fortnightlyCents}
+                lines={row.lines}
               />
             ))}
           </Stack>
@@ -517,6 +564,7 @@ export function SplitsScreen({
               key={row.account.id}
               account={row.account}
               fortnightlyCents={row.fortnightlyCents}
+              lines={row.lines}
               configuredCents={configuredByAccount.get(row.account.id) ?? null}
               onConfirm={onConfirm}
               onClear={onClear}

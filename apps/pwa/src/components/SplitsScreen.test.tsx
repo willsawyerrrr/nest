@@ -208,6 +208,94 @@ describe('SplitsScreen', () => {
     expect(screen.getByText(/route budget items to an account/i)).toBeInTheDocument()
   })
 
+  it('expands a recommended account row to the budget lines behind its total', async () => {
+    const user = userEvent.setup()
+    const pay = account({ id: 't1', name: 'Pay', type: 'transaction' })
+    const bills = account({ id: 't2', name: 'Bills', type: 'transaction' })
+    renderScreen({
+      accounts: [pay, bills],
+      payAccountId: 't1',
+      lines: [
+        line({
+          id: 'l1',
+          name: 'Rent',
+          line_group: 'needs',
+          amount_cents: 300_00,
+          destination_account_id: 't2',
+        }),
+        line({
+          id: 'l2',
+          name: 'Power',
+          line_group: 'needs',
+          amount_cents: 100_00,
+          destination_account_id: 't2',
+        }),
+      ],
+    })
+
+    const toggle = screen.getByRole('button', { name: /bills/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    // The two lines behind the $400 / fn total, each with its own fortnightly figure.
+    expect(screen.getByText('Rent')).toBeInTheDocument()
+    expect(screen.getByText('Power')).toBeInTheDocument()
+    expect(screen.getByText('$300.00 / fn')).toBeInTheDocument()
+    expect(screen.getByText('$100.00 / fn')).toBeInTheDocument()
+  })
+
+  it('expands a staying-put account row to its lines', async () => {
+    const user = userEvent.setup()
+    const pay = account({ id: 't1', name: 'Pay', type: 'transaction' })
+    renderScreen({
+      accounts: [pay],
+      payAccountId: 't1',
+      lines: [
+        line({
+          id: 'l1',
+          name: 'Mortgage',
+          line_group: 'needs',
+          amount_cents: 200_00,
+          destination_account_id: 't1',
+        }),
+      ],
+    })
+
+    const toggle = screen.getByRole('button', { name: /^pay$/i })
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Mortgage')).toBeInTheDocument()
+  })
+
+  it('keeps Confirm working on an expanded recommended row', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+    const saver = account({ id: 's1', name: 'Groceries', source: 'up', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [
+        line({
+          id: 'l1',
+          name: 'Weekly shop',
+          line_group: 'savings',
+          amount_cents: 500_00,
+          goal_id: 'g1',
+        }),
+      ],
+      configuredByAccount: new Map([['s1', 350_00]]),
+      onConfirm,
+    })
+
+    await user.click(screen.getByRole('button', { name: /groceries/i }))
+    expect(screen.getByText('Weekly shop')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /^confirm$/i }))
+    expect(onConfirm).toHaveBeenCalledWith('s1', 500_00)
+  })
+
   it('flags a saver whose configured split differs and confirms the rounded amount', async () => {
     const user = userEvent.setup()
     const onConfirm = vi.fn()

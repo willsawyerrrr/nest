@@ -110,8 +110,11 @@ spending account is `type = 'transaction'`. Both are valid destinations.
   through its goal's `linkedAccountId`; every other line uses its own
   `destinationAccountId`; unresolved → `null`.
 - `assignmentsByAccount(lines, goals)` — groups lines by resolved destination and
-  sums each group's `fortnightlyCents`, returning per-account totals plus an
-  `unassignedFortnightlyCents` bucket for unrouted lines.
+  sums each group's `fortnightlyCents`, returning per-account totals (`byAccount`),
+  the contributing lines behind each total (`linesByAccount` — id, name, and
+  fortnightly share, each account's lines summing to its `byAccount` total), and an
+  `unassignedFortnightlyCents` bucket for unrouted lines. Each `AssignableLine`
+  carries its `id` and `name` for the breakdown.
 - `roundCentsUpToStep(amountCents, stepCents)` — round up to the next multiple of
   a step, never below the amount (used with `5_00`).
 - `isRecommendedSplitAccount({ isPayAccount, isSaver }, hasPayAccount)` — whether
@@ -166,7 +169,13 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   amount, labelled "Clear pay split") that deletes the `pay_split` row (via
   `usePaySplits`'s `clear`), dropping the account back to an unconfirmed
   recommendation flagged "Not set in Up yet". Kept subdued so it does not compete
-  with a drifting row's Confirm.
+  with a drifting row's Confirm. Every row — recommended or staying put — expands
+  (a leading-chevron `UnstyledButton` header over a `Collapse`, the app's standard
+  disclosure idiom) to the budget lines routed to that account, each with its own
+  fortnightly figure; the lines sum to the row's exact pre-rounding total, which
+  the "$… exact" note beside a rounded headline already reconciles. The disclosure
+  primitives live in `SplitBreakdown.tsx`; the Confirm / drift / clear controls sit
+  outside it and keep working while a row is open.
 
 ## Out of scope / future
 
@@ -196,4 +205,5 @@ every other routed account's recommended fortnightly split rounded up to the
 nearest $5, flags accounts whose confirmed split has drifted (or is unset) with a
 Confirm to record the new amount, shows an inline clear icon on any confirmed
 account that deletes its `pay_split` row and reverts it to an unconfirmed
-recommendation, and shows an Unassigned nudge.
+recommendation, expands each account row to the budget lines behind its total,
+and shows an Unassigned nudge.

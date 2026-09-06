@@ -1,30 +1,37 @@
-# Nest iOS shell (prototype)
+# Nest iOS app
 
-A minimal native iOS app that embeds the production PWA
-(`https://nest.willsawyerrrr.dev`) in a `WKWebView`. It exists to evaluate
-whether the embedded-PWA experience is good enough to justify investing in
-App Intents (Linear WSD-95) — see [`docs/ios-shell.md`](../../docs/ios-shell.md)
-for the full context. It is a prototype, not a committed platform: the PWA
-remains the product.
+A thin native iOS app that embeds the production PWA
+(`https://nest.willsawyerrrr.dev`) in a `WKWebView` and adds Siri / App Intents
+access to key figures (Linear WSD-95). The first Intent speaks the household's
+fortnightly buffer after saving. See [`docs/ios.md`](../../docs/ios.md) for the
+full design.
 
 ## Structure
 
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the
-  source of truth for the Xcode project and its `Info.plist` properties. The
-  generated `Nest.xcodeproj` and `Nest/Info.plist` are not committed.
-- `Nest/` — Swift sources.
-  - `NestApp.swift` — SwiftUI app entry point.
-  - `ContentView.swift` — full-screen shell: the web view plus loading and
-    error overlays.
-  - `WebView.swift` — `UIViewRepresentable` wrapping `WKWebView`, using the
-    default (persistent) `WKWebsiteDataStore` so the signed-in session
-    survives relaunch.
+  source of truth for the Xcode project, its `Info.plist` properties, and the
+  `supabase-swift` SPM dependency (Auth product only). The generated
+  `Nest.xcodeproj` and `Nest/Info.plist` are not committed.
+- `Nest/`
+  - `NestApp.swift` — SwiftUI entry point; injects `AuthModel`, forwards
+    `onOpenURL` to the Supabase client.
+  - `ContentView.swift` — the web view plus loading and error overlays and the
+    dismissible Connect Siri banner.
+  - `WebView.swift` — `UIViewRepresentable` around `WKWebView` on the default
+    persistent data store.
+  - `Supabase.swift` — project URL + anon key constants and the shared
+    `AuthClient` (default `KeychainLocalStorage`).
+  - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth,
+    restore-on-launch.
+  - `Intents/BufferQueryIntent.swift` — the `AppIntent`.
+  - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
+    and spoken-sentence formatting.
+  - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider`.
 
 ## Building
 
-Requires Xcode (not installed/verified in this environment — see the PR that
-introduced this app for what has and hasn't been build-verified) and
-[XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`):
+Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`):
 
 ```sh
 cd apps/ios
@@ -32,5 +39,36 @@ xcodegen generate
 open Nest.xcodeproj
 ```
 
-Build and run on a simulator or a personal free developer account/device —
-this is local-build-and-side-load-only; there is no App Store Connect setup.
+`xcodebuild` resolves the SPM graph and runs `appintentsmetadataprocessor`,
+which validates the App Shortcut phrases:
+
+```sh
+xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipPackagePluginValidation build
+```
+
+Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
+
+A free personal Apple team is enough to build, run on the Simulator or a
+device, and use the App Shortcut. There is no App Store Connect setup.
+
+## Running the OAuth flow in the Simulator
+
+1. Add `dev.willsawyerrrr.nest.ios://auth-callback` to the Supabase project's
+   **Auth → URL Configuration → Redirect URLs**.
+2. Run the app. Tap **Connect** on the Connect Siri banner.
+3. `ASWebAuthenticationSession` opens Google sign-in; complete it. The redirect
+   to `dev.willsawyerrrr.nest.ios://auth-callback` returns to the app and the
+   session persists to the Keychain — it survives relaunch and is read in
+   process by `BufferQueryIntent`.
+4. Test the Intent from the Shortcuts app (search "Check Fortnightly Buffer") or
+   Spotlight. Siri voice invocation is verified on a real device.
+
+## `intent-summary` dependency
+
+`BufferQueryIntent` calls the `intent-summary` Supabase edge function
+(`supabase/functions/intent-summary`), sending the session access token as a
+bearer and the anon key as `apikey`, with a `{}` body, and reads
+`{ "fortnightlyAfterSavingCents": number }`. The function must be deployed for
+the Intent to return a figure.

@@ -64,8 +64,8 @@ A pitch-level summary; the full locked list is canonical in
 - [`docs/planning-mode.md`](docs/planning-mode.md) — the non-persisted what-if
   sandbox over pays, bills, and savings goals, the inline real-vs-proposed
   deltas, and the `/planning` summary screen.
-- [`docs/ios-shell.md`](docs/ios-shell.md) — the native iOS shell prototype
-  (`apps/ios`) evaluating an embedded-PWA experience for WSD-95.
+- [`docs/ios.md`](docs/ios.md) — the native iOS app (`apps/ios`): the embedded
+  PWA plus Siri / App Intents access to key figures (WSD-95).
 
 Planned and in-progress work is tracked in the
 [Nest project in Linear](https://linear.app/willsawyerrrr-dev/project/nest-277c083e9a78).
@@ -74,7 +74,7 @@ Planned and in-progress work is tracked in the
 
 ```
 apps/pwa        React PWA (Vite, TypeScript) — iOS + web
-apps/ios        Native iOS shell prototype embedding the PWA (see docs/ios-shell.md)
+apps/ios        Native iOS app — embedded PWA + Siri / App Intents (see docs/ios.md)
 packages/tax    Shared, pure tax engine (used by the PWA and edge functions)
 packages/plan   Shared, pure budget / summary / goal math
 supabase        Postgres migrations, edge functions, and local config

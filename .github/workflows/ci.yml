@@ -246,6 +246,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_category.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_donation_group.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql

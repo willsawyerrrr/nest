@@ -25,7 +25,11 @@ export type DeductionCategory = DeductionRow['category']
  * expense claimed more than once — or is null for a standalone deduction.
  * Grouping changes nothing about the deduction itself: it is claimed in its own
  * right either way, and the group's total is the sum of its payments rather
- * than a figure of its own.
+ * than a figure of its own. A `donation` written with no `group_id` is the
+ * exception: the `file_donation_in_default_group` trigger files it into the
+ * member's "Donations" group for its financial year, creating that group the
+ * first time it is needed. So a donation is always grouped; the member can
+ * still move it to another named group.
  *
  * `full_amount_cents` and `work_use_percent` record how `amount_cents` was
  * apportioned: the whole cost and the share of it claimed. Both default so an
@@ -101,8 +105,10 @@ export function useDeductions(
     insertDefaults: { financial_year: financialYear },
     orderBy: 'deduction_date',
     // create_deduction_with_receipts writes a deduction's deduction_receipt
-    // rows alongside it, so the receipts collection is refetched too.
-    alsoInvalidate: ['deduction_receipt'],
+    // rows alongside it, and the file_donation_in_default_group trigger may
+    // create the member's "Donations" deduction_group, so both are refetched
+    // after a write.
+    alsoInvalidate: ['deduction_receipt', 'deduction_group'],
   })
 
   const create = useCallback(

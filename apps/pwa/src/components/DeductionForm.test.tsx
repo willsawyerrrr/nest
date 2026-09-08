@@ -2,6 +2,7 @@ import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import {
   EXTRACTION_KEY_REJECTED_MESSAGE,
@@ -30,6 +31,19 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
     category: 'work_expense',
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
+function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRow {
+  return {
+    id: 'g1',
+    household_id: 'h1',
+    member_id: 'm1',
+    name: 'Adobe Creative Cloud',
+    financial_year: 2027,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -980,6 +994,104 @@ describe('DeductionForm category', () => {
     )
 
     expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
+  })
+
+  it('saves a new donation with no group, for the trigger to file into Donations', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groups={[]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByText('Donation'))
+    // The picker names where the donation goes, even with no other groups.
+    expect(screen.getByRole('combobox', { name: 'Group' })).toHaveValue('Donations')
+
+    await user.type(screen.getByLabelText(/description/i), 'Red Cross')
+    await user.type(screen.getByLabelText(/^amount/i), '250')
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ category: 'donation', group_id: null }),
+        }),
+      ),
+    )
+  })
+
+  it('lists the member’s other groups for a donation and files it into a chosen one', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groups={[makeGroup({ id: 'gx', name: 'Red Cross monthly' })]}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByText('Donation'))
+    await user.type(screen.getByLabelText(/description/i), 'Red Cross')
+    await user.type(screen.getByLabelText(/^amount/i), '50')
+    await user.click(screen.getByRole('combobox', { name: 'Group' }))
+    await user.click(await screen.findByRole('option', { name: 'Red Cross monthly' }))
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ input: expect.objectContaining({ group_id: 'gx' }) }),
+      ),
+    )
+  })
+
+  it('folds the member’s own Donations group into the default option for a donation', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groups={[
+          makeGroup({ id: 'gd', name: 'Donations' }),
+          makeGroup({ id: 'gx', name: 'Red Cross monthly' }),
+        ]}
+        initial={makeDeduction({ category: 'donation', group_id: 'gd' })}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    // The donation already sits in the auto group; the picker shows it as the
+    // default and never lists a second "Donations" option.
+    expect(screen.getByRole('combobox', { name: 'Group' })).toHaveValue('Donations')
+    await user.click(screen.getByRole('combobox', { name: 'Group' }))
+    expect(screen.getAllByRole('option', { name: 'Donations' })).toHaveLength(1)
+    expect(screen.getByRole('option', { name: 'Red Cross monthly' })).toBeInTheDocument()
+  })
+
+  it('keeps None and lists every group for a work expense', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groups={[makeGroup({ id: 'gd', name: 'Donations' })]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Group' }))
+    expect(screen.getByRole('option', { name: 'None' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Donations' })).toBeInTheDocument()
   })
 
   it('offers the dollar/distance basis toggle for a work expense only', async () => {

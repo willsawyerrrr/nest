@@ -305,6 +305,16 @@ and so without the trigger.
     year, `on delete set null (group_id)` — the column list matters, a bare
     `set null` nulling every referencing column, three of which are not null.
     Indexed on `(group_id)`.
+  - A `donation` written with `group_id` null is the exception to "null is a
+    standalone claim": the `file_donation_in_default_group` trigger
+    (`before insert or update`) files it into the member's "Donations"
+    `deduction_group` for its financial year, creating that group the first time
+    it is needed. A work expense or tax agent fee is never auto-grouped, and a
+    donation the member filed into a named group (`group_id` already set) keeps
+    it — the trigger acts only when `group_id` is null. So a donation is always
+    grouped, and clearing its group snaps it back to "Donations". The
+    20260913000000 migration also backfills: every year with standalone
+    donations gets its "Donations" group and those donations move in.
 - **deduction_group** — a named set of one member's deductions for one financial
   year: the many payments of one expense claimed more than once — a subscription
   paid monthly, a trip's several receipts — totalled for display.
@@ -330,6 +340,16 @@ and so without the trigger.
     taken out. It is withheld only when the answer is already settled — adding a
     payment from a group's own row. The write is a plain `deduction` update, so
     nothing passes through `create_deduction_with_receipts`.
+  - For a **donation** the picker's default option is the member's automatic
+    "Donations" group (labelled `Donations`, not `None`): that group is folded
+    into the option rather than listed, the other options exist only to move the
+    donation to a named group, and picking the default writes `group_id` null
+    for `file_donation_in_default_group` to resolve. With no other groups a note
+    stands in for the picker.
+  - A group named `Donations` is created and used by the trigger, so a member's
+    own manually-created donation groups should carry another name; nothing
+    enforces this, and a stray second `Donations` group is harmless (the trigger
+    picks the first).
   - RLS is **household-wide CRUD**, as for `deduction` itself.
 - **deduction_receipt** — a stored receipt file backing a deduction; many rows
   per deduction.

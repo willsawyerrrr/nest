@@ -981,4 +981,61 @@ describe('DeductionForm category', () => {
 
     expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
   })
+
+  it('offers the dollar/distance basis toggle for a work expense only', async () => {
+    const user = userEvent.setup()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Distance (km)')).toBeInTheDocument()
+
+    await user.click(screen.getByText('Donation'))
+    expect(screen.queryByText('Distance (km)')).not.toBeInTheDocument()
+
+    await user.click(screen.getByText('Tax agent fee'))
+    expect(screen.queryByText('Distance (km)')).not.toBeInTheDocument()
+  })
+
+  it('forces the amount basis when a work expense on the distance basis is switched to a donation', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByText('Distance (km)'))
+    await user.type(screen.getByLabelText(/kilometres/i), '100')
+    await user.click(screen.getByText('Donation'))
+
+    // The distance field is gone with the basis it belonged to; a plain dollar
+    // amount takes its place.
+    expect(screen.queryByLabelText(/kilometres/i)).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText(/description/i), 'Red Cross')
+    await user.type(screen.getByLabelText(/^amount/i), '250')
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({
+            category: 'donation',
+            basis: 'amount',
+            distance_km: null,
+            amount_cents: 250_00,
+          }),
+        }),
+      ),
+    )
+  })
 })

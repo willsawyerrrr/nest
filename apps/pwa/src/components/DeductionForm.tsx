@@ -226,10 +226,13 @@ function PendingReceiptItem({
  * or an invoice) rather than rejecting a genuine donation tax receipt for not
  * being a purchase.
  *
- * A deduction is entered on an **amount** basis (a dollar figure, typed
+ * A **work expense** is entered on an **amount** basis (a dollar figure, typed
  * directly) or a **distance** basis (kilometres travelled for a work-related car
  * expense claimed under the ATO's cents-per-kilometre method), toggled by the
- * segmented control. On the distance basis the dollar amount is computed and
+ * segmented control. The toggle is shown for a work expense alone: a **donation**
+ * or a **tax agent fee** is always a plain dollar figure — a distance prices
+ * nothing there — so it is entered on the amount basis with no choice offered.
+ * On the distance basis the dollar amount is computed and
  * shown back, read-only, from `financialYear`'s published cents-per-km rate, and
  * a warning appears if the distance exceeds the ATO's cap on kilometres
  * claimable per car per year under this method — advisory only, it never blocks
@@ -245,9 +248,10 @@ function PendingReceiptItem({
  * whose kilometres are work-related already, and for a **donation** or
  * **tax agent fee**, which is claimed in full or not at all — a percentage on
  * top would discount the claim twice, or make no sense at all. The category,
- * the basis, the distance, and the work-use percentage are all the member's own
- * throughout: a receipt read fills the description, amount, and date alone, so
- * none of them is pre-fillable and all stay outside `useDeductionFields`.
+ * the basis (for a work expense), the distance, and the work-use percentage are
+ * all the member's own throughout: a receipt read fills the description, amount,
+ * and date alone, so none of them is pre-fillable and all stay outside
+ * `useDeductionFields`.
  */
 export function DeductionForm({
   member,
@@ -291,7 +295,14 @@ export function DeductionForm({
 
   const { values } = fields
   const config = configsByYear[financialYear] ?? currentTaxConfig()
-  const isDistance = basis === 'distance'
+  // The dollar/distance choice is a work-expense concern alone: a donation or a
+  // tax agent fee is always a dollar figure, so the picker is hidden and the
+  // basis forced to 'amount' — whatever an earlier work-expense edit left in
+  // `basis`. `deduction_distance_basis_work_expense` holds the same rule in the
+  // database.
+  const basisApplies = category === 'work_expense'
+  const effectiveBasis: Basis = basisApplies ? basis : 'amount'
+  const isDistance = effectiveBasis === 'distance'
   const distanceKmNumber =
     typeof distanceKm === 'number' ? distanceKm : Number.parseFloat(distanceKm)
   const distanceValid =
@@ -339,7 +350,7 @@ export function DeductionForm({
         description: values.description.trim(),
         amount_cents: isDistance ? computedAmountCents : apportionedAmountCents,
         deduction_date: values.deductionDate!,
-        basis,
+        basis: effectiveBasis,
         distance_km: isDistance ? distanceKmNumber : null,
         group_id: groupId ?? pickedGroupId,
         category,
@@ -416,17 +427,19 @@ export function DeductionForm({
         onChange={(event) => fields.setDescription(event.currentTarget.value)}
       />
 
-      <EnumSegmentedControl
-        fullWidth
-        size="sm"
-        aria-label="Entry basis"
-        value={basis}
-        onChange={setBasis}
-        data={[
-          { value: 'amount', label: 'Dollar' },
-          { value: 'distance', label: 'Distance (km)' },
-        ]}
-      />
+      {basisApplies && (
+        <EnumSegmentedControl
+          fullWidth
+          size="sm"
+          aria-label="Entry basis"
+          value={basis}
+          onChange={setBasis}
+          data={[
+            { value: 'amount', label: 'Dollar' },
+            { value: 'distance', label: 'Distance (km)' },
+          ]}
+        />
+      )}
 
       {isDistance ? (
         <>

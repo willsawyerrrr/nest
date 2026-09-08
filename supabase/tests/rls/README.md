@@ -37,6 +37,12 @@ instance and can also be run locally.
   name none, and a valid distance-basis row round-trips the client-computed
   `amount_cents` unchanged (the database does not re-derive it from the
   cents-per-km rate, which lives in `@nest/tax`, not in Postgres).
+- `deduction_category.sql` — the assertions that a deduction's `category`
+  defaults to `work_expense`, that `deduction_work_use_basis` pins
+  `work_use_percent` at 100 for a donation and a tax agent fee, that
+  `deduction_distance_basis_work_expense` refuses the `distance` basis for
+  either of them, and that the add path's `create_deduction_with_receipts`
+  carries the category it is given (defaulting it to `work_expense`).
 - `deduction_group.sql` — the assertions that grouping a member's deductions
   keeps each payment a deduction in its own right: the group totals its members,
   the composite reference refuses a payment from another financial year or
@@ -109,7 +115,8 @@ instance and can also be run locally.
 `setup_auth.sql` → every file in `supabase/migrations/` in order →
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
-`deduction_group.sql` → `deduction_work_use.sql` → `share_grant.sql` →
+`deduction_group.sql` → `deduction_work_use.sql` → `deduction_category.sql` →
+`share_grant.sql` →
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `wishlist_item.sql` → `calendar_feed.sql` → `inflow_joint_split.sql`.
@@ -135,6 +142,7 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_lines.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_category.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql

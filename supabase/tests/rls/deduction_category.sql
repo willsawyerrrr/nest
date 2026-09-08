@@ -5,7 +5,10 @@
 -- deduction written before the column existed. `deduction_work_use_basis` pins
 -- `work_use_percent` to 100 for every non-`work_expense` category, exactly as
 -- it already pins a distance-basis claim: a donation and a tax agent fee are
--- claimed in full or not at all, never apportioned.
+-- claimed in full or not at all, never apportioned. `deduction_distance_basis_work_expense`
+-- goes further and refuses the `distance` basis outright for them — the ATO
+-- cents-per-km method is a work-related travel deduction, and the add form
+-- offers the dollar/distance toggle for a work expense alone.
 --
 -- Any failed assertion aborts the script (psql ON_ERROR_STOP). Wrapped in a
 -- transaction and rolled back.
@@ -74,6 +77,29 @@ begin
   -- A work expense keeps apportioning by work use, unaffected by the new column.
   insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, category, full_amount_cents, work_use_percent)
     values (v_hid, v_mid, 'Phone plan', 60_00, '2026-08-05', 2027, 'work_expense', 100_00, 60);
+
+  -- The distance basis is the ATO cents-per-km car method: a work-related
+  -- travel deduction. deduction_distance_basis_work_expense refuses it for a
+  -- donation or a tax agent fee even when work_use_percent stays 100.
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, category, basis, distance_km, full_amount_cents, work_use_percent)
+      values (v_hid, v_mid, 'Charity drive', 91_00, '2026-08-06', 2027, 'donation', 'distance', 100, 91_00, 100);
+    raise exception 'FAIL: a donation was saved on the distance basis';
+  exception when check_violation then
+    raise notice 'PASS: the distance basis is refused for a donation';
+  end;
+
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, category, basis, distance_km, full_amount_cents, work_use_percent)
+      values (v_hid, v_mid, 'Trip to the accountant', 91_00, '2026-08-07', 2027, 'tax_agent_fees', 'distance', 100, 91_00, 100);
+    raise exception 'FAIL: a tax agent fee was saved on the distance basis';
+  exception when check_violation then
+    raise notice 'PASS: the distance basis is refused for a tax agent fee';
+  end;
+
+  -- A work expense on the distance basis is still fine.
+  insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, category, basis, distance_km, full_amount_cents, work_use_percent)
+    values (v_hid, v_mid, 'Client visits', 91_00, '2026-08-08', 2027, 'work_expense', 'distance', 100, 91_00, 100);
 end $$;
 
 -- The add path carries the category too: create_deduction_with_receipts names

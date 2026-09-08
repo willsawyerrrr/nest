@@ -230,7 +230,11 @@ and so without the trigger.
     later change to the ATO rate never retroactively moves a deduction already
     claimed. The `deduction_basis_attribution` check constraint holds each basis
     to its own column (`distance_km` non-null and `>= 0` only when
-    `basis = 'distance'`), mirroring `payslip_line_kind_attribution`; the
+    `basis = 'distance'`), mirroring `payslip_line_kind_attribution`, and
+    `deduction_distance_basis_work_expense` restricts the `distance` basis to
+    `category = 'work_expense'` — the cents-per-km method is a work-related
+    travel deduction, and a donation or tax agent fee is a receipted dollar
+    figure the add form never offers a distance toggle for. The
     database does not itself derive `amount_cents` from `distance_km`, since the
     rate is versioned in `@nest/tax`, not stored in Postgres.
   - On the `amount` basis, `amount_cents` may be less than the expense's full
@@ -258,7 +262,9 @@ and so without the trigger.
     below). `deduction_work_use_basis` pins `work_use_percent` at 100 for
     every category but `work_expense`, exactly as it already pins the
     `distance` basis: a donation and tax agent fees are claimed in full or not
-    at all, never apportioned. `deduction-extract` reads `category` too,
+    at all, never apportioned. They cannot take the `distance` basis at all
+    (`deduction_distance_basis_work_expense`), and the add form shows the
+    dollar/distance toggle for a work expense alone. `deduction-extract` reads `category` too,
     priming the model to expect a purchase receipt/invoice for `work_expense`,
     a donation tax receipt for `donation`, or an invoice for `tax_agent_fees`,
     so a genuine DGR donation tax receipt is not rejected for failing to look

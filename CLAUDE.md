@@ -211,7 +211,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   a Deductions line in the Tax tab's income build-up and flowing through to the
   Summary. `amount_cents` is always the figure saved and read downstream; a
   deduction states its `basis` (`amount`, the default, or `distance`) to say how
-  that figure was arrived at. A work-related car expense claimed under the ATO's
+  that figure was arrived at. The dollar/distance choice is a **work expense**
+  concern alone — a donation and a tax agent fee are always a receipted dollar
+  figure, so the form offers them no toggle and
+  `deduction_distance_basis_work_expense` holds the `distance` basis to
+  `category = 'work_expense'` in the database. A work-related car expense claimed under the ATO's
   cents-per-kilometre method is entered as `distance_km` kilometres instead of a
   dollar figure: the form computes and shows back `amount_cents` from the
   deduction's own financial year's published cents-per-km rate
@@ -248,7 +252,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   deduction also states its `category` (`work_expense`, the default,
   `donation`, or `tax_agent_fees` — extensible for any future kind that is not
   a super contribution) up front, before the receipt is picked, mirroring how
-  `basis` is a form choice. `deduction_work_use_basis` pins `work_use_percent`
+  `basis` is a form choice for a work expense. `deduction_work_use_basis` pins
+  `work_use_percent`
   at 100 for every category but `work_expense` too, the same rule as the
   distance basis: a donation and tax agent fees are claimed in full or not at
   all, so the "Work use %" field is pinned and hidden for them exactly as it

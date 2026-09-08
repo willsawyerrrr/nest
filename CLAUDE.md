@@ -332,6 +332,20 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   group's own row, which is what that control means. Editing is a plain field
   update rather than `create_deduction_with_receipts`, so the group it writes
   cannot be dropped the way the add path's was.
+  **A donation is grouped automatically.** A `donation` saved with no group is
+  filed into the member's "Donations" `deduction_group` for the year by the
+  `file_donation_in_default_group` trigger (`before insert or update`), that
+  group created the first time it is needed; the 20260913000000 migration
+  backfills existing standalone donations the same way. A work expense or tax
+  agent fee is never auto-grouped, and a donation the member filed into a named
+  group of their own keeps it — the trigger acts only when `group_id` is null,
+  so clearing a donation's group snaps it back to "Donations". A donation is
+  therefore always in a group. The form's Group picker for a donation offers
+  that automatic group as its default option (labelled `Donations`, the real
+  group row folded in rather than listed) and lists the member's other groups
+  only to move the donation to one; with no other groups a note stands in.
+  Nothing downstream notices — the tax estimate, EOFY tab, and Summary read
+  `deduction` rows regardless of grouping.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one
   per pay event, carrying the actuals — gross, tax withheld, super, net, plus the
   slip's optional salary sacrifice and year-to-date running totals. A slip is filed

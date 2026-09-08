@@ -43,6 +43,14 @@ instance and can also be run locally.
   `deduction_distance_basis_work_expense` refuses the `distance` basis for
   either of them, and that the add path's `create_deduction_with_receipts`
   carries the category it is given (defaulting it to `work_expense`).
+- `deduction_donation_group.sql` — the assertions that
+  `file_donation_in_default_group` files a member's donations into their
+  "Donations" group: the first donation of a year creates that group and lands
+  in it, later ones reuse it, a donation the member filed into a named group
+  keeps it, clearing a donation's group snaps it back, a work expense is never
+  auto-grouped, and each year gets its own group; plus the backfill run from
+  the migration itself, which groups exactly the standalone donations, reuses a
+  Donations group that is already there, and rewrites nothing on a second pass.
 - `deduction_group.sql` — the assertions that grouping a member's deductions
   keeps each payment a deduction in its own right: the group totals its members,
   the composite reference refuses a payment from another financial year or
@@ -116,7 +124,7 @@ instance and can also be run locally.
 `rls_isolation.sql` → `derived_line_triggers.sql` →
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
 `deduction_group.sql` → `deduction_work_use.sql` → `deduction_category.sql` →
-`share_grant.sql` →
+`deduction_donation_group.sql` → `share_grant.sql` →
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `wishlist_item.sql` → `calendar_feed.sql` → `inflow_joint_split.sql`.
@@ -125,8 +133,9 @@ actual security boundary and trigger behaviour, not a reimplementation.
 
 ## Run locally
 
-`payslip_financial_year.sql` and `payslip_lines.sql` include migrations by paths
-relative to their own location, so run the scripts by path with a client on the
+`payslip_financial_year.sql`, `payslip_lines.sql`, and
+`deduction_donation_group.sql` include a migration by a path relative to their
+own location, so run the scripts by path with a client on the
 host rather than piping them into the container on stdin.
 
 ```sh
@@ -143,6 +152,7 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_basis.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_work_use.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_category.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_donation_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql

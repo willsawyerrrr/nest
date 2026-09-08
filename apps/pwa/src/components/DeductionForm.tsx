@@ -39,8 +39,9 @@ interface DeductionFormProps {
   financialYear: number
   /**
    * The group this deduction is filed under, when the form was opened from one.
-   * Omitted, an edit keeps whatever group the deduction already sits in and a
-   * new deduction stands on its own.
+   * Omitted, an edit keeps whatever group the deduction already sits in, a new
+   * work expense or tax agent fee stands on its own, and a new donation is
+   * filed into the member's "Donations" group by the database trigger.
    */
   groupId?: string | undefined
   /**
@@ -69,8 +70,16 @@ const CATEGORY_OPTIONS: { value: DeductionCategory; label: string }[] = [
  * option of its own — leaving it to the placeholder would make clearing the
  * picker the only way back out, which nothing on screen says is possible. No
  * group id can collide: they are uuids.
+ *
+ * For a donation the same option means "the automatic Donations group": a
+ * donation written with a null `group_id` is filed into it by the
+ * `file_donation_in_default_group` trigger, so the option is labelled
+ * `Donations` and the real group row is folded into it rather than listed.
  */
 const NO_GROUP = 'none'
+
+/** The name of the per-member, per-year group a donation is filed into by default. */
+const DONATIONS_GROUP_NAME = 'Donations'
 
 /**
  * A distance in kilometres as a `NumberInput` value, or `''` when unset.
@@ -226,6 +235,13 @@ function PendingReceiptItem({
  * or an invoice) rather than rejecting a genuine donation tax receipt for not
  * being a purchase.
  *
+ * A **donation** is grouped automatically: saved with no group of its own, the
+ * `file_donation_in_default_group` trigger files it into the member's
+ * "Donations" group for the year. The group picker for a donation therefore
+ * offers that automatic group as its default option and lists the member's
+ * other groups only to move the donation to one of them; with no other groups a
+ * note stands in.
+ *
  * A **work expense** is entered on an **amount** basis (a dollar figure, typed
  * directly) or a **distance** basis (kilometres travelled for a work-related car
  * expense claimed under the ATO's cents-per-kilometre method), toggled by the
@@ -276,11 +292,21 @@ export function DeductionForm({
   })
   const [category, setCategory] = useState<DeductionCategory>(initial?.category ?? 'work_expense')
   const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
+  // The member's own "Donations" group, if it has been created — a donation
+  // filed into it shows as the default option, not as a named group, so its
+  // stored id normalises to null here (and back to the trigger on save).
+  const autoDonationsGroupId =
+    groups.find((group) => group.name === DONATIONS_GROUP_NAME)?.id ?? null
   // Opened from a group the deduction belongs to that group and the picker is
   // not offered; otherwise it starts wherever the deduction already sits.
-  const [pickedGroupId, setPickedGroupId] = useState<string | null>(
-    groupId ?? initial?.group_id ?? null,
-  )
+  const [pickedGroupId, setPickedGroupId] = useState<string | null>(() => {
+    const start = groupId ?? initial?.group_id ?? null
+    return start !== null &&
+      start === autoDonationsGroupId &&
+      (initial?.category ?? 'work_expense') === 'donation'
+      ? null
+      : start
+  })
   const [distanceKm, setDistanceKm] = useState<number | string>(
     toDistanceValue(initial?.distance_km),
   )
@@ -303,6 +329,14 @@ export function DeductionForm({
   const basisApplies = category === 'work_expense'
   const effectiveBasis: Basis = basisApplies ? basis : 'amount'
   const isDistance = effectiveBasis === 'distance'
+  // A donation is grouped automatically. The picker lists the member's other
+  // groups so it can be moved to one, folding its own "Donations" group into
+  // the default option; with no other groups there is nothing to pick and a
+  // note stands in.
+  const isDonation = category === 'donation'
+  const groupOptions = isDonation
+    ? groups.filter((group) => group.id !== autoDonationsGroupId)
+    : groups
   const distanceKmNumber =
     typeof distanceKm === 'number' ? distanceKm : Number.parseFloat(distanceKm)
   const distanceValid =
@@ -504,15 +538,21 @@ export function DeductionForm({
         </>
       )}
 
-      {groupId === undefined && groups.length > 0 && (
+      {groupId === undefined && (groupOptions.length > 0 || isDonation) && (
         <Select
           label="Group"
           size="sm"
-          description="File this under a group, or leave it on its own."
+          description={
+            isDonation
+              ? groupOptions.length > 0
+                ? 'Your donations are grouped together — move this one to a different group if you keep some apart.'
+                : 'Your donations are grouped together automatically.'
+              : 'File this under a group, or leave it on its own.'
+          }
           allowDeselect={false}
           data={[
-            { value: NO_GROUP, label: 'None' },
-            ...groups.map((group) => ({ value: group.id, label: group.name })),
+            { value: NO_GROUP, label: isDonation ? DONATIONS_GROUP_NAME : 'None' },
+            ...groupOptions.map((group) => ({ value: group.id, label: group.name })),
           ]}
           value={pickedGroupId ?? NO_GROUP}
           onChange={(value) =>

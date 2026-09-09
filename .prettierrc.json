@@ -13,5 +13,5 @@
     "^[.]"
   ],
   "importOrderParserPlugins": ["typescript", "jsx"],
-  "importOrderTypeScriptVersion": "6.0.3"
+  "importOrderTypeScriptVersion": "7.0.2"
 }

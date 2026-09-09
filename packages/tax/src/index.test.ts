@@ -702,6 +702,85 @@ describe('FY2026_CONFIG', () => {
     // income + concessional = 300,000; 15% × min(30,000, 300,000 − 250,000).
     expect(result.division293Cents).toBe(4_500_00)
   })
+
+  it('steps the Medicare levy surcharge at each 2025-26 single floor', () => {
+    // Floors $101,000 / $118,000 / $158,000; a floor exactly is not "over" it.
+    expect(medicareLevySurcharge(100_000_00, false, FY2026_CONFIG)).toBe(0)
+    expect(medicareLevySurcharge(101_000_00, false, FY2026_CONFIG)).toBe(0)
+    expect(medicareLevySurcharge(110_000_00, false, FY2026_CONFIG)).toBe(1_100_00) // 1%
+    expect(medicareLevySurcharge(118_000_00, false, FY2026_CONFIG)).toBe(1_180_00) // still 1% at the floor
+    expect(medicareLevySurcharge(130_000_00, false, FY2026_CONFIG)).toBe(1_625_00) // 1.25%
+    expect(medicareLevySurcharge(158_000_00, false, FY2026_CONFIG)).toBe(1_975_00) // still 1.25% at the floor
+    expect(medicareLevySurcharge(180_000_00, false, FY2026_CONFIG)).toBe(2_700_00) // 1.5%
+  })
+
+  it('phases the Medicare levy in from the 2025-26 $28,011 threshold', () => {
+    expect(medicareLevy(28_011_00, FY2026_CONFIG)).toBe(0)
+    // 10c per $1 over $28,011, while that is below the full 2%.
+    expect(medicareLevy(30_000_00, FY2026_CONFIG)).toBe(198_90) // 0.1 × (30,000 − 28,011)
+    expect(medicareLevy(35_013_00, FY2026_CONFIG)).toBe(700_20) // still in the phase-in
+    expect(medicareLevy(35_014_00, FY2026_CONFIG)).toBe(700_28) // full 2% now cheaper than the phase-in
+    expect(medicareLevy(40_000_00, FY2026_CONFIG)).toBe(800_00) // full 2%
+  })
+
+  it('applies the HELP 17c band above the 2025-26 $125,000 threshold', () => {
+    // 15c over $67,000 to $125,000 = $8,700; then 17c over $125,000.
+    expect(helpRepayment(125_000_00, 5_000_000_00, FY2026_CONFIG)).toBe(8_700_00)
+    expect(helpRepayment(130_000_00, 5_000_000_00, FY2026_CONFIG)).toBe(9_550_00) // + 0.17 × 5,000
+    expect(helpRepayment(160_000_00, 5_000_000_00, FY2026_CONFIG)).toBe(14_650_00) // + 0.17 × 35,000
+  })
+
+  it('selects the family Medicare levy surcharge tier at the 2025-26 family floors', () => {
+    const noCover = (incomeForSurchargeCents: number) => ({
+      incomeForSurchargeCents,
+      hasPrivateHospitalCover: false,
+    })
+    // Family floors $202,000 / $236,000 / $316,000.
+    expect(
+      familyMedicareLevySurcharge([noCover(101_000_00), noCover(99_000_00)], 0, FY2026_CONFIG)
+        .tierRate,
+    ).toBe(0) // combined $200,000 ≤ $202,000
+    const tier1 = familyMedicareLevySurcharge(
+      [noCover(120_000_00), noCover(90_000_00)],
+      0,
+      FY2026_CONFIG,
+    ) // combined $210,000
+    expect(tier1.tierRate).toBe(0.01)
+    expect(tier1.thresholdCents).toBe(202_000_00)
+    expect(tier1.perMemberSurchargeCents).toEqual([1_200_00, 900_00])
+    const tier2 = familyMedicareLevySurcharge(
+      [noCover(130_000_00), noCover(110_000_00)],
+      0,
+      FY2026_CONFIG,
+    ) // combined $240,000
+    expect(tier2.tierRate).toBe(0.0125)
+    expect(tier2.thresholdCents).toBe(236_000_00)
+    // Two dependent children add one $1,500 increment, lifting the tier-1 floor.
+    const withKids = familyMedicareLevySurcharge(
+      [noCover(101_000_00), noCover(102_000_00)],
+      2,
+      FY2026_CONFIG,
+    ) // combined $203,000 vs a $203,500 floor
+    expect(withKids.tierRate).toBe(0)
+  })
+
+  it('tapers the LITO at 5c then 1.5c through the 2025-26 bands', () => {
+    // Over $37,500 at 5c, then over $45,000 at 1.5c.
+    expect(lowIncomeTaxOffset(40_000_00, FY2026_CONFIG)).toBe(575_00) // 700 − 0.05 × 2,500
+    expect(lowIncomeTaxOffset(50_000_00, FY2026_CONFIG)).toBe(250_00) // 700 − (0.05 × 7,500 + 0.015 × 5,000)
+  })
+
+  it('starts Division 293 at the $250,000 threshold', () => {
+    expect(division293(240_000_00, 10_000_00, FY2026_CONFIG)).toBe(0) // $250,000 exactly, no excess
+    expect(division293(245_000_00, 10_000_00, FY2026_CONFIG)).toBe(750_00) // 15% × $5,000 excess
+    expect(division293(250_000_00, 10_000_00, FY2026_CONFIG)).toBe(1_500_00) // 15% × min(10,000, 10,000)
+  })
+
+  it('tapers the co-contribution across the 2025-26 $47,488–$62,488 band', () => {
+    expect(superCoContribution(1_000_00, 47_488_00, FY2026_CONFIG)).toBe(500_00) // full max at the floor
+    expect(superCoContribution(1_000_00, 54_988_00, FY2026_CONFIG)).toBe(250_00) // half-way → half the max
+    expect(superCoContribution(1_000_00, 62_488_00, FY2026_CONFIG)).toBe(0) // cut out at the ceiling
+  })
 })
 
 /**
@@ -783,6 +862,72 @@ describe('FY2027_CONFIG', () => {
     expect(result.taxableIncomeCents).toBe(270_000_00)
     // income + concessional = 300,000; 15% × min(30,000, 300,000 − 250,000).
     expect(result.division293Cents).toBe(4_500_00)
+  })
+
+  it('steps the Medicare levy surcharge at each 2026-27 single floor', () => {
+    // Floors $105,000 / $123,000 / $164,000.
+    expect(medicareLevySurcharge(105_000_00, false, FY2027_CONFIG)).toBe(0)
+    expect(medicareLevySurcharge(110_000_00, false, FY2027_CONFIG)).toBe(1_100_00) // 1%
+    expect(medicareLevySurcharge(123_000_00, false, FY2027_CONFIG)).toBe(1_230_00) // still 1% at the floor
+    expect(medicareLevySurcharge(130_000_00, false, FY2027_CONFIG)).toBe(1_625_00) // 1.25%
+    expect(medicareLevySurcharge(164_000_00, false, FY2027_CONFIG)).toBe(2_050_00) // still 1.25% at the floor
+    expect(medicareLevySurcharge(170_000_00, false, FY2027_CONFIG)).toBe(2_550_00) // 1.5%
+  })
+
+  it('phases the Medicare levy in from the $28,011 threshold', () => {
+    expect(medicareLevy(28_011_00, FY2027_CONFIG)).toBe(0)
+    expect(medicareLevy(30_000_00, FY2027_CONFIG)).toBe(198_90) // 0.1 × (30,000 − 28,011)
+    expect(medicareLevy(40_000_00, FY2027_CONFIG)).toBe(800_00) // full 2%
+  })
+
+  it('applies the HELP 17c band above the 2026-27 $129,717 threshold', () => {
+    // 15c over $69,528 to $129,717 = $9,028.35; then 17c over $129,717.
+    expect(helpRepayment(129_717_00, 5_000_000_00, FY2027_CONFIG)).toBe(9_028_35)
+    expect(helpRepayment(140_000_00, 5_000_000_00, FY2027_CONFIG)).toBe(10_776_46) // + 0.17 × 10,283
+    expect(helpRepayment(160_000_00, 5_000_000_00, FY2027_CONFIG)).toBe(14_176_46) // + 0.17 × 30,283
+  })
+
+  it('selects the family Medicare levy surcharge tier at the 2026-27 family floors', () => {
+    const noCover = (incomeForSurchargeCents: number) => ({
+      incomeForSurchargeCents,
+      hasPrivateHospitalCover: false,
+    })
+    // Family floors $210,000 / $246,000 / $328,000.
+    expect(
+      familyMedicareLevySurcharge([noCover(105_000_00), noCover(100_000_00)], 0, FY2027_CONFIG)
+        .tierRate,
+    ).toBe(0) // combined $205,000 ≤ $210,000
+    const tier1 = familyMedicareLevySurcharge(
+      [noCover(120_000_00), noCover(100_000_00)],
+      0,
+      FY2027_CONFIG,
+    ) // combined $220,000
+    expect(tier1.tierRate).toBe(0.01)
+    expect(tier1.thresholdCents).toBe(210_000_00)
+    expect(tier1.perMemberSurchargeCents).toEqual([1_200_00, 1_000_00])
+    const tier2 = familyMedicareLevySurcharge(
+      [noCover(130_000_00), noCover(120_000_00)],
+      0,
+      FY2027_CONFIG,
+    ) // combined $250,000
+    expect(tier2.tierRate).toBe(0.0125)
+    expect(tier2.thresholdCents).toBe(246_000_00)
+  })
+
+  it('tapers the LITO at 5c then 1.5c through the bands', () => {
+    expect(lowIncomeTaxOffset(40_000_00, FY2027_CONFIG)).toBe(575_00) // 700 − 0.05 × 2,500
+    expect(lowIncomeTaxOffset(50_000_00, FY2027_CONFIG)).toBe(250_00) // 700 − (0.05 × 7,500 + 0.015 × 5,000)
+  })
+
+  it('starts Division 293 at the $250,000 threshold', () => {
+    expect(division293(240_000_00, 10_000_00, FY2027_CONFIG)).toBe(0)
+    expect(division293(245_000_00, 10_000_00, FY2027_CONFIG)).toBe(750_00)
+  })
+
+  it('tapers the co-contribution across the 2026-27 $49,293–$64,293 band', () => {
+    expect(superCoContribution(1_000_00, 49_293_00, FY2027_CONFIG)).toBe(500_00) // full max at the floor
+    expect(superCoContribution(1_000_00, 56_793_00, FY2027_CONFIG)).toBe(250_00) // half-way
+    expect(superCoContribution(1_000_00, 64_293_00, FY2027_CONFIG)).toBe(0) // cut out at the ceiling
   })
 })
 

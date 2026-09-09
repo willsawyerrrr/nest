@@ -13,8 +13,10 @@ export default defineConfig({
         'apps/pwa/src/**',
       ],
       exclude: [
-        // A data module: golden parity fixtures, exercised by both the vitest and
-        // the deno parity suites, carrying no logic of its own.
+        // The golden parity fixtures and the small runners that feed them
+        // through the estimate and the buffer. Both the vitest and the deno
+        // parity suites exercise every line; the frozen fixture data would
+        // otherwise dominate the file's coverage.
         'packages/household/src/goldenCases.ts',
         'apps/pwa/src/main.tsx',
         'apps/pwa/src/lib/database.types.ts',

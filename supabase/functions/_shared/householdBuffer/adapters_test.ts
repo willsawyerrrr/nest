@@ -194,6 +194,7 @@ Deno.test('derivedAmountContext sums generic items and partitions gift spend', (
     ],
     [{ recipient_id: 'r-sam', budgeted_amount_cents: 120_00 }],
     [{ id: 'r-sam', member_id: 'm-sam' }],
+    null,
   )
   assertEquals(context.genericTotalsByBreakdownId.get('g'), 125_00)
   assertEquals(context.giftTotalsByMember.get('m-sam'), 120_00)

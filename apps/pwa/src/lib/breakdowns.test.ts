@@ -6,7 +6,7 @@ import {
   derivedAmountContext,
   type DerivedAmountContext,
 } from './breakdowns'
-import type { GiftBudget, GiftRecipient } from './gifts'
+import type { GiftBudget, GiftDiscretionaryBudget, GiftRecipient } from './gifts'
 
 function breakdown(overrides: Partial<Breakdown> = {}): Breakdown {
   return {
@@ -70,15 +70,33 @@ describe('derivedAmountContext', () => {
     ]
     const recipients = [recipient('r-sam', 'm-sam'), recipient('r-ext', null)]
     const budgets = [budget('bd1', 'r-sam', 120_00), budget('bd2', 'r-ext', 30_00)]
-    const result = derivedAmountContext(breakdowns, items, budgets, recipients)
+    const result = derivedAmountContext(breakdowns, items, budgets, recipients, null)
     // $10/month → $120/year, plus $5/year = $125/year.
     expect(result.genericTotalsByBreakdownId.get('g')).toBe(125_00)
     expect(result.giftTotalsByMember.get('m-sam')).toBe(120_00)
     expect(result.giftTotalsByMember.get(null)).toBe(30_00)
   })
 
+  it('folds the ad hoc discretionary gift buffer into the external partition', () => {
+    const buffer: GiftDiscretionaryBudget = {
+      id: 'gdb',
+      household_id: 'h',
+      budgeted_amount_cents: 500_00,
+      created_at: '',
+      updated_at: '',
+    }
+    const result = derivedAmountContext(
+      [],
+      [],
+      [budget('bd', 'r-ext', 30_00)],
+      [recipient('r-ext', null)],
+      buffer,
+    )
+    expect(result.giftTotalsByMember.get(null)).toBe(530_00)
+  })
+
   it('leaves the gift partition empty when there are no gift budgets', () => {
-    const result = derivedAmountContext([breakdown({ id: 'g' })], [], [], [])
+    const result = derivedAmountContext([breakdown({ id: 'g' })], [], [], [], null)
     expect(result.giftTotalsByMember.size).toBe(0)
   })
 })

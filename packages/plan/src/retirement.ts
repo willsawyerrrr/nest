@@ -6,6 +6,7 @@
  * projection input.
  */
 
+import { MS_PER_DAY } from './constants.ts'
 import type { Money } from './index.ts'
 
 /**
@@ -87,8 +88,6 @@ export function projectSuperBalance(input: SuperProjectionInput): SuperProjectio
 
   return { nominalCents: Math.round(nominal), realCents: Math.round(real) }
 }
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /**
  * The effective super balance today: a confirmed baseline plus the member's

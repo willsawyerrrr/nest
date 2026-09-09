@@ -21,6 +21,8 @@ export {
   WEEKS_PER_YEAR,
 } from './normalize.ts'
 
+export { MS_PER_DAY } from './constants.ts'
+
 export { isActiveOn, isTemporaryActive, summarise } from './summary.ts'
 export type {
   Amounts,

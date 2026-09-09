@@ -11,12 +11,10 @@
  */
 
 import type { Money, SavingsGoal } from './index.ts'
+import { FORTNIGHTS_PER_YEAR } from './normalize.ts'
 
 /** Milliseconds in a fortnight; ETAs advance by whole fortnights. */
 export const FORTNIGHT_MS = 14 * 24 * 60 * 60 * 1000
-
-/** Fortnights in a year; the modelled rate compounds once per fortnight. */
-export const FORTNIGHTS_PER_YEAR = 26
 
 /**
  * Upper bound on the fortnight-by-fortnight walk (~200 years). A goal that has

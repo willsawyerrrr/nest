@@ -31,16 +31,7 @@ const withHelpDebt = estimateHouseholdTaxFromRows(
   [inflow],
   [],
   [],
-  [
-    {
-      id: 'hd1',
-      household_id: 'h1',
-      member_id: 'm1',
-      balance_cents: 40_000_00,
-      created_at: '',
-      updated_at: '',
-    },
-  ],
+  [{ member_id: 'm1', balance_cents: 40_000_00 }],
   [],
   config,
 ).members[0]!

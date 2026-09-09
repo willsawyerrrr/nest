@@ -13,3 +13,4 @@
  */
 
 export * from './rows.ts'
+export * from './tax.ts'

@@ -22,6 +22,7 @@ import {
   activeNowTaxableInflows,
   estimateHouseholdTaxFromRows,
   projectedInterestIncomeInputs,
+  type InflowRow,
 } from './tax'
 
 /** The household rows a Summary is built from, before adapting to the plan's shape. */
@@ -219,7 +220,7 @@ export function summariseHousehold({
         (estimate.annualConcessionalContributionsCents - estimate.annualNetConcessionalSuperCents),
     })
   }
-  const estimateOver = (rows: Inflow[]): HouseholdTaxEstimate =>
+  const estimateOver = (rows: readonly InflowRow[]): HouseholdTaxEstimate =>
     estimateHouseholdTaxFromRows(
       rows,
       taxProfiles,

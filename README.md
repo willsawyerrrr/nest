@@ -24,6 +24,11 @@ liability, plan spending, and track savings goals.
   roll up into a single derived budget line.
 - **Pay splits** — route each budget line to the Up account that funds it and get
   a recommended fortnightly pay split per account to type into Up.
+- **EOFY summary** — a read-only end-of-financial-year tab gathering each person's
+  tax estimate, PAYG withheld, deductions, super, and HELP debt for filing, plus a
+  time-limited link that shares it with a tax agent.
+- **Push notifications** — Web Push alerts to the installed PWA when the fortnightly
+  buffer goes negative, a dated goal slips, or a deadline nears.
 
 ## Scope decisions
 
@@ -49,6 +54,8 @@ A pitch-level summary; the full locked list is canonical in
 - [`docs/data-model.md`](docs/data-model.md) — entities, relationships, and RPCs.
 - [`docs/operations.md`](docs/operations.md) — runbook: where it runs, what
   deploys it, and per-service setup.
+- [`docs/design-system.md`](docs/design-system.md) — the dark-first Mantine design
+  system: colour scales, semantic and chart tokens, and shared primitives.
 - [`docs/tax.md`](docs/tax.md) — AU tax modelling design.
 - [`docs/budget-and-savings.md`](docs/budget-and-savings.md) — plan-only budget,
   savings, the wishlist, and Summary math.
@@ -61,9 +68,13 @@ A pitch-level summary; the full locked list is canonical in
   + reconciliation phase.
 - [`docs/payslips.md`](docs/payslips.md) — expected vs actual income and tax from
   payslips.
+- [`docs/eofy-sharing.md`](docs/eofy-sharing.md) — giving a tax agent a read-only,
+  time-limited link to the household's EOFY summary.
 - [`docs/planning-mode.md`](docs/planning-mode.md) — the non-persisted what-if
   sandbox over pays, bills, and savings goals, the inline real-vs-proposed
   deltas, and the `/planning` summary screen.
+- [`docs/calendar-feed.md`](docs/calendar-feed.md) — the read-only iCalendar
+  (`.ics`) feed of the household's money dates.
 - [`docs/ios.md`](docs/ios.md) — the native iOS app (`apps/ios`): the embedded
   PWA plus Siri / App Intents access to key figures (WSD-95).
 
@@ -132,7 +143,10 @@ retirement projection) and a net-worth view are live, as are user-created
 breakdowns (itemised lists that roll up into a derived budget line), a first-class
 Gifts tab (a unified recipient × occasion planner whose budgets roll up into derived
 budget lines per recipient), pay splits (per-account fortnightly split
-recommendations against routed budget lines), and an in-app "What's new" changelog.
+recommendations against routed budget lines), an in-app "What's new" changelog, a
+read-only EOFY summary tab with a shareable tax-agent link, and Web Push
+notifications to the installed PWA (buffer-negative, goal-slip, and deadline
+alerts).
 The Up savers → savings-goals layer is also live: members connect an Up token and
 link a goal to a synced Up saver, so goal progress tracks the real balance (synced
 on demand and hourly). The same sync ingests one slice of the ledger: each member's

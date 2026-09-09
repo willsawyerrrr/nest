@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
+import { useHouseholdQuery } from './useCollection'
 
 export type Member = Tables<'members'>
 
@@ -19,15 +21,15 @@ export interface UseMembersResult {
 
 /** Loads the household's members. RLS scopes the result to the household. */
 export function useMembers(): UseMembersResult {
-  const [members, setMembers] = useState<Member[] | null>(null)
+  const householdId = useHouseholdId()
 
-  const reload = useCallback(async () => {
+  const { data, loading, reload } = useHouseholdQuery(['members', householdId], async () => {
     const { data, error } = await supabase.from('members').select('*').order('name')
     if (error) {
       throw error
     }
-    setMembers(data)
-  }, [])
+    return data
+  })
 
   const setDateOfBirth = useCallback(
     async (memberId: string, dateOfBirth: string | null) => {
@@ -43,9 +45,5 @@ export function useMembers(): UseMembersResult {
     [reload],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { members, loading: members === null, reload, setDateOfBirth }
+  return { members: data ?? null, loading, reload, setDateOfBirth }
 }

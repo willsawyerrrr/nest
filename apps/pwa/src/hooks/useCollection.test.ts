@@ -6,7 +6,11 @@ import { HouseholdProvider } from '../components/HouseholdProvider'
 import { PlanningModeProvider, usePlanningMode } from '../components/PlanningModeProvider'
 import { planningStorageKey } from '../lib/planningMode'
 import { makeWrapper } from '../test/queryWrapper'
-import { useHouseholdCollection, useHouseholdUpsertCollection } from './useCollection'
+import {
+  useHouseholdCollection,
+  useHouseholdQuery,
+  useHouseholdUpsertCollection,
+} from './useCollection'
 
 const { builder, fromMock } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
@@ -238,6 +242,79 @@ describe('useHouseholdUpsertCollection', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     builder.result = { data: null, error: new Error('upsert failed') }
     await expect(result.current.upsert({} as never)).rejects.toThrow('upsert failed')
+  })
+})
+
+describe('useHouseholdQuery', () => {
+  it('loads a value, reporting only the first uncached load as loading', async () => {
+    builder.result = { data: { pay_account_id: 'a9' }, error: null }
+    const { result } = renderHook(
+      () =>
+        useHouseholdQuery(['households', 'h1', 'pay_account_id'], async () => {
+          await builder
+          return (builder.result.data as { pay_account_id: string }).pay_account_id
+        }),
+      { wrapper: makeWrapper() },
+    )
+    expect(result.current.loading).toBe(true)
+    expect(result.current.data).toBeUndefined()
+    await waitFor(() => expect(result.current.data).toBe('a9'))
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('reload invalidates every slice under the name+household prefix', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
+
+    const queryFn = vi.fn(async () => {
+      await builder
+      return 'ok'
+    })
+    const { result } = renderHook(
+      () => ({
+        all: useHouseholdQuery(['accounts_with_balance', 'h1', 'all'], queryFn),
+        savers: useHouseholdQuery(['accounts_with_balance', 'h1', 'savers'], queryFn),
+      }),
+      { wrapper },
+    )
+    await waitFor(() => {
+      expect(result.current.all.loading).toBe(false)
+      expect(result.current.savers.loading).toBe(false)
+    })
+
+    invalidateSpy.mockClear()
+    queryFn.mockClear()
+    await act(async () => {
+      await result.current.all.reload()
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['accounts_with_balance', 'h1'] })
+    // Both slices sharing the prefix refetch, not only the one `reload` came from.
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2))
+  })
+
+  it('leaves data undefined when the load fails', async () => {
+    builder.result = { data: null, error: new Error('load failed') }
+    const { result } = renderHook(
+      () =>
+        useHouseholdQuery(['members', 'h1'], async () => {
+          await builder
+          const { data, error } = builder.result
+          if (error) {
+            throw error
+          }
+          return data
+        }),
+      { wrapper: makeWrapper() },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.data).toBeUndefined()
   })
 })
 

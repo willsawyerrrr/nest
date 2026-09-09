@@ -226,13 +226,12 @@ evaluator, reads the plan tables it reconciles the buffer and goal ETAs from:
 `budget_line`, `savings_goal`, and `temporary_item` gain a `service_role`
 `select`, joining the EOFY set (`members`, `inflows`, `tax_profile`,
 `super_contribution`, `help_debt`, `deduction`) and `account_balance` it already
-had (`20260905000000_notification_triggers.sql`). It also reads `breakdown`,
-`breakdown_item`, `gift_budget`, `gift_recipient`, and `gift_discretionary_budget`
-(`20260915000000_service_role_household_buffer_grants.sql`): the shared
-`_shared/householdBuffer/` loader re-derives the breakdown and gift budget-line
-amounts client-side, exactly as the PWA's `summariseHousehold` does, rather than
-trusting the trigger-maintained `budget_line.amount_cents`. It also holds `select`
-on `notification_preference` and `select`/`insert` on `notification_log`; every
+had (`20260905000000_notification_triggers.sql`). It reads `budget_line`
+straight — the `reconcile_derived_lines` triggers keep the breakdown- and
+gift-derived lines canonical (annual, whole cents), so the loader needs none of
+the breakdown or gift tables and `20260917000000` revokes the short-lived grants
+that `20260915000000` had added while it re-derived those amounts. It also holds
+`select` on `notification_preference` and `select`/`insert` on `notification_log`; every
 write to a preference is a member's own.
 
 `calendar-ics`, the anonymous iCalendar feed, reads the tables whose dated rows

@@ -1,10 +1,6 @@
 import { assertEquals } from '@std/assert'
 import {
   activeNowTaxableInflows,
-  applyBreakdownAmounts,
-  type BudgetLineRow,
-  derivedAmountContext,
-  giftTotalsByMember,
   projectedInterestIncomeInputs,
   splitAcrossMembers,
 } from './adapters.ts'
@@ -28,19 +24,6 @@ function inflow(overrides: Partial<InflowRow> = {}): InflowRow {
     years_of_service: null,
     is_joint: false,
     member_split_percent: null,
-    ...overrides,
-  }
-}
-
-function line(overrides: Partial<BudgetLineRow> = {}): BudgetLineRow {
-  return {
-    line_group: 'wants',
-    amount_cents: 10_00,
-    frequency: 'monthly',
-    interval_count: null,
-    is_gift_line: false,
-    breakdown_id: null,
-    gift_recipient_member_id: null,
     ...overrides,
   }
 }
@@ -154,81 +137,4 @@ Deno.test('projectedInterestIncomeInputs drops a member whose split share rounds
     ),
     [{ memberId: 'm2', type: 'other', schedule: 'annual', amountCents: 1 }],
   )
-})
-
-// ── giftTotalsByMember ────────────────────────────────────────────────────
-
-Deno.test('giftTotalsByMember partitions budgets by recipient member, external into null', () => {
-  const totals = giftTotalsByMember(
-    [
-      { recipient_id: 'r-sam', budgeted_amount_cents: 120_00 },
-      { recipient_id: 'r-ext', budgeted_amount_cents: 30_00 },
-    ],
-    [{ id: 'r-sam', member_id: 'm-sam' }, { id: 'r-ext', member_id: null }],
-  )
-  assertEquals(totals.get('m-sam'), 120_00)
-  assertEquals(totals.get(null), 30_00)
-})
-
-Deno.test('giftTotalsByMember folds a non-zero discretionary buffer into the external partition', () => {
-  const totals = giftTotalsByMember(
-    [{ recipient_id: 'r-ext', budgeted_amount_cents: 30_00 }],
-    [{ id: 'r-ext', member_id: null }],
-    { budgeted_amount_cents: 20_00 },
-  )
-  assertEquals(totals.get(null), 50_00)
-})
-
-Deno.test('giftTotalsByMember leaves the partition empty with no budgets or buffer', () => {
-  assertEquals(giftTotalsByMember([], []).size, 0)
-})
-
-// ── derivedAmountContext + applyBreakdownAmounts ──────────────────────────
-
-Deno.test('derivedAmountContext sums generic items and partitions gift spend', () => {
-  const context = derivedAmountContext(
-    [{ id: 'g' }],
-    [
-      { breakdown_id: 'g', amount_cents: 10_00, frequency: 'monthly', interval_count: null },
-      { breakdown_id: 'g', amount_cents: 5_00, frequency: 'annual', interval_count: null },
-    ],
-    [{ recipient_id: 'r-sam', budgeted_amount_cents: 120_00 }],
-    [{ id: 'r-sam', member_id: 'm-sam' }],
-    null,
-  )
-  assertEquals(context.genericTotalsByBreakdownId.get('g'), 125_00)
-  assertEquals(context.giftTotalsByMember.get('m-sam'), 120_00)
-})
-
-Deno.test('applyBreakdownAmounts is a no-op when no derived line is present', () => {
-  const lines = [line({ line_group: 'needs' }), line({ amount_cents: 5_00 })]
-  const result = applyBreakdownAmounts(lines, {
-    genericTotalsByBreakdownId: new Map([['b1', 99_00]]),
-    giftTotalsByMember: new Map(),
-  })
-  assertEquals(result, lines)
-})
-
-Deno.test('applyBreakdownAmounts overrides a generic derived line with its annual total', () => {
-  const result = applyBreakdownAmounts([line({ breakdown_id: 'b1', amount_cents: 0 })], {
-    genericTotalsByBreakdownId: new Map([['b1', 150_00]]),
-    giftTotalsByMember: new Map(),
-  })
-  assertEquals(result[0].amount_cents, 150_00)
-  assertEquals(result[0].frequency, 'annual')
-})
-
-Deno.test('applyBreakdownAmounts takes a gift line amount from its recipient partition, zero when absent', () => {
-  const result = applyBreakdownAmounts(
-    [
-      line({ is_gift_line: true, gift_recipient_member_id: 'm-sam', amount_cents: 0 }),
-      line({ is_gift_line: true, gift_recipient_member_id: null, amount_cents: 0 }),
-      line({ is_gift_line: true, gift_recipient_member_id: 'm-jo', amount_cents: 42_00 }),
-    ],
-    {
-      genericTotalsByBreakdownId: new Map(),
-      giftTotalsByMember: new Map<string | null, number>([['m-sam', 120_00], [null, 30_00]]),
-    },
-  )
-  assertEquals(result.map((entry) => entry.amount_cents), [120_00, 30_00, 0])
 })

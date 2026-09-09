@@ -39,18 +39,10 @@ function fakeBundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummary
       amount_cents: 1_000_00,
       frequency: 'fortnightly',
       interval_count: null,
-      is_gift_line: false,
-      breakdown_id: null,
-      gift_recipient_member_id: null,
     }],
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
-    breakdowns: [],
-    breakdownItems: [],
-    giftBudgets: [],
-    giftRecipients: [],
-    giftDiscretionaryBudget: null,
     ...overrides,
   }
 }

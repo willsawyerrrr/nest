@@ -460,20 +460,26 @@ way: `functions` proves the sources are well formed, and
 `check-function-drift.yml` — a credentialed read of the project — proves prod is
 running them.
 
-Each pnpm job (`check`, `test-shard`, `test`, `rls`) sets up the toolchain the same way:
-`actions/setup-node` installs Node, then `corepack enable` /
-`corepack prepare pnpm@11.14.0 --activate` provides the pnpm version pinned in the
-root `package.json` `packageManager` field — no separate `pnpm/action-setup`.
-Corepack fetches that pnpm binary from the npm registry, so each job points
-`COREPACK_HOME` at a `.corepack` directory (git- and prettier-ignored) that
-`actions/cache`
-restores keyed on the pnpm version (`corepack-<os>-pnpm-11.14.0`): on a warm cache
-the binary is already present and corepack never touches the registry. On a cold
-cache the `corepack prepare` activation retries a few times so a transient
-registry error does not fail the run. The pnpm content-addressable store is
-restored by a second `actions/cache` keyed on `pnpm-lock.yaml`, so a warm
+Every pnpm job — `check`, `test-shard`, `test`, `rls` here, plus the `deploy-*`
+and `check-*-drift` workflows — sets up the toolchain through one local composite
+action, `.github/actions/setup-pnpm` (the calling job runs `actions/checkout`
+first, since a local action is only readable once the repo is on disk). It runs
+`actions/setup-node` for Node, then `corepack enable` /
+`corepack prepare pnpm@11.14.0 --activate` for the pnpm version pinned in the root
+`package.json` `packageManager` field — no separate `pnpm/action-setup`. Corepack
+fetches that pnpm binary from the npm registry, so the action points
+`COREPACK_HOME` at a `.corepack` directory (git- and prettier-ignored, written to
+`$GITHUB_ENV` so the calling job's later steps resolve the same pnpm) that
+`actions/cache` restores keyed on the pnpm version (`corepack-<os>-pnpm-11.14.0`):
+on a warm cache the binary is already present and corepack never touches the
+registry. On a cold cache the `corepack prepare` activation retries a few times so
+a transient registry error does not fail the run. The pnpm content-addressable
+store is restored by a second `actions/cache` keyed on `pnpm-lock.yaml`, then
 `pnpm install --frozen-lockfile` links packages from cache rather than downloading
-them. The Deno `functions` job keeps its own `setup-deno` cache.
+them — the `check` job passes `install: false` and runs its two dependency-free
+checks (`check:migrations`, `check:vendor-edge`) before installing, so a bad
+migration version or a stale vendored copy fails ahead of the slower steps. The
+Deno `functions` job keeps its own `setup-deno` cache.
 
 The binding constraint on wall-clock is the serialized `test-shard` → `test`
 chain: the shards run in parallel, then the `test` merge job waits on them and

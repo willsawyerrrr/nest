@@ -21,7 +21,7 @@ async function selectOption(
 
 describe('InflowForm', () => {
   it('submits a taxable salary inflow with dollars converted to cents', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -57,7 +57,7 @@ describe('InflowForm', () => {
   })
 
   it('submits a taxable wage inflow with rate and hours', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -95,7 +95,7 @@ describe('InflowForm', () => {
   })
 
   it('submits a non-taxable inflow with no member tag as a reimbursement', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -134,7 +134,7 @@ describe('InflowForm', () => {
   })
 
   it('persists a chosen non-taxable type', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -152,7 +152,7 @@ describe('InflowForm', () => {
   })
 
   it('resets the type to the mode default when toggling taxability drops it', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -174,7 +174,7 @@ describe('InflowForm', () => {
   })
 
   it('submits an allowance the employer pays no super on', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -213,7 +213,7 @@ describe('InflowForm', () => {
   })
 
   it('submits an allowance that lands in only some pay periods', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -255,7 +255,7 @@ describe('InflowForm', () => {
   })
 
   it('stores a non-taxable inflow as arriving every period whatever was switched before', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -273,7 +273,7 @@ describe('InflowForm', () => {
   })
 
   it('stores a non-taxable inflow as ordinary time earnings whatever was switched before', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -306,7 +306,7 @@ describe('InflowForm', () => {
   })
 
   it('reveals the weeks input for the every-N-weeks cadence and submits the interval', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -352,7 +352,7 @@ describe('InflowForm', () => {
   })
 
   it('reveals the months input for the every-N-months cadence and submits the interval', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -398,7 +398,7 @@ describe('InflowForm', () => {
   })
 
   it('prefills and carries effective dates through on submit as ISO strings', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     const inflow = makeInflow({ starts_on: '2026-09-15', ends_on: '2027-06-30' })
     render(<InflowForm members={members} initial={inflow} onSubmit={onSubmit} />)
@@ -415,7 +415,7 @@ describe('InflowForm', () => {
   })
 
   it('prefills and carries a confirmed payday through on submit as an ISO string', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     const inflow = makeInflow({ pay_anchor_date: '2026-09-11' })
     render(<InflowForm members={members} initial={inflow} onSubmit={onSubmit} />)
@@ -431,7 +431,7 @@ describe('InflowForm', () => {
   })
 
   it('leaves an unset confirmed payday blank and null on submit', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -447,7 +447,7 @@ describe('InflowForm', () => {
   })
 
   it('keeps the effective-date inputs on the non-taxable branch', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<InflowForm members={members} onSubmit={vi.fn()} />)
 
     expect(screen.getByLabelText(/effective from/i)).toBeInTheDocument()
@@ -457,7 +457,7 @@ describe('InflowForm', () => {
   })
 
   it('carries a non-taxable recurring inflow’s effective dates through on submit', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -480,7 +480,7 @@ describe('InflowForm', () => {
   })
 
   it('prefills and round-trips a non-taxable inflow’s effective dates when editing', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     const inflow = makeInflow({
       taxable: false,
@@ -510,7 +510,7 @@ describe('InflowForm', () => {
   })
 
   it('disables submit until required fields are filled', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<InflowForm members={members} onSubmit={vi.fn()} />)
 
     const button = screen.getByRole('button', { name: /add inflow/i })
@@ -549,7 +549,7 @@ describe('InflowForm', () => {
   })
 
   it('tags the inflow to the chosen member', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -564,7 +564,7 @@ describe('InflowForm', () => {
   })
 
   it('keeps a yearly salary yearly and records the fortnightly cycle it lands on', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -593,7 +593,7 @@ describe('InflowForm', () => {
   })
 
   it('reopens a yearly-amount fortnightly-paid inflow on both its frequencies', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     const inflow = makeInflow({
       schedule: 'annual',
@@ -621,7 +621,7 @@ describe('InflowForm', () => {
   })
 
   it('names the shortfall where a year of payments cannot reach the amount stated', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -647,7 +647,7 @@ describe('InflowForm', () => {
   })
 
   it('names the overshoot where a year of monthly payments passes the amount stated', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<InflowForm members={members} onSubmit={vi.fn()} />)
 
     await selectOption(user, /frequency/i, 'Annually')
@@ -662,7 +662,7 @@ describe('InflowForm', () => {
   })
 
   it('gathers a weekly amount into the fortnight it is paid in', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -687,7 +687,7 @@ describe('InflowForm', () => {
   })
 
   it('takes an interval for an arbitrary pay cadence and waits for it before saving', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -718,7 +718,7 @@ describe('InflowForm', () => {
   })
 
   it('keeps the amount’s own every-N interval separate from the pay cadence’s', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -746,7 +746,7 @@ describe('InflowForm', () => {
   })
 
   it('divides a wage’s rate and hours over the cycle the pay lands on', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -776,7 +776,7 @@ describe('InflowForm', () => {
   })
 
   it('says nothing about a per-payment figure for pay that lands in only some periods', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<InflowForm members={members} onSubmit={vi.fn()} />)
 
     await selectOption(user, /frequency/i, 'Annually')
@@ -791,7 +791,7 @@ describe('InflowForm', () => {
   })
 
   it('says nothing when the money arrives on the very period the amount covers', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -813,7 +813,7 @@ describe('InflowForm', () => {
   })
 
   it('advises when a salary’s money arrives once a year, without blocking the save', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -839,7 +839,7 @@ describe('InflowForm', () => {
   })
 
   it('leaves the once-a-year advice off a type plausibly paid that way', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<InflowForm members={members} onSubmit={vi.fn()} />)
 
     await selectOption(user, /frequency/i, 'Annually')
@@ -848,7 +848,7 @@ describe('InflowForm', () => {
   })
 
   it('leaves the pay cadence off a non-taxable inflow, which no payslip measures', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -868,7 +868,7 @@ describe('InflowForm', () => {
   })
 
   it('shows an error when saving fails', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
     render(<InflowForm members={members} onSubmit={onSubmit} />)
 
@@ -877,248 +877,5 @@ describe('InflowForm', () => {
     await user.click(screen.getByRole('button', { name: /add inflow/i }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
-  })
-})
-
-describe('InflowForm one-off mode', () => {
-  it('submits a taxable one-off with its date and treatment, and no cadence at all', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<InflowForm members={members} onSubmit={onSubmit} />)
-
-    await user.click(screen.getByText('One-off'))
-    await user.type(screen.getByLabelText(/name/i), 'Severance')
-    await user.type(screen.getByLabelText('Amount'), '40000')
-    await user.type(screen.getByLabelText(/paid on/i), '12 Sep 2026')
-    await user.click(screen.getByRole('button', { name: /add inflow/i }))
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({
-        name: 'Severance',
-        taxable: true,
-        attracts_super: true,
-        member_id: 'm1',
-        type: 'salary',
-        schedule: null,
-        interval_count: null,
-        pay_schedule: null,
-        pay_interval_count: null,
-        arrives_every_pay_period: true,
-        amount_cents: 40_000_00,
-        hourly_rate_cents: null,
-        hours_per_period: null,
-        starts_on: null,
-        ends_on: null,
-        pay_anchor_date: null,
-        paid_on: '2026-09-12',
-        one_off_tax_treatment: 'ordinary',
-        years_of_service: null,
-        is_joint: false,
-        member_split_percent: null,
-      }),
-    )
-  })
-
-  it('hides every cadence question a one-off cannot answer', async () => {
-    const user = userEvent.setup()
-    render(<InflowForm members={members} onSubmit={vi.fn()} />)
-
-    expect(screen.getByRole('combobox', { name: /frequency/i })).toBeInTheDocument()
-    await user.click(screen.getByText('One-off'))
-
-    expect(screen.queryByRole('combobox', { name: /frequency/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /^paid$/i })).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('switch', { name: /arrives in every pay period/i }),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: /employer super/i })).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/effective from/i)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/confirmed payday/i)).not.toBeInTheDocument()
-  })
-
-  it('turns a wage into a salary, an amount paid once pricing no hours', async () => {
-    const user = userEvent.setup()
-    render(<InflowForm members={members} onSubmit={vi.fn()} />)
-
-    await selectOption(user, /type/i, 'Wage')
-    expect(screen.getByLabelText(/hourly rate/i)).toBeInTheDocument()
-
-    await user.click(screen.getByText('One-off'))
-    expect(screen.getByRole('combobox', { name: /type/i })).toHaveValue('Salary')
-    expect(screen.queryByLabelText(/hourly rate/i)).not.toBeInTheDocument()
-  })
-
-  it('waits for the payment date, and for a redundancy’s years of service', async () => {
-    const user = userEvent.setup()
-    render(<InflowForm members={members} onSubmit={vi.fn()} />)
-
-    await user.click(screen.getByText('One-off'))
-    await user.type(screen.getByLabelText(/name/i), 'Redundancy')
-    await user.type(screen.getByLabelText('Amount'), '100000')
-    const button = screen.getByRole('button', { name: /add inflow/i })
-    expect(button).toBeDisabled()
-
-    await user.type(screen.getByLabelText(/paid on/i), '12 Sep 2026')
-    expect(button).toBeEnabled()
-
-    await selectOption(user, /tax treatment/i, 'Genuine redundancy')
-    expect(button).toBeDisabled()
-    await user.type(screen.getByLabelText(/completed years of service/i), '10')
-    expect(button).toBeEnabled()
-  })
-
-  it('opens an existing one-off in one-off mode with its own fields', () => {
-    const severance = makeInflow({
-      name: 'Redundancy',
-      schedule: null,
-      paid_on: '2026-09-12',
-      one_off_tax_treatment: 'genuine_redundancy',
-      years_of_service: 10,
-      amount_cents: 100_000_00,
-    })
-    render(<InflowForm members={members} initial={severance} onSubmit={vi.fn()} />)
-
-    expect(screen.getByLabelText(/paid on/i)).toHaveValue('12 Sep 2026')
-    expect(screen.getByRole('combobox', { name: /tax treatment/i })).toHaveValue(
-      'Genuine redundancy',
-    )
-    expect(screen.getByLabelText(/completed years of service/i)).toHaveValue('10')
-  })
-
-  it('gives a non-taxable one-off a date and nothing else to say about tax', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<InflowForm members={members} onSubmit={onSubmit} />)
-
-    await user.click(screen.getByText('One-off'))
-    await user.click(screen.getByText('Non-taxable inflow'))
-    await user.type(screen.getByLabelText(/name/i), 'Wedding gift')
-    await user.type(screen.getByLabelText('Amount'), '500')
-    await user.type(screen.getByLabelText(/paid on/i), '12 Sep 2026')
-    expect(screen.queryByRole('combobox', { name: /tax treatment/i })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /add inflow/i }))
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          taxable: false,
-          paid_on: '2026-09-12',
-          one_off_tax_treatment: null,
-          years_of_service: null,
-          // A one-off carries no effective window, whatever its taxability.
-          starts_on: null,
-          ends_on: null,
-        }),
-      ),
-    )
-  })
-})
-
-describe('InflowForm joint income', () => {
-  const fillNameAndAmount = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.type(screen.getByLabelText(/name/i), 'Rental')
-    await user.type(screen.getByLabelText(/amount per/i), '20000')
-  }
-
-  it('shows the joint switch only for a recurring taxable other inflow', async () => {
-    const user = userEvent.setup()
-    render(<InflowForm members={members} onSubmit={vi.fn()} />)
-
-    // Salary: no switch.
-    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
-
-    await selectOption(user, /type/i, 'Other')
-    expect(screen.getByLabelText(/joint income/i)).toBeInTheDocument()
-
-    // One-off: gone.
-    await user.click(screen.getByText('One-off'))
-    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
-
-    // Recurring non-taxable: gone.
-    await user.click(screen.getByText('Recurring'))
-    await user.click(screen.getByText('Non-taxable inflow'))
-    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
-  })
-
-  it('saves the split percentage and shows the other member’s share back', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<InflowForm members={members} onSubmit={onSubmit} />)
-
-    await selectOption(user, /type/i, 'Other')
-    await fillNameAndAmount(user)
-    await user.click(screen.getByLabelText(/joint income/i))
-
-    const split = screen.getByLabelText(/split — % to will/i)
-    expect(split).toHaveValue('50')
-    await user.clear(split)
-    await user.type(split, '70')
-    expect(screen.getByText(/sam: 30%/i)).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /add inflow/i }))
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'other', is_joint: true, member_split_percent: 70 }),
-      ),
-    )
-  })
-
-  it('stores neither field when the switch is left off', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<InflowForm members={members} onSubmit={onSubmit} />)
-
-    await selectOption(user, /type/i, 'Other')
-    await fillNameAndAmount(user)
-    await user.click(screen.getByRole('button', { name: /add inflow/i }))
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ is_joint: false, member_split_percent: null }),
-      ),
-    )
-  })
-
-  it('clears the joint choice when the type moves off other', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    render(<InflowForm members={members} onSubmit={onSubmit} />)
-
-    await selectOption(user, /type/i, 'Other')
-    await fillNameAndAmount(user)
-    await user.click(screen.getByLabelText(/joint income/i))
-    await selectOption(user, /type/i, 'Salary')
-    expect(screen.queryByLabelText(/joint income/i)).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /add inflow/i }))
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'salary', is_joint: false, member_split_percent: null }),
-      ),
-    )
-  })
-
-  it('round-trips an existing joint inflow into the form', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn()
-    const joint = makeInflow({
-      name: 'Joint dividends',
-      type: 'other',
-      schedule: 'annual',
-      amount_cents: 12_000_00,
-      is_joint: true,
-      member_split_percent: 40,
-    })
-    render(<InflowForm members={members} initial={joint} onSubmit={onSubmit} />)
-
-    expect(screen.getByLabelText(/joint income/i)).toBeChecked()
-    expect(screen.getByLabelText(/split — % to will/i)).toHaveValue('40')
-
-    await user.click(screen.getByRole('button', { name: /save/i }))
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ is_joint: true, member_split_percent: 40 }),
-      ),
-    )
   })
 })

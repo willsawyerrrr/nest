@@ -9,4 +9,5 @@
  */
 
 export * from './rows.ts'
+export * from './summary.ts'
 export * from './tax.ts'

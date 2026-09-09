@@ -202,7 +202,11 @@ export function computeNetWorth({
   now,
 }: NetWorthComputeInput): NetWorthComputeResult {
   const superIds = superAccountIds(superProfiles)
-  const netContributionByMember = netAnnualSuperContributionFromRows(inflows, contributions)
+  const netContributionByMember = netAnnualSuperContributionFromRows(
+    inflows,
+    contributions,
+    members,
+  )
   const effectiveAccounts = accountsWithEffectiveSuperBalances(
     accounts,
     superProfiles,

@@ -83,6 +83,7 @@ export function EofySection() {
     superProfiles.profiles ?? [],
     contributions.contributions ?? [],
     config,
+    members,
   )
   const helpPayoff = helpPayoffByMember(estimate, helpDebts.helpDebts ?? [], config)
 

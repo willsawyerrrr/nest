@@ -21,11 +21,12 @@ import type {
   DeductionRow,
   HelpDebtRow,
   InflowRow,
+  MemberIdRow,
   SuperContributionRow,
   SuperProfileRow,
 } from '../rows.ts'
 import { currentTaxConfig } from './config.ts'
-import { toIncomeInput } from './income.ts'
+import { splitByPercent, toIncomeInput } from './income.ts'
 import { engineOneOffTreatment } from './oneOff.ts'
 
 /** Each member's HELP balance in cents, keyed by member id. */
@@ -135,22 +136,40 @@ function annualAssessableCents(
   ).assessableCents
 }
 
-/** Sums each member's annual assessable income from the taxable inflows `include` accepts. */
+/**
+ * Sums each member's annual assessable income from the taxable inflows `include`
+ * accepts. A joint inflow — a recurring taxable `other` inflow both partners are
+ * assessed on — has its assessable figure split `member_split_percent` to
+ * `member_id` and the remainder to the household's other member (the one of
+ * `memberIds` that is not `member_id`), matching the FY tax estimate's income
+ * build-up ({@link inflowIncomeInputs}). If `memberIds` does not hold exactly two
+ * ids the whole figure stays on `member_id`.
+ */
 function annualByMemberFromInflows(
   inflows: readonly InflowRow[],
   include: (inflow: InflowRow) => boolean,
   config: TaxYearConfig,
+  memberIds: readonly string[],
 ): Map<string, number> {
   const byMember = new Map<string, number>()
+  const add = (memberId: string, cents: number) => {
+    byMember.set(memberId, (byMember.get(memberId) ?? 0) + cents)
+  }
   for (const inflow of inflows) {
     if (!inflow.taxable || !include(inflow)) {
       continue
     }
     const income = toIncomeInput(inflow)
-    byMember.set(
-      income.memberId,
-      (byMember.get(income.memberId) ?? 0) + annualAssessableCents(inflow, income, config),
-    )
+    const assessableCents = annualAssessableCents(inflow, income, config)
+    const otherMemberId =
+      memberIds.length === 2 ? memberIds.find((id) => id !== inflow.member_id) : undefined
+    if (inflow.is_joint && inflow.member_split_percent != null && otherMemberId != null) {
+      const [toMember, toOther] = splitByPercent(assessableCents, inflow.member_split_percent)
+      add(income.memberId, toMember)
+      add(otherMemberId, toOther)
+    } else {
+      add(income.memberId, assessableCents)
+    }
   }
   return byMember
 }
@@ -165,15 +184,20 @@ function annualByMemberFromInflows(
  * A ONE-OFF is excluded on the same reasoning: no employer super accrues on a
  * termination payment or a bonus paid on the way out, and a contribution set as a
  * percentage of salary is set against the salary, not against money that lands once.
+ *
+ * A joint inflow's annualised amount is split between the member it names and the
+ * household's other member, keyed on `memberIds` ({@link annualByMemberFromInflows}).
  */
 export function grossByMemberFromInflows(
   inflows: readonly InflowRow[],
   config: TaxYearConfig,
+  memberIds: readonly string[],
 ): Map<string, number> {
   return annualByMemberFromInflows(
     inflows,
     (inflow) => inflow.attracts_super && inflow.paid_on == null,
     config,
+    memberIds,
   )
 }
 
@@ -185,12 +209,16 @@ export function grossByMemberFromInflows(
  * entitlement. On $45,000 of salary plus $12,000 of on-call, the ordinary-time base
  * alone reads $45,000 and awards the whole $500 where the taper on $57,000 allows
  * $243.10.
+ *
+ * A joint inflow's annualised amount is split between the member it names and the
+ * household's other member, keyed on `memberIds` ({@link annualByMemberFromInflows}).
  */
 export function assessableByMemberFromInflows(
   inflows: readonly InflowRow[],
   config: TaxYearConfig,
+  memberIds: readonly string[],
 ): Map<string, number> {
-  return annualByMemberFromInflows(inflows, () => true, config)
+  return annualByMemberFromInflows(inflows, () => true, config, memberIds)
 }
 
 /**
@@ -265,18 +293,22 @@ export function superCapSummaryByMember(
  * contribution rows, using `config` (defaulting to the current financial year,
  * falling back to FY2027). Annual ordinary time earnings drive percent-mode
  * contributions; total assessable income drives the co-contribution income test.
+ * `members` names the household's members so a joint inflow's amount is split
+ * across the two of them in both bases.
  */
 export function superCapSummaryFromRows(
   inflows: readonly InflowRow[],
   profiles: readonly SuperProfileRow[],
   contributions: readonly SuperContributionRow[],
   config: TaxYearConfig = currentTaxConfig(),
+  members: readonly MemberIdRow[],
 ): Map<string, SuperCapSummary> {
+  const memberIds = members.map((member) => member.id)
   return superCapSummaryByMember(
     contributions,
     profiles,
-    grossByMemberFromInflows(inflows, config),
-    assessableByMemberFromInflows(inflows, config),
+    grossByMemberFromInflows(inflows, config, memberIds),
+    assessableByMemberFromInflows(inflows, config, memberIds),
     config,
   )
 }
@@ -333,17 +365,20 @@ export function netAnnualSuperContributionByMember(
  * contribution rows, using the config for the current financial year (falling
  * back to FY2027). Annual ordinary time earnings drive employer SG and
  * percent-mode contributions; total assessable income drives the co-contribution
- * income test.
+ * income test. `members` names the household's members so a joint inflow's amount
+ * is split across the two of them in both bases.
  */
 export function netAnnualSuperContributionFromRows(
   inflows: readonly InflowRow[],
   contributions: readonly SuperContributionRow[],
+  members: readonly MemberIdRow[],
 ): Map<string, number> {
   const config = currentTaxConfig()
+  const memberIds = members.map((member) => member.id)
   return netAnnualSuperContributionByMember(
     contributions,
-    grossByMemberFromInflows(inflows, config),
-    assessableByMemberFromInflows(inflows, config),
+    grossByMemberFromInflows(inflows, config, memberIds),
+    assessableByMemberFromInflows(inflows, config, memberIds),
     config,
   )
 }

@@ -67,5 +67,11 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     pool: 'threads',
+    // The form-component tests mount the whole Mantine form dozens of times each
+    // and drive it through long `userEvent` sequences. They run in a second or
+    // two locally, but a loaded `test-shard` runner can tip the heaviest case
+    // past the 5s default and fail the whole job on green code. Give every test
+    // headroom; a real hang still fails, just later.
+    testTimeout: 15_000,
   },
 })

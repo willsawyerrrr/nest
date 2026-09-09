@@ -13,12 +13,6 @@ import { makeInflow, makePayslip, makePayslipLine, makePayslipTaxLine } from '..
 import { render, screen, waitFor } from '../test/render'
 import { PayslipForm } from './PayslipForm'
 
-// This file mounts the whole payslip form ~60 times, each driving it through a
-// long `userEvent` sequence. It runs comfortably in isolation but a loaded
-// `test-shard` runner can tip the heaviest case past the 5s default. Give the
-// file headroom; WSD-174 tracks actually speeding it up.
-vi.setConfig({ testTimeout: 15_000 })
-
 const member = { id: 'm1', name: 'Will' }
 
 const inflows = [

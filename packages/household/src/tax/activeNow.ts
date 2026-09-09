@@ -1,0 +1,36 @@
+/**
+ * The taxable inflows the fortnightly budget basis is estimated over: the income
+ * landing now, each at its full annual rate.
+ */
+
+import { isActiveOn } from '@nest/plan'
+import type { InflowRow } from '../rows.ts'
+
+/**
+ * The taxable inflows the fortnightly budget basis is estimated over: the income
+ * landing NOW, each at its full annual rate. A recurring inflow is kept only
+ * while `now` falls within its effective window (either side open-ended), with
+ * `starts_on` / `ends_on` cleared so the engine annualises it at the full rate
+ * rather than its FY-active share — a salary that ended months ago or starts
+ * months from now is dropped entirely rather than smeared into the buffer. A
+ * ONE-OFF is passed through unchanged: it states a date, not a cadence, so no
+ * fortnight was ever owed a share of it and it is already out of the fortnightly
+ * basis. Non-taxable inflows are dropped — they never reach the tax engine.
+ *
+ * The whole-year tax estimate keeps reading the inflows as they are, windows and
+ * all; only this second, budget-only estimate reads the active-now set.
+ */
+export function activeNowTaxableInflows(inflows: readonly InflowRow[], now: Date): InflowRow[] {
+  return inflows.flatMap((inflow) => {
+    if (!inflow.taxable) {
+      return []
+    }
+    if (inflow.paid_on != null) {
+      return [inflow]
+    }
+    if (!isActiveOn({ startsOn: inflow.starts_on, endsOn: inflow.ends_on }, now)) {
+      return []
+    }
+    return [{ ...inflow, starts_on: null, ends_on: null }]
+  })
+}

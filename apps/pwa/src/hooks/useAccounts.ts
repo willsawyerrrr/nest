@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { TablesInsert, TablesUpdate } from '../lib/database.types'
 import type { Account } from '../lib/domain'
 import { supabase } from '../lib/supabase'
+import { useHouseholdQuery } from './useCollection'
 
 export type { Account }
 
@@ -30,16 +32,30 @@ export interface UseAccountsResult {
  */
 export function useAccounts(): UseAccountsResult {
   const householdId = useHouseholdId()
-  const [accounts, setAccounts] = useState<Account[] | null>(null)
+  const queryClient = useQueryClient()
 
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase.from('accounts_with_balance').select('*').order('name')
-    if (error) {
-      throw error
-    }
-    // The view never returns a null in these columns; see `Account` in domain.ts.
-    setAccounts(data as Account[])
-  }, [])
+  const { data, loading, reload } = useHouseholdQuery(
+    ['accounts_with_balance', householdId, 'all'],
+    async () => {
+      const { data, error } = await supabase.from('accounts_with_balance').select('*').order('name')
+      if (error) {
+        throw error
+      }
+      // The view never returns a null in these columns; see `Account` in domain.ts.
+      return data as Account[]
+    },
+  )
+
+  // Both account surfaces are invoker views over `accounts` joined to
+  // `account_balance`, so an identity or balance write refreshes the whole
+  // `accounts_with_balance` prefix (this hook and `useSavers`' slice) and the
+  // `account_directory` prefix alongside it.
+  const invalidateAccounts = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['accounts_with_balance', householdId] }),
+      queryClient.invalidateQueries({ queryKey: ['account_directory', householdId] }),
+    ])
+  }, [queryClient, householdId])
 
   const insert = useCallback(
     async (account: Omit<TablesInsert<'accounts'>, 'household_id'>) => {
@@ -51,10 +67,10 @@ export function useAccounts(): UseAccountsResult {
       if (error) {
         throw error
       }
-      await reload()
+      await invalidateAccounts()
       return data.id
     },
-    [householdId, reload],
+    [householdId, invalidateAccounts],
   )
 
   const update = useCallback(
@@ -63,9 +79,9 @@ export function useAccounts(): UseAccountsResult {
       if (error) {
         throw error
       }
-      await reload()
+      await invalidateAccounts()
     },
-    [reload],
+    [invalidateAccounts],
   )
 
   const remove = useCallback(
@@ -74,9 +90,9 @@ export function useAccounts(): UseAccountsResult {
       if (error) {
         throw error
       }
-      await reload()
+      await invalidateAccounts()
     },
-    [reload],
+    [invalidateAccounts],
   )
 
   const upsertBalance = useCallback(
@@ -90,14 +106,10 @@ export function useAccounts(): UseAccountsResult {
       if (error) {
         throw error
       }
-      await reload()
+      await invalidateAccounts()
     },
-    [householdId, reload],
+    [householdId, invalidateAccounts],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { accounts, loading: accounts === null, reload, insert, update, remove, upsertBalance }
+  return { accounts: data ?? null, loading, reload, insert, update, remove, upsertBalance }
 }

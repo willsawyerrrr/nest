@@ -15,7 +15,7 @@
       }
     },
     {
-      "files": ["apps/pwa/src/lib/database.types.ts"],
+      "files": ["apps/pwa/src/lib/database.types.ts", "packages/household/src/goldenCases.ts"],
       "rules": {
         "eslint/max-lines": "off"
       }

@@ -15,39 +15,16 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    env:
-      COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # No install yet: the two checks below are dependency-free and instant, so
+      # they run ahead of the install and fail the build before anything slower
+      # gets a chance to pass.
+      - uses: ./.github/actions/setup-pnpm
         with:
-          node-version: 24
-      - name: Cache corepack pnpm binary
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.COREPACK_HOME }}
-          key: corepack-${{ runner.os }}-pnpm-11.14.0
-      - name: Enable corepack (provides pnpm@11.14.0)
-        run: |
-          corepack enable
-          for attempt in 1 2 3; do
-            corepack prepare pnpm@11.14.0 --activate && break
-            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
-            sleep 5
-          done
-          pnpm --version
-      # Dependency-free and instant, so they run ahead of the install and fail
-      # the build before anything slower gets a chance to pass.
+          install: 'false'
       - run: pnpm check:migrations
       - run: pnpm check:vendor-edge
-      - name: Locate pnpm store
-        id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm format:check
@@ -76,35 +53,9 @@ jobs:
     # that payload to arrive first. `blob` stays for `--merge-reports`.
     env:
       VITEST_SKIP_COVERAGE_THRESHOLDS: '1'
-      COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Cache corepack pnpm binary
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.COREPACK_HOME }}
-          key: corepack-${{ runner.os }}-pnpm-11.14.0
-      - name: Enable corepack (provides pnpm@11.14.0)
-        run: |
-          corepack enable
-          for attempt in 1 2 3; do
-            corepack prepare pnpm@11.14.0 --activate && break
-            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
-            sleep 5
-          done
-          pnpm --version
-      - name: Locate pnpm store
-        id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-pnpm
       - run: pnpm exec vitest run --shard=${{ matrix.shard }}/6 --coverage --reporter=default --reporter=blob
       - uses: actions/upload-artifact@v7
         with:
@@ -121,8 +72,6 @@ jobs:
     # and a skipped required check counts as passing, letting a broken shard
     # merge. Fail explicitly instead.
     if: ${{ always() }}
-    env:
-      COREPACK_HOME: ${{ github.workspace }}/.corepack
     steps:
       - run: |
           if [ "${{ needs.test-shard.result }}" != "success" ]; then
@@ -131,32 +80,7 @@ jobs:
           fi
           echo "all shards passed"
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Cache corepack pnpm binary
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.COREPACK_HOME }}
-          key: corepack-${{ runner.os }}-pnpm-11.14.0
-      - name: Enable corepack (provides pnpm@11.14.0)
-        run: |
-          corepack enable
-          for attempt in 1 2 3; do
-            corepack prepare pnpm@11.14.0 --activate && break
-            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
-            sleep 5
-          done
-          pnpm --version
-      - name: Locate pnpm store
-        id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-pnpm
       - uses: actions/download-artifact@v8
         with:
           pattern: blob-*
@@ -176,9 +100,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: '2.9.3'
+          deno-version: '2.9.6'
           cache: true
-          cache-hash: ${{ hashFiles('supabase/functions/deno.json') }}
+          cache-hash: ${{ hashFiles('supabase/functions/deno.json', 'supabase/functions/deno.lock') }}
       - run: deno fmt --check
       - run: deno lint
       - run: deno task check
@@ -200,38 +124,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      COREPACK_HOME: ${{ github.workspace }}/.corepack
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Cache corepack pnpm binary
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.COREPACK_HOME }}
-          key: corepack-${{ runner.os }}-pnpm-11.14.0
-      - name: Enable corepack (provides pnpm@11.14.0)
-        run: |
-          corepack enable
-          for attempt in 1 2 3; do
-            corepack prepare pnpm@11.14.0 --activate && break
-            echo "corepack prepare failed (attempt $attempt); retrying in 5s"
-            sleep 5
-          done
-          pnpm --version
-      - name: Locate pnpm store
-        id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-pnpm
       - name: Apply auth shim, migrations, and RLS assertions
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/setup_auth.sql

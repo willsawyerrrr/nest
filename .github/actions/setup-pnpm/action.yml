@@ -1,0 +1,56 @@
+# The toolchain every workflow job shares: Node 24, the corepack-pinned pnpm, a
+# warm binary and store cache, and (by default) a frozen install. The calling
+# job runs `actions/checkout` first — a local composite action is only readable
+# once the repo is on disk — and this picks up from there.
+name: Set up pnpm toolchain
+description: Node 24, corepack-pinned pnpm@11.14.0, warm caches, and a frozen install.
+
+inputs:
+  install:
+    description: >-
+      Run `pnpm install --frozen-lockfile` as the last step. Set to "false" in a
+      job that runs dependency-free checks before the install.
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24
+    # Keep corepack's downloaded package-manager binaries in the workspace so
+    # `actions/cache` can carry them between runs. Written to $GITHUB_ENV so every
+    # later step of the calling job — not just this action's — resolves the same
+    # pnpm.
+    - name: Point COREPACK_HOME at the workspace
+      shell: bash
+      run: echo "COREPACK_HOME=$GITHUB_WORKSPACE/.corepack" >> "$GITHUB_ENV"
+    - name: Cache corepack pnpm binary
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/.corepack
+        key: corepack-${{ runner.os }}-pnpm-11.14.0
+    - name: Enable corepack (provides pnpm@11.14.0)
+      shell: bash
+      run: |
+        corepack enable
+        for attempt in 1 2 3; do
+          corepack prepare pnpm@11.14.0 --activate && break
+          echo "corepack prepare failed (attempt $attempt); retrying in 5s"
+          sleep 5
+        done
+        pnpm --version
+    - name: Locate pnpm store
+      id: pnpm-store
+      shell: bash
+      run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+    - name: Cache pnpm store
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: pnpm-store-${{ runner.os }}-
+    - name: Install dependencies
+      if: ${{ inputs.install == 'true' }}
+      shell: bash
+      run: pnpm install --frozen-lockfile

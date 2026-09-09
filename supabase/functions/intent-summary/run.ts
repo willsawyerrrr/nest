@@ -8,11 +8,8 @@
  * {@link summariseHouseholdFromRows}.
  */
 
+import { type BudgetSummaryBundle, summariseHouseholdFromRows } from '@nest/household'
 import type { CallerError } from '../_shared/caller.ts'
-import {
-  type BudgetSummaryBundle,
-  summariseHouseholdFromRows,
-} from '../_shared/householdBuffer/summary.ts'
 
 export interface IntentSummaryDeps {
   /** Resolves the caller's household from their JWT, or the error to return. */

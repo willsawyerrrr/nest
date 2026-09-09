@@ -1,14 +1,18 @@
 /**
- * Loads every table the server-side buffer ({@link summariseHouseholdFromRows})
- * reads for one household, on a service-role `admin` client — the I/O glue both
- * `notify-eval` and `intent-summary` wire in. The financial-year-scoped tables
- * are filtered to `financialYear`, matching how each PWA hook scopes its own
- * read.
+ * The service-role row load behind the household's fortnightly buffer — the I/O
+ * glue both `notify-eval` and `intent-summary` wire in. The shaping and the
+ * whole-year + active-now reconciliation itself are `@nest/household`'s
+ * {@link summariseHouseholdFromRows}, shared with the PWA Summary so the Siri
+ * figure and the app never disagree.
+ *
+ * The breakdown- and gift-derived budget lines are read straight from
+ * `budget_line`: the `reconcile_derived_lines` triggers keep their annual
+ * `amount_cents` canonical, so this path reads the row and touches none of the
+ * breakdown or gift tables.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SaverRow } from './adapters.ts'
-import type { BudgetSummaryBundle } from './summary.ts'
+import type { BudgetSummaryBundle, SaverRow } from '@nest/household'
 
 /** A raw `accounts` row, as much of it as the saver derivation reads. */
 export interface AccountRow {
@@ -68,6 +72,11 @@ export async function readHouseholdTable(
   return (data ?? []) as any[]
 }
 
+/**
+ * Loads every table {@link summariseHouseholdFromRows} reads for one household.
+ * The financial-year-scoped tables are filtered to `financialYear`, matching how
+ * each PWA hook scopes its own read.
+ */
 export async function loadBudgetSummaryBundle(
   admin: SupabaseClient,
   householdId: string,

@@ -1,8 +1,11 @@
 import { assert, assertEquals } from '@std/assert'
 import { FORTNIGHTS_PER_YEAR } from '@nest/plan'
 import { FY2027_CONFIG } from '@nest/tax'
-import { estimateHouseholdTaxFromRows, type InflowRow } from '../_shared/householdBuffer/tax.ts'
-import type { BudgetSummaryBundle } from '../_shared/householdBuffer/summary.ts'
+import {
+  type BudgetSummaryBundle,
+  estimateHouseholdTaxFromRows,
+  type InflowRow,
+} from '@nest/household'
 import { type IntentSummaryDeps, runIntentSummary } from './run.ts'
 
 const NOW = new Date('2026-12-01T00:00:00Z')
@@ -58,7 +61,15 @@ function deps(overrides: Partial<IntentSummaryDeps> = {}): IntentSummaryDeps {
 
 Deno.test('runIntentSummary returns the fortnightly after-saving buffer for the household', async () => {
   const result = await runIntentSummary(deps())
-  const estimate = estimateHouseholdTaxFromRows(fakeBundle(), FY2027_CONFIG)
+  const b = fakeBundle()
+  const estimate = estimateHouseholdTaxFromRows(
+    b.inflows,
+    b.taxProfiles,
+    b.contributions,
+    b.helpDebts,
+    b.deductions,
+    FY2027_CONFIG,
+  )
   const expected = Math.round(estimate.annualAfterTaxCents / FORTNIGHTS_PER_YEAR) - 1_000_00
   assertEquals(result, { status: 200, body: { fortnightlyAfterSavingCents: expected } })
 })

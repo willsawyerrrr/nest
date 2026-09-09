@@ -13,13 +13,13 @@
 
 import { fortnightlyCents, type Frequency, projectGoal } from '@nest/plan'
 import { financialYearForDate } from '@nest/tax'
-import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
-import type { BudgetLineRow as BufferBudgetLineRow } from '../_shared/householdBuffer/adapters.ts'
 import {
+  type BudgetLineRow as BufferBudgetLineRow,
   type BudgetSummaryBundle,
   summariseHouseholdFromRows,
   type TemporaryItemRow as BufferTemporaryItemRow,
-} from '../_shared/householdBuffer/summary.ts'
+} from '@nest/household'
+import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
 
 /** The four today's-data conditions, matching the `notification_trigger` enum. */
 export type Trigger =

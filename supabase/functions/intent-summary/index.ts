@@ -14,7 +14,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { financialYearForDate } from '@nest/tax'
 import { resolveCaller } from '../_shared/caller.ts'
-import { loadBudgetSummaryBundle } from '../_shared/householdBuffer/bundle.ts'
+import { loadBudgetSummaryBundle } from '../_shared/householdBuffer.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { runIntentSummary } from './run.ts'
 

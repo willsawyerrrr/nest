@@ -15,7 +15,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
-import { loadBudgetSummaryBundle, readHouseholdTable } from '../_shared/householdBuffer/bundle.ts'
+import { loadBudgetSummaryBundle, readHouseholdTable } from '../_shared/householdBuffer.ts'
 import { loadVapidKeys } from '../_shared/vapid.ts'
 import { createPushSender } from '../_shared/webpush.ts'
 import { isServiceRoleToken } from '../up-sync/auth.ts'

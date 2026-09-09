@@ -67,7 +67,9 @@ function toTaxProfileInput(profile: TaxProfileRow, helpDebtCents: number): TaxPr
  * concessional rate on a one-off termination payment; a member whose date of birth
  * is absent or unset is read as below preservation age — the higher rate. Its ids
  * also name the household's two members, so a joint inflow's annualised amount is
- * split between the member it names and the other one ({@link inflowIncomeInputs}).
+ * split between the member it names and the other one — both in the income
+ * build-up ({@link inflowIncomeInputs}) and in the per-member gross salary a
+ * percent-of-salary contribution is set against ({@link grossByMemberFromInflows}).
  * `extraIncomes`, when supplied, are synthetic income inputs concatenated with
  * the mapped inflows — projected savings interest
  * ({@link projectedInterestIncomeInputs}), assessable as `other` income and
@@ -109,7 +111,9 @@ export function estimateHouseholdTaxFromRows(
     ...extraIncomes,
   ]
   // Per-member annual gross salary, the base for percent-of-salary contributions.
-  const grossByMember = grossByMemberFromInflows(inflows, config)
+  // A joint inflow's amount is split across the household's two members, matching
+  // the income build-up above.
+  const grossByMember = grossByMemberFromInflows(inflows, config, memberIds)
   const helpByMember = helpDebtCentsByMember(helpDebts)
   const profileInputByMember = new Map(
     profiles.map((profile) => [

@@ -222,6 +222,14 @@ plus the member's manual carry-forward, the non-concessional cap is
 `non_concessional_cap_cents` (bring-forward up to 3× is surfaced as a note, not
 modelled).
 
+Both per-member super bases — ordinary time earnings (the salary a
+percent-of-salary contribution is set against, and the employer SG base) and
+total assessable income (the co-contribution income test) — split a **joint**
+inflow's annualised amount `member_split_percent` to `member_id` and the
+remainder to the household's other member, the same split the income build-up
+applies (`grossByMemberFromInflows` / `assessableByMemberFromInflows`, keyed on
+the household's member ids).
+
 `superCoContribution(personalNonConcessionalCents, totalIncomeCents, config)`
 estimates the government co-contribution: 50c per $1 of eligible personal
 non-concessional contributions up to `co_contribution.max_cents`, tapering

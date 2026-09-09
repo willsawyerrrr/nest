@@ -181,7 +181,7 @@ describe('PlanningSection', () => {
     })
     hooks.planning.layerFor.mockImplementation((table: string) =>
       table === 'inflows'
-        ? { updates: { i1: { name: 'Day job', amount_cents: 500000 } }, creates: [], deletes: [] }
+        ? { updates: { i1: { name: 'Day job', amount_cents: 5_000_00 } }, creates: [], deletes: [] }
         : undefined,
     )
     renderSection()

@@ -242,6 +242,13 @@ itself, to resolve a feed token by `token_hash`; every write to that table goes
 through `create_calendar_feed_token` / `revoke_calendar_feed_token`
 (SECURITY DEFINER).
 
+`intent-summary`, the iOS Siri "what's my Nest buffer" query, is JWT-verified and
+holds no secret of its own. It resolves the caller's household from their JWT,
+then reconciles the fortnightly buffer on a service-role client through the
+shared `_shared/householdBuffer/` loader `notify-eval` also uses (the buffer
+reads across the whole household, past the per-account balance-privacy boundary),
+so it reads the same plan tables that path does.
+
 ## Storage buckets
 
 Both buckets are created by migration, not by hand in the dashboard, so a fresh

@@ -6,8 +6,16 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['packages/tax/src/**', 'packages/plan/src/**', 'apps/pwa/src/**'],
+      include: [
+        'packages/tax/src/**',
+        'packages/plan/src/**',
+        'packages/household/src/**',
+        'apps/pwa/src/**',
+      ],
       exclude: [
+        // A data module: golden parity fixtures, exercised by both the vitest and
+        // the deno parity suites, carrying no logic of its own.
+        'packages/household/src/goldenCases.ts',
         'apps/pwa/src/main.tsx',
         'apps/pwa/src/lib/database.types.ts',
         'apps/pwa/src/lib/supabase.ts',
@@ -38,6 +46,12 @@ export default defineConfig({
               lines: 100,
             },
             'packages/plan/**': {
+              statements: 100,
+              branches: 100,
+              functions: 100,
+              lines: 100,
+            },
+            'packages/household/**': {
               statements: 100,
               branches: 100,
               functions: 100,

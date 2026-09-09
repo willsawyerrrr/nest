@@ -567,6 +567,21 @@ describe('estimateHouseholdTax', () => {
     ])
   })
 
+  it('yields an all-zero household estimate with no income and no profiles', () => {
+    const household = estimateHouseholdTax([], [], FY2027_CONFIG)
+    expect(household.members).toEqual([])
+    expect(household).toMatchObject({
+      annualGrossCents: 0,
+      annualTaxCents: 0,
+      annualAfterTaxCents: 0,
+      annualOneOffGrossCents: 0,
+      annualOneOffAfterTaxCents: 0,
+      fortnightlyGrossCents: 0,
+      fortnightlyTaxCents: 0,
+      fortnightlyAfterTaxCents: 0,
+    })
+  })
+
   it('reduces taxable income and after-tax cash by concessional super contributions', () => {
     const concessional = new Map([['alex', 20_000_00]])
     const household = estimateHouseholdTax(incomes, profiles, FY2027_CONFIG, concessional)

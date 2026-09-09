@@ -55,13 +55,13 @@ function parseArgs(argv) {
 }
 
 /** The generated types, minus any trailing telemetry noise the CLI appends. */
-function generate(source) {
+/** One `supabase gen types` invocation; returns stdout whether or not it exits 0. */
+function runGenTypes(source) {
   // The CLI exits non-zero when its telemetry flush times out even though the
   // types printed fine (which is why `db:types` has always used a `>` redirect),
   // so the exit code is ignored and the output is validated instead.
-  let stdout
   try {
-    stdout = execFileSync(
+    return execFileSync(
       SUPABASE_BIN,
       ['gen', 'types', 'typescript', ...source, '--schema', SCHEMAS],
       {
@@ -72,13 +72,28 @@ function generate(source) {
       },
     )
   } catch (error) {
-    stdout = error.stdout ?? ''
+    return error.stdout ?? ''
   }
-  const lines = stdout.split('\n')
-  const end = lines.lastIndexOf('} as const')
-  if (end === -1)
-    die('supabase gen types produced no `} as const` — is the schema source reachable?')
-  return lines.slice(0, end + 1).join('\n') + '\n'
+}
+
+function generate(source) {
+  // `gen types` starts a Postgres container to introspect the schema; on a CI
+  // runner the Docker daemon intermittently can't start it ("error running
+  // container: exit 125"), leaving output with no `} as const`. Retry a few
+  // times before giving up, the same way the function-bundle deploy does.
+  const attempts = 3
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const lines = runGenTypes(source).split('\n')
+    const end = lines.lastIndexOf('} as const')
+    if (end !== -1) return lines.slice(0, end + 1).join('\n') + '\n'
+    if (attempt < attempts) {
+      console.error(
+        `supabase gen types produced no \`} as const\` (attempt ${attempt}/${attempts}); retrying in 5s`,
+      )
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000)
+    }
+  }
+  die('supabase gen types produced no `} as const` — is the schema source reachable?')
 }
 
 /** Runs the raw generated types through Prettier, as the committed file is. */

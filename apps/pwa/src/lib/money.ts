@@ -45,6 +45,15 @@ export function formatPerYear(cents: number): string {
 }
 
 /**
+ * Formats a fractional rate as a percentage, rounded to at most two decimals with
+ * trailing zeros trimmed (0.0125 → `1.25%`, 0.325 → `32.5%`, 0.15 → `15%`, and
+ * negatives like -0.05 → `-5%`).
+ */
+export function formatRatePercent(rate: number): string {
+  return `${Number.parseFloat((rate * 100).toFixed(2))}%`
+}
+
+/**
  * The text colour for a signed money figure: the `positive` token for a positive
  * amount, the `negative` token for a negative one, and the inherited neutral
  * colour for zero. This is the app's one money-sign signal, drawn from the

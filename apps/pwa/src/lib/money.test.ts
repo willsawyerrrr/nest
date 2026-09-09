@@ -6,6 +6,7 @@ import {
   formatCompactDollars,
   formatPerFortnight,
   formatPerYear,
+  formatRatePercent,
   moneyColor,
   workUseAmountCents,
 } from './money'
@@ -19,6 +20,35 @@ describe('formatPerFortnight', () => {
 describe('formatPerYear', () => {
   it('suffixes the currency with an annual rate', () => {
     expect(formatPerYear(1_234_56)).toBe('$1,234.56 / year')
+  })
+})
+
+describe('formatRatePercent', () => {
+  it('scales a fractional rate to a percentage', () => {
+    expect(formatRatePercent(0.0125)).toBe('1.25%')
+    expect(formatRatePercent(0.325)).toBe('32.5%')
+  })
+
+  it('trims trailing zeros', () => {
+    expect(formatRatePercent(0.325)).toBe('32.5%')
+    expect(formatRatePercent(0.5)).toBe('50%')
+  })
+
+  it('drops the decimals from a whole percentage', () => {
+    expect(formatRatePercent(0.15)).toBe('15%')
+    expect(formatRatePercent(0.01)).toBe('1%')
+  })
+
+  it('rounds to two decimals', () => {
+    expect(formatRatePercent(0.123456)).toBe('12.35%')
+  })
+
+  it('formats zero', () => {
+    expect(formatRatePercent(0)).toBe('0%')
+  })
+
+  it('formats a negative rate', () => {
+    expect(formatRatePercent(-0.05)).toBe('-5%')
   })
 })
 

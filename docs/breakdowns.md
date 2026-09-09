@@ -182,14 +182,16 @@ Owned by a breakdown; every breakdown is generic.
   runs in the database as `reconcile_derived_lines(household_id)` (indexed in
   [`data-model.md`](data-model.md#reconcile)): `SECURITY DEFINER` triggers on
   every roll-up source
-  (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, `members`,
-  `accounts`) re-derive the affected household's lines the moment a source changes,
+  (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`,
+  `gift_discretionary_budget`, `members`, `accounts`) re-derive the affected
+  household's lines the moment a source changes,
   computing the creates, updates, and removes needed to bring the breakdown and gift
   lines into step and no-opping once they already match; a `budget_line` normalizer
   canonicalises any derived row on write. The database is the sole authority for the
   derived lines — no client code maintains them. Every collection write invalidates
   its own table's whole `[table, householdId]` cache prefix; an interactive roll-up
-  source (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, `gift_occasion`)
+  source (`breakdown_item`, `breakdown`, `gift_budget`, `gift_recipient`, `gift_occasion`,
+  `gift_discretionary_budget`)
   additionally invalidates the `budget_line` prefix (via the collection's `alsoInvalidate`),
   since the trigger rewrites the derived lines server-side. So a breakdown-item or gift
   edit both refetches the roll-up sources — letting the Budget and Summary tabs recompute

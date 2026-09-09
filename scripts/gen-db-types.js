@@ -22,6 +22,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { stripToGeneratedSchema } from './lib/db-types.js'
 import { REPO_ROOT } from './lib/migration-files.js'
 
 const SUPABASE_BIN = join(REPO_ROOT, 'node_modules', '.bin', 'supabase')
@@ -54,7 +55,6 @@ function parseArgs(argv) {
   return args
 }
 
-/** The generated types, minus any trailing telemetry noise the CLI appends. */
 /** One `supabase gen types` invocation; returns stdout whether or not it exits 0. */
 function runGenTypes(source) {
   // The CLI exits non-zero when its telemetry flush times out even though the
@@ -83,9 +83,8 @@ function generate(source) {
   // times before giving up, the same way the function-bundle deploy does.
   const attempts = 3
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const lines = runGenTypes(source).split('\n')
-    const end = lines.lastIndexOf('} as const')
-    if (end !== -1) return lines.slice(0, end + 1).join('\n') + '\n'
+    const types = stripToGeneratedSchema(runGenTypes(source))
+    if (types !== null) return types
     if (attempt < attempts) {
       console.error(
         `supabase gen types produced no \`} as const\` (attempt ${attempt}/${attempts}); retrying in 5s`,

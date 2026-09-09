@@ -927,7 +927,13 @@ describe('helpPayoffByMember', () => {
     const estimate = estimateHouseholdTaxFromRows([highSalary], [profile], [], [helpDebt])
     const byMember = helpPayoffByMember(estimate, [helpDebt], FY2027_CONFIG)
     expect(byMember.has('m1')).toBe(true)
-    expect(byMember.get('m1')?.schedule.length).toBeGreaterThan(0)
+    const projection = byMember.get('m1')!
+    // $30,000 at $100,000 income clears in 8 FYs (through FY2034) at FY2027's
+    // provisional 3.5% indexation; the last year closes the balance to nil.
+    expect(projection.yearsToPayOff).toBe(8)
+    expect(projection.paidOffFinancialYear).toBe(2034)
+    expect(projection.schedule).toHaveLength(8)
+    expect(projection.schedule.at(-1)?.closingBalanceCents).toBe(0)
 
     const noDebt = helpPayoffByMember(estimate, [], FY2027_CONFIG)
     expect(noDebt.size).toBe(0)

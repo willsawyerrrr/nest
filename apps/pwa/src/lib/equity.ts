@@ -24,8 +24,8 @@ export function equityGrantToPlan(grant: EquityGrantRow): EquityGrant {
     grantDate: grant.grant_date,
     cliffMonths: grant.cliff_months,
     vestingPeriodMonths: grant.vesting_period_months,
-    vestingFrequency: grant.vesting_frequency as VestingFrequency,
-    instrumentType: grant.instrument_type as EquityInstrumentType,
+    vestingFrequency: grant.vesting_frequency,
+    instrumentType: grant.instrument_type,
     strikePriceCents: grant.strike_price_cents,
     pricePerShareCents: grant.price_per_share_cents,
   }

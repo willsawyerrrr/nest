@@ -112,12 +112,12 @@ authenticated tab) already passed it:
 `EofyShareSection.tsx` (the `/share/eofy/:token` route) is `EofySection.tsx`'s
 mirror: `useEofyShareData` reads `eofy-share`'s response, typed exactly as
 the existing hooks' row types, and the same `estimateHouseholdTaxFromRows` /
-`superCapSummaryFromRows` / `helpPayoffByMember` / `paygWithheldFromRows` /
-`payslipCountByMember` pure functions in `lib/tax.ts` / `lib/payslips.ts` run
-over it unmodified. This is what makes the shared view mirror the
-authenticated one **by construction** rather than by two implementations
-staying in sync — there is no server-side EOFY view or a second tax
-computation in Deno.
+`superCapSummaryFromRows` / `helpPayoffByMember` pure functions from
+`@nest/household` and `paygWithheldFromRows` / `payslipCountByMember` from
+`lib/payslips.ts` run over it unmodified. This is what makes the shared view
+mirror the authenticated one **by construction** rather than by two
+implementations staying in sync — there is no server-side EOFY view or a second
+tax computation in Deno.
 
 One correctness detail this forced: `estimateHouseholdTaxFromRows` prices a
 one-off termination payment's tax-free amount against the member's age at

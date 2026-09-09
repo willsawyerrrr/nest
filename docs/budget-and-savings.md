@@ -153,9 +153,9 @@ math).
     linked saver's real balance when `linked_account_id` resolves, else
     `current_balance_cents`. Attribution follows the linked saver: wholly to an
     individually-owned saver's owner, split 50/50 across the household's members
-    for a joint saver or a goal with no resolvable link. It is a PWA-adapter
-    concern (`lib/tax.ts`'s `projectedInterestIncomeInputs`), so `@nest/tax` and
-    `@nest/plan` are untouched.
+    for a joint saver or a goal with no resolvable link. It is a
+    `@nest/household` adapter concern (`projectedInterestIncomeInputs`), so
+    `@nest/tax` and `@nest/plan` are untouched.
 
 #### Queued goals — the "Upcoming" list
 

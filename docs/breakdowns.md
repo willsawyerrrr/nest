@@ -162,7 +162,10 @@ Owned by a breakdown; every breakdown is generic.
   `@nest/plan` `annualCents` — for a breakdown, over its `breakdown_item` rows; for
   a gift line, its recipient partition's sum of `gift_budget.budgeted_amount_cents`
   (an annual figure), partitioned by the budget's recipient's `member_id` (null for
-  external recipients). The line's `frequency` is `annual`. The amount is read-only
+  external recipients) — and, for the external (null-member) partition only, plus
+  the household's `gift_discretionary_budget.budgeted_amount_cents` ad hoc gift
+  buffer, folded into that partition's total rather than minting a line of its own.
+  The line's `frequency` is `annual`. The amount is read-only
   in every budget surface (list, form, summary), and every surface resolves it from
   one derived-amount context so Budget, Summary, and Splits never drift.
 - **Lifecycle.** A breakdown's line exists iff it has ≥ 1 item; each gift
@@ -176,7 +179,9 @@ Owned by a breakdown; every breakdown is generic.
   ("others") line whose emptied partition still carries a user-set
   `destination_account_id` keeps its line so its pay-split routing is not silently
   lost — it stays in place (rolling up to $0) until its partition has budgets again
-  or is re-routed. A gift member line is exempt from this: its routing is
+  or is re-routed. The external ("others") line also survives an emptied partition
+  on a positive `gift_discretionary_budget` amount alone, rolling up to that buffer
+  amount rather than $0. A gift member line is exempt from this: its routing is
   auto-derived (see below) rather than user-set, so an emptied member partition
   always removes its line rather than pinning it at $0. The reconcile
   runs in the database as `reconcile_derived_lines(household_id)` (indexed in
@@ -214,7 +219,10 @@ Owned by a breakdown; every breakdown is generic.
   is independent, and changing one leaves the others alone. The group choices exclude
   Savings/Investments, which route via a goal rather than a funding account.
 - **Funding account.** A breakdown line and the gift external ("others") line carry
-  a user-set `destination_account_id`, edited from a "Funded from" picker. A gift
+  a user-set `destination_account_id`, edited from a "Funded from" picker; the
+  external line's total also folds in the household's ad hoc gift buffer
+  (`gift_discretionary_budget`), so it can exist and route on that buffer alone with
+  no external gift budgets. A gift
   member line's funding account is **not** user-configurable: it is auto-derived
   each reconcile as the **buyer's** spending account — the _other_ household member's
   `type = 'transaction'` account in `account_directory` (never the joint account,

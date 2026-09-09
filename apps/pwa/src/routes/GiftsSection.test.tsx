@@ -138,7 +138,7 @@ describe('GiftsSection', () => {
     const input = {
       recipient_id: 'r1',
       occasion_id: 'o1',
-      budgeted_amount_cents: 5000,
+      budgeted_amount_cents: 50_00,
       event_date: null,
     }
     await onCreateBudget(input)

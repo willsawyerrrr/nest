@@ -36,5 +36,8 @@ apps/ios/Nest/Info.plist
 xcuserdata/
 DerivedData/
 
+# Claude Code — machine-local runtime state
+.claude/scheduled_tasks.lock
+
 # Personal, machine-specific Claude notes — never shared via CLAUDE.md
 CLAUDE.local.md

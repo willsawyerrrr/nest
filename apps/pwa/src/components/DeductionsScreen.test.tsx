@@ -404,7 +404,7 @@ describe('DeductionsScreen', () => {
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          input: expect.objectContaining({ description: 'Union fees', amount_cents: 50000 }),
+          input: expect.objectContaining({ description: 'Union fees', amount_cents: 500_00 }),
           receipts: [],
         }),
       ),

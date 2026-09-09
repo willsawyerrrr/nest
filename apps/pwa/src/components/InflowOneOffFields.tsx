@@ -3,7 +3,7 @@ import { DateInput } from '@mantine/dates'
 import type { OneOffPaymentSplit } from '@nest/tax'
 import type { Member } from '../hooks/useMembers'
 import { ONE_OFF_TAX_TREATMENT_OPTIONS } from '../lib/inflowTypes'
-import { formatCents } from '../lib/money'
+import { formatCents, formatRatePercent } from '../lib/money'
 import { previewOneOffSplit, type OneOffDraft } from '../lib/oneOffInflow'
 import { currentTaxConfig } from '../lib/tax'
 import { EnumSelect } from './EnumSelect'
@@ -17,11 +17,6 @@ interface InflowOneOffFieldsProps {
   member: Member | undefined
   draft: OneOffDraft
   onChange: (draft: OneOffDraft) => void
-}
-
-/** Formats a fractional rate as a trimmed percentage (0.15 → `15%`, 0.325 → `32.5%`). */
-function formatRate(rate: number): string {
-  return `${Number.parseFloat((rate * 100).toFixed(2))}%`
 }
 
 /**
@@ -51,7 +46,7 @@ function SplitPreview({ split, capped }: { split: OneOffPaymentSplit; capped: bo
       {split.concessionalCents > 0 && (
         <Text size="xs" c="dimmed">
           {formatCents(split.concessionalCents)} of that is taxed at{' '}
-          {formatRate(split.concessionalRate)}, plus the 2% Medicare levy.
+          {formatRatePercent(split.concessionalRate)}, plus the 2% Medicare levy.
           {capped &&
             ' Your other income for the year lowers that amount, which the Tax tab applies.'}
         </Text>

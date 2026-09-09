@@ -7,7 +7,7 @@ import {
   type TaxInput,
   type TaxYearConfig,
 } from '@nest/tax'
-import { dollarsToCents, moneyColor } from '../lib/money'
+import { dollarsToCents, formatRatePercent, moneyColor } from '../lib/money'
 import { MoneyInput } from './MoneyInput'
 import { MoneyText } from './MoneyText'
 
@@ -134,11 +134,6 @@ export function SalarySacrificePanel({
   )
 }
 
-/** Formats a fractional rate as a trimmed percentage (0.0125 → `1.25%`, 0.01 → `1%`). */
-function formatPercent(rate: number): string {
-  return `${Number.parseFloat((rate * 100).toFixed(2))}%`
-}
-
 /**
  * A household-level Medicare levy surcharge "what-if". It assesses the surcharge
  * as if NEITHER member held private hospital cover — the "what if we drop cover"
@@ -205,7 +200,7 @@ export function MlsWhatIf({
               <Text size="sm">
                 Without hospital cover: combined income{' '}
                 <MoneyText span cents={result.combinedIncomeForSurchargeCents} /> is in the{' '}
-                {formatPercent(result.tierRate)} MLS tier ={' '}
+                {formatRatePercent(result.tierRate)} MLS tier ={' '}
                 <MoneyText span fw={600} cents={surchargeCents} />
                 /yr surcharge.
               </Text>

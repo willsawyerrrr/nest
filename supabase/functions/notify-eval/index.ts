@@ -136,5 +136,5 @@ Deno.serve(async (request) => {
     },
   })
 
-  return json(result)
+  return json(result, 200)
 })

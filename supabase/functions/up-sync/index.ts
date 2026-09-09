@@ -145,5 +145,5 @@ Deno.serve(async (request) => {
     },
   }, householdId)
 
-  return json(result)
+  return json(result, 200)
 })

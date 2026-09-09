@@ -235,9 +235,11 @@ jobs:
       - name: Apply auth shim, migrations, and RLS assertions
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/setup_auth.sql
-          for f in supabase/migrations/*.sql; do
-            psql -v ON_ERROR_STOP=1 -f "$f"
-          done
+          # One psql process for every migration, applied in filename order. The
+          # glob sorts lexically, which is timestamp order, and ON_ERROR_STOP
+          # still aborts the run at the first failing statement — psql names the
+          # offending file and line.
+          printf '\\i %s\n' supabase/migrations/*.sql | psql -v ON_ERROR_STOP=1
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/rls_isolation.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/derived_line_triggers.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/payslip_financial_year.sql

@@ -38,7 +38,10 @@ Each member's card shows their concessional and non-concessional cap usage (the
 concessional cap includes their manual carry-forward), warns when either cap is
 exceeded, and estimates the government co-contribution when it applies. The caps,
 carry-forward, and co-contribution income test all come from the versioned per-FY
-config — see [`tax.md`](tax.md#super-contribution-caps-and-co-contribution).
+config — see [`tax.md`](tax.md#super-contribution-caps-and-co-contribution). A
+joint inflow's annualised amount is split across both members in the ordinary
+time earnings and assessable income bases, the same split the tax estimate's
+income build-up applies.
 
 ### Retirement projection
 

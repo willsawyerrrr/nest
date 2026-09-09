@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { FY2027_CONFIG } from '@nest/tax'
-import type { InflowRow, SuperContributionRow, SuperProfileRow } from '../rows.ts'
+import type { InflowRow, MemberIdRow, SuperContributionRow, SuperProfileRow } from '../rows.ts'
 import {
+  assessableByMemberFromInflows,
   concessionalByMember,
   deductionsByMember,
+  grossByMemberFromInflows,
   helpDebtCentsByMember,
   netAnnualSuperContributionByMember,
   netAnnualSuperContributionFromRows,
@@ -35,6 +37,9 @@ function inflow(overrides: Partial<InflowRow> = {}): InflowRow {
 }
 
 const baseProfile: SuperProfileRow = { member_id: 'm1', carry_forward_cap_cents: 0 }
+
+const MEMBERS_ONE: MemberIdRow[] = [{ id: 'm1' }]
+const MEMBERS_TWO: MemberIdRow[] = [{ id: 'm1' }, { id: 'm2' }]
 
 function contribution(overrides: Partial<SuperContributionRow> = {}): SuperContributionRow {
   return {
@@ -264,6 +269,8 @@ describe('superCapSummaryFromRows', () => {
           amount_cents: 1_000_00,
         }),
       ],
+      undefined,
+      MEMBERS_ONE,
     ).get('m1')!
     expect(summary.nonConcessionalCents).toBe(1_000_00)
     expect(summary.coContributionCents).toBe(500_00)
@@ -289,6 +296,7 @@ describe('superCapSummaryFromRows', () => {
         }),
       ],
       FY2027_CONFIG,
+      MEMBERS_ONE,
     ).get('m1')!
     expect(summary.coContributionCents).toBe(243_10)
   })
@@ -356,7 +364,7 @@ describe('netAnnualSuperContributionFromRows', () => {
       interval_count: null,
       amount_cents: 5_000_00,
     })
-    const result = netAnnualSuperContributionFromRows([salary, nonTaxable], [])
+    const result = netAnnualSuperContributionFromRows([salary, nonTaxable], [], MEMBERS_ONE)
     expect(result.get('m1')).toBe(
       netAnnualSuperContributionByMember(
         [],
@@ -375,7 +383,7 @@ describe('netAnnualSuperContributionFromRows', () => {
       interval_count: null,
       amount_cents: 500_00,
     })
-    expect(netAnnualSuperContributionFromRows([salary, onCall], []).get('m1')).toBe(
+    expect(netAnnualSuperContributionFromRows([salary, onCall], [], MEMBERS_ONE).get('m1')).toBe(
       Math.round(0.12 * 100_000_00 * 0.85),
     )
   })
@@ -399,16 +407,128 @@ describe('netAnnualSuperContributionFromRows', () => {
             amount_cents: 1_000_00,
           }),
         ],
+        MEMBERS_ONE,
       ).get('m1'),
     ).toBe(Math.round(0.12 * 45_000_00 * 0.85) + 1_000_00 + 243_10)
+  })
+})
+
+describe('a joint inflow in the super bases', () => {
+  const jointFor = (percent: number, amountCents = 10_000_00): InflowRow =>
+    inflow({
+      member_id: 'm1',
+      type: 'other',
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: amountCents,
+      is_joint: true,
+      member_split_percent: percent,
+    })
+
+  it('splits its annualised amount by member_split_percent in the ordinary time earnings base', () => {
+    const gross = grossByMemberFromInflows([jointFor(70)], FY2027_CONFIG, ['m1', 'm2'])
+    expect(gross.get('m1')).toBe(7_000_00)
+    expect(gross.get('m2')).toBe(3_000_00)
+  })
+
+  it('splits it in the assessable income base even when it earns no super', () => {
+    const joint = { ...jointFor(60), attracts_super: false }
+    const assessable = assessableByMemberFromInflows([joint], FY2027_CONFIG, ['m1', 'm2'])
+    expect(assessable.get('m1')).toBe(6_000_00)
+    expect(assessable.get('m2')).toBe(4_000_00)
+    // Still out of the ordinary time earnings base entirely — it earns no guarantee.
+    expect(grossByMemberFromInflows([joint], FY2027_CONFIG, ['m1', 'm2']).get('m1')).toBeUndefined()
+  })
+
+  it('keeps the whole amount on the named member outside a two-member household', () => {
+    expect(grossByMemberFromInflows([jointFor(70)], FY2027_CONFIG, ['m1']).get('m1')).toBe(
+      10_000_00,
+    )
+    expect(
+      assessableByMemberFromInflows([jointFor(70)], FY2027_CONFIG, ['m1', 'm2', 'm3']).get('m1'),
+    ).toBe(10_000_00)
+  })
+
+  it('leaves a non-joint other inflow assessed wholly to its member', () => {
+    const nonJoint = { ...jointFor(70), is_joint: false, member_split_percent: null }
+    expect(grossByMemberFromInflows([nonJoint], FY2027_CONFIG, ['m1', 'm2']).get('m1')).toBe(
+      10_000_00,
+    )
+    expect(
+      grossByMemberFromInflows([nonJoint], FY2027_CONFIG, ['m1', 'm2']).get('m2'),
+    ).toBeUndefined()
+  })
+
+  it('lifts the other member’s percent-of-salary sacrifice base by their share', () => {
+    const salaryM2 = inflow({
+      member_id: 'm2',
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 90_000_00,
+    })
+    const sacrificeM2 = contribution({
+      member_id: 'm2',
+      kind: 'salary_sacrifice',
+      mode: 'percent',
+      amount_cents: null,
+      percent_bp: 1000,
+      frequency: 'annual',
+    })
+    const base = (rows: InflowRow[]) =>
+      superCapSummaryFromRows(rows, [], [sacrificeM2], FY2027_CONFIG, MEMBERS_TWO).get('m2')!
+        .concessionalCents
+    // m2 takes 30% of the $10,000 joint inflow: a $93,000 base at 10%.
+    expect(base([salaryM2, jointFor(70)])).toBe(9_300_00)
+    expect(base([salaryM2, { ...jointFor(70), is_joint: false, member_split_percent: null }])).toBe(
+      9_000_00,
+    )
+  })
+
+  it('lifts the other member’s employer SG base by their share', () => {
+    const salaryM2 = inflow({
+      member_id: 'm2',
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 80_000_00,
+    })
+    const net = (rows: InflowRow[]) =>
+      netAnnualSuperContributionFromRows(rows, [], MEMBERS_TWO).get('m2')
+    // m2's SG base becomes $83,000; the guarantee is taxed 15% in the fund.
+    expect(net([salaryM2, jointFor(70)])).toBe(Math.round(0.12 * 83_000_00 * 0.85))
+    expect(net([salaryM2, { ...jointFor(70), is_joint: false, member_split_percent: null }])).toBe(
+      Math.round(0.12 * 80_000_00 * 0.85),
+    )
+  })
+
+  it('splits the co-contribution income test across both members', () => {
+    const salaryM2 = inflow({
+      member_id: 'm2',
+      schedule: 'annual',
+      interval_count: null,
+      amount_cents: 49_293_00,
+    })
+    const nonConcessionalM2 = contribution({
+      member_id: 'm2',
+      kind: 'personal_non_concessional',
+      frequency: 'annual',
+      amount_cents: 1_000_00,
+    })
+    const coContribution = (rows: InflowRow[]) =>
+      superCapSummaryFromRows(rows, [], [nonConcessionalM2], FY2027_CONFIG, MEMBERS_TWO).get('m2')!
+        .coContributionCents
+    // m2's assessable income becomes $52,293, one fifth of the way up the taper.
+    expect(coContribution([salaryM2, jointFor(70)])).toBe(400_00)
+    expect(
+      coContribution([salaryM2, { ...jointFor(70), is_joint: false, member_split_percent: null }]),
+    ).toBe(500_00)
   })
 })
 
 describe('one-off inflows in the super bases', () => {
   it('earns no employer super, so it stays out of the guarantee base', () => {
     const salary = inflow({ schedule: 'annual', amount_cents: 100_000_00 })
-    expect(netAnnualSuperContributionFromRows([salary, severance], []).get('m1')).toBe(
-      netAnnualSuperContributionFromRows([salary], []).get('m1'),
+    expect(netAnnualSuperContributionFromRows([salary, severance], [], MEMBERS_ONE).get('m1')).toBe(
+      netAnnualSuperContributionFromRows([salary], [], MEMBERS_ONE).get('m1'),
     )
   })
 
@@ -424,7 +544,11 @@ describe('one-off inflows in the super bases', () => {
       frequency: 'annual',
       amount_cents: 1_000_00,
     })
-    expect(superCapSummaryFromRows([redundancy], [], [nonConcessional]).get('m1')).toMatchObject({
+    expect(
+      superCapSummaryFromRows([redundancy], [], [nonConcessional], undefined, MEMBERS_ONE).get(
+        'm1',
+      ),
+    ).toMatchObject({
       coContributionCents: 500_00,
     })
     expect(
@@ -432,6 +556,8 @@ describe('one-off inflows in the super bases', () => {
         [{ ...redundancy, one_off_tax_treatment: 'ordinary', years_of_service: null }],
         [],
         [nonConcessional],
+        undefined,
+        MEMBERS_ONE,
       ).get('m1'),
     ).toMatchObject({ coContributionCents: 0 })
     expect(
@@ -439,6 +565,8 @@ describe('one-off inflows in the super bases', () => {
         [{ ...redundancy, one_off_tax_treatment: null, years_of_service: null }],
         [],
         [nonConcessional],
+        undefined,
+        MEMBERS_ONE,
       ).get('m1'),
     ).toMatchObject({ coContributionCents: 0 })
   })

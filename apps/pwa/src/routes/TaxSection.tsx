@@ -81,6 +81,8 @@ export function TaxSection() {
     inflows.inflows ?? [],
     superProfiles.profiles ?? [],
     contributions.contributions ?? [],
+    config,
+    members,
   )
   const concessionalCapCentsByMember = new Map(
     [...capSummaries].map(([memberId, summary]) => [memberId, summary.concessionalCapCents]),

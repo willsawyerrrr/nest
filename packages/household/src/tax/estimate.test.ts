@@ -159,6 +159,8 @@ describe('estimateHouseholdTaxFromRows for pay arriving in only some periods', (
       [inflow({ schedule: 'annual', interval_count: null, amount_cents: 90_000_00 }), onCall],
       [baseProfile],
       [],
+      undefined,
+      [member()],
     ).get('m1')!
     expect(summary.coContributionCents).toBe(0)
   })
@@ -335,5 +337,36 @@ describe('estimateHouseholdTaxFromRows for a joint inflow', () => {
       [...members, member({ id: 'm3' })],
     )
     expect(estimate.members.find((m) => m.memberId === 'm1')!.annualGrossCents).toBe(110_000_00)
+  })
+
+  it('sets the other member’s percent-mode salary sacrifice against their joint share too', () => {
+    const sacrificeM2 = contribution({
+      member_id: 'm2',
+      kind: 'salary_sacrifice',
+      mode: 'percent',
+      amount_cents: null,
+      percent_bp: 1000,
+      frequency: 'annual',
+    })
+    const concessionalM2 = (rows: InflowRow[]) =>
+      estimateHouseholdTaxFromRows(
+        rows,
+        profiles,
+        [sacrificeM2],
+        [],
+        [],
+        undefined,
+        undefined,
+        members,
+      ).members.find((m) => m.memberId === 'm2')!.annualConcessionalContributionsCents
+    // m2's $90,000 salary plus 30% of the $20,000 joint inflow: a $96,000 base at 10%.
+    expect(concessionalM2(rowsWith(70))).toBe(9_600_00)
+    expect(
+      concessionalM2([
+        salaryFor('m1'),
+        salaryFor('m2'),
+        { ...jointOther, is_joint: false, member_split_percent: null },
+      ]),
+    ).toBe(9_000_00)
   })
 })

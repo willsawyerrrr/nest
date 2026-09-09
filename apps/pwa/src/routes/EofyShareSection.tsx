@@ -104,6 +104,7 @@ export function EofyShareSection() {
     data.superProfiles,
     data.superContributions,
     config,
+    data.members,
   )
   const helpPayoff = helpPayoffByMember(estimate, data.helpDebts, config)
 

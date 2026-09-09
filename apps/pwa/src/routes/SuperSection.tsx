@@ -44,10 +44,13 @@ export function SuperSection() {
     inflows.inflows ?? [],
     profileRows ?? [],
     contributions.contributions ?? [],
+    currentTaxConfig(),
+    members,
   )
   const netContributionByMember = netAnnualSuperContributionFromRows(
     inflows.inflows ?? [],
     contributions.contributions ?? [],
+    members,
   )
 
   return (

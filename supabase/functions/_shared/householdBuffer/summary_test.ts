@@ -45,6 +45,7 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
     breakdownItems: [],
     giftBudgets: [],
     giftRecipients: [],
+    giftDiscretionaryBudget: null,
     ...overrides,
   }
 }
@@ -152,6 +153,27 @@ Deno.test('summariseHouseholdFromRows: a breakdown-derived line rolls its items 
     summary.groups.needs.fortnightlyCents,
     fortnightlyCents(20_00 * 12, 'annual'),
   )
+})
+
+Deno.test('summariseHouseholdFromRows: the ad hoc gift buffer folds into the external gift line', () => {
+  const externalGiftLine = {
+    line_group: 'wants',
+    amount_cents: 0,
+    frequency: 'annual',
+    interval_count: null,
+    is_gift_line: true,
+    breakdown_id: null,
+    gift_recipient_member_id: null,
+  }
+  const summary = summariseHouseholdFromRows(
+    bundle({
+      budgetLines: [externalGiftLine],
+      giftDiscretionaryBudget: { budgeted_amount_cents: 500_00 },
+    }),
+    NOW,
+  )
+  // The $500/year buffer is the whole of the external "Gifts (others)" line.
+  assertEquals(summary.groups.wants.annualCents, 500_00)
 })
 
 Deno.test('summariseHouseholdFromRows: one-off money sits beside the plan, not in available', () => {

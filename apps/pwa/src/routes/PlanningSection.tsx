@@ -226,6 +226,7 @@ export function PlanningSection({ householdId }: { householdId: string }) {
     breakdowns.items ?? [],
     gifts.budgets ?? [],
     gifts.recipients ?? [],
+    gifts.discretionaryBudget,
   )
   const profileRows = taxProfiles.profiles ?? []
   const contributionRows = contributions.contributions ?? []

@@ -62,8 +62,12 @@ webhooks, with a scheduled poll as a backstop.
 - **`up-disconnect`** — JWT-verified. Resolves the caller's member from the JWT
   and clears their Vault secret via the service-role-only `clear_up_token` RPC.
 - **`up-webhook`** — receives Up webhook deliveries, verifies the
-  `X-Up-Authenticity-Signature` HMAC-SHA256 over the raw body, and upserts
-  transaction events into the ledger.
+  `X-Up-Authenticity-Signature` HMAC-SHA256 over the raw body, and switches on
+  the event type. Persisting transactions is deferred: the transaction branch is
+  a `TODO` that returns `200` without a write, and gift-category ingestion runs
+  on the `up-sync` poll instead, because Up raises no event when a transaction is
+  recategorised (see
+  [`../../docs/up-ledger-sync.md`](../../docs/up-ledger-sync.md)).
 - **`up-sync`** — manual/scheduled poll that reads each member's token, fetches
   from Up, and upserts (deduping on `external_id`). JWT-verified-capable and
   scoped by caller: a member's Refresh from the PWA carries their JWT and the run
@@ -119,11 +123,14 @@ own token, their own devices, files in their own household, their own household'
 share, and their own household's buffer;
 `up-sync`'s PWA Refresh carries the member's JWT while its hourly cron presents
 the service-role key, and `notify-eval` is cron-only — the gateway verifies the
-bearer and the handler admits nothing but a `service_role` one. `up-webhook`, `eofy-share`, and `eofy-share-file` are the
-`config.toml` entries setting `verify_jwt = false`: Up calls the first
-unauthenticated (its HMAC signature check is the security boundary), and a tax
-agent opening a shared EOFY link carries no Supabase session at all (their
-`share_grant` bearer token, resolved by `_shared/shareGrant.ts`, is theirs).
+bearer and the handler admits nothing but a `service_role` one. `up-webhook`,
+`eofy-share`, `eofy-share-file`, and `calendar-ics` are the `config.toml` entries
+setting `verify_jwt = false`: Up calls the first unauthenticated (its HMAC
+signature check is the security boundary), a tax agent opening a shared EOFY link
+carries no Supabase session at all (their `share_grant` bearer token, resolved by
+`_shared/shareGrant.ts`, is theirs), and a calendar app subscribed to the `.ics`
+feed carries only its `calendar_feed` token (resolved by
+`_shared/calendarFeed.ts`).
 
 Serve locally against the running stack, or deploy a single function by hand:
 
@@ -137,6 +144,10 @@ supabase functions serve deduction-extract
 supabase functions serve eofy-share
 supabase functions serve eofy-share-file
 supabase functions serve share-create
+supabase functions serve calendar-ics
+supabase functions serve changelog
+supabase functions serve push-key
+supabase functions serve push-test
 supabase functions serve notify-eval
 supabase functions serve intent-summary
 
@@ -298,8 +309,12 @@ never a Supabase account or Google OAuth. Three functions:
   household's own EOFY tab (inflows, tax profiles, super contributions and
   profiles, HELP debts, deductions, and payslips), scoped by hand to the
   grant's household and, where the corresponding hook is FY-scoped, its
-  financial year. `deductionReceipts` is pre-filtered to the deductions
-  already in scope. Data shaping lives in `data.ts`, DI-tested against fakes.
+  financial year. It also returns `savings_goal` and a minimal per-account
+  balance set (`{ id, owner_member_id, balance_cents }`, rebuilt from `accounts`
+  and `account_balance`) so the shared view feeds a goal's projected savings
+  interest into the tax estimate the same way the household's own tab does.
+  `deductionReceipts` is pre-filtered to the deductions already in scope. Data
+  shaping lives in `data.ts`, DI-tested against fakes.
 - **`eofy-share-file`** — `verify_jwt = false`. Takes
   `POST { token, bucket, path }` (`bucket` is `'receipts'` or `'payslips'`) and
   signs a 5-minute Storage URL for one deduction receipt or payslip document —
@@ -327,6 +342,25 @@ distinguishes "expired" from "never existed" in the response.
   never returned to a client. Two plain environment variables,
   `PWA_APP_URL` and `RESEND_FROM_ADDRESS`, round out the setup — see
   [`docs/operations.md`](../../docs/operations.md#resend_api_key-and-pwa_app_url-setup-eofy-sharing).
+
+## Calendar feed
+
+The household's money dates are served as a subscribable iCalendar (`.ics`) feed
+so members see them in whatever calendar app they already use. The reader is a
+calendar server with no Supabase session, so the token in the URL is the whole
+credential — the same shape EOFY sharing uses, without the expiry.
+
+- **`calendar-ics`** — `verify_jwt = false`. Answers a `GET` (or `HEAD`) with the
+  feed token as a trailing path segment (`…/calendar-ics/<token>[.ics]`) or
+  `?token=`, hashes it, and looks `calendar_feed` up by `token_hash`
+  (`_shared/calendarFeed.ts`). A missing, malformed, or unknown token all get an
+  identical bare `404`. On a match it reads the household's `inflows`,
+  `savings_goal`, and `temporary_item` rows on a service-role client (the
+  subscriber has no `auth.uid()` for the household's own RLS to match) and
+  renders them as all-day events over a rolling −1…+12-month window, each with a
+  deterministic `UID` so a re-fetch updates an event in place. `runCalendarIcs`
+  owns the flow and `events.ts` the ICS rendering, both DI-tested against fakes.
+  See [`../../docs/calendar-feed.md`](../../docs/calendar-feed.md).
 
 ## Changelog ("What's new")
 

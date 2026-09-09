@@ -96,7 +96,7 @@ async function attach(user: ReturnType<typeof userEvent.setup>, name = 'receipt.
 
 describe('DeductionForm', () => {
   it('submits a deduction with the amount in cents, minting its own id', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -124,7 +124,7 @@ describe('DeductionForm', () => {
   })
 
   it('shows an error when saving fails', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn().mockRejectedValue(new Error('boom'))
     render(
       <DeductionForm
@@ -159,7 +159,7 @@ describe('DeductionForm', () => {
   })
 
   it('prefills an existing deduction, offers no receipt picker, and cancels', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onCancel = vi.fn()
     render(
       <DeductionForm
@@ -183,7 +183,7 @@ describe('DeductionForm', () => {
   })
 
   it('submits the resubmitted fields for an edit, with the deduction’s own id', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -218,7 +218,7 @@ describe('DeductionForm', () => {
   })
 
   it('computes the amount from distance at the FY2027 cents-per-km rate on the distance basis', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -248,7 +248,7 @@ describe('DeductionForm', () => {
   })
 
   it('warns when the distance exceeds the ATO cap for the cents-per-km method', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -282,7 +282,7 @@ describe('DeductionForm', () => {
 
 describe('DeductionForm receipt extraction', () => {
   it('pre-fills the fields read off an attached receipt and saves them in cents', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -316,7 +316,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('says the details were extracted and asks for a check, without restating them', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     read.mockResolvedValue({
       status: 'read',
       // The receipt printed no readable amount, so it stays blank for the
@@ -342,7 +342,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('says plainly when a receipt yielded nothing to fill in', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     read.mockResolvedValue({
       status: 'read',
       extraction: { model: 'claude-haiku-4-5-20251001', fields: {} },
@@ -364,7 +364,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('keeps a value the member typed rather than replacing it with a read one', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -388,7 +388,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('only reads the first of several attached receipts', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -408,7 +408,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('removes a picked receipt, discarding its stored object', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -427,7 +427,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('says so while the receipt is being stored and read', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let finishRead!: (outcome: ExtractionOutcome) => void
     read.mockReturnValue(
       new Promise<ExtractionOutcome>((resolve) => {
@@ -453,7 +453,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('falls back to manual entry with an honest note when extraction is not configured', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     read.mockResolvedValue({
       status: 'not-configured',
       message: EXTRACTION_UNCONFIGURED_MESSAGE,
@@ -474,7 +474,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('reads an account out of credit as reading being off, not as a broken read', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     read.mockResolvedValue({
       status: 'out-of-credit',
       message: EXTRACTION_OUT_OF_CREDIT_MESSAGE,
@@ -496,7 +496,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('reads a refused API key as reading being off, not as a broken read', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     read.mockResolvedValue({
       status: 'key-rejected',
       message: EXTRACTION_KEY_REJECTED_MESSAGE,
@@ -517,7 +517,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('passes on the model’s reason for a file that is not a receipt', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     read.mockResolvedValue({
       status: 'not-receipt',
       message: 'That file does not look like a receipt.',
@@ -542,7 +542,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('reports a receipt that could not be stored, and reads nothing', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     upload.mockRejectedValue(new Error('nope'))
     render(
       <DeductionForm
@@ -560,7 +560,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('deletes an attached receipt the member walks away from', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const { unmount } = render(
       <DeductionForm
         member={member}
@@ -576,7 +576,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('keeps every stored receipt once the save that references them succeeds', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     const { unmount } = render(
       <DeductionForm
@@ -596,7 +596,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('keeps the stored receipt when the save closes the form itself', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     function ClosingDeductionForm({
       onSaved,
     }: {
@@ -630,7 +630,7 @@ describe('DeductionForm receipt extraction', () => {
   })
 
   it('blocks a save while a receipt is still being stored', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     let finishUpload!: (stored: { storage_path: string; file_name: string }) => void
     upload.mockImplementation(
@@ -675,7 +675,7 @@ describe('DeductionForm receipt names', () => {
   }
 
   it('stores an attached receipt under the name the member types', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -702,7 +702,7 @@ describe('DeductionForm receipt names', () => {
   })
 
   it('stores a receipt left with no name as Receipt', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -722,7 +722,7 @@ describe('DeductionForm receipt names', () => {
   })
 
   it('names each attached receipt on its own', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -747,7 +747,7 @@ describe('DeductionForm receipt names', () => {
 
 describe('DeductionForm work-use apportioning', () => {
   it('claims the full amount at the default 100% work use', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -778,7 +778,7 @@ describe('DeductionForm work-use apportioning', () => {
   })
 
   it('apportions a part-private expense and shows the claimable amount', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -812,7 +812,7 @@ describe('DeductionForm work-use apportioning', () => {
   })
 
   it('will not save an amount-basis deduction with no work-use percent', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -852,7 +852,7 @@ describe('DeductionForm work-use apportioning', () => {
   })
 
   it('pins work use at 100% on the distance basis regardless of the field', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -900,7 +900,7 @@ describe('DeductionForm category', () => {
   })
 
   it('hides the work-use field and pins it at 100% for a donation', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -934,7 +934,7 @@ describe('DeductionForm category', () => {
   })
 
   it('hides the work-use field and pins it at 100% for tax agent fees', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -966,7 +966,7 @@ describe('DeductionForm category', () => {
   })
 
   it('primes extraction with the chosen category before the file is read', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -997,7 +997,7 @@ describe('DeductionForm category', () => {
   })
 
   it('saves a new donation with no group, for the trigger to file into Donations', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -1027,7 +1027,7 @@ describe('DeductionForm category', () => {
   })
 
   it('lists the member’s other groups for a donation and files it into a chosen one', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm
@@ -1054,7 +1054,7 @@ describe('DeductionForm category', () => {
   })
 
   it('folds the member’s own Donations group into the default option for a donation', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -1078,7 +1078,7 @@ describe('DeductionForm category', () => {
   })
 
   it('keeps None and lists every group for a work expense', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -1095,7 +1095,7 @@ describe('DeductionForm category', () => {
   })
 
   it('offers the dollar/distance basis toggle for a work expense only', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -1115,7 +1115,7 @@ describe('DeductionForm category', () => {
   })
 
   it('forces the amount basis when a work expense on the distance basis is switched to a donation', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
       <DeductionForm

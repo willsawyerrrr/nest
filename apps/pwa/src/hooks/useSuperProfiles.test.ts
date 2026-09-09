@@ -17,7 +17,7 @@ beforeEach(() => {
 
 describe('useSuperProfiles', () => {
   it('exposes the household super profiles and upserts one', async () => {
-    const { result } = renderHook(() => useSuperProfiles('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useSuperProfiles(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.profiles).toEqual([{ id: 'sp1' }]))
     expect(result.current.loading).toBe(false)
     expect(result.current.financialYear).toBeGreaterThan(2000)
@@ -30,7 +30,7 @@ describe('useSuperProfiles', () => {
   })
 
   it('scopes to an explicit financial year when given one', async () => {
-    const { result } = renderHook(() => useSuperProfiles('h1', 2025), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useSuperProfiles(2025), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.profiles).toEqual([{ id: 'sp1' }]))
     expect(result.current.financialYear).toBe(2025)
 

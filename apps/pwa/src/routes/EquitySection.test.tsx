@@ -24,7 +24,7 @@ describe('EquitySection', () => {
   it('shows the loading screen until data loads', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useEquityGrants.mockReturnValue({ loading: false })
-    render(<EquitySection householdId="h1" />)
+    render(<EquitySection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -34,7 +34,7 @@ describe('EquitySection', () => {
     const remove = vi.fn()
     hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
     hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [], create, update, remove })
-    render(<EquitySection householdId="h1" />)
+    render(<EquitySection />)
     expect(screen.getByTestId('equity-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Alex' }])
     expect(hooks.screenProps?.onCreate).toBe(create)

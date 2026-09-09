@@ -15,7 +15,7 @@ const line = makePayslipLine()
 
 /** Renders the hook and waits for its first load to settle. */
 async function renderLines() {
-  const { result } = renderHook(() => usePayslipLines('h1'), { wrapper: makeWrapper() })
+  const { result } = renderHook(() => usePayslipLines(), { wrapper: makeWrapper() })
   await waitFor(() => expect(result.current.lines).not.toBeNull())
   return result
 }

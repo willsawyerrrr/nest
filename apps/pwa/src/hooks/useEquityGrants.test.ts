@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe('useEquityGrants', () => {
   it('exposes the household equity grants and mutates them', async () => {
-    const { result } = renderHook(() => useEquityGrants('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useEquityGrants(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.grants).toEqual([{ id: 'eg1' }]))
     expect(result.current.loading).toBe(false)
 

@@ -94,7 +94,7 @@ function renderSection() {
   return render(
     <MemoryRouter initialEntries={['/planning']}>
       <Routes>
-        <Route path="/planning" element={<PlanningSection householdId="h1" />} />
+        <Route path="/planning" element={<PlanningSection />} />
         <Route path="/summary" element={<div data-testid="summary" />} />
       </Routes>
     </MemoryRouter>,

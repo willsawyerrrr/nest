@@ -3,9 +3,9 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { useEquityGrants } from '../hooks/useEquityGrants'
 import { useMembers } from '../hooks/useMembers'
 
-export function EquitySection({ householdId }: { householdId: string }) {
+export function EquitySection() {
   const { members, loading: membersLoading } = useMembers()
-  const equityGrants = useEquityGrants(householdId)
+  const equityGrants = useEquityGrants()
 
   if (membersLoading || equityGrants.loading || !members) {
     return <LoadingScreen />

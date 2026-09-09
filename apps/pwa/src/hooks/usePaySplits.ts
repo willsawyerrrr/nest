@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
 
@@ -23,7 +24,8 @@ export interface UsePaySplitsResult {
  * the household. The confirmed amount is the source-agnostic "configured split"
  * the Splits tab compares against its recommendation to surface drift.
  */
-export function usePaySplits(householdId: string): UsePaySplitsResult {
+export function usePaySplits(): UsePaySplitsResult {
+  const householdId = useHouseholdId()
   const [splits, setSplits] = useState<PaySplit[] | null>(null)
 
   const reload = useCallback(async () => {

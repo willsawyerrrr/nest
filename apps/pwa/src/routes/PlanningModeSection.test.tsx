@@ -8,7 +8,7 @@ afterEach(() => localStorage.clear())
 describe('PlanningModeSection', () => {
   it('renders the planning-mode settings screen', () => {
     render(
-      <PlanningModeProvider householdId="h1">
+      <PlanningModeProvider>
         <PlanningModeSection />
       </PlanningModeProvider>,
     )

@@ -27,13 +27,12 @@ export interface UseSuperProfilesResult {
  * The balance itself lives on the linked account, not here.
  */
 export function useSuperProfiles(
-  householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UseSuperProfilesResult {
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'super_profile',
     SuperProfileInput
-  >(householdId, {
+  >({
     table: 'super_profile',
     match: { financial_year: financialYear },
     insertDefaults: { financial_year: financialYear },

@@ -9,7 +9,7 @@ afterEach(() => localStorage.clear())
 
 function renderControl() {
   return render(
-    <PlanningModeProvider householdId="h1">
+    <PlanningModeProvider>
       <PlanningModeControl />
     </PlanningModeProvider>,
   )

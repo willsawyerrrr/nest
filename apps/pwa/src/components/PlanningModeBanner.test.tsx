@@ -16,7 +16,7 @@ function seed(state: PlanningState) {
 function renderBanner(children: ReactNode = <PlanningModeBanner />) {
   return render(
     <MemoryRouter>
-      <PlanningModeProvider householdId="h1">{children}</PlanningModeProvider>
+      <PlanningModeProvider>{children}</PlanningModeProvider>
     </MemoryRouter>,
   )
 }

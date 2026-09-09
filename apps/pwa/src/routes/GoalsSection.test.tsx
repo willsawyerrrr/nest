@@ -41,7 +41,7 @@ describe('GoalsSection', () => {
     hooks.useBudgetLines.mockReturnValue({ loading: false })
     hooks.useSavers.mockReturnValue({ loading: false, reload: vi.fn() })
     hooks.useUpSync.mockReturnValue({ refresh: vi.fn(), refreshing: false, error: null })
-    render(<GoalsSection householdId="h1" />)
+    render(<GoalsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -61,7 +61,7 @@ describe('GoalsSection', () => {
     hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], reload: reloadLines })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [], reload: reloadSavers })
     hooks.useUpSync.mockReturnValue({ refresh, refreshing: false, error: null })
-    render(<GoalsSection householdId="h1" />)
+    render(<GoalsSection />)
     expect(screen.getByTestId('goal-screen')).toBeInTheDocument()
 
     // The refresh callback reloads the savers, the goals, and the budget lines
@@ -90,7 +90,7 @@ describe('GoalsSection', () => {
     hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], reload: vi.fn() })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [], reload: vi.fn() })
     hooks.useUpSync.mockReturnValue({ refresh: vi.fn(), refreshing: false, error: null })
-    render(<GoalsSection householdId="h1" />)
+    render(<GoalsSection />)
 
     expect(hooks.screenProps?.promoteDraft).toEqual({
       name: 'Espresso machine',
@@ -121,7 +121,7 @@ describe('GoalsSection', () => {
     })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [], reload: vi.fn() })
     hooks.useUpSync.mockReturnValue({ refresh: vi.fn(), refreshing: false, error: null })
-    render(<GoalsSection householdId="h1" />)
+    render(<GoalsSection />)
     hooks.planningActive = false
 
     expect(hooks.screenProps?.baselineGoals).toEqual([{ id: 'g1', name: 'Real' }])

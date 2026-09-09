@@ -37,7 +37,7 @@ describe('SuperSection', () => {
     hooks.useAccounts.mockReturnValue({ loading: false, insert: vi.fn(), update: vi.fn() })
     hooks.useSuperContributions.mockReturnValue({ loading: false })
     hooks.useInflows.mockReturnValue({ loading: false })
-    render(<SuperSection householdId="h1" />)
+    render(<SuperSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -63,7 +63,7 @@ describe('SuperSection', () => {
       remove: vi.fn(),
     })
     hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
-    render(<SuperSection householdId="h1" />)
+    render(<SuperSection />)
     expect(screen.getByTestId('super-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.onSave).toBe(hooks.onSave)
     expect(hooks.screenProps).toHaveProperty('capSummaries')

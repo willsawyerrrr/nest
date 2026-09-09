@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe('useSuperContributions', () => {
   it('exposes the household super contributions for the financial year', async () => {
-    const { result } = renderHook(() => useSuperContributions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useSuperContributions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.contributions).toEqual([{ id: 'sc1' }]))
     expect(result.current.loading).toBe(false)
     expect(result.current.financialYear).toBeGreaterThan(2000)
@@ -54,7 +54,7 @@ describe('useSuperContributions', () => {
   })
 
   it('scopes to an explicit financial year when given one', async () => {
-    const { result } = renderHook(() => useSuperContributions('h1', 2025), {
+    const { result } = renderHook(() => useSuperContributions(2025), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.contributions).toEqual([{ id: 'sc1' }]))

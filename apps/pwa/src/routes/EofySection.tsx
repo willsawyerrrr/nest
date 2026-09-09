@@ -26,19 +26,19 @@ import {
   superCapSummaryFromRows,
 } from '../lib/tax'
 
-export function EofySection({ householdId }: { householdId: string }) {
+export function EofySection() {
   const [financialYear, setFinancialYear] = useState(financialYearForDate(new Date()))
 
   const { members, loading: membersLoading } = useMembers()
-  const inflows = useInflows(householdId)
-  const taxProfiles = useTaxProfiles(householdId, financialYear)
-  const contributions = useSuperContributions(householdId, financialYear)
-  const superProfiles = useSuperProfiles(householdId, financialYear)
-  const helpDebts = useHelpDebts(householdId)
-  const deductions = useDeductions(householdId, financialYear)
-  const receipts = useDeductionReceipts(householdId)
-  const payslips = usePayslips(householdId, financialYear)
-  const goals = useGoals(householdId)
+  const inflows = useInflows()
+  const taxProfiles = useTaxProfiles(financialYear)
+  const contributions = useSuperContributions(financialYear)
+  const superProfiles = useSuperProfiles(financialYear)
+  const helpDebts = useHelpDebts()
+  const deductions = useDeductions(financialYear)
+  const receipts = useDeductionReceipts()
+  const payslips = usePayslips(financialYear)
+  const goals = useGoals()
   const savers = useSavers()
   const shareGrant = useShareGrant()
 

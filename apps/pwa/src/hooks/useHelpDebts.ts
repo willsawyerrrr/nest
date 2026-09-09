@@ -21,10 +21,10 @@ export interface UseHelpDebtsResult {
  * RLS scopes reads to the household. Unlike the tax profile, a HELP balance is
  * not financial-year-scoped.
  */
-export function useHelpDebts(householdId: string): UseHelpDebtsResult {
+export function useHelpDebts(): UseHelpDebtsResult {
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'help_debt',
     HelpDebtInput
-  >(householdId, { table: 'help_debt', onConflict: 'member_id' })
+  >({ table: 'help_debt', onConflict: 'member_id' })
   return { helpDebts: rows, loading, reload, upsert }
 }

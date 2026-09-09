@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('useTemporaryItems', () => {
   it('exposes the household temporary items and its mutations', async () => {
-    const { result } = renderHook(() => useTemporaryItems('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useTemporaryItems(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.items).toEqual([makeTemporaryItem()]))
     expect(result.current.loading).toBe(false)
 

@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { HouseholdProvider } from '../components/HouseholdProvider'
 import { makeWrapper } from '../test/queryWrapper'
 import { useBreakdownItems } from './useBreakdownItems'
 
@@ -19,7 +20,7 @@ beforeEach(() => {
 
 describe('useBreakdownItems', () => {
   it('exposes one breakdown’s items and its mutations', async () => {
-    const { result } = renderHook(() => useBreakdownItems('h1', 'bd1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useBreakdownItems('bd1'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.items).toEqual([{ id: 'x' }]))
     expect(result.current.loading).toBe(false)
 
@@ -36,8 +37,12 @@ describe('useBreakdownItems', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
-    const { result } = renderHook(() => useBreakdownItems('h1', 'bd1'), { wrapper })
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
+    const { result } = renderHook(() => useBreakdownItems('bd1'), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // Deleting an item drives the reconcile trigger, so the raw budget lines the

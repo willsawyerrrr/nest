@@ -26,7 +26,7 @@ const base: TaxBreakdown = {
 
 function withPlanning(ui: ReactNode) {
   localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
-  return render(<PlanningModeProvider householdId="h1">{ui}</PlanningModeProvider>)
+  return render(<PlanningModeProvider>{ui}</PlanningModeProvider>)
 }
 
 describe('WithholdingPosition', () => {

@@ -8,12 +8,12 @@ import { useSavers } from '../hooks/useSavers'
 import { useUpSync } from '../hooks/useUpSync'
 import { takeGoalDraft } from '../lib/promoteDraft'
 
-export function GoalsSection({ householdId }: { householdId: string }) {
+export function GoalsSection() {
   const { active: planning } = usePlanningMode()
   // A wishlist item promoted from the Wishlist tab, picked up once on mount.
   const [promoteDraft, setPromoteDraft] = useState(takeGoalDraft)
-  const goals = useGoals(householdId)
-  const budgetLines = useBudgetLines(householdId)
+  const goals = useGoals()
+  const budgetLines = useBudgetLines()
   const savers = useSavers()
 
   // Refreshing pulls fresh Up balances, so the savers and the goals that read

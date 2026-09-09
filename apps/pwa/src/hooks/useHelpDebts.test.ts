@@ -17,7 +17,7 @@ beforeEach(() => {
 
 describe('useHelpDebts', () => {
   it('exposes the household HELP debts and upserts one', async () => {
-    const { result } = renderHook(() => useHelpDebts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useHelpDebts(), { wrapper: makeWrapper() })
     await waitFor(() =>
       expect(result.current.helpDebts).toEqual([
         { id: 'hd1', member_id: 'm1', balance_cents: 30_000_00 },

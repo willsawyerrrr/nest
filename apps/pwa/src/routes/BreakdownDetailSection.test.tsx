@@ -36,13 +36,13 @@ function renderAt(ui: ReactElement, entry: string | { pathname: string; state: u
 describe('BreakdownDetailSection', () => {
   it('shows the loading screen while breakdowns load', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: true })
-    renderAt(<BreakdownDetailSection householdId="h1" />, '/breakdowns/b1')
+    renderAt(<BreakdownDetailSection />, '/breakdowns/b1')
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('redirects to the breakdowns tab when the breakdown is not found', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [] })
-    renderAt(<BreakdownDetailSection householdId="h1" />, '/breakdowns/missing')
+    renderAt(<BreakdownDetailSection />, '/breakdowns/missing')
     expect(screen.getByTestId('breakdowns-list')).toBeInTheDocument()
   })
 
@@ -54,7 +54,7 @@ describe('BreakdownDetailSection', () => {
       remove: vi.fn(),
     })
     hooks.useBreakdownItems.mockReturnValue({ loading: true })
-    renderAt(<BreakdownDetailSection householdId="h1" />, {
+    renderAt(<BreakdownDetailSection />, {
       pathname: '/breakdowns/b1',
       state: { from: '/budget' },
     })
@@ -77,7 +77,7 @@ describe('BreakdownDetailSection', () => {
       update: vi.fn(),
       remove: vi.fn(),
     })
-    renderAt(<BreakdownDetailSection householdId="h1" />, {
+    renderAt(<BreakdownDetailSection />, {
       pathname: '/breakdowns/b1',
       state: { from: '/budget' },
     })

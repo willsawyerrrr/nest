@@ -20,10 +20,10 @@ export interface UseTemporaryItemsResult {
 }
 
 /** Loads and mutates the household's temporary items. RLS scopes reads to the household. */
-export function useTemporaryItems(householdId: string): UseTemporaryItemsResult {
+export function useTemporaryItems(): UseTemporaryItemsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'temporary_item',
     TemporaryItemInput
-  >(householdId, { table: 'temporary_item', orderBy: 'target_date' })
+  >({ table: 'temporary_item', orderBy: 'target_date' })
   return { items: rows, loading, reload, create, update, remove }
 }

@@ -24,7 +24,7 @@ describe('HelpDebtSection', () => {
   it('shows the loading screen until data loads', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useHelpDebts.mockReturnValue({ loading: false })
-    render(<HelpDebtSection householdId="h1" />)
+    render(<HelpDebtSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -32,7 +32,7 @@ describe('HelpDebtSection', () => {
     const upsert = vi.fn()
     hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [], upsert })
-    render(<HelpDebtSection householdId="h1" />)
+    render(<HelpDebtSection />)
     expect(screen.getByTestId('help-debt-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Alex' }])
     expect(hooks.screenProps?.onSave).toBe(upsert)

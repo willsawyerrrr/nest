@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HouseholdProvider } from '../components/HouseholdProvider'
 import { PlanningModeProvider, usePlanningMode } from '../components/PlanningModeProvider'
 import { planningStorageKey } from '../lib/planningMode'
 import { makeWrapper } from '../test/queryWrapper'
@@ -34,7 +35,7 @@ describe('useHouseholdCollection', () => {
     builder.result = { data: [{ id: '1' }], error: null }
     const { result } = renderHook(
       () =>
-        useHouseholdCollection('h1', {
+        useHouseholdCollection({
           table: 'inflows',
           orderBy: ['name', 'type'],
           match: { member_id: 'm1' },
@@ -52,7 +53,7 @@ describe('useHouseholdCollection', () => {
   it('loads a descending collection under its own cache scope', async () => {
     const { result } = renderHook(
       () =>
-        useHouseholdCollection('h1', {
+        useHouseholdCollection({
           table: 'transactions',
           orderBy: 'posted_at',
           descending: true,
@@ -66,7 +67,7 @@ describe('useHouseholdCollection', () => {
   it('creates, updates, removes, and reloads', async () => {
     const { result } = renderHook(
       () =>
-        useHouseholdCollection('h1', {
+        useHouseholdCollection({
           table: 'inflows',
           orderBy: 'name',
           insertDefaults: { source: 'manual' },
@@ -101,19 +102,23 @@ describe('useHouseholdCollection', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
 
     // A scoped detail query and the unscoped roll-up of the same table, as the
     // breakdown-item and breakdown hooks mount them side by side.
     const { result } = renderHook(
       () => ({
-        scoped: useHouseholdCollection('h1', {
+        scoped: useHouseholdCollection({
           table: 'breakdown_item',
           orderBy: 'name',
           match: { breakdown_id: 'bd1' },
           insertDefaults: { breakdown_id: 'bd1' },
         }),
-        unscoped: useHouseholdCollection('h1', { table: 'breakdown_item', orderBy: 'name' }),
+        unscoped: useHouseholdCollection({ table: 'breakdown_item', orderBy: 'name' }),
       }),
       { wrapper },
     )
@@ -141,11 +146,15 @@ describe('useHouseholdCollection', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
 
     const { result } = renderHook(
       () =>
-        useHouseholdCollection('h1', {
+        useHouseholdCollection({
           table: 'breakdown_item',
           orderBy: 'name',
           alsoInvalidate: ['budget_line'],
@@ -166,7 +175,7 @@ describe('useHouseholdCollection', () => {
   })
 
   it('loads without an order or match', async () => {
-    const { result } = renderHook(() => useHouseholdCollection('h1', { table: 'inflows' }), {
+    const { result } = renderHook(() => useHouseholdCollection({ table: 'inflows' }), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -175,7 +184,7 @@ describe('useHouseholdCollection', () => {
 
   it('surfaces a load error', async () => {
     builder.result = { data: null, error: new Error('load failed') }
-    const { result } = renderHook(() => useHouseholdCollection('h1', { table: 'inflows' }), {
+    const { result } = renderHook(() => useHouseholdCollection({ table: 'inflows' }), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -183,7 +192,7 @@ describe('useHouseholdCollection', () => {
   })
 
   it('propagates create, update, and remove errors', async () => {
-    const { result } = renderHook(() => useHouseholdCollection('h1', { table: 'inflows' }), {
+    const { result } = renderHook(() => useHouseholdCollection({ table: 'inflows' }), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -198,7 +207,7 @@ describe('useHouseholdUpsertCollection', () => {
   it('upserts with the conflict target and reloads', async () => {
     const { result } = renderHook(
       () =>
-        useHouseholdUpsertCollection('h1', {
+        useHouseholdUpsertCollection({
           table: 'tax_profile',
           match: { financial_year: 2027 },
           insertDefaults: { financial_year: 2027 },
@@ -223,7 +232,7 @@ describe('useHouseholdUpsertCollection', () => {
 
   it('propagates an upsert error', async () => {
     const { result } = renderHook(
-      () => useHouseholdUpsertCollection('h1', { table: 'tax_profile', onConflict: 'x' }),
+      () => useHouseholdUpsertCollection({ table: 'tax_profile', onConflict: 'x' }),
       { wrapper: makeWrapper() },
     )
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -242,7 +251,11 @@ describe('useHouseholdCollection in planning mode', () => {
       createElement(
         QueryClientProvider,
         { client },
-        createElement(PlanningModeProvider, { householdId: 'h1' }, children),
+        createElement(
+          HouseholdProvider,
+          { householdId: 'h1' },
+          createElement(PlanningModeProvider, null, children),
+        ),
       )
   }
 
@@ -250,7 +263,7 @@ describe('useHouseholdCollection in planning mode', () => {
   function renderSandboxed(table: 'inflows' | 'savings_goal' = 'inflows') {
     return renderHook(
       () => ({
-        col: useHouseholdCollection('h1', { table, orderBy: 'name' }),
+        col: useHouseholdCollection({ table, orderBy: 'name' }),
         planning: usePlanningMode(),
       }),
       { wrapper: planningWrapper() },
@@ -343,7 +356,7 @@ describe('useHouseholdCollection in planning mode', () => {
     builder.result = { data: [{ id: '1', name: 'A' }], error: null }
     const { result } = renderHook(
       () => ({
-        col: useHouseholdCollection('h1', { table: 'temporary_item', orderBy: 'name' }),
+        col: useHouseholdCollection({ table: 'temporary_item', orderBy: 'name' }),
         planning: usePlanningMode(),
       }),
       { wrapper: planningWrapper() },

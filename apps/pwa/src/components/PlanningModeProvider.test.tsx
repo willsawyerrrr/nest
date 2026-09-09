@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { planningStorageKey, readPlanningMode } from '../lib/planningMode'
 import { act, render } from '../test/render'
+import { HouseholdProvider } from './HouseholdProvider'
 import {
   PlanningModeProvider,
   usePlanningMode,
@@ -19,19 +20,17 @@ function mount(householdId = 'h1') {
     api = usePlanningMode()
     return null
   }
-  const utils = render(
-    <PlanningModeProvider householdId={householdId}>
-      <Grab />
-    </PlanningModeProvider>,
+  const tree = (id: string) => (
+    <HouseholdProvider householdId={id}>
+      <PlanningModeProvider>
+        <Grab />
+      </PlanningModeProvider>
+    </HouseholdProvider>
   )
+  const utils = render(tree(householdId))
   return {
     get: () => api as PlanningModeContextValue,
-    rerender: (nextId: string) =>
-      utils.rerender(
-        <PlanningModeProvider householdId={nextId}>
-          <Grab />
-        </PlanningModeProvider>,
-      ),
+    rerender: (nextId: string) => utils.rerender(tree(nextId)),
   }
 }
 

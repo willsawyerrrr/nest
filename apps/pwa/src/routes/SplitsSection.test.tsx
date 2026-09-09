@@ -38,7 +38,7 @@ describe('SplitsSection', () => {
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
     hooks.usePaySplits.mockReturnValue({ loading: false })
     hooks.usePayAccount.mockReturnValue({ loading: false })
-    render(<SplitsSection householdId="h1" />)
+    render(<SplitsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -55,7 +55,7 @@ describe('SplitsSection', () => {
     hooks.usePaySplits.mockReturnValue({ loading: false, configuredByAccount: {}, confirm, clear })
     const setPayAccount = vi.fn()
     hooks.usePayAccount.mockReturnValue({ loading: false, payAccountId: null, setPayAccount })
-    render(<SplitsSection householdId="h1" />)
+    render(<SplitsSection />)
     expect(screen.getByTestId('splits-screen')).toBeInTheDocument()
 
     const onConfirm = hooks.screenProps?.onConfirm as (id: string, cents: number) => void

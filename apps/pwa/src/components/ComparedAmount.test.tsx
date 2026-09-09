@@ -13,7 +13,7 @@ function renderWith(active: boolean, ui: ReactNode) {
   if (active) {
     localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
   }
-  return render(<PlanningModeProvider householdId="h1">{ui}</PlanningModeProvider>)
+  return render(<PlanningModeProvider>{ui}</PlanningModeProvider>)
 }
 
 describe('ComparedAmount', () => {

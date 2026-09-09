@@ -34,7 +34,7 @@ afterEach(() => {
 /** Renders a `GoalList` inside an active planning-mode sandbox. */
 function renderPlanning(ui: React.ReactElement) {
   localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
-  return render(<PlanningModeProvider householdId="h1">{ui}</PlanningModeProvider>)
+  return render(<PlanningModeProvider>{ui}</PlanningModeProvider>)
 }
 
 function card(name: string): HTMLElement {

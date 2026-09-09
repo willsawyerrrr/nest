@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { financialYearForDate } from '@nest/tax'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import {
   EXTRACTION_FAILED_MESSAGE,
@@ -126,10 +127,10 @@ export interface UsePayslipsResult {
  * gates access to the owning household.
  */
 export function usePayslips(
-  householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UsePayslipsResult {
-  const { rows, loading, reload, remove } = useHouseholdCollection<'payslip', never>(householdId, {
+  const householdId = useHouseholdId()
+  const { rows, loading, reload, remove } = useHouseholdCollection<'payslip', never>({
     table: 'payslip',
     match: { financial_year: financialYear },
     // Ordered by pay period, not by the payment date the year is filed by: every

@@ -3,8 +3,8 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { breakdownTotalsByBreakdownId, derivedAmountContext } from '../lib/breakdowns'
 
-export function BreakdownsSection({ householdId }: { householdId: string }) {
-  const breakdowns = useBreakdowns(householdId)
+export function BreakdownsSection() {
+  const breakdowns = useBreakdowns()
 
   if (breakdowns.loading) {
     return <LoadingScreen />

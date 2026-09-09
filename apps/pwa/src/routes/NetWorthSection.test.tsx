@@ -103,13 +103,13 @@ describe('NetWorthSection', () => {
   it('shows the loading screen until data loads', () => {
     mockLoaded()
     hooks.useAccounts.mockReturnValue({ loading: true })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('renders the net-worth view with effective balances', () => {
     mockLoaded()
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
     expect(screen.getByTestId('net-worth-view')).toBeInTheDocument()
     expect(hooks.screenProps).toHaveProperty('accounts')
     expect(hooks.screenProps).toHaveProperty('superIds')
@@ -128,7 +128,7 @@ describe('NetWorthSection', () => {
         vestedShareGrant({ member_id: 'm1', label: 'Empty', quantity: 0 }),
       ],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     // Fully vested: 10 × $5.00 = $50.00. The zero-quantity grant has no value and
     // is dropped; an unknown member falls back to "Unknown".
@@ -149,7 +149,7 @@ describe('NetWorthSection', () => {
         { member_id: 'm3', balance_cents: 5_000_00 },
       ],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     // The zero-balance debt is dropped; an unknown member falls back to "Unknown".
     expect(hooks.screenProps?.liabilities).toEqual([
@@ -186,7 +186,7 @@ describe('NetWorthSection', () => {
         },
       ],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     const projection = hooks.screenProps?.projection as { year: number; superCents: number }[]
     expect(hooks.screenProps?.projectionBaseYear).toBe(new Date().getFullYear())
@@ -228,7 +228,7 @@ describe('NetWorthSection', () => {
       loading: false,
       lines: [{ id: 'b1', goal_id: 'g1', amount_cents: 100_00, frequency: 'fortnightly' }],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     const projection = hooks.screenProps?.projection as { year: number; otherCents: number }[]
     // Year 0 is the saver balance (no double count); the goal adds only the $2,000
@@ -249,7 +249,7 @@ describe('NetWorthSection', () => {
         { id: 'a3', name: 'Old loan', balance_cents: -9_999_00, exclude_from_net_worth: true },
       ],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     const projection = hooks.screenProps?.projection as {
       otherCents: number
@@ -289,7 +289,7 @@ describe('NetWorthSection', () => {
         },
       ],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     // The view gets the home loan as a positive amount owed; the excluded one drops.
     expect(hooks.screenProps?.liabilities).toEqual([])
@@ -307,7 +307,7 @@ describe('NetWorthSection', () => {
 
   it('redraws the projection to the chosen horizon', () => {
     mockLoaded()
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     const initial = hooks.screenProps?.projection as unknown[]
     // Default "to retirement" with no ages set → the 30-year fallback → 31 points.
@@ -347,7 +347,7 @@ describe('NetWorthSection', () => {
         { id: 'g2', name: 'Rainy day', target_amount_cents: 5_000_00, linked_account_id: null },
       ],
     })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     const linked = hooks.screenProps?.linkedGoalNamesByAccount as Map<string, string[]>
     expect(linked.get('acc1')).toEqual(['House'])
@@ -370,7 +370,7 @@ describe('NetWorthSection', () => {
     })
     hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
     hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [], baselineLines: [] })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
     hooks.planningActive = false
 
     expect(typeof hooks.screenProps?.baselineTotalCents).toBe('number')
@@ -384,7 +384,7 @@ describe('NetWorthSection', () => {
     mockLoaded()
     const update = vi.fn().mockResolvedValue(undefined)
     hooks.useAccounts.mockReturnValue({ loading: false, accounts: [], update })
-    render(<NetWorthSection householdId="h1" />)
+    render(<NetWorthSection />)
 
     const onToggleExclude = hooks.screenProps?.onToggleExclude as (
       id: string,

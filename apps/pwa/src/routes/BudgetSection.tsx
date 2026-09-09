@@ -15,14 +15,14 @@ import { applyBreakdownAmounts } from '../lib/derivedBudget'
 import { takeBudgetDraft } from '../lib/promoteDraft'
 import { superAccountIds } from '../lib/super'
 
-export function BudgetSection({ householdId }: { householdId: string }) {
-  const budgetLines = useBudgetLines(householdId)
-  const temporaryItems = useTemporaryItems(householdId)
-  const goals = useGoals(householdId)
-  const gifts = useGifts(householdId)
-  const breakdowns = useBreakdowns(householdId)
+export function BudgetSection() {
+  const budgetLines = useBudgetLines()
+  const temporaryItems = useTemporaryItems()
+  const goals = useGoals()
+  const gifts = useGifts()
+  const breakdowns = useBreakdowns()
   const accounts = useAccountDirectory()
-  const superProfiles = useSuperProfiles(householdId)
+  const superProfiles = useSuperProfiles()
   // A wishlist item promoted from the Wishlist tab, picked up once on mount.
   const [promoteDraft, setPromoteDraft] = useState(takeBudgetDraft)
 

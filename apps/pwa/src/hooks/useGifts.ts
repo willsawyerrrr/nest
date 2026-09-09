@@ -100,14 +100,14 @@ export interface UseGiftsResult {
  * derived lines. It invalidates `transactions` instead, since claiming a synced
  * transaction as a purchase takes it out of the gift inbox.
  */
-export function useGifts(householdId: string): UseGiftsResult {
+export function useGifts(): UseGiftsResult {
   const {
     rows: recipientRows,
     reload: reloadRecipients,
     create: createRecipient,
     update: updateRecipient,
     remove: removeRecipientRow,
-  } = useHouseholdCollection<'gift_recipient', GiftRecipientInput>(householdId, {
+  } = useHouseholdCollection<'gift_recipient', GiftRecipientInput>({
     table: 'gift_recipient',
     orderBy: 'name',
     alsoInvalidate: ['budget_line'],
@@ -118,7 +118,7 @@ export function useGifts(householdId: string): UseGiftsResult {
     create: createOccasion,
     update: updateOccasion,
     remove: removeOccasionRow,
-  } = useHouseholdCollection<'gift_occasion', GiftOccasionInput>(householdId, {
+  } = useHouseholdCollection<'gift_occasion', GiftOccasionInput>({
     table: 'gift_occasion',
     orderBy: ['occasion_date', 'name'],
     alsoInvalidate: ['budget_line'],
@@ -129,7 +129,7 @@ export function useGifts(householdId: string): UseGiftsResult {
     create: createBudget,
     update: updateBudget,
     remove: removeBudgetRow,
-  } = useHouseholdCollection<'gift_budget', GiftBudgetInput>(householdId, {
+  } = useHouseholdCollection<'gift_budget', GiftBudgetInput>({
     table: 'gift_budget',
     alsoInvalidate: ['budget_line'],
   })
@@ -139,7 +139,7 @@ export function useGifts(householdId: string): UseGiftsResult {
     create: createPurchase,
     update: updatePurchase,
     remove: removePurchase,
-  } = useHouseholdCollection<'gift_purchase', GiftPurchaseInput>(householdId, {
+  } = useHouseholdCollection<'gift_purchase', GiftPurchaseInput>({
     table: 'gift_purchase',
     orderBy: 'purchased_on',
     alsoInvalidate: ['transactions'],
@@ -148,14 +148,11 @@ export function useGifts(householdId: string): UseGiftsResult {
     rows: discretionaryBudgetRows,
     reload: reloadDiscretionaryBudget,
     upsert: upsertDiscretionaryBudget,
-  } = useHouseholdUpsertCollection<'gift_discretionary_budget', GiftDiscretionaryBudgetInput>(
-    householdId,
-    {
-      table: 'gift_discretionary_budget',
-      onConflict: 'household_id',
-      alsoInvalidate: ['budget_line'],
-    },
-  )
+  } = useHouseholdUpsertCollection<'gift_discretionary_budget', GiftDiscretionaryBudgetInput>({
+    table: 'gift_discretionary_budget',
+    onConflict: 'household_id',
+    alsoInvalidate: ['budget_line'],
+  })
 
   const reload = useCallback(async () => {
     await Promise.all([

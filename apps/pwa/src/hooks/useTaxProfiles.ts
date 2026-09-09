@@ -35,13 +35,12 @@ export interface UseTaxProfilesResult {
  * financial year), keyed by member. RLS scopes reads to the household.
  */
 export function useTaxProfiles(
-  householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UseTaxProfilesResult {
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'tax_profile',
     TaxProfileInput
-  >(householdId, {
+  >({
     table: 'tax_profile',
     match: { financial_year: financialYear },
     insertDefaults: { financial_year: financialYear },

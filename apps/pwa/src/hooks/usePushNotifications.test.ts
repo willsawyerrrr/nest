@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from '../lib/supabase'
+import { makeWrapper } from '../test/queryWrapper'
 import { makeSupabaseBuilder, type SupabaseBuilder } from '../test/supabaseBuilder'
 import { usePushNotifications } from './usePushNotifications'
 
@@ -80,7 +81,7 @@ function removePushApis() {
 }
 
 function renderPush(memberId: string | null = 'm1') {
-  return renderHook(() => usePushNotifications('h1', memberId))
+  return renderHook(() => usePushNotifications(memberId), { wrapper: makeWrapper() })
 }
 
 /** A `push-test` summary body, defaulting every count the test does not set. */

@@ -8,13 +8,13 @@ import { usePaySplits } from '../hooks/usePaySplits'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { superAccountIds } from '../lib/super'
 
-export function SplitsSection({ householdId }: { householdId: string }) {
-  const budgetLines = useBudgetLines(householdId)
-  const goals = useGoals(householdId)
+export function SplitsSection() {
+  const budgetLines = useBudgetLines()
+  const goals = useGoals()
   const accounts = useAccountDirectory()
-  const superProfiles = useSuperProfiles(householdId)
-  const paySplits = usePaySplits(householdId)
-  const payAccount = usePayAccount(householdId)
+  const superProfiles = useSuperProfiles()
+  const paySplits = usePaySplits()
+  const payAccount = usePayAccount()
 
   if (
     budgetLines.loading ||

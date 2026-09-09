@@ -92,10 +92,10 @@ export interface UseInflowsResult {
 }
 
 /** Loads and mutates the household's inflows. RLS scopes reads to the household. */
-export function useInflows(householdId: string): UseInflowsResult {
+export function useInflows(): UseInflowsResult {
   const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'inflows',
     InflowInput
-  >(householdId, { table: 'inflows', orderBy: 'name' })
+  >({ table: 'inflows', orderBy: 'name' })
   return { inflows: rows, baselineInflows: baselineRows, loading, reload, create, update, remove }
 }

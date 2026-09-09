@@ -9,13 +9,13 @@ import { useDeductions } from '../hooks/useDeductions'
 import { useMembers } from '../hooks/useMembers'
 import { availableFinancialYears } from '../lib/tax'
 
-export function DeductionsSection({ householdId }: { householdId: string }) {
+export function DeductionsSection() {
   const [financialYear, setFinancialYear] = useState(financialYearForDate(new Date()))
 
   const { members, loading: membersLoading } = useMembers()
-  const deductions = useDeductions(householdId, financialYear)
-  const groups = useDeductionGroups(householdId, financialYear)
-  const receipts = useDeductionReceipts(householdId)
+  const deductions = useDeductions(financialYear)
+  const groups = useDeductionGroups(financialYear)
+  const receipts = useDeductionReceipts()
 
   // Storing, discarding, and reading a receipt picked before a new deduction
   // exists, distinct from `upload`/`remove` which attach a receipt to an

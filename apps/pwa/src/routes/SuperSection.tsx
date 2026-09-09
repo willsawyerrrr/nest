@@ -12,12 +12,12 @@ import {
   superCapSummaryFromRows,
 } from '../lib/tax'
 
-export function SuperSection({ householdId }: { householdId: string }) {
+export function SuperSection() {
   const { members, loading: membersLoading } = useMembers()
-  const superProfiles = useSuperProfiles(householdId)
-  const accounts = useAccounts(householdId)
-  const contributions = useSuperContributions(householdId)
-  const inflows = useInflows(householdId)
+  const superProfiles = useSuperProfiles()
+  const accounts = useAccounts()
+  const contributions = useSuperContributions()
+  const inflows = useInflows()
 
   const profileRows = superProfiles.profiles
 

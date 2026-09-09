@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import { usePlanningMode } from '../components/PlanningModeProvider'
 import type { Database } from '../lib/database.types'
 import {
@@ -136,11 +137,9 @@ export function useHouseholdCollection<
   T extends HouseholdTable,
   CreateInput,
   UpdateInput = CreateInput,
->(
-  householdId: string,
-  config: CollectionConfig<T>,
-): HouseholdCollection<Row<T>, CreateInput, UpdateInput> {
+>(config: CollectionConfig<T>): HouseholdCollection<Row<T>, CreateInput, UpdateInput> {
   const { table } = config
+  const householdId = useHouseholdId()
   const queryClient = useQueryClient()
 
   // Snapshot the scope so the callbacks and query key re-derive only when it
@@ -276,10 +275,10 @@ export interface UpsertCollectionConfig<T extends HouseholdTable> {
  * step rather than through separate create, update, and remove writes.
  */
 export function useHouseholdUpsertCollection<T extends HouseholdTable, UpsertInput>(
-  householdId: string,
   config: UpsertCollectionConfig<T>,
 ): HouseholdUpsertCollection<Row<T>, UpsertInput> {
   const { table, onConflict } = config
+  const householdId = useHouseholdId()
   const queryClient = useQueryClient()
 
   const matchKey = JSON.stringify(config.match ?? {})

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
+import { HouseholdProvider } from './components/HouseholdProvider'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { PlanningModeBanner } from './components/PlanningModeBanner'
@@ -191,14 +192,16 @@ function HouseholdApp({
   onRevokeInviteCode: () => Promise<void>
 }) {
   return (
-    <PlanningModeProvider householdId={household.id}>
-      <HouseholdShell
-        household={household}
-        session={session}
-        onCreateInviteCode={onCreateInviteCode}
-        onRevokeInviteCode={onRevokeInviteCode}
-      />
-    </PlanningModeProvider>
+    <HouseholdProvider householdId={household.id}>
+      <PlanningModeProvider>
+        <HouseholdShell
+          household={household}
+          session={session}
+          onCreateInviteCode={onCreateInviteCode}
+          onRevokeInviteCode={onRevokeInviteCode}
+        />
+      </PlanningModeProvider>
+    </HouseholdProvider>
   )
 }
 
@@ -220,27 +223,24 @@ function HouseholdShell({
         <PlanningModeBanner />
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
-            <Route path="/summary" element={<SummarySection householdId={household.id} />} />
-            <Route path="/planning" element={<PlanningSection householdId={household.id} />} />
-            <Route path="/net-worth" element={<NetWorthSection householdId={household.id} />} />
-            <Route path="/inflows" element={<InflowsSection householdId={household.id} />} />
-            <Route path="/budget" element={<BudgetSection householdId={household.id} />} />
-            <Route path="/splits" element={<SplitsSection householdId={household.id} />} />
-            <Route path="/goals" element={<GoalsSection householdId={household.id} />} />
-            <Route path="/wishlist" element={<WishlistSection householdId={household.id} />} />
-            <Route path="/tax" element={<TaxSection householdId={household.id} />} />
-            <Route path="/payslips" element={<PayslipsSection householdId={household.id} />} />
-            <Route path="/deductions" element={<DeductionsSection householdId={household.id} />} />
-            <Route path="/super" element={<SuperSection householdId={household.id} />} />
-            <Route path="/help-debt" element={<HelpDebtSection householdId={household.id} />} />
-            <Route path="/eofy" element={<EofySection householdId={household.id} />} />
-            <Route path="/equity" element={<EquitySection householdId={household.id} />} />
-            <Route path="/gifts" element={<GiftsSection householdId={household.id} />} />
-            <Route path="/breakdowns" element={<BreakdownsSection householdId={household.id} />} />
-            <Route
-              path="/breakdowns/:id"
-              element={<BreakdownDetailSection householdId={household.id} />}
-            />
+            <Route path="/summary" element={<SummarySection />} />
+            <Route path="/planning" element={<PlanningSection />} />
+            <Route path="/net-worth" element={<NetWorthSection />} />
+            <Route path="/inflows" element={<InflowsSection />} />
+            <Route path="/budget" element={<BudgetSection />} />
+            <Route path="/splits" element={<SplitsSection />} />
+            <Route path="/goals" element={<GoalsSection />} />
+            <Route path="/wishlist" element={<WishlistSection />} />
+            <Route path="/tax" element={<TaxSection />} />
+            <Route path="/payslips" element={<PayslipsSection />} />
+            <Route path="/deductions" element={<DeductionsSection />} />
+            <Route path="/super" element={<SuperSection />} />
+            <Route path="/help-debt" element={<HelpDebtSection />} />
+            <Route path="/eofy" element={<EofySection />} />
+            <Route path="/equity" element={<EquitySection />} />
+            <Route path="/gifts" element={<GiftsSection />} />
+            <Route path="/breakdowns" element={<BreakdownsSection />} />
+            <Route path="/breakdowns/:id" element={<BreakdownDetailSection />} />
             <Route path="/whats-new" element={<ChangelogSection />} />
             <Route
               path="/settings/account"
@@ -253,10 +253,7 @@ function HouseholdShell({
                 />
               }
             />
-            <Route
-              path="/settings/members"
-              element={<MembersSection householdId={household.id} />}
-            />
+            <Route path="/settings/members" element={<MembersSection />} />
             <Route path="/settings/partner" element={<Navigate to="/settings/account" replace />} />
             <Route
               path="/settings/connections"
@@ -264,7 +261,7 @@ function HouseholdShell({
             />
             <Route
               path="/settings/notifications"
-              element={<NotificationsSection householdId={household.id} session={session} />}
+              element={<NotificationsSection session={session} />}
             />
             <Route path="/settings/planning-mode" element={<PlanningModeSection />} />
             <Route path="/household" element={<Navigate to="/settings/account" replace />} />

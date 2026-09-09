@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe('useBudgetLines', () => {
   it('exposes the household budget lines and its mutations', async () => {
-    const { result } = renderHook(() => useBudgetLines('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useBudgetLines(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.lines).not.toBeNull())
     expect(result.current.loading).toBe(false)
 

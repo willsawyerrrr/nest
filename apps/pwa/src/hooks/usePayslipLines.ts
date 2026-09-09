@@ -42,8 +42,8 @@ export interface UsePayslipLinesResult {
  * written together by `usePayslips`'s `save` — in a single transaction, where a
  * failure cannot leave a slip with the wrong lines or none at all.
  */
-export function usePayslipLines(householdId: string): UsePayslipLinesResult {
-  const { rows, loading, reload } = useHouseholdCollection<'payslip_line', never>(householdId, {
+export function usePayslipLines(): UsePayslipLinesResult {
+  const { rows, loading, reload } = useHouseholdCollection<'payslip_line', never>({
     table: 'payslip_line',
     orderBy: 'created_at',
   })

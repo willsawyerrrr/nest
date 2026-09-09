@@ -43,13 +43,13 @@ beforeEach(() => {
 
 describe('useDeductionReceipts', () => {
   it('exposes the household receipts', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).toEqual([receipt]))
     expect(result.current.loading).toBe(false)
   })
 
   it('uploads a file then records a receipt row', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
@@ -65,7 +65,7 @@ describe('useDeductionReceipts', () => {
 
   it('does not record a row when the upload fails', async () => {
     bucket.upload.mockResolvedValue({ data: null, error: new Error('nope') })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
@@ -74,7 +74,7 @@ describe('useDeductionReceipts', () => {
   })
 
   it('removes the stored file then deletes the row', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     await act(async () => {
@@ -87,7 +87,7 @@ describe('useDeductionReceipts', () => {
 
   it('does not delete the row when removing the stored file fails', async () => {
     bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     await expect(result.current.remove(receipt)).rejects.toThrow('nope')
@@ -95,7 +95,7 @@ describe('useDeductionReceipts', () => {
   })
 
   it('returns a signed URL for a stored path', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const url = await result.current.signedUrl('h1/d1/abc-receipt.pdf')
@@ -105,14 +105,14 @@ describe('useDeductionReceipts', () => {
 
   it('returns null when signing the URL fails', async () => {
     bucket.createSignedUrl.mockResolvedValue({ data: null, error: new Error('nope') })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     expect(await result.current.signedUrl('h1/d1/abc-receipt.pdf')).toBeNull()
   })
 
   it('uploads a file for a not-yet-created deduction without recording a row', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
@@ -127,7 +127,7 @@ describe('useDeductionReceipts', () => {
   })
 
   it('discards a pending upload from Storage', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     await expect(result.current.discardPending('h1/d2/uuid-receipt.pdf')).resolves.toBeUndefined()
@@ -136,7 +136,7 @@ describe('useDeductionReceipts', () => {
 
   it('swallows a failure discarding a pending upload', async () => {
     bucket.remove.mockResolvedValue({ data: null, error: new Error('nope') })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     await expect(result.current.discardPending('h1/d2/uuid-receipt.pdf')).resolves.toBeUndefined()
@@ -149,7 +149,7 @@ describe('useDeductionReceipts', () => {
       error: null,
       response: undefined,
     })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')
@@ -172,7 +172,7 @@ describe('useDeductionReceipts', () => {
         { status: 503 },
       ),
     })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')
@@ -189,7 +189,7 @@ describe('useDeductionReceipts', () => {
       error: new Error('bad gateway'),
       response: new Response('<html>502</html>', { status: 502 }),
     })
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     expect(await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')).toEqual({
@@ -199,7 +199,7 @@ describe('useDeductionReceipts', () => {
   })
 
   it('renames a receipt’s display label, leaving its stored file untouched', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     await act(async () => {
@@ -214,7 +214,7 @@ describe('useDeductionReceipts', () => {
   })
 
   it('stores a receipt named nothing under Receipt', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     await act(async () => {
@@ -227,7 +227,7 @@ describe('useDeductionReceipts', () => {
   })
 
   it('surfaces a failed rename', async () => {
-    const { result } = renderHook(() => useDeductionReceipts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     builder.result = { data: null, error: new Error('nope') }

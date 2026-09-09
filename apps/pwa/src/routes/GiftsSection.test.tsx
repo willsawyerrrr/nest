@@ -82,14 +82,14 @@ describe('GiftsSection', () => {
   it('shows the loading screen while gifts load', () => {
     mockLoaded()
     hooks.useGifts.mockReturnValue({ loading: true })
-    render(<GiftsSection householdId="h1" />)
+    render(<GiftsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('shows the loading screen while the gift transactions load', () => {
     mockLoaded()
     hooks.useGiftTransactions.mockReturnValue({ ...loadedTransactions, loading: true })
-    render(<GiftsSection householdId="h1" />)
+    render(<GiftsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -97,13 +97,13 @@ describe('GiftsSection', () => {
     mockLoaded()
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useCurrentMember.mockReturnValue({ member: null, loading: true })
-    render(<GiftsSection householdId="h1" />)
+    render(<GiftsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('renders the gifts screen as a top-level tab with loaded data and the current member', () => {
     mockLoaded()
-    render(<GiftsSection householdId="h1" />)
+    render(<GiftsSection />)
     expect(screen.getByTestId('gifts-screen')).toBeInTheDocument()
     expect(hooks.screenProps).toMatchObject({ members: [will], currentMemberId: 'm1' })
     expect(hooks.screenProps?.backTo).toBeUndefined()
@@ -114,7 +114,7 @@ describe('GiftsSection', () => {
     const refresh = vi.fn()
     mockLoaded()
     hooks.useUpSync.mockReturnValue({ refresh, refreshing: false, error: null })
-    render(<GiftsSection householdId="h1" />)
+    render(<GiftsSection />)
 
     // A sync brings in newly categorised transactions and trues a linked
     // purchase's amount up to its settled transaction, so both reload.
@@ -132,7 +132,7 @@ describe('GiftsSection', () => {
     // derives the lines, so the screen just creates the gift budget.
     const createBudget = vi.fn().mockResolvedValue(undefined)
     mockLoaded({ createBudget })
-    render(<GiftsSection householdId="h1" />)
+    render(<GiftsSection />)
 
     const onCreateBudget = hooks.screenProps?.onCreateBudget as (input: unknown) => Promise<void>
     const input = {

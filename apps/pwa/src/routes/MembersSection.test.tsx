@@ -29,7 +29,7 @@ describe('MembersSection', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true, setDateOfBirth: vi.fn() })
     hooks.useTaxProfiles.mockReturnValue({ loading: false })
 
-    render(<MembersSection householdId="h1" />)
+    render(<MembersSection />)
 
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -47,7 +47,7 @@ describe('MembersSection', () => {
       upsert: vi.fn(),
     })
 
-    render(<MembersSection householdId="h1" />)
+    render(<MembersSection />)
 
     expect(screen.getByTestId('members-screen')).toBeInTheDocument()
     expect(hooks.screenProps).toMatchObject({ financialYear: 2027 })
@@ -68,7 +68,7 @@ describe('MembersSection', () => {
       upsert,
     })
 
-    render(<MembersSection householdId="h1" />)
+    render(<MembersSection />)
 
     const profile = { member_id: 'm1', residency: 'resident', has_private_hospital_cover: false }
     const onUpsert = hooks.screenProps!.onUpsertTaxProfile as (submission: {

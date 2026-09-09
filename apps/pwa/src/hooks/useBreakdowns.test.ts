@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { HouseholdProvider } from '../components/HouseholdProvider'
 import { makeWrapper } from '../test/queryWrapper'
 import { useBreakdowns, type BreakdownInput, type BreakdownUpdate } from './useBreakdowns'
 
@@ -27,7 +28,7 @@ beforeEach(() => {
 
 describe('useBreakdowns', () => {
   it('loads breakdowns alongside items and reloads them together', async () => {
-    const { result } = renderHook(() => useBreakdowns('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useBreakdowns(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.breakdowns).toEqual([])
     expect(result.current.items).toEqual([])
@@ -40,7 +41,7 @@ describe('useBreakdowns', () => {
   })
 
   it('leaves items untouched when creating or updating, and reloads them on delete', async () => {
-    const { result } = renderHook(() => useBreakdowns('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useBreakdowns(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // Creating a breakdown adds no items, so the items query stays put.
@@ -65,7 +66,7 @@ describe('useBreakdowns', () => {
 
   it('reports loading while a collection is null', async () => {
     builder.result = { data: null, error: new Error('load failed') }
-    const { result } = renderHook(() => useBreakdowns('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useBreakdowns(), { wrapper: makeWrapper() })
     expect(result.current.loading).toBe(true)
   })
 
@@ -73,8 +74,12 @@ describe('useBreakdowns', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
-    const { result } = renderHook(() => useBreakdowns('h1'), { wrapper })
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
+    const { result } = renderHook(() => useBreakdowns(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // A breakdown's name and group flow onto its derived line via the trigger, so

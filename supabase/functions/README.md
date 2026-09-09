@@ -479,22 +479,22 @@ install/version requirements are in
 
 ## Household buffer
 
-`_shared/householdBuffer/` is the one React-free implementation of the PWA
-Summary's on-screen "fortnightly after saving" figure — the port of
-`apps/pwa/src/lib/summary.ts`'s `summariseHousehold` and its helpers
-(`lib/tax.ts`'s `estimateHouseholdTaxFromRows` / `activeNowTaxableInflows` /
-`projectedInterestIncomeInputs`). The runtime cannot import the PWA's `lib/`, so
-the row shaping is done here against loose interfaces; the tax and plan math
-itself stays in `@nest/tax` / `@nest/plan`. `tax.ts` holds the row shaping,
-`adapters.ts` the parity adapters, `summary.ts`'s `summariseHouseholdFromRows` the
-whole-year + active-now double reconciliation, and `bundle.ts`
-(`loadBudgetSummaryBundle`) the service-role row load both consumers wire in. The
-breakdown- and gift-derived budget lines are read straight from `budget_line`:
-the `reconcile_derived_lines` triggers keep their annual `amount_cents` canonical,
-so unlike the PWA (which re-derives them) the buffer trusts the row and reads
-none of the breakdown or gift tables. `notify-eval`'s `buffer_negative`
-trigger and `intent-summary` both call it, so the Siri figure and the app's
-Summary never disagree.
+The PWA Summary's on-screen "fortnightly after saving" figure — the row shaping,
+the tax estimate, and `summariseHouseholdFromRows`'s whole-year + active-now
+double reconciliation — is the `@nest/household` package, imported here as the
+vendored copy under `_shared/vendor/household/` and by the PWA directly, so there
+is one implementation. The tax and plan math itself stays in `@nest/tax` /
+`@nest/plan`. `_shared/householdBuffer.ts` is the remaining edge-only glue:
+`loadBudgetSummaryBundle` and `readHouseholdTable`, the service-role row load both
+consumers wire in, plus `toSaverRows` for the `accounts` / `account_balance`
+split. The breakdown- and gift-derived budget lines are read straight from
+`budget_line`: the `reconcile_derived_lines` triggers keep their annual
+`amount_cents` canonical, so unlike the PWA (which re-derives them) the buffer
+trusts the row and reads none of the breakdown or gift tables. `notify-eval`'s
+`buffer_negative` trigger and `intent-summary` both call it, so the Siri figure
+and the app's Summary never disagree; `_shared/householdBuffer_parity_test.ts`
+runs the package's golden fixtures through the vendored copy to hold the two in
+step.
 
 - **`intent-summary`** — POST, no body, `Bearer` Supabase access token.
   JWT-verified: `_shared/caller.ts` resolves the caller's member, then one

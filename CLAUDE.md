@@ -66,7 +66,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   other member is assessed the remainder. Salary, wage, non-taxable, and one-off
   inflows cannot be joint (`inflows_joint_split`). The split is a tax-estimate
   reading only — the FY estimate emits two `other` income inputs for a joint
-  inflow (`lib/tax.ts`'s `splitByPercent` / `inflowIncomeInputs`) — and touches
+  inflow (`@nest/household`'s `splitByPercent` / `inflowIncomeInputs`) — and touches
   no projection: the whole amount is still the household's projected cash, out of
   a single pay split and the fortnightly buffer as one figure.
   **An inflow is either RECURRING or a ONE-OFF, and says which.** It states the
@@ -124,8 +124,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   months from now feeds the fortnightly buffer nothing while still shaping the
   annual figures, the annual/fortnightly split being the same one one-off money
   already draws. `@nest/tax` and `@nest/plan` are untouched — the active-now
-  estimate is a PWA-adapter concern (`lib/tax.ts`'s `activeNowTaxableInflows`,
-  threaded through `lib/summary.ts`'s `summariseHousehold`).
+  estimate is a `@nest/household` concern (`activeNowTaxableInflows`, threaded
+  through `summariseHouseholdFromRows`).
   A taxable inflow also records whether it is ordinary time earnings
   (`attracts_super`, default true). An allowance paid on top of ordinary hours —
   on-call or standby pay, each tier its own inflow — is taxed in full but earns
@@ -157,7 +157,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   links one, else `current_balance_cents` — as `other` income, attributed wholly
   to an individually-owned linked saver's owner and split 50/50 across the
   household's members for a joint saver or a goal with no resolvable link. It is
-  a PWA-adapter concern (`lib/tax.ts`'s `projectedInterestIncomeInputs`,
+  a `@nest/household` concern (`projectedInterestIncomeInputs`,
   `splitAcrossMembers`), threaded through `estimateHouseholdTaxFromRows` so it
   reaches the whole-year Tax/EOFY figures and, via the same adapter, the
   fortnightly buffer's active-now estimate; `@nest/tax` and `@nest/plan` are

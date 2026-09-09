@@ -241,7 +241,6 @@ export function PlanningSection() {
       inflows: inf,
       budgetLines: lines,
       taxProfiles: profileRows,
-      financialYear: taxProfiles.financialYear,
       contributions: contributionRows,
       helpDebts: helpDebtRows,
       deductions: deductionRows,

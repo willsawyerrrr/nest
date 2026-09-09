@@ -1,6 +1,6 @@
 -- Assertions that service_role has NO access to the breakdown and gift tables.
 --
--- The household-buffer loader (`_shared/householdBuffer/`, used by `notify-eval`
+-- The household-buffer loader (`_shared/householdBuffer.ts`, used by `notify-eval`
 -- and `intent-summary`) reads `budget_line` straight — the reconcile triggers
 -- keep the breakdown- and gift-derived lines canonical — so it never touches
 -- `breakdown`, `breakdown_item`, `gift_budget`, `gift_recipient`, or

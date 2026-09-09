@@ -136,8 +136,8 @@ one-off is shown as the separate figure it is.
   instead of one: its annualised amount is split by `member_split_percent`
   (0–100, the share to `member_id`, the household's other member taking the
   remainder), each half a separate `other` income input carrying the inflow's
-  effective window so proration still applies. Added in the PWA adapter
-  (`lib/tax.ts`'s `splitByPercent` / `inflowIncomeInputs`); `@nest/tax` is
+  effective window so proration still applies. Added in the `@nest/household`
+  adapter (`splitByPercent` / `inflowIncomeInputs`); `@nest/tax` is
   untouched, and every projection still reads the whole amount.
 - Projected savings interest: each goal with an interest rate
   (`annual_interest_bps`) contributes `startingBalance × annual_interest_bps /
@@ -146,8 +146,8 @@ one-off is shown as the separate figure it is.
   else its manual `current_balance_cents`. Goals carry no member, so the figure
   is attributed by the linked saver: wholly to an individually-owned saver's
   owner, split 50/50 across the household's members for a joint saver or a goal
-  with no resolvable link. Added in the PWA adapter
-  (`lib/tax.ts`'s `projectedInterestIncomeInputs`); `@nest/tax` is untouched.
+  with no resolvable link. Added in the `@nest/household` adapter
+  (`projectedInterestIncomeInputs`); `@nest/tax` is untouched.
 - Deductions (work-related, etc.).
 - Residency status (resident vs non-resident brackets differ).
 - Claims tax-free threshold (affects withholding expectations).
@@ -235,7 +235,7 @@ the higher threshold or with no eligible contributions.
 
 ## Retirement projection
 
-`netAnnualSuperContributionByMember` (in the PWA's `lib/tax`) resolves each
+`netAnnualSuperContributionByMember` (in `@nest/household`) resolves each
 member's annual contribution landing in super, net of the 15% contributions tax:
 concessional contributions and the employer super guarantee (`guarantee_rate ×`
 gross salary) are taxed in the fund; personal non-concessional contributions and
@@ -274,7 +274,7 @@ non-positive balance returns an empty schedule.
 
 The PWA's Tax tab renders a per-member payoff line beneath the HELP/HECS row for
 each member with a positive HELP balance (`helpPayoffByMember` /
-`helpPayoffForBreakdown` in `lib/tax`), reading the member's repayment income from
+`helpPayoffForBreakdown` in `@nest/household`), reading the member's repayment income from
 their tax breakdown.
 
 > **Payoff-projection simplifications.** Repayment income is held constant across

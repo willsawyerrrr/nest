@@ -18,7 +18,7 @@ import { vendorDrift, vendoredContent } from './lib/vendor-edge.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(HERE, '..')
-const PACKAGES = ['plan', 'tax']
+const PACKAGES = ['plan', 'tax', 'household']
 const VENDOR_DIR = join(REPO_ROOT, 'supabase', 'functions', '_shared', 'vendor')
 
 /** Every non-test `.ts` file under a package's `src/`, relative to that `src/`. */

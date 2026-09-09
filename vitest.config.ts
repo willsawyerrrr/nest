@@ -6,8 +6,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['packages/tax/src/**', 'packages/plan/src/**', 'apps/pwa/src/**'],
+      include: [
+        'packages/tax/src/**',
+        'packages/plan/src/**',
+        'packages/household/src/**',
+        'apps/pwa/src/**',
+      ],
       exclude: [
+        // The golden parity fixtures and the small runners that feed them
+        // through the estimate and the buffer. Both the vitest and the deno
+        // parity suites exercise every line; the frozen fixture data would
+        // otherwise dominate the file's coverage.
+        'packages/household/src/goldenCases.ts',
         'apps/pwa/src/main.tsx',
         'apps/pwa/src/lib/database.types.ts',
         'apps/pwa/src/lib/supabase.ts',
@@ -38,6 +48,12 @@ export default defineConfig({
               lines: 100,
             },
             'packages/plan/**': {
+              statements: 100,
+              branches: 100,
+              functions: 100,
+              lines: 100,
+            },
+            'packages/household/**': {
               statements: 100,
               branches: 100,
               functions: 100,

@@ -108,6 +108,13 @@ RLS.
 - **Plan engine** — pure `@nest/plan` package: schedule normalization, summary
   reconciliation, goal projection, temporary expiry, the `Frequency` type, and
   the `MS_PER_DAY` / fortnight constants both engines share.
+- **Household shaping** — pure `@nest/household` package (depends on `@nest/plan`
+  + `@nest/tax`): shapes a household's raw database rows into engine inputs and
+  runs the tax estimate and the whole-year + active-now fortnightly buffer. The
+  PWA imports it directly; the edge functions (`notify-eval`, `intent-summary`)
+  import the vendored copy, so the numbers a household files a return on and asks
+  Siri about have one implementation, kept honest by a golden-fixture parity
+  suite.
 - **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.
 - **Storage** — private buckets for the documents the household attaches:
   `receipts` (deduction receipts) and `payslips` (payslip PDFs/images). The PWA
@@ -413,7 +420,7 @@ the workflow token is scoped `contents: read`:
 
 - **check** — migration-version uniqueness (`scripts/check-migration-versions.js`)
   and edge-vendor sync (`scripts/vendor-edge-packages.js --check`, asserting
-  `supabase/functions/_shared/vendor/` still matches `packages/{plan,tax}/src`),
+  `supabase/functions/_shared/vendor/` still matches `packages/{plan,tax,household}/src`),
   both ahead of the install so they fail in milliseconds, then lint / format /
   typecheck / build (~49s). Not the binding constraint.
 - **test** — the Vitest workspace, sharded across six parallel runners with V8
@@ -422,8 +429,9 @@ the workflow token is scoped `contents: read`:
   runners (each covering a sixth of the files, the union running every test) and
   uploads its blob report; a `test` job downloads all six and merges them with
   `vitest run --merge-reports --coverage`, failing if a package drops below its
-  threshold: `@nest/plan` and `@nest/tax` at 100% on every metric, `apps/pwa` at
-  100% statements / functions / lines with a branch floor (currently 93). The
+  threshold: `@nest/plan`, `@nest/tax`, and `@nest/household` at 100% on every
+  metric, `apps/pwa` at 100% statements / functions / lines with a branch floor
+  (currently 93). The
   thresholds evaluate over the merged coverage of the whole suite; a shard sets
   `VITEST_SKIP_COVERAGE_THRESHOLDS` so its partial coverage does not fail the
   check. The `test` job `needs` the shards, so the required-check name stays green

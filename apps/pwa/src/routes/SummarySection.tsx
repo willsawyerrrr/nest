@@ -65,7 +65,6 @@ export function SummarySection() {
       inflows: inflowRows,
       budgetLines: budgetLineRows,
       taxProfiles: taxProfiles.profiles ?? [],
-      financialYear: taxProfiles.financialYear,
       contributions: contributions.contributions ?? [],
       helpDebts: helpDebts.helpDebts ?? [],
       deductions: deductions.deductions ?? [],

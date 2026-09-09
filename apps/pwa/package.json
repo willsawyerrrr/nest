@@ -21,6 +21,7 @@
     "@mantine/core": "^9.6.0",
     "@mantine/dates": "^9.6.0",
     "@mantine/hooks": "^9.6.0",
+    "@nest/household": "workspace:*",
     "@nest/plan": "workspace:*",
     "@nest/tax": "workspace:*",
     "@supabase/supabase-js": "^2.116.0",

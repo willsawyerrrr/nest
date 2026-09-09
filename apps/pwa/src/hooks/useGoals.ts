@@ -47,11 +47,11 @@ export function goalInputFromRow(goal: Goal, patch: Partial<GoalInput> = {}): Go
 }
 
 /** Loads and mutates the household's savings goals. RLS scopes reads to the household. */
-export function useGoals(householdId: string): UseGoalsResult {
+export function useGoals(): UseGoalsResult {
   const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'savings_goal',
     GoalInput
-  >(householdId, { table: 'savings_goal', orderBy: ['queue_position', 'name'] })
+  >({ table: 'savings_goal', orderBy: ['queue_position', 'name'] })
 
   const reorderQueue = async (orderedIds: readonly string[]): Promise<void> => {
     const byId = new Map((rows ?? []).map((goal) => [goal.id, goal]))

@@ -4,10 +4,10 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { useBreakdownItems } from '../hooks/useBreakdownItems'
 import { useBreakdowns, type Breakdown } from '../hooks/useBreakdowns'
 
-export function BreakdownDetailSection({ householdId }: { householdId: string }) {
+export function BreakdownDetailSection() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const breakdowns = useBreakdowns(householdId)
+  const breakdowns = useBreakdowns()
 
   // A breakdown opened from a budget line returns to the budget; otherwise it
   // falls back to the Breakdowns tab (the default on a direct visit or refresh,
@@ -26,7 +26,6 @@ export function BreakdownDetailSection({ householdId }: { householdId: string })
 
   return (
     <GenericBreakdownSection
-      householdId={householdId}
       breakdown={breakdown}
       backTo={backTo}
       backLabel={backLabel}
@@ -37,14 +36,12 @@ export function BreakdownDetailSection({ householdId }: { householdId: string })
 }
 
 function GenericBreakdownSection({
-  householdId,
   breakdown,
   backTo,
   backLabel,
   onUpdate,
   onDelete,
 }: {
-  householdId: string
   breakdown: Breakdown
   backTo: string
   backLabel: string
@@ -55,7 +52,7 @@ function GenericBreakdownSection({
   onDelete: (id: string) => Promise<void>
 }) {
   const navigate = useNavigate()
-  const items = useBreakdownItems(householdId, breakdown.id)
+  const items = useBreakdownItems(breakdown.id)
 
   if (items.loading) {
     return <LoadingScreen />

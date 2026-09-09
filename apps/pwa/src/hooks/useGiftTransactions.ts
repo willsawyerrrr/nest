@@ -35,11 +35,11 @@ export interface UseGiftTransactionsResult {
  * dismissal write invalidates the transactions cache alongside its own, keeping
  * the inbox in step.
  */
-export function useGiftTransactions(householdId: string): UseGiftTransactionsResult {
+export function useGiftTransactions(): UseGiftTransactionsResult {
   const { rows: transactionRows, reload: reloadTransactions } = useHouseholdCollection<
     'transactions',
     never
-  >(householdId, {
+  >({
     table: 'transactions',
     match: { external_category: GIFT_TRANSACTION_CATEGORY },
     orderBy: 'posted_at',
@@ -50,7 +50,7 @@ export function useGiftTransactions(householdId: string): UseGiftTransactionsRes
     reload: reloadDismissals,
     create: createDismissal,
     remove: restore,
-  } = useHouseholdCollection<'gift_transaction_dismissal', GiftDismissalInput>(householdId, {
+  } = useHouseholdCollection<'gift_transaction_dismissal', GiftDismissalInput>({
     table: 'gift_transaction_dismissal',
     alsoInvalidate: ['transactions'],
   })

@@ -193,7 +193,7 @@ describe('TaxEstimateView', () => {
       members: [proposedWill, sam],
     }
     render(
-      <PlanningModeProvider householdId="h1">
+      <PlanningModeProvider>
         <TaxEstimateView
           estimate={proposed}
           baseline={real}

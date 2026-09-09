@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import { supabase } from '../lib/supabase'
 
 export interface UsePayAccountResult {
@@ -16,7 +17,8 @@ export interface UsePayAccountResult {
  * household via RLS; the write goes through the `set_household_pay_account` RPC,
  * which validates the account and reloads so the Splits view reflects it live.
  */
-export function usePayAccount(householdId: string): UsePayAccountResult {
+export function usePayAccount(): UsePayAccountResult {
+  const householdId = useHouseholdId()
   const [payAccountId, setPayAccountId] = useState<string | null | undefined>(undefined)
 
   const reload = useCallback(async () => {

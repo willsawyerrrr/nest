@@ -5,9 +5,9 @@ import { useMembers } from '../hooks/useMembers'
 import { useWishlist, type WishlistItem } from '../hooks/useWishlist'
 import { setBudgetDraft, setGoalDraft } from '../lib/promoteDraft'
 
-export function WishlistSection({ householdId }: { householdId: string }) {
+export function WishlistSection() {
   const { members, loading: membersLoading } = useMembers()
-  const wishlist = useWishlist(householdId)
+  const wishlist = useWishlist()
   const navigate = useNavigate()
 
   if (membersLoading || wishlist.loading || !members) {

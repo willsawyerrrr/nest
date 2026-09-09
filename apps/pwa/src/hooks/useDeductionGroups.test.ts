@@ -21,7 +21,7 @@ beforeEach(() => {
 
 describe('useDeductionGroups', () => {
   it('exposes the household groups for the financial year and mutates them', async () => {
-    const { result } = renderHook(() => useDeductionGroups('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionGroups(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.groups).toEqual([{ id: 'g1' }]))
     expect(result.current.loading).toBe(false)
 
@@ -41,7 +41,7 @@ describe('useDeductionGroups', () => {
   })
 
   it('scopes to an explicit financial year when given one', async () => {
-    const { result } = renderHook(() => useDeductionGroups('h1', 2025), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionGroups(2025), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.groups).toEqual([{ id: 'g1' }]))
 
     await act(async () => {

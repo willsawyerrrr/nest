@@ -42,22 +42,22 @@ export interface UseBreakdownsResult {
  * so it invalidates `budget_line` too, keeping the raw-line consumers (the Pay
  * splits tab) current.
  */
-export function useBreakdowns(householdId: string): UseBreakdownsResult {
+export function useBreakdowns(): UseBreakdownsResult {
   const {
     rows: breakdownRows,
     reload: reloadBreakdowns,
     create,
     update,
     remove: removeBreakdown,
-  } = useHouseholdCollection<'breakdown', BreakdownInput, BreakdownUpdate>(householdId, {
+  } = useHouseholdCollection<'breakdown', BreakdownInput, BreakdownUpdate>({
     table: 'breakdown',
     orderBy: 'name',
     alsoInvalidate: ['budget_line'],
   })
-  const { rows: itemRows, reload: reloadItems } = useHouseholdCollection<'breakdown_item', never>(
-    householdId,
-    { table: 'breakdown_item', orderBy: 'name' },
-  )
+  const { rows: itemRows, reload: reloadItems } = useHouseholdCollection<'breakdown_item', never>({
+    table: 'breakdown_item',
+    orderBy: 'name',
+  })
 
   const reload = useCallback(async () => {
     await Promise.all([reloadBreakdowns(), reloadItems()])

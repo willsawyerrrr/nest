@@ -10,15 +10,15 @@ import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { currentTaxConfig, estimateHouseholdTaxFromRows } from '../lib/tax'
 
-export function PayslipsSection({ householdId }: { householdId: string }) {
+export function PayslipsSection() {
   const { members, loading: membersLoading } = useMembers()
-  const inflows = useInflows(householdId)
-  const payslips = usePayslips(householdId)
-  const payslipLines = usePayslipLines(householdId)
-  const taxProfiles = useTaxProfiles(householdId)
-  const contributions = useSuperContributions(householdId)
-  const helpDebts = useHelpDebts(householdId)
-  const deductions = useDeductions(householdId)
+  const inflows = useInflows()
+  const payslips = usePayslips()
+  const payslipLines = usePayslipLines()
+  const taxProfiles = useTaxProfiles()
+  const contributions = useSuperContributions()
+  const helpDebts = useHelpDebts()
+  const deductions = useDeductions()
 
   if (
     membersLoading ||

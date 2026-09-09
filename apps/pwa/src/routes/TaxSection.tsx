@@ -21,17 +21,17 @@ import {
   superCapSummaryFromRows,
 } from '../lib/tax'
 
-export function TaxSection({ householdId }: { householdId: string }) {
+export function TaxSection() {
   const { active: planning } = usePlanningMode()
   const { members, loading: membersLoading } = useMembers()
-  const inflows = useInflows(householdId)
-  const taxProfiles = useTaxProfiles(householdId)
-  const contributions = useSuperContributions(householdId)
-  const superProfiles = useSuperProfiles(householdId)
-  const helpDebts = useHelpDebts(householdId)
-  const deductions = useDeductions(householdId)
-  const payslips = usePayslips(householdId)
-  const goals = useGoals(householdId)
+  const inflows = useInflows()
+  const taxProfiles = useTaxProfiles()
+  const contributions = useSuperContributions()
+  const superProfiles = useSuperProfiles()
+  const helpDebts = useHelpDebts()
+  const deductions = useDeductions()
+  const payslips = usePayslips()
+  const goals = useGoals()
   const savers = useSavers()
 
   if (

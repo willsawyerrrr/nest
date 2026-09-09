@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeWrapper } from '../test/queryWrapper'
 import { usePayAccount } from './usePayAccount'
 
 const { builder, rpcMock } = await vi.hoisted(async () => {
@@ -20,13 +21,13 @@ beforeEach(() => {
 
 describe('usePayAccount', () => {
   it('loads the household pay account on mount', async () => {
-    const { result } = renderHook(() => usePayAccount('h1'))
+    const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.payAccountId).toBe('a1')
   })
 
   it('sets the pay account via the RPC and reloads', async () => {
-    const { result } = renderHook(() => usePayAccount('h1'))
+    const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     builder.result = { data: { pay_account_id: 'a2' }, error: null }
@@ -38,7 +39,7 @@ describe('usePayAccount', () => {
   })
 
   it('clears the pay account with a null argument', async () => {
-    const { result } = renderHook(() => usePayAccount('h1'))
+    const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     builder.result = { data: { pay_account_id: null }, error: null }
@@ -50,7 +51,7 @@ describe('usePayAccount', () => {
   })
 
   it('propagates load and rpc errors', async () => {
-    const { result } = renderHook(() => usePayAccount('h1'))
+    const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     builder.result = { data: null, error: new Error('load failed') }

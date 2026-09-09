@@ -36,10 +36,10 @@ export interface UseEquityGrantsResult {
  * Loads and mutates the household's equity grants, ordered by grant date. RLS
  * scopes reads to the household.
  */
-export function useEquityGrants(householdId: string): UseEquityGrantsResult {
+export function useEquityGrants(): UseEquityGrantsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'equity_grant',
     EquityGrantInput
-  >(householdId, { table: 'equity_grant', orderBy: 'grant_date' })
+  >({ table: 'equity_grant', orderBy: 'grant_date' })
   return { grants: rows, loading, reload, create, update, remove }
 }

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeWrapper } from '../test/queryWrapper'
 import { usePaySplits } from './usePaySplits'
 
 const { builder } = await vi.hoisted(async () => {
@@ -19,13 +20,13 @@ beforeEach(() => {
 
 describe('usePaySplits', () => {
   it('loads and indexes the confirmed split per account', async () => {
-    const { result } = renderHook(() => usePaySplits('h1'))
+    const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.configuredByAccount.get('a1')).toBe(12345)
   })
 
   it('confirms a split, reloading afterwards', async () => {
-    const { result } = renderHook(() => usePaySplits('h1'))
+    const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -42,7 +43,7 @@ describe('usePaySplits', () => {
   })
 
   it('clears a split, reloading afterwards', async () => {
-    const { result } = renderHook(() => usePaySplits('h1'))
+    const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(async () => {
@@ -53,7 +54,7 @@ describe('usePaySplits', () => {
   })
 
   it('propagates load, confirm, and clear errors', async () => {
-    const { result } = renderHook(() => usePaySplits('h1'))
+    const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     builder.result = { data: null, error: new Error('boom') }
     await expect(result.current.reload()).rejects.toThrow('boom')

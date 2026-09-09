@@ -120,28 +120,28 @@ describe('EofySection', () => {
     hooks.usePayslips.mockReturnValue({ loading: false })
     hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it("waits for the selected year's payslips before estimating", () => {
     mockLoaded()
     hooks.usePayslips.mockReturnValue({ loading: true, payslips: null })
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('defaults to the current financial year and scopes every FY hook to it', () => {
     mockLoaded()
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
     expect(screen.getByTestId('eofy-screen')).toBeInTheDocument()
 
-    expect(hooks.useTaxProfiles).toHaveBeenCalledWith('h1', currentFy)
-    expect(hooks.useSuperContributions).toHaveBeenCalledWith('h1', currentFy)
-    expect(hooks.useSuperProfiles).toHaveBeenCalledWith('h1', currentFy)
-    expect(hooks.useDeductions).toHaveBeenCalledWith('h1', currentFy)
-    expect(hooks.usePayslips).toHaveBeenCalledWith('h1', currentFy)
-    expect(hooks.useHelpDebts).toHaveBeenCalledWith('h1')
+    expect(hooks.useTaxProfiles).toHaveBeenCalledWith(currentFy)
+    expect(hooks.useSuperContributions).toHaveBeenCalledWith(currentFy)
+    expect(hooks.useSuperProfiles).toHaveBeenCalledWith(currentFy)
+    expect(hooks.useDeductions).toHaveBeenCalledWith(currentFy)
+    expect(hooks.usePayslips).toHaveBeenCalledWith(currentFy)
+    expect(hooks.useHelpDebts).toHaveBeenCalledWith()
 
     expect(hooks.screenProps?.financialYear).toBe(currentFy)
     // Descending order, so the extra 2025 config sorts after the real FY2027.
@@ -154,18 +154,18 @@ describe('EofySection', () => {
 
   it('re-scopes every FY hook when the selected financial year changes', () => {
     mockLoaded()
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
 
     const onFinancialYearChange = hooks.screenProps?.onFinancialYearChange as (
       financialYear: number,
     ) => void
     act(() => onFinancialYearChange(2025))
 
-    expect(hooks.useTaxProfiles).toHaveBeenCalledWith('h1', 2025)
-    expect(hooks.useSuperContributions).toHaveBeenCalledWith('h1', 2025)
-    expect(hooks.useSuperProfiles).toHaveBeenCalledWith('h1', 2025)
-    expect(hooks.useDeductions).toHaveBeenCalledWith('h1', 2025)
-    expect(hooks.usePayslips).toHaveBeenCalledWith('h1', 2025)
+    expect(hooks.useTaxProfiles).toHaveBeenCalledWith(2025)
+    expect(hooks.useSuperContributions).toHaveBeenCalledWith(2025)
+    expect(hooks.useSuperProfiles).toHaveBeenCalledWith(2025)
+    expect(hooks.useDeductions).toHaveBeenCalledWith(2025)
+    expect(hooks.usePayslips).toHaveBeenCalledWith(2025)
     expect(hooks.screenProps?.financialYear).toBe(2025)
   })
 
@@ -180,7 +180,7 @@ describe('EofySection', () => {
       ],
     })
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
 
     const member = memberEstimate(hooks.screenProps)
     expect(member.breakdown.paygWithheldCents).toBe(30_000_00)
@@ -192,7 +192,7 @@ describe('EofySection', () => {
     mockLoaded()
     hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
 
     const member = memberEstimate(hooks.screenProps)
     expect(member.breakdown.paygWithheldCents).toBe(0)
@@ -203,13 +203,13 @@ describe('EofySection', () => {
   it('counts only the selected year’s slips when the year changes', () => {
     mockLoaded()
     hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
-    hooks.usePayslips.mockImplementation((_householdId: string, financialYear: number) => ({
+    hooks.usePayslips.mockImplementation((financialYear: number) => ({
       loading: false,
       // Stands in for the hook's own `financial_year` filter: only FY2027 has slips.
       payslips: financialYear === currentFy ? [makePayslip({ tax_withheld_cents: 30_000_00 })] : [],
     }))
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
     expect(memberEstimate(hooks.screenProps).breakdown.paygWithheldCents).toBe(30_000_00)
 
     const onFinancialYearChange = hooks.screenProps?.onFinancialYearChange as (
@@ -229,8 +229,8 @@ describe('EofySection', () => {
       payslips: [makePayslip({ tax_withheld_cents: 30_000_00 })],
     })
 
-    render(<EofySection householdId="h1" />)
-    render(<TaxSection householdId="h1" />)
+    render(<EofySection />)
+    render(<TaxSection />)
 
     const eofy = memberEstimate(hooks.screenProps).breakdown
     const tax = memberEstimate(hooks.taxViewProps).breakdown
@@ -248,7 +248,7 @@ describe('EofySection', () => {
       payslips: [makePayslip({ tax_withheld_cents: 30_000_00 })],
     })
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
     const withoutInterest = memberEstimate(hooks.screenProps).breakdown
 
     hooks.useGoals.mockReturnValue({
@@ -257,7 +257,7 @@ describe('EofySection', () => {
       baselineGoals: [],
     })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [makeSaver()] })
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
     const withInterest = memberEstimate(hooks.screenProps).breakdown
 
     expect(withInterest.taxableIncomeCents).toBe(withoutInterest.taxableIncomeCents + 4_000_00)
@@ -281,7 +281,7 @@ describe('EofySection', () => {
       signedUrl: vi.fn(),
     })
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
 
     expect(hooks.screenProps?.receipts).toEqual([
       { id: 'r1', deduction_id: 'd1', file_name: 'a.pdf', storage_path: 'p1' },
@@ -305,7 +305,7 @@ describe('EofySection', () => {
       ],
     })
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
 
     expect(hooks.screenProps?.payslipDocuments).toEqual([
       { id: 'ps1', memberId: 'm1', paidOn: '2027-01-15', filePath: 'h1/ps1/x.pdf' },
@@ -326,7 +326,7 @@ describe('EofySection', () => {
     }
     hooks.useShareGrant.mockReturnValue({ status, loading: false, create, revoke, reload: vi.fn() })
 
-    render(<EofySection householdId="h1" />)
+    render(<EofySection />)
 
     expect(hooks.shareControlProps?.status).toBe(status)
     expect(hooks.shareControlProps?.financialYear).toBe(currentFy)

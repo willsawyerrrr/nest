@@ -31,18 +31,18 @@ import {
 } from '../lib/retirement'
 import { superAccountIds, type EquityHolding, type Liability } from '../lib/super'
 
-export function NetWorthSection({ householdId }: { householdId: string }) {
+export function NetWorthSection() {
   const { active: planning } = usePlanningMode()
-  const accounts = useAccounts(householdId)
-  const superProfiles = useSuperProfiles(householdId)
-  const contributions = useSuperContributions(householdId)
-  const inflows = useInflows(householdId)
-  const helpDebts = useHelpDebts(householdId)
-  const equityGrants = useEquityGrants(householdId)
-  const taxProfiles = useTaxProfiles(householdId)
-  const deductions = useDeductions(householdId)
-  const goals = useGoals(householdId)
-  const budgetLines = useBudgetLines(householdId)
+  const accounts = useAccounts()
+  const superProfiles = useSuperProfiles()
+  const contributions = useSuperContributions()
+  const inflows = useInflows()
+  const helpDebts = useHelpDebts()
+  const equityGrants = useEquityGrants()
+  const taxProfiles = useTaxProfiles()
+  const deductions = useDeductions()
+  const goals = useGoals()
+  const budgetLines = useBudgetLines()
   const { members, loading: membersLoading } = useMembers()
   const [horizon, setHorizon] = useState<ProjectionHorizonOption>(readProjectionHorizon)
 

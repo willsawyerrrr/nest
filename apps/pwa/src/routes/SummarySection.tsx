@@ -16,19 +16,19 @@ import { useTemporaryItems } from '../hooks/useTemporaryItems'
 import { derivedAmountContext } from '../lib/breakdowns'
 import { summariseHousehold } from '../lib/summary'
 
-export function SummarySection({ householdId }: { householdId: string }) {
+export function SummarySection() {
   const { active: planning } = usePlanningMode()
   const { members, loading: membersLoading } = useMembers()
-  const inflows = useInflows(householdId)
-  const taxProfiles = useTaxProfiles(householdId)
-  const budgetLines = useBudgetLines(householdId)
-  const temporaryItems = useTemporaryItems(householdId)
-  const contributions = useSuperContributions(householdId)
-  const gifts = useGifts(householdId)
-  const breakdowns = useBreakdowns(householdId)
-  const helpDebts = useHelpDebts(householdId)
-  const deductions = useDeductions(householdId)
-  const goals = useGoals(householdId)
+  const inflows = useInflows()
+  const taxProfiles = useTaxProfiles()
+  const budgetLines = useBudgetLines()
+  const temporaryItems = useTemporaryItems()
+  const contributions = useSuperContributions()
+  const gifts = useGifts()
+  const breakdowns = useBreakdowns()
+  const helpDebts = useHelpDebts()
+  const deductions = useDeductions()
+  const goals = useGoals()
   const savers = useSavers()
 
   if (

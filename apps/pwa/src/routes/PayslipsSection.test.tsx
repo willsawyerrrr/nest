@@ -80,13 +80,13 @@ describe('PayslipsSection', () => {
   it('shows the loading screen until data loads', () => {
     stubHooks()
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
-    render(<PayslipsSection householdId="h1" />)
+    render(<PayslipsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
   it('renders the screen with the members, payslips, inflows, and estimate', () => {
     const { signedUrl, attachments } = stubHooks()
-    render(<PayslipsSection householdId="h1" />)
+    render(<PayslipsSection />)
 
     expect(screen.getByTestId('payslips-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Will' }])
@@ -102,7 +102,7 @@ describe('PayslipsSection', () => {
 
   it('saves the slip and its lines in one call, adding or editing alike', async () => {
     const { save, remove } = stubHooks()
-    render(<PayslipsSection householdId="h1" />)
+    render(<PayslipsSection />)
 
     const onCreate = hooks.screenProps?.onCreate as (s: PayslipSubmission) => Promise<void>
     const onUpdate = hooks.screenProps?.onUpdate as (

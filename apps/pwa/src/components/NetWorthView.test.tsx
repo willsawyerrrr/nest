@@ -311,7 +311,7 @@ describe('NetWorthView', () => {
       totalCents,
     })
     render(
-      <PlanningModeProvider householdId="h1">
+      <PlanningModeProvider>
         <NetWorthView
           accounts={accounts}
           superIds={new Set(['a1', 'a2'])}

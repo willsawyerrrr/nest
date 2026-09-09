@@ -3,9 +3,9 @@ import { MembersScreen } from '../components/MembersScreen'
 import { useMembers } from '../hooks/useMembers'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 
-export function MembersSection({ householdId }: { householdId: string }) {
+export function MembersSection() {
   const { members, loading: membersLoading, setDateOfBirth } = useMembers()
-  const taxProfiles = useTaxProfiles(householdId)
+  const taxProfiles = useTaxProfiles()
 
   if (membersLoading || taxProfiles.loading || !members) {
     return <LoadingScreen />

@@ -35,7 +35,7 @@ beforeEach(() => {
 
 describe('useDeductions', () => {
   it('exposes the household deductions for the financial year and mutates them', async () => {
-    const { result } = renderHook(() => useDeductions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.deductions).toEqual([{ id: 'd1' }]))
     expect(result.current.loading).toBe(false)
     expect(result.current.financialYear).toBeGreaterThan(2000)
@@ -67,7 +67,7 @@ describe('useDeductions', () => {
   })
 
   it('scopes to an explicit financial year when given one', async () => {
-    const { result } = renderHook(() => useDeductions('h1', 2025), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductions(2025), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.deductions).toEqual([{ id: 'd1' }]))
     expect(result.current.financialYear).toBe(2025)
 
@@ -84,7 +84,7 @@ describe('useDeductions', () => {
 
   it('surfaces a failed create without reloading', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('nope') })
-    const { result } = renderHook(() => useDeductions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.deductions).not.toBeNull())
 
     await expect(result.current.create(submission)).rejects.toThrow('nope')

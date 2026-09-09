@@ -35,13 +35,12 @@ export interface UseNotificationPreferencesResult {
  * which only blocks writing.
  */
 export function useNotificationPreferences(
-  householdId: string,
   memberId: string | null,
 ): UseNotificationPreferencesResult {
   const { rows, loading, upsert } = useHouseholdUpsertCollection<
     'notification_preference',
     PreferenceUpsert
-  >(householdId, { table: 'notification_preference', onConflict: 'member_id,trigger' })
+  >({ table: 'notification_preference', onConflict: 'member_id,trigger' })
 
   const enabled = useCallback(
     (trigger: NotificationTrigger) => rows?.find((row) => row.trigger === trigger)?.enabled ?? true,

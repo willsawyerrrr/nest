@@ -7,9 +7,9 @@ import { useGiftTransactions } from '../hooks/useGiftTransactions'
 import { useMembers } from '../hooks/useMembers'
 import { useUpSync } from '../hooks/useUpSync'
 
-export function GiftsSection({ householdId }: { householdId: string }) {
-  const gifts = useGifts(householdId)
-  const giftTransactions = useGiftTransactions(householdId)
+export function GiftsSection() {
+  const gifts = useGifts()
+  const giftTransactions = useGiftTransactions()
   const { members, loading: membersLoading } = useMembers()
   const { member, loading: memberLoading } = useCurrentMember()
 

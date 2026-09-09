@@ -32,7 +32,7 @@ describe('DeductionsSection', () => {
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.useDeductionGroups.mockReturnValue({ loading: false })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false })
-    render(<DeductionsSection householdId="h1" />)
+    render(<DeductionsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -69,7 +69,7 @@ describe('DeductionsSection', () => {
       remove: removeReceipt,
       signedUrl,
     })
-    render(<DeductionsSection householdId="h1" />)
+    render(<DeductionsSection />)
     expect(screen.getByTestId('deductions-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Alex' }])
     expect(hooks.screenProps?.financialYear).toBe(2027)

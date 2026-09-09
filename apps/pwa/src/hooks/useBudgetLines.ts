@@ -35,10 +35,10 @@ export interface UseBudgetLinesResult {
 }
 
 /** Loads and mutates the household's budget lines. RLS scopes reads to the household. */
-export function useBudgetLines(householdId: string): UseBudgetLinesResult {
+export function useBudgetLines(): UseBudgetLinesResult {
   const { rows, baselineRows, loading, reload, create, update, remove } = useHouseholdCollection<
     'budget_line',
     BudgetLineInput
-  >(householdId, { table: 'budget_line', orderBy: 'name' })
+  >({ table: 'budget_line', orderBy: 'name' })
   return { lines: rows, baselineLines: baselineRows, loading, reload, create, update, remove }
 }

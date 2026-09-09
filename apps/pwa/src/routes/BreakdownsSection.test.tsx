@@ -21,7 +21,7 @@ vi.mock('../components/BreakdownsScreen', () => ({
 describe('BreakdownsSection', () => {
   it('shows the loading screen while data loads', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: true })
-    render(<BreakdownsSection householdId="h1" />)
+    render(<BreakdownsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -33,7 +33,7 @@ describe('BreakdownsSection', () => {
       items: [],
       create,
     })
-    render(<BreakdownsSection householdId="h1" />)
+    render(<BreakdownsSection />)
     expect(screen.getByTestId('breakdowns-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.onCreate).toBe(create)
     expect(hooks.screenProps?.breakdowns).toEqual([

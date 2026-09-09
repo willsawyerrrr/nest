@@ -22,10 +22,10 @@ export interface UseWishlistResult {
 }
 
 /** Loads and mutates the household's wishlist items. RLS scopes reads to the household. */
-export function useWishlist(householdId: string): UseWishlistResult {
+export function useWishlist(): UseWishlistResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'wishlist_item',
     WishlistItemInput
-  >(householdId, { table: 'wishlist_item', orderBy: 'name' })
+  >({ table: 'wishlist_item', orderBy: 'name' })
   return { items: rows, loading, reload, create, update, remove }
 }

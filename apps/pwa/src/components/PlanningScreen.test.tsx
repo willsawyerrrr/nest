@@ -26,7 +26,7 @@ function renderScreen(
 ) {
   localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
   return render(
-    <PlanningModeProvider householdId="h1">
+    <PlanningModeProvider>
       <PlanningScreen
         overrides={overrides}
         figures={figures}

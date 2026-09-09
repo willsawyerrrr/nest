@@ -25,7 +25,7 @@ beforeEach(() => {
 
 describe('useWishlist', () => {
   it('exposes the household wishlist items and its mutations', async () => {
-    const { result } = renderHook(() => useWishlist('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useWishlist(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.items).toEqual([makeWishlistItem()]))
     expect(result.current.loading).toBe(false)
 

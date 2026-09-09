@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { TablesInsert, TablesUpdate } from '../lib/database.types'
 import type { Account } from '../lib/domain'
 import { supabase } from '../lib/supabase'
@@ -27,7 +28,8 @@ export interface UseAccountsResult {
  * the balance-visible set. The net worth view sums every account's
  * `balance_cents`.
  */
-export function useAccounts(householdId: string): UseAccountsResult {
+export function useAccounts(): UseAccountsResult {
+  const householdId = useHouseholdId()
   const [accounts, setAccounts] = useState<Account[] | null>(null)
 
   const reload = useCallback(async () => {

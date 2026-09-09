@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { HouseholdProvider } from '../components/HouseholdProvider'
 import { makeWrapper } from '../test/queryWrapper'
 import { useGifts } from './useGifts'
 
@@ -41,7 +42,7 @@ beforeEach(() => {
 
 describe('useGifts', () => {
   it('loads every gift collection and reloads them together', async () => {
-    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGifts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.recipients).toEqual([])
     expect(result.current.occasions).toEqual([])
@@ -60,7 +61,7 @@ describe('useGifts', () => {
   })
 
   it('refreshes only the mutated table when creating or updating', async () => {
-    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGifts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     /** Which sibling tables a mutation reloads, keyed by table. */
@@ -128,7 +129,7 @@ describe('useGifts', () => {
   })
 
   it('reloads the tables a delete cascade reaches, and no others', async () => {
-    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGifts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     async function siblingReloads(run: () => Promise<void>): Promise<Record<GiftTable, number>> {
@@ -170,7 +171,7 @@ describe('useGifts', () => {
   })
 
   it('upserts the discretionary budget onConflict household_id, refreshing only its own table', async () => {
-    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGifts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     async function siblingReloads(run: () => Promise<void>): Promise<Record<GiftTable, number>> {
@@ -202,7 +203,7 @@ describe('useGifts', () => {
 
   it('reports loading while any collection is null', async () => {
     builder.result = { data: null, error: new Error('load failed') }
-    const { result } = renderHook(() => useGifts('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGifts(), { wrapper: makeWrapper() })
     expect(result.current.loading).toBe(true)
   })
 
@@ -210,8 +211,12 @@ describe('useGifts', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
-    const { result } = renderHook(() => useGifts('h1'), { wrapper })
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
+    const { result } = renderHook(() => useGifts(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // A gift-budget write drives the reconcile trigger, rewriting the derived gift
@@ -242,8 +247,12 @@ describe('useGifts', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
-    const { result } = renderHook(() => useGifts('h1'), { wrapper })
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
+    const { result } = renderHook(() => useGifts(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // A purchase changes only spent/remaining, not the derived lines. Claiming a

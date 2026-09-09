@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { HouseholdProvider } from '../components/HouseholdProvider'
 import { makeWrapper } from '../test/queryWrapper'
 import { useGiftTransactions } from './useGiftTransactions'
 
@@ -20,7 +21,7 @@ beforeEach(() => {
 
 describe('useGiftTransactions', () => {
   it('loads the gift-category transactions newest first, alongside the dismissals', async () => {
-    const { result } = renderHook(() => useGiftTransactions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGiftTransactions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(from).toHaveBeenCalledWith('transactions')
@@ -33,12 +34,12 @@ describe('useGiftTransactions', () => {
 
   it('reports loading while either collection is unresolved', () => {
     builder.result = { data: null, error: new Error('load failed') }
-    const { result } = renderHook(() => useGiftTransactions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGiftTransactions(), { wrapper: makeWrapper() })
     expect(result.current.loading).toBe(true)
   })
 
   it('dismisses a candidate as its own household-scoped row', async () => {
-    const { result } = renderHook(() => useGiftTransactions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGiftTransactions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(() => result.current.dismiss('t1'))
@@ -47,7 +48,7 @@ describe('useGiftTransactions', () => {
   })
 
   it('undoes a dismissal by deleting it', async () => {
-    const { result } = renderHook(() => useGiftTransactions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGiftTransactions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(() => result.current.restore('d1'))
@@ -57,7 +58,7 @@ describe('useGiftTransactions', () => {
   })
 
   it('reloads both collections together', async () => {
-    const { result } = renderHook(() => useGiftTransactions('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGiftTransactions(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     const before = from.mock.calls.length
@@ -69,8 +70,12 @@ describe('useGiftTransactions', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client }, children)
-    const { result } = renderHook(() => useGiftTransactions('h1'), { wrapper })
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(HouseholdProvider, { householdId: 'h1' }, children),
+      )
+    const { result } = renderHook(() => useGiftTransactions(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     // Setting a candidate aside takes it out of the inbox, so the transactions

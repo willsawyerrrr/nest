@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe('useGoals', () => {
   it('exposes the household savings goals and its mutations', async () => {
-    const { result } = renderHook(() => useGoals('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGoals(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.goals).toEqual([makeGoal()]))
     expect(result.current.loading).toBe(false)
 
@@ -54,7 +54,7 @@ describe('useGoals', () => {
       ],
       error: null,
     }
-    const { result } = renderHook(() => useGoals('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGoals(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.goals).toHaveLength(2))
 
     await act(async () => {
@@ -75,7 +75,7 @@ describe('useGoals', () => {
       ],
       error: null,
     }
-    const { result } = renderHook(() => useGoals('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useGoals(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.goals).toHaveLength(2))
 
     await act(async () => {

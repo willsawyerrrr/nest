@@ -25,6 +25,7 @@ import {
   type PlanningState,
   type PlanningTable,
 } from '../lib/planningMode'
+import { useHouseholdId } from './HouseholdProvider'
 
 /** The planning-mode sandbox exposed to the app: its state, its controls, and its per-table mutators. */
 export interface PlanningModeContextValue {
@@ -80,10 +81,8 @@ export function usePlanningMode(): PlanningModeContextValue {
  * persisted to localStorage. Mounted in `HouseholdApp` so every routed section
  * — and every collection hook it renders — sees the same sandbox.
  */
-export function PlanningModeProvider({
-  householdId,
-  children,
-}: PropsWithChildren<{ householdId: string }>) {
+export function PlanningModeProvider({ children }: PropsWithChildren) {
+  const householdId = useHouseholdId()
   const [state, setState] = useState<PlanningState>(() => readPlanningMode(householdId))
 
   // The mutators derive the next state from the last committed one; a ref keeps

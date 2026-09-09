@@ -60,7 +60,7 @@ describe('TaxSection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false })
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.usePayslips.mockReturnValue({ loading: false })
-    render(<TaxSection householdId="h1" />)
+    render(<TaxSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -76,7 +76,7 @@ describe('TaxSection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
-    render(<TaxSection householdId="h1" />)
+    render(<TaxSection />)
     expect(screen.getByTestId('tax-view')).toBeInTheDocument()
 
     const memberName = hooks.screenProps?.memberName as (id: string) => string
@@ -103,7 +103,7 @@ describe('TaxSection', () => {
       loading: false,
       payslips: [makePayslip({ tax_withheld_cents: 30_000_00 })],
     })
-    render(<TaxSection householdId="h1" />)
+    render(<TaxSection />)
 
     const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
     const member = estimate.members[0]!
@@ -125,7 +125,7 @@ describe('TaxSection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
-    render(<TaxSection householdId="h1" />)
+    render(<TaxSection />)
     hooks.planningActive = false
 
     const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
@@ -149,7 +149,7 @@ describe('TaxSection', () => {
       baselineGoals: [],
     })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
-    render(<TaxSection householdId="h1" />)
+    render(<TaxSection />)
 
     const withInterest = hooks.screenProps?.estimate as HouseholdTaxEstimate
     const byMember = hooks.screenProps?.projectedInterestCentsByMember as Map<string, number>
@@ -169,7 +169,7 @@ describe('TaxSection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
-    render(<TaxSection householdId="h1" />)
+    render(<TaxSection />)
 
     const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
     const member = estimate.members[0]!

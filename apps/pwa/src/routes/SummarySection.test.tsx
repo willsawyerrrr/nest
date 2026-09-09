@@ -73,7 +73,7 @@ describe('SummarySection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false })
     hooks.useDeductions.mockReturnValue({ loading: false })
     hooks.useMembers.mockReturnValue({ loading: false, members: [] })
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -88,7 +88,7 @@ describe('SummarySection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.useMembers.mockReturnValue({ loading: false, members: [] })
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
     expect(screen.getByTestId('summary-view')).toBeInTheDocument()
     expect(hooks.screenProps).toHaveProperty('summary')
     expect(hooks.screenProps).not.toHaveProperty('baseline')
@@ -146,7 +146,7 @@ describe('SummarySection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.useMembers.mockReturnValue({ loading: false, members: [] })
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
 
     const summary = hooks.screenProps?.summary as {
       available: { fortnightlyCents: number; annualCents: number }
@@ -181,7 +181,7 @@ describe('SummarySection', () => {
       (hooks.screenProps!.summary as { available: { annualCents: number } }).available.annualCents
 
     setup()
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
     const withoutInterest = availableAnnual()
 
     setup()
@@ -191,7 +191,7 @@ describe('SummarySection', () => {
       baselineGoals: [],
     })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [makeSaver()] })
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
 
     // $2,000 more assessable income lifts after-tax income, by less than the full $2,000.
     expect(availableAnnual()).toBeGreaterThan(withoutInterest)
@@ -223,7 +223,7 @@ describe('SummarySection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.useMembers.mockReturnValue({ loading: false, members: [] })
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
 
     const summary = hooks.screenProps?.summary as {
       groups: { wants: { annualCents: number } }
@@ -244,7 +244,7 @@ describe('SummarySection', () => {
     hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
     hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
     hooks.useMembers.mockReturnValue({ loading: false, members: [] })
-    render(<SummarySection householdId="h1" />)
+    render(<SummarySection />)
     hooks.planningActive = false
 
     expect(hooks.screenProps).toHaveProperty('baseline')

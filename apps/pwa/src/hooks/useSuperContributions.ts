@@ -40,13 +40,12 @@ export interface UseSuperContributionsResult {
  * household.
  */
 export function useSuperContributions(
-  householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UseSuperContributionsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'super_contribution',
     SuperContributionInput
-  >(householdId, {
+  >({
     table: 'super_contribution',
     match: { financial_year: financialYear },
     insertDefaults: { financial_year: financialYear },

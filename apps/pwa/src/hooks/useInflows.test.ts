@@ -42,7 +42,7 @@ beforeEach(() => {
 
 describe('useInflows', () => {
   it('exposes the household inflows and its mutations', async () => {
-    const { result } = renderHook(() => useInflows('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useInflows(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.inflows).toEqual([makeInflow()]))
     expect(result.current.loading).toBe(false)
 

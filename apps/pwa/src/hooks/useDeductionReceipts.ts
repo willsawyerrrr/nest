@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import {
   EXTRACTION_FAILED_MESSAGE,
@@ -99,12 +100,13 @@ const SIGNED_URL_TTL_SECONDS = 3600
  * `deduction_receipt` row only when `create_deduction_with_receipts` creates
  * the deduction itself.
  */
-export function useDeductionReceipts(householdId: string): UseDeductionReceiptsResult {
+export function useDeductionReceipts(): UseDeductionReceiptsResult {
+  const householdId = useHouseholdId()
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_receipt',
     DeductionReceiptInput,
     DeductionReceiptRenameInput
-  >(householdId, { table: 'deduction_receipt', orderBy: 'created_at' })
+  >({ table: 'deduction_receipt', orderBy: 'created_at' })
 
   const uploadFile = useCallback(
     async (deductionId: string, file: File): Promise<PendingReceipt> => {

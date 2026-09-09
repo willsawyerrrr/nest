@@ -28,14 +28,11 @@ export interface UseBreakdownItemsResult {
  * breakdown's derived line, so the mutation invalidates `budget_line` too and
  * consumers reading the raw lines (the Pay splits tab) refetch the new amount.
  */
-export function useBreakdownItems(
-  householdId: string,
-  breakdownId: string,
-): UseBreakdownItemsResult {
+export function useBreakdownItems(breakdownId: string): UseBreakdownItemsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'breakdown_item',
     BreakdownItemInput
-  >(householdId, {
+  >({
     table: 'breakdown_item',
     orderBy: 'name',
     match: { breakdown_id: breakdownId },

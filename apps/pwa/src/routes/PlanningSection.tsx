@@ -153,23 +153,23 @@ function overridesForTable(
   return result
 }
 
-export function PlanningSection({ householdId }: { householdId: string }) {
+export function PlanningSection() {
   const planning = usePlanningMode()
   const { members, loading: membersLoading } = useMembers()
-  const inflows = useInflows(householdId)
-  const budgetLines = useBudgetLines(householdId)
-  const goals = useGoals(householdId)
+  const inflows = useInflows()
+  const budgetLines = useBudgetLines()
+  const goals = useGoals()
   const savers = useSavers()
-  const accounts = useAccounts(householdId)
-  const taxProfiles = useTaxProfiles(householdId)
-  const contributions = useSuperContributions(householdId)
-  const superProfiles = useSuperProfiles(householdId)
-  const helpDebts = useHelpDebts(householdId)
-  const deductions = useDeductions(householdId)
-  const equityGrants = useEquityGrants(householdId)
-  const temporaryItems = useTemporaryItems(householdId)
-  const gifts = useGifts(householdId)
-  const breakdowns = useBreakdowns(householdId)
+  const accounts = useAccounts()
+  const taxProfiles = useTaxProfiles()
+  const contributions = useSuperContributions()
+  const superProfiles = useSuperProfiles()
+  const helpDebts = useHelpDebts()
+  const deductions = useDeductions()
+  const equityGrants = useEquityGrants()
+  const temporaryItems = useTemporaryItems()
+  const gifts = useGifts()
+  const breakdowns = useBreakdowns()
 
   if (!planning.active) {
     return <Navigate to="/summary" replace />

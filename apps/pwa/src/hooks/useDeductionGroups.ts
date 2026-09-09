@@ -37,13 +37,12 @@ export interface UseDeductionGroupsResult {
  * in its own right and the total is their sum.
  */
 export function useDeductionGroups(
-  householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UseDeductionGroupsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_group',
     DeductionGroupInput
-  >(householdId, {
+  >({
     table: 'deduction_group',
     match: { financial_year: financialYear },
     insertDefaults: { financial_year: financialYear },

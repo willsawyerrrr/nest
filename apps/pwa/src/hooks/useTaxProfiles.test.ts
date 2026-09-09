@@ -17,7 +17,7 @@ beforeEach(() => {
 
 describe('useTaxProfiles', () => {
   it('exposes the household tax profiles and upserts one', async () => {
-    const { result } = renderHook(() => useTaxProfiles('h1'), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useTaxProfiles(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.profiles).toEqual([{ id: 'tp1' }]))
     expect(result.current.loading).toBe(false)
     expect(result.current.financialYear).toBeGreaterThan(2000)
@@ -30,7 +30,7 @@ describe('useTaxProfiles', () => {
   })
 
   it('scopes to an explicit financial year when given one', async () => {
-    const { result } = renderHook(() => useTaxProfiles('h1', 2025), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useTaxProfiles(2025), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.profiles).toEqual([{ id: 'tp1' }]))
     expect(result.current.financialYear).toBe(2025)
 

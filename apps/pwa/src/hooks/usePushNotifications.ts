@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import { base64UrlToBytes, bytesToBase64Url } from '../lib/push'
 import { supabase } from '../lib/supabase'
 
@@ -173,10 +174,8 @@ function describeTestResult(result: PushTestResult | null): string {
  * dead endpoints it pruned. The device's own row lives in `push_subscription`,
  * RLS-scoped to the member, keyed on its endpoint.
  */
-export function usePushNotifications(
-  householdId: string,
-  memberId: string | null,
-): UsePushNotificationsResult {
+export function usePushNotifications(memberId: string | null): UsePushNotificationsResult {
+  const householdId = useHouseholdId()
   const [status, setStatus] = useState<PushStatus>('checking')
   const [pending, setPending] = useState<PushAction | null>(null)
   const [error, setError] = useState<string | null>(null)

@@ -8,19 +8,13 @@ import {
 } from '../hooks/useNotificationPreferences'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
-export function NotificationsSection({
-  householdId,
-  session,
-}: {
-  householdId: string
-  session: Session
-}) {
+export function NotificationsSection({ session }: { session: Session }) {
   const { members, loading: membersLoading } = useMembers()
   // A push subscription is tagged to the signed-in member, so it waits on the
   // members load; null until then, which only blocks subscribing.
   const currentMemberId = members?.find((member) => member.user_id === session.user.id)?.id ?? null
-  const push = usePushNotifications(householdId, currentMemberId)
-  const notificationPreferences = useNotificationPreferences(householdId, currentMemberId)
+  const push = usePushNotifications(currentMemberId)
+  const notificationPreferences = useNotificationPreferences(currentMemberId)
 
   if (membersLoading || !members) {
     return <LoadingScreen />

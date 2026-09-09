@@ -3,9 +3,9 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useMembers } from '../hooks/useMembers'
 
-export function HelpDebtSection({ householdId }: { householdId: string }) {
+export function HelpDebtSection() {
   const { members, loading: membersLoading } = useMembers()
-  const helpDebts = useHelpDebts(householdId)
+  const helpDebts = useHelpDebts()
 
   if (membersLoading || helpDebts.loading || !members) {
     return <LoadingScreen />

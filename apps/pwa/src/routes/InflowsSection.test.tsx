@@ -24,7 +24,7 @@ describe('InflowsSection', () => {
   it('shows the loading screen until members and inflows load', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useInflows.mockReturnValue({ loading: false })
-    render(<InflowsSection householdId="h1" />)
+    render(<InflowsSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -39,7 +39,7 @@ describe('InflowsSection', () => {
       update: vi.fn(),
       remove: vi.fn(),
     })
-    render(<InflowsSection householdId="h1" />)
+    render(<InflowsSection />)
     expect(screen.getByTestId('inflow-screen')).toBeInTheDocument()
     expect(hooks.screenProps).toMatchObject({ members })
     expect(hooks.screenProps?.onCreateInflow).toBe(create)

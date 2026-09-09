@@ -2,12 +2,13 @@
 import type { ReactElement, ReactNode } from 'react'
 import { MantineProvider } from '@mantine/core'
 import { render as rtlRender, type RenderOptions } from '@testing-library/react'
+import { HouseholdProvider } from '../components/HouseholdProvider'
 import { theme } from '../theme'
 
 function Providers({ children }: { children: ReactNode }) {
   return (
     <MantineProvider theme={theme} env="test">
-      {children}
+      <HouseholdProvider householdId="h1">{children}</HouseholdProvider>
     </MantineProvider>
   )
 }

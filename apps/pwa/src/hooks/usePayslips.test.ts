@@ -86,7 +86,7 @@ function httpFailure(status: number, body: unknown) {
 /** Renders the hook and waits for its first load to settle. */
 async function renderPayslips(financialYear?: number) {
   const { result } = renderHook(
-    () => (financialYear === undefined ? usePayslips('h1') : usePayslips('h1', financialYear)),
+    () => (financialYear === undefined ? usePayslips() : usePayslips(financialYear)),
     { wrapper: makeWrapper() },
   )
   await waitFor(() => expect(result.current.payslips).not.toBeNull())

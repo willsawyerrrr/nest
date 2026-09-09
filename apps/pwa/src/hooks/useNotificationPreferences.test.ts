@@ -29,7 +29,7 @@ describe('useNotificationPreferences', () => {
   })
 
   it('reads a stored choice and defaults an absent one to on', async () => {
-    const { result } = renderHook(() => useNotificationPreferences('h1', 'm1'), {
+    const { result } = renderHook(() => useNotificationPreferences('m1'), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -39,7 +39,7 @@ describe('useNotificationPreferences', () => {
   })
 
   it('upserts the member’s choice for a trigger', async () => {
-    const { result } = renderHook(() => useNotificationPreferences('h1', 'm1'), {
+    const { result } = renderHook(() => useNotificationPreferences('m1'), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -60,7 +60,7 @@ describe('useNotificationPreferences', () => {
   })
 
   it('refuses to write when the member row is not resolved yet', async () => {
-    const { result } = renderHook(() => useNotificationPreferences('h1', null), {
+    const { result } = renderHook(() => useNotificationPreferences(null), {
       wrapper: makeWrapper(),
     })
     await waitFor(() => expect(result.current.loading).toBe(false))

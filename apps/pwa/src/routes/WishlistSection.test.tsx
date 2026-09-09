@@ -28,7 +28,7 @@ describe('WishlistSection', () => {
   it('shows the loading screen until members and the wishlist load', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useWishlist.mockReturnValue({ loading: false })
-    render(<WishlistSection householdId="h1" />)
+    render(<WishlistSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -43,7 +43,7 @@ describe('WishlistSection', () => {
       update: vi.fn(),
       remove: vi.fn(),
     })
-    render(<WishlistSection householdId="h1" />)
+    render(<WishlistSection />)
     expect(screen.getByTestId('wishlist-screen')).toBeInTheDocument()
     expect(hooks.screenProps).toMatchObject({ members, items: [makeWishlistItem()] })
     expect(hooks.screenProps?.onCreate).toBe(create)
@@ -58,7 +58,7 @@ describe('WishlistSection', () => {
       update: vi.fn(),
       remove: vi.fn(),
     })
-    render(<WishlistSection householdId="h1" />)
+    render(<WishlistSection />)
 
     const item = makeWishlistItem({ name: 'Espresso machine', amount_cents: 1_200_00 })
     ;(hooks.screenProps!.onPromoteToGoal as (i: typeof item) => void)(item)
@@ -76,7 +76,7 @@ describe('WishlistSection', () => {
       update: vi.fn(),
       remove: vi.fn(),
     })
-    render(<WishlistSection householdId="h1" />)
+    render(<WishlistSection />)
 
     const item = makeWishlistItem({ name: 'New couch', amount_cents: 3_500_00 })
     ;(hooks.screenProps!.onPromoteToBudget as (i: typeof item) => void)(item)

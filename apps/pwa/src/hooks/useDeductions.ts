@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { financialYearForDate } from '@nest/tax'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
@@ -93,13 +94,13 @@ export interface UseDeductionsResult {
  * to the household.
  */
 export function useDeductions(
-  householdId: string,
   financialYear: number = financialYearForDate(new Date()),
 ): UseDeductionsResult {
+  const householdId = useHouseholdId()
   const { rows, loading, reload, update, remove } = useHouseholdCollection<
     'deduction',
     DeductionInput
-  >(householdId, {
+  >({
     table: 'deduction',
     match: { financial_year: financialYear },
     insertDefaults: { financial_year: financialYear },

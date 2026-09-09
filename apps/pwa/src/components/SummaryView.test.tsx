@@ -51,7 +51,7 @@ describe('SummaryView', () => {
     }
     localStorage.setItem(planningStorageKey('h1'), JSON.stringify({ active: true, overrides: {} }))
     render(
-      <PlanningModeProvider householdId="h1">
+      <PlanningModeProvider>
         <SummaryView summary={summary} baseline={baseline} />
       </PlanningModeProvider>,
     )

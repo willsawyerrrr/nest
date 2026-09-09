@@ -77,7 +77,7 @@ describe('BudgetSection', () => {
     hooks.useBreakdowns.mockReturnValue({ loading: false })
     hooks.useAccountDirectory.mockReturnValue({ loading: false })
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
-    render(<BudgetSection householdId="h1" />)
+    render(<BudgetSection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
 
@@ -112,7 +112,7 @@ describe('BudgetSection', () => {
       accounts: [{ id: 'a1', name: 'Spending' }],
     })
     hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
-    render(<BudgetSection householdId="h1" />)
+    render(<BudgetSection />)
     expect(screen.getByTestId('budget-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.goals).toEqual([{ id: 'g1', name: 'House', linkedAccountId: 'a2' }])
     expect(hooks.screenProps?.accounts).toEqual([{ id: 'a1', name: 'Spending' }])
@@ -123,7 +123,7 @@ describe('BudgetSection', () => {
   it('hands a promoted wishlist draft to the screen and clears it once consumed', () => {
     setBudgetDraft({ name: 'New couch', amountCents: 3_500_00 })
     loadedHooks()
-    render(<BudgetSection householdId="h1" />)
+    render(<BudgetSection />)
 
     expect(hooks.screenProps?.promoteDraft).toEqual({ name: 'New couch', amountCents: 3_500_00 })
     expect(takeBudgetDraft()).toBeNull()
@@ -135,7 +135,7 @@ describe('BudgetSection', () => {
   it('withholds the derived-line editor in planning mode so derived lines are read-only', () => {
     hooks.usePlanningMode.mockReturnValue({ active: true })
     loadedHooks()
-    render(<BudgetSection householdId="h1" />)
+    render(<BudgetSection />)
     expect(hooks.screenProps?.onUpdateDerivedLine).toBeUndefined()
   })
 })

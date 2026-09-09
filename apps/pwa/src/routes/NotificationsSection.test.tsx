@@ -57,7 +57,7 @@ describe('NotificationsSection', () => {
       setEnabled: vi.fn(),
     })
 
-    render(<NotificationsSection householdId="h1" session={session} />)
+    render(<NotificationsSection session={session} />)
 
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -74,7 +74,7 @@ describe('NotificationsSection', () => {
       loading: false,
     })
 
-    render(<NotificationsSection householdId="h1" session={session} />)
+    render(<NotificationsSection session={session} />)
 
     const prefs = hooks.screenProps!.notificationPreferences as Array<{
       trigger: string
@@ -105,10 +105,10 @@ describe('NotificationsSection', () => {
       loading: false,
     })
 
-    render(<NotificationsSection householdId="h1" session={session} />)
+    render(<NotificationsSection session={session} />)
 
-    expect(hooks.usePushNotifications).toHaveBeenCalledWith('h1', 'm1')
-    expect(hooks.useNotificationPreferences).toHaveBeenCalledWith('h1', 'm1')
+    expect(hooks.usePushNotifications).toHaveBeenCalledWith('m1')
+    expect(hooks.useNotificationPreferences).toHaveBeenCalledWith('m1')
   })
 
   it('passes a null member id when the signed-in user matches no member', () => {
@@ -122,8 +122,8 @@ describe('NotificationsSection', () => {
       loading: false,
     })
 
-    render(<NotificationsSection householdId="h1" session={session} />)
+    render(<NotificationsSection session={session} />)
 
-    expect(hooks.usePushNotifications).toHaveBeenCalledWith('h1', null)
+    expect(hooks.usePushNotifications).toHaveBeenCalledWith(null)
   })
 })

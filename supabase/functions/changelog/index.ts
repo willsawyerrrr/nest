@@ -7,12 +7,14 @@
  * function degrades to `configured: false` when the secret is unset.
  */
 
-import { handlePreflight, json } from '../_shared/http.ts'
+import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { runChangelog } from './changelog.ts'
 
 Deno.serve(async (request) => {
   const preflight = handlePreflight(request)
   if (preflight) return preflight
+  const methodError = requirePost(request)
+  if (methodError) return methodError
 
   // The client sends its build's commit SHA so entries newer than the running
   // build are cut; the body is read defensively so a missing/malformed one is fine.

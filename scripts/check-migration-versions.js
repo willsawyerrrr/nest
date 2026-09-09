@@ -1,4 +1,4 @@
-// Asserts every migration filename carries a unique version.
+// Asserts every migration filename carries a unique, well-formed version.
 //
 // `supabase_migrations.schema_migrations.version` is the primary key Supabase
 // records an applied migration under, so two files sharing a version collapse to
@@ -6,8 +6,12 @@
 // without an error. The skipped migration never reaches prod even though its
 // branch merged green, which makes uniqueness a build-time invariant rather than
 // a review-time one.
+//
+// The 14 digits are also read as a `YYYYMMDDHHMMSS` moment. The regex accepts
+// any digits, so a fat-fingered `20260931…` (September 31st) or a month of `13`
+// passes review; assert each parses as a real timestamp too.
 
-import { FILENAME, listMigrationFiles } from './lib/migration-files.js'
+import { FILENAME, isValidVersionTimestamp, listMigrationFiles } from './lib/migration-files.js'
 
 const files = listMigrationFiles()
 
@@ -27,13 +31,16 @@ for (const file of files) {
   } else {
     byVersion.set(version, file)
   }
+  if (!isValidVersionTimestamp(version)) {
+    errors.push(`${file}: version ${version} is not a valid YYYYMMDDHHMMSS timestamp`)
+  }
 }
 
 if (errors.length > 0) {
   console.error(
-    `${errors.join('\n')}\n\nGive each migration its own version, or it will not deploy.`,
+    `${errors.join('\n')}\n\nGive each migration its own well-formed version, or it will not deploy.`,
   )
   process.exit(1)
 }
 
-console.log(`${files.length} migrations, all versions unique.`)
+console.log(`${files.length} migrations, all versions unique and well-formed.`)

@@ -102,9 +102,12 @@ RLS.
 - **Tax engine** — pure, versioned TypeScript package (`@nest/tax`). The PWA
   imports it for the instant client-side estimate. Designed to be reused
   unchanged by a future authoritative edge function, so there is no duplication
-  or divergence. See [`tax.md`](tax.md).
+  or divergence. Depends on `@nest/plan` for schedule normalization (`annualCents`,
+  `perPeriodCents`) and the shared time constants, so the annualisation of an
+  income and of a budget line round the same way. See [`tax.md`](tax.md).
 - **Plan engine** — pure `@nest/plan` package: schedule normalization, summary
-  reconciliation, goal projection, temporary expiry, and the `Frequency` type.
+  reconciliation, goal projection, temporary expiry, the `Frequency` type, and
+  the `MS_PER_DAY` / fortnight constants both engines share.
 - **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.
 - **Storage** — private buckets for the documents the household attaches:
   `receipts` (deduction receipts) and `payslips` (payslip PDFs/images). The PWA

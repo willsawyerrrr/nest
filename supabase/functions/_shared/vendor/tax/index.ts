@@ -8,6 +8,7 @@
  * computation lives in exactly one place. Pure — no I/O, no side effects.
  */
 
+import { MS_PER_DAY } from '@nest/plan'
 import type { OneOffConcession } from './oneOff.ts'
 
 export { FY2026_CONFIG, FY2027_CONFIG, configsByYear } from './configs.ts'
@@ -355,9 +356,6 @@ export function financialYearBounds(financialYear: FinancialYear): {
     end: new Date(Date.UTC(financialYear, 5, 30)),
   }
 }
-
-/** Milliseconds in a day, for inclusive calendar-day arithmetic. */
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /** The inclusive count of calendar days from `start` to `end` (both UTC midnights). */
 function inclusiveDayCount(start: Date, end: Date): number {

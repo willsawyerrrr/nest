@@ -15,6 +15,7 @@
  * owing once it is.
  */
 
+import { annualCents, perPeriodCents, type Frequency } from '@nest/plan'
 import {
   activeFractionOfFinancialYear,
   computeTax,
@@ -38,17 +39,10 @@ import {
  * How often an income is received. Drives periods-per-year for annualisation.
  * `every_n_weeks` and `every_n_months` are arbitrary cadences — received once
  * every N weeks or N months — each carrying its interval N in `interval` rather
- * than a fixed periods/year.
+ * than a fixed periods/year. Structurally `@nest/plan`'s `Frequency`: an income
+ * schedule and a budget-line frequency are the same set of cadences.
  */
-export type IncomeSchedule =
-  | 'weekly'
-  | 'fortnightly'
-  | 'monthly'
-  | 'quarterly'
-  | 'biannual'
-  | 'annual'
-  | 'every_n_weeks'
-  | 'every_n_months'
+export type IncomeSchedule = Frequency
 
 /**
  * One projection-based income, tagged to a member. `salary` and `other` carry a
@@ -180,27 +174,6 @@ export interface HouseholdTaxEstimate {
   readonly fortnightlyAfterTaxCents: Money
 }
 
-/** Fortnights per financial year; annual figures divide by this. */
-const FORTNIGHTS_PER_YEAR = 26
-
-/** Weeks per year; the `every_n_weeks` cadence divides this by its interval. */
-const WEEKS_PER_YEAR = 52
-
-/** Months per year; the `every_n_months` cadence divides this by its interval. */
-const MONTHS_PER_YEAR = 12
-
-/** Periods per year for each fixed-cadence schedule. */
-const PERIODS_PER_YEAR: Readonly<
-  Record<Exclude<IncomeSchedule, 'every_n_weeks' | 'every_n_months'>, number>
-> = {
-  weekly: 52,
-  fortnightly: 26,
-  monthly: 12,
-  quarterly: 4,
-  biannual: 2,
-  annual: 1,
-}
-
 /** Profile applied to a member who has income but no explicit tax profile. */
 const DEFAULT_PROFILE: Omit<TaxProfileInput, 'memberId'> = {
   residency: 'resident',
@@ -209,20 +182,20 @@ const DEFAULT_PROFILE: Omit<TaxProfileInput, 'memberId'> = {
 }
 
 /** Converts an annual cent figure to its per-fortnight share, to whole cents. */
-function fortnightlyOf(annualCents: Money): Money {
-  return Math.round(annualCents / FORTNIGHTS_PER_YEAR)
+function fortnightlyOf(annual: Money): Money {
+  return perPeriodCents(annual, 'fortnightly')
 }
 
 /**
  * Annualises one income to whole cents. The per-period gross is `amountCents`
  * for `salary` and `other`, or `hourlyRateCents × hoursPerPeriod` rounded to
- * whole cents for `wage`. Fixed schedules multiply that by the schedule's
- * periods per year; `every_n_weeks` — a per-period gross received once every
- * `interval` weeks — is `round(perPeriod × 52 / interval)`, and `every_n_months`
- * — once every `interval` months — is `round(perPeriod × 12 / interval)`, with
- * an absent or non-positive-integer interval defensively annualising to zero.
- * Missing amounts are treated as zero, as is an absent schedule on a recurring
- * income (which has nothing to annualise by).
+ * whole cents for `wage`. That per-period figure is then annualised by its
+ * schedule through `@nest/plan`'s `annualCents` — fixed schedules multiply by
+ * their periods per year, `every_n_weeks` / `every_n_months` are
+ * `round(perPeriod × 52 or 12 / interval)`, and an absent or non-positive-integer
+ * interval defensively annualises to zero. Missing amounts are treated as zero,
+ * as is an absent schedule on a recurring income (which has nothing to annualise
+ * by).
  *
  * A ONE-OFF — an income carrying `paidOn` — is not annualised at all: it yields its
  * whole amount, since that amount is already the year's figure. `financialYear`, when
@@ -243,21 +216,7 @@ export function annualGrossCents(income: IncomeInput, financialYear?: FinancialY
   if (income.schedule === undefined) {
     return 0
   }
-  const interval = income.interval
-  const hasValidInterval = interval !== undefined && Number.isInteger(interval) && interval >= 1
-  if (income.schedule === 'every_n_weeks') {
-    if (!hasValidInterval) {
-      return 0
-    }
-    return Math.round((perPeriod * WEEKS_PER_YEAR) / interval)
-  }
-  if (income.schedule === 'every_n_months') {
-    if (!hasValidInterval) {
-      return 0
-    }
-    return Math.round((perPeriod * MONTHS_PER_YEAR) / interval)
-  }
-  return perPeriod * PERIODS_PER_YEAR[income.schedule]
+  return annualCents(perPeriod, income.schedule, income.interval)
 }
 
 /** Members' income streams split into the engine's salary/wages and other buckets. */

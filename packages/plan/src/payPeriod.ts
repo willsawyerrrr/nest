@@ -11,11 +11,9 @@
  * year is the unit only where there is no cycle to read.
  */
 
+import { MS_PER_DAY } from './constants.ts'
 import type { Frequency, Money } from './index.ts'
 import { MONTHS_PER_YEAR, periodsPerYear, WEEKS_PER_YEAR } from './normalize.ts'
-
-/** Milliseconds in a day, for inclusive calendar-day arithmetic. */
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 /** Days in a week: a week-based cadence's period is exactly this many days long. */
 export const DAYS_PER_WEEK = 7

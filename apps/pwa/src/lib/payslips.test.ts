@@ -376,7 +376,8 @@ describe('payslipVarianceFor', () => {
     expect(variance.basis).toBe('cadence')
     expect(variance.expectedGrossCents).toBe(5_000_00)
     expect(variance.grossVarianceCents).toBe(0)
-    expect(variance.expectedTaxWithheldCents).toBeGreaterThan(0)
+    // The year's liability spread evenly over its 26 fortnights.
+    expect(variance.expectedTaxWithheldCents).toBe(Math.round(memberEstimate.annualTaxCents / 26))
     expect(variance.taxWithheldVarianceCents).toBe(
       payslip.tax_withheld_cents - variance.expectedTaxWithheldCents,
     )
@@ -564,7 +565,8 @@ describe('payslipVarianceFor', () => {
     )
 
     const help = withHelpDebt.breakdown.helpRepaymentCents
-    expect(help).toBeGreaterThan(0)
+    // 15c over $69,528 to $129,717 ($9,028.35) + 17c over $129,717 ($48.11).
+    expect(help).toBe(9_076_46)
     expect(variance.taxGroups.map((group) => group.component)).toEqual(['payg', 'stsl'])
     expect(variance.taxGroups[1]?.expectedCents).toBe(Math.round(help / 26))
     expect(variance.taxGroups[0]?.expectedCents).toBe(

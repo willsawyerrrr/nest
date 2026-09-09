@@ -374,14 +374,17 @@ describe('summariseHousehold — active-now fortnightly basis', () => {
     expect(summary.available.annualCents).toBeGreaterThan(0)
     // Group portions divide by the active-now available cash, so they collapse to 0.
     expect(summary.groups.needs.portion).toBe(0)
-    expect(summary.groups.needs.annualCents).toBeGreaterThan(0)
+    // The needs line is $10/month → $120/year, independent of the salary window.
+    expect(summary.groups.needs.annualCents).toBe(120_00)
   })
 
   it('contributes nothing to the fortnightly buffer for a salary that starts after now', () => {
     const future = salary({ starts_on: '2027-03-01' })
     const summary = summariseHousehold(sources([future]))
     expect(summary.available.fortnightlyCents).toBe(0)
-    expect(summary.available.annualCents).toBeGreaterThan(0)
+    expect(summary.available.annualCents).toBe(
+      estimateHouseholdTaxFromRows([future], [taxProfile()]).annualAfterTaxCents,
+    )
   })
 
   it('reads a mid-year switch at the rate active now, annual staying the blended whole-year figure', () => {

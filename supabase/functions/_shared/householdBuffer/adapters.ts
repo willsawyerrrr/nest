@@ -216,14 +216,16 @@ function genericTotal(items: readonly BreakdownItemRow[], breakdownId: string): 
 /**
  * Builds the {@link DerivedAmountContext} from the household's breakdowns,
  * generic items, and gift data. Every derived-line amount resolves from this one
- * context so the surfaces never drift.
+ * context so the surfaces never drift. Every parameter is required — the ad hoc
+ * gift buffer included — so a caller that omits one is a compile error, not a
+ * silent under-count (the PWA twin, WSD-136).
  */
 export function derivedAmountContext(
   breakdowns: readonly BreakdownRow[],
   items: readonly BreakdownItemRow[],
   giftBudgets: readonly GiftBudgetRow[],
   giftRecipients: readonly GiftRecipientRow[],
-  giftDiscretionaryBudget: GiftDiscretionaryBudgetRow | null = null,
+  giftDiscretionaryBudget: GiftDiscretionaryBudgetRow | null,
 ): DerivedAmountContext {
   const genericTotalsByBreakdownId = new Map<string, number>()
   for (const breakdown of breakdowns) {

@@ -35,16 +35,22 @@ function genericTotal(items: BreakdownItem[], breakdownId: string): number {
 /**
  * Builds the {@link DerivedAmountContext} from the household's breakdowns, generic
  * items, and gift data (including the ad hoc discretionary gift buffer, folded
- * into the external partition). Every derived-line amount — in the Budget and
- * Summary tabs — resolves from this one context, so the surfaces never drift.
- * Breakdowns are generic; the gift roll-up reads gift data alone.
+ * into the external partition). Every derived-line amount — in the Budget,
+ * Summary, and Planning tabs — resolves from this one context, so the surfaces
+ * never drift. Breakdowns are generic; the gift roll-up reads gift data alone.
+ *
+ * Every parameter is required: a surface that has no gift data (the Breakdowns
+ * tab) passes empty lists and a `null` buffer explicitly, so adding a future
+ * roll-up input is a compile error at every call site rather than a silent
+ * default — the omission that had Summary and Planning under-reporting the ad hoc
+ * gift buffer (WSD-136).
  */
 export function derivedAmountContext(
   breakdowns: Breakdown[],
   items: BreakdownItem[],
   giftBudgets: GiftBudget[],
   giftRecipients: GiftRecipient[],
-  giftDiscretionaryBudget: GiftDiscretionaryBudget | null = null,
+  giftDiscretionaryBudget: GiftDiscretionaryBudget | null,
 ): DerivedAmountContext {
   const genericTotalsByBreakdownId = new Map<string, number>()
   for (const breakdown of breakdowns) {

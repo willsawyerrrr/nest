@@ -11,7 +11,7 @@ export function BreakdownsSection({ householdId }: { householdId: string }) {
   }
 
   const breakdownRows = breakdowns.breakdowns ?? []
-  const context = derivedAmountContext(breakdownRows, breakdowns.items ?? [], [], [])
+  const context = derivedAmountContext(breakdownRows, breakdowns.items ?? [], [], [], null)
   const totals = breakdownTotalsByBreakdownId(breakdownRows, context)
 
   return (

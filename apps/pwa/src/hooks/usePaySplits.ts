@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
+import { useHouseholdQuery } from './useCollection'
 
 type PaySplit = Tables<'pay_split'>
 
@@ -26,15 +27,14 @@ export interface UsePaySplitsResult {
  */
 export function usePaySplits(): UsePaySplitsResult {
   const householdId = useHouseholdId()
-  const [splits, setSplits] = useState<PaySplit[] | null>(null)
 
-  const reload = useCallback(async () => {
+  const { data, loading, reload } = useHouseholdQuery(['pay_split', householdId], async () => {
     const { data, error } = await supabase.from('pay_split').select('*')
     if (error) {
       throw error
     }
-    setSplits(data)
-  }, [])
+    return data
+  })
 
   const confirm = useCallback(
     async (accountId: string, fortnightlyCents: number) => {
@@ -66,13 +66,9 @@ export function usePaySplits(): UsePaySplitsResult {
     [reload],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  const configuredByAccount = new Map(
-    (splits ?? []).map((split) => [split.account_id, split.confirmed_fortnightly_cents]),
+  const configuredByAccount = new Map<string, number>(
+    (data ?? []).map((split: PaySplit) => [split.account_id, split.confirmed_fortnightly_cents]),
   )
 
-  return { configuredByAccount, loading: splits === null, reload, confirm, clear }
+  return { configuredByAccount, loading, reload, confirm, clear }
 }

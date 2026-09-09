@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeMember } from '../test/fixtures'
+import { makeWrapper } from '../test/queryWrapper'
 import { useCurrentMember } from './useCurrentMember'
 
 const { builder, getUser } = await vi.hoisted(async () => {
@@ -23,21 +24,22 @@ beforeEach(() => {
 
 describe('useCurrentMember', () => {
   it('resolves the member matching the authenticated user', async () => {
-    const { result } = renderHook(() => useCurrentMember())
+    const { result } = renderHook(() => useCurrentMember(), { wrapper: makeWrapper() })
+    expect(result.current.loading).toBe(true)
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.member).toEqual(bob)
   })
 
   it('returns no member when none matches the authenticated user', async () => {
     getUser.mockResolvedValue({ data: { user: { id: 'u-carol' } }, error: null })
-    const { result } = renderHook(() => useCurrentMember())
+    const { result } = renderHook(() => useCurrentMember(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.member).toBeNull()
   })
 
   it('returns no member when there is no authenticated user', async () => {
     getUser.mockResolvedValue({ data: { user: null }, error: null })
-    const { result } = renderHook(() => useCurrentMember())
+    const { result } = renderHook(() => useCurrentMember(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.member).toBeNull()
   })

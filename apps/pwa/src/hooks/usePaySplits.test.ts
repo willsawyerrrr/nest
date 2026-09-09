@@ -21,6 +21,8 @@ beforeEach(() => {
 describe('usePaySplits', () => {
   it('loads and indexes the confirmed split per account', async () => {
     const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
+    expect(result.current.loading).toBe(true)
+    expect(result.current.configuredByAccount.size).toBe(0)
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.configuredByAccount.get('a1')).toBe(12345)
   })
@@ -29,6 +31,7 @@ describe('usePaySplits', () => {
     const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
+    builder.select.mockClear()
     await act(async () => {
       await result.current.confirm('a2', 6789)
     })
@@ -40,6 +43,7 @@ describe('usePaySplits', () => {
       }),
       { onConflict: 'household_id,account_id' },
     )
+    await waitFor(() => expect(builder.select).toHaveBeenCalled())
   })
 
   it('clears a split, reloading afterwards', async () => {
@@ -53,11 +57,17 @@ describe('usePaySplits', () => {
     expect(builder.eq).toHaveBeenCalledWith('account_id', 'a1')
   })
 
-  it('propagates load, confirm, and clear errors', async () => {
+  it('leaves the split index empty when the load fails', async () => {
+    builder.result = { data: null, error: new Error('boom') }
+    const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.configuredByAccount.size).toBe(0)
+  })
+
+  it('propagates confirm and clear errors', async () => {
     const { result } = renderHook(() => usePaySplits(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     builder.result = { data: null, error: new Error('boom') }
-    await expect(result.current.reload()).rejects.toThrow('boom')
     await expect(result.current.confirm('a2', 1)).rejects.toThrow('boom')
     await expect(result.current.clear('a2')).rejects.toThrow('boom')
   })

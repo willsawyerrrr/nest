@@ -22,6 +22,7 @@ beforeEach(() => {
 describe('usePayAccount', () => {
   it('loads the household pay account on mount', async () => {
     const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
+    expect(result.current.loading).toBe(true)
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.payAccountId).toBe('a1')
   })
@@ -35,7 +36,7 @@ describe('usePayAccount', () => {
       await result.current.setPayAccount('a2')
     })
     expect(rpcMock).toHaveBeenCalledWith('set_household_pay_account', { p_account_id: 'a2' })
-    expect(result.current.payAccountId).toBe('a2')
+    await waitFor(() => expect(result.current.payAccountId).toBe('a2'))
   })
 
   it('clears the pay account with a null argument', async () => {
@@ -47,15 +48,19 @@ describe('usePayAccount', () => {
       await result.current.setPayAccount(null)
     })
     expect(rpcMock).toHaveBeenCalledWith('set_household_pay_account', { p_account_id: null })
+    await waitFor(() => expect(result.current.payAccountId).toBeNull())
+  })
+
+  it('leaves the pay account null when the load fails', async () => {
+    builder.result = { data: null, error: new Error('load failed') }
+    const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.payAccountId).toBeNull()
   })
 
-  it('propagates load and rpc errors', async () => {
+  it('propagates an rpc error', async () => {
     const { result } = renderHook(() => usePayAccount(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
-
-    builder.result = { data: null, error: new Error('load failed') }
-    await expect(result.current.reload()).rejects.toThrow('load failed')
 
     rpcMock.mockResolvedValue({ error: new Error('rpc failed') })
     await expect(result.current.setPayAccount('a2')).rejects.toThrow('rpc failed')

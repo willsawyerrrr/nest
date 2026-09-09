@@ -243,6 +243,56 @@ export function useHouseholdCollection<
   }
 }
 
+/** The load surface of a single household-scoped read. */
+export interface HouseholdQuery<T> {
+  /** The value the read resolved to, or `undefined` until its first load lands. */
+  data: T | undefined
+  /** True only during the first, uncached load; false while a revalidation refetches. */
+  loading: boolean
+  /**
+   * Invalidates every cache entry under the `[name, householdId]` prefix, so this
+   * read and every sibling slice sharing the name refetch.
+   */
+  reload: () => Promise<void>
+}
+
+/**
+ * The household-scoped read pattern for the data {@link useHouseholdCollection}
+ * does not fit: a database view, one column of a single row, a filtered slice, or
+ * an RPC result — anything that is not a table of rows the household creates,
+ * updates, and removes by id. The read is cached household-scoped and revalidated
+ * in the background, so a revisit renders the cached value immediately while
+ * `loading` reports only the first, uncached load.
+ *
+ * `key` names the cache entry and always begins `[name, householdId]`, optionally
+ * followed by a scope segment when one name spans several reads (the balance view
+ * feeds both a full-account and a savers-only slice). {@link HouseholdQuery.reload}
+ * invalidates the whole `[name, householdId]` prefix, so a write that touches the
+ * underlying data refreshes every slice at once — the caller invalidates the same
+ * prefix from its write methods.
+ */
+export function useHouseholdQuery<T>(
+  key: readonly ScopeValue[],
+  queryFn: () => Promise<T>,
+): HouseholdQuery<T> {
+  const householdId = useHouseholdId()
+  const queryClient = useQueryClient()
+
+  // Re-derive the key and its invalidation prefix only when the key changes in
+  // substance, not when the caller passes a fresh array literal each render.
+  const keyString = JSON.stringify(key)
+  const queryKey = useMemo(() => [...key] as QueryKey, [keyString]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prefix = useMemo(() => [key[0], householdId] as QueryKey, [keyString, householdId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const query = useQuery({ queryKey, queryFn })
+
+  const reload = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: prefix })
+  }, [queryClient, prefix])
+
+  return { data: query.data, loading: query.isPending, reload }
+}
+
 /** The load and upsert surface of a financial-year-keyed household collection. */
 export interface HouseholdUpsertCollection<RowType, UpsertInput> {
   rows: RowType[] | null

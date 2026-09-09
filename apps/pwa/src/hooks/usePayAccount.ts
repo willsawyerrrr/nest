@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import { supabase } from '../lib/supabase'
+import { useHouseholdQuery } from './useCollection'
 
 export interface UsePayAccountResult {
   /** The account the household's pay lands in, or null when none is designated. */
@@ -15,23 +16,26 @@ export interface UsePayAccountResult {
  * Loads and sets the household's pay account — the single spending account pay
  * lands in, which the Splits tab treats as the source. Reads scope to the
  * household via RLS; the write goes through the `set_household_pay_account` RPC,
- * which validates the account and reloads so the Splits view reflects it live.
+ * which validates the account, then invalidates the `households` cache prefix so
+ * the Splits view reflects it live.
  */
 export function usePayAccount(): UsePayAccountResult {
   const householdId = useHouseholdId()
-  const [payAccountId, setPayAccountId] = useState<string | null | undefined>(undefined)
 
-  const reload = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('households')
-      .select('pay_account_id')
-      .eq('id', householdId)
-      .single()
-    if (error) {
-      throw error
-    }
-    setPayAccountId(data.pay_account_id)
-  }, [householdId])
+  const { data, loading, reload } = useHouseholdQuery(
+    ['households', householdId, 'pay_account_id'],
+    async () => {
+      const { data, error } = await supabase
+        .from('households')
+        .select('pay_account_id')
+        .eq('id', householdId)
+        .single()
+      if (error) {
+        throw error
+      }
+      return data.pay_account_id
+    },
+  )
 
   const setPayAccount = useCallback(
     async (accountId: string | null) => {
@@ -49,13 +53,9 @@ export function usePayAccount(): UsePayAccountResult {
     [reload],
   )
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
   return {
-    payAccountId: payAccountId ?? null,
-    loading: payAccountId === undefined,
+    payAccountId: data ?? null,
+    loading,
     reload,
     setPayAccount,
   }

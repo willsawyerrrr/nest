@@ -89,7 +89,13 @@ RLS.
   switches render cached data and background-revalidate. A write invalidates its
   table's whole `[table, householdId]` cache prefix, so both a match-scoped detail
   query and the unscoped roll-up of the same table refetch together — a derived
-  value edited on one tab propagates live to every tab that reads it. Planning
+  value edited on one tab propagates live to every tab that reads it. Household
+  reads that are not create-update-remove-by-id collections — a database view, one
+  column of a single row, an RPC result (`accounts_with_balance`,
+  `account_directory`, the pay account, members, pay splits) — run through the
+  `useHouseholdQuery` primitive in the same file, keyed `[name, householdId, …]`
+  and invalidated by the same prefix rule, so an `accounts` write refreshes every
+  account surface at once. Planning
   mode layers a per-device, per-household `localStorage` sandbox over `inflows`,
   `budget_line`, and `savings_goal` inside the same factory, so every projection
   recomputes from the edited rows with nothing written to Postgres — see

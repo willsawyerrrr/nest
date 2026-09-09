@@ -15,7 +15,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
-import { loadBudgetSummaryBundle } from '../_shared/householdBuffer/bundle.ts'
+import { loadBudgetSummaryBundle, readHouseholdTable } from '../_shared/householdBuffer/bundle.ts'
 import { loadVapidKeys } from '../_shared/vapid.ts'
 import { createPushSender } from '../_shared/webpush.ts'
 import { isServiceRoleToken } from '../up-sync/auth.ts'
@@ -66,15 +66,6 @@ Deno.serve(async (request) => {
 
   const sinceIso = new Date(Date.now() - LOG_LOOKBACK_DAYS * 86_400_000).toISOString()
 
-  const forHousehold = async (table: string, householdId: string, financialYear?: number) => {
-    let query = admin.from(table).select('*').eq('household_id', householdId)
-    if (financialYear !== undefined) query = query.eq('financial_year', financialYear)
-    const { data, error } = await query
-    if (error) throw new Error(`Failed to read ${table}: ${error.message}`)
-    // deno-lint-ignore no-explicit-any
-    return (data ?? []) as any[]
-  }
-
   const result = await runNotifyEval({
     now: () => new Date(),
     loadHouseholdIds: async () => {
@@ -85,7 +76,7 @@ Deno.serve(async (request) => {
     loadBundle: async (householdId, financialYear): Promise<HouseholdBundle> => {
       const [base, accountBalances] = await Promise.all([
         loadBudgetSummaryBundle(admin, householdId, financialYear),
-        forHousehold('account_balance', householdId),
+        readHouseholdTable(admin, householdId, 'account_balance'),
       ])
       return {
         ...base,

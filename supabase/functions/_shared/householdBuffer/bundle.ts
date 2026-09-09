@@ -45,23 +45,36 @@ export function toSaverRows(
     }))
 }
 
+/**
+ * Reads every row of `table` for one household on a service-role `admin`
+ * client, optionally narrowed to a financial year. The single point that owns
+ * the `select('*')` shape both the buffer bundle and `notify-eval` read through.
+ */
+export async function readHouseholdTable(
+  admin: SupabaseClient,
+  householdId: string,
+  table: string,
+  financialYear?: number,
+) {
+  let query = admin.from(table).select('*').eq('household_id', householdId)
+  if (financialYear !== undefined) {
+    query = query.eq('financial_year', financialYear)
+  }
+  const { data, error } = await query
+  if (error) {
+    throw new Error(`Failed to read ${table}: ${error.message}`)
+  }
+  // deno-lint-ignore no-explicit-any
+  return (data ?? []) as any[]
+}
+
 export async function loadBudgetSummaryBundle(
   admin: SupabaseClient,
   householdId: string,
   financialYear: number,
 ): Promise<BudgetSummaryBundle> {
-  const forHousehold = async (table: string, fy?: number) => {
-    let query = admin.from(table).select('*').eq('household_id', householdId)
-    if (fy !== undefined) {
-      query = query.eq('financial_year', fy)
-    }
-    const { data, error } = await query
-    if (error) {
-      throw new Error(`Failed to read ${table}: ${error.message}`)
-    }
-    // deno-lint-ignore no-explicit-any
-    return (data ?? []) as any[]
-  }
+  const forHousehold = (table: string, fy?: number) =>
+    readHouseholdTable(admin, householdId, table, fy)
 
   const [
     inflows,

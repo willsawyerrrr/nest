@@ -77,6 +77,7 @@ export async function loadBudgetSummaryBundle(
     breakdownItems,
     giftBudgets,
     giftRecipients,
+    giftDiscretionaryBudgets,
     accounts,
     accountBalances,
   ] = await Promise.all([
@@ -93,6 +94,7 @@ export async function loadBudgetSummaryBundle(
     forHousehold('breakdown_item'),
     forHousehold('gift_budget'),
     forHousehold('gift_recipient'),
+    forHousehold('gift_discretionary_budget'),
     forHousehold('accounts'),
     forHousehold('account_balance'),
   ])
@@ -112,5 +114,6 @@ export async function loadBudgetSummaryBundle(
     breakdownItems,
     giftBudgets,
     giftRecipients,
+    giftDiscretionaryBudget: giftDiscretionaryBudgets[0] ?? null,
   }
 }

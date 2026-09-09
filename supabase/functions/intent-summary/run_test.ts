@@ -50,6 +50,7 @@ function fakeBundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummary
     breakdownItems: [],
     giftBudgets: [],
     giftRecipients: [],
+    giftDiscretionaryBudget: null,
     ...overrides,
   }
 }

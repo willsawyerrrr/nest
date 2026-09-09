@@ -58,6 +58,7 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     breakdownItems: [],
     giftBudgets: [],
     giftRecipients: [],
+    giftDiscretionaryBudget: null,
     ...overrides,
   }
 }

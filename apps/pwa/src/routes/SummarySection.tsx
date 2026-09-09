@@ -54,6 +54,7 @@ export function SummarySection({ householdId }: { householdId: string }) {
     breakdowns.items ?? [],
     gifts.budgets ?? [],
     gifts.recipients ?? [],
+    gifts.discretionaryBudget,
   )
 
   // The reconciliation from one set of the two sandboxed row lists. Planning

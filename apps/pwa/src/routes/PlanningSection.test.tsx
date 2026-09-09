@@ -1,7 +1,13 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PlanningGoalEta, PlanningOverride } from '../components/PlanningScreen'
-import { makeBudgetLine, makeGoal, makeInflow, makeSaver } from '../test/fixtures'
+import {
+  makeBudgetLine,
+  makeGiftDiscretionaryBudget,
+  makeGoal,
+  makeInflow,
+  makeSaver,
+} from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { PlanningSection } from './PlanningSection'
 
@@ -294,6 +300,42 @@ describe('PlanningSection', () => {
     // The proposed sandbox ends the salary in the past, so its buffer drops to
     // the baseline's less the whole fortnightly take-home.
     expect(buffer.proposedCents).toBeLessThan(buffer.baselineCents)
+  })
+
+  it('folds the ad hoc gift buffer into the external gift line, like the Budget and Summary tabs', () => {
+    mockLoaded()
+    const externalGiftLine = makeBudgetLine({
+      id: 'bl-gifts',
+      name: 'Gifts (others)',
+      line_group: 'wants',
+      amount_cents: 0,
+      frequency: 'annual',
+      is_gift_line: true,
+      gift_recipient_member_id: null,
+    })
+    hooks.useBudgetLines.mockReturnValue({
+      loading: false,
+      lines: [externalGiftLine],
+      baselineLines: [externalGiftLine],
+    })
+    const bufferCents = () => {
+      const figures = hooks.screenProps?.figures as { label: string; proposedCents: number }[]
+      return figures.find((f) => f.label === 'Fortnightly buffer')!.proposedCents
+    }
+
+    renderSection()
+    const plain = bufferCents()
+
+    hooks.useGifts.mockReturnValue({
+      loading: false,
+      budgets: [],
+      recipients: [],
+      discretionaryBudget: makeGiftDiscretionaryBudget({ budgeted_amount_cents: 520_00 }),
+    })
+    renderSection()
+
+    // $520/year of gift buffer is $20 a fortnight more outgoings, so the buffer drops.
+    expect(bufferCents()).toBe(plain - 20_00)
   })
 
   it('wires the reset, discard, and exit handlers straight to the provider', () => {

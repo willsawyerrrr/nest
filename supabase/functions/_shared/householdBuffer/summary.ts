@@ -39,6 +39,7 @@ import {
   type BudgetLineRow,
   derivedAmountContext,
   type GiftBudgetRow,
+  type GiftDiscretionaryBudgetRow,
   type GiftRecipientRow,
   type InterestGoalRow,
   projectedInterestIncomeInputs,
@@ -64,6 +65,8 @@ export interface BudgetSummaryBundle extends TaxEstimateRows {
   breakdownItems: readonly BreakdownItemRow[]
   giftBudgets: readonly GiftBudgetRow[]
   giftRecipients: readonly GiftRecipientRow[]
+  /** The household's single ad hoc discretionary gift buffer, or null before its first edit. */
+  giftDiscretionaryBudget: GiftDiscretionaryBudgetRow | null
 }
 
 /**
@@ -123,6 +126,7 @@ export function summariseHouseholdFromRows(
     bundle.breakdownItems,
     bundle.giftBudgets,
     bundle.giftRecipients,
+    bundle.giftDiscretionaryBudget,
   )
   const budgetLines = applyBreakdownAmounts(bundle.budgetLines, derived).map((line) => ({
     group: line.line_group as BudgetGroup,

@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeGoal, makeInflow, makeSaver, makeTaxProfile } from '../test/fixtures'
+import {
+  makeBudgetLine,
+  makeGiftDiscretionaryBudget,
+  makeGoal,
+  makeInflow,
+  makeSaver,
+  makeTaxProfile,
+} from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { SummarySection } from './SummarySection'
 
@@ -189,6 +196,40 @@ describe('SummarySection', () => {
     // $2,000 more assessable income lifts after-tax income, by less than the full $2,000.
     expect(availableAnnual()).toBeGreaterThan(withoutInterest)
     expect(availableAnnual()).toBeLessThan(withoutInterest + 2_000_00)
+  })
+
+  it('folds the ad hoc gift buffer into the external gift line, matching the Budget tab', () => {
+    const externalGiftLine = makeBudgetLine({
+      id: 'bl-gifts',
+      name: 'Gifts (others)',
+      line_group: 'wants',
+      amount_cents: 0,
+      frequency: 'annual',
+      is_gift_line: true,
+      gift_recipient_member_id: null,
+    })
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [externalGiftLine] })
+    hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useGifts.mockReturnValue({
+      loading: false,
+      budgets: [],
+      recipients: [],
+      discretionaryBudget: makeGiftDiscretionaryBudget({ budgeted_amount_cents: 500_00 }),
+    })
+    hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [] })
+    render(<SummarySection householdId="h1" />)
+
+    const summary = hooks.screenProps?.summary as {
+      groups: { wants: { annualCents: number } }
+    }
+    // The $500/year buffer is the whole of the derived "Gifts (others)" line.
+    expect(summary.groups.wants.annualCents).toBe(500_00)
   })
 
   it('also computes a baseline reconciliation while planning mode is active', () => {

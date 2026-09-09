@@ -41,11 +41,17 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
-    breakdowns: [],
-    breakdownItems: [],
-    giftBudgets: [],
-    giftRecipients: [],
-    giftDiscretionaryBudget: null,
+    ...overrides,
+  }
+}
+
+/** A `budget_line` row — a derived line arrives with its canonical annual amount already set. */
+function line(overrides: Partial<BudgetSummaryBundle['budgetLines'][number]> = {}) {
+  return {
+    line_group: 'needs',
+    amount_cents: 100_00,
+    frequency: 'fortnightly',
+    interval_count: null,
     ...overrides,
   }
 }
@@ -62,24 +68,8 @@ Deno.test('summariseHouseholdFromRows: an always-on salary divides evenly, fortn
 
 Deno.test('summariseHouseholdFromRows: the buffer is available cash less every group total', () => {
   const lines = [
-    {
-      line_group: 'needs',
-      amount_cents: 2_000_00,
-      frequency: 'fortnightly',
-      interval_count: null,
-      is_gift_line: false,
-      breakdown_id: null,
-      gift_recipient_member_id: null,
-    },
-    {
-      line_group: 'savings',
-      amount_cents: 300_00,
-      frequency: 'fortnightly',
-      interval_count: null,
-      is_gift_line: false,
-      breakdown_id: null,
-      gift_recipient_member_id: null,
-    },
+    line({ line_group: 'needs', amount_cents: 2_000_00 }),
+    line({ line_group: 'savings', amount_cents: 300_00 }),
   ]
   const summary = summariseHouseholdFromRows(bundle({ budgetLines: lines }), NOW)
   const estimate = estimateHouseholdTaxFromRows(bundle(), FY2027_CONFIG)
@@ -88,15 +78,7 @@ Deno.test('summariseHouseholdFromRows: the buffer is available cash less every g
 })
 
 Deno.test('summariseHouseholdFromRows: a salary that ended before now feeds the fortnightly buffer nothing', () => {
-  const needs = {
-    line_group: 'needs',
-    amount_cents: 100_00,
-    frequency: 'fortnightly',
-    interval_count: null,
-    is_gift_line: false,
-    breakdown_id: null,
-    gift_recipient_member_id: null,
-  }
+  const needs = line({ amount_cents: 100_00 })
   const ended = inflow({ ends_on: '2026-09-30' })
   const summary = summariseHouseholdFromRows(
     bundle({ inflows: [ended], budgetLines: [needs] }),
@@ -127,52 +109,20 @@ Deno.test("summariseHouseholdFromRows: a goal's projected interest is taxed and 
   assert(taxed.available.annualCents > plain.available.annualCents)
 })
 
-Deno.test('summariseHouseholdFromRows: a breakdown-derived line rolls its items into outgoings', () => {
-  const derivedLine = {
-    line_group: 'needs',
-    amount_cents: 0,
-    frequency: 'monthly',
-    interval_count: null,
-    is_gift_line: false,
-    breakdown_id: 'b1',
-    gift_recipient_member_id: null,
-  }
+Deno.test('summariseHouseholdFromRows: a derived line is read at its canonical annual amount, not re-rolled', () => {
+  // The reconcile triggers write a breakdown- or gift-derived line as `annual` /
+  // whole cents; the loader reads it exactly like a manual line.
   const summary = summariseHouseholdFromRows(
     bundle({
-      budgetLines: [derivedLine],
-      breakdowns: [{ id: 'b1' }],
-      breakdownItems: [
-        { breakdown_id: 'b1', amount_cents: 20_00, frequency: 'monthly', interval_count: null },
+      budgetLines: [
+        line({ line_group: 'needs', amount_cents: 240_00, frequency: 'annual' }), // a medications breakdown
+        line({ line_group: 'wants', amount_cents: 500_00, frequency: 'annual' }), // a "Gifts (others)" line
       ],
     }),
     NOW,
   )
-  // $20/month → $240/year of Needs, and nothing typed on the line itself.
-  assertEquals(summary.groups.needs.annualCents, 20_00 * 12)
-  assertEquals(
-    summary.groups.needs.fortnightlyCents,
-    fortnightlyCents(20_00 * 12, 'annual'),
-  )
-})
-
-Deno.test('summariseHouseholdFromRows: the ad hoc gift buffer folds into the external gift line', () => {
-  const externalGiftLine = {
-    line_group: 'wants',
-    amount_cents: 0,
-    frequency: 'annual',
-    interval_count: null,
-    is_gift_line: true,
-    breakdown_id: null,
-    gift_recipient_member_id: null,
-  }
-  const summary = summariseHouseholdFromRows(
-    bundle({
-      budgetLines: [externalGiftLine],
-      giftDiscretionaryBudget: { budgeted_amount_cents: 500_00 },
-    }),
-    NOW,
-  )
-  // The $500/year buffer is the whole of the external "Gifts (others)" line.
+  assertEquals(summary.groups.needs.annualCents, 240_00)
+  assertEquals(summary.groups.needs.fortnightlyCents, fortnightlyCents(240_00, 'annual'))
   assertEquals(summary.groups.wants.annualCents, 500_00)
 })
 

@@ -7,17 +7,17 @@
  *   now, for the fortnightly re-estimate.
  * - `splitAcrossMembers` / `projectedInterestIncomeInputs` (from `lib/tax.ts`) —
  *   a savings goal's modelled interest as synthetic `other` income.
- * - `giftTotalsByMember` (from `lib/gifts.ts`), `derivedAmountContext` (from
- *   `lib/breakdowns.ts`), `applyBreakdownAmounts` (from `lib/derivedBudget.ts`) —
- *   the rolled-up amounts a derived budget line reads.
+ *
+ * The breakdown- and gift-derived budget-line amounts are NOT re-derived here:
+ * the `reconcile_derived_lines` triggers keep them canonical in `budget_line`, so
+ * the buffer reads the row straight (see `summary.ts`).
  *
  * Row shapes are loose interfaces, as in `tax.ts`: the edge runtime cannot
  * import the PWA's `lib/`. The names match the originals so the correspondence
  * is legible.
  */
 
-import { annualCents, isActiveOn } from '@nest/plan'
-import type { Frequency } from '@nest/plan'
+import { isActiveOn } from '@nest/plan'
 import type { IncomeInput } from '@nest/tax'
 import type { InflowRow } from './tax.ts'
 
@@ -131,159 +131,17 @@ export function projectedInterestIncomeInputs(
   return inputs
 }
 
-// ── derived budget amounts (breakdowns + gifts) ────────────────────────────
-
-/** A `gift_budget` row: an amount tagged to a recipient. */
-export interface GiftBudgetRow {
-  recipient_id: string
-  budgeted_amount_cents: number
-}
-
-/** A `gift_recipient` row: its household-member link, or null for an external person. */
-export interface GiftRecipientRow {
-  id: string
-  member_id: string | null
-}
-
-/** The household's single ad hoc discretionary gift buffer, or null before its first edit. */
-export interface GiftDiscretionaryBudgetRow {
-  budgeted_amount_cents: number
-}
+// ── budget lines ──────────────────────────────────────────────────────────
 
 /**
- * The planned gift spend partitioned by the recipient's household member. Every
- * external (non-member) recipient's budgets collapse into the `null` key, which
- * also carries the household's ad hoc discretionary gift buffer amount. A member
- * appears only when it has at least one budget.
+ * The `budget_line` columns the buffer reads. A breakdown- or gift-derived
+ * line's `amount_cents` (annual) and `frequency = 'annual'` are already
+ * canonical — kept in step by the `reconcile_derived_lines` triggers — so the
+ * loader reads every line the same way and re-derives nothing.
  */
-export function giftTotalsByMember(
-  budgets: readonly GiftBudgetRow[],
-  recipients: readonly GiftRecipientRow[],
-  discretionaryBudget: GiftDiscretionaryBudgetRow | null = null,
-): Map<string | null, number> {
-  const memberByRecipient = new Map(
-    recipients.map((recipient) => [recipient.id, recipient.member_id]),
-  )
-  const totals = new Map<string | null, number>()
-  for (const budget of budgets) {
-    const key = memberByRecipient.get(budget.recipient_id) ?? null
-    totals.set(key, (totals.get(key) ?? 0) + budget.budgeted_amount_cents)
-  }
-  const discretionaryCents = discretionaryBudget?.budgeted_amount_cents ?? 0
-  if (discretionaryCents !== 0) {
-    totals.set(null, (totals.get(null) ?? 0) + discretionaryCents)
-  }
-  return totals
-}
-
-/** A `breakdown` row (only its id is read for the roll-up). */
-export interface BreakdownRow {
-  id: string
-}
-
-/** A `breakdown_item` row: an amount on a frequency, filed under a breakdown. */
-export interface BreakdownItemRow {
-  breakdown_id: string
-  amount_cents: number
-  frequency: string
-  interval_count: number | null
-}
-
-/** The rolled-up annual amounts every derived budget line reads, resolved per line. */
-export interface DerivedAmountContext {
-  /** Each generic breakdown's summed annualised item total, keyed by breakdown id. */
-  genericTotalsByBreakdownId: Map<string, number>
-  /** The gift spend partitioned by recipient member (`null` = external recipients). */
-  giftTotalsByMember: Map<string | null, number>
-}
-
-/** The summed annualised total of a generic breakdown's items, in cents. */
-function genericTotal(items: readonly BreakdownItemRow[], breakdownId: string): number {
-  return items
-    .filter((item) => item.breakdown_id === breakdownId)
-    .reduce(
-      (total, item) =>
-        total +
-        annualCents(
-          item.amount_cents,
-          item.frequency as Frequency,
-          item.interval_count ?? undefined,
-        ),
-      0,
-    )
-}
-
-/**
- * Builds the {@link DerivedAmountContext} from the household's breakdowns,
- * generic items, and gift data. Every derived-line amount resolves from this one
- * context so the surfaces never drift. Every parameter is required — the ad hoc
- * gift buffer included — so a caller that omits one is a compile error, not a
- * silent under-count (the PWA twin, WSD-136).
- */
-export function derivedAmountContext(
-  breakdowns: readonly BreakdownRow[],
-  items: readonly BreakdownItemRow[],
-  giftBudgets: readonly GiftBudgetRow[],
-  giftRecipients: readonly GiftRecipientRow[],
-  giftDiscretionaryBudget: GiftDiscretionaryBudgetRow | null,
-): DerivedAmountContext {
-  const genericTotalsByBreakdownId = new Map<string, number>()
-  for (const breakdown of breakdowns) {
-    genericTotalsByBreakdownId.set(breakdown.id, genericTotal(items, breakdown.id))
-  }
-  return {
-    genericTotalsByBreakdownId,
-    giftTotalsByMember: giftTotalsByMember(giftBudgets, giftRecipients, giftDiscretionaryBudget),
-  }
-}
-
-/** The `budget_line` columns the derived-amount override reads. */
 export interface BudgetLineRow {
   line_group: string
   amount_cents: number
   frequency: string
   interval_count: number | null
-  is_gift_line: boolean
-  breakdown_id: string | null
-  gift_recipient_member_id: string | null
-}
-
-/** Whether a line's amount is roll-up-derived rather than manually typed. */
-function isDerivedLine(line: BudgetLineRow): boolean {
-  return line.is_gift_line || line.breakdown_id !== null
-}
-
-/**
- * Overrides the effective amount of every roll-up-derived budget line with its
- * rolled-up annual total, treated as an annual figure. A gift line
- * (`is_gift_line`) takes its recipient partition's share (keyed by
- * `gift_recipient_member_id`, `null` for the external line); a generic breakdown
- * line takes its breakdown's item total. A manual line passes through untouched;
- * with no derived line present the input is returned as-is. A derived line
- * missing from the context falls back to zero.
- */
-export function applyBreakdownAmounts<T extends BudgetLineRow>(
-  lines: readonly T[],
-  context: DerivedAmountContext,
-): readonly T[] {
-  if (!lines.some(isDerivedLine)) {
-    return lines
-  }
-  return lines.map((line) => {
-    if (line.is_gift_line) {
-      return {
-        ...line,
-        amount_cents: context.giftTotalsByMember.get(line.gift_recipient_member_id ?? null) ?? 0,
-        frequency: 'annual',
-      }
-    }
-    if (line.breakdown_id !== null) {
-      return {
-        ...line,
-        amount_cents: context.genericTotalsByBreakdownId.get(line.breakdown_id) ?? 0,
-        frequency: 'annual',
-      }
-    }
-    return line
-  })
 }

@@ -86,11 +86,6 @@ export async function loadBudgetSummaryBundle(
     budgetLines,
     temporaryItems,
     savingsGoals,
-    breakdowns,
-    breakdownItems,
-    giftBudgets,
-    giftRecipients,
-    giftDiscretionaryBudgets,
     accounts,
     accountBalances,
   ] = await Promise.all([
@@ -103,11 +98,6 @@ export async function loadBudgetSummaryBundle(
     forHousehold('budget_line'),
     forHousehold('temporary_item'),
     forHousehold('savings_goal'),
-    forHousehold('breakdown'),
-    forHousehold('breakdown_item'),
-    forHousehold('gift_budget'),
-    forHousehold('gift_recipient'),
-    forHousehold('gift_discretionary_budget'),
     forHousehold('accounts'),
     forHousehold('account_balance'),
   ])
@@ -123,10 +113,5 @@ export async function loadBudgetSummaryBundle(
     temporaryItems,
     savingsGoals,
     savers: toSaverRows(accounts, accountBalances),
-    breakdowns,
-    breakdownItems,
-    giftBudgets,
-    giftRecipients,
-    giftDiscretionaryBudget: giftDiscretionaryBudgets[0] ?? null,
   }
 }

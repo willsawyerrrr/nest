@@ -7,9 +7,15 @@
  * prorates each dated inflow by its FY-active share and drives every ANNUAL
  * figure; and a second over only the taxable inflows active at `now`, each at
  * its full annual rate, which drives the FORTNIGHTLY figures. Projected savings
- * interest and the derived (breakdown/gift) budget amounts feed both. The
- * after-tax cash is then reconciled against the budget lines and temporary items
- * by `@nest/plan`'s `summarise`.
+ * interest feeds both. The after-tax cash is then reconciled against the budget
+ * lines and temporary items by `@nest/plan`'s `summarise`.
+ *
+ * The breakdown- and gift-derived budget lines are read straight: the
+ * `reconcile_derived_lines` triggers keep their `amount_cents` (annual, whole
+ * cents, via `reconcile_annual_cents` which mirrors `normalize.ts`'s
+ * `annualCents`) and `frequency = 'annual'` canonical in the row, so there is
+ * nothing to re-derive here — the database is the sole authority for those
+ * amounts.
  *
  * `notify-eval`'s buffer trigger and the `intent-summary` edge function both
  * call this, so Siri and the app never disagree.
@@ -33,14 +39,7 @@ import {
 } from '@nest/tax'
 import {
   activeNowTaxableInflows,
-  applyBreakdownAmounts,
-  type BreakdownItemRow,
-  type BreakdownRow,
   type BudgetLineRow,
-  derivedAmountContext,
-  type GiftBudgetRow,
-  type GiftDiscretionaryBudgetRow,
-  type GiftRecipientRow,
   type InterestGoalRow,
   projectedInterestIncomeInputs,
   type SaverRow,
@@ -61,12 +60,6 @@ export interface BudgetSummaryBundle extends TaxEstimateRows {
   savingsGoals: readonly InterestGoalRow[]
   /** Synced Up savers (`source = 'up'`, `type = 'savings'`) — resolves a goal's linked-saver balance. */
   savers: readonly SaverRow[]
-  breakdowns: readonly BreakdownRow[]
-  breakdownItems: readonly BreakdownItemRow[]
-  giftBudgets: readonly GiftBudgetRow[]
-  giftRecipients: readonly GiftRecipientRow[]
-  /** The household's single ad hoc discretionary gift buffer, or null before its first edit. */
-  giftDiscretionaryBudget: GiftDiscretionaryBudgetRow | null
 }
 
 /**
@@ -121,14 +114,7 @@ export function summariseHouseholdFromRows(
     bundle.savers,
     bundle.members,
   )
-  const derived = derivedAmountContext(
-    bundle.breakdowns,
-    bundle.breakdownItems,
-    bundle.giftBudgets,
-    bundle.giftRecipients,
-    bundle.giftDiscretionaryBudget,
-  )
-  const budgetLines = applyBreakdownAmounts(bundle.budgetLines, derived).map((line) => ({
+  const budgetLines = bundle.budgetLines.map((line) => ({
     group: line.line_group as BudgetGroup,
     amountCents: line.amount_cents,
     frequency: line.frequency as Frequency,

@@ -483,14 +483,16 @@ install/version requirements are in
 Summary's on-screen "fortnightly after saving" figure — the port of
 `apps/pwa/src/lib/summary.ts`'s `summariseHousehold` and its helpers
 (`lib/tax.ts`'s `estimateHouseholdTaxFromRows` / `activeNowTaxableInflows` /
-`projectedInterestIncomeInputs`, `lib/breakdowns.ts`'s `derivedAmountContext`,
-`lib/derivedBudget.ts`'s `applyBreakdownAmounts`, `lib/gifts.ts`'s
-`giftTotalsByMember`). The runtime cannot import the PWA's `lib/`, so the row
-shaping is done here against loose interfaces; the tax and plan math itself stays
-in `@nest/tax` / `@nest/plan`. `tax.ts` holds the row shaping, `adapters.ts` the
-parity adapters, `summary.ts`'s `summariseHouseholdFromRows` the whole-year +
-active-now double reconciliation, and `bundle.ts` (`loadBudgetSummaryBundle`) the
-service-role row load both consumers wire in. `notify-eval`'s `buffer_negative`
+`projectedInterestIncomeInputs`). The runtime cannot import the PWA's `lib/`, so
+the row shaping is done here against loose interfaces; the tax and plan math
+itself stays in `@nest/tax` / `@nest/plan`. `tax.ts` holds the row shaping,
+`adapters.ts` the parity adapters, `summary.ts`'s `summariseHouseholdFromRows` the
+whole-year + active-now double reconciliation, and `bundle.ts`
+(`loadBudgetSummaryBundle`) the service-role row load both consumers wire in. The
+breakdown- and gift-derived budget lines are read straight from `budget_line`:
+the `reconcile_derived_lines` triggers keep their annual `amount_cents` canonical,
+so unlike the PWA (which re-derives them) the buffer trusts the row and reads
+none of the breakdown or gift tables. `notify-eval`'s `buffer_negative`
 trigger and `intent-summary` both call it, so the Siri figure and the app's
 Summary never disagree.
 

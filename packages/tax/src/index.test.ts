@@ -931,6 +931,19 @@ describe('FY2027_CONFIG', () => {
   })
 })
 
+describe('configsByYear', () => {
+  it('has a published config for the current financial year', () => {
+    // A release tripwire, not a fixed-date check: once real time passes the last
+    // configured year, `currentTaxConfig()` starts silently serving a stale
+    // config. This fails first, as a reminder to add the next FY to configs.ts.
+    const currentFy = financialYearForDate(new Date())
+    expect(
+      configsByYear[currentFy],
+      `No FY${currentFy} tax config — add one to packages/tax/src/configs.ts`,
+    ).toBeDefined()
+  })
+})
+
 describe('isDateInFinancialYear', () => {
   it('accepts both inclusive bounds of the financial year', () => {
     expect(isDateInFinancialYear('2026-07-01', 2027)).toBe(true)

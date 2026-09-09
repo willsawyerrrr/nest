@@ -7,10 +7,9 @@ import type {
 import type { Enums, Tables } from './database.types'
 
 /**
- * Canonical domain aliases derived from the generated database types (or, where a
- * column is CHECK-constrained `text` rather than a Postgres enum, transcribed from
- * that CHECK), giving the app a single home for the enums and view rows that recur
- * across hooks, forms, and lib helpers rather than each declaring its own copy.
+ * Canonical domain aliases derived from the generated database types, giving the
+ * app a single home for the enums and view rows that recur across hooks, forms,
+ * and lib helpers rather than each declaring its own copy.
  */
 
 /** How often an amount recurs, from the database `frequency` enum. */
@@ -19,22 +18,11 @@ export type Frequency = Enums<'frequency'>
 /** The group a budget line belongs to, from the database `budget_group` enum. */
 export type BudgetGroup = Enums<'budget_group'>
 
-/**
- * Whether an equity grant is options or shares. `equity_grant.instrument_type` is
- * a CHECK-constrained `text` column, not a Postgres enum, so `gen types` widens it
- * to `string` and this union is transcribed by hand — keep it in lock-step with
- * the CHECK in the `equity_grant` migration.
- */
-export type EquityInstrumentType = 'option' | 'share'
+/** Whether an equity grant is options or shares, from the `equity_instrument_type` enum. */
+export type EquityInstrumentType = Enums<'equity_instrument_type'>
 
-/**
- * How often an equity grant's tranches vest after the cliff.
- * `equity_grant.vesting_frequency` is a CHECK-constrained `text` column, not a
- * Postgres enum, so `gen types` widens it to `string` and this union is
- * transcribed by hand — keep it in lock-step with the CHECK in the `equity_grant`
- * migration.
- */
-export type VestingFrequency = 'monthly' | 'quarterly' | 'annual'
+/** How often an equity grant's tranches vest after the cliff, from the `equity_vesting_frequency` enum. */
+export type VestingFrequency = Enums<'equity_vesting_frequency'>
 
 /** `T` with every property made non-nullable except those named in `K`. */
 type NonNullableExcept<T, K extends PropertyKey> = {
@@ -69,9 +57,9 @@ export type AccountDirectoryRow = NonNullableExcept<
 
 /**
  * Compile-time guard that the `@nest/plan` string-literal unions stay in lock-step
- * with the database enums and their hand-transcribed CHECK-column counterparts:
- * each is asserted assignable to the other, so any drift between the shared plan
- * package and the schema fails the build here.
+ * with the database enums: each is asserted assignable to the other, so any drift
+ * between the shared plan package and the generated schema types fails the build
+ * here.
  */
 const _assertFrequency: [Frequency, PlanFrequency] = [
   null as unknown as PlanFrequency,

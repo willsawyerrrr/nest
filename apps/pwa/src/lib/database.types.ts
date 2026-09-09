@@ -586,7 +586,7 @@ export type Database = {
           grant_date: string
           household_id: string
           id: string
-          instrument_type: string
+          instrument_type: Database['public']['Enums']['equity_instrument_type']
           label: string
           member_id: string
           price_as_of: string | null
@@ -594,7 +594,7 @@ export type Database = {
           quantity: number
           strike_price_cents: number | null
           updated_at: string
-          vesting_frequency: string
+          vesting_frequency: Database['public']['Enums']['equity_vesting_frequency']
           vesting_period_months: number
         }
         Insert: {
@@ -603,7 +603,7 @@ export type Database = {
           grant_date: string
           household_id: string
           id?: string
-          instrument_type: string
+          instrument_type: Database['public']['Enums']['equity_instrument_type']
           label: string
           member_id: string
           price_as_of?: string | null
@@ -611,7 +611,7 @@ export type Database = {
           quantity: number
           strike_price_cents?: number | null
           updated_at?: string
-          vesting_frequency?: string
+          vesting_frequency?: Database['public']['Enums']['equity_vesting_frequency']
           vesting_period_months?: number
         }
         Update: {
@@ -620,7 +620,7 @@ export type Database = {
           grant_date?: string
           household_id?: string
           id?: string
-          instrument_type?: string
+          instrument_type?: Database['public']['Enums']['equity_instrument_type']
           label?: string
           member_id?: string
           price_as_of?: string | null
@@ -628,7 +628,7 @@ export type Database = {
           quantity?: number
           strike_price_cents?: number | null
           updated_at?: string
-          vesting_frequency?: string
+          vesting_frequency?: Database['public']['Enums']['equity_vesting_frequency']
           vesting_period_months?: number
         }
         Relationships: [
@@ -2234,6 +2234,8 @@ export type Database = {
       category_kind: 'income' | 'expense'
       deduction_basis: 'amount' | 'distance'
       deduction_category: 'work_expense' | 'donation' | 'tax_agent_fees'
+      equity_instrument_type: 'option' | 'share'
+      equity_vesting_frequency: 'monthly' | 'quarterly' | 'annual'
       frequency:
         | 'weekly'
         | 'fortnightly'
@@ -2387,6 +2389,8 @@ export const Constants = {
       category_kind: ['income', 'expense'],
       deduction_basis: ['amount', 'distance'],
       deduction_category: ['work_expense', 'donation', 'tax_agent_fees'],
+      equity_instrument_type: ['option', 'share'],
+      equity_vesting_frequency: ['monthly', 'quarterly', 'annual'],
       frequency: [
         'weekly',
         'fortnightly',

@@ -28,7 +28,7 @@ function intOr(value: number | string, fallback: number): number {
 export function EquityGrantForm({ member, initial, onSubmit, onCancel }: EquityGrantFormProps) {
   const [label, setLabel] = useState(initial?.label ?? '')
   const [instrumentType, setInstrumentType] = useState<EquityInstrumentType>(
-    (initial?.instrument_type as EquityInstrumentType) ?? 'option',
+    initial?.instrument_type ?? 'option',
   )
   const [quantity, setQuantity] = useState<number | string>(initial?.quantity ?? '')
   const [grantDate, setGrantDate] = useState<string | null>(initial?.grant_date ?? todayIso())
@@ -37,7 +37,7 @@ export function EquityGrantForm({ member, initial, onSubmit, onCancel }: EquityG
     initial?.vesting_period_months ?? 48,
   )
   const [vestingFrequency, setVestingFrequency] = useState<VestingFrequency>(
-    (initial?.vesting_frequency as VestingFrequency) ?? 'monthly',
+    initial?.vesting_frequency ?? 'monthly',
   )
   const [strikePrice, setStrikePrice] = useState<number | string>(
     centsToDollars(initial?.strike_price_cents),

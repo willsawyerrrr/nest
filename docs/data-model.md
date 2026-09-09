@@ -383,13 +383,12 @@ and so without the trigger.
     `strike_price_cents` (bigint, nullable, options only), `price_per_share_cents`
     (bigint, `>= 0`, user-maintained current fair value), `price_as_of`
     (nullable), `created_at`, `updated_at`.
-  - `instrument_type` and `vesting_frequency` are `text` with a CHECK on the
-    allowed values rather than enums — they are grant paperwork, not a shape
-    other tables share. `@nest/plan` still mirrors both unions for the vesting
-    and valuation math, so `apps/pwa/src/lib/domain.ts` carries hand-transcribed
-    `EquityInstrumentType` / `VestingFrequency` unions and `_assert*` tuple pairs
-    that fail the build if the plan package drifts from them; the transcriptions
-    must be kept in lock-step with the CHECK here.
+  - `instrument_type` (`equity_instrument_type`) and `vesting_frequency`
+    (`equity_vesting_frequency`) are Postgres enums, so `gen types` carries the
+    values and `apps/pwa/src/lib/domain.ts` derives `EquityInstrumentType` /
+    `VestingFrequency` from `Enums<>`. `@nest/plan` mirrors both unions for the
+    vesting and valuation math; `_assert*` tuple pairs in `domain.ts` fail the
+    build if the plan package drifts from the generated schema types.
   - Composite FK on `(member_id, household_id)` → `members`. Vesting and
     valuation are computed client-side by `@nest/plan` (`vestedQuantity`,
     `grantValueCents`); the vested value seeds the Net worth tab as an asset.

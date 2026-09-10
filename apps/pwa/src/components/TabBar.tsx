@@ -1,5 +1,5 @@
 /* eslint-disable react/only-export-components -- co-locate the nav item table with the tab bar that renders it. */
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   ActionIcon,
@@ -264,11 +264,15 @@ function NavList({ sections, onNavigate }: { sections: NavSection[]; onNavigate?
 
   // The route sets the default: the group holding the current page opens and
   // the rest fold away, on mount and on every navigation — including one a
-  // keyboard shortcut makes into a collapsed group. Between navigations a
-  // header toggle stands, so opening a second group by hand leaves both open.
-  useEffect(() => {
+  // keyboard shortcut makes into a collapsed group. Re-synced here in render,
+  // not an effect, so the new route never paints a frame with the old group
+  // still open. Between navigations a header toggle stands, so opening a second
+  // group by hand leaves both open.
+  const [syncedPath, setSyncedPath] = useState(pathname)
+  if (pathname !== syncedPath) {
+    setSyncedPath(pathname)
     setOpenLabels(activeLabel ? [activeLabel] : [])
-  }, [pathname, activeLabel])
+  }
 
   const toggle = (label: string) =>
     setOpenLabels((open) =>

@@ -116,11 +116,11 @@ directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
-`payslip-extract`, `deduction-extract`, `share-create`, `intent-summary`, and
-`notify-eval` are JWT-verified (the default, so they carry no `config.toml`
-entry) — the caller is resolved from their JWT, so a member can only touch their
-own token, their own devices, files in their own household, their own household's
-share, and their own household's buffer;
+`payslip-extract`, `deduction-extract`, `share-create`, `intent-summary`,
+`goal-progress`, and `notify-eval` are JWT-verified (the default, so they carry
+no `config.toml` entry) — the caller is resolved from their JWT, so a member can
+only touch their own token, their own devices, files in their own household,
+their own household's share, and their own household's buffer and goals;
 `up-sync`'s PWA Refresh carries the member's JWT while its hourly cron presents
 the service-role key, and `notify-eval` is cron-only — the gateway verifies the
 bearer and the handler admits nothing but a `service_role` one. `up-webhook`,
@@ -150,6 +150,7 @@ supabase functions serve push-key
 supabase functions serve push-test
 supabase functions serve notify-eval
 supabase functions serve intent-summary
+supabase functions serve goal-progress
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -504,3 +505,12 @@ step.
   `{ fortnightlyAfterSavingCents: number }` — the exact on-screen Summary buffer.
   The pure flow is `intent-summary/run.ts` (`runIntentSummary`), DI-tested
   against fakes. Serves the iOS App Intent behind "what's my Nest buffer".
+- **`goal-progress`** — POST, no body, `Bearer` Supabase access token.
+  JWT-verified, the same caller → household resolution as `intent-summary`. Loads
+  `savings_goal` plus the household's synced Up savers on a service-role client,
+  resolves each goal's saved amount (a linked saver's synced balance where it
+  links one, else `current_balance_cents`), and answers
+  `{ goals: { name, savedCents, targetCents }[], totalSavedCents, totalTargetCents }`
+  with `goals` ordered dated-first. The pure shaping and flow are
+  `goal-progress/run.ts` (`shapeGoalProgress` / `runGoalProgress`), DI-tested.
+  Serves the iOS App Intent behind "how are my Nest savings goals".

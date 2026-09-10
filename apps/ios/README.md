@@ -23,14 +23,17 @@ full design.
     `AuthClient` (default `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth,
     restore-on-launch.
-  - `Intents/BufferQueryIntent.swift` — the `AppIntent`.
+  - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
   - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
     and spoken-sentence formatting.
-  - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider`.
-- `NestTests/` — Swift Testing unit tests over the pieces `perform()` delegates
-  to: `BufferPhrasing` (cents → spoken sentence), `BufferService` (the
-  `intent-summary` request shape and status handling), and
-  `bufferQuerySpokenResponse` (the signed-out and failure-to-sentence mapping).
+  - `Intents/GoalProgressIntent.swift` — the savings-goal `AppIntent`.
+  - `Intents/GoalService.swift` — injectable HTTP call to `goal-progress` and
+    its spoken-sentence formatting.
+  - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider` (one shortcut
+    per intent).
+- `NestTests/` — Swift Testing unit tests over the pieces each `perform()`
+  delegates to: the phrasing (cents → spoken sentence), the service request
+  shape and status handling, and the signed-out / failure-to-sentence mapping.
 
 ## Building
 
@@ -74,10 +77,14 @@ device, and use the App Shortcut. There is no App Store Connect setup.
 4. Test the Intent from the Shortcuts app (search "Check Fortnightly Buffer") or
    Spotlight. Siri voice invocation is verified on a real device.
 
-## `intent-summary` dependency
+## Edge function dependencies
 
-`BufferQueryIntent` calls the `intent-summary` Supabase edge function
-(`supabase/functions/intent-summary`), sending the session access token as a
-bearer and the anon key as `apikey`, with a `{}` body, and reads
-`{ "fortnightlyAfterSavingCents": number }`. The function must be deployed for
-the Intent to return a figure.
+Each Intent calls a Supabase edge function, sending the session access token as
+a bearer and the anon key as `apikey` with a `{}` body. Both must be deployed
+for the Intents to return a figure.
+
+- `BufferQueryIntent` → `intent-summary`
+  (`supabase/functions/intent-summary`) → `{ "fortnightlyAfterSavingCents": number }`.
+- `GoalProgressIntent` → `goal-progress`
+  (`supabase/functions/goal-progress`) →
+  `{ "goals": { name, savedCents, targetCents }[], "totalSavedCents", "totalTargetCents" }`.

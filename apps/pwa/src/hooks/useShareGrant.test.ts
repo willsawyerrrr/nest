@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeWrapper } from '../test/queryWrapper'
 import { useShareGrant } from './useShareGrant'
 
 const { builder, invoke, rpc } = await vi.hoisted(async () => {
@@ -35,20 +36,20 @@ beforeEach(() => {
 
 describe('useShareGrant', () => {
   it('reports no active share when none exists', async () => {
-    const { result } = renderHook(() => useShareGrant())
+    const { result } = renderHook(() => useShareGrant(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.status).toBeNull()
   })
 
   it('loads the household active share on mount', async () => {
     builder.result = { data: activeGrant, error: null }
-    const { result } = renderHook(() => useShareGrant())
+    const { result } = renderHook(() => useShareGrant(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.status).toEqual(activeGrant)
   })
 
-  it('creates a share via share-create and reloads', async () => {
-    const { result } = renderHook(() => useShareGrant())
+  it('creates a share via share-create and refetches', async () => {
+    const { result } = renderHook(() => useShareGrant(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     builder.result = { data: activeGrant, error: null }
@@ -65,13 +66,13 @@ describe('useShareGrant', () => {
       expiresAt: '2027-01-08T00:00:00Z',
       emailSent: true,
     })
-    expect(result.current.status).toEqual(activeGrant)
+    await waitFor(() => expect(result.current.status).toEqual(activeGrant))
   })
 
-  it('revokes the share via the RPC and reloads', async () => {
+  it('revokes the share via the RPC and refetches', async () => {
     builder.result = { data: activeGrant, error: null }
-    const { result } = renderHook(() => useShareGrant())
-    await waitFor(() => expect(result.current.loading).toBe(false))
+    const { result } = renderHook(() => useShareGrant(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.status).toEqual(activeGrant))
 
     builder.result = { data: null, error: null }
     await act(async () => {
@@ -79,15 +80,19 @@ describe('useShareGrant', () => {
     })
 
     expect(rpc).toHaveBeenCalledWith('revoke_share_grant')
+    await waitFor(() => expect(result.current.status).toBeNull())
+  })
+
+  it('leaves the status null when the load fails', async () => {
+    builder.result = { data: null, error: new Error('load failed') }
+    const { result } = renderHook(() => useShareGrant(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.status).toBeNull()
   })
 
-  it('propagates load, create, and revoke errors', async () => {
-    const { result } = renderHook(() => useShareGrant())
+  it('propagates create and revoke errors', async () => {
+    const { result } = renderHook(() => useShareGrant(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
-
-    builder.result = { data: null, error: new Error('load failed') }
-    await expect(result.current.reload()).rejects.toThrow('load failed')
 
     invoke.mockResolvedValue({ data: null, error: new Error('create failed') })
     await expect(result.current.create(2027, 'agent@example.com')).rejects.toThrow('create failed')

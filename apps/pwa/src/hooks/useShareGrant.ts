@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
+import { useHouseholdQuery } from './useCollection'
 
 /**
  * The columns `authenticated` may read (see the migration's column-level
@@ -36,12 +38,13 @@ export interface UseShareGrantResult {
  * than `useHouseholdCollection`: `share_grant` is keyed on `household_id`
  * itself (at most one row per household), not an `id` column, and every write
  * goes through `share-create` / `revoke_share_grant` rather than a plain
- * insert/update/delete.
+ * insert/update/delete. The read is cached household-scoped; each write
+ * invalidates the `['share_grant', householdId]` prefix so the status refetches.
  */
 export function useShareGrant(): UseShareGrantResult {
-  const [status, setStatus] = useState<ShareGrantRow | null | undefined>(undefined)
+  const householdId = useHouseholdId()
 
-  const reload = useCallback(async () => {
+  const { data, loading, reload } = useHouseholdQuery(['share_grant', householdId], async () => {
     const { data, error } = await supabase
       .from('share_grant')
       .select('household_id, financial_year, recipient_email, expires_at, created_at')
@@ -49,8 +52,8 @@ export function useShareGrant(): UseShareGrantResult {
     if (error) {
       throw error
     }
-    setStatus(data)
-  }, [])
+    return data
+  })
 
   const create = useCallback(
     async (financialYear: number, recipientEmail: string) => {
@@ -74,9 +77,5 @@ export function useShareGrant(): UseShareGrantResult {
     await reload()
   }, [reload])
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { status: status ?? null, loading: status === undefined, reload, create, revoke }
+  return { status: data ?? null, loading, reload, create, revoke }
 }

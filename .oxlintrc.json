@@ -5,13 +5,16 @@
     "eslint/max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
-    "typescript/no-explicit-any": "error"
+    "typescript/no-explicit-any": "error",
+    "react/refs": "off",
+    "react/set-state-in-effect": "off"
   },
   "overrides": [
     {
       "files": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": {
-        "eslint/max-lines": "off"
+        "eslint/max-lines": "off",
+        "react/globals": "off"
       }
     },
     {

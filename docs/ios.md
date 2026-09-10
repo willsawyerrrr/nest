@@ -128,6 +128,12 @@ reports claim it still needs the entitlement; this contradicts Apple's docs and
 is unverified. If voice invocation specifically fails during household testing,
 the paid program comes into play — nothing else about this app does.
 
+The App Shortcuts have been run from Spotlight and the Shortcuts app **on a real
+device**; both queries answer. **The iOS Simulator cannot reliably invoke an App
+Shortcut** — it fails with "Unable to run App Shortcut" regardless of the code —
+so test the intents on hardware. The Simulator is still fine for the OAuth flow,
+the web shell, and `xcodebuild test`.
+
 ## Project structure
 
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the

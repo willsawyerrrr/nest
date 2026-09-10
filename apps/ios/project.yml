@@ -50,3 +50,28 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios
         PRODUCT_NAME: Nest
         ENABLE_PREVIEWS: true
+
+  NestTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: NestTests
+    dependencies:
+      - target: Nest
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios.tests
+        GENERATE_INFOPLIST_FILE: true
+
+schemes:
+  Nest:
+    build:
+      targets:
+        Nest: all
+        NestTests: [test]
+    test:
+      targets:
+        - NestTests
+    run:
+      config: Debug

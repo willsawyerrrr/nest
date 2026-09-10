@@ -66,13 +66,15 @@ jobs:
           done
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      # A deploy that returns is not evidence that every function reached the
-      # project: the step above can ship some functions and fail on a later one,
-      # and a run that never fired at all leaves the whole push behind. Assert it.
-      # No grace window here: the deploy has just returned, so anything still
-      # behind is behind for good — a grace window would forgive precisely the
-      # function this catches.
-      - name: Assert every function deployed
-        run: pnpm check:function-drift --project-ref=dgfeittjtxjtgbretdkj
+      # `--prune` first deletes every function the project still serves that the
+      # repo no longer defines — a function whose directory was removed in this
+      # push stops serving prod rather than lingering as an orphan. Then the
+      # assertion: a deploy that returns is not evidence that every function
+      # reached the project (the step above can ship some and fail on a later
+      # one, and a run that never fired at all leaves the whole push behind). No
+      # grace window here — the deploy has just returned, so anything still
+      # behind is behind for good, which a grace window would forgive.
+      - name: Prune removed functions and assert every function deployed
+        run: pnpm check:function-drift --project-ref=dgfeittjtxjtgbretdkj --prune
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

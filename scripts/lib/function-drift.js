@@ -138,3 +138,24 @@ export function classifyFunctions({ repo, deployed, now = Date.now(), graceMinut
 
   return { current, stale, inFlight, orphans }
 }
+
+/**
+ * Deletes every orphan slug through `deleteOrphan`, a `(slug) => void` that
+ * throws on failure. Returns the slugs deleted and, for each that threw, its
+ * error message. A failed delete is reported, not fatal: an orphan is only ever
+ * a warning, so a transient failure to clear one waits for the next run rather
+ * than taking a deploy down.
+ */
+export function pruneOrphans(orphans, deleteOrphan) {
+  const deleted = []
+  const failed = []
+  for (const slug of orphans) {
+    try {
+      deleteOrphan(slug)
+      deleted.push(slug)
+    } catch (error) {
+      failed.push({ slug, message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+  return { deleted, failed }
+}

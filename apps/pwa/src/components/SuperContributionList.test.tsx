@@ -16,7 +16,7 @@ function makeContribution(overrides: Partial<SuperContribution> = {}): SuperCont
     financial_year: 2027,
     kind: 'salary_sacrifice',
     mode: 'amount',
-    amount_cents: 50000,
+    amount_cents: 500_00,
     percent_bp: null,
     frequency: 'fortnightly',
     interval_count: null,
@@ -108,7 +108,7 @@ describe('SuperContributionList', () => {
     await user.click(screen.getByRole('button', { name: /add contribution/i }))
 
     await waitFor(() =>
-      expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ amount_cents: 25000 })),
+      expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ amount_cents: 250_00 })),
     )
   })
 

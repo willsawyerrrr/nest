@@ -23,7 +23,7 @@ describe('SuperContributionForm', () => {
           member_id: 'm1',
           kind: 'salary_sacrifice',
           mode: 'amount',
-          amount_cents: 50000,
+          amount_cents: 500_00,
           percent_bp: null,
           frequency: 'fortnightly',
           contributor_member_id: null,

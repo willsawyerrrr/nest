@@ -33,26 +33,26 @@ describe('MoneyInput', () => {
   it('reads a pasted comma as a thousands separator, not a decimal point', async () => {
     const { value, display } = await pasteInto('1,511.41')
     expect(value).toBe(1511.41)
-    expect(dollarsToCents(value)).toBe(151141)
+    expect(dollarsToCents(value)).toBe(1_511_41)
     expect(display).toBe('$1,511.41')
   })
 
   it('accepts a pasted amount that includes the currency symbol', async () => {
     const { value } = await pasteInto('$1,511.41')
     expect(value).toBe(1511.41)
-    expect(dollarsToCents(value)).toBe(151141)
+    expect(dollarsToCents(value)).toBe(1_511_41)
   })
 
   it('accepts a pasted thousands amount with no decimals', async () => {
     const { value, display } = await pasteInto('1,511')
     expect(Number(value)).toBe(1511)
-    expect(dollarsToCents(value)).toBe(151100)
+    expect(dollarsToCents(value)).toBe(1_511_00)
     expect(display).toBe('$1,511.00')
   })
 
   it('accepts a pasted amount with no separators', async () => {
     const { value } = await pasteInto('1511.41')
     expect(value).toBe(1511.41)
-    expect(dollarsToCents(value)).toBe(151141)
+    expect(dollarsToCents(value)).toBe(1_511_41)
   })
 })

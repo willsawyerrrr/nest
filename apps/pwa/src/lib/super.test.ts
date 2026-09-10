@@ -112,27 +112,31 @@ describe('accountsWithEffectiveSuperBalances', () => {
 
 describe('netWorthBreakdown', () => {
   it('splits accounts into super and other with subtotals and a total', () => {
-    const accounts = [account('a1', 100000), account('a2', 50000), account('a3', 25000)]
+    const accounts = [account('a1', 1_000_00), account('a2', 500_00), account('a3', 250_00)]
     const breakdown = netWorthBreakdown(accounts, new Set(['a1', 'a2']))
 
     expect(breakdown.superAccounts.map((a) => a.id)).toEqual(['a1', 'a2'])
     expect(breakdown.otherAccounts.map((a) => a.id)).toEqual(['a3'])
-    expect(breakdown.superTotalCents).toBe(150000)
-    expect(breakdown.otherTotalCents).toBe(25000)
+    expect(breakdown.superTotalCents).toBe(1_500_00)
+    expect(breakdown.otherTotalCents).toBe(250_00)
     expect(breakdown.excludedAccounts).toEqual([])
-    expect(breakdown.totalCents).toBe(175000)
+    expect(breakdown.totalCents).toBe(1_750_00)
   })
 
   it('collects excluded accounts separately and leaves them out of every total', () => {
-    const accounts = [account('a1', 100000), account('a2', 50000, true), account('a3', 25000, true)]
+    const accounts = [
+      account('a1', 1_000_00),
+      account('a2', 500_00, true),
+      account('a3', 250_00, true),
+    ]
     const breakdown = netWorthBreakdown(accounts, new Set(['a1', 'a2']))
 
     expect(breakdown.superAccounts.map((a) => a.id)).toEqual(['a1'])
     expect(breakdown.otherAccounts).toEqual([])
     expect(breakdown.excludedAccounts.map((a) => a.id)).toEqual(['a2', 'a3'])
-    expect(breakdown.superTotalCents).toBe(100000)
+    expect(breakdown.superTotalCents).toBe(1_000_00)
     expect(breakdown.otherTotalCents).toBe(0)
-    expect(breakdown.totalCents).toBe(100000)
+    expect(breakdown.totalCents).toBe(1_000_00)
   })
 
   it('turns a home-loan account into a named liability ahead of the passed ones', () => {
@@ -168,22 +172,22 @@ describe('netWorthBreakdown', () => {
   })
 
   it('adds vested equity as an asset and subtracts liabilities in the total', () => {
-    const accounts = [account('a1', 100000), account('a2', 50000)]
+    const accounts = [account('a1', 1_000_00), account('a2', 500_00)]
     const breakdown = netWorthBreakdown(
       accounts,
       new Set(['a1']),
-      [{ label: 'Will HELP debt', balanceCents: 20000 }],
+      [{ label: 'Will HELP debt', balanceCents: 200_00 }],
       [
-        { label: 'Will — options', valueCents: 30000 },
-        { label: 'Sam — shares', valueCents: 10000 },
+        { label: 'Will — options', valueCents: 300_00 },
+        { label: 'Sam — shares', valueCents: 100_00 },
       ],
     )
 
     expect(breakdown.equityHoldings.map((h) => h.label)).toEqual(['Will — options', 'Sam — shares'])
-    expect(breakdown.equityTotalCents).toBe(40000)
-    expect(breakdown.liabilitiesTotalCents).toBe(20000)
-    // super 100000 + other 50000 + equity 40000 − liabilities 20000 = 170000.
-    expect(breakdown.totalCents).toBe(170000)
+    expect(breakdown.equityTotalCents).toBe(400_00)
+    expect(breakdown.liabilitiesTotalCents).toBe(200_00)
+    // super 1_000 + other 500 + equity 400 − liabilities 200 = 1_700.
+    expect(breakdown.totalCents).toBe(1_700_00)
   })
 })
 

@@ -48,7 +48,7 @@ const contribution: SuperContribution = {
   financial_year: 2027,
   kind: 'salary_sacrifice',
   mode: 'amount',
-  amount_cents: 50000,
+  amount_cents: 500_00,
   percent_bp: null,
   frequency: 'fortnightly',
   interval_count: null,

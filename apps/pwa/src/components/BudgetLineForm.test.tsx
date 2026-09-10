@@ -28,7 +28,7 @@ describe('BudgetLineForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         line_group: 'wants',
         name: 'Dining out',
-        amount_cents: 25050,
+        amount_cents: 250_50,
         frequency: 'fortnightly',
         interval_count: null,
         goal_id: null,
@@ -81,7 +81,7 @@ describe('BudgetLineForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         line_group: 'savings',
         name: 'Emergency fund',
-        amount_cents: 40000,
+        amount_cents: 400_00,
         frequency: 'monthly',
         interval_count: null,
         goal_id: null,
@@ -108,7 +108,7 @@ describe('BudgetLineForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         line_group: 'needs',
         name: 'Bin night',
-        amount_cents: 2000,
+        amount_cents: 20_00,
         frequency: 'every_n_weeks',
         interval_count: 4,
         goal_id: null,
@@ -135,7 +135,7 @@ describe('BudgetLineForm', () => {
       expect(onSubmit).toHaveBeenCalledWith({
         line_group: 'needs',
         name: 'Car service',
-        amount_cents: 30000,
+        amount_cents: 300_00,
         frequency: 'every_n_months',
         interval_count: 6,
         goal_id: null,
@@ -195,7 +195,7 @@ describe('BudgetLineForm', () => {
     const line = makeBudgetLine({
       line_group: 'needs',
       name: 'Rent',
-      amount_cents: 200000,
+      amount_cents: 2_000_00,
       frequency: 'monthly',
     })
     render(<BudgetLineForm initial={line} onSubmit={vi.fn()} />)
@@ -397,7 +397,7 @@ describe('BudgetLineForm', () => {
     const line = makeBudgetLine({
       line_group: 'savings',
       name: 'House deposit',
-      amount_cents: 50000,
+      amount_cents: 500_00,
       goal_id: 'g1',
     })
     render(<BudgetLineForm initial={line} onSubmit={onSubmit} />)

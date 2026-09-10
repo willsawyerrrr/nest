@@ -14,7 +14,7 @@ const samDebt: HelpDebt = {
   id: 'hd2',
   household_id: 'h1',
   member_id: 'm2',
-  balance_cents: 1000000,
+  balance_cents: 10_000_00,
   created_at: '',
   updated_at: '',
 }
@@ -47,7 +47,7 @@ describe('HelpDebtScreen', () => {
     await user.click(within(card('Will')).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith({ member_id: 'm1', balance_cents: 2500000 }),
+      expect(onSave).toHaveBeenCalledWith({ member_id: 'm1', balance_cents: 25_000_00 }),
     )
     // Saving returns Will to the read row.
     await waitFor(() =>

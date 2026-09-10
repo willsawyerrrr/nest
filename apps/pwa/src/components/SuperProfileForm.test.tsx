@@ -19,7 +19,7 @@ describe('SuperProfileForm', () => {
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
         fundName: 'AustralianSuper',
-        balanceCents: 12500000,
+        balanceCents: 125_000_00,
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(/saved/i)
@@ -30,7 +30,7 @@ describe('SuperProfileForm', () => {
       <SuperProfileForm
         member={member}
         initialFundName="Hostplus"
-        initialBalanceCents={5000000}
+        initialBalanceCents={50_000_00}
         onSubmit={vi.fn()}
       />,
     )

@@ -74,8 +74,10 @@ device, and use the App Shortcut. There is no App Store Connect setup.
    to `dev.willsawyerrrr.nest.ios://auth-callback` returns to the app and the
    session persists to the Keychain — it survives relaunch and is read in
    process by `BufferQueryIntent`.
-4. Test the Intent from the Shortcuts app (search "Check Fortnightly Buffer") or
-   Spotlight. Siri voice invocation is verified on a real device.
+4. Test the intents from the Shortcuts app (search "Check Fortnightly Buffer" /
+   "Check Savings Goals") or Spotlight — **on a real device**. The Simulator
+   fails to invoke an App Shortcut ("Unable to run App Shortcut") whatever the
+   code; it is fine for the OAuth flow, the web shell, and `xcodebuild test`.
 
 ## Edge function dependencies
 

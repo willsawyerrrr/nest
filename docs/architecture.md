@@ -92,10 +92,15 @@ RLS.
   value edited on one tab propagates live to every tab that reads it. Household
   reads that are not create-update-remove-by-id collections — a database view, one
   column of a single row, an RPC result (`accounts_with_balance`,
-  `account_directory`, the pay account, members, pay splits) — run through the
-  `useHouseholdQuery` primitive in the same file, keyed `[name, householdId, …]`
-  and invalidated by the same prefix rule, so an `accounts` write refreshes every
-  account surface at once. Planning
+  `account_directory`, the pay account, members, pay splits, the EOFY
+  `share_grant`, the `calendar_feed` token) — run through the `useHouseholdQuery`
+  primitive in the same file, keyed `[name, householdId, …]` and invalidated by
+  the same prefix rule, so an `accounts` write refreshes every account surface at
+  once; each token hook's `create`/`revoke` RPC invalidates its own prefix. Reads
+  that carry no household — the signed-in user's household list (keyed on the
+  authed user id, since it renders above `HouseholdProvider`), the repo-wide
+  `changelog` proxy, an anonymous EOFY share token — use a plain `useQuery`.
+  Planning
   mode layers a per-device, per-household `localStorage` sandbox over `inflows`,
   `budget_line`, and `savings_goal` inside the same factory, so every projection
   recomputes from the edited rows with nothing written to Postgres — see

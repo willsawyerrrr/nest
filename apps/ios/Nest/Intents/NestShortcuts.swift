@@ -26,5 +26,16 @@ struct NestShortcuts: AppShortcutsProvider {
             shortTitle: "Savings goals",
             systemImageName: "target"
         )
+        AppShortcut(
+            intent: BudgetLineIntent(),
+            phrases: [
+                "How much have I budgeted in \(.applicationName)",
+                "Check a \(.applicationName) budget",
+                "Ask \(.applicationName) how much is budgeted",
+                "Look up a \(.applicationName) budget",
+            ],
+            shortTitle: "Budget line",
+            systemImageName: "chart.pie"
+        )
     }
 }

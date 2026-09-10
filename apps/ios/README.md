@@ -33,6 +33,10 @@ design.
   - `Intents/GoalProgressIntent.swift` — the savings-goal `AppIntent`.
   - `Intents/GoalService.swift` — injectable HTTP call to `goal-progress` and
     its spoken-sentence formatting.
+  - `Intents/BudgetLineIntent.swift` — the budget-line `AppIntent` (a free-text
+    `query` parameter).
+  - `Intents/BudgetLineService.swift` — injectable HTTP call to `budget-line`
+    and its per-cadence spoken-sentence formatting.
   - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider` (one shortcut
     per intent).
 - `NestTests/` — Swift Testing unit tests over the pieces each `perform()`
@@ -89,11 +93,14 @@ device, and use the App Shortcut. There is no App Store Connect setup.
 ## Edge function dependencies
 
 Each Intent calls a Supabase edge function, sending the session access token as
-a bearer and the anon key as `apikey` with a `{}` body. Both must be deployed
-for the Intents to return a figure.
+a bearer and the anon key as `apikey`. All must be deployed for the Intents to
+return a figure.
 
 - `BufferQueryIntent` → `intent-summary`
-  (`supabase/functions/intent-summary`) → `{ "fortnightlyAfterSavingCents": number }`.
+  (`supabase/functions/intent-summary`), `{}` body → `{ "fortnightlyAfterSavingCents": number }`.
 - `GoalProgressIntent` → `goal-progress`
-  (`supabase/functions/goal-progress`) →
+  (`supabase/functions/goal-progress`), `{}` body →
   `{ "goals": { name, savedCents, targetCents }[], "totalSavedCents", "totalTargetCents" }`.
+- `BudgetLineIntent` → `budget-line`
+  (`supabase/functions/budget-line`), `{ "query": string }` body →
+  `{ "match": { name, amountCents, frequency, intervalCount, fortnightlyCents, annualCents } | null, "names": string[] }`.

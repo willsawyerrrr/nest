@@ -2,9 +2,9 @@
 
 `apps/ios` is a thin native iOS app. The PWA (`https://nest.willsawyerrrr.dev`)
 is the entire product UI; the native app embeds it in a `WKWebView` and adds
-Siri / App Intents access to key figures (Linear WSD-95). Two read-only queries
-so far: the household's fortnightly buffer after saving, and its savings-goal
-progress.
+Siri / App Intents access to key figures (Linear WSD-95). Three read-only
+queries so far: the household's fortnightly buffer after saving, its savings-goal
+progress, and how much a named budget line is planned at.
 
 Nothing about how the PWA is built, deployed, or served changes because this
 app exists.
@@ -114,6 +114,14 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   saved against the total target and leads with the nearest-dated unmet goal (or
   celebrates when every goal is met, or prompts to set one up when there are
   none).
+- **`Intents/BudgetLineIntent.swift`** + **`Intents/BudgetLineService.swift`** —
+  "how much is budgeted for groceries": takes a free-text `query` (a `String`
+  `@Parameter` Siri prompts for), calls `budget-line`, and speaks the matched
+  line's amount in its own cadence ("$200.00 per week for Groceries"). No match
+  → names the household's budget lines; none at all → prompts to set one up. An
+  App Shortcut phrase can't carry a free-text parameter, so the shortcut phrase
+  is parameterless and Siri asks which line; a spoken-inline `AppEntity` for
+  line names is a follow-up, the same as for a per-goal parameter.
 - **`Intents/NestShortcuts.swift`** — an `AppShortcutsProvider` with one
   `AppShortcut` per intent (each a `shortTitle`, an SF Symbol, and phrases all
   containing `\(.applicationName)`), so the phrases reach Siri, Spotlight, and
@@ -130,14 +138,16 @@ process, with no access group and no App Group.
 
 ### Request contracts
 
-Both are `POST {SUPABASE_URL}/functions/v1/<name>` with a `{}` body and these
-headers:
+Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
 
 | Header | Value |
 | --- | --- |
 | `Authorization` | `Bearer <session access token>` |
 | `apikey` | the project anon key |
 | `Content-Type` | `application/json` |
+
+`intent-summary` and `goal-progress` take a `{}` body; `budget-line` takes
+`{ "query": string }`.
 
 - `intent-summary` → `{ "fortnightlyAfterSavingCents": number }` (integer minor
   units; negative when the fortnightly plan is over budget).
@@ -146,6 +156,13 @@ headers:
   `goals` is ordered dated-first by target date, then undated by name; a goal's
   `savedCents` is its linked Up saver's synced balance where it links one, else
   the manually entered figure.
+- `budget-line` →
+  `{ "match": { "name": string, "amountCents": number, "frequency": string, "intervalCount": number | null, "fortnightlyCents": number, "annualCents": number } | null, "names": string[] }`.
+  `match` is the budget line whose name best fits `query` — an exact
+  case-insensitive match, else the shortest name overlapping it — or `null`;
+  `names` is every budget line name, sorted. `amountCents` is the planned amount
+  at its own `frequency`; `fortnightlyCents` / `annualCents` are the `@nest/plan`
+  normalisations.
 
 ## Apple Developer Program
 

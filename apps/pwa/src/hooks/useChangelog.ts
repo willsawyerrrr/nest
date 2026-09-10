@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { setChangelogUpdateAvailable } from './useChangelogUpdateAvailable'
 
@@ -34,54 +34,49 @@ interface ChangelogResponse {
   inProgress: InProgressEntry[]
 }
 
+const LOAD_ERROR_MESSAGE = "Could not load what's new. Try again later."
+
 /**
  * Loads the "What's new" changelog from the JWT-verified `changelog` edge
- * function, which proxies GitHub server-side. A failure is surfaced as `error`
- * rather than thrown, so the screen degrades gracefully; when the function has
- * no GitHub token it replies `configured: false` with empty lists.
+ * function, which proxies GitHub server-side. The read is repo-wide, not
+ * household-scoped, so it is a plain session query keyed on the build's commit
+ * SHA. A failure is surfaced as `error` rather than thrown, so the screen
+ * degrades gracefully; when the function has no GitHub token it replies
+ * `configured: false` with empty lists.
  */
 export function useChangelog(): UseChangelogResult {
-  const [available, setAvailable] = useState<ImplementedEntry[]>([])
-  const [implemented, setImplemented] = useState<ImplementedEntry[]>([])
-  const [inProgress, setInProgress] = useState<InProgressEntry[]>([])
-  const [configured, setConfigured] = useState(true)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // The build's commit SHA lets the function drop any merged-commit entry newer
+  // than the running build; an empty SHA (local/dev) fails open server-side.
+  const sha = import.meta.env.VITE_COMMIT_SHA
 
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    setError(null)
-    // Pass the build's commit SHA so the function drops any merged-commit entry
-    // newer than the running build; an empty SHA (local/dev) fails open server-side.
-    const sha = import.meta.env.VITE_COMMIT_SHA
-    const body = sha ? { sha } : {}
-    supabase.functions
-      .invoke<ChangelogResponse>('changelog', { body })
-      .then(({ data, error: invokeError }) => {
-        if (!active) {
-          return
-        }
-        if (invokeError || !data) {
-          setError("Could not load what's new. Try again later.")
-          return
-        }
-        const availableEntries = data.available ?? []
-        setConfigured(data.configured)
-        setAvailable(availableEntries)
-        setImplemented(data.implemented)
-        setInProgress(data.inProgress)
-        setChangelogUpdateAvailable(availableEntries.length > 0)
+  const query = useQuery({
+    queryKey: ['changelog', sha],
+    queryFn: async () => {
+      const body = sha ? { sha } : {}
+      const { data, error } = await supabase.functions.invoke<ChangelogResponse>('changelog', {
+        body,
       })
-      .finally(() => {
-        if (active) {
-          setLoading(false)
-        }
-      })
-    return () => {
-      active = false
-    }
-  }, [])
+      if (error || !data) {
+        throw new Error(LOAD_ERROR_MESSAGE)
+      }
+      const available = data.available ?? []
+      setChangelogUpdateAvailable(available.length > 0)
+      return {
+        configured: data.configured,
+        available,
+        implemented: data.implemented,
+        inProgress: data.inProgress,
+      }
+    },
+  })
 
-  return { available, implemented, inProgress, configured, loading, error }
+  const { data } = query
+  return {
+    available: data ? data.available : [],
+    implemented: data ? data.implemented : [],
+    inProgress: data ? data.inProgress : [],
+    configured: data ? data.configured : true,
+    loading: query.isPending,
+    error: query.isError ? LOAD_ERROR_MESSAGE : null,
+  }
 }

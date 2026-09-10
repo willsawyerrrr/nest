@@ -1,6 +1,7 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { supabase } from '../lib/supabase'
+import { makeWrapper } from '../test/queryWrapper'
 import { useChangelog } from './useChangelog'
 import {
   resetChangelogUpdateAvailable,
@@ -27,14 +28,14 @@ describe('useChangelog', () => {
 
   it('passes the build commit SHA when one is stamped in', async () => {
     vi.stubEnv('VITE_COMMIT_SHA', 'abc123')
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(invoke).toHaveBeenCalledWith('changelog', { body: { sha: 'abc123' } })
   })
 
   it('sends an empty body when no build SHA is stamped in', async () => {
     vi.stubEnv('VITE_COMMIT_SHA', '')
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(invoke).toHaveBeenCalledWith('changelog', { body: {} })
   })
@@ -49,7 +50,7 @@ describe('useChangelog', () => {
       },
       error: null,
     })
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.configured).toBe(true)
     expect(result.current.available).toHaveLength(1)
@@ -64,14 +65,14 @@ describe('useChangelog', () => {
       data: { configured: true, implemented: [], inProgress: [] },
       error: null,
     })
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.available).toEqual([])
   })
 
   it('reports no update available to shared subscribers when the list is empty', async () => {
     const { result: available } = renderHook(() => useChangelogUpdateAvailable())
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(available.current).toBe(false)
   })
@@ -87,31 +88,17 @@ describe('useChangelog', () => {
       error: null,
     })
     const { result: available } = renderHook(() => useChangelogUpdateAvailable())
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(available.current).toBe(true)
   })
 
   it('surfaces an error when the function fails', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('boom') })
-    const { result } = renderHook(() => useChangelog())
+    const { result } = renderHook(() => useChangelog(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.error).toMatch(/could not load/i)
-  })
-
-  it('ignores a late response after unmount', async () => {
-    let resolveInvoke!: (value: { data: unknown; error: unknown }) => void
-    invoke.mockReturnValue(
-      new Promise((resolve) => {
-        resolveInvoke = resolve
-      }) as never,
-    )
-    const { result, unmount } = renderHook(() => useChangelog())
-    unmount()
-    await act(async () => {
-      resolveInvoke({ data: { configured: true, implemented: [], inProgress: [] }, error: null })
-    })
-    // No state applied after unmount; the loading flag stays as it was.
-    expect(result.current.loading).toBe(true)
+    expect(result.current.available).toEqual([])
+    expect(result.current.implemented).toEqual([])
   })
 })

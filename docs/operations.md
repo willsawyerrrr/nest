@@ -140,11 +140,17 @@ off in its settings.
     therefore fails on the first attempt, so a real code error is diagnosed at
     once rather than buried under two more attempts. Every attempt's output stays
     on the log.
-  - The last step of the deploy re-reads the project's functions and fails the run
-    if any function in `supabase/functions/` is missing, not serving, or older
-    than its sources. A green deploy therefore means every function reached prod,
-    not merely that the CLI returned — the step can ship some functions and fail
-    on a later one.
+  - The last step of the deploy re-reads the project's functions with
+    `pnpm check:function-drift --prune`. `--prune` first deletes every function
+    the project still serves that the repo no longer defines, so a function whose
+    directory was removed in the push stops serving prod rather than lingering as
+    an orphan (a delete that fails warns and is retried next run; a broken
+    checkout cannot present every function as an orphan because the check exits
+    first when it finds no function directory at all). Then the assertion: the
+    run fails if any function in `supabase/functions/` is missing, not serving, or
+    older than its sources. A green deploy therefore means every function reached
+    prod and nothing else is serving, not merely that the CLI returned — the step
+    can ship some functions and fail on a later one.
 - **Function drift** is caught by `.github/workflows/check-function-drift.yml`,
   which fails when prod's deployed functions do not match
   `supabase/functions/`. Like the migration drift check it runs on two triggers:
@@ -166,12 +172,13 @@ off in its settings.
     whose deployed copy predates its sources each fail the run.** The failure
     names each function, dates both sides, and points at
     `gh workflow run "Deploy functions"`.
-  - **A function deployed to prod with no directory in `supabase/functions/`
-    warns.** It serves traffic nothing in the repo defines, which is worth
-    knowing, but its remedy deletes a live endpoint
-    (`supabase functions delete <slug>`) so nobody should be forced into it by a
-    red schedule; failing on it would train everyone to ignore the signal that
-    does have a safe fix.
+  - **A function deployed to prod with no directory in `supabase/functions/` is
+    deleted by the deploy workflow (`--prune`) and warned about by the six-hourly
+    schedule.** Removing a function's directory is what retires it, so the deploy
+    step that runs on that push clears the endpoint; the schedule only reports it,
+    since deleting a live endpoint from a red cron run nobody dispatched is the
+    wrong default. The schedule's warning normally means a push that should have
+    pruned the function failed.
   - A function is dated by its **bundle inputs** — `index.ts` plus every file
     reachable from it through a relative, non-type-only specifier, which pulls in
     the `_shared/` modules it uses — not by its whole directory. `functions

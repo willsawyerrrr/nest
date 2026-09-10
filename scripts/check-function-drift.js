@@ -9,19 +9,22 @@
 // thing that would ship the earlier one, by luck rather than design.
 //
 // The comparison comes from `supabase functions list`, which reports each
-// deployed function's status and the time it was last updated. The command only
-// reads. The repo side of it — which directories are functions and which files
-// end up in each one's bundle — lives in `lib/function-drift.js`, whose header
-// explains why the bundle's module graph dates a function rather than its whole
-// directory.
+// deployed function's status and the time it was last updated. Without `--prune`
+// the command only reads. The repo side of it — which directories are functions
+// and which files end up in each one's bundle — lives in `lib/function-drift.js`,
+// whose header explains why the bundle's module graph dates a function rather
+// than its whole directory.
 //
 // Usage:
-//   node scripts/check-function-drift.js [--project-ref=<ref>] [--grace-minutes=<n>]
+//   node scripts/check-function-drift.js [--project-ref=<ref>] [--grace-minutes=<n>] [--prune]
 //
 // `--project-ref` checks that project instead of the linked one. `--grace-minutes`
 // forgives a function whose sources changed within that window, whose deploy is
 // presumed still in flight; it defaults to 0, which is what a post-deploy
-// assertion wants — there, every function must already be deployed.
+// assertion wants — there, every function must already be deployed. `--prune`
+// deletes every deployed function the repo has no directory for before the
+// assertion runs — the deploy workflow passes it so a function removed from the
+// repo stops serving prod; a failed delete warns rather than fails.
 
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
@@ -30,6 +33,7 @@ import {
   classifyFunctions,
   FUNCTIONS_SUBDIR,
   listFunctionSlugs,
+  pruneOrphans,
   REPO_ROOT,
 } from './lib/function-drift.js'
 
@@ -53,6 +57,7 @@ function annotate(level, message) {
 function parseArgs(argv) {
   let projectRef = null
   let graceMinutes = 0
+  let prune = false
   for (const arg of argv) {
     // pnpm forwards the end-of-options marker verbatim, so `pnpm
     // check:function-drift -- --grace-minutes=30` arrives with it attached.
@@ -65,11 +70,13 @@ function parseArgs(argv) {
       if (!Number.isFinite(graceMinutes) || graceMinutes < 0) {
         die(`${arg}: expected a non-negative number of minutes.`)
       }
+    } else if (arg === '--prune') {
+      prune = true
     } else {
-      die(`${arg}: unknown flag. Usage: [--project-ref=<ref>] [--grace-minutes=<n>]`)
+      die(`${arg}: unknown flag. Usage: [--project-ref=<ref>] [--grace-minutes=<n>] [--prune]`)
     }
   }
-  return { projectRef, graceMinutes }
+  return { projectRef, graceMinutes, prune }
 }
 
 /** Slug -> `{ status, updatedAt }` for the functions the target project holds. */
@@ -158,12 +165,37 @@ function asList(rows) {
   return rows.map((row) => `  ${row.slug.padEnd(width)}  ${describeReason(row)}`).join('\n')
 }
 
-const { projectRef, graceMinutes } = parseArgs(process.argv.slice(2))
+const { projectRef, graceMinutes, prune } = parseArgs(process.argv.slice(2))
 const targetLabel = projectRef ? `project ${projectRef}` : 'the linked project'
+const deleteTarget = projectRef ? ['--project-ref', projectRef] : []
 
 const repo = readRepoFunctions()
-const deployed = readDeployedFunctions(projectRef)
-const { current, stale, inFlight, orphans } = classifyFunctions({ repo, deployed, graceMinutes })
+let deployed = readDeployedFunctions(projectRef)
+let { current, stale, inFlight, orphans } = classifyFunctions({ repo, deployed, graceMinutes })
+
+// `--prune` deletes every deployed function the repo has no directory for: the
+// code was removed and the endpoint should stop serving. `readRepoFunctions`
+// has already exited if the checkout holds no function at all, so a broken tree
+// cannot present every function as an orphan.
+if (prune && orphans.length > 0) {
+  const { deleted, failed } = pruneOrphans(orphans, (slug) => {
+    execFileSync(SUPABASE_BIN, ['functions', 'delete', slug, ...deleteTarget, '--yes'], {
+      cwd: REPO_ROOT,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    })
+  })
+  for (const slug of deleted) {
+    console.log(`Deleted ${slug} from ${targetLabel}: no directory in ${FUNCTIONS_SUBDIR}/.`)
+  }
+  for (const { slug, message } of failed) {
+    annotate(
+      'warning',
+      `Could not delete orphaned function ${slug} from ${targetLabel}: ${message}`,
+    )
+  }
+  deployed = readDeployedFunctions(projectRef)
+  ;({ current, stale, inFlight, orphans } = classifyFunctions({ repo, deployed, graceMinutes }))
+}
 
 // A function deployed with no directory behind it still serves traffic nobody in
 // the repo can account for, which is worth saying out loud — but its remedy

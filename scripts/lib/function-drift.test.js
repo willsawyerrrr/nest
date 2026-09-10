@@ -2,7 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { bundleInputs, classifyFunctions, listFunctionSlugs } from './function-drift.js'
+import {
+  bundleInputs,
+  classifyFunctions,
+  listFunctionSlugs,
+  pruneOrphans,
+} from './function-drift.js'
 
 const NOW = new Date('2026-07-29T12:00:00Z').getTime()
 
@@ -181,6 +186,35 @@ describe('classifyFunctions', () => {
     })
 
     expect(result.stale.map((row) => row.slug)).toEqual(['up-sync'])
+  })
+})
+
+describe('pruneOrphans', () => {
+  it('deletes every orphan in order and reports them', () => {
+    const seen = []
+    const result = pruneOrphans(['old-a', 'old-b'], (slug) => seen.push(slug))
+
+    expect(seen).toEqual(['old-a', 'old-b'])
+    expect(result).toEqual({ deleted: ['old-a', 'old-b'], failed: [] })
+  })
+
+  it('collects a delete that throws without stopping the rest', () => {
+    const result = pruneOrphans(['old-a', 'old-b', 'old-c'], (slug) => {
+      if (slug === 'old-b') throw new Error('network down')
+    })
+
+    expect(result.deleted).toEqual(['old-a', 'old-c'])
+    expect(result.failed).toEqual([{ slug: 'old-b', message: 'network down' }])
+  })
+
+  it('does nothing for an empty orphan list', () => {
+    let called = false
+    const result = pruneOrphans([], () => {
+      called = true
+    })
+
+    expect(called).toBe(false)
+    expect(result).toEqual({ deleted: [], failed: [] })
   })
 })
 

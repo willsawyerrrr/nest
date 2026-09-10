@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import type { Account } from './useAccounts'
 import type { DeductionReceiptRow } from './useDeductionReceipts'
@@ -50,30 +50,29 @@ const GENERIC_ERROR_MESSAGE = 'This share link is invalid or has expired.'
  * the whole of the credential, and the caller carries no session at all.
  */
 export function useEofyShareData(token: string): EofyShareOutcome {
-  const [outcome, setOutcome] = useState<EofyShareOutcome>({ status: 'loading' })
+  const query = useQuery({
+    queryKey: ['eofy-share', token],
+    queryFn: async () => {
+      const { data, error, response } = await supabase.functions.invoke<EofyShareData>(
+        'eofy-share',
+        { body: { token } },
+      )
+      if (error || !data) {
+        // A non-2xx carries the function's own specific message as JSON; a
+        // transport failure carries no response at all.
+        const body = response ? await response.json().catch(() => null) : null
+        const message = (body as { error?: unknown } | null)?.error
+        throw new Error(typeof message === 'string' && message ? message : GENERIC_ERROR_MESSAGE)
+      }
+      return data
+    },
+  })
 
-  const load = useCallback(async () => {
-    setOutcome({ status: 'loading' })
-    const { data, error, response } = await supabase.functions.invoke<EofyShareData>('eofy-share', {
-      body: { token },
-    })
-    if (error || !data) {
-      // A non-2xx carries the function's own specific message as JSON; a
-      // transport failure carries no response at all.
-      const body = response ? await response.json().catch(() => null) : null
-      const message = (body as { error?: unknown } | null)?.error
-      setOutcome({
-        status: 'error',
-        message: typeof message === 'string' && message ? message : GENERIC_ERROR_MESSAGE,
-      })
-      return
-    }
-    setOutcome({ status: 'ready', data })
-  }, [token])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  return outcome
+  if (query.isPending) {
+    return { status: 'loading' }
+  }
+  if (query.isError) {
+    return { status: 'error', message: query.error.message }
+  }
+  return { status: 'ready', data: query.data }
 }

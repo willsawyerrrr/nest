@@ -27,9 +27,9 @@ function account(
 }
 
 const accounts: Account[] = [
-  account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 }),
-  account({ id: 'a2', name: 'Partner Super', balance_cents: 7500000 }),
-  account({ id: 'a3', name: 'Holiday saver', balance_cents: 200000, source: 'up' }),
+  account({ id: 'a1', name: 'Will Super', balance_cents: 125_000_00 }),
+  account({ id: 'a2', name: 'Partner Super', balance_cents: 75_000_00 }),
+  account({ id: 'a3', name: 'Holiday saver', balance_cents: 2_000_00, source: 'up' }),
 ]
 
 describe('NetWorthView', () => {
@@ -63,11 +63,11 @@ describe('NetWorthView', () => {
   it('lists equity holdings as positive figures and adds them to the total', () => {
     render(
       <NetWorthView
-        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 5_000_00 })]}
         superIds={new Set()}
         equity={[
-          { label: 'Will — 2024 options', valueCents: 3000000 },
-          { label: 'Sam — 2023 shares', valueCents: 1000000 },
+          { label: 'Will — 2024 options', valueCents: 30_000_00 },
+          { label: 'Sam — 2023 shares', valueCents: 10_000_00 },
         ]}
         liabilities={[]}
         onToggleExclude={vi.fn()}
@@ -92,7 +92,7 @@ describe('NetWorthView', () => {
   it('omits the equity group when there are no holdings', () => {
     render(
       <NetWorthView
-        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 5_000_00 })]}
         superIds={new Set()}
         equity={[]}
         liabilities={[]}
@@ -105,12 +105,12 @@ describe('NetWorthView', () => {
   it('lists liabilities as negative figures and subtracts them from the total', () => {
     render(
       <NetWorthView
-        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 5_000_00 })]}
         superIds={new Set()}
         equity={[]}
         liabilities={[
-          { label: "Will's HELP debt", balanceCents: 3000000 },
-          { label: "Sam's HELP debt", balanceCents: 1000000 },
+          { label: "Will's HELP debt", balanceCents: 30_000_00 },
+          { label: "Sam's HELP debt", balanceCents: 10_000_00 },
         ]}
         onToggleExclude={vi.fn()}
       />,
@@ -132,13 +132,13 @@ describe('NetWorthView', () => {
     render(
       <NetWorthView
         accounts={[
-          account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 }),
+          account({ id: 'a1', name: 'Holiday saver', balance_cents: 5_000_00 }),
           // Up reports the balance owing as a negative number.
-          account({ id: 'a2', name: 'Home loan', balance_cents: -40000000, type: 'home_loan' }),
+          account({ id: 'a2', name: 'Home loan', balance_cents: -400_000_00, type: 'home_loan' }),
         ]}
         superIds={new Set()}
         equity={[]}
-        liabilities={[{ label: "Will's HELP debt", balanceCents: 1000000 }]}
+        liabilities={[{ label: "Will's HELP debt", balanceCents: 10_000_00 }]}
         onToggleExclude={vi.fn()}
       />,
     )
@@ -159,7 +159,7 @@ describe('NetWorthView', () => {
   it('omits the liabilities group when there are none', () => {
     render(
       <NetWorthView
-        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 500000 })]}
+        accounts={[account({ id: 'a1', name: 'Holiday saver', balance_cents: 5_000_00 })]}
         superIds={new Set()}
         equity={[]}
         liabilities={[]}
@@ -191,9 +191,14 @@ describe('NetWorthView', () => {
 
   it('lists excluded accounts in a separate group, off the total', () => {
     const withExcluded: Account[] = [
-      account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 }),
-      account({ id: 'a3', name: 'Holiday saver', balance_cents: 200000 }),
-      account({ id: 'a4', name: 'Rainy day', balance_cents: 500000, exclude_from_net_worth: true }),
+      account({ id: 'a1', name: 'Will Super', balance_cents: 125_000_00 }),
+      account({ id: 'a3', name: 'Holiday saver', balance_cents: 2_000_00 }),
+      account({
+        id: 'a4',
+        name: 'Rainy day',
+        balance_cents: 5_000_00,
+        exclude_from_net_worth: true,
+      }),
     ]
     render(
       <NetWorthView
@@ -222,8 +227,13 @@ describe('NetWorthView', () => {
   it('fires onToggleExclude in both directions', () => {
     const onToggleExclude = vi.fn()
     const withExcluded: Account[] = [
-      account({ id: 'a3', name: 'Holiday saver', balance_cents: 200000 }),
-      account({ id: 'a4', name: 'Rainy day', balance_cents: 500000, exclude_from_net_worth: true }),
+      account({ id: 'a3', name: 'Holiday saver', balance_cents: 2_000_00 }),
+      account({
+        id: 'a4',
+        name: 'Rainy day',
+        balance_cents: 5_000_00,
+        exclude_from_net_worth: true,
+      }),
     ]
     render(
       <NetWorthView
@@ -252,8 +262,8 @@ describe('NetWorthView', () => {
 
   it('shows the exclude controls only while editing, and never on super', () => {
     const withSuperAndOther: Account[] = [
-      account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 }),
-      account({ id: 'a3', name: 'Holiday saver', balance_cents: 200000 }),
+      account({ id: 'a1', name: 'Will Super', balance_cents: 125_000_00 }),
+      account({ id: 'a3', name: 'Holiday saver', balance_cents: 2_000_00 }),
     ]
     render(
       <NetWorthView
@@ -344,7 +354,7 @@ describe('NetWorthView', () => {
           {
             year: 0,
             superCents: 20_000_000,
-            otherCents: 200000,
+            otherCents: 2_000_00,
             equityCents: 0,
             helpCents: 30_000_00,
             debtCents: 1_000_00,
@@ -353,7 +363,7 @@ describe('NetWorthView', () => {
           {
             year: 1,
             superCents: 21_400_000,
-            otherCents: 200000,
+            otherCents: 2_000_00,
             equityCents: 5_000_00,
             helpCents: 20_000_00,
             debtCents: 1_000_00,
@@ -480,7 +490,7 @@ describe('NetWorthView', () => {
           account({
             id: 'a3',
             name: 'Holiday saver',
-            balance_cents: 200000,
+            balance_cents: 2_000_00,
             source: 'up',
             deleted_from_source_at: '2026-09-01T00:00:00Z',
           }),
@@ -513,7 +523,7 @@ describe('NetWorthView', () => {
           account({
             id: 'a3',
             name: 'Holiday saver',
-            balance_cents: 200000,
+            balance_cents: 2_000_00,
             source: 'up',
             deleted_from_source_at: '2026-09-01T00:00:00Z',
           }),
@@ -532,7 +542,7 @@ describe('NetWorthView', () => {
   it('offers no Edit affordance when only super accounts exist', () => {
     render(
       <NetWorthView
-        accounts={[account({ id: 'a1', name: 'Will Super', balance_cents: 12500000 })]}
+        accounts={[account({ id: 'a1', name: 'Will Super', balance_cents: 125_000_00 })]}
         superIds={new Set(['a1'])}
         equity={[]}
         liabilities={[]}

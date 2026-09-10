@@ -7,7 +7,7 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "typescript/no-explicit-any": "error",
     "react/refs": "off",
-    "react/set-state-in-effect": "off"
+    "react/set-state-in-effect": "error"
   },
   "overrides": [
     {

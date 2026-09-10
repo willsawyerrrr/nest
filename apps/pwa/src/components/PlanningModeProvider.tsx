@@ -3,7 +3,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -91,11 +90,15 @@ export function PlanningModeProvider({ children }: PropsWithChildren) {
   stateRef.current = state
 
   // A different household keeps its own sandbox; load it when the id changes.
-  useEffect(() => {
+  // Re-synced here in render, not an effect, so a household switch never paints
+  // the previous household's sandbox first.
+  const [loadedFor, setLoadedFor] = useState(householdId)
+  if (householdId !== loadedFor) {
     const next = readPlanningMode(householdId)
+    setLoadedFor(householdId)
     stateRef.current = next
     setState(next)
-  }, [householdId])
+  }
 
   const commit = useCallback(
     (next: PlanningState) => {

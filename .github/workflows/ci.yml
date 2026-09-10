@@ -60,7 +60,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: blob-${{ matrix.shard }}
-          path: .vitest-reports/
+          path: .vitest/blob/
           include-hidden-files: true
           if-no-files-found: error
 
@@ -85,7 +85,7 @@ jobs:
         with:
           pattern: blob-*
           merge-multiple: true
-          path: .vitest-reports/
+          path: .vitest/blob/
       # Merge the shards' blob reports and enforce the coverage thresholds from
       # vitest.config.ts against the combined result; this replays the recorded
       # runs rather than executing the suite again.

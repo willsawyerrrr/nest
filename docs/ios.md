@@ -2,8 +2,9 @@
 
 `apps/ios` is a thin native iOS app. The PWA (`https://nest.willsawyerrrr.dev`)
 is the entire product UI; the native app embeds it in a `WKWebView` and adds
-Siri / App Intents access to key figures (Linear WSD-95). Slice one exposes a
-single read-only query — the household's fortnightly buffer after saving.
+Siri / App Intents access to key figures (Linear WSD-95). Two read-only queries
+so far: the household's fortnightly buffer after saving, and its savings-goal
+progress.
 
 Nothing about how the PWA is built, deployed, or served changes because this
 app exists.
@@ -64,30 +65,39 @@ the top of the web view — "Ask Siri about Nest", one Connect button running
 `signIn()`, and connected / not-connected / error feedback. It never blocks the
 web view, which is fully usable without a native session.
 
-## The buffer query
+## The query intents
 
-- **`Intents/BufferQueryIntent.swift`** — an `AppIntent` with `ProvidesDialog`
-  and no `openAppWhenRun`. It reads the held session's access token
-  (auto-refreshing), calls the `intent-summary` edge function, and speaks one
-  sentence. Signed out or unrefreshable → "Open Nest and sign in to check your
-  buffer." Network or decode failure → "Couldn't reach Nest just now."
-- **`Intents/BufferService.swift`** — the HTTP call and the spoken-sentence
-  formatting as plain, injectable functions (the transport and the token
-  provider are parameters), so `perform()` is a thin shell over testable code.
-  Money is formatted cents → dollars with an `en_AU` currency `NumberFormatter`;
-  a negative buffer is spoken as being over budget.
+Each intent is an `AppIntent` with `ProvidesDialog` and no `openAppWhenRun`: it
+reads the held session's access token (auto-refreshing), calls one edge
+function, and speaks a sentence. Signed out or unrefreshable → "Open Nest and
+sign in…"; network or decode failure → "Couldn't reach Nest just now."
+
+- **`Intents/BufferQueryIntent.swift`** + **`Intents/BufferService.swift`** —
+  "what's my buffer": calls `intent-summary`, speaks the fortnightly
+  after-saving figure (spoken as over budget when negative).
+- **`Intents/GoalProgressIntent.swift`** + **`Intents/GoalService.swift`** —
+  "how are my savings goals": calls `goal-progress`, speaks the household total
+  saved against the total target and leads with the nearest-dated unmet goal (or
+  celebrates when every goal is met, or prompts to set one up when there are
+  none).
 - **`Intents/NestShortcuts.swift`** — an `AppShortcutsProvider` with one
-  `AppShortcut` (a `shortTitle`, the `australiandollarsign.circle` SF Symbol,
-  and phrases all containing `\(.applicationName)`), so the phrases reach Siri,
-  Spotlight, and the Shortcuts app on install with no further setup.
+  `AppShortcut` per intent (each a `shortTitle`, an SF Symbol, and phrases all
+  containing `\(.applicationName)`), so the phrases reach Siri, Spotlight, and
+  the Shortcuts app on install with no further setup.
 
-The Intent lives **in the app target — there is no `AppIntentsExtension`** — so
+In every service the HTTP call and the spoken-sentence formatting are plain
+injectable functions (the transport and the token provider are parameters), so
+each `perform()` is a thin shell over testable code. Money is formatted
+cents → dollars with an `en_AU` currency `NumberFormatter`.
+
+The intents live **in the app target — there is no `AppIntentsExtension`** — so
 `perform()` runs in the app's process and reads the Keychain session in
 process, with no access group and no App Group.
 
-### `intent-summary` request contract
+### Request contracts
 
-`POST {SUPABASE_URL}/functions/v1/intent-summary`
+Both are `POST {SUPABASE_URL}/functions/v1/<name>` with a `{}` body and these
+headers:
 
 | Header | Value |
 | --- | --- |
@@ -95,8 +105,13 @@ process, with no access group and no App Group.
 | `apikey` | the project anon key |
 | `Content-Type` | `application/json` |
 
-Request body: `{}`. Response body: `{ "fortnightlyAfterSavingCents": number }`
-(integer minor units; negative when the fortnightly plan is over budget).
+- `intent-summary` → `{ "fortnightlyAfterSavingCents": number }` (integer minor
+  units; negative when the fortnightly plan is over budget).
+- `goal-progress` →
+  `{ "goals": { "name": string, "savedCents": number, "targetCents": number }[], "totalSavedCents": number, "totalTargetCents": number }`.
+  `goals` is ordered dated-first by target date, then undated by name; a goal's
+  `savedCents` is its linked Up saver's synced balance where it links one, else
+  the manually entered figure.
 
 ## Apple Developer Program
 
@@ -121,8 +136,9 @@ the paid program comes into play — nothing else about this app does.
   committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
   `Supabase.swift`, `Auth.swift`, and `Intents/`.
-- `NestTests/` — Swift Testing unit tests for the Intent logic (phrasing, the
-  `intent-summary` request and its failure mapping).
+- `NestTests/` — Swift Testing unit tests for the Intent logic: each service's
+  phrasing, its request shape, and the signed-out / HTTP-failure sentence
+  mapping.
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and OAuth-flow
 instructions.

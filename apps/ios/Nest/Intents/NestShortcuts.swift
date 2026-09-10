@@ -1,6 +1,6 @@
 import AppIntents
 
-/// Registers the buffer query as a zero-configuration App Shortcut, so its
+/// Registers the query intents as zero-configuration App Shortcuts, so their
 /// phrases reach Siri, Spotlight, and the Shortcuts app on install.
 struct NestShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
@@ -14,6 +14,17 @@ struct NestShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Fortnightly buffer",
             systemImageName: "australiandollarsign.circle"
+        )
+        AppShortcut(
+            intent: GoalProgressIntent(),
+            phrases: [
+                "How are my \(.applicationName) savings goals",
+                "Check my \(.applicationName) savings goals",
+                "How much have I saved in \(.applicationName)",
+                "Ask \(.applicationName) about my savings goals",
+            ],
+            shortTitle: "Savings goals",
+            systemImageName: "target"
         )
     }
 }

@@ -11,11 +11,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Platform: the PWA (installed via Safari on iOS, or the browser on web) is the
   product and the whole app UI. Alongside it, a thin native iOS app (`apps/ios`)
   embeds the PWA in a `WKWebView` and adds Siri / App Intents access to key
-  figures (WSD-95), starting with the fortnightly buffer. It holds its own
-  Supabase session (Google OAuth via `supabase-swift`, Keychain-stored) so an
-  in-process App Shortcut can answer with the app closed. A free personal Apple
-  team covers build, install, Shortcuts, and Spotlight; only Siri voice
-  invocation is unverified on the free tier. See [`docs/ios.md`](docs/ios.md).
+  figures (WSD-95) — the fortnightly buffer and savings-goal progress so far. It
+  holds its own Supabase session (Google OAuth via `supabase-swift`,
+  Keychain-stored) so an in-process App Shortcut can answer with the app closed.
+  A free personal Apple team covers build, install, Shortcuts, and Spotlight;
+  only Siri voice invocation is unverified on the free tier. See
+  [`docs/ios.md`](docs/ios.md).
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
   Schema migrations under `supabase/migrations/` auto-deploy to prod on merge to

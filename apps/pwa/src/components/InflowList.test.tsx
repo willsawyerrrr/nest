@@ -27,7 +27,7 @@ const reimbursement = makeInflow({
   taxable: false,
   type: 'reimbursement',
   schedule: 'monthly',
-  amount_cents: 8000,
+  amount_cents: 80_00,
 })
 
 const everyNWeeks = makeInflow({
@@ -36,7 +36,7 @@ const everyNWeeks = makeInflow({
   type: 'other',
   schedule: 'every_n_weeks',
   interval_count: 4,
-  amount_cents: 20000,
+  amount_cents: 200_00,
 })
 
 const datedSalary = makeInflow({
@@ -197,7 +197,7 @@ describe('InflowList', () => {
         taxable: false,
         type: 'reimbursement',
         schedule: 'monthly',
-        amount_cents: 8000,
+        amount_cents: 80_00,
         starts_on: '2026-07-01',
         ends_on: '2027-06-30',
       }),

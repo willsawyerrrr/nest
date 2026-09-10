@@ -121,15 +121,25 @@ the paid program comes into play — nothing else about this app does.
   committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
   `Supabase.swift`, `Auth.swift`, and `Intents/`.
+- `NestTests/` — Swift Testing unit tests for the Intent logic (phrasing, the
+  `intent-summary` request and its failure mapping).
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and OAuth-flow
 instructions.
 
-## Not in CI
+## CI
 
-The 4-job `CI Status` check must stay under a minute and no Xcode runner feeds
-it. A separate, non-blocking, path-filtered macOS workflow running
-`xcodegen generate` + `xcodebuild build` (which also runs
-`appintentsmetadataprocessor`, validating the App Shortcut phrases) is tracked
-separately. Such an invocation must not override `SWIFT_EXEC` — it breaks App
-Intents metadata extraction on Xcode 16+.
+`.github/workflows/ios.yml` runs on a `macos-latest` runner, path-filtered to
+`apps/ios/**`: `xcodegen generate`, then `xcodebuild build` (which runs
+`appintentsmetadataprocessor`, so a malformed App Shortcut phrase — a missing
+`\(.applicationName)`, a duplicate identifier, an unresolvable parameter type —
+fails the build), then `xcodebuild test`. It does **not** override `SWIFT_EXEC`
+(that drops `--compile-time-extraction` and breaks App Intents metadata
+extraction on Xcode 16+) and passes `-skipMacroValidation` /
+`-skipPackagePluginValidation` so a fresh runner does not stall on a macro or
+plugin approval prompt.
+
+It is **informational only** — a separate workflow, not one of the four jobs
+`CI Status` aggregates and not a required check, because a macOS runner is far
+too slow for the sub-minute `CI Status` budget. A red iOS run does not block a
+merge; it is a signal to look.

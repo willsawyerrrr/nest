@@ -27,6 +27,10 @@ full design.
   - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
     and spoken-sentence formatting.
   - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider`.
+- `NestTests/` — Swift Testing unit tests over the pieces `perform()` delegates
+  to: `BufferPhrasing` (cents → spoken sentence), `BufferService` (the
+  `intent-summary` request shape and status handling), and
+  `bufferQuerySpokenResponse` (the signed-out and failure-to-sentence mapping).
 
 ## Building
 
@@ -45,10 +49,15 @@ which validates the App Shortcut phrases:
 ```sh
 xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
   -destination 'generic/platform=iOS Simulator' \
-  -skipPackagePluginValidation build
+  -skipPackagePluginValidation -skipMacroValidation build
 ```
 
 Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
+
+`xcodebuild test` (with a concrete simulator `-destination`) runs the
+`NestTests` suite. `.github/workflows/ios.yml` does the generate + build + test
+on every push that touches `apps/ios/**`; it is informational, not a required
+check.
 
 A free personal Apple team is enough to build, run on the Simulator or a
 device, and use the App Shortcut. There is no App Store Connect setup.

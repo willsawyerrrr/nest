@@ -38,6 +38,11 @@ export function HouseholdScreen({
   const codeActive =
     inviteCode !== null &&
     inviteCodeExpiresAt !== null &&
+    // Reading the clock in render is flagged as impure, and it is — a code that
+    // expires while this screen sits open keeps showing until the next render.
+    // That is harmless here: the code is single-use and the server rejects a
+    // stale one, and any parent state change re-renders this before it matters.
+    // oxlint-disable-next-line react/purity
     new Date(inviteCodeExpiresAt).getTime() > Date.now()
 
   return (

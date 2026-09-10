@@ -9,6 +9,7 @@ import { PlanningModeProvider, usePlanningMode } from './components/PlanningMode
 import { SignInScreen } from './components/SignInScreen'
 import { navSections, TabBar } from './components/TabBar'
 import { useHousehold, type Household } from './hooks/useHousehold'
+import { isNativeShell } from './lib/nativeShell'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -135,6 +136,13 @@ function AuthGate() {
   }
 
   if (!session) {
+    // In the native iOS shell the native app owns sign-in and injects the
+    // session asynchronously; wait on it rather than ever showing the web
+    // sign-in screen. A browser falls straight through to it, unchanged.
+    if (isNativeShell()) {
+      return <LoadingScreen />
+    }
+
     return (
       <SignInScreen
         onSignIn={() => {

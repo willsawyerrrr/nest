@@ -15,16 +15,47 @@ A single-screen SwiftUI app:
 
 - `WebView.swift` — a `UIViewRepresentable` around `WKWebView` loading the
   production PWA URL directly (no local build, no bundled assets), on the
-  default persistent `WKWebsiteDataStore` so the web view's own signed-in
-  session survives relaunch.
-- `ContentView.swift` — the web view plus a loading indicator and a Retry-able
-  "couldn't load" state, and the Connect Siri surface (below).
+  default persistent `WKWebsiteDataStore`. It also mirrors the native session
+  into the page (below).
+- `ContentView.swift` — a blocking sign-in gate: `SignInView` while signed out,
+  the web view (plus a loading indicator and a Retry-able "couldn't load"
+  state) once signed in.
 
-## Native Supabase session
+## One login: native owns the session, the web view mirrors it
 
-The App Shortcut needs a Supabase access token to call the backend, and the web
-view's session lives in `WKWebView` storage the native code cannot read. So the
-native app holds its own session, signed in independently of the web view.
+The App Shortcut needs a Supabase access token to call the backend with the app
+closed, and the web view's own session lives in `WKWebView` storage the native
+code cannot read. So the **native app is the single session owner** — one Google
+OAuth, at launch — and the web view runs on the session the native layer injects
+into it. A member signs in once.
+
+The native side must own token refresh (a Siri intent refreshes with the web
+view unloaded), so the web view must not refresh independently — two clients
+rotating one refresh token evict each other.
+
+- **`SessionBridge.swift`** builds the injected JavaScript: the
+  `window.__NEST_NATIVE_SHELL__ = true` marker, and calls to
+  `window.__nestApplySession(accessToken, refreshToken)` /
+  `window.__nestClearSession()`.
+- **`WebView.swift`** adds a `.atDocumentStart` `WKUserScript` for the marker,
+  pushes the current session (refreshed if expired) on every `didFinish`, and
+  keeps a task iterating `supabaseAuth.authStateChanges` to re-push on every
+  token refresh and sign-out. A `nestAuth` `WKScriptMessageHandler` takes the
+  page's sign-out request and calls `supabaseAuth.signOut()`.
+- **PWA side** (gated entirely on `window.__NEST_NATIVE_SHELL__`, set only by the
+  user script — a browser or Safari-PWA member is byte-identical to today):
+  `lib/supabase.ts` creates the client with `persistSession: false,
+  autoRefreshToken: false` in the shell; `lib/nativeShell.ts` is the flag check;
+  `lib/nativeAuthBridge.ts` installs `window.__nestApplySession` /
+  `window.__nestClearSession` and routes the in-app sign-out through the
+  `nestAuth` handler; `AuthGate` shows the loading screen (never the web
+  sign-in screen) in the shell until the injected session lands.
+
+The native session is still Keychain-stored and still read in process by the
+Intents — that part is unchanged; what changed is that it is now also the web
+view's session.
+
+### Native Supabase session
 
 - **`supabase-swift` (Auth product only)** via SPM. The edge-function call is
   plain `URLSession` + bearer token, so the `Functions` product is not pulled
@@ -34,8 +65,10 @@ native app holds its own session, signed in independently of the web view.
   constants — both are public client credentials, shipped the same way the PWA
   ships them.
 - **`Auth.swift`** — an `@Observable` `AuthModel` wrapping the client: a coarse
-  `unknown / signedOut / signedIn` state, `signIn()`, and restore-on-launch
-  that reads `supabaseAuth.session` (refreshing an expired token).
+  `unknown / signedOut / signedIn` state, `signIn()`, and `start()`, which
+  iterates `supabaseAuth.authStateChanges` for the life of the app so the gate
+  reflects the launch restore, every token refresh, and the sign-out the web
+  view asks for.
 - **Google OAuth** runs through
   `supabaseAuth.signInWithOAuth(provider: .google, redirectTo:)`, which opens an
   `ASWebAuthenticationSession`, performs the PKCE exchange, and persists the
@@ -44,7 +77,7 @@ native app holds its own session, signed in independently of the web view.
 - **Custom URL scheme** `dev.willsawyerrrr.nest.ios`, declared as
   `CFBundleURLTypes` in `project.yml`. The OAuth redirect target is
   `dev.willsawyerrrr.nest.ios://auth-callback`; `NestApp.swift` also forwards
-  `onOpenURL` to `supabaseAuth.session(from:)`.
+  `onOpenURL` to `supabaseAuth.session(from:)` for that redirect.
 - **Session storage** is `supabase-swift`'s default `KeychainLocalStorage` — no
   Keychain access group, no App Group. The Intent runs in the app's own process
   (see below), so it reads the stored session directly. The session is
@@ -58,12 +91,13 @@ Supabase project's **Auth → URL Configuration → Redirect URLs**. The PWA's
 existing entry stays. This is the only backend configuration the native session
 needs.
 
-### Connect Siri surface
+### Sign-in gate
 
-When there is no native session, `ContentView` shows a dismissible banner over
-the top of the web view — "Ask Siri about Nest", one Connect button running
-`signIn()`, and connected / not-connected / error feedback. It never blocks the
-web view, which is fully usable without a native session.
+Signed out, `ContentView` shows `SignInView` — a Nest lockup and one "Continue
+with Google" button running `signIn()`, with the last error beneath it. Signed
+in, it shows the web view. Sign-out from the web app (Household settings) posts
+to the `nestAuth` handler, which clears the native session; the gate then swaps
+back to `SignInView`.
 
 ## The query intents
 
@@ -141,10 +175,10 @@ the web shell, and `xcodebuild test`.
   SPM dependency. The generated `Nest.xcodeproj` and `Nest/Info.plist` are not
   committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
-  `Supabase.swift`, `Auth.swift`, and `Intents/`.
-- `NestTests/` — Swift Testing unit tests for the Intent logic: each service's
+  `SessionBridge.swift`, `Supabase.swift`, `Auth.swift`, and `Intents/`.
+- `NestTests/` — Swift Testing unit tests for the Intent logic (each service's
   phrasing, its request shape, and the signed-out / HTTP-failure sentence
-  mapping.
+  mapping) and for `SessionBridge`'s injected JavaScript and string escaping.
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and OAuth-flow
 instructions.

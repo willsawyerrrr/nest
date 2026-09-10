@@ -252,6 +252,23 @@ describe('App', () => {
     localStorage.clear()
   })
 
+  it('waits on the injected session in the native shell instead of showing sign-in', async () => {
+    window.__NEST_NATIVE_SHELL__ = true
+    try {
+      renderApp()
+      await waitFor(() => expect(document.querySelector('.mantine-Loader-root')).not.toBeNull())
+      expect(
+        screen.queryByRole('button', { name: /continue with google/i }),
+      ).not.toBeInTheDocument()
+
+      mocks.getSession.mockResolvedValue({ data: { session } })
+      act(() => mocks.authCallback.current?.('SIGNED_IN', session))
+      expect(await screen.findByText('SummarySection')).toBeInTheDocument()
+    } finally {
+      delete window.__NEST_NATIVE_SHELL__
+    }
+  })
+
   it('renders the public share route without ever checking the session', async () => {
     mocks.getSession.mockReturnValue(new Promise(() => {})) // never resolves
     renderApp(['/share/eofy/a-token'])

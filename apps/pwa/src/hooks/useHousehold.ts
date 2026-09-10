@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
 
@@ -15,18 +15,39 @@ export interface UseHouseholdResult {
   revokeInviteCode: () => Promise<void>
 }
 
-/** Loads the households the signed-in user belongs to. RLS scopes the result. */
+/**
+ * Loads the households the signed-in user belongs to. RLS scopes the result.
+ * This hook renders above `HouseholdProvider` — it is where the household id
+ * comes from — so it cannot key on the household. It keys instead on the authed
+ * user id, resolved through the same `['auth', 'user']` query `useCurrentMember`
+ * shares, so a sign-in as a different user reads a fresh list.
+ */
 export function useHousehold(): UseHouseholdResult {
-  const [households, setHouseholds] = useState<Household[] | null>(null)
   const queryClient = useQueryClient()
 
+  const { data: userId, isPending: userLoading } = useQuery({
+    queryKey: ['auth', 'user'],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser()
+      return data.user?.id ?? null
+    },
+  })
+
+  const query = useQuery({
+    queryKey: ['households', userId ?? null],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('households').select('*')
+      if (error) {
+        throw error
+      }
+      return data
+    },
+    enabled: !userLoading,
+  })
+
   const reload = useCallback(async () => {
-    const { data, error } = await supabase.from('households').select('*')
-    if (error) {
-      throw error
-    }
-    setHouseholds(data)
-  }, [])
+    await queryClient.invalidateQueries({ queryKey: ['households'] })
+  }, [queryClient])
 
   // Seeding or adding a member drives the `budget_line` reconcile trigger — it
   // rewrites the household's derived "Gifts for <member>" lines and their
@@ -85,13 +106,9 @@ export function useHousehold(): UseHouseholdResult {
     await reload()
   }, [reload])
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
   return {
-    households,
-    loading: households === null,
+    households: query.data ?? null,
+    loading: userLoading || query.isPending,
     reload,
     createHousehold,
     joinHousehold,

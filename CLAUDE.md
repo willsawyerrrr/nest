@@ -11,9 +11,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Platform: the PWA (installed via Safari on iOS, or the browser on web) is the
   product and the whole app UI. Alongside it, a thin native iOS app (`apps/ios`)
   embeds the PWA in a `WKWebView` and adds Siri / App Intents access to key
-  figures (WSD-95) — the fortnightly buffer and savings-goal progress so far. It
-  holds its own Supabase session (Google OAuth via `supabase-swift`,
-  Keychain-stored) so an in-process App Shortcut can answer with the app closed.
+  figures (WSD-95) — the fortnightly buffer and savings-goal progress so far.
+  The native app is the single session owner: one Google OAuth at launch
+  (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can answer
+  with the app closed, and it mirrors that session into the `WKWebView` (a
+  `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on every
+  `authStateChanges`, sign-out via a `nestAuth` message handler) so the member
+  signs in once. Every shell branch in the PWA is gated on the marker, so a
+  browser or Safari-PWA user is byte-identical.
   A free personal Apple team covers build, install, Shortcuts, and Spotlight;
   only Siri voice invocation is unverified on the free tier. See
   [`docs/ios.md`](docs/ios.md).

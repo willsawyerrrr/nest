@@ -5,7 +5,7 @@ import { render, screen } from '../test/render'
 import { HouseholdSection } from './HouseholdSection'
 
 const hooks = vi.hoisted(() => ({ signOut: vi.fn() }))
-vi.mock('../lib/supabase', () => ({ supabase: { auth: { signOut: hooks.signOut } } }))
+vi.mock('../lib/nativeAuthBridge', () => ({ signOut: hooks.signOut }))
 
 const household = {
   id: 'h1',
@@ -42,7 +42,7 @@ describe('HouseholdSection', () => {
     expect(screen.getByText(/Signed in as/)).toBeInTheDocument()
   })
 
-  it('signs out through supabase', () => {
+  it('signs out through the auth bridge', () => {
     renderSection()
 
     screen.getByRole('button', { name: /sign out/i }).click()

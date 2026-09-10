@@ -2,9 +2,10 @@
 
 A thin native iOS app that embeds the production PWA
 (`https://nest.willsawyerrrr.dev`) in a `WKWebView` and adds Siri / App Intents
-access to key figures (Linear WSD-95). The first Intent speaks the household's
-fortnightly buffer after saving. See [`docs/ios.md`](../../docs/ios.md) for the
-full design.
+access to key figures (Linear WSD-95). One native Google sign-in covers both the
+shell and the embedded web app: the native app owns the Supabase session and
+mirrors it into the web view. See [`docs/ios.md`](../../docs/ios.md) for the full
+design.
 
 ## Structure
 
@@ -13,16 +14,19 @@ full design.
   `supabase-swift` SPM dependency (Auth product only). The generated
   `Nest.xcodeproj` and `Nest/Info.plist` are not committed.
 - `Nest/`
-  - `NestApp.swift` — SwiftUI entry point; injects `AuthModel`, forwards
-    `onOpenURL` to the Supabase client.
-  - `ContentView.swift` — the web view plus loading and error overlays and the
-    dismissible Connect Siri banner.
+  - `NestApp.swift` — SwiftUI entry point; injects `AuthModel`, starts its
+    session observation, forwards `onOpenURL` to the Supabase client.
+  - `ContentView.swift` — the sign-in gate: `SignInView` while signed out, the
+    web view (plus loading and error overlays) once signed in.
   - `WebView.swift` — `UIViewRepresentable` around `WKWebView` on the default
-    persistent data store.
+    persistent data store; mirrors the native session into the page and takes
+    its sign-out request back.
+  - `SessionBridge.swift` — builds the JavaScript the shell injects: the
+    `window.__NEST_NATIVE_SHELL__` marker and the apply/clear-session calls.
   - `Supabase.swift` — project URL + anon key constants and the shared
     `AuthClient` (default `KeychainLocalStorage`).
-  - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth,
-    restore-on-launch.
+  - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth, and
+    the `authStateChanges` observation behind the gate.
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
   - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
     and spoken-sentence formatting.
@@ -33,7 +37,9 @@ full design.
     per intent).
 - `NestTests/` — Swift Testing unit tests over the pieces each `perform()`
   delegates to: the phrasing (cents → spoken sentence), the service request
-  shape and status handling, and the signed-out / failure-to-sentence mapping.
+  shape and status handling, and the signed-out / failure-to-sentence mapping —
+  plus `SessionBridge` (the injected sign-in JavaScript and its string
+  escaping).
 
 ## Building
 
@@ -69,11 +75,12 @@ device, and use the App Shortcut. There is no App Store Connect setup.
 
 1. Add `dev.willsawyerrrr.nest.ios://auth-callback` to the Supabase project's
    **Auth → URL Configuration → Redirect URLs**.
-2. Run the app. Tap **Connect** on the Connect Siri banner.
+2. Run the app. On the sign-in screen, tap **Continue with Google**.
 3. `ASWebAuthenticationSession` opens Google sign-in; complete it. The redirect
    to `dev.willsawyerrrr.nest.ios://auth-callback` returns to the app and the
-   session persists to the Keychain — it survives relaunch and is read in
-   process by `BufferQueryIntent`.
+   session persists to the Keychain — it survives relaunch, is read in process
+   by the Intents, and is mirrored into the web view, which loads already
+   signed in.
 4. Test the intents from the Shortcuts app (search "Check Fortnightly Buffer" /
    "Check Savings Goals") or Spotlight — **on a real device**. The Simulator
    fails to invoke an App Shortcut ("Unable to run App Shortcut") whatever the

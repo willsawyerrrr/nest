@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// Full-screen shell hosting the embedded PWA, with a loading indicator while
-/// the page loads and a Retry-able error state if it fails.
+/// The app shell. The native app owns the one Supabase session, so this is a
+/// blocking sign-in gate: `SignInView` when signed out, the embedded PWA once
+/// signed in. The web view is handed the same session (see `WebView.swift`), so
+/// the member signs in exactly once.
 struct ContentView: View {
     private static let pwaURL = URL(string: "https://nest.willsawyerrrr.dev")!
 
@@ -10,32 +12,38 @@ struct ContentView: View {
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var reloadToken = UUID()
-    @State private var siriBannerDismissed = false
 
     var body: some View {
         ZStack {
-            WebView(url: Self.pwaURL, isLoading: $isLoading, loadError: $loadError)
-                .id(reloadToken)
-                .ignoresSafeArea()
-
-            if isLoading && loadError == nil {
+            switch auth.state {
+            case .unknown:
                 ProgressView()
                     .progressViewStyle(.circular)
                     .scaleEffect(1.5)
-            }
-
-            if let loadError {
-                LoadErrorView(message: loadError, onRetry: retry)
-            }
-        }
-        .overlay(alignment: .top) {
-            if auth.state == .signedOut && !siriBannerDismissed {
-                ConnectSiriBanner(onDismiss: { siriBannerDismissed = true })
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            case .signedOut:
+                SignInView()
+            case .signedIn:
+                webView
             }
         }
         .animation(.default, value: auth.state)
-        .animation(.default, value: siriBannerDismissed)
+    }
+
+    @ViewBuilder
+    private var webView: some View {
+        WebView(url: Self.pwaURL, isLoading: $isLoading, loadError: $loadError)
+            .id(reloadToken)
+            .ignoresSafeArea()
+
+        if isLoading && loadError == nil {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .scaleEffect(1.5)
+        }
+
+        if let loadError {
+            LoadErrorView(message: loadError, onRetry: retry)
+        }
     }
 
     /// Clears the error, shows the loading indicator again, and forces
@@ -47,58 +55,53 @@ struct ContentView: View {
     }
 }
 
-/// Dismissible prompt, shown only without a native session, that runs Google
-/// OAuth so the App Shortcut can read the household's buffer by voice. The web
-/// view stays fully usable behind it.
-private struct ConnectSiriBanner: View {
-    let onDismiss: () -> Void
-
+/// Full-screen Google sign-in. This is the app's only login: the native session
+/// it establishes is mirrored into the embedded web app, so there is no second
+/// sign-in inside the web view.
+private struct SignInView: View {
     @Environment(AuthModel.self) private var auth
     @State private var isSigningIn = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "mic.circle.fill")
-                .font(.title2)
+        VStack(spacing: 16) {
+            Image(systemName: "bird.fill")
+                .font(.system(size: 52))
                 .foregroundStyle(.tint)
+            Text("Nest")
+                .font(.largeTitle.weight(.bold))
+            Text("Track income, tax, spending, and savings for your household.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Ask Siri about Nest")
-                    .font(.subheadline.weight(.semibold))
-                Text(auth.lastError ?? "Connect your account to check your fortnightly buffer by voice.")
+            if let error = auth.lastError {
+                Text(error)
                     .font(.caption)
-                    .foregroundStyle(auth.lastError == nil ? Color.secondary : Color.red)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
             }
 
-            Spacer(minLength: 8)
-
-            if isSigningIn {
-                ProgressView()
-            } else {
-                Button(auth.lastError == nil ? "Connect" : "Retry") {
-                    Task {
-                        isSigningIn = true
-                        await auth.signIn()
-                        isSigningIn = false
-                    }
+            Button {
+                Task {
+                    isSigningIn = true
+                    await auth.signIn()
+                    isSigningIn = false
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+            } label: {
+                if isSigningIn {
+                    ProgressView()
+                } else {
+                    Text("Continue with Google")
+                }
             }
-
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .padding(4)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss")
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(isSigningIn)
         }
-        .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .shadow(radius: 8, y: 2)
-        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.background)
     }
 }
 

@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { HouseholdScreen } from '../components/HouseholdScreen'
 import type { Household } from '../hooks/useHousehold'
-import { supabase } from '../lib/supabase'
+import { signOut } from '../lib/nativeAuthBridge'
 
 export function HouseholdSection({
   household,
@@ -18,7 +18,7 @@ export function HouseholdSection({
     <HouseholdScreen
       householdName={household.name}
       email={session.user.email ?? ''}
-      onSignOut={() => void supabase.auth.signOut()}
+      onSignOut={signOut}
       inviteCode={household.invite_code}
       inviteCodeExpiresAt={household.invite_code_expires_at}
       onCreateInviteCode={onCreateInviteCode}

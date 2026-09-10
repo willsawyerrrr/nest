@@ -8,12 +8,9 @@ struct NestApp: App {
         WindowGroup {
             ContentView()
                 .environment(auth)
-                .task { await auth.restore() }
+                .task { auth.start() }
                 .onOpenURL { url in
-                    Task {
-                        _ = try? await supabaseAuth.session(from: url)
-                        await auth.restore()
-                    }
+                    Task { _ = try? await supabaseAuth.session(from: url) }
                 }
         }
     }

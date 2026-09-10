@@ -117,7 +117,7 @@ describe('DeductionForm', () => {
     expect(submission.input).toMatchObject({
       member_id: 'm1',
       description: 'Tools',
-      amount_cents: 35000,
+      amount_cents: 350_00,
     })
     expect(submission.input.deduction_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(submission.receipts).toEqual([])

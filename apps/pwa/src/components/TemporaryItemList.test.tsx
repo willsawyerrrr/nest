@@ -9,7 +9,7 @@ const items = [
   makeTemporaryItem({
     id: 't2',
     name: 'Old laptop fund',
-    contribution_cents: 5000,
+    contribution_cents: 50_00,
     target_date: '2020-01-01',
   }),
 ]
@@ -143,7 +143,7 @@ describe('TemporaryItemList', () => {
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'New couch', contribution_cents: 7500 }),
+        expect.objectContaining({ name: 'New couch', contribution_cents: 75_00 }),
       ),
     )
   })

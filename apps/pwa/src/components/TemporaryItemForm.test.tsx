@@ -18,7 +18,7 @@ describe('TemporaryItemForm', () => {
       expect(onSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'New couch',
-          contribution_cents: 7500,
+          contribution_cents: 75_00,
           target_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         }),
       ),

@@ -9,7 +9,7 @@
     "jsr:@std/encoding@1.0.11": "1.0.11",
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@supabase/supabase-js@2.110.7": "2.110.7",
-    "npm:@anthropic-ai/sdk@0.115.0": "0.115.0",
+    "npm:@anthropic-ai/sdk@0.124.0": "0.124.0",
     "npm:@supabase/auth-js@2.110.7": "2.110.7",
     "npm:@supabase/functions-js@2.110.7": "2.110.7",
     "npm:@supabase/postgrest-js@2.110.7": "2.110.7",
@@ -59,8 +59,8 @@
     }
   },
   "npm": {
-    "@anthropic-ai/sdk@0.115.0": {
-      "integrity": "sha512-BJrFIVyjNuU8lfDyIJTvlRYzgQg+zEl78BxE7fq8esULsGz9IRQvGtW5spq3tydmtjQb/GFdooKGdGsetpx+lQ==",
+    "@anthropic-ai/sdk@0.124.0": {
+      "integrity": "sha512-cN5O8i9UVxHeOQAzj/XjshWXG8KiibJDw9OGpH2Z/eR3n/RBxdoLxDJOcfqAJWvjaMDFfHTBADU04hWRJVkDyA==",
       "dependencies": [
         "json-schema-to-ts",
         "standardwebhooks"
@@ -121,8 +121,8 @@
         "ts-algebra"
       ]
     },
-    "standardwebhooks@1.0.0": {
-      "integrity": "sha512-BbHGOQK9olHPMvQNHWul6MYlrRTAOKn03rOe4A8O3CLWhNf4YHBqq2HJKKC+sfqpxiBY52pNeesD6jIiLDz8jg==",
+    "standardwebhooks@1.1.1": {
+      "integrity": "sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==",
       "dependencies": [
         "@stablelib/base64",
         "fast-sha256"
@@ -141,7 +141,7 @@
       "jsr:@std/assert@1.0.19",
       "jsr:@std/encoding@1.0.11",
       "jsr:@supabase/supabase-js@2.110.7",
-      "npm:@anthropic-ai/sdk@0.115.0"
+      "npm:@anthropic-ai/sdk@0.124.0"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeWrapper } from '../test/queryWrapper'
 import { useEofyShareData, type EofyShareData } from './useEofyShareData'
 
 const invoke = vi.hoisted(() => vi.fn())
@@ -28,7 +29,7 @@ beforeEach(() => {
 describe('useEofyShareData', () => {
   it('starts loading and then reports the ready data', async () => {
     invoke.mockResolvedValue({ data: shareData, error: null, response: undefined })
-    const { result } = renderHook(() => useEofyShareData('a-token'))
+    const { result } = renderHook(() => useEofyShareData('a-token'), { wrapper: makeWrapper() })
 
     expect(result.current).toEqual({ status: 'loading' })
     await waitFor(() => expect(result.current.status).toBe('ready'))
@@ -46,7 +47,7 @@ describe('useEofyShareData', () => {
         { status: 401 },
       ),
     })
-    const { result } = renderHook(() => useEofyShareData('bad-token'))
+    const { result } = renderHook(() => useEofyShareData('bad-token'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.status).toBe('error'))
 
     expect(result.current).toEqual({
@@ -57,7 +58,7 @@ describe('useEofyShareData', () => {
 
   it('falls back to a generic message on a transport failure with no response', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('network error'), response: undefined })
-    const { result } = renderHook(() => useEofyShareData('a-token'))
+    const { result } = renderHook(() => useEofyShareData('a-token'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.status).toBe('error'))
 
     expect(result.current).toEqual({
@@ -72,7 +73,7 @@ describe('useEofyShareData', () => {
       error: new Error('status 500'),
       response: new Response('not json', { status: 500 }),
     })
-    const { result } = renderHook(() => useEofyShareData('a-token'))
+    const { result } = renderHook(() => useEofyShareData('a-token'), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.status).toBe('error'))
 
     expect(result.current).toEqual({
@@ -84,6 +85,7 @@ describe('useEofyShareData', () => {
   it('reloads when the token changes', async () => {
     invoke.mockResolvedValue({ data: shareData, error: null, response: undefined })
     const { result, rerender } = renderHook(({ token }) => useEofyShareData(token), {
+      wrapper: makeWrapper(),
       initialProps: { token: 'token-a' },
     })
     await waitFor(() => expect(result.current.status).toBe('ready'))

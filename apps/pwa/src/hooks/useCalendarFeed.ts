@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
+import { useHouseholdQuery } from './useCollection'
 
 /**
  * The columns `authenticated` may read (see the migration's column-level
@@ -26,12 +28,14 @@ export interface UseCalendarFeedResult {
  * than `useHouseholdCollection`: `calendar_feed` is keyed on `household_id`
  * itself (at most one row per household), not an `id` column, and every write
  * goes through `create_calendar_feed_token` / `revoke_calendar_feed_token`
- * rather than a plain insert/update/delete.
+ * rather than a plain insert/update/delete. The read is cached household-scoped;
+ * each write invalidates the `['calendar_feed', householdId]` prefix so the
+ * status refetches.
  */
 export function useCalendarFeed(): UseCalendarFeedResult {
-  const [status, setStatus] = useState<CalendarFeedRow | null | undefined>(undefined)
+  const householdId = useHouseholdId()
 
-  const reload = useCallback(async () => {
+  const { data, loading, reload } = useHouseholdQuery(['calendar_feed', householdId], async () => {
     const { data, error } = await supabase
       .from('calendar_feed')
       .select('household_id, created_at')
@@ -39,8 +43,8 @@ export function useCalendarFeed(): UseCalendarFeedResult {
     if (error) {
       throw error
     }
-    setStatus(data)
-  }, [])
+    return data
+  })
 
   const create = useCallback(async () => {
     const { data, error } = await supabase.rpc('create_calendar_feed_token')
@@ -59,9 +63,5 @@ export function useCalendarFeed(): UseCalendarFeedResult {
     await reload()
   }, [reload])
 
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { status: status ?? null, loading: status === undefined, reload, create, revoke }
+  return { status: data ?? null, loading, reload, create, revoke }
 }

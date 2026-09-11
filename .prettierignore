@@ -3,5 +3,6 @@ node_modules
 pnpm-lock.yaml
 supabase/.temp
 supabase/functions
+apps/ios/**/*.xcassets
 *.md
 .corepack/

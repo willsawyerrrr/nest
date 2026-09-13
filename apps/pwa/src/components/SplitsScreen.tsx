@@ -34,7 +34,7 @@ import { ListRow } from './ListRow'
 import { PageSection } from './PageSection'
 import { BreakdownPanel, BreakdownToggle, useSplitBreakdown } from './SplitBreakdown'
 
-/** Pay splits are typed into Up in round figures; cents-exact amounts add no value. */
+/** Pay splits are typed into a bank's app in round figures; cents-exact amounts add no value. */
 const ROUND_STEP_CENTS = 5_00
 
 /** One routed account: the account, its recommended fortnightly split, and the lines behind it. */
@@ -87,7 +87,7 @@ interface SplitsScreenProps {
   payAccountId: string | null
   /** Designates (or, with null, clears) the household's pay account. */
   onSetPayAccount: (accountId: string | null) => void | Promise<void>
-  /** Records the amount the household has confirmed as set in Up for an account. */
+  /** Records the amount the household has confirmed as set for an account. */
   onConfirm: (accountId: string, fortnightlyCents: number) => void | Promise<void>
   /**
    * Clears an account's confirmed split, reverting it to an unconfirmed
@@ -96,9 +96,9 @@ interface SplitsScreenProps {
   onClear: (accountId: string) => void | Promise<void>
 }
 
-/** Whether an account is a synced Up saver (as opposed to a spending transaction account). */
+/** Whether an account is a synced saver (as opposed to a spending transaction account). */
 function isSaver(account: AccountDirectoryEntry): boolean {
-  return account.source === 'up' && account.type === 'savings'
+  return account.source !== 'manual' && account.type === 'savings'
 }
 
 /** Whether an account is a spending account (a transaction account, pay-account-eligible). */
@@ -108,7 +108,7 @@ function isSpending(account: AccountDirectoryEntry): boolean {
 
 /**
  * An account's identity column: its icon and displayed (emoji-stripped) name,
- * growing to fill, with a "Deleted in Up" badge when the sync has flagged it.
+ * growing to fill, with a "Deleted at source" badge when the sync has flagged it.
  */
 function AccountName({ account }: { account: AccountDirectoryEntry }) {
   return (
@@ -235,7 +235,7 @@ function DriftNote({
         </Badge>
         <Text size="xs" c="dimmed" style={{ minWidth: 0 }}>
           {configuredCents === null
-            ? 'Not set in Up yet'
+            ? 'Not set yet'
             : `was ${formatCents(configuredCents)} → ${formatPerFortnight(roundedCents)}`}
         </Text>
       </Group>
@@ -390,7 +390,7 @@ function RecommendedSplitItem(props: RecommendedSplitProps) {
 /**
  * Recommended fortnightly pay splits, one per account funded by budget lines. The
  * plan computes what each account's split should be, and the household mirrors it
- * into Up by hand. The household designates the spending account its pay lands in;
+ * into its bank by hand. The household designates the spending account its pay lands in;
  * pay stays there while every other routed account — the other spending accounts
  * and the savers — is a recommended split. Until a pay account is chosen, only
  * savers are recommended and spending accounts are shown as staying put. Each
@@ -473,7 +473,7 @@ export function SplitsScreen({
   return (
     <PageSection
       title="Pay splits"
-      intro="Up can’t read or set pay splits, so these are recommendations: set each account’s pay split in Up to match. Amounts are the fortnightly total of the budget items routed to each account, rounded up to the nearest $5."
+      intro="No bank exposes an API to read or set your pay split, so these are recommendations: set each account’s pay split with its own bank to match. Amounts are the fortnightly total of the budget items routed to each account, rounded up to the nearest $5."
     >
       {spendingAccounts.length > 0 && (
         <Select
@@ -500,7 +500,7 @@ export function SplitsScreen({
       {nothingRouted && (
         <Text c="dimmed" size="sm">
           Route budget items to an account — set “Funded from” on an item, or link a Savings goal to
-          an Up saver — to see recommended splits here.
+          a synced saver — to see recommended splits here.
         </Text>
       )}
 
@@ -576,8 +576,8 @@ export function SplitsScreen({
       {unassignedFortnightlyCents > 0 && (
         <Alert color="warning" variant="light" title="Unassigned">
           {formatPerFortnight(unassignedFortnightlyCents)} comes from budget items not yet routed to
-          an account. Set a “Funded from” account on those items, or link their Savings goal to an
-          Up saver, to fold them into a split.
+          an account. Set a “Funded from” account on those items, or link their Savings goal to a
+          synced saver, to fold them into a split.
         </Alert>
       )}
     </PageSection>

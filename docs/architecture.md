@@ -26,11 +26,15 @@ Clients talk to the database in the way that fits each job:
   enforced by DB constraints + Row-Level Security; correctness is aided by
   generated TypeScript types.
 - **Edge functions (Deno/TypeScript)** — only what needs trusted server compute.
-  Eight live under `supabase/functions/`, auto-deployed to prod on merge (see
+  Auto-deployed to prod on merge (see
   *Local dev & delivery*): `up-connect` / `up-disconnect` (connect and clear a
   member's Up token), `up-sync` (poll every Up account's balance, then the
   gift-category transaction window), `up-webhook`
-  (near-real-time receiver), `changelog` (proxy GitHub for the in-app "What's
+  (near-real-time receiver), `redbark-connect` / `redbark-connect-complete` /
+  `redbark-disconnect` (start, resolve, and revoke a member's Redbark bank
+  connection via its hosted Link Session flow), `redbark-sync` (poll every
+  Redbark-connected bank account's balance — accounts and balances only, no
+  transactions), `changelog` (proxy GitHub for the in-app "What's
   new" feed; it accepts the client's build commit SHA and splits the raw commit
   list at it — that commit and older are `implemented` (so a stale/cached PWA
   never shows changes newer than its build), while the commits newer than it are
@@ -46,7 +50,9 @@ Clients talk to the database in the way that fits each job:
   pre-filled form and their own save is what persists; `deduction-extract`
   shares its money/date conversion with `payslip-extract` via
   `_shared/money.ts`). The Up functions hold Up
-  tokens server-side (via Vault); `changelog` holds a GitHub PAT server-side; the
+  tokens server-side (via Vault); the Redbark functions share one
+  platform-wide `REDBARK_API_KEY` (an edge function secret, not Vault —
+  see *Redbark API* below); `changelog` holds a GitHub PAT server-side; the
   push functions hold the VAPID keypair; `payslip-extract` and
   `deduction-extract` read the same Vault-held Anthropic key. All are
   JWT-verified except `up-webhook`
@@ -126,7 +132,8 @@ RLS.
   import the vendored copy, so the numbers a household files a return on and asks
   Siri about have one implementation, kept honest by a golden-fixture parity
   suite.
-- **Import layer** — source-agnostic ingestion boundary; Up is the first adapter.
+- **Import layer** — source-agnostic ingestion boundary; Up (transactions and
+  accounts/balances) and Redbark (accounts/balances only) are its two adapters.
 - **Storage** — private buckets for the documents the household attaches:
   `receipts` (deduction receipts) and `payslips` (payslip PDFs/images). The PWA
   uploads directly and views a file through a short-lived signed URL it mints
@@ -166,7 +173,9 @@ RLS.
   backstop. The schedule reads its
   invocation URL/key from Vault at run time and is guarded on both extensions, so
   it no-ops where they are absent. Sync writes go through the
-  `upsert_up_accounts` RPC, which upserts each account's identity (dedupe on
+  `upsert_accounts` RPC (shared with `redbark-sync`; generalised from
+  `upsert_up_accounts` — identical body, `source` was already per-row data),
+  which upserts each account's identity (dedupe on
   `(source, external_id)`) and its balance (on `account_id`) in one transaction.
   Up's three account types map to `account_type`: `TRANSACTIONAL → transaction`,
   `SAVER → savings`, `HOME_LOAN → home_loan`. A home loan's balance feeds net
@@ -174,8 +183,10 @@ RLS.
   surface — see [`super-and-net-worth.md`](super-and-net-worth.md#net-worth-tab).
 - **Account reconcile** — after the upsert, for a member whose token read
   succeeded, the ids that token returned are authoritative for that member's
-  individually-owned `source = 'up'` accounts, and `reconcile_up_accounts`
-  (SECURITY DEFINER, `service_role` only — `service_role` has no delete on
+  individually-owned `source = 'up'` accounts, and `reconcile_source_accounts`
+  (shared with `redbark-sync`, called with `p_source => 'up'`; generalised
+  from `reconcile_up_accounts` to take `source` as a parameter; SECURITY
+  DEFINER, `service_role` only — `service_role` has no delete on
   `accounts`) settles the rest: an account the token no longer reports is
   deleted when nothing references it (its `account_balance` cascades) or kept
   and stamped `accounts.deleted_from_source_at` when a savings goal, a budget
@@ -219,6 +230,51 @@ RLS.
 - Each member links their own token; accounts are attributed to that member
   (joint accounts left owner-null) in the shared household ledger.
 - Reference: <https://developer.up.com.au/>
+
+### Redbark API
+
+Redbark ([redbark.com](https://redbark.com)) is a second ledger source,
+scoped to bank accounts and balances only — no transactions, no
+brokerage/holdings. It sits over the AU Consumer Data Right via Fiskil, so
+connecting a bank is a hosted redirect consent flow rather than a pasteable
+token.
+
+- **Platform-wide key.** One `REDBARK_API_KEY` (an edge function secret, not
+  Vault) covers every bank connection the household makes — unlike Up's
+  per-member token, there is no per-member Redbark credential.
+- **Connect** — `redbark-connect` starts a Redbark Link Session
+  (`POST /link_sessions`) and returns its id and consent `url`; the frontend
+  redirects the browser there and carries the link session id through the
+  round trip itself (there is no server-side pending-session table).
+  `redbark-connect-complete` resolves that session once the member returns: a
+  `pending` session is reported as such (not an error), and a `completed` one
+  is recorded as a `redbark_connection` row — id, household, member, the
+  connection's institution name and status — keyed to the caller's own member
+  and household from their JWT.
+- **`redbark_connection` ownership.** Redbark exposes no owner/customer field
+  on its own `Connection` or `AccountItem` objects, so ownership is tracked
+  entirely in this table: every connection belongs to exactly one member (the
+  one who completed its consent flow), and every account synced through it is
+  attributed to that member. There is no joint-Redbark concept the way Up has
+  joint accounts, and so no joint reconcile pass.
+- **Disconnect** — `redbark-disconnect` checks the caller owns the named
+  connection (404 if it does not exist, 403 if it belongs to a co-member),
+  revokes it with Redbark (`DELETE /connections/{id}`, treating an
+  already-gone connection as success), and deletes the local row.
+- **Sync** — `redbark-sync` follows `up-sync`'s cron-vs-manual JWT pattern.
+  Per connection: lists its accounts, filters to `category = 'banking'`
+  (brokerage has no home in the schema), reads each account's balance, and
+  upserts the rows via `upsert_accounts` — the RPC `up-sync` also uses,
+  generalised (as data, `source` was already per-row) from
+  `upsert_up_accounts`. Per member, `reconcile_source_accounts` — likewise
+  generalised from `reconcile_up_accounts` to take `source` as a parameter —
+  reconciles that member's Redbark accounts against the union of ids present
+  across every one of their connections.
+- **Account type** is a best-effort heuristic over Redbark's undocumented
+  `type` string and the account name (`redbark-sync/map.ts`), pending real
+  response samples.
+- Reference: <https://redbark.com>; the design lives in
+  [`redbark-ingestion.md`](redbark-ingestion.md).
 
 ### Push notifications
 

@@ -11,7 +11,7 @@ export interface UsePaySplitsResult {
   configuredByAccount: Map<string, number>
   loading: boolean
   reload: () => Promise<void>
-  /** Records the split the household has confirmed as set in Up for an account. */
+  /** Records the split the household has confirmed as set for an account. */
   confirm: (accountId: string, fortnightlyCents: number) => Promise<void>
   /**
    * Clears an account's confirmed split, reverting it to an unconfirmed

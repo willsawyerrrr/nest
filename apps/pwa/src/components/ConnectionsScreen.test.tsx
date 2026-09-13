@@ -17,6 +17,14 @@ function renderConnections(overrides: Partial<Parameters<typeof ConnectionsScree
       onConnectUp={vi.fn()}
       onDisconnectUp={vi.fn()}
       upBusy={false}
+      redbark={{
+        connections: [],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect: vi.fn(),
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      }}
       calendarFeed={{
         status: null,
         onCreate: vi.fn().mockResolvedValue('tok'),
@@ -86,5 +94,143 @@ describe('ConnectionsScreen', () => {
     // Will (u1) not connected, Sam (u2) connected.
     expect(within(card).getByText('Not connected')).toBeInTheDocument()
     expect(within(card).getAllByText('Connected')).toHaveLength(1)
+  })
+
+  it('starts a Redbark connection', async () => {
+    const user = userEvent.setup()
+    const onConnect = vi.fn()
+    renderConnections({
+      redbark: {
+        connections: [],
+        busy: false,
+        onConnect,
+        onDisconnect: vi.fn(),
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: /^connect a bank$/i }))
+    expect(onConnect).toHaveBeenCalledOnce()
+  })
+
+  it('lists Redbark connections with the owning member and status', () => {
+    renderConnections({
+      redbark: {
+        connections: [
+          {
+            id: 'c1',
+            household_id: 'h1',
+            member_id: 'm1',
+            institution_name: 'Big Bank',
+            status: 'active',
+            created_at: '',
+            updated_at: '',
+          },
+          {
+            id: 'c2',
+            household_id: 'h1',
+            member_id: 'm2',
+            institution_name: 'Other Bank',
+            status: 'active',
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect: vi.fn(),
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    const card = screen
+      .getByRole('heading', { name: /^connect a bank$/i })
+      .closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText('Big Bank')).toBeInTheDocument()
+    expect(within(card).getByText('Will')).toBeInTheDocument()
+    expect(within(card).getByText('Other Bank')).toBeInTheDocument()
+    expect(within(card).getByText('Sam')).toBeInTheDocument()
+    // Disconnect is offered for the signed-in member's own connection only.
+    expect(within(card).getAllByRole('button', { name: /disconnect/i })).toHaveLength(1)
+  })
+
+  it('disconnects a Redbark connection', async () => {
+    const user = userEvent.setup()
+    const onDisconnect = vi.fn()
+    renderConnections({
+      redbark: {
+        connections: [
+          {
+            id: 'c1',
+            household_id: 'h1',
+            member_id: 'm1',
+            institution_name: 'Big Bank',
+            status: 'active',
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect,
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: /disconnect/i }))
+    expect(onDisconnect).toHaveBeenCalledWith('c1')
+  })
+
+  it('shows a success banner after connecting and dismisses it', async () => {
+    const user = userEvent.setup()
+    const onDismissCompleteResult = vi.fn()
+    renderConnections({
+      redbark: {
+        connections: [],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect: vi.fn(),
+        completeResult: { status: 'connected' },
+        onDismissCompleteResult,
+      },
+    })
+
+    expect(screen.getByText('Bank connected')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+    expect(onDismissCompleteResult).toHaveBeenCalledOnce()
+  })
+
+  it('shows the failure reason in the error banner', () => {
+    renderConnections({
+      redbark: {
+        connections: [],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect: vi.fn(),
+        completeResult: { status: 'failed', reason: 'Consent was declined' },
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    expect(screen.getByText('Connection failed')).toBeInTheDocument()
+    expect(screen.getByText('Consent was declined')).toBeInTheDocument()
+  })
+
+  it('shows a pending banner when the connection has not finished yet', () => {
+    renderConnections({
+      redbark: {
+        connections: [],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect: vi.fn(),
+        completeResult: { status: 'pending' },
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    expect(screen.getByText('Still connecting')).toBeInTheDocument()
   })
 })

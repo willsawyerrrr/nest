@@ -6,6 +6,7 @@ import { ConnectionsSection } from './ConnectionsSection'
 const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
   useUpConnection: vi.fn(),
+  useRedbarkConnections: vi.fn(),
   useCalendarFeed: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -15,6 +16,9 @@ vi.mock('../components/LoadingScreen', () => ({
 }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../hooks/useUpConnection', () => ({ useUpConnection: hooks.useUpConnection }))
+vi.mock('../hooks/useRedbarkConnections', () => ({
+  useRedbarkConnections: hooks.useRedbarkConnections,
+}))
 vi.mock('../hooks/useCalendarFeed', () => ({ useCalendarFeed: hooks.useCalendarFeed }))
 vi.mock('../components/ConnectionsScreen', () => ({
   ConnectionsScreen: (props: Record<string, unknown>) => {
@@ -34,6 +38,16 @@ describe('ConnectionsSection', () => {
       reload: vi.fn(),
       create: vi.fn().mockResolvedValue('tok'),
       revoke: vi.fn().mockResolvedValue(undefined),
+    })
+    hooks.useRedbarkConnections.mockReturnValue({
+      connections: [],
+      loading: false,
+      busy: false,
+      reload: vi.fn(),
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      completeResult: null,
+      dismissCompleteResult: vi.fn(),
     })
   })
 
@@ -58,6 +72,42 @@ describe('ConnectionsSection', () => {
 
     expect(screen.getByTestId('connections-screen')).toBeInTheDocument()
     expect(hooks.screenProps).toMatchObject({ currentUserId: 'u1' })
+  })
+
+  it('wires the Redbark connections and a return URL through to the screen', () => {
+    const connect = vi.fn()
+    const disconnect = vi.fn()
+    hooks.useMembers.mockReturnValue({
+      members: [{ id: 'm1', name: 'Alex', user_id: 'u1' }],
+      loading: false,
+      reload: vi.fn(),
+    })
+    hooks.useUpConnection.mockReturnValue({ connect: vi.fn(), disconnect: vi.fn(), busy: false })
+    hooks.useRedbarkConnections.mockReturnValue({
+      connections: [{ id: 'c1', member_id: 'm1', institution_name: 'Big Bank', status: 'active' }],
+      loading: false,
+      busy: false,
+      reload: vi.fn(),
+      connect,
+      disconnect,
+      completeResult: null,
+      dismissCompleteResult: vi.fn(),
+    })
+
+    render(<ConnectionsSection session={session} />)
+
+    const redbark = hooks.screenProps!.redbark as {
+      connections: unknown[]
+      onConnect: () => Promise<void>
+      onDisconnect: (id: string) => Promise<void>
+    }
+    expect(redbark.connections).toEqual([
+      { id: 'c1', member_id: 'm1', institution_name: 'Big Bank', status: 'active' },
+    ])
+    void redbark.onConnect()
+    expect(connect).toHaveBeenCalledWith(`${window.location.origin}/settings/connections`)
+    void redbark.onDisconnect('c1')
+    expect(disconnect).toHaveBeenCalledWith('c1')
   })
 
   it('wires the calendar feed status and actions through to the screen', () => {

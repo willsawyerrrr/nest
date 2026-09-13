@@ -93,7 +93,7 @@ function GoalRow({
     <Text size="xs" c="dimmed" component="div">
       {eta}
       {saver &&
-        ` · From Up saver ${saver.name}${saverDeleted ? ' — deleted in Up, relink this goal' : ''}`}
+        ` · From synced saver ${saver.name}${saverDeleted ? ' — deleted at source, relink this goal' : ''}`}
     </Text>
   )
   return (
@@ -185,14 +185,14 @@ function GoalCard({
         {saver && (
           <Group gap="xs" wrap="nowrap">
             <Text size="xs" c="dimmed">
-              From Up saver {saver.name}
+              From synced saver {saver.name}
             </Text>
             {saver.deleted_from_source_at && <DeletedInUpBadge />}
           </Group>
         )}
         {saver?.deleted_from_source_at && (
           <Text size="xs" c="dimmed">
-            This saver was deleted in Up. Relink the goal to a current saver.
+            This saver was deleted at its source. Relink the goal to a current saver.
           </Text>
         )}
         {contributionCents > 0 && (

@@ -86,21 +86,23 @@ copy pass, not a migration.
 
 ## Open questions
 
-1. **UI copy.** "Up saver" is hardcoded user-facing text in `GoalForm.tsx`,
-   `GoalList.tsx`, `BudgetLineForm.tsx`, `DerivedBudgetLineForm.tsx`, and
-   `SplitsScreen.tsx` (five call sites, not just the two data-filtering ones)
-   — all read as "synced saver" or similar once a second source exists.
-2. **Ownership for balance-visibility RLS.** Which household member a
-   Redbark-sourced account's `owner_member_id` resolves to depends on
-   `redbark-ingestion.md`'s open question of whether one Redbark subscription
-   carries per-connection ownership metadata. That answer also decides whose
-   goal a linked CDR saver "belongs" to under the co-member saver-invisible
-   rule in `CLAUDE.md`'s household & money section.
-3. **Filter shape.** Whether `isSaver`/`useSavers` should key on `type =
-   'savings'` and exclude only `'manual'`, vs an explicit allowlist of synced
-   sources — the former needs no further change per future source, the latter
-   is more defensive against a source that syncs something savings-shaped but
-   shouldn't be goal-linkable (unclear such a source exists yet).
+1. **UI copy.** Resolved: "Up saver" and its variants ("From Up saver …",
+   "deleted in Up") read as "synced saver" / "From synced saver …" / "deleted
+   at source" across `GoalForm.tsx`, `GoalList.tsx`, `BudgetLineForm.tsx`,
+   `DerivedBudgetLineForm.tsx`, and `SplitsScreen.tsx`.
+2. **Ownership for balance-visibility RLS.** Resolved: a Redbark connection is
+   always individually owned by whoever completed its consent flow, never
+   joint — `redbark_connection.member_id` records this directly, and every
+   account `redbark-sync` lands through a connection takes
+   `owner_member_id = member_id`. Redbark exposes no signal that an
+   underlying account is legally joint, so there is no joint-Redbark concept
+   and no joint reconcile pass, unlike Up. A linked CDR saver's goal therefore
+   "belongs" to that one member under the co-member saver-invisible rule in
+   `CLAUDE.md`'s household & money section, exactly as an individually-owned
+   Up saver already does.
+3. **Filter shape.** Resolved: `isSaver`/`useSavers` key on `type = 'savings'`
+   and exclude only `'manual'` (`.neq('source', 'manual')`), needing no
+   further change per future source.
 
 ## Where this lands
 

@@ -18,6 +18,7 @@ const { builder } = await vi.hoisted(async () => {
       'delete',
       'upsert',
       'eq',
+      'neq',
       'order',
       'single',
     ]),

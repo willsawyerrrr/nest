@@ -161,7 +161,7 @@ export function BudgetLineForm({
             nothingFoundMessage="No goals yet"
           />
           <Text size="xs" c="dimmed">
-            This line's pay split is routed to its goal's linked Up saver.
+            This line's pay split is routed to its goal's linked synced saver.
           </Text>
         </>
       )}
@@ -170,7 +170,7 @@ export function BudgetLineForm({
         <Select
           label="Funded from"
           size="sm"
-          description="Optional. The account or Up saver whose pay split funds this line."
+          description="Optional. The account or synced saver whose pay split funds this line."
           placeholder="Not routed"
           data={accounts.map((account) => ({ value: account.id, label: account.name }))}
           value={destinationAccountId}

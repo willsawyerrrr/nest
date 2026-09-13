@@ -6,7 +6,7 @@ import { useSavers } from './useSavers'
 
 const { builder } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
-  return { builder: makeSupabaseBuilder(['select', 'eq', 'order']) }
+  return { builder: makeSupabaseBuilder(['select', 'neq', 'eq', 'order']) }
 })
 
 vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
@@ -17,13 +17,13 @@ beforeEach(() => {
 })
 
 describe('useSavers', () => {
-  it('loads the synced Up savers on mount', async () => {
+  it('loads the synced savers on mount', async () => {
     const { result } = renderHook(() => useSavers(), { wrapper: makeWrapper() })
     expect(result.current.loading).toBe(true)
     expect(result.current.savers).toBeNull()
     await waitFor(() => expect(result.current.savers).toEqual([makeSaver()]))
     expect(result.current.loading).toBe(false)
-    expect(builder.eq).toHaveBeenCalledWith('source', 'up')
+    expect(builder.neq).toHaveBeenCalledWith('source', 'manual')
     expect(builder.eq).toHaveBeenCalledWith('type', 'savings')
   })
 

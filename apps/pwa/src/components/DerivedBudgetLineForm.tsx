@@ -146,7 +146,7 @@ export function DerivedBudgetLineForm({
         <Select
           label="Funded from"
           size="sm"
-          description="Optional. The account or Up saver whose pay split funds this line."
+          description="Optional. The account or synced saver whose pay split funds this line."
           placeholder="Not routed"
           data={accounts.map((account) => ({ value: account.id, label: account.name }))}
           value={destinationAccountId}

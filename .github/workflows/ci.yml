@@ -139,6 +139,12 @@ jobs:
     defaults:
       run:
         working-directory: apps/ios
+    # Neither is secret (the anon key is a publishable client credential), so
+    # repository Variables rather than Secrets — `xcodegen generate` reads
+    # them from the environment (see `apps/ios/.env.example`).
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v7
 
@@ -192,6 +198,9 @@ jobs:
     defaults:
       run:
         working-directory: apps/ios
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v7
 

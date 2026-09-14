@@ -45,6 +45,12 @@ targets:
             CFBundleURLName: dev.willsawyerrrr.nest.ios
             CFBundleURLSchemes:
               - dev.willsawyerrrr.nest.ios
+        # Substituted by `xcodegen generate` from the process environment (see
+        # `apps/ios/.env.example`); read at runtime in `Supabase.swift`. Left
+        # as XcodeGen's literal `${VAR}` placeholder when unset — `Supabase.swift`
+        # treats that the same as missing.
+        SupabaseURL: ${SUPABASE_URL}
+        SupabaseAnonKey: ${SUPABASE_ANON_KEY}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios

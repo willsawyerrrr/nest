@@ -31,8 +31,9 @@ and Spotlight still work on both platforms.
     its sign-out request back.
   - `SessionBridge.swift` — builds the JavaScript the shell injects: the
     `window.__NEST_NATIVE_SHELL__` marker and the apply/clear-session calls.
-  - `Supabase.swift` — project URL + anon key constants and the shared
-    `AuthClient` (default `KeychainLocalStorage`).
+  - `Supabase.swift` — project URL + anon key, read from `Info.plist` (see
+    `.env.example`), and the shared `AuthClient` (default
+    `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth, and
     the `authStateChanges` observation behind the gate.
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
@@ -56,13 +57,22 @@ and Spotlight still work on both platforms.
 ## Building
 
 Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`):
+(`brew install xcodegen`). Copy `.env.example` to `.env`, fill in real values
+(same ones as `apps/pwa/.env.example`), and export them — there is no dotenv
+loader here, unlike Vite for the PWA:
 
 ```sh
 cd apps/ios
+cp .env.example .env  # first time only
+set -a && source .env && set +a
 xcodegen generate
 open Nest.xcodeproj
 ```
+
+`xcodegen generate` substitutes `SUPABASE_URL` / `SUPABASE_ANON_KEY` from the
+environment into `Info.plist`; `Supabase.swift` reads them at runtime and
+fails loudly (`fatalError`) if either is missing, rather than silently
+building against no project.
 
 `xcodebuild` resolves the SPM graph and runs `appintentsmetadataprocessor`,
 which validates the App Shortcut phrases:

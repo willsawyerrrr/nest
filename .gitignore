@@ -3,6 +3,7 @@
 .env.*
 *.local
 !apps/pwa/.env.example
+!apps/ios/.env.example
 
 # Local, untracked operational handoff (machine-specific notes)
 HANDOFF.local.md

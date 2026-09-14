@@ -178,4 +178,18 @@ describe('useRedbarkConnections completing a pending link session', () => {
     )
     expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()
   })
+
+  it('reports a failure when redbark-connect-complete itself errors', async () => {
+    invoke.mockResolvedValue({ data: null, error: new Error('network error') })
+
+    const { result } = renderHook(() => useRedbarkConnections(), { wrapper: makeWrapper() })
+
+    await waitFor(() =>
+      expect(result.current.completeResult).toEqual({
+        status: 'failed',
+        reason: 'network error',
+      }),
+    )
+    expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()
+  })
 })

@@ -221,8 +221,8 @@ instructions.
 
 ## CI
 
-`.github/workflows/ios.yml` runs two jobs on `macos-latest` runners,
-path-filtered to `apps/ios/**`: `build-ios` (the iOS Simulator destination) and
+`.github/workflows/ci.yml` runs `build-ios` and `build-catalyst` on
+`macos-latest` runners: `build-ios` (the iOS Simulator destination) and
 `build-catalyst` (the Mac Catalyst destination). Each runs `xcodegen generate`,
 then `xcodebuild build` (which runs `appintentsmetadataprocessor`, so a
 malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
@@ -235,7 +235,9 @@ plugin approval prompt. `build-catalyst` additionally passes
 `CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
 Catalyst, unlike the Simulator, always signs.
 
-It is **informational only** — a separate workflow, not one of the four jobs
-`CI Status` aggregates and not a required check, because a macOS runner is far
-too slow for the sub-minute `CI Status` budget. A red iOS run does not block a
-merge; it is a signal to look.
+Both are **required** — the `changes` job (`dorny/paths-filter`) gates them on
+`apps/ios/**` (or the workflow file itself) having changed, and `ci-status`
+`needs` both, so a real regression blocks the merge; a PR that leaves
+`apps/ios/` untouched gets `skipped` on both, which `ci-status` treats the same
+as a pass rather than waiting forever on a check that never ran. See
+[`architecture.md`](architecture.md#ci).

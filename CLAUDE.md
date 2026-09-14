@@ -823,12 +823,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `feat(splits): Sort pay-split rows by title or amount` over
   `feat(splits): Add sorting`, whose description ("Add sorting") is meaningless
   once the `splits` scope is dropped.
-- CI must complete in under 1 minute. If a run exceeds that, diagnosing and
-  reducing CI time takes priority over other work. CI runs as separate parallel
-  jobs (`check`, `test`, `rls`, `functions`) aggregated by a `ci-status` job that
-  is the single required `CI Status` check, so overall wall-clock is the slowest
-  single job, not the sum; the job/coverage/shard specifics are canonical in
-  [`docs/architecture.md`](docs/architecture.md#ci). Steps WITHIN a job stay
-  sequential: on a single 2-vCPU runner, running CPU-bound steps concurrently only
-  causes contention and inflates each one without improving wall-clock time.
-  Splitting into separate jobs avoids that by giving each its own runner.
+- The four Linux jobs (`check`, `test`, `rls`, `functions`) must stay fast —
+  each targets well under a minute. If one regresses noticeably, diagnosing and
+  reducing its time takes priority over other work. `build-ios` /
+  `build-catalyst` (macOS runners, gated to PRs touching `apps/ios/**`) are the
+  exception: an Xcode build and test run is inherently several minutes, and
+  there is no fixed time budget for them. All six are aggregated by a
+  `ci-status` job that is the single required `CI Status` check, so overall
+  wall-clock is the slowest single job, not the sum; the job/coverage/shard
+  specifics are canonical in [`docs/architecture.md`](docs/architecture.md#ci).
+  Steps WITHIN a job stay sequential: on a single 2-vCPU runner, running
+  CPU-bound steps concurrently only causes contention and inflates each one
+  without improving wall-clock time. Splitting into separate jobs avoids that
+  by giving each its own runner.

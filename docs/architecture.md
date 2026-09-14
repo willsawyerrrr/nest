@@ -521,9 +521,25 @@ the workflow token is scoped `contents: read`:
 - **functions** — Deno `fmt --check` / `lint` / `check` / `test` over
   `supabase/functions` (the edge functions live outside the pnpm workspace, with
   their own Deno harness).
+- **build-ios** / **build-catalyst** — `macos-latest` runners; `xcodegen
+  generate` then `xcodebuild build` (which runs `appintentsmetadataprocessor`,
+  validating every App Shortcut phrase) then `xcodebuild test`, for the iOS
+  Simulator and Mac Catalyst destinations respectively. Gated on a `changes`
+  job (`dorny/paths-filter`, `apps/ios/**` or `ci.yml` itself) rather than a
+  workflow-level path filter, so they still report a definitive `skipped` — not
+  silence — on a PR that leaves `apps/ios/` untouched; `ci-status` treats that
+  `skipped` as a pass for these two jobs only. See
+  [`ios.md`](ios.md#ci).
 
-A `ci-status` job `needs` all four and is the single required `CI Status` check
-(squash-only, no bypass).
+A `ci-status` job `needs` all six of the above plus `changes` and is the single
+required `CI Status` check (squash-only, no bypass); it fails on any non-`skip`
+result from `check` / `test` / `functions` / `rls` / `changes`, and on any
+result from `build-ios` / `build-catalyst` other than `success` or `skipped`.
+Unlike the four Linux jobs, `build-ios` and `build-catalyst` run on macOS
+runners several minutes slower than the rest of the pipeline; there is no fixed
+time budget across the whole workflow, only the expectation that the four
+always-run jobs stay fast and that an iOS-touching PR accepts the macOS build
+time as the cost of catching a real regression before merge.
 
 `check`'s migration assertion is the half of the migration contract a pull
 request can prove: the directory's versions are unique. The other half — prod

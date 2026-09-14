@@ -88,9 +88,10 @@ Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
 `xcodebuild test` (with a concrete simulator `-destination`, or the same
 Catalyst `-destination` above) runs the `NestTests` suite — 42 tests, and they
 pass identically on both destinations with no source changes between them.
-`.github/workflows/ios.yml` does the generate + build + test for both
-destinations on every push that touches `apps/ios/**`; it is informational, not
-a required check.
+`.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` jobs do the
+generate + build + test for both destinations on every PR/push that touches
+`apps/ios/**`; both are required checks (see
+[`docs/ios.md`](../../docs/ios.md#ci)).
 
 A free personal Apple team is enough to build, run on the Simulator, a device,
 or as a local Mac app, and to use the App Shortcut. There is no App Store

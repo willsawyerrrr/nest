@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-ios:
     runs-on: macos-latest
     defaults:
       run:
@@ -73,4 +73,44 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -skipPackagePluginValidation \
             -skipMacroValidation \
+            test
+
+  build-catalyst:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        run: xcodegen generate
+
+      # A runner carries no development team, so signing is off for this
+      # build-and-test-only run — nothing here is installed anywhere. This
+      # still runs appintentsmetadataprocessor (see the iOS job's comment),
+      # so a bad App Shortcut phrase fails here too.
+      - name: Build for Mac Catalyst (validates App Intents metadata)
+        run: |
+          xcodebuild \
+            -project Nest.xcodeproj \
+            -scheme Nest \
+            -destination 'platform=macOS,variant=Mac Catalyst' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Test
+        run: |
+          xcodebuild \
+            -project Nest.xcodeproj \
+            -scheme Nest \
+            -destination 'platform=macOS,variant=Mac Catalyst' \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
             test

@@ -47,6 +47,11 @@ document-reading functions, `payslip-extract/{fields,extract}.ts` and
 `deduction-extract/{fields,extract}.ts` hold their own field shaping and
 extraction flow, and each function's `model.ts` takes an injectable `fetch` the
 same way `UpClient` does, so the Anthropic request is asserted against a stub.
+`_shared/redbark.ts`'s `RedbarkClient` takes the same injectable `fetch`;
+`redbark-connect/connect.ts`, `redbark-connect-complete/complete.ts`, and
+`redbark-disconnect/disconnect.ts` hold their flows with I/O injected on the
+same pattern as the Up connect/disconnect flows, and `redbark-sync/{map,sync}.ts`
+hold the account mapper and sync orchestration the way `up-sync/{map,sync}.ts` do.
 
 ## Up Bank sync
 
@@ -117,12 +122,14 @@ directory.
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
 `payslip-extract`, `deduction-extract`, `share-create`, `intent-summary`,
-`goal-progress`, and `notify-eval` are JWT-verified (the default, so they carry
-no `config.toml` entry) — the caller is resolved from their JWT, so a member can
-only touch their own token, their own devices, files in their own household,
+`goal-progress`, `notify-eval`, `redbark-connect`, `redbark-connect-complete`,
+`redbark-disconnect`, and `redbark-sync` are JWT-verified (the default, so they
+carry no `config.toml` entry) — the caller is resolved from their JWT, so a
+member can only touch their own token, their own devices, files in their own household,
 their own household's share, and their own household's buffer and goals;
-`up-sync`'s PWA Refresh carries the member's JWT while its hourly cron presents
-the service-role key, and `notify-eval` is cron-only — the gateway verifies the
+`up-sync`'s and `redbark-sync`'s PWA Refresh actions carry the member's JWT
+while their hourly crons present the service-role key, and `notify-eval` is
+cron-only — the gateway verifies the
 bearer and the handler admits nothing but a `service_role` one. `up-webhook`,
 `eofy-share`, `eofy-share-file`, and `calendar-ics` are the `config.toml` entries
 setting `verify_jwt = false`: Up calls the first unauthenticated (its HMAC
@@ -151,6 +158,10 @@ supabase functions serve push-test
 supabase functions serve notify-eval
 supabase functions serve intent-summary
 supabase functions serve goal-progress
+supabase functions serve redbark-connect
+supabase functions serve redbark-connect-complete
+supabase functions serve redbark-disconnect
+supabase functions serve redbark-sync
 
 supabase functions deploy up-connect --project-ref dgfeittjtxjtgbretdkj
 ```
@@ -198,6 +209,84 @@ select vault.create_secret('<service-role-key>', 'notify_cron_key');
 The job (`notify-eval-daily`) unschedules any prior job first and is skipped
 when the secrets are absent. Verify with
 `select * from cron.job where jobname = 'notify-eval-daily';`.
+
+## Redbark bank sync
+
+The Redbark integration syncs bank **accounts and balances only** — no
+transactions, no brokerage/holdings — via a hosted Fiskil (AU CDR) consent
+redirect rather than a pasteable token. There is no near-real-time webhook;
+a scheduled poll is the only sync path.
+
+- **`_shared/redbark.ts`** — typed Redbark API client (bearer key +
+  `Redbark-Version` header) for pinging the API, listing a connection's
+  accounts, reading a balance, and driving the Link Session / connection
+  lifecycle.
+- **`redbark-connect`** — JWT-verified. Resolves the caller's member from the
+  JWT, starts a Redbark Link Session (`RedbarkClient.createLinkSession`), and
+  returns `{ linkSessionId, url }` for the frontend to redirect the browser to.
+  Unlike `up-connect` there is no credential to validate first: the
+  platform-wide API key is already trusted server-side infrastructure.
+- **`redbark-connect-complete`** — JWT-verified. Resolves the caller's member
+  and household, resolves the named Link Session
+  (`RedbarkClient.getLinkSession`), and on a `completed` session reads the
+  resulting connection's institution (`RedbarkClient.getConnection`) and
+  upserts a `redbark_connection` row keyed to the caller. A `pending` session
+  is reported as `{ connected: false, status: 'pending' }` (a normal, expected
+  state while Fiskil's consent flow is still open, not an error).
+- **`redbark-disconnect`** — JWT-verified. Checks the named connection's
+  `redbark_connection` row belongs to the caller (404 if it does not exist,
+  403 if it belongs to a co-member), revokes it with Redbark
+  (`RedbarkClient.deleteConnection`, treating Redbark's `connection_not_found`
+  as already-gone rather than an error), and deletes the local row.
+- **`redbark-sync`** — manual/scheduled poll that, per `redbark_connection`,
+  lists its accounts, filters to `category = 'banking'` (brokerage has no home
+  in the schema), reads each surviving account's balance, and upserts
+  (deduping on `external_id`) via the `upsert_accounts` RPC — the same one
+  `up-sync` uses. JWT-verified-capable and scoped by caller on the same
+  `isServiceRoleToken` distinction `up-sync` uses (reused from
+  `up-sync/auth.ts`): a member's Refresh from the PWA carries their JWT and
+  the run is scoped to their household's connections; the hourly cron presents
+  the service-role key and syncs every household. Per member, once every one
+  of their connections has been read this run, `reconcile_source_accounts`
+  reconciles that member's Redbark accounts against the union of ids present
+  across all of their connections. Every `redbark_connection` belongs to
+  exactly one member (Redbark exposes no ownership field), so there is no
+  joint reconcile pass the way Up has one.
+
+### Secrets
+
+Never exposed to clients; held server-side only.
+
+- **Redbark API key** (`REDBARK_API_KEY`) — one platform-wide key covering
+  every bank connection the household makes, unlike Up's per-member token. A
+  plain edge function secret, not Vault; every Redbark function reads it from
+  the environment. Absent, each function returns a `500`
+  ("Redbark is not configured").
+- **Service-role key** (`SUPABASE_SERVICE_ROLE_KEY`) and **`SUPABASE_URL`** —
+  injected by the runtime; used by `redbark-sync` to bypass RLS for trusted
+  writes.
+
+Set local secrets in `supabase/functions/.env` (git-ignored) and deployed
+secrets with `supabase secrets set`.
+
+### Hourly sync schedule (prod)
+
+`redbark-sync` is scheduled hourly by `20260919040000_redbark_sync_schedule.sql`
+using `pg_cron` + `pg_net`, on the same guard-and-skip pattern as `up-sync`'s
+schedule. To activate it in prod, deploy `redbark-sync` and set two Vault
+secrets, then re-run the migration:
+
+- `redbark_sync_cron_url` — `https://<project-ref>.supabase.co/functions/v1/redbark-sync`
+- `redbark_sync_cron_key` — the project service-role key
+
+```sql
+select vault.create_secret('https://<project-ref>.supabase.co/functions/v1/redbark-sync', 'redbark_sync_cron_url');
+select vault.create_secret('<service-role-key>', 'redbark_sync_cron_key');
+```
+
+The job (`redbark-sync-hourly`) is idempotent across re-runs (it unschedules
+any prior job first) and is skipped when the secrets are absent. Verify with
+`select * from cron.job where jobname = 'redbark-sync-hourly';`.
 
 ## Payslip extraction
 

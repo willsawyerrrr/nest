@@ -12,11 +12,12 @@ export interface UseSaversResult {
 }
 
 /**
- * Loads the household's synced Up saver accounts (`source = 'up'`, `type =
- * 'savings'`). RLS scopes reads to the household. Used to populate the goal
- * saver picker and to resolve a linked goal's balance from `balance_cents`.
- * Shares the `accounts_with_balance` cache prefix with {@link useAccounts}, so a
- * balance write there refetches this slice.
+ * Loads the household's synced saver accounts (`source != 'manual'`, `type =
+ * 'savings'`) — any account a sync keeps current, not one entered by hand. RLS
+ * scopes reads to the household. Used to populate the goal saver picker and to
+ * resolve a linked goal's balance from `balance_cents`. Shares the
+ * `accounts_with_balance` cache prefix with {@link useAccounts}, so a balance
+ * write there refetches this slice.
  */
 export function useSavers(): UseSaversResult {
   const householdId = useHouseholdId()
@@ -27,7 +28,7 @@ export function useSavers(): UseSaversResult {
       const { data, error } = await supabase
         .from('accounts_with_balance')
         .select('*')
-        .eq('source', 'up')
+        .neq('source', 'manual')
         .eq('type', 'savings')
         .order('name')
       if (error) {

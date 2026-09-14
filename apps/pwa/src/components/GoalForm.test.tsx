@@ -133,8 +133,8 @@ describe('GoalForm', () => {
   it('hints to connect Up when there are no synced savers', () => {
     render(<GoalForm savers={[]} onSubmit={vi.fn()} />)
 
-    expect(screen.getByText(/connect up and sync to link a saver/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText(/up saver/i)).toBeNull()
+    expect(screen.getByText(/connect a bank and sync to link a saver/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/synced saver/i)).toBeNull()
   })
 
   it('links a saver, hiding the manual balance and submitting the account id', async () => {
@@ -144,7 +144,7 @@ describe('GoalForm', () => {
 
     await user.type(screen.getByLabelText(/name/i), 'House deposit')
     await user.type(screen.getByLabelText(/target amount/i), '50000')
-    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    await user.click(screen.getByRole('combobox', { name: /synced saver/i }))
     await user.click(await screen.findByRole('option', { name: 'Up House Saver' }))
 
     expect(screen.queryByLabelText(/current balance/i)).toBeNull()
@@ -169,7 +169,7 @@ describe('GoalForm', () => {
     const user = userEvent.setup()
     render(<GoalForm savers={[saver()]} onSubmit={vi.fn()} />)
 
-    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    await user.click(screen.getByRole('combobox', { name: /synced saver/i }))
     await user.click(await screen.findByRole('option', { name: 'Up House Saver' }))
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('Up House Saver')
@@ -180,13 +180,13 @@ describe('GoalForm', () => {
     render(<GoalForm savers={[saver()]} onSubmit={vi.fn()} />)
 
     await user.type(screen.getByLabelText(/name/i), 'House deposit')
-    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    await user.click(screen.getByRole('combobox', { name: /synced saver/i }))
     await user.click(await screen.findByRole('option', { name: 'Up House Saver' }))
 
     expect(screen.getByLabelText(/name/i)).toHaveValue('House deposit')
   })
 
-  it('marks a deleted-in-Up saver in the picker and warns when it is the linked one', async () => {
+  it('marks a deleted-at-source saver in the picker and warns when it is the linked one', async () => {
     const user = userEvent.setup()
     render(
       <GoalForm
@@ -196,10 +196,10 @@ describe('GoalForm', () => {
       />,
     )
 
-    expect(screen.getByText(/this saver was deleted in up/i)).toBeInTheDocument()
-    await user.click(screen.getByRole('combobox', { name: /up saver/i }))
+    expect(screen.getByText(/this saver was deleted at its source/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: /synced saver/i }))
     expect(
-      await screen.findByRole('option', { name: 'Up House Saver (deleted in Up)' }),
+      await screen.findByRole('option', { name: 'Up House Saver (deleted at source)' }),
     ).toBeInTheDocument()
   })
 

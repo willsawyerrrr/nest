@@ -1,12 +1,12 @@
 # Redbark: a multi-bank ingestion source
 
-Background research and a design sketch for using [Redbark](https://redbark.com)
-as a second ledger source alongside Up. Nothing here is committed — this is the
-detail behind two tracked ideas, the CSV / multi-source bank import and automated
-super/brokerage balances, written up the way
-[`up-ledger-sync.md`](up-ledger-sync.md) writes up the Up ledger phase: close
-enough to the schema and edge-function patterns already shipped that building it
-later is mostly wiring, not design.
+Background research on [Redbark](https://redbark.com) as a second ledger
+source alongside Up, and the shipped design of its **accounts and balances**
+slice (no transactions, no brokerage/holdings — see
+[`docs/architecture.md`](architecture.md#redbark-api) and
+[`supabase/functions/README.md`](../supabase/functions/README.md#redbark-bank-sync)
+for the built implementation). Written up the way
+[`up-ledger-sync.md`](up-ledger-sync.md) writes up the Up ledger phase.
 
 ## Background
 
@@ -98,145 +98,143 @@ holdings surface through the CommSec connection needs a trial to verify.
 
 ### What isn't confirmed yet
 
-- Whether one Redbark subscription covers **two people's** separate bank
-  logins — the household's actual shape — or whether each member needs their
-  own subscription. Pricing and docs read as single-subscriber; this needs a
-  direct question to Redbark or a trial signup before committing, since the
-  per-member Vault-token pattern this app already uses for Up assumes
-  independent credentials per member.
-- The exact JSON response shape for transactions/accounts/balances (the
-  general docs describe fields, not a full schema — the OpenAPI spec would
-  settle this).
-- Whether Redbark models pending vs settled transactions the way Up's
-  `HELD`/`SETTLED` status does, given data is proxied live rather than stored.
-- The webhook payload/delivery shape (named as a Developer-tier feature,
-  undocumented in what was fetched here).
-- Whether the `category` field shares any vocabulary with Up's fixed taxonomy
-  or is bank-specific/free text.
-- Whether SnapTrade's "CommSec" connection exposes CommSec **Pocket** ETF
-  holdings, or only the main CommSec trading platform's — Pocket is a
-  separate product with its own login. Needs a trial signup.
-- The `holdings` / `trades` JSON shape, and whether SnapTrade normalises
-  instrument identifiers (ticker, ISIN) across brokers or passes each
-  broker's own.
+- **Balance sign convention.** Whether `GET /accounts/{id}/balance`'s
+  `current.amount` comes back negative for a liability (a credit card, a home
+  loan) the way Up's `valueInBaseUnits` does, or always non-negative with the
+  liability-ness carried elsewhere. Unverified against a live response;
+  `redbark-sync/map.ts` passes `current.amount` straight through
+  (`balance_cents`), so a wrong assumption here shows up as a liability
+  displaying as a positive balance rather than a mapping crash.
+- **Account type taxonomy.** `AccountItem.type` is a documented open string
+  with no enumerated values, so `redbark-sync/map.ts`'s `mapAccountType` is a
+  best-effort case-insensitive keyword match (see its doc comment for the
+  exact rules) pending real Redbark response samples to confirm or replace it.
+- **CommSec Pocket** and the `holdings` / `trades` JSON shape remain
+  unconfirmed — moot for the shipped accounts/balances slice, relevant only if
+  the brokerage rail (below) is ever built.
 
-## Sketch: Redbark as an additional ledger source
+## Shipped: Redbark accounts and balances
 
-The schema already anticipates more than one source — `accounts` and
-`transactions` both carry a `source` column and dedupe on `(source,
-external_id)` — so adding Redbark is additive, not a redesign. The shape below
-mirrors the Up connect/sync/disconnect pattern in
-[`up-ledger-sync.md`](up-ledger-sync.md#what-already-exists) function for
-function.
+Bank **accounts and balances only** — no transactions, no brokerage/holdings.
+`accounts` and `account_balance` already carry a `source` column and dedupe on
+`(source, external_id)`, so a Redbark-sourced row lands in them exactly as an
+Up-sourced one does; the shape below follows the Up connect/sync/disconnect
+pattern in [`up-ledger-sync.md`](up-ledger-sync.md#what-already-exists)
+function for function, adjusted for two confirmed differences from the
+original sketch: Redbark connects through a hosted Link Session redirect, not
+a pasteable token, and exposes no owner field to derive `owner_member_id`
+from, so ownership is tracked in Nest's own `redbark_connection` table
+instead.
 
 ### Schema
 
-- `ledger_source` is a Postgres enum (`up`, `manual`) defined in
-  `supabase/migrations/20260718131611_ledger_core.sql`. Adding Redbark needs
-  `alter type public.ledger_source add value 'redbark'` in its own migration —
-  Postgres can't add and use a new enum value in the same transaction, so any
-  migration that references `'redbark'` runs after the one that adds it.
-- No other schema change for the bank path. `public.accounts`,
-  `public.account_balance`, and `public.transactions` take a Redbark-sourced
-  row exactly as they take an Up one.
-- `holdings` and `trades` have **no home in the current schema** and are out
-  of scope for this sketch. `equity_grant` models startup equity (options and
-  shares with a vesting schedule), not market-listed securities, so that idea's
-  brokerage balances would need their own table and reconcile pass.
-  Everything below covers only the `transactions` / `accounts` bank path.
+- `ledger_source` gained `'redbark'` (`20260919000000_ledger_source_redbark.sql`),
+  in its own migration — Postgres can't add and use a new enum value in the
+  same transaction, so every later migration naming `'redbark'` is a separate,
+  later-timestamped file.
+- `redbark_connection` (`20260919010000_redbark_connection.sql`): `id`
+  (Redbark's own connection id), `household_id`, `member_id` (composite FK to
+  `members (id, household_id)`), `institution_name`, `status`. Household
+  members can `select`; every write goes through
+  `redbark-connect-complete` / `redbark-disconnect` / `redbark-sync`, so
+  writes are `service_role`-only with no `authenticated` write grant.
+- No other schema change for the bank path — `public.accounts` and
+  `public.account_balance` take a Redbark-sourced row like an Up one.
+  `holdings` and `trades` have no home in the schema and stay out of scope
+  (see *Brokerage is a separate rail*, above).
+
+### `redbark_connection` ownership
+
+Redbark exposes no owner/customer-reference field on its own `Connection` or
+`AccountItem` objects (confirmed by inspecting both the v1 and v2 OpenAPI
+specs), so ownership is tracked entirely in `redbark_connection`: a connection
+always belongs to the member who completed its consent flow, and every
+account synced through it takes `owner_member_id = member_id`. Unlike Up,
+there is no joint-Redbark concept and no joint reconcile pass — Redbark has no
+way to tell Nest whether the underlying account is legally joint.
 
 ### Secrets
 
-A Redbark credential (API key, or a per-connection token — see the open
-household-vs-member question below) stored in Vault, matching the `up_token:
-<member_id>` naming in `supabase/migrations/20260719020000_up_connection.sql`:
-
-- `store_redbark_key(member_id, key)`, `redbark_key_for_member(member_id)`,
-  `clear_redbark_key(member_id)` — the same three-function shape as
-  `store_up_token` / `up_token_for_member` / `clear_up_token`, each
-  `security definer`, each granted to `service_role` alone.
-- A non-sensitive `members.redbark_connected_at` timestamp, mirroring
-  `up_connected_at`, readable under the existing members RLS.
+One platform-wide `REDBARK_API_KEY` — a plain edge function secret (not
+Vault), read as `Deno.env.get('REDBARK_API_KEY')` — covers every bank
+connection the household makes, unlike Up's per-member Vault-held token. See
+[`docs/operations.md`](operations.md#redbark_api_key-setup).
 
 ### Edge functions
 
-- **`redbark-connect`** — mirrors `up-connect`
-  (`supabase/functions/up-connect/`): takes `{ key }`, validates it against
-  Redbark with a lightweight authenticated call (e.g. `GET /connections`),
-  resolves the caller's own member from the JWT (never the body), stores the
-  key via the RPC above. The key is never returned to the client.
-- **`redbark-disconnect`** — mirrors `up-disconnect`: clears the stored key and
-  the connected-at flag.
-- **`redbark-sync`** — mirrors `up-sync`: per connected member, `GET
-  /accounts` (+ balances) upserted into `accounts` / `account_balance`, then
-  `GET /transactions` for the sync window, mapped and upserted into
-  `public.transactions` keyed on `(source='redbark', external_id)`.
-  `upsert_up_accounts` (`supabase/migrations/20260802000000_split_account_balance.sql`)
-  already takes `source` as a field on each input row rather than hardcoding
-  `'up'` — only its name is Up-specific, so generalising it (rename to
-  `upsert_accounts`, update its one caller) serves both sources rather than
-  duplicating the RPC.
-- A typed `_shared/redbark.ts` client, the same role `_shared/up.ts` plays for
-  Up: request/response types, cursor pagination, and `Retry-After` backoff on
-  `429`.
+- **`redbark-connect`** — takes `{ returnUrl }`, resolves the caller's own
+  member from the JWT, and starts a Redbark Link Session
+  (`POST /link_sessions`, `RedbarkClient.createLinkSession`), returning
+  `{ linkSessionId, url }`. The frontend redirects the browser to `url`, where
+  the member completes Fiskil's consent flow before being sent back to
+  `returnUrl`. There is no server-side pending-session table: the frontend
+  carries `linkSessionId` through the round trip itself (e.g. in
+  `sessionStorage`).
+- **`redbark-connect-complete`** — takes `{ linkSessionId }`, resolves the
+  caller's own member and household, and resolves the session
+  (`GET /link_sessions/{id}`). A `pending` session reports
+  `{ connected: false, status: 'pending' }` (a normal, expected state, not an
+  error); a failed or connection-less one reports
+  `{ connected: false, status: 'failed', reason }`; a completed one reads the
+  resulting connection's institution (`GET /connections/{id}`), upserts a
+  `redbark_connection` row, and reports `{ connected: true }`. Refreshing the
+  newly connected accounts is left to the frontend (calling `redbark-sync`
+  once this returns `connected: true`) rather than an edge-function-to-edge-function
+  call — nothing else in this codebase invokes one function from another.
+- **`redbark-disconnect`** — takes `{ connectionId }`, checks the caller owns
+  the named `redbark_connection` row (404 if it does not exist, 403 if it
+  belongs to a co-member), revokes it with Redbark
+  (`DELETE /connections/{id}`, treating Redbark's `connection_not_found` error
+  code as already-gone rather than a failure), and deletes the local row.
+- **`redbark-sync`** — per connection: `GET /accounts?connection=<id>`
+  (paginated via `next_page_url`), filtered to `category = 'banking'`, then
+  `GET /accounts/{id}/balance` per surviving account. Rows upsert via
+  `upsert_accounts` — the RPC `up-sync` also uses, `source` a field on each
+  row rather than hardcoded. Per member, `reconcile_source_accounts` (also
+  shared with `up-sync`, called with `p_source => 'redbark'`) reconciles that
+  member's Redbark accounts against the union of external ids present across
+  every one of their connections (a member can have more than one bank
+  connected). `reconcile_joint_up_accounts` stays Up-only, since a Redbark
+  connection is never joint.
+- **`_shared/redbark.ts`** — a typed client mirroring `_shared/up.ts`'s shape:
+  injectable `fetchImpl`, a private throwing request helper (`RedbarkApiError`,
+  carrying the HTTP status and the error envelope's `code`), a private
+  async-generator paginator following `next_page_url`, and public methods
+  `ping`, `listAccounts`, `getBalance`, `getConnection`, `deleteConnection`,
+  `createLinkSession`, `getLinkSession`. Every request sends both
+  `Authorization: Bearer <key>` and the required `Redbark-Version` header.
 
-### Field mapping (Redbark → `public.transactions` / `public.accounts`)
+### Field mapping (Redbark → `public.accounts`)
 
-Based on the documented fields, not yet verified against a live response:
-
-| `transactions` column | Source |
+| `accounts` column | Source |
 | --- | --- |
-| `external_id` | Redbark's transaction id |
+| `external_id` | Redbark's account id |
 | `source` | `'redbark'` |
-| `account_id` | resolve from Redbark's account id → the `accounts` row with `(source='redbark', external_id=<that id>)` |
-| `amount_cents` | Redbark's `amount` — confirm sign convention and minor-unit precision before mapping |
-| `posted_at` | Redbark's transaction `date` |
-| `description` | Redbark's `description` |
-| `external_category` | Redbark's `category`, kept verbatim as the source's own label — mirrors how Up's child category lands in `external_category` rather than `category_id` |
-| `kind` | sign of `amount` for income/expense, the same rule the Up mapper uses; transfer detection depends on whether Redbark exposes an equivalent to Up's `transferAccount` relationship (unconfirmed) |
+| `owner_member_id` | the owning connection's `member_id` (never joint) |
+| `name` | Redbark's account `name`, prefixed `"<member>'s "` when the mapped `type` is `transaction` (mirrors `up-sync/map.ts`'s `accountName`) |
+| `type` | best-effort keyword heuristic over Redbark's `type` string and `name` (see *What isn't confirmed yet*) |
+| `balance_cents` | `GET /accounts/{id}/balance`'s `current.amount` (see *Balance sign convention*, above) |
+| `currency` | the balance's `currency`, falling back to the account's own, uppercased |
 
-### Open questions
+### Rate limits
 
-1. **Household vs per-member Redbark account.** Up's model is one personal
-   token per member, so account ownership is derived from *whose token* saw
-   the account. Redbark's pricing reads as one subscriber with N bank
-   connections — settling whether that one subscription can hold both
-   household members' banks (and if so, whether Redbark's own connection
-   metadata says which person a connection belongs to) decides whether nest
-   stores one household-level key or two per-member keys, and how
-   `owner_member_id` gets derived.
-2. **Rate limit headroom.** 30 requests/minute comfortably covers an hourly
-   sync for a two-person household; worth confirming page sizes so a routine
-   poll stays a handful of calls, the same way the Up poll does.
-3. **Cost vs value.** A$10–16/month recurring, for a feature this household's
-   current single-bank (Up) setup doesn't need. Worth adding once a second
-   bank is genuinely in play — a mortgage offset account, a brokerage — not
-   speculatively.
-4. **Category taxonomy overlap.** Whether Redbark's `category` field can share
-   a mapping with Up's fixed taxonomy for spend reconciliation
-   ([`up-ledger-sync.md`](up-ledger-sync.md#3-reconcile-actual-spend-vs-budget)),
-   or needs its own `external_category` → `budget_group` map.
-5. **Brokerage rail.** Holdings and trades ride SnapTrade on the Professional
-   tier, with credential-based auth rather than a revocable CDR consent, and
-   land in a schema this sketch does not design. Whether SnapTrade's CommSec
-   connection reaches CommSec **Pocket** holdings is unverified. Worth taking
-   on only once a brokerage balance genuinely needs to be in net worth, and
-   as its own phase after the bank path.
+Confirmed tiers: connections/accounts listing 60 req/min, balance/account
+reads 30 req/min, link-session creation 30 req/min. A two-person household's
+hourly sync is trivially within every tier — sequential awaits, no
+concurrency — but a `429` is surfaced (`RedbarkApiError`, message names
+`Retry-After`) rather than swallowed.
 
-### Where this lands
+## Brokerage rail (out of scope, unbuilt)
 
-This is not a substitute for the Up ledger sync phase
-([`up-ledger-sync.md`](up-ledger-sync.md)) — it is the multi-source import idea
-done through a paid CDR aggregator instead of a hand-rolled CSV importer, and it
-is what turns the super/brokerage-automation idea from infeasible to a
-developer-API integration — brokerage via SnapTrade's credential rail on the
-Professional tier, and needing a holdings table this sketch leaves for its
-own phase. It lands after the Up ledger sync foundation, since
-it shares the same `accounts` / `transactions` tables and the same
-`(source, external_id)` dedupe pattern, and is worth building once an actual
-second bank need exists rather than ahead of one.
+Holdings and trades ride SnapTrade on Redbark's Professional tier, with
+credential-based auth rather than a revocable CDR consent, and would need
+their own table and reconcile pass — `equity_grant` models startup equity, not
+market-listed securities. Worth taking on only once a brokerage balance
+genuinely needs to be in net worth, and as its own phase after this one.
 
-Everything above stops at `accounts` / `account_balance` / `transactions` —
-what a Redbark-sourced account then unlocks in **pay splits** and **savings
-goals** (both already built on top of these same tables) is its own sketch:
-see [`cdr-pay-splitting-goals.md`](cdr-pay-splitting-goals.md).
+## Where this lands
+
+Everything above stops at `accounts` / `account_balance` — what a
+Redbark-sourced account unlocks in **pay splits** and **savings goals** (both
+already built on top of these same tables) is
+[`cdr-pay-splitting-goals.md`](cdr-pay-splitting-goals.md).

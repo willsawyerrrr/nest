@@ -43,7 +43,7 @@ interface NetWorthViewProps {
   equity: EquityHolding[]
   liabilities: Liability[]
   onToggleExclude: (accountId: string, exclude: boolean) => void
-  /** Removes an account Up has dropped from Nest, once its dependencies are cleared. */
+  /** Removes an account dropped from Nest, once its dependencies are cleared. */
   onRemoveAccount?: (accountId: string) => void | Promise<void>
   /** Names of the savings goals still linked to each account, keyed by account id. */
   linkedGoalNamesByAccount?: Map<string, string[]>
@@ -121,7 +121,7 @@ function AccountGroup({
   accentIcon: ReactNode
   collapsible?: boolean
   onToggleExclude: (accountId: string, exclude: boolean) => void
-  /** Opens the Remove-from-Nest confirm for an account Up has dropped. */
+  /** Opens the Remove-from-Nest confirm for an account dropped from its source. */
   onRequestRemove?: (account: Account) => void
 }) {
   const [opened, { toggle }] = useDisclosure(false)
@@ -152,7 +152,7 @@ function AccountGroup({
               account.deleted_from_source_at && onRequestRemove ? (
                 <Group gap="xs" wrap="nowrap">
                   <Text size="xs" c="dimmed">
-                    Deleted in Up.
+                    Deleted at source.
                   </Text>
                   <Button
                     size="compact-xs"
@@ -353,10 +353,10 @@ export function NetWorthView({
           itemLabel: account.name,
           description:
             linkedGoals.length > 0
-              ? `Up no longer has this account. ${linkedGoals.join(
+              ? `This account is no longer at its source. ${linkedGoals.join(
                   ', ',
                 )} still links to it and will fall back to a manually entered balance.`
-              : 'Up no longer has this account and nothing links to it.',
+              : 'This account is no longer at its source and nothing links to it.',
           onConfirm: () => onRemoveAccount(account.id),
         })
       }

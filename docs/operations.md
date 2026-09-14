@@ -212,12 +212,26 @@ and `select`/`insert`/`update` on `accounts` (migration
 `20260719050000_service_role_ledger_grants.sql`), plus the same three on
 `account_balance` (`20260802000000_split_account_balance.sql`). The Up functions
 read `members` and `accounts` under those grants; every write goes through a
-SECURITY DEFINER RPC — the token reads, `upsert_up_accounts`,
-`sync_up_gift_transactions`, and `reconcile_up_accounts` — which runs as its
-owner, so `transactions` carries no `service_role` grant at all and the sync can
-delete a stale `accounts` row through `reconcile_up_accounts` despite holding no
-`delete` on the table itself. Any future server-side code touching other public
-tables must add its own grants deliberately — the stance is surgical, per-feature.
+SECURITY DEFINER RPC — the token reads, `upsert_accounts`,
+`sync_up_gift_transactions`, and `reconcile_source_accounts` — which runs as
+its owner, so `transactions` carries no `service_role` grant at all and the
+sync can delete a stale `accounts` row through `reconcile_source_accounts`
+despite holding no `delete` on the table itself. Any future server-side code
+touching other public tables must add its own grants deliberately — the
+stance is surgical, per-feature.
+
+`upsert_accounts` and `reconcile_source_accounts`
+(`20260919020000_upsert_accounts.sql`,
+`20260919030000_reconcile_source_accounts.sql`) read `source` (`up` or
+`redbark`) as a parameter rather than hardcoding one, so `up-sync` and
+`redbark-sync` share both RPCs rather than each having its own;
+`reconcile_joint_up_accounts` stays Up-specific. `redbark-connect-complete`,
+`redbark-disconnect`, and
+`redbark-sync` also hold a direct `select`/`insert`/`update`/`delete` grant on
+`redbark_connection` (`20260919010000_redbark_connection.sql`) — unlike
+`accounts`, this table's every write already goes through one of those three
+edge functions, so there is no RPC indirection needed to keep `service_role`
+off a wider table grant.
 
 Two more read paths add their own `select` grants the same way. `eofy-share` /
 `eofy-share-file` read the EOFY source tables (`members`, `inflows`,
@@ -302,6 +316,8 @@ Vault holds every secret that must never reach a client:
 | `up_token:<member_id>`   | a member's Up personal access token                        |
 | `up_sync_cron_url`       | the hourly cron's `up-sync` invocation URL                 |
 | `up_sync_cron_key`       | the service-role key the cron POSTs with                   |
+| `redbark_sync_cron_url`  | the hourly cron's `redbark-sync` invocation URL             |
+| `redbark_sync_cron_key`  | the service-role key that cron POSTs with                  |
 | `notify_cron_url`        | the daily cron's `notify-eval` invocation URL              |
 | `notify_cron_key`        | the service-role key that cron POSTs with                  |
 | `anthropic_api_key`      | the `payslip-extract`/`deduction-extract` functions' Anthropic key (see below) |
@@ -310,6 +326,7 @@ Vault holds every secret that must never reach a client:
 | `vapid_private_key`      | the Web Push VAPID private key, base64url                  |
 | `vapid_subject`          | the `mailto:` contact URI the VAPID JWT carries            |
 | `resend_api_key`         | the `share-create` function's Resend API key (see below)   |
+| `REDBARK_API_KEY`        | the platform-wide Redbark API key (see below)              |
 
 Up tokens are written/read/cleared only by the service-role-only SECURITY
 DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
@@ -390,6 +407,34 @@ and local Postgres and only schedules on Supabase. To bring it up in prod:
    ```sql
    select * from cron.job where jobname = 'up-sync-hourly';
    ```
+
+## redbark-sync hourly cron (prod only)
+
+Migration `20260919040000_redbark_sync_schedule.sql` schedules
+`redbark-sync-hourly` (`0 * * * *`) on the same `pg_cron` + `pg_net` pattern and
+the same skip-if-absent guard as the up-sync cron. Bring it up the same way:
+
+1. The function auto-deploys via CD.
+2. Set the two Vault secrets (the migration reads them at run time; rotating
+   the key is a Vault change, not a re-migration):
+
+   ```sql
+   select vault.create_secret('https://dgfeittjtxjtgbretdkj.supabase.co/functions/v1/redbark-sync', 'redbark_sync_cron_url');
+   select vault.create_secret('<service-role-key>', 'redbark_sync_cron_key');
+   ```
+
+3. Replay the migration's SQL in the dashboard's SQL editor once the secrets
+   exist so the job schedules (it unschedules any prior `redbark-sync-hourly`
+   first, so it is safe to re-run; absent the secrets it leaves the job
+   unscheduled). Verify with:
+
+   ```sql
+   select * from cron.job where jobname = 'redbark-sync-hourly';
+   ```
+
+This is independent of `REDBARK_API_KEY` (below): the cron secrets authorise
+*invoking* the function, while `REDBARK_API_KEY` is what the function itself
+uses to call Redbark once invoked.
 
 ## notify-eval daily cron (prod only)
 
@@ -594,6 +639,23 @@ out the setup, set the same way as `GITHUB_CHANGELOG_TOKEN` above:
 
 Set both in prod with `supabase secrets set PWA_APP_URL=... RESEND_FROM_ADDRESS=... --project-ref dgfeittjtxjtgbretdkj`
 and locally in `supabase/functions/.env`.
+
+## `REDBARK_API_KEY` setup
+
+`redbark-connect`, `redbark-connect-complete`, `redbark-disconnect`, and
+`redbark-sync` share one platform-wide Redbark API key — a single Redbark
+subscription covers every bank connection the household makes, unlike Up's
+per-member personal access token. It is a plain edge function secret, not
+Vault, set the same way as `GITHUB_CHANGELOG_TOKEN` above:
+
+- **Prod:** `supabase secrets set REDBARK_API_KEY=<key> --project-ref dgfeittjtxjtgbretdkj`.
+- **Local dev:** add `REDBARK_API_KEY=<key>` to `supabase/functions/.env`.
+
+Obtaining the key is on the household to action, not automated: signing up for
+a Redbark subscription costs money and needs a live signup (see
+[`redbark-ingestion.md`](redbark-ingestion.md) for pricing). Until the secret
+is set, every Redbark function returns a `500` ("Redbark is not configured")
+rather than attempting a call with no key.
 
 ## Auth
 

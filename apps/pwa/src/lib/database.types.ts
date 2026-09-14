@@ -1508,6 +1508,51 @@ export type Database = {
           },
         ]
       }
+      redbark_connection: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          institution_name: string | null
+          member_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id: string
+          institution_name?: string | null
+          member_id: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          institution_name?: string | null
+          member_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'redbark_connection_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'redbark_connection_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       savings_goal: {
         Row: {
           annual_interest_bps: number | null
@@ -2182,11 +2227,12 @@ export type Database = {
         Args: { p_household_id: string; p_present_external_ids: string[] }
         Returns: undefined
       }
-      reconcile_up_accounts: {
+      reconcile_source_accounts: {
         Args: {
           p_household_id: string
           p_owner_member_id: string
           p_present_external_ids: string[]
+          p_source: Database['public']['Enums']['ledger_source']
         }
         Returns: undefined
       }
@@ -2212,11 +2258,11 @@ export type Database = {
         Returns: undefined
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
+      upsert_accounts: { Args: { rows: Json }; Returns: undefined }
       upsert_payslip_with_lines: {
         Args: { p_lines: Json; p_payslip: Json }
         Returns: string
       }
-      upsert_up_accounts: { Args: { rows: Json }; Returns: undefined }
       vapid_keys: {
         Args: never
         Returns: {
@@ -2246,7 +2292,7 @@ export type Database = {
         | 'every_n_weeks'
         | 'every_n_months'
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
-      ledger_source: 'up' | 'manual'
+      ledger_source: 'up' | 'manual' | 'redbark'
       notification_trigger:
         'buffer_negative' | 'goal_eta_slipped' | 'temporary_item_expiring' | 'fy_boundary'
       one_off_tax_treatment:
@@ -2402,7 +2448,7 @@ export const Constants = {
         'every_n_months',
       ],
       inflow_type: ['salary', 'wage', 'other', 'reimbursement', 'hobby', 'gift'],
-      ledger_source: ['up', 'manual'],
+      ledger_source: ['up', 'manual', 'redbark'],
       notification_trigger: [
         'buffer_negative',
         'goal_eta_slipped',

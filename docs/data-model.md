@@ -799,11 +799,14 @@ balance-visible rule alone.
 ## Ledger
 
 `accounts` is populated by the `up-sync` edge function from every Up account the
-member can see — savers, spending accounts, and home loans alike (see the Up
-integration in [`architecture.md`](architecture.md)); a savings goal links to one
+member can see — savers, spending accounts, and home loans alike — and by
+`redbark-sync` from every banking-category account under a member's Redbark
+connections (see the Up and Redbark integrations in
+[`architecture.md`](architecture.md)); a savings goal links to one
 via `savings_goal.linked_account_id`. `transactions` holds one slice of the
 ledger: the gift-category Up transactions `up-sync` polls, which the Gifts screen
-links purchases from. Every other Up category, manual entry, and spending-plan
+links purchases from — Redbark syncs accounts and balances only, never
+transactions. Every other Up category, manual entry, and spending-plan
 reconciliation are a later phase, so `categories` — the household's own taxonomy —
 stays unpopulated and a synced row's `category_id` is null.
 
@@ -813,13 +816,14 @@ stays unpopulated and a synced row's `category_id` is null.
     `type` (`transaction` | `savings` | `credit` | `offset` | `other` |
     `home_loan` — a home loan synced from Up; net worth reads its balance as a
     liability and the routing surface excludes it),
-    `source` (`up` | `manual`), `external_id`,
+    `source` (`up` | `manual` | `redbark`), `external_id`,
     `currency` (default `AUD`), `exclude_from_net_worth` (default `false` — a
     shared, household-wide flag that drops the account from net-worth totals
     only, leaving retirement projection and budgeting untouched),
-    `deleted_from_source_at` (nullable — set by `up-sync` when the source stops
+    `deleted_from_source_at` (nullable — set by `up-sync` or `redbark-sync`
+    when the source stops
     reporting a still-referenced account, cleared if it reappears; the PWA shows
-    such an account as "deleted in Up"), `created_at`, `updated_at`.
+    such an account as "Deleted at source"), `created_at`, `updated_at`.
   - `unique (source, external_id)` is the sync's dedupe key — global rather than
     household-scoped, since an Up account id is globally unique and a joint
     account seen by both partners must collapse to the one shared row.
@@ -863,6 +867,22 @@ stays unpopulated and a synced row's `category_id` is null.
   apply, and the inner join yields a row only where identity and balance are both
   visible, so a co-member's spending or saver balance never appears. Net worth,
   goal balances, and super balances read from here.
+- **redbark_connection** — a member's bank connection via Redbark's hosted Link
+  Session flow.
+  - `id` (Redbark's own connection id, e.g. `conn_...`), `household_id`,
+    `member_id` (composite FK `(member_id, household_id)` →
+    `members (id, household_id)`), `institution_name`, `status`, `created_at`,
+    `updated_at`.
+  - Redbark exposes no owner field on its own `Connection` object, so
+    ownership is tracked here: a connection always belongs to the member who
+    completed its consent flow, and every account `redbark-sync` lands
+    through it takes `owner_member_id = member_id`. There is no joint-Redbark
+    row — Redbark has no way to tell Nest whether the underlying account is
+    legally joint.
+  - Household members can `select`; every write goes through
+    `redbark-connect-complete` / `redbark-disconnect` / `redbark-sync`, so
+    `insert`/`update`/`delete` are `service_role`-only with no `authenticated`
+    write grant.
 - **transactions** — a single ledger entry.
   - `id`, `household_id`, `account_id`, `member_id` (nullable, attribution),
     `category_id` (nullable), `external_category` (nullable), `posted_at`,
@@ -1057,10 +1077,12 @@ that live in Vault:
   sync only).
 - `clear_up_token(member_id)` — delete the Vault secret and null
   `up_connected_at`.
-- `upsert_up_accounts(rows jsonb)` — the `up-sync` dual-write: for each row,
-  upserts the account identity into `accounts` (on `(source, external_id)`) and
-  its balance into `account_balance` (on `account_id`) in one transaction, so
-  identity and balance never diverge.
+- `upsert_accounts(rows jsonb)` — the `up-sync` / `redbark-sync` dual-write:
+  for each row, upserts the account identity into `accounts` (on `(source,
+  external_id)`) and its balance into `account_balance` (on `account_id`) in
+  one transaction, so identity and balance never diverge. Each row carries its
+  own `source` (`'up'` or `'redbark'`) as data, so the one RPC serves both
+  syncs.
 - `sync_up_gift_transactions(household_id, account_ids, since, rows jsonb)` —
   settles one member's gift-category window in a single transaction: upserts
   every row Up returned (on `(source, external_id)`), holds each linked
@@ -1068,16 +1090,20 @@ that live in Vault:
   the pass did not return — over exactly `account_ids` and from `since` forward,
   keeping any transaction a purchase links to. An empty `rows` clears the window,
   the case where the last gift candidate was recategorised away in the Up app.
-- `reconcile_up_accounts(household_id, owner_member_id, present_external_ids text[])`
-  — the `up-sync` account reconcile: over one member's individually-owned
-  `source = 'up'` accounts, clears `deleted_from_source_at` on the ones in the
-  list, deletes the absent ones nothing references (`account_balance` cascades),
-  and stamps `deleted_from_source_at` on the absent ones a `savings_goal`,
-  `budget_line`, `households.pay_account_id`, or `super_profile` still holds. An
-  empty list is a valid "this member has no Up accounts" result. Joint accounts
-  and other households' rows are out of scope.
+- `reconcile_source_accounts(household_id, owner_member_id, source, present_external_ids text[])`
+  — the `up-sync` / `redbark-sync` per-member account reconcile: over one
+  member's individually-owned accounts of the given `source`, clears
+  `deleted_from_source_at` on the ones in the list, deletes the absent ones
+  nothing references (`account_balance` cascades), and stamps
+  `deleted_from_source_at` on the absent ones a `savings_goal`, `budget_line`,
+  `households.pay_account_id`, or `super_profile` still holds. An empty list is
+  a valid "this member has no accounts on this source" result. Joint accounts
+  and other households' rows are out of scope. `up-sync` calls it with
+  `p_source => 'up'` and `redbark-sync` with `'redbark'`, so the two syncs
+  share this RPC.
 - `reconcile_joint_up_accounts(household_id, present_external_ids text[])` — the
-  joint twin of the above: over one household's joint (`owner_member_id is
+  joint twin of the above, and Up-specific: over one household's joint
+  (`owner_member_id is
   null`) `source = 'up'` accounts, clears `deleted_from_source_at` on the ones
   in the list, deletes the absent ones nothing references (`account_balance`
   cascades), and stamps `deleted_from_source_at` on the absent ones a
@@ -1086,7 +1112,8 @@ that live in Vault:
   member synced with a readable token, passing the union of the ids those
   tokens returned. An empty list is a valid "no member reported any Up account"
   result. Individually-owned accounts and other households' rows are out of
-  scope.
+  scope. Not generalised: a Redbark connection is never joint (Redbark exposes
+  no ownership field), so there is no joint half for `redbark-sync` to share.
 - `vapid_keys()` — the Web Push VAPID credential set (base64url public key,
   base64url private key, `mailto:` subject) as one row, nulls when unset. One
   function rather than three: the sender needs all of it in the same breath (the

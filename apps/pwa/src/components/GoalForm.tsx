@@ -127,30 +127,30 @@ export function GoalForm({ initial, draft, savers, onSubmit, onCancel }: GoalFor
 
       {savers.length > 0 ? (
         <Select
-          label="Up saver"
+          label="Synced saver"
           size="sm"
-          description="Optional. Pulls the current balance from a synced Up saver."
+          description="Optional. Pulls the current balance from a synced saver."
           placeholder="Not linked"
           clearable
           searchable
           nothingFoundMessage="No matching savers"
           data={savers.map((saver) => ({
             value: saver.id,
-            label: saver.deleted_from_source_at ? `${saver.name} (deleted in Up)` : saver.name,
+            label: saver.deleted_from_source_at ? `${saver.name} (deleted at source)` : saver.name,
           }))}
           value={linkedAccountId}
           onChange={handleSaverChange}
         />
       ) : (
         <Text size="xs" c="dimmed">
-          Connect Up and sync to link a saver.
+          Connect a bank and sync to link a saver.
         </Text>
       )}
 
       {linkedSaverDeleted && (
         <Alert color="warning" variant="light" p="xs">
-          This saver was deleted in Up. Link the goal to a current saver, or clear the link and
-          track the balance manually.
+          This saver was deleted at its source. Link the goal to a current saver, or clear the link
+          and track the balance manually.
         </Alert>
       )}
 

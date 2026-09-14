@@ -5,7 +5,16 @@ import { vi } from 'vitest'
  * return the builder itself so calls chain, matching `@supabase/supabase-js`.
  */
 export type BuilderMethod =
-  'select' | 'insert' | 'update' | 'upsert' | 'delete' | 'eq' | 'order' | 'single' | 'maybeSingle'
+  | 'select'
+  | 'insert'
+  | 'update'
+  | 'upsert'
+  | 'delete'
+  | 'eq'
+  | 'neq'
+  | 'order'
+  | 'single'
+  | 'maybeSingle'
 
 /**
  * A chainable, thenable stand-in for a Supabase PostgREST query builder. Every

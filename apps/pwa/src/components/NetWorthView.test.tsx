@@ -505,7 +505,7 @@ describe('NetWorthView', () => {
     )
 
     const other = screen.getByRole('region', { name: 'Other accounts' })
-    expect(within(other).getByText('Deleted in Up')).toBeInTheDocument()
+    expect(within(other).getByText('Deleted at source')).toBeInTheDocument()
 
     fireEvent.click(within(other).getByRole('button', { name: 'Remove from Nest' }))
     const dialog = screen.getByRole('dialog')
@@ -535,7 +535,7 @@ describe('NetWorthView', () => {
       />,
     )
 
-    expect(screen.getByText('Deleted in Up')).toBeInTheDocument()
+    expect(screen.getByText('Deleted at source')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove from Nest' })).not.toBeInTheDocument()
   })
 

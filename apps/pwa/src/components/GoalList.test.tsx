@@ -503,10 +503,10 @@ describe('GoalList', () => {
     // The saver's $6,000 balance, not the manual $1,000.
     expect(within(house).getByText('$6,000.00 of $10,000.00')).toBeInTheDocument()
     expect(within(house).getByText('60%')).toBeInTheDocument()
-    expect(within(house).getByText('From Up saver Up House')).toBeInTheDocument()
+    expect(within(house).getByText('From synced saver Up House')).toBeInTheDocument()
   })
 
-  it('flags a goal whose linked saver was deleted in Up and prompts a relink', () => {
+  it('flags a goal whose linked saver was deleted at its source and prompts a relink', () => {
     const goals = [
       goal({ id: 'g1', name: 'House', target_amount_cents: 1_000_000, linked_account_id: 'a1' }),
     ]
@@ -529,7 +529,7 @@ describe('GoalList', () => {
     )
 
     const house = card('House')
-    expect(within(house).getByText('Deleted in Up')).toBeInTheDocument()
+    expect(within(house).getByText('Deleted at source')).toBeInTheDocument()
     expect(within(house).getByText(/relink the goal to a current saver/i)).toBeInTheDocument()
   })
 
@@ -556,7 +556,7 @@ describe('GoalList', () => {
     const manual = card('Manual')
     expect(within(manual).getByText('$2,500.00 of $10,000.00')).toBeInTheDocument()
     expect(within(manual).getByText('25%')).toBeInTheDocument()
-    expect(within(manual).queryByText(/from up saver/i)).toBeNull()
+    expect(within(manual).queryByText(/from synced saver/i)).toBeNull()
   })
 
   describe('planning-mode comparison', () => {
@@ -654,7 +654,7 @@ describe('GoalList', () => {
       // No bordered card wraps a row.
       expect(screen.getByText('Car').closest('.mantine-Card-root')).toBeNull()
       // The saver-linked goal shows its saver in the caption; the plain goal does not.
-      expect(screen.getByText(/From Up saver Up Car/)).toBeInTheDocument()
+      expect(screen.getByText(/From synced saver Up Car/)).toBeInTheDocument()
       expect(screen.getByText('50%')).toBeInTheDocument()
       // Both goals' target amounts read as a column of their own.
       expect(screen.getAllByText('$10,000.00')).toHaveLength(2)

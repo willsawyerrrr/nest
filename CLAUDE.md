@@ -667,8 +667,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Ingestion: both partners bank with Up. The account-balance slice is built and
   deployed — members connect an Up personal-access token (held in Vault), and
   `up-sync` polls every Up account (savers and spending alike) into `accounts`
-  and `account_balance` via the `upsert_up_accounts` RPC (identity and balance in
-  one transaction), so a goal linked to a saver tracks its real balance and every account the
+  and `account_balance` via the `upsert_accounts` RPC (identity and balance in
+  one transaction, shared with `redbark-sync`), so a goal linked to a saver tracks its real balance and every account the
   member can see — plus any member's spending account by name via
   `account_directory` — is available as a budget-line funding destination (a
   co-member's savers stay private). Deduped on (source,
@@ -690,7 +690,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   joint-account spend is a candidate for both partners until it is claimed as one
   partner's gift, at which point it is withheld from them. A general ledger
   (every category, spend reconciliation, actual tax paid) is deferred.
-  Sources (Up Bank API + manual entry) are
+  Sources (Up Bank API + Redbark + manual entry) are
   source-agnostic. Edge functions (`up-connect` / `up-disconnect` / `up-sync` /
   `up-webhook` / `changelog`) live under `supabase/functions/` and auto-deploy to
   prod on merge via `.github/workflows/deploy-functions.yml`, whose deploy step
@@ -698,7 +698,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   running every function in the directory is asserted, not assumed:
   `.github/workflows/check-function-drift.yml` compares the two every six hours,
   and the deploy workflow re-runs the same check straight after its push (see
-  [`docs/operations.md`](docs/operations.md#deployment)).
+  [`docs/operations.md`](docs/operations.md#deployment)). Redbark
+  (redbark.com) is a second, accounts-and-balances-only ledger source over the
+  AU Consumer Data Right (via Fiskil): a member connects a bank through a
+  hosted Link Session consent redirect (`redbark-connect` /
+  `redbark-connect-complete`, one platform-wide `REDBARK_API_KEY`, and
+  `redbark_connection` tracking each connection's individually-owning member,
+  since Redbark exposes no ownership field of its own), and `redbark-sync`
+  polls each connection's banking-category accounts into the same `accounts` /
+  `account_balance` tables Up populates — a Redbark-synced account is a
+  selectable budget-line funding destination, pay account, and goal-linked
+  saver identically to an Up one. See
+  [`docs/redbark-ingestion.md`](docs/redbark-ingestion.md).
 - Changelog: an in-app "What's new" tab reads recent user-facing changes from
   GitHub via the `changelog` edge function (a server-held `GITHUB_CHANGELOG_TOKEN`
   fine-grained PAT), showing open PR titles as in-progress and merged-commit

@@ -34,7 +34,7 @@ describe('SplitsScreen', () => {
     expect(screen.getByText('$500.00')).toBeInTheDocument()
   })
 
-  it('badges a routed saver that the sync flagged as deleted in Up', () => {
+  it('badges a routed saver that the sync flagged as deleted at its source', () => {
     const saver = account({
       id: 's1',
       name: 'Emergency',
@@ -48,7 +48,19 @@ describe('SplitsScreen', () => {
       lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
     })
 
-    expect(screen.getByText('Deleted in Up')).toBeInTheDocument()
+    expect(screen.getByText('Deleted at source')).toBeInTheDocument()
+  })
+
+  it('recommends a Redbark-synced saver alongside an Up one', () => {
+    const saver = account({ id: 's1', name: 'Offset', source: 'redbark', type: 'savings' })
+    renderScreen({
+      accounts: [saver],
+      goals: [goal({ id: 'g1', linked_account_id: 's1' })],
+      lines: [line({ id: 'l1', line_group: 'savings', amount_cents: 500_00, goal_id: 'g1' })],
+    })
+
+    expect(screen.getByText('Recommended pay splits')).toBeInTheDocument()
+    expect(screen.getByText('Offset')).toBeInTheDocument()
   })
 
   it('strips a saver’s leading emoji from its displayed name', () => {
@@ -326,7 +338,7 @@ describe('SplitsScreen', () => {
       configuredByAccount: new Map(),
     })
 
-    expect(screen.getByText('Not set in Up yet')).toBeInTheDocument()
+    expect(screen.getByText('Not set yet')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /mark as set/i })).toBeInTheDocument()
   })
 
@@ -377,7 +389,7 @@ describe('SplitsScreen', () => {
 
     expect(screen.getByText('Groceries')).toBeInTheDocument()
     expect(screen.queryByText(/up to date/i)).not.toBeInTheDocument()
-    expect(screen.queryByText('set in Up')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not set yet')).not.toBeInTheDocument()
     expect(screen.queryByText(/to update/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Update')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /confirm|mark as set/i })).not.toBeInTheDocument()
@@ -408,7 +420,7 @@ describe('SplitsScreen', () => {
       configuredByAccount: new Map(),
     })
 
-    expect(screen.getByText('Not set in Up yet')).toBeInTheDocument()
+    expect(screen.getByText('Not set yet')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clear pay split' })).not.toBeInTheDocument()
   })
 

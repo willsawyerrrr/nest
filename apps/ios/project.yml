@@ -20,8 +20,9 @@ settings:
 targets:
   Nest:
     type: application
-    platform: iOS
-    deploymentTarget: '17.0'
+    supportedDestinations: [iOS, macCatalyst]
+    deploymentTarget:
+      iOS: '17.0'
     sources:
       - path: Nest
     dependencies:
@@ -33,7 +34,6 @@ targets:
         CFBundleDisplayName: Nest
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSRequiresIPhoneOS: true
         UILaunchScreen: {}
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:

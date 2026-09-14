@@ -1,13 +1,17 @@
-# iOS app
+# iOS and macOS app
 
-`apps/ios` is a thin native iOS app. The PWA (`https://nest.willsawyerrrr.dev`)
-is the entire product UI; the native app embeds it in a `WKWebView` and adds
-Siri / App Intents access to key figures (Linear WSD-95). Three read-only
-queries so far: the household's fortnightly buffer after saving, its savings-goal
-progress, and how much a named budget line is planned at.
+`apps/ios` is a thin native app, built from one codebase for two destinations —
+iOS and Mac Catalyst (Linear WSD-95, WSD-193). The PWA
+(`https://nest.willsawyerrrr.dev`) is the entire product UI; the native app
+embeds it in a `WKWebView` and adds Siri / App Intents access to key figures.
+Three read-only queries so far: the household's fortnightly buffer after
+saving, its savings-goal progress, and how much a named budget line is planned
+at.
 
 Nothing about how the PWA is built, deployed, or served changes because this
-app exists.
+app exists. Nothing in the Swift source differs between the two destinations
+either — `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` on the
+one `Nest` target is the entire difference; every file below applies to both.
 
 ## The shell
 
@@ -167,30 +171,45 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
 ## Apple Developer Program
 
 A paid Apple Developer Program membership is **not** required to build, run, or
-use this app. Per Apple's App Intents documentation, an `AppShortcutsProvider`
-needs no entitlement: a free personal team covers compile, Simulator, on-device
-install (7-day provisioning), and the App Shortcut reaching the Shortcuts app,
-Spotlight, and Siri. `com.apple.developer.siri` is the legacy SiriKit /
+use this app on either platform. Per Apple's App Intents documentation, an
+`AppShortcutsProvider` needs no entitlement: a free personal team covers
+compile, Simulator, on-device install (7-day provisioning), a local Mac
+Catalyst build, and the App Shortcut reaching the Shortcuts app and Spotlight
+on both platforms. `com.apple.developer.siri` is the legacy SiriKit /
 Apple-Intelligence-schema entitlement, which this app uses neither of.
 
-The one thing to confirm on-device is **Siri voice invocation** (as opposed to
-running the shortcut from the Shortcuts app or Spotlight). A few third-party
-reports claim it still needs the entitlement; this contradicts Apple's docs and
-is unverified. If voice invocation specifically fails during household testing,
-the paid program comes into play — nothing else about this app does.
+On iOS, the one thing to confirm on-device is **Siri voice invocation** (as
+opposed to running the shortcut from the Shortcuts app or Spotlight). A few
+third-party reports claim it still needs the entitlement; this contradicts
+Apple's docs and is unverified. If voice invocation specifically fails during
+household testing, the paid program comes into play — nothing else about the
+iOS side does.
 
-The App Shortcuts have been run from Spotlight and the Shortcuts app **on a real
-device**; both queries answer. **The iOS Simulator cannot reliably invoke an App
-Shortcut** — it fails with "Unable to run App Shortcut" regardless of the code —
-so test the intents on hardware. The Simulator is still fine for the OAuth flow,
-the web shell, and `xcodebuild test`.
+**On macOS, Siri voice invocation of an App Shortcut is not available at all**
+— confirmed by Apple DTS (developer forum thread 764609): intents declared for
+App Shortcuts are available in the macOS Shortcuts app, but Siri voice
+invocation of them is not, regardless of entitlement or payment tier. The
+Shortcuts app and Spotlight are unaffected. This is a platform limitation, not
+something the paid program unlocks.
+
+The App Shortcuts have been run from Spotlight and the Shortcuts app **on a
+real iOS device**; both queries answer. **The iOS Simulator cannot reliably
+invoke an App Shortcut** — it fails with "Unable to run App Shortcut" regardless
+of the code — so test the intents on iOS hardware. The Simulator is still fine
+for the OAuth flow, the web shell, and `xcodebuild test`. A Mac Catalyst build
+has no simulator: running it is already the "real device" case, and
+`Metadata.appintents` is produced and validated in its build product exactly as
+it is for iOS.
 
 ## Project structure
 
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the
   source of truth for the Xcode project, its `Info.plist` properties, and the
-  SPM dependency. The generated `Nest.xcodeproj` and `Nest/Info.plist` are not
-  committed.
+  SPM dependency. `Nest`'s `supportedDestinations: [iOS, macCatalyst]` is what
+  makes it a two-platform target rather than a separate macOS project; its
+  `Info.plist` carries no `LSRequiresIPhoneOS` key, since that key excludes
+  Catalyst outright. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
+  not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
   `SessionBridge.swift`, `Supabase.swift`, `Auth.swift`, and `Intents/`.
 - `NestTests/` — Swift Testing unit tests for the Intent logic (each service's
@@ -202,15 +221,19 @@ instructions.
 
 ## CI
 
-`.github/workflows/ios.yml` runs on a `macos-latest` runner, path-filtered to
-`apps/ios/**`: `xcodegen generate`, then `xcodebuild build` (which runs
-`appintentsmetadataprocessor`, so a malformed App Shortcut phrase — a missing
-`\(.applicationName)`, a duplicate identifier, an unresolvable parameter type —
-fails the build), then `xcodebuild test`. It does **not** override `SWIFT_EXEC`
-(that drops `--compile-time-extraction` and breaks App Intents metadata
-extraction on Xcode 16+) and passes `-skipMacroValidation` /
+`.github/workflows/ios.yml` runs two jobs on `macos-latest` runners,
+path-filtered to `apps/ios/**`: `build-ios` (the iOS Simulator destination) and
+`build-catalyst` (the Mac Catalyst destination). Each runs `xcodegen generate`,
+then `xcodebuild build` (which runs `appintentsmetadataprocessor`, so a
+malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
+identifier, an unresolvable parameter type — fails the build on both
+destinations), then `xcodebuild test`. Neither overrides `SWIFT_EXEC` (that
+drops `--compile-time-extraction` and breaks App Intents metadata extraction
+on Xcode 16+) and both pass `-skipMacroValidation` /
 `-skipPackagePluginValidation` so a fresh runner does not stall on a macro or
-plugin approval prompt.
+plugin approval prompt. `build-catalyst` additionally passes
+`CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
+Catalyst, unlike the Simulator, always signs.
 
 It is **informational only** — a separate workflow, not one of the four jobs
 `CI Status` aggregates and not a required check, because a macOS runner is far

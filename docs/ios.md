@@ -73,15 +73,26 @@ view's session.
   iterates `supabaseAuth.authStateChanges` for the life of the app so the gate
   reflects the launch restore, every token refresh, and the sign-out the web
   view asks for.
-- **Google OAuth** runs through
-  `supabaseAuth.signInWithOAuth(provider: .google, redirectTo:)`, which opens an
-  `ASWebAuthenticationSession`, performs the PKCE exchange, and persists the
-  session. It reuses the PWA's existing Google/Supabase OAuth setup unchanged —
-  nothing changes in the Google Cloud console.
+- **Google OAuth** — `AuthModel.signIn()` drives the flow by hand rather than
+  `supabaseAuth`'s own `signInWithOAuth(provider:redirectTo:…)` convenience:
+  `getOAuthSignInURL` for the authorize URL, a standalone `OAuthAuthenticator`
+  (not `@MainActor`, not nested inside any actor-isolated closure) that opens
+  an `ASWebAuthenticationSession` and resolves with the callback URL, then
+  `supabaseAuth.session(from:)` to complete the PKCE exchange and persist the
+  session. The convenience method nests its `ASWebAuthenticationSession`
+  completion handler inside a `@MainActor` closure, and the compiler infers
+  that handler `@MainActor`-isolated; `ASWebAuthenticationSession` delivers it
+  on an XPC queue rather than the main queue, so resuming the isolated
+  continuation there traps with `dispatch_assert_queue_fail` on Mac Catalyst.
+  `OAuthAuthenticator`'s plain, non-isolated closures sidestep the inference
+  entirely. It reuses the PWA's existing Google/Supabase OAuth setup unchanged
+  — nothing changes in the Google Cloud console.
 - **Custom URL scheme** `dev.willsawyerrrr.nest.ios`, declared as
   `CFBundleURLTypes` in `project.yml`. The OAuth redirect target is
   `dev.willsawyerrrr.nest.ios://auth-callback`; `NestApp.swift` also forwards
-  `onOpenURL` to `supabaseAuth.session(from:)` for that redirect.
+  `onOpenURL` to `supabaseAuth.session(from:)` for a redirect the OS opens
+  directly rather than through `ASWebAuthenticationSession` — a magic-link
+  email, for instance.
 - **Session storage** is `supabase-swift`'s default `KeychainLocalStorage` — no
   Keychain access group, no App Group. The Intent runs in the app's own process
   (see below), so it reads the stored session directly. The session is

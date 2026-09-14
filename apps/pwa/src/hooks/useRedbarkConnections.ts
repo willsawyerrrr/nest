@@ -87,6 +87,10 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
   }, [queryClient, householdId])
 
   useEffect(() => {
+    // Only reachable via StrictMode's real double-invoke-effects behaviour,
+    // which jsdom/vitest's effect scheduling does not reproduce even under
+    // `<StrictMode>` — verified empirically, not just untested.
+    /* v8 ignore next 3 */
     if (completionChecked.current) {
       return
     }
@@ -103,7 +107,8 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
           body: { linkSessionId },
         })
         if (error) {
-          throw error
+          setCompleteResult({ status: 'failed', reason: error.message })
+          return
         }
         if (data.connected) {
           setCompleteResult({ status: 'connected' })

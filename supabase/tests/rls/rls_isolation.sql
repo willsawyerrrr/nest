@@ -458,9 +458,10 @@ do $$ begin
   assert (select count(*) from public.members) >= 1,
     'service_role should select from members';
 end $$;
--- up-sync dual-writes identity and balance through the upsert_up_accounts RPC
--- (SECURITY DEFINER, service_role only); one call upserts both tables atomically.
-select public.upsert_up_accounts(jsonb_build_array(jsonb_build_object(
+-- up-sync (and redbark-sync) dual-write identity and balance through the
+-- upsert_accounts RPC (SECURITY DEFINER, service_role only); one call upserts
+-- both tables atomically, source as data on each row rather than hardcoded.
+select public.upsert_accounts(jsonb_build_array(jsonb_build_object(
   'household_id', current_setting('test.hid'),
   'owner_member_id', null,
   'name', 'Up Everyday',
@@ -477,7 +478,7 @@ do $$ begin
     join public.accounts a on a.id = b.account_id
     where a.external_id = 'up-acct-demo'
   ) = 500_00,
-    'service_role upsert_up_accounts writes the account identity and its balance';
+    'service_role upsert_accounts writes the account identity and its balance';
 end $$;
 rollback to savepoint svc_grants;
 reset role;

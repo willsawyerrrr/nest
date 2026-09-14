@@ -189,14 +189,13 @@ connection the household makes, unlike Up's per-member Vault-held token. See
 - **`redbark-sync`** — per connection: `GET /accounts?connection=<id>`
   (paginated via `next_page_url`), filtered to `category = 'banking'`, then
   `GET /accounts/{id}/balance` per surviving account. Rows upsert via
-  `upsert_accounts` — the RPC `up-sync` also uses, generalised from
-  `upsert_up_accounts` (identical body, `source` was already per-row data
-  rather than hardcoded). Per member, `reconcile_source_accounts` —
-  generalised from `reconcile_up_accounts` to take `source` as a parameter —
-  reconciles that member's Redbark accounts against the union of external ids
-  present across every one of their connections (a member can have more than
-  one bank connected). `reconcile_joint_up_accounts` is untouched: it stays
-  Up-only, since a Redbark connection is never joint.
+  `upsert_accounts` — the RPC `up-sync` also uses, `source` a field on each
+  row rather than hardcoded. Per member, `reconcile_source_accounts` (also
+  shared with `up-sync`, called with `p_source => 'redbark'`) reconciles that
+  member's Redbark accounts against the union of external ids present across
+  every one of their connections (a member can have more than one bank
+  connected). `reconcile_joint_up_accounts` stays Up-only, since a Redbark
+  connection is never joint.
 - **`_shared/redbark.ts`** — a typed client mirroring `_shared/up.ts`'s shape:
   injectable `fetchImpl`, a private throwing request helper (`RedbarkApiError`,
   carrying the HTTP status and the error envelope's `code`), a private

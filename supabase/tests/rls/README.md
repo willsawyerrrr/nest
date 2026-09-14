@@ -63,12 +63,13 @@ instance and can also be run locally.
   `full_amount_cents` at `work_use_percent`, the percentage must fall in (0, 100],
   a distance-basis row is pinned at 100%, and the add path's
   `create_deduction_with_receipts` carries the apportioning it is given.
-- `reconcile_up_accounts.sql` — the assertions that the up-sync reconcile RPC
+- `reconcile_source_accounts.sql` — the assertions that the sync reconcile RPC
   (SECURITY DEFINER, `service_role` only) deletes a member's individually-owned
-  `source = 'up'` account the token stopped reporting when nothing references it
+  account of one source the sync stopped reporting when nothing references it
   (its `account_balance` cascading away), flags `deleted_from_source_at` when a
-  savings goal still holds it, clears the flag when the account reappears, and
-  leaves joint accounts and other households' rows alone.
+  savings goal still holds it, clears the flag when the account reappears,
+  leaves joint accounts and other households' rows alone, and never touches a
+  same-member account from a different source.
 - `wishlist_item.sql` — the assertions that `wishlist_item` carries the same
   household-wide policy as the other planning tables: a member reads and writes
   only their own household's rows, its amount must be positive, `set_updated_at`
@@ -117,6 +118,14 @@ instance and can also be run locally.
   `share_grant` as `authenticated` is refused outright, a co-member's household
   cannot see another household's share, and `revoke_share_grant` deletes the
   row (a no-op when there is none).
+- `redbark_connection.sql` — the assertions that a Redbark bank connection is
+  readable by any member of its household (a co-member's connection included —
+  attribution, not privacy, same as `accounts.owner_member_id`) but never
+  isolated the way per-account balance privacy is, that no direct
+  insert/update/delete reaches the table as `authenticated` (every write goes
+  through `redbark-connect-complete`/`redbark-disconnect`/`redbark-sync`), that
+  a different household's connection is invisible, and that `service_role`
+  holds every grant.
 
 ## What runs
 
@@ -126,8 +135,9 @@ instance and can also be run locally.
 `deduction_group.sql` → `deduction_work_use.sql` → `deduction_category.sql` →
 `deduction_donation_group.sql` → `share_grant.sql` →
 `notification_preference.sql` → `notification_log.sql` →
-`reconcile_up_accounts.sql` → `reconcile_joint_up_accounts.sql` →
-`wishlist_item.sql` → `calendar_feed.sql` → `inflow_joint_split.sql`.
+`reconcile_source_accounts.sql` → `reconcile_joint_up_accounts.sql` →
+`redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
+`inflow_joint_split.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -156,8 +166,9 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_donation_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
-psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_up_accounts.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_source_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/redbark_connection.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql

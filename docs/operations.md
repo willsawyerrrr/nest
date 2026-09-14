@@ -220,12 +220,13 @@ despite holding no `delete` on the table itself. Any future server-side code
 touching other public tables must add its own grants deliberately — the
 stance is surgical, per-feature.
 
-`upsert_up_accounts` and `reconcile_up_accounts` generalise to `upsert_accounts`
-and `reconcile_source_accounts` (`20260919020000_upsert_accounts.sql`,
-`20260919030000_reconcile_source_accounts.sql`), reading `source` (`up` or
-`redbark`) as a parameter rather than hardcoding one, so `redbark-sync` shares
-both RPCs rather than duplicating them; `reconcile_joint_up_accounts` stays
-Up-specific. `redbark-connect-complete`, `redbark-disconnect`, and
+`upsert_accounts` and `reconcile_source_accounts`
+(`20260919020000_upsert_accounts.sql`,
+`20260919030000_reconcile_source_accounts.sql`) read `source` (`up` or
+`redbark`) as a parameter rather than hardcoding one, so `up-sync` and
+`redbark-sync` share both RPCs rather than each having its own;
+`reconcile_joint_up_accounts` stays Up-specific. `redbark-connect-complete`,
+`redbark-disconnect`, and
 `redbark-sync` also hold a direct `select`/`insert`/`update`/`delete` grant on
 `redbark_connection` (`20260919010000_redbark_connection.sql`) — unlike
 `accounts`, this table's every write already goes through one of those three

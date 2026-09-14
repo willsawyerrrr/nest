@@ -47,7 +47,7 @@ end;
 $$;
 
 comment on function public.upsert_accounts(jsonb)
-  is 'Upserts a batch of ledger accounts and their balances in one transaction: identity on (source, external_id), balance on account_id. Each input row carries its own source (''up'' or ''redbark'') as data rather than the function hardcoding one, so up-sync and redbark-sync share this single RPC. Generalises upsert_up_accounts (body unchanged, name only).';
+  is 'Upserts a batch of ledger accounts and their balances in one transaction: identity on (source, external_id), balance on account_id. Each input row carries its own source (''up'' or ''redbark'') as data rather than the function hardcoding one, so up-sync and redbark-sync share this single RPC.';
 
 revoke execute on function public.upsert_accounts(jsonb) from public;
 grant execute on function public.upsert_accounts(jsonb) to service_role;

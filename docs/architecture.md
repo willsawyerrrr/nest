@@ -173,9 +173,8 @@ RLS.
   backstop. The schedule reads its
   invocation URL/key from Vault at run time and is guarded on both extensions, so
   it no-ops where they are absent. Sync writes go through the
-  `upsert_accounts` RPC (shared with `redbark-sync`; generalised from
-  `upsert_up_accounts` — identical body, `source` was already per-row data),
-  which upserts each account's identity (dedupe on
+  `upsert_accounts` RPC (shared with `redbark-sync`, source a field on each
+  row rather than hardcoded), which upserts each account's identity (dedupe on
   `(source, external_id)`) and its balance (on `account_id`) in one transaction.
   Up's three account types map to `account_type`: `TRANSACTIONAL → transaction`,
   `SAVER → savings`, `HOME_LOAN → home_loan`. A home loan's balance feeds net
@@ -184,15 +183,14 @@ RLS.
 - **Account reconcile** — after the upsert, for a member whose token read
   succeeded, the ids that token returned are authoritative for that member's
   individually-owned `source = 'up'` accounts, and `reconcile_source_accounts`
-  (shared with `redbark-sync`, called with `p_source => 'up'`; generalised
-  from `reconcile_up_accounts` to take `source` as a parameter; SECURITY
+  (shared with `redbark-sync`, called with `p_source => 'up'`; SECURITY
   DEFINER, `service_role` only — `service_role` has no delete on
   `accounts`) settles the rest: an account the token no longer reports is
   deleted when nothing references it (its `account_balance` cascades) or kept
   and stamped `accounts.deleted_from_source_at` when a savings goal, a budget
   line's funding account, the household pay account, or a member's super link
   still holds it; an account that reappears in a later sync has the stamp
-  cleared. The PWA shows a stamped account as "deleted in Up" with a
+  cleared. The PWA shows a stamped account as "Deleted at source" with a
   Remove-from-Nest action (a direct RLS delete) once its dependency is cleared.
   A failed or absent token read reconciles nothing.
 - **Joint account reconcile** — a joint account (owned by neither member)
@@ -265,11 +263,10 @@ token.
   Per connection: lists its accounts, filters to `category = 'banking'`
   (brokerage has no home in the schema), reads each account's balance, and
   upserts the rows via `upsert_accounts` — the RPC `up-sync` also uses,
-  generalised (as data, `source` was already per-row) from
-  `upsert_up_accounts`. Per member, `reconcile_source_accounts` — likewise
-  generalised from `reconcile_up_accounts` to take `source` as a parameter —
-  reconciles that member's Redbark accounts against the union of ids present
-  across every one of their connections.
+  `source` a field on each row rather than hardcoded. Per member,
+  `reconcile_source_accounts` (also shared with `up-sync`, called with
+  `p_source => 'redbark'`) reconciles that member's Redbark accounts against
+  the union of ids present across every one of their connections.
 - **Account type** is a best-effort heuristic over Redbark's undocumented
   `type` string and the account name (`redbark-sync/map.ts`), pending real
   response samples.

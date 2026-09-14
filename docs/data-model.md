@@ -823,7 +823,7 @@ stays unpopulated and a synced row's `category_id` is null.
     `deleted_from_source_at` (nullable — set by `up-sync` or `redbark-sync`
     when the source stops
     reporting a still-referenced account, cleared if it reappears; the PWA shows
-    such an account as "deleted in Up" for a `source = 'up'` row), `created_at`, `updated_at`.
+    such an account as "Deleted at source"), `created_at`, `updated_at`.
   - `unique (source, external_id)` is the sync's dedupe key — global rather than
     household-scoped, since an Up account id is globally unique and a joint
     account seen by both partners must collapse to the one shared row.
@@ -1082,7 +1082,7 @@ that live in Vault:
   external_id)`) and its balance into `account_balance` (on `account_id`) in
   one transaction, so identity and balance never diverge. Each row carries its
   own `source` (`'up'` or `'redbark'`) as data, so the one RPC serves both
-  syncs; generalised from `upsert_up_accounts` (identical body, name only).
+  syncs.
 - `sync_up_gift_transactions(household_id, account_ids, since, rows jsonb)` —
   settles one member's gift-category window in a single transaction: upserts
   every row Up returned (on `(source, external_id)`), holds each linked
@@ -1098,10 +1098,9 @@ that live in Vault:
   `deleted_from_source_at` on the absent ones a `savings_goal`, `budget_line`,
   `households.pay_account_id`, or `super_profile` still holds. An empty list is
   a valid "this member has no accounts on this source" result. Joint accounts
-  and other households' rows are out of scope. Generalised from
-  `reconcile_up_accounts` (source hardcoded to `'up'`) to take `source` as a
-  parameter, so `up-sync` (passing `p_source => 'up'`) and `redbark-sync`
-  (`'redbark'`) share this RPC.
+  and other households' rows are out of scope. `up-sync` calls it with
+  `p_source => 'up'` and `redbark-sync` with `'redbark'`, so the two syncs
+  share this RPC.
 - `reconcile_joint_up_accounts(household_id, present_external_ids text[])` — the
   joint twin of the above, and Up-specific: over one household's joint
   (`owner_member_id is

@@ -90,17 +90,19 @@ Deno.serve(async (request) => {
     // SECURITY DEFINER RPC upserts identity (on source,external_id) and balance
     // (on account_id) atomically, so the two never diverge across a sync.
     upsertAccounts: async (rows: AccountRow[]) => {
-      const { error } = await supabase.rpc('upsert_up_accounts', { rows })
+      const { error } = await supabase.rpc('upsert_accounts', { rows })
       if (error) throw new Error(`Failed to upsert accounts: ${error.message}`)
     },
     // A SECURITY DEFINER RPC: service_role has no delete on `accounts`. It
     // reconciles only this member's individually-owned Up accounts against the
     // ids the token returned — deleting the unreferenced ones Up dropped and
-    // flagging the referenced ones.
+    // flagging the referenced ones. `p_source` is data, not hardcoded, so
+    // redbark-sync calls the same RPC for its own reconcile.
     reconcileAccounts: async ({ memberId, householdId, presentExternalIds }) => {
-      const { error } = await supabase.rpc('reconcile_up_accounts', {
+      const { error } = await supabase.rpc('reconcile_source_accounts', {
         p_household_id: householdId,
         p_owner_member_id: memberId,
+        p_source: 'up',
         p_present_external_ids: presentExternalIds,
       })
       if (error) throw new Error(`Failed to reconcile accounts: ${error.message}`)

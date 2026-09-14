@@ -31,8 +31,9 @@ and Spotlight still work on both platforms.
     its sign-out request back.
   - `SessionBridge.swift` — builds the JavaScript the shell injects: the
     `window.__NEST_NATIVE_SHELL__` marker and the apply/clear-session calls.
-  - `Supabase.swift` — project URL + anon key constants and the shared
-    `AuthClient` (default `KeychainLocalStorage`).
+  - `Supabase.swift` — project URL + anon key, read from `Info.plist` (see
+    `.env.example`), and the shared `AuthClient` (default
+    `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth, and
     the `authStateChanges` observation behind the gate.
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
@@ -56,13 +57,22 @@ and Spotlight still work on both platforms.
 ## Building
 
 Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`):
+(`brew install xcodegen`). Copy `.env.example` to `.env`, fill in real values
+(same ones as `apps/pwa/.env.example`), and export them — there is no dotenv
+loader here, unlike Vite for the PWA:
 
 ```sh
 cd apps/ios
+cp .env.example .env  # first time only
+set -a && source .env && set +a
 xcodegen generate
 open Nest.xcodeproj
 ```
+
+`xcodegen generate` substitutes `SUPABASE_URL` / `SUPABASE_ANON_KEY` from the
+environment into `Info.plist`; `Supabase.swift` reads them at runtime and
+fails loudly (`fatalError`) if either is missing, rather than silently
+building against no project.
 
 `xcodebuild` resolves the SPM graph and runs `appintentsmetadataprocessor`,
 which validates the App Shortcut phrases:
@@ -88,9 +98,10 @@ Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
 `xcodebuild test` (with a concrete simulator `-destination`, or the same
 Catalyst `-destination` above) runs the `NestTests` suite — 42 tests, and they
 pass identically on both destinations with no source changes between them.
-`.github/workflows/ios.yml` does the generate + build + test for both
-destinations on every push that touches `apps/ios/**`; it is informational, not
-a required check.
+`.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` jobs do the
+generate + build + test for both destinations on every PR/push that touches
+`apps/ios/**`; both are required checks (see
+[`docs/ios.md`](../../docs/ios.md#ci)).
 
 A free personal Apple team is enough to build, run on the Simulator, a device,
 or as a local Mac app, and to use the App Shortcut. There is no App Store

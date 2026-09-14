@@ -65,9 +65,16 @@ view's session.
   plain `URLSession` + bearer token, so the `Functions` product is not pulled
   in.
 - **`Supabase.swift`** constructs a shared `AuthClient` against the project's
-  `auth/v1` endpoint. The project URL and anon key are compiled in as
-  constants — both are public client credentials, shipped the same way the PWA
-  ships them.
+  `auth/v1` endpoint. The project URL and anon key are public client
+  credentials, shipped the same way the PWA ships them — but external to the
+  build rather than hardcoded, so a fork can point at its own Supabase project
+  without editing source: `xcodegen generate` substitutes `SUPABASE_URL` /
+  `SUPABASE_ANON_KEY` from the environment into `Info.plist`
+  (`project.yml`'s `info.properties`), and `Supabase.swift` reads them via
+  `Bundle.main`, failing loudly (`fatalError`) if either is missing rather than
+  building against no project. Local dev sources them from `apps/ios/.env`
+  (see `.env.example`); CI (`ci.yml`'s `build-ios` / `build-catalyst`) from the
+  `SUPABASE_URL` / `SUPABASE_ANON_KEY` repository Variables.
 - **`Auth.swift`** — an `@Observable` `AuthModel` wrapping the client: a coarse
   `unknown / signedOut / signedIn` state, `signIn()`, and `start()`, which
   iterates `supabaseAuth.authStateChanges` for the life of the app so the gate
@@ -232,8 +239,8 @@ instructions.
 
 ## CI
 
-`.github/workflows/ios.yml` runs two jobs on `macos-latest` runners,
-path-filtered to `apps/ios/**`: `build-ios` (the iOS Simulator destination) and
+`.github/workflows/ci.yml` runs `build-ios` and `build-catalyst` on
+`macos-latest` runners: `build-ios` (the iOS Simulator destination) and
 `build-catalyst` (the Mac Catalyst destination). Each runs `xcodegen generate`,
 then `xcodebuild build` (which runs `appintentsmetadataprocessor`, so a
 malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
@@ -246,7 +253,9 @@ plugin approval prompt. `build-catalyst` additionally passes
 `CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
 Catalyst, unlike the Simulator, always signs.
 
-It is **informational only** — a separate workflow, not one of the four jobs
-`CI Status` aggregates and not a required check, because a macOS runner is far
-too slow for the sub-minute `CI Status` budget. A red iOS run does not block a
-merge; it is a signal to look.
+Both are **required** — the `changes` job (`dorny/paths-filter`) gates them on
+`apps/ios/**` (or the workflow file itself) having changed, and `ci-status`
+`needs` both, so a real regression blocks the merge; a PR that leaves
+`apps/ios/` untouched gets `skipped` on both, which `ci-status` treats the same
+as a pass rather than waiting forever on a check that never ran. See
+[`architecture.md`](architecture.md#ci).

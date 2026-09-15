@@ -44,16 +44,12 @@ final class AuthModel {
     ///
     /// Drives the flow by hand — `getOAuthSignInURL` plus `session(from:)` —
     /// rather than `supabaseAuth`'s own `signInWithOAuth(provider:redirectTo:…)`
-    /// convenience, which nests its `ASWebAuthenticationSession` completion
-    /// handler inside a `@MainActor` closure. `ASWebAuthenticationSession`
-    /// delivers that handler on an XPC queue
-    /// (`com.apple.*.SafariLaunchAgent`), and resuming a continuation the
-    /// compiler infers as `@MainActor`-isolated from that queue crashes with
-    /// `dispatch_assert_queue_fail` on Mac Catalyst — a known Swift
-    /// Concurrency/AuthenticationServices interaction, not something a retry
-    /// or presentation tweak works around. `OAuthAuthenticator` below is a
-    /// plain, non-actor-isolated type so its closures are never inferred
-    /// `@MainActor` in the first place.
+    /// convenience. See `OAuthAuthenticator` below for why: resuming the
+    /// underlying continuation directly from `ASWebAuthenticationSession`'s
+    /// XPC callback thread crashes with `dispatch_assert_queue_fail` on Mac
+    /// Catalyst, and neither version — the convenience method's nor a
+    /// hand-rolled one — avoids it just by tweaking Swift actor-isolation
+    /// annotations.
     func signIn() async {
         lastError = nil
         do {
@@ -79,25 +75,35 @@ final class AuthModel {
 /// Runs one OAuth round trip in `ASWebAuthenticationSession` and resolves with
 /// the resulting callback URL.
 ///
-/// Deliberately not `@MainActor` and not nested inside any actor-isolated
-/// closure (see `AuthModel.signIn()`), so neither the completion handler nor
-/// `presentationAnchor(for:)` is inferred `@MainActor` — that inference is
-/// what makes resuming the continuation from `ASWebAuthenticationSession`'s
-/// XPC callback queue fatal. `presentationAnchor(for:)` is still called on the
-/// main thread in practice, so `MainActor.assumeIsolated` there is safe; it
-/// only avoids the *inferred-isolation* trap, not main-thread work itself.
+/// On Mac Catalyst, `ASWebAuthenticationSession` delivers its completion
+/// handler on an XPC reply thread (`com.apple.*.SafariLaunchAgent`) that Swift
+/// Concurrency's own "is this the main executor?" check
+/// (`swift_task_isCurrentExecutorWithFlagsImpl`) cannot correctly place —
+/// resuming a suspended `Task` from it crashes with `dispatch_assert_queue_fail`
+/// regardless of how the resuming closure itself is isolated (verified: even a
+/// `nonisolated` method on a plain, non-`@MainActor` type crashes the same
+/// way; only the XPC thread matters, not any Swift-side annotation). The fix
+/// is to never let a continuation resume ON that thread: hop to the real main
+/// queue with `DispatchQueue.main.async` first, so by the time
+/// `continuation.resume` runs, the thread it runs on is unambiguously the one
+/// Dispatch and Swift Concurrency agree is main.
 private final class OAuthAuthenticator: NSObject, ASWebAuthenticationPresentationContextProviding {
-    func run(url: URL, callbackURLScheme: String) async throws -> URL {
+    /// `nonisolated` as defense in depth — verified it makes no observable
+    /// difference to the crash on its own (the XPC thread is the problem, not
+    /// this method's isolation) — but there is no reason to leave it inferred.
+    nonisolated func run(url: URL, callbackURLScheme: String) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme) {
                 callbackURL,
                 error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else if let callbackURL {
-                    continuation.resume(returning: callbackURL)
-                } else {
-                    continuation.resume(throwing: URLError(.badServerResponse))
+                DispatchQueue.main.async {
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if let callbackURL {
+                        continuation.resume(returning: callbackURL)
+                    } else {
+                        continuation.resume(throwing: URLError(.badServerResponse))
+                    }
                 }
             }
             session.presentationContextProvider = self

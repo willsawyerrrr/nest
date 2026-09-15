@@ -75,39 +75,58 @@ final class AuthModel {
 /// Runs one OAuth round trip in `ASWebAuthenticationSession` and resolves with
 /// the resulting callback URL.
 ///
-/// On Mac Catalyst, `ASWebAuthenticationSession` delivers its completion
-/// handler on an XPC reply thread (`com.apple.*.SafariLaunchAgent`) that Swift
-/// Concurrency's own "is this the main executor?" check
-/// (`swift_task_isCurrentExecutorWithFlagsImpl`) cannot correctly place —
-/// resuming a suspended `Task` from it crashes with `dispatch_assert_queue_fail`
-/// regardless of how the resuming closure itself is isolated (verified: even a
-/// `nonisolated` method on a plain, non-`@MainActor` type crashes the same
-/// way; only the XPC thread matters, not any Swift-side annotation). The fix
-/// is to never let a continuation resume ON that thread: hop to the real main
-/// queue with `DispatchQueue.main.async` first, so by the time
-/// `continuation.resume` runs, the thread it runs on is unambiguously the one
-/// Dispatch and Swift Concurrency agree is main.
+/// Two independent threading problems, both worked around with plain GCD
+/// rather than Swift Concurrency's actor system — that system is what keeps
+/// going wrong here, on Mac Catalyst specifically:
+///
+/// 1. `run` being `nonisolated` (needed so the completion handler closure
+///    below is never inferred `@MainActor` — see its own comment) means
+///    `await`ing it from `AuthModel.signIn()`, a `@MainActor` method, runs
+///    its body — including the synchronous `session.start()` call — on
+///    Swift's background cooperative-thread-pool executor, not the main
+///    thread. `ASWebAuthenticationSession.start()` needs the real main
+///    thread (undocumented, but confirmed by this crashing at `.start()`
+///    itself: `dispatch_assert_queue_fail`). Creating the session and
+///    calling `.start()` inside an explicit `DispatchQueue.main.async` fixes
+///    that regardless of which executor `run`'s own body happens to run on.
+/// 2. `ASWebAuthenticationSession` delivers its completion handler on an XPC
+///    reply thread (`com.apple.*.SafariLaunchAgent`) that Swift Concurrency's
+///    own "is this the main executor?" check
+///    (`swift_task_isCurrentExecutorWithFlagsImpl`) cannot correctly place —
+///    resuming a suspended `Task` from it crashes the same way, regardless of
+///    how the resuming closure itself is isolated (verified: even a
+///    `nonisolated` method on a plain, non-`@MainActor` type crashes the same
+///    way; only the XPC thread matters, not any Swift-side annotation).
+///    Hopping to `DispatchQueue.main.async` before `continuation.resume`
+///    ensures the resume always happens on a thread Dispatch and Swift
+///    Concurrency agree is main.
+///
+/// Nesting the completion handler inside the outer `DispatchQueue.main.async`
+/// block (rather than inside a `MainActor.run` or an `@MainActor` function)
+/// matters: `DispatchQueue.async`'s closure parameter carries no actor
+/// annotation, so the completion handler is never inferred `@MainActor` by
+/// its lexical position — only an actually-`@MainActor`-typed enclosing
+/// construct does that, which is what caused problem 2 in the first place.
 private final class OAuthAuthenticator: NSObject, ASWebAuthenticationPresentationContextProviding {
-    /// `nonisolated` as defense in depth — verified it makes no observable
-    /// difference to the crash on its own (the XPC thread is the problem, not
-    /// this method's isolation) — but there is no reason to leave it inferred.
     nonisolated func run(url: URL, callbackURLScheme: String) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme) {
-                callbackURL,
-                error in
-                DispatchQueue.main.async {
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else if let callbackURL {
-                        continuation.resume(returning: callbackURL)
-                    } else {
-                        continuation.resume(throwing: URLError(.badServerResponse))
+            DispatchQueue.main.async {
+                let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme) {
+                    callbackURL,
+                    error in
+                    DispatchQueue.main.async {
+                        if let error {
+                            continuation.resume(throwing: error)
+                        } else if let callbackURL {
+                            continuation.resume(returning: callbackURL)
+                        } else {
+                            continuation.resume(throwing: URLError(.badServerResponse))
+                        }
                     }
                 }
+                session.presentationContextProvider = self
+                session.start()
             }
-            session.presentationContextProvider = self
-            session.start()
         }
     }
 

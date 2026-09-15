@@ -24,7 +24,14 @@ final class AuthModel {
     /// The last sign-in failure, if any, for the sign-in screen to show.
     private(set) var lastError: String?
 
+    /// Whether a sign-in attempt is in flight, for the sign-in screen's
+    /// button. `signIn()` is not `async` (see its own comment), so this
+    /// replaces what would otherwise be a caller-side `await`-bracketed
+    /// `@State` flag.
+    private(set) var isSigningIn = false
+
     private var observation: Task<Void, Never>?
+    private var authenticator: OAuthAuthenticator?
 
     /// Mirrors `supabaseAuth`'s session into `state` for the lifetime of the
     /// app. `authStateChanges` emits an initial value immediately (the restore
@@ -39,75 +46,124 @@ final class AuthModel {
         }
     }
 
-    /// Runs Google OAuth in an `ASWebAuthenticationSession` and persists the
-    /// resulting session to the Keychain.
+    /// Starts Google OAuth in an `ASWebAuthenticationSession`.
     ///
-    /// Drives the flow by hand — `getOAuthSignInURL` plus `session(from:)` —
-    /// rather than `supabaseAuth`'s own `signInWithOAuth(provider:redirectTo:…)`
-    /// convenience. See `OAuthAuthenticator` below for why: resuming the
-    /// underlying continuation directly from `ASWebAuthenticationSession`'s
-    /// XPC callback thread crashes with `dispatch_assert_queue_fail` on Mac
-    /// Catalyst, and neither version — the convenience method's nor a
-    /// hand-rolled one — avoids it just by tweaking Swift actor-isolation
-    /// annotations.
-    func signIn() async {
+    /// Deliberately not `async`, and deliberately never resumes a
+    /// pre-existing suspended `Task`/`CheckedContinuation` from
+    /// `ASWebAuthenticationSession`'s completion handler — see
+    /// `OAuthAuthenticator`'s comment for the four things that were tried and
+    /// failed before landing on this shape. `OAuthAuthenticator.start`'s
+    /// completion closure spawns a *fresh* `Task` instead, which sidesteps
+    /// the problem entirely: creating a new task from an arbitrary thread is
+    /// an ordinary, well-supported operation, unlike resuming one that
+    /// already exists.
+    func signIn() {
         lastError = nil
+        isSigningIn = true
+        guard let scheme = SupabaseConfig.authCallback.scheme else {
+            lastError = "The OAuth callback URL has no scheme."
+            isSigningIn = false
+            return
+        }
+        let authURL: URL
         do {
-            guard let scheme = SupabaseConfig.authCallback.scheme else {
-                lastError = "The OAuth callback URL has no scheme."
-                return
-            }
-            let authURL = try supabaseAuth.getOAuthSignInURL(
+            authURL = try supabaseAuth.getOAuthSignInURL(
                 provider: .google,
                 redirectTo: SupabaseConfig.authCallback
             )
-            let callbackURL = try await OAuthAuthenticator().run(url: authURL, callbackURLScheme: scheme)
-            _ = try await supabaseAuth.session(from: callbackURL)
-            state = .signedIn
-        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
-            // The member dismissed the sign-in sheet.
         } catch {
             lastError = error.localizedDescription
+            isSigningIn = false
+            return
+        }
+
+        let authenticator = OAuthAuthenticator()
+        self.authenticator = authenticator
+        authenticator.start(url: authURL, callbackURLScheme: scheme) { [weak self] result in
+            Task { @MainActor in
+                self?.completeSignIn(with: result)
+            }
+        }
+    }
+
+    /// Runs on a freshly spawned `Task`, on the main actor, once
+    /// `OAuthAuthenticator` has already safely crossed back from
+    /// `ASWebAuthenticationSession`'s XPC callback thread. Persists the
+    /// resulting session to the Keychain via `session(from:)`.
+    private func completeSignIn(with result: Result<URL, Error>) {
+        authenticator = nil
+        Task {
+            defer { isSigningIn = false }
+            do {
+                let callbackURL = try result.get()
+                _ = try await supabaseAuth.session(from: callbackURL)
+                state = .signedIn
+            } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+                // The member dismissed the sign-in sheet.
+            } catch {
+                lastError = error.localizedDescription
+            }
         }
     }
 }
 
-/// Runs one OAuth round trip in `ASWebAuthenticationSession` and resolves with
-/// the resulting callback URL.
+/// Runs one OAuth round trip in `ASWebAuthenticationSession` and reports the
+/// resulting callback URL via a plain completion handler — never `async`,
+/// never a `CheckedContinuation`.
 ///
-/// On Mac Catalyst, `ASWebAuthenticationSession` delivers its completion
-/// handler on an XPC reply thread (`com.apple.*.SafariLaunchAgent`) that Swift
-/// Concurrency's own "is this the main executor?" check
-/// (`swift_task_isCurrentExecutorWithFlagsImpl`) cannot correctly place —
-/// resuming a suspended `Task` from it crashes with `dispatch_assert_queue_fail`
-/// regardless of how the resuming closure itself is isolated (verified: even a
-/// `nonisolated` method on a plain, non-`@MainActor` type crashes the same
-/// way; only the XPC thread matters, not any Swift-side annotation). The fix
-/// is to never let a continuation resume ON that thread: hop to the real main
-/// queue with `DispatchQueue.main.async` first, so by the time
-/// `continuation.resume` runs, the thread it runs on is unambiguously the one
-/// Dispatch and Swift Concurrency agree is main.
+/// Four different fixes were tried and each one crashed identically
+/// (`dispatch_assert_queue_fail`, Mac Catalyst only) when
+/// `ASWebAuthenticationSession`'s completion handler — delivered on an XPC
+/// reply thread — tried to resume a `CheckedContinuation` back into the
+/// `Task` that was suspended awaiting it: `nonisolated` on the resuming
+/// function, hopping to `DispatchQueue.main.async` before the resume, running
+/// `session.start()` on the main queue, and routing the resume through a
+/// genuinely separate `nonisolated` function (a fix confirmed working for
+/// someone else's build, per Apple Developer Forums thread 783897) all made
+/// no difference. The common thread across every failure: something about
+/// `continuation.resume` itself — not the isolation of whatever calls it —
+/// keeps checking whether the calling thread matches the executor the
+/// original `withCheckedContinuation` call was made under, and that check is
+/// what traps on Mac Catalyst when the calling thread is the XPC one.
+///
+/// So this type never creates a `CheckedContinuation` that crosses the XPC
+/// boundary at all. `start`'s completion parameter is a plain, ordinary
+/// closure with no Swift Concurrency machinery of its own; `AuthModel` is
+/// responsible for spawning a *fresh* `Task` from it once control is safely
+/// back in ordinary code, rather than resuming one that already exists.
 private final class OAuthAuthenticator: NSObject, ASWebAuthenticationPresentationContextProviding {
-    /// `nonisolated` as defense in depth — verified it makes no observable
-    /// difference to the crash on its own (the XPC thread is the problem, not
-    /// this method's isolation) — but there is no reason to leave it inferred.
-    nonisolated func run(url: URL, callbackURLScheme: String) async throws -> URL {
-        try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme) {
-                callbackURL,
-                error in
-                DispatchQueue.main.async {
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else if let callbackURL {
-                        continuation.resume(returning: callbackURL)
-                    } else {
-                        continuation.resume(throwing: URLError(.badServerResponse))
-                    }
-                }
-            }
-            session.presentationContextProvider = self
-            session.start()
+    private var completion: ((Result<URL, Error>) -> Void)?
+    private var session: ASWebAuthenticationSession?
+
+    /// Call on the main thread. `completion` fires exactly once, from
+    /// whichever thread `ASWebAuthenticationSession` happens to deliver its
+    /// completion handler on — never assume main there.
+    func start(url: URL, callbackURLScheme: String, completion: @escaping (Result<URL, Error>) -> Void) {
+        self.completion = completion
+        // A bound method reference, not a closure literal written inline —
+        // deliberately, though unlike the fixes in this type's own doc
+        // comment this one is unverified in isolation; the fix that matters
+        // is `completeSignIn` never resuming a pre-existing continuation.
+        let session = ASWebAuthenticationSession(
+            url: url,
+            callbackURLScheme: callbackURLScheme,
+            completionHandler: handleCompletion
+        )
+        self.session = session
+        session.presentationContextProvider = self
+        session.start()
+    }
+
+    private func handleCompletion(callbackURL: URL?, error: Error?) {
+        let completion = self.completion
+        self.completion = nil
+        self.session = nil
+        if let error {
+            completion?(.failure(error))
+        } else if let callbackURL {
+            completion?(.success(callbackURL))
+        } else {
+            completion?(.failure(URLError(.badServerResponse)))
         }
     }
 

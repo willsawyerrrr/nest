@@ -66,7 +66,6 @@ struct ContentView: View {
 /// the web view.
 private struct SignInView: View {
     @Environment(AuthModel.self) private var auth
-    @State private var isSigningIn = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -84,14 +83,10 @@ private struct SignInView: View {
             }
 
             Button {
-                Task {
-                    isSigningIn = true
-                    await auth.signIn()
-                    isSigningIn = false
-                }
+                auth.signIn()
             } label: {
                 Group {
-                    if isSigningIn {
+                    if auth.isSigningIn {
                         ProgressView()
                             .tint(.black)
                     } else {
@@ -105,7 +100,7 @@ private struct SignInView: View {
             .tint(NestPalette.brand)
             .foregroundStyle(.black)
             .controlSize(.large)
-            .disabled(isSigningIn)
+            .disabled(auth.isSigningIn)
         }
         .padding(.horizontal, 32)
         .frame(maxWidth: 360)

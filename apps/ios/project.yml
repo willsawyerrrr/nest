@@ -56,6 +56,14 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios
         PRODUCT_NAME: Nest
         ENABLE_PREVIEWS: true
+        # Without this, Keychain writes — the PKCE code verifier included —
+        # fail silently with errSecMissingEntitlement (-34018) on Mac
+        # Catalyst, which macOS enforces far more strictly here than iOS.
+        CODE_SIGN_ENTITLEMENTS: Nest/Nest.entitlements
+        # The household's free personal Apple team — resolving
+        # `$(AppIdentifierPrefix)` in Nest.entitlements needs one. CI builds
+        # with `CODE_SIGNING_ALLOWED=NO` and never reaches this.
+        DEVELOPMENT_TEAM: ZN7THSGX7H
 
   NestTests:
     type: bundle.unit-test

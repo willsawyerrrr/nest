@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { fortnightlyCents, grantValueCents, projectGoal } from '@nest/plan'
 import { LoadingScreen } from '../components/LoadingScreen'
@@ -155,6 +156,8 @@ function overridesForTable(
 
 export function PlanningSection() {
   const planning = usePlanningMode()
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows()
   const budgetLines = useBudgetLines()
@@ -368,6 +371,18 @@ export function PlanningSection() {
     baselineIso: etaFor(baselineGoalById.get(goal.id) ?? goal, baselineLines),
   }))
 
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await planning.save()
+    } catch {
+      setSaveError('Could not save your changes. Nothing was lost — try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <PlanningScreen
       overrides={overrides}
@@ -376,6 +391,9 @@ export function PlanningSection() {
       onResetRow={planning.resetRow}
       onDiscard={planning.resetAll}
       onExit={planning.exit}
+      onSave={handleSave}
+      saving={saving}
+      saveError={saveError}
     />
   )
 }

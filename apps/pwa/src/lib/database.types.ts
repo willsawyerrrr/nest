@@ -2153,6 +2153,20 @@ export type Database = {
         Returns: Record<string, unknown>
       }
       clear_up_token: { Args: { p_member_id: string }; Returns: undefined }
+      commit_planning_changes: {
+        Args: {
+          p_budget_line_creates?: Json
+          p_budget_line_deletes?: string[]
+          p_budget_line_updates?: Json
+          p_inflow_creates?: Json
+          p_inflow_deletes?: string[]
+          p_inflow_updates?: Json
+          p_savings_goal_creates?: Json
+          p_savings_goal_deletes?: string[]
+          p_savings_goal_updates?: Json
+        }
+        Returns: undefined
+      }
       create_calendar_feed_token: { Args: never; Returns: string }
       create_deduction_with_receipts: {
         Args: { p_deduction: Json; p_receipts: Json }

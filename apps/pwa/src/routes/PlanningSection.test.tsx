@@ -8,7 +8,7 @@ import {
   makeInflow,
   makeSaver,
 } from '../test/fixtures'
-import { render, screen } from '../test/render'
+import { act, render, screen, waitFor } from '../test/render'
 import { PlanningSection } from './PlanningSection'
 
 afterEach(() => {
@@ -38,6 +38,7 @@ const hooks = vi.hoisted(() => ({
     resetRow: vi.fn(),
     resetAll: vi.fn(),
     exit: vi.fn(),
+    save: vi.fn(),
   },
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -344,6 +345,46 @@ describe('PlanningSection', () => {
     expect(hooks.screenProps?.onResetRow).toBe(hooks.planning.resetRow)
     expect(hooks.screenProps?.onDiscard).toBe(hooks.planning.resetAll)
     expect(hooks.screenProps?.onExit).toBe(hooks.planning.exit)
+  })
+
+  it('saves through the provider, tracking the in-flight state and clearing any prior error', async () => {
+    mockLoaded()
+    let resolveSave = () => {}
+    hooks.planning.save.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveSave = resolve
+      }),
+    )
+    renderSection()
+
+    let savePromise!: Promise<void>
+    await act(async () => {
+      const onSave = hooks.screenProps?.onSave as () => Promise<void>
+      savePromise = onSave()
+    })
+    expect(hooks.screenProps?.saving).toBe(true)
+    expect(hooks.planning.save).toHaveBeenCalledOnce()
+
+    await act(async () => {
+      resolveSave()
+      await savePromise
+    })
+    expect(hooks.screenProps?.saving).toBe(false)
+    expect(hooks.screenProps?.saveError).toBeNull()
+  })
+
+  it('surfaces a failed save without losing anything the sandbox is holding', async () => {
+    mockLoaded()
+    hooks.planning.save.mockRejectedValue(new Error('network down'))
+    renderSection()
+
+    await act(async () => {
+      const onSave = hooks.screenProps?.onSave as () => Promise<void>
+      await onSave()
+    })
+
+    await waitFor(() => expect(hooks.screenProps?.saveError).toMatch(/could not save/i))
+    expect(hooks.screenProps?.saving).toBe(false)
   })
 
   it('formats non-money fields, folds a re-edited new row, and reads the accrual inputs', () => {

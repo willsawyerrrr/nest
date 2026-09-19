@@ -244,7 +244,9 @@ async function syncGiftWindow(
  * window. Idempotent: a re-run updates existing rows in place (balance, name,
  * type, currency; a transaction's amount, status, and category) and creates no
  * duplicates. A member without a readable token is skipped rather than failing
- * the whole run.
+ * the whole run, as is one whose token Up itself rejects when listing accounts
+ * (revoked, expired): a failure there costs only that member's accounts,
+ * reconcile, and gift window, never another member's or household's.
  *
  * A joint account surfaces through both partners' tokens under the same Up id;
  * it is processed once, on its first sighting, so its shared ownership stays
@@ -300,7 +302,17 @@ export async function runSync(
     const token = await deps.tokenFor(member.memberId)
     if (!token) continue
 
-    const upAccounts = await deps.listAccounts(token)
+    // A token Up itself now rejects (revoked, expired) throws here. A failure
+    // costs only this member's accounts, reconcile, and gift window — the rest
+    // of the run, and every other member and household in it, are unaffected.
+    let upAccounts: UpAccount[]
+    try {
+      upAccounts = await deps.listAccounts(token)
+    } catch (error) {
+      console.error(`Account listing failed for member ${member.memberId}:`, error)
+      continue
+    }
+
     const rows = buildAccountRows(upAccounts, member)
       .filter((row) => !seen.has(row.external_id))
     if (rows.length > 0) {

@@ -239,6 +239,26 @@ Deno.test('runSync skips a member whose token is unreadable', async () => {
   assertEquals(upserts, 0)
 })
 
+Deno.test("runSync keeps going when one member's account listing fails", async () => {
+  const sam: ConnectedMember = { memberId: 'm-2', householdId: 'h-1', name: 'Sam' }
+  const reconciles: AccountReconcile[] = []
+  const result = await runSync(deps({
+    listConnectedMembers: () => Promise.resolve([member, sam]),
+    tokenFor: (id) => Promise.resolve(`tok-${id}`),
+    listAccounts: (token) =>
+      token === 'tok-m-1'
+        ? Promise.reject(new Error('Up API 401'))
+        : Promise.resolve([account({}, `${token}-own`)]),
+    ...recordReconciles(reconciles),
+  }))
+
+  // Alex's accounts, reconcile, and gift window are all lost; Sam's stand.
+  assertEquals(result, { members: 2, accounts: 1, transactions: 0 })
+  assertEquals(reconciles, [
+    { memberId: 'm-2', householdId: 'h-1', presentExternalIds: ['tok-m-2-own'] },
+  ])
+})
+
 Deno.test('runSync does not upsert when a member has no accounts', async () => {
   let upserts = 0
   const result = await runSync(

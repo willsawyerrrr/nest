@@ -8,9 +8,13 @@ import {
   type PlanningModeContextValue,
 } from './PlanningModeProvider'
 
+const rpc = vi.fn()
+vi.mock('../lib/supabase', () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }))
+
 afterEach(() => {
   localStorage.clear()
   vi.restoreAllMocks()
+  rpc.mockReset()
 })
 
 /** Mounts the provider and hands back a live view of the context value. */
@@ -54,6 +58,7 @@ describe('usePlanningMode outside a provider', () => {
       inert.applyDelete('inflows', 'a')
       inert.resetRow('inflows', 'a')
       inert.resetAll()
+      void inert.save()
     }).not.toThrow()
   })
 })
@@ -135,5 +140,45 @@ describe('PlanningModeProvider', () => {
     act(() => view.rerender('h2'))
 
     expect(view.get().active).toBe(true)
+  })
+
+  it("saves every table's held layer through the RPC, then clears the sandbox while staying active", async () => {
+    rpc.mockResolvedValue({ error: null })
+    const view = mount()
+    act(() => view.get().enter())
+    act(() => view.get().applyUpdate('inflows', 'a', { amount_cents: 10 }))
+    act(() => view.get().applyCreate('budget_line', { id: 'n1', name: 'New' }))
+    act(() => view.get().applyDelete('savings_goal', 'g1'))
+
+    await act(() => view.get().save())
+
+    expect(rpc).toHaveBeenCalledWith('commit_planning_changes', {
+      p_inflow_creates: [],
+      p_inflow_updates: { a: { amount_cents: 10 } },
+      p_inflow_deletes: [],
+      p_budget_line_creates: [{ id: 'n1', name: 'New' }],
+      p_budget_line_updates: {},
+      p_budget_line_deletes: [],
+      p_savings_goal_creates: [],
+      p_savings_goal_updates: {},
+      p_savings_goal_deletes: ['g1'],
+    })
+    expect(view.get().active).toBe(true)
+    expect(view.get().pendingCount).toBe(0)
+    expect(readPlanningMode('h1')).toEqual({ active: true, overrides: {} })
+  })
+
+  it('throws and leaves the sandbox untouched when the write fails', async () => {
+    rpc.mockResolvedValue({ error: new Error('network down') })
+    const view = mount()
+    act(() => view.get().enter())
+    act(() => view.get().applyUpdate('inflows', 'a', { amount_cents: 10 }))
+
+    await act(async () => {
+      await expect(view.get().save()).rejects.toThrow('network down')
+    })
+
+    expect(view.get().pendingCount).toBe(1)
+    expect(view.get().layerFor('inflows')?.updates).toEqual({ a: { amount_cents: 10 } })
   })
 })

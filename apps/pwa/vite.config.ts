@@ -67,6 +67,14 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     pool: 'threads',
+    // `lib/supabase.ts` throws at import time without these, which a test would
+    // otherwise need env vars for just to render a component that touches
+    // Supabase transitively — even one that mocks `../lib/supabase` outright and
+    // never reaches this module's own initialisation.
+    env: {
+      VITE_SUPABASE_URL: 'https://test.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
     // The form-component tests mount the whole Mantine form dozens of times each
     // and drive it through long `userEvent` sequences. They run in a second or
     // two locally, but a loaded `test-shard` runner can tip the heaviest case

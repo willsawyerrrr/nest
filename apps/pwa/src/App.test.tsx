@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { MantineProvider } from '@mantine/core'
 import type { Session } from '@supabase/supabase-js'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render as rtlRender, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -118,10 +119,13 @@ function householdResult(overrides: Partial<UseHouseholdResult> = {}): UseHouseh
 }
 
 function renderApp(initialEntries: string[] = ['/summary']) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   function Providers({ children }: { children: ReactNode }) {
     return (
       <MantineProvider theme={theme} env="test">
-        <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+        </QueryClientProvider>
       </MantineProvider>
     )
   }

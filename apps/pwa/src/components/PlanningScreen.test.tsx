@@ -34,6 +34,9 @@ function renderScreen(
         onResetRow={handlers.onResetRow ?? vi.fn()}
         onDiscard={handlers.onDiscard ?? vi.fn()}
         onExit={handlers.onExit ?? vi.fn()}
+        onSave={handlers.onSave ?? vi.fn()}
+        saving={handlers.saving ?? false}
+        saveError={handlers.saveError ?? null}
       />
     </PlanningModeProvider>,
   )
@@ -49,10 +52,11 @@ const anUpdate: PlanningOverride = {
 }
 
 describe('PlanningScreen', () => {
-  it('shows an empty state and a disabled Discard when nothing is pending', () => {
+  it('shows an empty state and disables Discard and Save when nothing is pending', () => {
     renderScreen([])
     expect(screen.getByText(/no changes yet/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /discard changes/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
   })
 
   it('lists every override with its kind, name, and moved fields', () => {
@@ -109,13 +113,30 @@ describe('PlanningScreen', () => {
     expect(within(impact).getByText('Car ETA')).toBeInTheDocument()
   })
 
-  it('discards and exits through the footer actions', async () => {
+  it('discards, exits, and saves through the footer actions', async () => {
     const onDiscard = vi.fn()
     const onExit = vi.fn()
-    renderScreen([anUpdate], { onDiscard, onExit })
+    const onSave = vi.fn()
+    renderScreen([anUpdate], { onDiscard, onExit, onSave })
     await userEvent.click(screen.getByRole('button', { name: /discard changes/i }))
     await userEvent.click(screen.getByRole('button', { name: /exit planning mode/i }))
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }))
     expect(onDiscard).toHaveBeenCalledOnce()
     expect(onExit).toHaveBeenCalledOnce()
+    expect(onSave).toHaveBeenCalledOnce()
+  })
+
+  it('disables every footer action while a save is in flight', () => {
+    renderScreen([anUpdate], { saving: true })
+    expect(screen.getByRole('button', { name: /discard changes/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /exit planning mode/i })).toBeDisabled()
+  })
+
+  it('surfaces a failed save without losing the pending changes', () => {
+    renderScreen([anUpdate], {
+      saveError: 'Could not save your changes. Nothing was lost — try again.',
+    })
+    expect(screen.getByText(/could not save your changes/i)).toBeInTheDocument()
+    expect(screen.getByText('Day job')).toBeInTheDocument()
   })
 })

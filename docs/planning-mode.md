@@ -2,8 +2,9 @@
 
 A client-side sandbox the household turns on to try changes to its cash-flow
 numbers — pays, bills, and savings goals — and watch every downstream projection
-recompute, with nothing written to the database. Leaving planning mode discards
-the edits.
+recompute, with nothing written to the database until the household chooses to
+**save**. Saving writes every held change for real in one transaction and clears
+the sandbox; discarding or exiting drops it instead.
 
 It generalises the localised what-ifs already in the app (the Tax tab's
 salary-sacrifice and private-hospital toggles, the retirement-projection
@@ -55,9 +56,11 @@ The sandbox is stored per device, per household, under the `localStorage` key
 
 It survives a refresh — a persistent app-shell banner
 (`PlanningModeBanner`) makes it unmistakable that planning mode is on and offers
-the one action that leaves it. Leaving planning mode removes the key. Every
-`localStorage` access is wrapped, so a private-mode browser that throws still
-works (the sandbox just will not survive a reload).
+a link to review it. Leaving planning mode removes the key; a successful save
+rewrites it with an empty `overrides` object, staying active with a clean slate
+— the same shape a discard leaves. Every `localStorage` access is wrapped, so a
+private-mode browser that throws still works (the sandbox just will not survive
+a reload).
 
 One sandbox per household — not named scenarios.
 
@@ -77,10 +80,11 @@ section recomputes its derived views from that hook's `rows` through the pure
 2. **`components/PlanningModeProvider.tsx`** — a context, mounted in
    `HouseholdApp`, holding the state in React and persisting every change.
    `usePlanningMode()` exposes `active`, `enter()`, `exit()`, `pendingCount`,
-   and the per-table mutators (`applyUpdate` / `applyCreate` / `applyDelete` /
-   `resetRow` / `resetAll`). Outside a provider it returns an inert value
-   (planning off, mutators no-ops), so a component or test that renders a
-   collection hook without the provider still works.
+   the per-table mutators (`applyUpdate` / `applyCreate` / `applyDelete` /
+   `resetRow` / `resetAll`), and `save()` — see [Saving](#saving) below. Outside
+   a provider it returns an inert value (planning off, mutators no-ops), so a
+   component or test that renders a collection hook without the provider still
+   works.
 3. **`useHouseholdCollection`** — for `inflows`, `budget_line`, and
    `savings_goal` only, when planning mode is active: `rows` is `query.data`
    with the override layer applied; `create` / `update` / `remove` route into
@@ -149,13 +153,48 @@ It has two parts:
   real vs proposed vs Δ through the same `ComparedAmount` / `ComparedDate` and
   the same twice-computed views the inline deltas use.
 
-**Discard changes** (`resetAll`, staying in planning mode) and **Exit planning
-mode** (`exit`, dropping the sandbox) sit at the foot of the screen.
+**Save changes** (`save`, writing every held change for real and clearing the
+sandbox — see [Saving](#saving)), **Discard changes** (`resetAll`, staying in
+planning mode), and **Exit planning mode** (`exit`, dropping the sandbox) sit at
+the foot of the screen. Save and Discard are disabled with nothing pending;
+while a save is in flight every action is disabled and the button shows a
+spinner. A failed save surfaces its message inline and leaves every pending
+change exactly as it was, so retrying costs nothing.
+
+## Saving
+
+`PlanningModeProvider.save()` applies a household's whole sandbox — every
+table's `creates`, `updates`, and `deletes` — through one RPC,
+`commit_planning_changes` (migration `20260919050000`), so the household's real
+data either ends up fully reflecting the sandbox or is untouched; there is no
+state where only some of a save landed. The function runs as the caller
+(`security invoker`, the default), so the same household-membership RLS that
+gates a direct write to `inflows`, `budget_line`, or `savings_goal` gates every
+statement inside it — nothing is elevated.
+
+A sandbox-created row's client-generated id becomes the row's real id (an
+ordinary `insert`, not an upsert — a create can only ever land once, since the
+sandbox never re-creates a row it has already created). An update patch is a
+JSON object of only the columns that edit touched, matching the sandbox's own
+shape, and the RPC applies it column by column with `patch ? 'column'` — the
+`?` (key-exists) operator, not `coalesce` — because `coalesce(patch->>'column',
+existing)` cannot tell a column the patch never mentioned from one a patch
+explicitly set to `null`; every column the RPC does not find a key for is left
+exactly as stored.
+
+On success, `save()` clears the household's `overrides` (staying in planning
+mode, exactly like `resetAll`) and invalidates every sandboxed table's
+react-query cache, so `baselineRows` — and every plain, non-sandboxed reader —
+catches up to what was just written. A rejected write throws before any of
+that runs, so a failed save leaves the sandbox, and the screen's pending-changes
+list, untouched.
 
 ## Phases
 
 1. **The sandbox core.** Provider + store + `useHouseholdCollection`
    integration + the app-shell banner + the entry control. Forms edit the
    sandbox transparently and every derived view already recomputes.
-2. **Comparison (this).** Baseline access, the inline `real → proposed (±Δ)`
-   deltas, and the `/planning` screen.
+2. **Comparison.** Baseline access, the inline `real → proposed (±Δ)` deltas,
+   and the `/planning` screen.
+3. **Saving (this).** The `commit_planning_changes` RPC and the `/planning`
+   screen's Save action.

@@ -8,6 +8,8 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import type { Json } from '../lib/database.types'
 import {
   clearPlanningMode,
   countPending,
@@ -17,6 +19,7 @@ import {
   layerDelete,
   layerResetRow,
   layerUpdate,
+  PLANNING_TABLES,
   readPlanningMode,
   writePlanningMode,
   type PlanningLayer,
@@ -24,6 +27,7 @@ import {
   type PlanningState,
   type PlanningTable,
 } from '../lib/planningMode'
+import { supabase } from '../lib/supabase'
 import { useHouseholdId } from './HouseholdProvider'
 
 /** The planning-mode sandbox exposed to the app: its state, its controls, and its per-table mutators. */
@@ -48,6 +52,13 @@ export interface PlanningModeContextValue {
   resetRow: (table: PlanningTable, id: string) => void
   /** Removes every sandbox edit while staying in planning mode. */
   resetAll: () => void
+  /**
+   * Writes every held create, update, and delete to the real tables in one
+   * transaction, then clears the sandbox while staying in planning mode. Throws
+   * — leaving the sandbox untouched — if the write fails, so a failed save never
+   * loses the pending edits.
+   */
+  save: () => Promise<void>
 }
 
 /** Planning off, every mutator a no-op — the value seen outside a provider. */
@@ -62,6 +73,7 @@ const INERT: PlanningModeContextValue = {
   applyDelete: () => {},
   resetRow: () => {},
   resetAll: () => {},
+  save: () => Promise.resolve(),
 }
 
 const PlanningModeContext = createContext<PlanningModeContextValue>(INERT)
@@ -82,6 +94,7 @@ export function usePlanningMode(): PlanningModeContextValue {
  */
 export function PlanningModeProvider({ children }: PropsWithChildren) {
   const householdId = useHouseholdId()
+  const queryClient = useQueryClient()
   const [state, setState] = useState<PlanningState>(() => readPlanningMode(householdId))
 
   // The mutators derive the next state from the last committed one; a ref keeps
@@ -118,6 +131,40 @@ export function PlanningModeProvider({ children }: PropsWithChildren) {
     [commit],
   )
 
+  const save = useCallback(async () => {
+    const { overrides } = stateRef.current
+    const layerFor = (table: PlanningTable) => overrides[table] ?? EMPTY_LAYER
+    const inflows = layerFor('inflows')
+    const budgetLines = layerFor('budget_line')
+    const savingsGoals = layerFor('savings_goal')
+    // A layer's field patches are `Record<string, unknown>` — every table's edits
+    // share one client-side shape — which the RPC's `Json` args cannot express
+    // structurally; the cast is what a dynamic, table-agnostic patch requires.
+    const { error } = await supabase.rpc('commit_planning_changes', {
+      p_inflow_creates: inflows.creates as unknown as Json,
+      p_inflow_updates: inflows.updates as unknown as Json,
+      p_inflow_deletes: inflows.deletes,
+      p_budget_line_creates: budgetLines.creates as unknown as Json,
+      p_budget_line_updates: budgetLines.updates as unknown as Json,
+      p_budget_line_deletes: budgetLines.deletes,
+      p_savings_goal_creates: savingsGoals.creates as unknown as Json,
+      p_savings_goal_updates: savingsGoals.updates as unknown as Json,
+      p_savings_goal_deletes: savingsGoals.deletes,
+    })
+    if (error) {
+      throw error
+    }
+    // The writes landed for real: clear the sandbox (staying in planning mode,
+    // exactly like `resetAll`) and refetch each sandboxed table so its baseline
+    // — and every consumer reading it outside the sandbox — catches up.
+    commit({ active: stateRef.current.active, overrides: {} })
+    await Promise.all(
+      PLANNING_TABLES.map((table) =>
+        queryClient.invalidateQueries({ queryKey: [table, householdId] }),
+      ),
+    )
+  }, [commit, householdId, queryClient])
+
   const value = useMemo<PlanningModeContextValue>(
     () => ({
       active: state.active,
@@ -135,8 +182,9 @@ export function PlanningModeProvider({ children }: PropsWithChildren) {
       applyCreate: (table, row) => mutateLayer(table, (layer) => layerCreate(layer, row)),
       applyDelete: (table, id) => mutateLayer(table, (layer) => layerDelete(layer, id)),
       resetRow: (table, id) => mutateLayer(table, (layer) => layerResetRow(layer, id)),
+      save,
     }),
-    [state, commit, mutateLayer, householdId],
+    [state, commit, mutateLayer, householdId, save],
   )
 
   return <PlanningModeContext.Provider value={value}>{children}</PlanningModeContext.Provider>

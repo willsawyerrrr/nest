@@ -1,5 +1,5 @@
 /* eslint-disable react/only-export-components -- the screen and its row-shape types are one unit. */
-import { Badge, Button, Group, Stack, Table, Text } from '@mantine/core'
+import { Alert, Badge, Button, Group, Stack, Table, Text } from '@mantine/core'
 import type { PlanningTable } from '../lib/planningMode'
 import { AppCard } from './AppCard'
 import { ComparedAmount, ComparedDate } from './ComparedAmount'
@@ -49,6 +49,11 @@ interface PlanningScreenProps {
   onResetRow: (table: PlanningTable, id: string) => void
   onDiscard: () => void
   onExit: () => void
+  onSave: () => void
+  /** True while a save is in flight — disables every footer action until it settles. */
+  saving: boolean
+  /** The message from a failed save, or `null` between attempts. The held changes survive a failure. */
+  saveError: string | null
 }
 
 const KIND_LABEL: Record<PlanningOverride['kind'], { label: string; color: string }> = {
@@ -106,7 +111,8 @@ export function fieldLabel(field: string): string {
  * The Planning tab: every change the sandbox is holding, each with a Reset, then
  * a roll-up of what those changes do to the fortnightly buffer, the year's tax
  * and take-home, each goal's ETA, and net worth — real vs proposed vs delta.
- * Discard drops every change; Exit leaves planning mode.
+ * Save writes every held change for real and clears the sandbox; Discard drops
+ * every change instead; Exit leaves planning mode.
  */
 export function PlanningScreen({
   overrides,
@@ -115,11 +121,14 @@ export function PlanningScreen({
   onResetRow,
   onDiscard,
   onExit,
+  onSave,
+  saving,
+  saveError,
 }: PlanningScreenProps) {
   return (
     <PageSection
       title="Planning"
-      intro="Every change planning mode is holding, and what it does to your plan. Nothing here is saved."
+      intro="Every change planning mode is holding, and what it does to your plan. Save to make it real, or discard it."
     >
       <AppCard>
         <Stack gap="xs">
@@ -179,12 +188,32 @@ export function PlanningScreen({
         </Stack>
       </AppCard>
 
+      {saveError && (
+        <Alert color="red" variant="light">
+          {saveError}
+        </Alert>
+      )}
+
       <Group justify="flex-end" gap="sm">
-        <Button variant="light" color="red" onClick={onDiscard} disabled={overrides.length === 0}>
+        <Button
+          variant="light"
+          color="red"
+          onClick={onDiscard}
+          disabled={overrides.length === 0 || saving}
+        >
           Discard changes
         </Button>
-        <Button variant="filled" color="warning" onClick={onExit}>
+        <Button variant="filled" color="warning" onClick={onExit} disabled={saving}>
           Exit planning mode
+        </Button>
+        <Button
+          variant="filled"
+          color="positive"
+          onClick={onSave}
+          disabled={overrides.length === 0}
+          loading={saving}
+        >
+          Save changes
         </Button>
       </Group>
     </PageSection>

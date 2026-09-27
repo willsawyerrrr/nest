@@ -20,11 +20,11 @@ const input: DeductionInput = {
   deduction_date: '2026-09-01',
 }
 
-/** What a form submits when adding: the id it minted, its fields, and its receipts. */
+/** What a form submits when adding: the id it minted, its fields, and its receipt. */
 const submission: DeductionSubmission = {
   id: 'd2',
   input,
-  receipts: [{ storage_path: 'h1/d2/uuid-receipt.pdf', file_name: 'receipt.pdf' }],
+  receiptPath: 'h1/d2/uuid-receipt.pdf',
 }
 
 beforeEach(() => {
@@ -51,14 +51,14 @@ describe('useDeductions', () => {
     expect(builder.eq).toHaveBeenCalledWith('financial_year', result.current.financialYear)
     // Creating a deduction writes it and its already-uploaded receipts in one
     // RPC call, keyed on the id the submission carries.
-    expect(rpc).toHaveBeenCalledWith('create_deduction_with_receipts', {
+    expect(rpc).toHaveBeenCalledWith('create_deduction_with_receipt', {
       p_deduction: {
         ...input,
         id: 'd2',
         household_id: 'h1',
         financial_year: result.current.financialYear,
       },
-      p_receipts: [...submission.receipts],
+      p_receipt_path: 'h1/d2/uuid-receipt.pdf',
     })
     // Editing an existing deduction stays a plain field update.
     expect(builder.update).toHaveBeenCalledWith(input)
@@ -76,10 +76,21 @@ describe('useDeductions', () => {
     })
 
     expect(builder.eq).toHaveBeenCalledWith('financial_year', 2025)
-    expect(rpc).toHaveBeenCalledWith('create_deduction_with_receipts', {
+    expect(rpc).toHaveBeenCalledWith('create_deduction_with_receipt', {
       p_deduction: { ...input, id: 'd2', household_id: 'h1', financial_year: 2025 },
-      p_receipts: [...submission.receipts],
+      p_receipt_path: 'h1/d2/uuid-receipt.pdf',
     })
+  })
+
+  it('sends no receipt path when none was attached', async () => {
+    const { result } = renderHook(() => useDeductions(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.deductions).not.toBeNull())
+
+    await act(async () => {
+      await result.current.create({ ...submission, receiptPath: null })
+    })
+
+    expect(rpc.mock.calls[0]![1]).not.toHaveProperty('p_receipt_path')
   })
 
   it('surfaces a failed create without reloading', async () => {

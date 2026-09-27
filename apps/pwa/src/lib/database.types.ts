@@ -541,7 +541,6 @@ export type Database = {
         Row: {
           created_at: string
           deduction_id: string
-          file_name: string
           household_id: string
           id: string
           storage_path: string
@@ -549,7 +548,6 @@ export type Database = {
         Insert: {
           created_at?: string
           deduction_id: string
-          file_name: string
           household_id: string
           id?: string
           storage_path: string
@@ -557,7 +555,6 @@ export type Database = {
         Update: {
           created_at?: string
           deduction_id?: string
-          file_name?: string
           household_id?: string
           id?: string
           storage_path?: string
@@ -2168,8 +2165,8 @@ export type Database = {
         Returns: undefined
       }
       create_calendar_feed_token: { Args: never; Returns: string }
-      create_deduction_with_receipts: {
-        Args: { p_deduction: Json; p_receipts: Json }
+      create_deduction_with_receipt: {
+        Args: { p_deduction: Json; p_receipt_path?: string }
         Returns: string
       }
       create_household: {

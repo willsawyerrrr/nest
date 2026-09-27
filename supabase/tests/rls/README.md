@@ -41,7 +41,7 @@ instance and can also be run locally.
   defaults to `work_expense`, that `deduction_work_use_basis` pins
   `work_use_percent` at 100 for a donation and a tax agent fee, that
   `deduction_distance_basis_work_expense` refuses the `distance` basis for
-  either of them, and that the add path's `create_deduction_with_receipts`
+  either of them, and that the add path's `create_deduction_with_receipt`
   carries the category it is given (defaulting it to `work_expense`).
 - `deduction_donation_group.sql` — the assertions that
   `file_donation_in_default_group` files a member's donations into their
@@ -51,10 +51,14 @@ instance and can also be run locally.
   auto-grouped, and each year gets its own group; plus the backfill run from
   the migration itself, which groups exactly the standalone donations, reuses a
   Donations group that is already there, and rewrites nothing on a second pass.
+- `deduction_single_receipt.sql` — the assertions that the database holds a
+  deduction to one receipt, and that the migration introducing the constraint
+  keeps the earliest of several receipts, drops only the surplus rows, leaves a
+  single receipt alone, and rewrites nothing on a second pass.
 - `deduction_group.sql` — the assertions that grouping a member's deductions
   keeps each payment a deduction in its own right: the group totals its members,
   the composite reference refuses a payment from another financial year or
-  another member, the add path's `create_deduction_with_receipts` files a payment
+  another member, the add path's `create_deduction_with_receipt` files a payment
   in the group its payload names, and dropping a group clears its payments'
   `group_id` while leaving the payments themselves — and every other column on
   them — untouched.
@@ -62,7 +66,7 @@ instance and can also be run locally.
   apportioning is held to its three constraints: `amount_cents` must equal
   `full_amount_cents` at `work_use_percent`, the percentage must fall in (0, 100],
   a distance-basis row is pinned at 100%, and the add path's
-  `create_deduction_with_receipts` carries the apportioning it is given.
+  `create_deduction_with_receipt` carries the apportioning it is given.
 - `reconcile_source_accounts.sql` — the assertions that the sync reconcile RPC
   (SECURITY DEFINER, `service_role` only) deletes a member's individually-owned
   account of one source the sync stopped reporting when nothing references it

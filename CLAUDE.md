@@ -211,7 +211,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   member's card condenses their filing-relevant tax figures, states the withheld
   total and the number of payslips behind it (a year with no payslips says so,
   rather than reading as a year that withheld nothing), lists their claimed
-  deductions with receipts, shows their super contributions against the same
+  deductions with their receipt, shows their super contributions against the same
   cap warnings as the Super tab, and shows their standing HELP balance with the
   year's estimated repayment; nothing on the tab is editable.
 - Tax deductions: each member owns many deductible expenses on their own Tax
@@ -272,16 +272,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `super_contribution.kind = 'personal_deductible'`, which already reduces
   taxable income and feeds the concessional-cap tracking there; a `deduction`
   row for one too would double-count it against taxable income and bypass cap
-  tracking entirely. Each deduction may carry stored receipts
-  (`deduction_receipt`), the
-  files held in a private Supabase Storage bucket (`receipts`) laid out under
-  `<household_id>/<deduction_id>/…` so Storage RLS gates access by household
-  membership. Adding a deduction lets the member pick receipt files as the
+  tracking entirely. Each deduction may carry ONE stored receipt
+  (`deduction_receipt`, unique on `deduction_id` so the database holds it to
+  one), the file held in a private Supabase Storage bucket (`receipts`) laid
+  out under `<household_id>/<deduction_id>/…` so Storage RLS gates access by
+  household membership; the row stores no name and every listing shows it as a
+  "Receipt" link. Adding a deduction lets the member pick the receipt as the
   FIRST step, before the deduction exists: the add form mints the deduction id
-  client-side and each picked file uploads immediately to Storage under it
+  client-side and the picked file uploads immediately to Storage under it
   (Storage has no foreign key, so this is safe ahead of the row — unlike
   `deduction_receipt.deduction_id`, a real, non-deferrable one). Picking the
-  first file is what triggers extraction pre-fill: it is read with Claude Haiku
+  file is what triggers extraction pre-fill: it is read with Claude Haiku
   4.5 via the `deduction-extract` edge function, primed with the deduction's
   `category` to expect the right kind of document — a purchase receipt/invoice
   for `work_expense`, a donation tax receipt for `donation`, an invoice for
@@ -292,33 +293,26 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   asking for them to be checked; every failure mode (an unconfigured key, a
   file that does not look like the expected document, an unsupported type or
   size, a rate limit, a model failure) reads as its own inline note and never
-  blocks the save, exactly as payslip extraction. Only the first picked file is read — a second
-  and further ones upload alongside it without a second read, since one
-  confirmed read is what the form works from. Each picked file lists under a
-  name field seeded with the file's own name, so a receipt is stored under
-  whatever the member types — or "Receipt", where the field is cleared or the
-  file carries no name of its own — the name being chosen on the way in rather
-  than corrected afterwards. It is a label alone: `deduction_receipt.file_name`
-  is what the UI shows, and naming never touches `storage_path` or the stored
-  object. The deduction and every receipt already uploaded are written together
-  in one transaction
-  (`create_deduction_with_receipts`), keyed on the id the form minted, so a
-  retried save rewrites the same deduction and replaces its receipt set rather
-  than duplicating either. A picked file the member removes, or the whole add
+  blocks the save, exactly as payslip extraction. Picking another file replaces
+  the first, which is read afresh. The deduction and its uploaded receipt are
+  written together in one transaction
+  (`create_deduction_with_receipt`), keyed on the id the form minted, so a
+  retried save rewrites the same deduction and replaces its receipt rather than
+  duplicating either. A file the member removes or replaces, or the whole add
   flow they walk away from, is deleted again, best effort: a delete that fails
   is swallowed, and a closed tab runs no cleanup at all. Editing an existing
-  deduction carries none of this — its receipts are added, renamed, and removed
-  individually from its row in the deductions list, each such upload creating
-  its `deduction_receipt` row immediately since the deduction already exists and
-  landing under its file's own name, which the row's own rename control edits.
+  deduction carries none of this — its receipt is attached, replaced, or
+  removed from its row in the deductions list, each such upload writing its
+  `deduction_receipt` row immediately since the deduction already exists (a
+  replacement repoints the row and deletes the old object, best effort).
   A **group** names a set of one member's deductions for the financial year —
-  a subscription paid monthly, a trip's several receipts, anything claimed in
+  a subscription paid monthly, a trip's several purchases, anything claimed in
   more than one payment — and each payment is already a deduction in its own
   right, so grouping them is a READING of rows that exist rather than a new kind
   of row. A `deduction_group` names the group and `deduction.group_id` files a
   payment under it; the tab collapses the set to one row carrying the name, the
   payment count, and the summed total, expandable to the payments themselves,
-  each with its own date, amount, and receipts. The total is summed from the
+  each with its own date, amount, and receipt. The total is summed from the
   payments and never stored, because every payment is a deduction the tax
   estimate already counts: a stored group total would be the only figure in the
   app able to disagree with what is actually claimed. Nothing downstream
@@ -340,7 +334,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the group is a question — editing any deduction, or adding a standalone one —
   and withheld where it is already answered, namely adding a payment from a
   group's own row, which is what that control means. Editing is a plain field
-  update rather than `create_deduction_with_receipts`, so the group it writes
+  update rather than `create_deduction_with_receipt`, so the group it writes
   cannot be dropped the way the add path's was.
   **A donation is grouped automatically.** A `donation` saved with no group is
   filed into the member's "Donations" `deduction_group` for the year by the
@@ -758,7 +752,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   Deposit-landed and bill-due triggers need ingestion and are out of scope;
   per-member, per-timezone scheduling is a follow-up.
 - EOFY sharing: a household gives a tax agent read-only access to its EOFY
-  summary (estimate, withholding position, deductions with receipts, super,
+  summary (estimate, withholding position, deductions with their receipt, super,
   HELP debt, payslip documents) via a scoped, time-limited bearer link — never
   by inviting them as a member and never a raw export. `share_grant` holds at
   most one live share per household (`household_id` is its primary key), a

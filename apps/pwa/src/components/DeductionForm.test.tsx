@@ -70,10 +70,9 @@ const attachments: DeductionAttachments = { upload, discard, read }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  upload.mockImplementation(async (deductionId: string, file: File) => ({
-    storage_path: `h1/${deductionId}/uuid-${file.name}`,
-    file_name: file.name,
-  }))
+  upload.mockImplementation(
+    async (deductionId: string, file: File) => `h1/${deductionId}/uuid-${file.name}`,
+  )
   discard.mockResolvedValue(undefined)
   read.mockResolvedValue({ status: 'read', extraction: extraction() } satisfies ExtractionOutcome)
 })
@@ -120,7 +119,7 @@ describe('DeductionForm', () => {
       amount_cents: 350_00,
     })
     expect(submission.input.deduction_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(submission.receipts).toEqual([])
+    expect(submission.receiptPath).toBeNull()
   })
 
   it('shows an error when saving fails', async () => {
@@ -212,7 +211,7 @@ describe('DeductionForm', () => {
         full_amount_cents: 1_200_00,
         work_use_percent: 100,
       },
-      receipts: [],
+      receiptPath: null,
     })
     expect(upload).not.toHaveBeenCalled()
   })
@@ -309,10 +308,8 @@ describe('DeductionForm receipt extraction', () => {
     })
     // The receipt was stored before it was read, so the save carries the same
     // storage path the deduction id is filed under.
-    expect(submission.receipts).toEqual([
-      { storage_path: `h1/${submission.id}/uuid-receipt.pdf`, file_name: 'receipt.pdf' },
-    ])
-    expect(read).toHaveBeenCalledWith(submission.receipts[0]!.storage_path, 'work_expense')
+    expect(submission.receiptPath).toBe(`h1/${submission.id}/uuid-receipt.pdf`)
+    expect(read).toHaveBeenCalledWith(submission.receiptPath, 'work_expense')
   })
 
   it('says the details were extracted and asks for a check, without restating them', async () => {
@@ -387,7 +384,7 @@ describe('DeductionForm receipt extraction', () => {
     expect(submitted(onSubmit).input.description).toBe('My own label')
   })
 
-  it('only reads the first of several attached receipts', async () => {
+  it('replaces the picked receipt, discarding the first object and reading the second', async () => {
     const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
@@ -399,15 +396,16 @@ describe('DeductionForm receipt extraction', () => {
     )
 
     await attach(user, 'first.pdf')
+    const first = (await upload.mock.results[0]!.value) as string
     await attach(user, 'second.pdf')
 
-    expect(read).toHaveBeenCalledTimes(1)
-    expect(read).toHaveBeenCalledWith(expect.stringContaining('first.pdf'), 'work_expense')
-    expect(screen.getByDisplayValue('first.pdf')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('second.pdf')).toBeInTheDocument()
+    expect(discard).toHaveBeenCalledWith(first)
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(read).toHaveBeenLastCalledWith(expect.stringContaining('second.pdf'), 'work_expense')
+    expect(screen.getAllByText('Receipt attached')).toHaveLength(1)
   })
 
-  it('removes a picked receipt, discarding its stored object', async () => {
+  it('removes the picked receipt, discarding its stored object', async () => {
     const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
@@ -419,11 +417,11 @@ describe('DeductionForm receipt extraction', () => {
     )
 
     await attach(user)
-    const path = (await upload.mock.results[0]!.value).storage_path as string
-    await user.click(screen.getByRole('button', { name: /remove receipt 1/i }))
+    const path = (await upload.mock.results[0]!.value) as string
+    await user.click(screen.getByRole('button', { name: /remove receipt/i }))
 
     await waitFor(() => expect(discard).toHaveBeenCalledWith(path))
-    expect(screen.queryByDisplayValue('receipt.pdf')).not.toBeInTheDocument()
+    expect(screen.queryByText('Receipt attached')).not.toBeInTheDocument()
   })
 
   it('says so while the receipt is being stored and read', async () => {
@@ -575,7 +573,7 @@ describe('DeductionForm receipt extraction', () => {
     await waitFor(() => expect(discard).toHaveBeenCalledTimes(1))
   })
 
-  it('keeps every stored receipt once the save that references them succeeds', async () => {
+  it('keeps the stored receipt once the save that references it succeeds', async () => {
     const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     const { unmount } = render(
@@ -632,12 +630,11 @@ describe('DeductionForm receipt extraction', () => {
   it('blocks a save while a receipt is still being stored', async () => {
     const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
-    let finishUpload!: (stored: { storage_path: string; file_name: string }) => void
+    let finishUpload!: () => void
     upload.mockImplementation(
       async (deductionId: string, file: File) =>
-        await new Promise<{ storage_path: string; file_name: string }>((resolve) => {
-          finishUpload = () =>
-            resolve({ storage_path: `h1/${deductionId}/uuid-${file.name}`, file_name: file.name })
+        await new Promise<string>((resolve) => {
+          finishUpload = () => resolve(`h1/${deductionId}/uuid-${file.name}`)
         }),
     )
     render(
@@ -658,90 +655,8 @@ describe('DeductionForm receipt extraction', () => {
     await user.click(submit)
     expect(onSubmit).not.toHaveBeenCalled()
 
-    finishUpload({ storage_path: 'h1/x/uuid-receipt.pdf', file_name: 'receipt.pdf' })
+    finishUpload()
     await waitFor(() => expect(submit).not.toBeDisabled())
-  })
-})
-
-describe('DeductionForm receipt names', () => {
-  /** Saves the deduction — the read having filled its fields — and returns the receipts saved. */
-  async function saveReceipts(
-    user: ReturnType<typeof userEvent.setup>,
-    onSubmit: ReturnType<typeof vi.fn>,
-  ) {
-    await user.click(screen.getByRole('button', { name: /add deduction/i }))
-    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
-    return submitted(onSubmit).receipts
-  }
-
-  it('stores an attached receipt under the name the member types', async () => {
-    const user = userEvent.setup({ delay: null })
-    const onSubmit = vi.fn()
-    render(
-      <DeductionForm
-        member={member}
-        attachments={attachments}
-        financialYear={2027}
-        onSubmit={onSubmit}
-      />,
-    )
-
-    await attach(user)
-    const name = screen.getByRole('textbox', { name: /receipt 1 name/i })
-    expect(name).toHaveValue('receipt.pdf')
-    await user.clear(name)
-    await user.type(name, '  Officeworks invoice  ')
-
-    // The typed name is trimmed, and the file itself stays where it was stored.
-    expect(await saveReceipts(user, onSubmit)).toEqual([
-      {
-        storage_path: expect.stringContaining('uuid-receipt.pdf'),
-        file_name: 'Officeworks invoice',
-      },
-    ])
-  })
-
-  it('stores a receipt left with no name as Receipt', async () => {
-    const user = userEvent.setup({ delay: null })
-    const onSubmit = vi.fn()
-    render(
-      <DeductionForm
-        member={member}
-        attachments={attachments}
-        financialYear={2027}
-        onSubmit={onSubmit}
-      />,
-    )
-
-    await attach(user)
-    await user.clear(screen.getByRole('textbox', { name: /receipt 1 name/i }))
-
-    expect(await saveReceipts(user, onSubmit)).toEqual([
-      { storage_path: expect.any(String), file_name: 'Receipt' },
-    ])
-  })
-
-  it('names each attached receipt on its own', async () => {
-    const user = userEvent.setup({ delay: null })
-    const onSubmit = vi.fn()
-    render(
-      <DeductionForm
-        member={member}
-        attachments={attachments}
-        financialYear={2027}
-        onSubmit={onSubmit}
-      />,
-    )
-
-    await attach(user, 'first.pdf')
-    await attach(user, 'second.pdf')
-    await user.clear(screen.getByRole('textbox', { name: /receipt 2 name/i }))
-    await user.type(screen.getByRole('textbox', { name: /receipt 2 name/i }), 'Toolkit')
-
-    expect(await saveReceipts(user, onSubmit)).toEqual([
-      { storage_path: expect.stringContaining('first.pdf'), file_name: 'first.pdf' },
-      { storage_path: expect.stringContaining('second.pdf'), file_name: 'Toolkit' },
-    ])
   })
 })
 

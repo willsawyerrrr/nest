@@ -90,10 +90,10 @@ begin
 end $$;
 
 -- The add path files its payment in the group. Adding a deduction goes through
--- `create_deduction_with_receipts`, which names its columns explicitly, so the
+-- `create_deduction_with_receipt`, which names its columns explicitly, so the
 -- group has to be among them — a payload the function ignores is a payment that
 -- silently lands ungrouped.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'household_id', current_setting('db.hid')::uuid,
     'member_id', current_setting('db.mid')::uuid,
@@ -103,7 +103,7 @@ select public.create_deduction_with_receipts(
     'financial_year', 2027,
     'group_id', current_setting('db.gid')::uuid
   ),
-  '[]'::jsonb
+  null
 ) as db_added \gset
 select set_config('db.added', :'db_added', false);
 

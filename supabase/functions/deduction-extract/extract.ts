@@ -10,7 +10,7 @@
  * here, matching `payslip-extract`.
  *
  * The client uploads the file first (the file is the auditable record whether
- * or not extraction succeeds — see `create_deduction_with_receipts`), so the
+ * or not extraction succeeds — see `create_deduction_with_receipt`), so the
  * request carries the Storage object path rather than bytes. A client-supplied
  * path is not trusted: its first segment must be the caller's own household,
  * which is defence in depth on top of Storage RLS.

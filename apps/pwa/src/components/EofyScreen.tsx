@@ -150,14 +150,14 @@ function EofyTaxSummary({
   )
 }
 
-/** One claimed deduction with its amount, date, and any stored receipts as view links. */
+/** One claimed deduction with its amount, date, and its stored receipt as a view link. */
 function EofyDeductionItem({
   deduction,
-  receipts,
+  receipt,
   signedUrl,
 }: {
   deduction: DeductionRow
-  receipts: readonly DeductionReceiptRow[]
+  receipt: DeductionReceiptRow | undefined
   signedUrl: (path: string) => Promise<string | null>
 }) {
   const viewReceipt = async (path: string) => {
@@ -180,20 +180,15 @@ function EofyDeductionItem({
         </Stack>
         <MoneyText cents={deduction.amount_cents} size="sm" fw={600} />
       </Group>
-      {receipts.length > 0 ? (
-        <Group gap="xs" wrap="wrap">
-          {receipts.map((receipt) => (
-            <Anchor
-              key={receipt.id}
-              size="xs"
-              component="button"
-              type="button"
-              onClick={() => void viewReceipt(receipt.storage_path)}
-            >
-              {receipt.file_name}
-            </Anchor>
-          ))}
-        </Group>
+      {receipt ? (
+        <Anchor
+          size="xs"
+          component="button"
+          type="button"
+          onClick={() => void viewReceipt(receipt.storage_path)}
+        >
+          Receipt
+        </Anchor>
       ) : (
         <Text size="xs" c="dimmed" fs="italic">
           No receipt
@@ -224,7 +219,7 @@ function EofyDeductionsSummary({
         <EofyDeductionItem
           key={deduction.id}
           deduction={deduction}
-          receipts={receipts.filter((receipt) => receipt.deduction_id === deduction.id)}
+          receipt={receipts.find((receipt) => receipt.deduction_id === deduction.id)}
           signedUrl={signedUrl}
         />
       ))}

@@ -5,7 +5,7 @@ without inviting them into the app. A household member creates a **share**
 from the EOFY tab: a 7-day, single-active, financial-year-scoped link the tax
 agent opens directly, no Supabase account or Google OAuth. The link mirrors
 the household's own EOFY tab exactly — the same per-member tax estimate,
-withholding position, deductions with receipts, super contributions, HELP
+withholding position, deductions with their receipt, super contributions, HELP
 debt, and payslip documents — because it is assembled by the same client-side
 composition, over rows sourced from a different, unauthenticated path.
 
@@ -83,6 +83,8 @@ Three functions under `supabase/functions/`, documented in full in
   receipt or payslip document — its own database scope check, not Storage
   RLS, is the entire boundary here, since an anonymous bearer has no
   `auth.uid()` for Storage's household-membership policy to match either way.
+  Each deduction carries at most one receipt, shown on the shared view as a
+  single "Receipt" link.
 
 `_shared/shareGrant.ts` resolves a token for both anonymous functions,
 reporting the identical generic 401 whether it is malformed, matches

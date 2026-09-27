@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DeductionExtraction, ExtractionFailure } from '../lib/deductionExtraction'
 import type { PrefillSummary } from './useDeductionFields'
-import type { PendingReceipt } from './useDeductionReceipts'
 import type { DeductionCategory } from './useDeductions'
 
 /** What the form says when a receipt itself could not be stored. */
 export const UPLOAD_FAILED_MESSAGE =
   'Could not upload this receipt. Try again, or enter the details by hand.'
 
-/** Where attaching receipts and reading the first one has got to. */
+/** Where attaching the receipt and reading it has got to. */
 export type ExtractionState =
   | { status: 'idle' }
   | { status: 'uploading' }
@@ -18,10 +17,10 @@ export type ExtractionState =
 
 export interface DeductionAttachments {
   /** Uploads `file` under `deductionId` in Storage, without a `deduction_receipt` row. */
-  upload: (deductionId: string, file: File) => Promise<PendingReceipt>
+  upload: (deductionId: string, file: File) => Promise<string>
   /**
    * Deletes an uploaded object no deduction references — one the member
-   * removed, or walked away from before saving. Best effort: a failure leaves
+   * removed or replaced, or walked away from before saving. Best effort: a failure leaves
    * an unreferenced object behind, which is not worth failing the form over.
    */
   discard: (path: string) => Promise<void>
@@ -37,26 +36,21 @@ export interface DeductionAttachments {
 
 export interface UseDeductionAttachmentResult {
   /**
-   * The id the receipts are filed under: minted once, when the add form opens,
-   * and unchanged for the life of the form — so every receipt's path sits in
-   * the same prefix the deduction row is ultimately written under.
+   * The id the receipt is filed under: minted once, when the add form opens,
+   * and unchanged for the life of the form — so the receipt's path sits in
+   * the prefix the deduction row is ultimately written under.
    */
   deductionId: string
-  /** Every receipt uploaded so far, for the picker's own list. */
-  files: readonly PendingReceipt[]
+  /** The uploaded receipt's Storage path, or null while none is attached. */
+  path: string | null
   state: ExtractionState
-  /** Whether a receipt is being stored or the first one read, so the picker holds still. */
+  /** Whether the receipt is being stored or read, so the picker holds still. */
   busy: boolean
-  /** Uploads a newly picked file and, for the first one, reads it. */
+  /** Uploads a newly picked file, replacing any already attached, and reads it. */
   addFile: (file: File) => Promise<void>
-  /** Removes an uploaded file, deleting its Storage object. */
-  removeFile: (path: string) => Promise<void>
-  /**
-   * Retypes the name an uploaded file's receipt is saved under. The label alone:
-   * the stored object stays where it was uploaded, under the path it was given.
-   */
-  renameFile: (path: string, fileName: string) => void
-  /** Marks every uploaded file saved, so leaving the form no longer deletes them. */
+  /** Removes the uploaded file, deleting its Storage object. */
+  removeFile: () => Promise<void>
+  /** Marks the uploaded file saved, so leaving the form no longer deletes it. */
   keep: () => void
 }
 
@@ -74,25 +68,18 @@ interface UseDeductionAttachmentOptions {
 }
 
 /**
- * Attaching one or more receipts to a deduction being added, and reading the
- * figures off the first one.
+ * Attaching a receipt to a deduction being added, and reading the figures off it.
  *
- * Each file is stored **before** the deduction row exists: `create_deduction_
- * with_receipts` takes the already-uploaded paths, and Storage has no foreign
+ * The file is stored **before** the deduction row exists: `create_deduction_
+ * with_receipt` takes the already-uploaded path, and Storage has no foreign
  * key, so an upload is safe ahead of the row. The deduction id is minted here,
- * the moment the add form opens, so every file lands inside the prefix the row
- * is eventually written under. Only the first successfully uploaded file is
- * read — a second and further reads would each try to overwrite the same
- * fields, so one confirmed read is what the form works from.
+ * the moment the add form opens, so the file lands inside the prefix the row
+ * is eventually written under. Picking another file replaces the first: the
+ * earlier object is deleted and the new one is read.
  *
- * A file arrives under its own name, which is the label its receipt is saved
- * under and which `renameFile` retypes before the save — so the name is chosen
- * on the way in. It labels the receipt alone: the stored object keeps the path
- * it was uploaded under whatever the label says.
- *
- * A file the member removes, or leaves behind when the form is cancelled or
- * closed, is deleted again, best effort — a delete that fails is swallowed,
- * and a closed tab runs no cleanup at all.
+ * A file the member removes or replaces, or leaves behind when the form is
+ * cancelled or closed, is deleted again, best effort — a delete that fails is
+ * swallowed, and a closed tab runs no cleanup at all.
  *
  * The read is primed with the deduction's `category`, chosen on the form
  * before the file is picked, so extraction expects the right kind of document
@@ -105,12 +92,12 @@ export function useDeductionAttachment({
   onExtracted,
 }: UseDeductionAttachmentOptions): UseDeductionAttachmentResult {
   const [deductionId] = useState(() => crypto.randomUUID())
-  const [files, setFiles] = useState<PendingReceipt[]>([])
+  const [path, setPath] = useState<string | null>(null)
   const [state, setState] = useState<ExtractionState>({ status: 'idle' })
 
-  // Files uploaded but not yet referenced by a saved deduction. Held in a ref
-  // so unmount cleanup sees the latest set without re-running on every change.
-  const pending = useRef<PendingReceipt[]>([])
+  // The path uploaded but not yet referenced by a saved deduction. Held in a
+  // ref so unmount cleanup sees the latest one without re-running on every change.
+  const pending = useRef<string | null>(null)
   // Set once the form is gone, so an upload that lands afterwards is deleted
   // rather than left behind: until it resolves there is no path to clean up.
   const gone = useRef(false)
@@ -129,9 +116,9 @@ export function useDeductionAttachment({
     () => () => {
       gone.current = true
       const abandoned = pending.current
-      pending.current = []
-      for (const file of abandoned) {
-        void discard.current(file.storage_path)
+      pending.current = null
+      if (abandoned !== null) {
+        void discard.current(abandoned)
       }
     },
     [],
@@ -139,38 +126,31 @@ export function useDeductionAttachment({
 
   const addFile = useCallback(
     async (file: File) => {
-      const isFirst = files.length === 0
-      if (isFirst) {
-        setState({ status: 'uploading' })
-      }
+      setState({ status: 'uploading' })
 
-      let stored: PendingReceipt
+      let stored: string
       try {
         stored = await attachments.upload(deductionId, file)
       } catch {
-        if (isFirst) {
-          setState({ status: 'failed', message: UPLOAD_FAILED_MESSAGE })
-        }
+        setState({ status: 'failed', message: UPLOAD_FAILED_MESSAGE })
         return
       }
       if (gone.current) {
         // The form left while the upload was in flight, so its cleanup found no
         // path to delete; this one is that object, and nothing will reference it.
-        void discard.current(stored.storage_path)
+        void discard.current(stored)
         return
       }
-      pending.current = [...pending.current, stored]
-      setFiles((current) => [...current, stored])
-
-      if (!isFirst) {
-        // Only the first file is read: a second read would try to overwrite the
-        // same fields the first one already filled.
-        return
+      const replaced = pending.current
+      pending.current = stored
+      setPath(stored)
+      if (replaced !== null) {
+        void discard.current(replaced)
       }
 
       setState({ status: 'reading' })
-      const outcome = await attachments.read(stored.storage_path, categoryRef.current)
-      if (gone.current) {
+      const outcome = await attachments.read(stored, categoryRef.current)
+      if (gone.current || pending.current !== stored) {
         return
       }
       if (outcome.status !== 'read') {
@@ -179,34 +159,30 @@ export function useDeductionAttachment({
       }
       setState({ status: 'read', ...extracted.current(outcome.extraction) })
     },
-    [attachments, deductionId, files.length],
+    [attachments, deductionId],
   )
 
-  const removeFile = useCallback(async (path: string) => {
-    pending.current = pending.current.filter((file) => file.storage_path !== path)
-    setFiles((current) => current.filter((file) => file.storage_path !== path))
-    await discard.current(path)
-  }, [])
-
-  const renameFile = useCallback((path: string, fileName: string) => {
-    const renamed = (file: PendingReceipt) =>
-      file.storage_path === path ? { ...file, file_name: fileName } : file
-    pending.current = pending.current.map(renamed)
-    setFiles((current) => current.map(renamed))
+  const removeFile = useCallback(async () => {
+    const removed = pending.current
+    pending.current = null
+    setPath(null)
+    setState({ status: 'idle' })
+    if (removed !== null) {
+      await discard.current(removed)
+    }
   }, [])
 
   const keep = useCallback(() => {
-    pending.current = []
+    pending.current = null
   }, [])
 
   return {
     deductionId,
-    files,
+    path,
     state,
     busy: state.status === 'uploading' || state.status === 'reading',
     addFile,
     removeFile,
-    renameFile,
     keep,
   }
 }

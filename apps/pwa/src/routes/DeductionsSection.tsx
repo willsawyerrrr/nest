@@ -51,7 +51,6 @@ export function DeductionsSection() {
       onDeleteGroup={groups.remove}
       onUploadReceipt={receipts.upload}
       onRemoveReceipt={receipts.remove}
-      onRenameReceipt={receipts.rename}
       signedUrl={receipts.signedUrl}
     />
   )

@@ -149,13 +149,13 @@ describe('useDeductionReceipts', () => {
       error: null,
       response: undefined,
     })
-    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
+    const { result } = renderHook(() => useDeductionReceipts(2027), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     const outcome = await result.current.extract('h1/d2/uuid-receipt.pdf', 'work_expense')
 
     expect(invoke).toHaveBeenCalledWith('deduction-extract', {
-      body: { path: 'h1/d2/uuid-receipt.pdf', category: 'work_expense' },
+      body: { path: 'h1/d2/uuid-receipt.pdf', category: 'work_expense', financialYear: 2027 },
     })
     expect(outcome).toEqual({
       status: 'read',

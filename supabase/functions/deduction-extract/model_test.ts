@@ -44,12 +44,15 @@ const FIELDS = {
   amount: '124.50',
 }
 
+/** FY2026 runs 1 July 2025 – 30 June 2026. */
+const FINANCIAL_YEAR = 2026
+
 Deno.test('the extractor sends a PDF as a document block against the pinned model', async () => {
   const { requests, fetchImpl } = stub(() => toolResponse(FIELDS))
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1, 2, 3]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(result.ok, true)
   assertEquals(result.ok && result.fields.amount, '124.50')
@@ -78,7 +81,7 @@ Deno.test('the extractor sends a photographed receipt as an image block', async 
   await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'image/jpeg',
     bytes: new Uint8Array([255, 216, 255]),
-  })
+  }, FINANCIAL_YEAR)
 
   const content = (requests[0].messages as { content: Record<string, unknown>[] }[])[0].content
   assertEquals(content[0].type, 'image')
@@ -92,11 +95,24 @@ Deno.test('a receipt with no printed business name is read at its item descripti
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1, 2, 3]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(result.ok, true)
   const extraction = result.ok ? toExtraction(result.fields) : null
   assertEquals(extraction?.fields.description, 'Replacement laptop charger')
+})
+
+Deno.test('the system prompt states the financial year window a yearless date resolves within', async () => {
+  const { requests, fetchImpl } = stub(() => toolResponse(FIELDS))
+  await anthropicExtractor('sk-ant-test', fetchImpl)({
+    mediaType: 'application/pdf',
+    bytes: new Uint8Array([1, 2, 3]),
+  }, FINANCIAL_YEAR)
+
+  const system = String(requests[0].system)
+  assertEquals(system.includes('2025-07-01'), true)
+  assertEquals(system.includes('2026-06-30'), true)
+  assertEquals(system.toLowerCase().includes('without a'), true)
 })
 
 Deno.test('the tool schema steers the model to the total, never a subtotal or line item', () => {
@@ -155,6 +171,7 @@ Deno.test('the extractor primes the model for the category it is given', async (
   const { requests, fetchImpl } = stub(() => toolResponse(FIELDS))
   await anthropicExtractor('sk-ant-test', fetchImpl)(
     { mediaType: 'application/pdf', bytes: new Uint8Array([1, 2, 3]) },
+    FINANCIAL_YEAR,
     'donation',
   )
 
@@ -171,7 +188,7 @@ Deno.test('the extractor defaults to the work-expense category when none is give
   await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1, 2, 3]),
-  })
+  }, FINANCIAL_YEAR)
 
   const [body] = requests
   assertEquals(String(body.system).includes('a receipt or invoice for a purchase'), true)
@@ -193,7 +210,7 @@ Deno.test('the extractor reports a response with no extraction as malformed', as
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(result.ok, false)
   assertEquals(!result.ok && result.failure, 'malformed')
@@ -215,7 +232,7 @@ Deno.test('the extractor reports a refusal as its own failure, not a server erro
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'refused')
 })
@@ -225,7 +242,7 @@ Deno.test('the extractor reports an unusable tool input as malformed', async () 
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'malformed')
 })
@@ -240,7 +257,7 @@ Deno.test('the extractor surfaces an API error with its status', async () => {
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   // A genuinely malformed request carries the same status and type as an
   // exhausted balance, so this is the case the credit match must not swallow.
@@ -265,7 +282,7 @@ Deno.test('the extractor reads an exhausted credit balance as its own failure', 
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'no_credit')
   assertEquals(!result.ok && result.status, 400)
@@ -281,7 +298,7 @@ Deno.test('the extractor reads a billing error as an empty account whatever its 
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   // The `403` this arrives on is also the refused-key status, so the API's own
   // type is what keeps them apart: topping an account up is not rotating a key.
@@ -298,7 +315,7 @@ Deno.test('the extractor reads a refused key as its own failure', async () => {
   const result = await anthropicExtractor('sk-ant-wrong', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'key_rejected')
   assertEquals(!result.ok && result.status, 401)
@@ -317,7 +334,7 @@ Deno.test('the extractor reads a key without permission as the same refused key'
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   // Nothing the member can act on either way, and one operator fix: a key that is
   // valid but not permitted is replaced exactly as a wrong one is.
@@ -337,7 +354,7 @@ Deno.test('the extractor keeps a 401 carrying no API verdict out of the refused-
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'api_error')
   assertEquals(!result.ok && result.status, 401)
@@ -353,7 +370,7 @@ Deno.test('the extractor keeps a server failure out of the refused-key case', as
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'api_error')
   assertEquals(!result.ok && result.status, 500)
@@ -369,7 +386,7 @@ Deno.test('the extractor surfaces a rate limit as its own status', async () => {
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'image/png',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.status, 429)
   // A spend limit is reported exactly as a request-rate limit, so a 429 is never
@@ -382,7 +399,7 @@ Deno.test('the extractor surfaces a transport failure without throwing', async (
   const result = await anthropicExtractor('sk-ant-test', fetchImpl)({
     mediaType: 'application/pdf',
     bytes: new Uint8Array([1]),
-  })
+  }, FINANCIAL_YEAR)
 
   assertEquals(!result.ok && result.failure, 'api_error')
 })

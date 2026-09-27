@@ -21,6 +21,12 @@
  * genuine donation tax receipt is not a purchase receipt or invoice, and asking
  * for one rejects it outright. An absent or unrecognised category normalises to
  * `work_expense`, today's only behaviour.
+ *
+ * It also carries the financial year the deduction is being added to, so a
+ * receipt printing a yearless date (a common Australian format) resolves within
+ * that year's 1 July – 30 June window rather than whatever year the model
+ * would otherwise default to. Unlike `category`, there is no sensible default
+ * for a missing or malformed financial year, so the request is rejected.
  */
 
 import { type DeductionExtraction, toExtraction } from './fields.ts'
@@ -53,6 +59,11 @@ export function normaliseCategory(raw: unknown): DeductionCategory {
   return (DEDUCTION_CATEGORIES as readonly string[]).includes(raw as string)
     ? (raw as DeductionCategory)
     : 'work_expense'
+}
+
+/** Reads a raw financial year, or null when it is not a whole number. */
+export function normaliseFinancialYear(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isInteger(raw) ? raw : null
 }
 
 /** The private bucket the client uploads receipt files to. */
@@ -88,8 +99,17 @@ export interface ExtractDeps {
   apiKey: () => Promise<string | null>
   /** Downloads the object, or null when it is not in the bucket. */
   downloadObject: (path: string) => Promise<DownloadedObject | null>
-  /** Sends the file to the model, primed for the expected category of document. */
-  extract: (file: ReceiptFile, apiKey: string, category: DeductionCategory) => Promise<ModelResult>
+  /**
+   * Sends the file to the model, primed for the expected category of document and
+   * for the financial year the deduction is being added to (so a yearless date
+   * resolves within it).
+   */
+  extract: (
+    file: ReceiptFile,
+    apiKey: string,
+    category: DeductionCategory,
+    financialYear: number,
+  ) => Promise<ModelResult>
 }
 
 /** The successful response body. */
@@ -119,12 +139,17 @@ export function householdSegment(path: string): string {
 export async function runExtract(
   rawPath: unknown,
   rawCategory: unknown,
+  rawFinancialYear: unknown,
   deps: ExtractDeps,
 ): Promise<FlowResult> {
   const path = normalisePath(rawPath)
   const category = normaliseCategory(rawCategory)
+  const financialYear = normaliseFinancialYear(rawFinancialYear)
   if (!path) {
     return { status: 400, body: { error: 'A receipt file path is required.' } }
+  }
+  if (financialYear === null) {
+    return { status: 400, body: { error: 'A financial year is required.' } }
   }
 
   const household = await deps.resolveHousehold()
@@ -185,7 +210,12 @@ export async function runExtract(
     }
   }
 
-  const result = await deps.extract({ mediaType, bytes: object.bytes }, apiKey, category)
+  const result = await deps.extract(
+    { mediaType, bytes: object.bytes },
+    apiKey,
+    category,
+    financialYear,
+  )
   if (!result.ok) return modelFailure(result)
 
   if (!result.fields.is_receipt) {

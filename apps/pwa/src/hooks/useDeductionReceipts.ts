@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { financialYearForDate } from '@nest/tax'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import {
@@ -99,8 +100,13 @@ const SIGNED_URL_TTL_SECONDS = 3600
  * through `deduction-extract` to pre-fill the add form, and is written into a
  * `deduction_receipt` row only when `create_deduction_with_receipts` creates
  * the deduction itself.
+ *
+ * `financialYear` (defaulting to the current one) is passed to
+ * `deduction-extract` so a receipt printing a yearless date resolves within it.
  */
-export function useDeductionReceipts(): UseDeductionReceiptsResult {
+export function useDeductionReceipts(
+  financialYear: number = financialYearForDate(new Date()),
+): UseDeductionReceiptsResult {
   const householdId = useHouseholdId()
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_receipt',
@@ -146,7 +152,7 @@ export function useDeductionReceipts(): UseDeductionReceiptsResult {
     async (path: string, category: DeductionCategory): Promise<ExtractionOutcome> => {
       const { data, error, response } = await supabase.functions.invoke<unknown>(
         'deduction-extract',
-        { body: { path, category } },
+        { body: { path, category, financialYear } },
       )
       if (error) {
         // A non-2xx carries the function's own specific message as JSON; a
@@ -161,7 +167,7 @@ export function useDeductionReceipts(): UseDeductionReceiptsResult {
         ? { status: 'failed', message: EXTRACTION_FAILED_MESSAGE }
         : { status: 'read', extraction }
     },
-    [],
+    [financialYear],
   )
 
   const removeReceipt = useCallback(

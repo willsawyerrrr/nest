@@ -15,6 +15,12 @@
  * not extraction succeeds), so the request carries the Storage object path rather
  * than bytes. A client-supplied path is not trusted: its first segment must be
  * the caller's own household, which is defence in depth on top of Storage RLS.
+ *
+ * It also carries the financial year the payslip is being added to, so a slip
+ * printing a yearless date (a common Australian format) resolves within that
+ * year's 1 July – 30 June window rather than whatever year the model would
+ * otherwise default to. There is no sensible default for a missing or
+ * malformed financial year, so the request is rejected.
  */
 
 import { type PayslipExtraction, toExtraction } from './fields.ts'
@@ -60,14 +66,22 @@ export interface ExtractDeps {
   apiKey: () => Promise<string | null>
   /** Downloads the object, or null when it is not in the bucket. */
   downloadObject: (path: string) => Promise<DownloadedObject | null>
-  /** Sends the file to the model. */
-  extract: (file: PayslipFile, apiKey: string) => Promise<ModelResult>
+  /**
+   * Sends the file to the model, primed for the financial year the payslip is
+   * being added to (so a yearless date resolves within it).
+   */
+  extract: (file: PayslipFile, apiKey: string, financialYear: number) => Promise<ModelResult>
 }
 
 /** The successful response body. */
 export interface ExtractionBody extends PayslipExtraction {
   /** The pinned model that read the slip, so a stale client can tell. */
   model: string
+}
+
+/** Reads a raw financial year, or null when it is not a whole number. */
+export function normaliseFinancialYear(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isInteger(raw) ? raw : null
 }
 
 /** Trims a raw body value to an object path, or empty when absent or unsafe. */
@@ -88,10 +102,18 @@ export function householdSegment(path: string): string {
   return path.split('/')[0]
 }
 
-export async function runExtract(rawPath: unknown, deps: ExtractDeps): Promise<FlowResult> {
+export async function runExtract(
+  rawPath: unknown,
+  rawFinancialYear: unknown,
+  deps: ExtractDeps,
+): Promise<FlowResult> {
   const path = normalisePath(rawPath)
+  const financialYear = normaliseFinancialYear(rawFinancialYear)
   if (!path) {
     return { status: 400, body: { error: 'A payslip file path is required.' } }
+  }
+  if (financialYear === null) {
+    return { status: 400, body: { error: 'A financial year is required.' } }
   }
 
   const household = await deps.resolveHousehold()
@@ -152,7 +174,7 @@ export async function runExtract(rawPath: unknown, deps: ExtractDeps): Promise<F
     }
   }
 
-  const result = await deps.extract({ mediaType, bytes: object.bytes }, apiKey)
+  const result = await deps.extract({ mediaType, bytes: object.bytes }, apiKey, financialYear)
   if (!result.ok) return modelFailure(result)
 
   if (!result.fields.is_payslip) {

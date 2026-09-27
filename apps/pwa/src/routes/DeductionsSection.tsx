@@ -15,7 +15,7 @@ export function DeductionsSection() {
   const { members, loading: membersLoading } = useMembers()
   const deductions = useDeductions(financialYear)
   const groups = useDeductionGroups(financialYear)
-  const receipts = useDeductionReceipts()
+  const receipts = useDeductionReceipts(financialYear)
 
   // Storing, discarding, and reading a receipt picked before a new deduction
   // exists, distinct from `upload`/`remove` which attach a receipt to an

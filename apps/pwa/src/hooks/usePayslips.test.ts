@@ -335,7 +335,7 @@ describe('usePayslips attachment extraction', () => {
       error: null,
       response: undefined,
     })
-    const result = await renderPayslips()
+    const result = await renderPayslips(2027)
 
     expect(await result.current.attachments.read('h1/ps1/slip.pdf')).toEqual({
       status: 'read',
@@ -346,7 +346,7 @@ describe('usePayslips attachment extraction', () => {
       },
     })
     expect(invoke).toHaveBeenCalledWith('payslip-extract', {
-      body: { path: 'h1/ps1/slip.pdf' },
+      body: { path: 'h1/ps1/slip.pdf', financialYear: 2027 },
     })
   })
 

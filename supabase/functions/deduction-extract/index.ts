@@ -3,15 +3,17 @@
  * JWT-verified (the default): the caller is resolved to their own member — and
  * from it their household — from the Authorization JWT, never the body.
  *
- * Takes `{ path, category }`: the object path of a file the client has already
- * uploaded to the private `receipts` bucket, and the deduction's category
- * (`work_expense`, `donation`, or `tax_agent_fees` — defaulting to
- * `work_expense` when absent), which primes the model for the kind of document
- * that category expects. Checks that the path's household prefix is the
- * caller's own, downloads it with the service role, and sends it to Claude
- * Haiku 4.5 with a forced tool schema. It returns the fields the model read —
- * money as integer cents, converted in TypeScript, never by the model — for the
- * add-deduction form to pre-fill.
+ * Takes `{ path, category, financialYear }`: the object path of a file the
+ * client has already uploaded to the private `receipts` bucket, the
+ * deduction's category (`work_expense`, `donation`, or `tax_agent_fees` —
+ * defaulting to `work_expense` when absent), which primes the model for the
+ * kind of document that category expects, and the financial year the
+ * deduction is being added to, so a receipt's yearless date resolves within
+ * that year rather than the model's own default. Checks that the path's
+ * household prefix is the caller's own, downloads it with the service role,
+ * and sends it to Claude Haiku 4.5 with a forced tool schema. It returns the
+ * fields the model read — money as integer cents, converted in TypeScript,
+ * never by the model — for the add-deduction form to pre-fill.
  *
  * It writes no deduction anywhere: the member confirms and saves. The
  * Anthropic API key is read server-side only, via the service-role-only Vault
@@ -30,7 +32,7 @@ Deno.serve(async (request) => {
   const methodError = requirePost(request)
   if (methodError) return methodError
 
-  let body: { path?: unknown; category?: unknown }
+  let body: { path?: unknown; category?: unknown; financialYear?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -41,7 +43,7 @@ Deno.serve(async (request) => {
   // the Storage download, both of which need the service role.
   let admin: SupabaseClient | null = null
 
-  const result = await runExtract(body.path, body.category, {
+  const result = await runExtract(body.path, body.category, body.financialYear, {
     resolveHousehold: async () => {
       const resolved = await resolveCaller(request)
       if ('error' in resolved) return { error: resolved.error }
@@ -68,7 +70,8 @@ Deno.serve(async (request) => {
       if (error || !data) return null
       return { bytes: new Uint8Array(await data.arrayBuffer()), contentType: data.type || null }
     },
-    extract: (file, apiKey, category) => anthropicExtractor(apiKey)(file, category),
+    extract: (file, apiKey, category, financialYear) =>
+      anthropicExtractor(apiKey)(file, financialYear, category),
   })
 
   return json(result.body, result.status)

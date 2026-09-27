@@ -17,6 +17,7 @@
  */
 
 import Anthropic, { type APIError } from '@anthropic-ai/sdk'
+import { financialYearBounds } from '@nest/tax'
 import { encodeBase64 } from '@std/encoding/base64'
 import {
   DATE_FIELDS,
@@ -99,8 +100,12 @@ export interface ModelFailure {
 
 export type ModelResult = ModelSuccess | ModelFailure
 
-/** Sends a payslip to the model and reports the fields it read. */
-export type PayslipExtractor = (file: PayslipFile) => Promise<ModelResult>
+/**
+ * Sends a payslip to the model and reports the fields it read. `financialYear`
+ * is the financial year the payslip is being added to, so a yearless date on
+ * the slip resolves within it.
+ */
+export type PayslipExtractor = (file: PayslipFile, financialYear: number) => Promise<ModelResult>
 
 /**
  * Resolves the media type to send, preferring what Storage recorded and falling
@@ -125,40 +130,54 @@ export function maxBytesFor(mediaType: SupportedMediaType): number {
   return mediaType === 'application/pdf' ? MAX_PDF_BYTES : MAX_IMAGE_BYTES
 }
 
-const SYSTEM_PROMPT = [
-  'You read Australian payslips and report the figures printed on them, for a',
-  'person to confirm before saving. You never save anything yourself.',
-  '',
-  'Report every amount as the literal text printed on the slip, character for',
-  'character, including its thousands separators, decimal point, and any currency',
-  'sign — never a number you have computed, converted, rounded, or reformatted.',
-  '',
-  'Report only what the slip shows. Never derive a figure by adding, subtracting,',
-  'or annualising others, and never carry a figure over from a similar slip you',
-  'have seen. If the slip does not show a field, report null for it: a null is',
-  'filled in by hand, while a guess becomes a wrong tax figure nobody notices.',
-  '',
-  'Report dates as YYYY-MM-DD, converting the slip’s format (Australian slips',
-  'write DD/MM/YYYY).',
-  '',
-  'Where the slip itemises a section, report each printed line as well as the',
-  'section total: every line in the earnings section, and every line in the tax',
-  'section, in the order the slip prints them. Never report a TOTAL or subtotal',
-  'row as a line — each section’s total is its own field, so a total reported',
-  'again as a line would count that money twice.',
-  '',
-  'These sections print a column for the current pay period beside a year-to-date',
-  'column. Report each row’s two amounts separately, each from its own column, and',
-  'never carry a year-to-date figure across into the period amount: where a row',
-  'shows an amount only in the year-to-date column, its period amount is null,',
-  'because that money was paid in earlier periods and reporting it as part of this',
-  'pay would count it again. Where the two columns show the same amount — as they',
-  'do on the first pay of a financial year — report that amount in both, as',
-  'printed: matching columns are a real line of this pay, not a repetition.',
-  '',
-  'If the document is not a payslip, set is_payslip to false, say why in',
-  'not_payslip_reason, and report null for every field.',
-].join('\n')
+/** The inclusive UTC bounds of `financialYear`, as `YYYY-MM-DD` strings. */
+function financialYearWindow(financialYear: number): { start: string; end: string } {
+  const { start, end } = financialYearBounds(financialYear)
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
+}
+
+function buildSystemPrompt(financialYear: number): string {
+  const { start, end } = financialYearWindow(financialYear)
+  return [
+    'You read Australian payslips and report the figures printed on them, for a',
+    'person to confirm before saving. You never save anything yourself.',
+    '',
+    'Report every amount as the literal text printed on the slip, character for',
+    'character, including its thousands separators, decimal point, and any currency',
+    'sign — never a number you have computed, converted, rounded, or reformatted.',
+    '',
+    'Report only what the slip shows. Never derive a figure by adding, subtracting,',
+    'or annualising others, and never carry a figure over from a similar slip you',
+    'have seen. If the slip does not show a field, report null for it: a null is',
+    'filled in by hand, while a guess becomes a wrong tax figure nobody notices.',
+    '',
+    'Report dates as YYYY-MM-DD, converting the slip’s format (Australian slips',
+    'write DD/MM/YYYY).',
+    '',
+    `This payslip is being added to the financial year running from ${start} to`,
+    `${end} (1 July to 30 June). Where a date on the slip is printed without a`,
+    'year, report the date that falls within this window rather than any other',
+    'year.',
+    '',
+    'Where the slip itemises a section, report each printed line as well as the',
+    'section total: every line in the earnings section, and every line in the tax',
+    'section, in the order the slip prints them. Never report a TOTAL or subtotal',
+    'row as a line — each section’s total is its own field, so a total reported',
+    'again as a line would count that money twice.',
+    '',
+    'These sections print a column for the current pay period beside a year-to-date',
+    'column. Report each row’s two amounts separately, each from its own column, and',
+    'never carry a year-to-date figure across into the period amount: where a row',
+    'shows an amount only in the year-to-date column, its period amount is null,',
+    'because that money was paid in earlier periods and reporting it as part of this',
+    'pay would count it again. Where the two columns show the same amount — as they',
+    'do on the first pay of a financial year — report that amount in both, as',
+    'printed: matching columns are a real line of this pay, not a repetition.',
+    '',
+    'If the document is not a payslip, set is_payslip to false, say why in',
+    'not_payslip_reason, and report null for every field.',
+  ].join('\n')
+}
 
 /** The description shown to the model for each field it reads. */
 const FIELD_PROMPTS: Record<string, string> = {
@@ -327,7 +346,7 @@ export function anthropicExtractor(apiKey: string, fetchImpl?: typeof fetch): Pa
     timeout: REQUEST_TIMEOUT_MS,
     ...(fetchImpl ? { fetch: fetchImpl } : {}),
   })
-  return (file) => extractWithClient(client, file)
+  return (file, financialYear) => extractWithClient(client, file, financialYear)
 }
 
 /** The document (or image) block for the file, placed before the instruction. */
@@ -409,13 +428,14 @@ function apiFailure(error: APIError): ModelFailure['failure'] {
 async function extractWithClient(
   client: Anthropic,
   file: PayslipFile,
+  financialYear: number,
 ): Promise<ModelResult> {
   let message: Anthropic.Message
   try {
     message = await client.messages.create({
       model: PAYSLIP_MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(financialYear),
       tools: [PAYSLIP_TOOL],
       // Forcing the tool is what guarantees a structured answer rather than prose.
       tool_choice: { type: 'tool', name: PAYSLIP_TOOL.name },

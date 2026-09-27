@@ -3,12 +3,14 @@
  * JWT-verified (the default): the caller is resolved to their own member — and
  * from it their household — from the Authorization JWT, never the body.
  *
- * Takes `{ path }`, the object path of a file the client has already uploaded to
- * the private `payslips` bucket, checks that the path's household prefix is the
- * caller's own, downloads it with the service role, and sends it to Claude Haiku
- * 4.5 with a forced tool schema. It returns the fields the model read — money as
- * integer cents, converted in TypeScript, never by the model — for the manual
- * entry form to pre-fill.
+ * Takes `{ path, financialYear }`: the object path of a file the client has
+ * already uploaded to the private `payslips` bucket, and the financial year the
+ * payslip is being added to, so a slip's yearless date resolves within that
+ * year rather than the model's own default. Checks that the path's household
+ * prefix is the caller's own, downloads it with the service role, and sends it
+ * to Claude Haiku 4.5 with a forced tool schema. It returns the fields the
+ * model read — money as integer cents, converted in TypeScript, never by the
+ * model — for the manual entry form to pre-fill.
  *
  * It writes no payslip figure anywhere: the member confirms and saves. The
  * Anthropic API key is read server-side only, via the service-role-only Vault
@@ -27,7 +29,7 @@ Deno.serve(async (request) => {
   const methodError = requirePost(request)
   if (methodError) return methodError
 
-  let body: { path?: unknown }
+  let body: { path?: unknown; financialYear?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -38,7 +40,7 @@ Deno.serve(async (request) => {
   // the Storage download, both of which need the service role.
   let admin: SupabaseClient | null = null
 
-  const result = await runExtract(body.path, {
+  const result = await runExtract(body.path, body.financialYear, {
     resolveHousehold: async () => {
       const resolved = await resolveCaller(request)
       if ('error' in resolved) return { error: resolved.error }
@@ -65,7 +67,7 @@ Deno.serve(async (request) => {
       if (error || !data) return null
       return { bytes: new Uint8Array(await data.arrayBuffer()), contentType: data.type || null }
     },
-    extract: (file, apiKey) => anthropicExtractor(apiKey)(file),
+    extract: (file, apiKey, financialYear) => anthropicExtractor(apiKey)(file, financialYear),
   })
 
   return json(result.body, result.status)

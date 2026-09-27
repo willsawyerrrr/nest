@@ -12,6 +12,7 @@
  */
 
 import Anthropic, { type APIError } from '@anthropic-ai/sdk'
+import { financialYearBounds } from '@nest/tax'
 import { encodeBase64 } from '@std/encoding/base64'
 import { type RawDeductionFields, readRawFields } from './fields.ts'
 
@@ -83,11 +84,14 @@ export interface ModelFailure {
 export type ModelResult = ModelSuccess | ModelFailure
 
 /**
- * Sends a receipt to the model and reports the fields it read. `category`
- * defaults to `work_expense`, the default `deduction.category`.
+ * Sends a receipt to the model and reports the fields it read. `financialYear`
+ * is the financial year the deduction is being added to, so a yearless date on
+ * the receipt resolves within it. `category` defaults to `work_expense`, the
+ * default `deduction.category`.
  */
 export type ReceiptExtractor = (
   file: ReceiptFile,
+  financialYear: number,
   category?: DeductionCategory,
 ) => Promise<ModelResult>
 
@@ -154,8 +158,15 @@ const CATEGORY_EXPECTATIONS: Record<DeductionCategory, CategoryExpectation> = {
   },
 }
 
-function buildSystemPrompt(category: DeductionCategory): string {
+/** The inclusive UTC bounds of `financialYear`, as `YYYY-MM-DD` strings. */
+function financialYearWindow(financialYear: number): { start: string; end: string } {
+  const { start, end } = financialYearBounds(financialYear)
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }
+}
+
+function buildSystemPrompt(category: DeductionCategory, financialYear: number): string {
   const { documentKind, descriptionGuidance } = CATEGORY_EXPECTATIONS[category]
+  const { start, end } = financialYearWindow(financialYear)
   return [
     'You read receipts for tax-deductible expenses and report the figures printed',
     'on them, for a person to confirm before saving. You never save anything',
@@ -173,6 +184,11 @@ function buildSystemPrompt(category: DeductionCategory): string {
     '(Australian receipts write DD/MM/YYYY). Where a receipt prints more than one',
     'date, report the date of purchase or transaction, never a statement or due',
     'date.',
+    '',
+    `This deduction is being added to the financial year running from ${start} to`,
+    `${end} (1 July to 30 June). Where the receipt’s date is printed without a`,
+    'year, report the date that falls within this window rather than any other',
+    'year.',
     '',
     'If the receipt does not show a field, report null for it: a null is filled',
     'in by hand, while a guess becomes a wrong deduction nobody notices. Never',
@@ -250,7 +266,8 @@ export function anthropicExtractor(apiKey: string, fetchImpl?: typeof fetch): Re
     timeout: REQUEST_TIMEOUT_MS,
     ...(fetchImpl ? { fetch: fetchImpl } : {}),
   })
-  return (file, category = 'work_expense') => extractWithClient(client, file, category)
+  return (file, financialYear, category = 'work_expense') =>
+    extractWithClient(client, file, financialYear, category)
 }
 
 /** The document (or image) block for the file, placed before the instruction. */
@@ -308,6 +325,7 @@ function apiFailure(error: APIError): ModelFailure['failure'] {
 async function extractWithClient(
   client: Anthropic,
   file: ReceiptFile,
+  financialYear: number,
   category: DeductionCategory,
 ): Promise<ModelResult> {
   const tool = buildReceiptTool(category)
@@ -316,7 +334,7 @@ async function extractWithClient(
     message = await client.messages.create({
       model: DEDUCTION_MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: buildSystemPrompt(category),
+      system: buildSystemPrompt(category, financialYear),
       tools: [tool],
       // Forcing the tool is what guarantees a structured answer rather than prose.
       tool_choice: { type: 'tool', name: tool.name },

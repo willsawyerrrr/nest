@@ -407,10 +407,33 @@ describe('DeductionsScreen', () => {
     )
   })
 
-  it('uploads a receipt for a deduction', async () => {
+  it('offers no receipt controls on a settled row', () => {
+    renderScreen({ receipts: [makeReceipt()] })
+
+    expect(screen.getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
+    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: /delete receipt/i })).not.toBeInTheDocument()
+  })
+
+  it('shows no receipt link or attach control on a settled row without a receipt', () => {
+    renderScreen()
+
+    expect(screen.queryByRole('button', { name: 'Receipt' })).not.toBeInTheDocument()
+    expect(document.querySelector('input[type="file"]')).toBeNull()
+  })
+
+  it('puts the receipt link inline with the description', () => {
+    renderScreen({ receipts: [makeReceipt()] })
+
+    const title = screen.getByText('Home office').closest('p') as HTMLElement
+    expect(within(title).getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
+  })
+
+  it('attaches a receipt from the edit form', async () => {
     const user = userEvent.setup()
     const { onUploadReceipt } = renderScreen()
 
+    await user.click(screen.getByRole('button', { name: /edit/i }))
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
     await user.upload(input, file)
@@ -441,11 +464,12 @@ describe('DeductionsScreen', () => {
     await waitFor(() => expect(open).not.toHaveBeenCalled())
   })
 
-  it('confirms before deleting a receipt', async () => {
+  it('confirms before deleting a receipt from the edit form', async () => {
     const user = userEvent.setup()
     const { onRemoveReceipt } = renderScreen({ receipts: [makeReceipt()] })
 
-    await user.click(screen.getByRole('button', { name: /delete receipt for home office/i }))
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /delete receipt/i }))
 
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /delete/i }))
@@ -453,20 +477,21 @@ describe('DeductionsScreen', () => {
     expect(onRemoveReceipt).toHaveBeenCalledWith(makeReceipt())
   })
 
-  it('replaces an existing receipt, passing the current one along', async () => {
+  it('replaces an existing receipt from the edit form, passing the current one along', async () => {
     const user = userEvent.setup()
     const { onUploadReceipt } = renderScreen({ receipts: [makeReceipt()] })
 
+    await user.click(screen.getByRole('button', { name: /edit/i }))
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = new File(['y'], 'newer.pdf', { type: 'application/pdf' })
     await user.upload(input, file)
 
     expect(onUploadReceipt).toHaveBeenCalledWith('d1', file, makeReceipt())
-    expect(screen.getByLabelText(/replace receipt for home office/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Replace receipt')).toBeInTheDocument()
   })
 
   describe('on desktop', () => {
-    it('renders each deduction as a dense row with its receipt on the caption line', () => {
+    it('renders each deduction as a dense row with its receipt link inline', () => {
       setWideViewport()
       renderScreen({ members: [will], receipts: [makeReceipt()] })
 
@@ -475,7 +500,7 @@ describe('DeductionsScreen', () => {
       // The row amount plus the per-member total, both $1,200.00.
       expect(screen.getAllByText('$1,200.00')).toHaveLength(2)
       expect(screen.getByText(/1 Aug 2026/)).toBeInTheDocument()
-      // The receipt and its upload control still show beneath the row.
+      // The receipt link sits with the description.
       expect(screen.getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
     })

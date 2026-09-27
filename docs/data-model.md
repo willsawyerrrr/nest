@@ -1061,7 +1061,7 @@ transaction, not for the privileges.
   BEFORE INSERT trigger a direct insert relies on. Running as the caller: the
   household policies on both tables gate every statement exactly as a direct
   write would, and `household_id` is not updatable on conflict. Editing an
-  existing deduction never calls this RPC — its receipt is attached, replaced
+  existing deduction never calls this RPC — its receipt, managed from the edit form, is attached, replaced
   (the row's `storage_path` repointed), or removed through the ordinary
   `deduction_receipt` insert, update, and delete path, since the deduction id is
   already real.

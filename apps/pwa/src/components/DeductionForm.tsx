@@ -25,7 +25,6 @@ import type { DeductionCategory, DeductionRow, DeductionSubmission } from '../ho
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
-import { DEFAULT_RECEIPT_NAME, receiptName } from '../lib/receiptName'
 import { currentTaxConfig } from '../lib/tax'
 import { EnumSegmentedControl } from './EnumSelect'
 import { FormShell } from './FormShell'
@@ -165,68 +164,23 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
 }
 
 /**
- * One receipt already uploaded for a deduction not yet saved: the name it is
- * stored under, and a delete control. The name is seeded with the file's own
- * and freely retyped, so the member names the receipt on the way in rather than
- * renaming it from the list afterwards; cleared, it falls back to the `Receipt`
- * its placeholder shows. Each control is labelled by position, the name itself
- * being the thing under edit.
- */
-function PendingReceiptItem({
-  position,
-  fileName,
-  onRename,
-  onDelete,
-}: {
-  position: number
-  fileName: string
-  onRename: (fileName: string) => void
-  onDelete: () => void
-}) {
-  return (
-    <Group gap="xs" wrap="nowrap">
-      <TextInput
-        size="xs"
-        aria-label={`Receipt ${position} name`}
-        placeholder={DEFAULT_RECEIPT_NAME}
-        value={fileName}
-        onChange={(event) => onRename(event.currentTarget.value)}
-        style={{ flex: 1, minWidth: 0 }}
-      />
-      <ActionIcon
-        variant="subtle"
-        color="red"
-        size="sm"
-        aria-label={`Remove receipt ${position}`}
-        onClick={onDelete}
-      >
-        <IconTrash size={14} />
-      </ActionIcon>
-    </Group>
-  )
-}
-
-/**
  * Presentational add/edit form for a single deduction, tagged to the member the
  * section belongs to.
  *
- * Adding a deduction lets the member pick receipt files as the first step,
- * before the deduction exists: each picked file uploads immediately to Storage
- * under the id this form mints for the deduction, and the first one is read
- * through `deduction-extract` to pre-fill the description, amount, and date
- * that are not already the member's own — typed here already. A note says the
- * details were extracted by AI and asks for them to be checked; every failure
- * mode reads as its own inline note and never blocks the save, exactly as
- * payslip extraction does. Each picked file lists under a name field seeded
- * with the file's own name, so the receipt is stored under whatever the member
- * types — or `Receipt`, where the field is cleared. Saving writes the deduction
- * and every receipt already uploaded together, in one transaction
- * (`create_deduction_with_receipts`). A picked file the member removes, or the
- * whole add flow they cancel, is deleted again, best effort.
+ * Adding a deduction lets the member pick its receipt as the first step,
+ * before the deduction exists: the file uploads immediately to Storage under
+ * the id this form mints for the deduction, and is read through
+ * `deduction-extract` to pre-fill the description, amount, and date that are
+ * not already the member's own — typed here already. A note says the details
+ * were extracted by AI and asks for them to be checked; every failure mode
+ * reads as its own inline note and never blocks the save, exactly as payslip
+ * extraction does. Picking another file replaces the first. Saving writes the
+ * deduction and its uploaded receipt together, in one transaction
+ * (`create_deduction_with_receipt`). A file the member removes or replaces, or
+ * the whole add flow they cancel, is deleted again, best effort.
  *
- * Editing an existing deduction carries none of this: its receipts are managed
- * from its row in the deductions list, exactly as before, so this form shows
- * only its own fields.
+ * Editing an existing deduction carries none of this: its receipt is managed
+ * from its row in the deductions list, so this form shows only its own fields.
  *
  * Before any of that, the member says **what kind of deduction** this is — a
  * work expense (the default), a donation, or a tax agent fee — asked up front,
@@ -395,11 +349,7 @@ export function DeductionForm({
         full_amount_cents: isDistance ? computedAmountCents : fullAmountCents,
         work_use_percent: workUsePercentNumber,
       },
-      // A name left blank is a receipt named nothing, which stores as `Receipt`
-      // rather than holding the save over a label.
-      receipts: adding
-        ? receipts.files.map((file) => ({ ...file, file_name: receiptName(file.file_name) }))
-        : [],
+      receiptPath: adding ? receipts.path : null,
     }),
   })
 
@@ -429,7 +379,7 @@ export function DeductionForm({
           <FileInput
             label="Receipt"
             size="sm"
-            description="Stored privately, then read to pre-fill the details below — which you confirm. Pick again to add another."
+            description="Stored privately, then read to pre-fill the details below — which you confirm. Pick again to replace it."
             placeholder="Attach a receipt"
             accept="image/*,application/pdf"
             disabled={receipts.busy}
@@ -441,15 +391,20 @@ export function DeductionForm({
             }}
           />
           <ExtractionNote state={receipts.state} />
-          {receipts.files.map((file, index) => (
-            <PendingReceiptItem
-              key={file.storage_path}
-              position={index + 1}
-              fileName={file.file_name}
-              onRename={(fileName) => receipts.renameFile(file.storage_path, fileName)}
-              onDelete={() => void receipts.removeFile(file.storage_path)}
-            />
-          ))}
+          {receipts.path !== null && (
+            <Group gap="xs" wrap="nowrap" justify="space-between">
+              <Text size="xs">Receipt attached</Text>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                size="sm"
+                aria-label="Remove receipt"
+                onClick={() => void receipts.removeFile()}
+              >
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
+          )}
         </Stack>
       )}
 

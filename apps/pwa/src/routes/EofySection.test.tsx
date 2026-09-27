@@ -275,8 +275,8 @@ describe('EofySection', () => {
     hooks.useDeductionReceipts.mockReturnValue({
       loading: false,
       receipts: [
-        { id: 'r1', deduction_id: 'd1', file_name: 'a.pdf', storage_path: 'p1' },
-        { id: 'r2', deduction_id: 'other-fy-deduction', file_name: 'b.pdf', storage_path: 'p2' },
+        { id: 'r1', deduction_id: 'd1', storage_path: 'p1' },
+        { id: 'r2', deduction_id: 'other-fy-deduction', storage_path: 'p2' },
       ],
       signedUrl: vi.fn(),
     })
@@ -284,7 +284,7 @@ describe('EofySection', () => {
     render(<EofySection />)
 
     expect(hooks.screenProps?.receipts).toEqual([
-      { id: 'r1', deduction_id: 'd1', file_name: 'a.pdf', storage_path: 'p1' },
+      { id: 'r1', deduction_id: 'd1', storage_path: 'p1' },
     ])
   })
 

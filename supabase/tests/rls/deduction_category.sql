@@ -102,10 +102,10 @@ begin
     values (v_hid, v_mid, 'Client visits', 91_00, '2026-08-08', 2027, 'work_expense', 'distance', 100, 91_00, 100);
 end $$;
 
--- The add path carries the category too: create_deduction_with_receipts names
+-- The add path carries the category too: create_deduction_with_receipt names
 -- the column explicitly, so it has to be among them or a donation added from
 -- the form would silently save as work_expense.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'household_id', current_setting('db.hid')::uuid,
     'member_id', current_setting('db.mid')::uuid,
@@ -117,7 +117,7 @@ select public.create_deduction_with_receipts(
     'full_amount_cents', 100_00,
     'work_use_percent', 100
   ),
-  '[]'::jsonb
+  null
 ) as db_added \gset
 select set_config('db.added', :'db_added', false);
 
@@ -129,7 +129,7 @@ end $$;
 
 -- A payload naming no category at all still succeeds, defaulting to
 -- work_expense exactly as a direct insert does.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'household_id', current_setting('db.hid')::uuid,
     'member_id', current_setting('db.mid')::uuid,
@@ -138,7 +138,7 @@ select public.create_deduction_with_receipts(
     'deduction_date', '2026-08-07',
     'financial_year', 2027
   ),
-  '[]'::jsonb
+  null
 ) as db_unqualified \gset
 select set_config('db.unqualified', :'db_unqualified', false);
 

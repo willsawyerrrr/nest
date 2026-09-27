@@ -242,14 +242,14 @@ do $$ begin
     = 1_200_00, 'Alice''s deduction amount should round-trip';
 end $$;
 
--- create_deduction_with_receipts: the add-deduction form mints a deduction id
--- client-side and uploads receipts to Storage before any deduction row exists,
--- so the deduction and its already-uploaded receipts are written together in
+-- create_deduction_with_receipt: the add-deduction form mints a deduction id
+-- client-side and uploads its receipt to Storage before any deduction row exists,
+-- so the deduction and its already-uploaded receipt are written together in
 -- one transaction, keyed on that id.
 select gen_random_uuid() as new_ded_id \gset
 select set_config('test.new_ded_id', :'new_ded_id', false);
 
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'id', current_setting('test.new_ded_id'),
     'household_id', current_setting('test.hid'),
@@ -259,27 +259,24 @@ select public.create_deduction_with_receipts(
     'deduction_date', '2026-08-10',
     'financial_year', 2027
   ),
-  jsonb_build_array(
-    jsonb_build_object('storage_path', current_setting('test.hid') || '/' || current_setting('test.new_ded_id') || '/a-receipt.pdf', 'file_name', 'receipt-a.pdf'),
-    jsonb_build_object('storage_path', current_setting('test.hid') || '/' || current_setting('test.new_ded_id') || '/b-receipt.pdf', 'file_name', 'receipt-b.pdf')
-  )
+  current_setting('test.hid') || '/' || current_setting('test.new_ded_id') || '/a-receipt.pdf'
 );
 
 do $$
 declare v_id uuid := current_setting('test.new_ded_id')::uuid;
 begin
   assert (select count(*) from public.deduction where id = v_id) = 1,
-    'create_deduction_with_receipts should write the deduction row';
+    'create_deduction_with_receipt should write the deduction row';
   assert (select description from public.deduction where id = v_id) = 'Union fees',
     'the RPC-written deduction should carry its own fields';
-  assert (select count(*) from public.deduction_receipt where deduction_id = v_id) = 2,
-    'create_deduction_with_receipts should write both already-uploaded receipts';
+  assert (select count(*) from public.deduction_receipt where deduction_id = v_id) = 1,
+    'create_deduction_with_receipt should write the already-uploaded receipt';
 end $$;
 
 -- A retry with the same id — the client-minted id is stable across a repeated
--- save — rewrites the same deduction and replaces its receipts rather than
+-- save — rewrites the same deduction and replaces its receipt rather than
 -- duplicating either.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'id', current_setting('test.new_ded_id'),
     'household_id', current_setting('test.hid'),
@@ -289,9 +286,7 @@ select public.create_deduction_with_receipts(
     'deduction_date', '2026-08-10',
     'financial_year', 2027
   ),
-  jsonb_build_array(
-    jsonb_build_object('storage_path', current_setting('test.hid') || '/' || current_setting('test.new_ded_id') || '/a-receipt.pdf', 'file_name', 'receipt-a.pdf')
-  )
+  current_setting('test.hid') || '/' || current_setting('test.new_ded_id') || '/b-receipt.pdf'
 );
 
 do $$
@@ -304,7 +299,22 @@ begin
   assert (select amount_cents from public.deduction where id = v_id) = 360_00,
     'a retried save should carry the resubmitted amount';
   assert (select count(*) from public.deduction_receipt where deduction_id = v_id) = 1,
-    'a retried save should replace the receipt set, not accumulate it';
+    'a retried save should replace the receipt, not accumulate it';
+  assert (select storage_path from public.deduction_receipt where deduction_id = v_id)
+    like '%/b-receipt.pdf',
+    'a retried save should leave the resubmitted receipt in place';
+end $$;
+
+-- The database holds a deduction to one receipt.
+do $$
+declare v_id uuid := current_setting('test.new_ded_id')::uuid;
+begin
+  insert into public.deduction_receipt (household_id, deduction_id, storage_path)
+    values (current_setting('test.hid')::uuid, v_id, 'second.pdf');
+  raise exception 'FAIL: a deduction accepted a second receipt';
+exception
+  when unique_violation then
+    raise notice 'PASS: a deduction cannot hold two receipts';
 end $$;
 
 -- Alice's gift tracker: a recipient and an occasion, a gift budget linking the
@@ -606,13 +616,13 @@ exception
     raise notice 'PASS: Bob blocked from inserting into Alice''s household';
 end $$;
 
--- Bob must be blocked from using create_deduction_with_receipts to write into
+-- Bob must be blocked from using create_deduction_with_receipt to write into
 -- Alice's household: it is SECURITY INVOKER, so the deduction insert's own RLS
 -- policy is what stops him, not anything the RPC checks itself.
 do $$
 declare v_hid uuid := current_setting('test.hid')::uuid;
 begin
-  perform public.create_deduction_with_receipts(
+  perform public.create_deduction_with_receipt(
     jsonb_build_object(
       'id', gen_random_uuid(),
       'household_id', v_hid,
@@ -622,7 +632,7 @@ begin
       'deduction_date', '2026-08-10',
       'financial_year', 2027
     ),
-    '[]'::jsonb
+    null
   );
   raise exception 'FAIL: Bob wrote a deduction into Alice''s household via the RPC';
 exception
@@ -1625,7 +1635,7 @@ select public.sync_up_gift_transactions(
   current_setting('test.priv_hid')::uuid,
   array[current_setting('test.priv_shared')::uuid],
   now() - interval '365 days',
-  '[]'::jsonb
+  null
 );
 reset role;
 do $$ begin

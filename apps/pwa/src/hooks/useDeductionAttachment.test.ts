@@ -33,10 +33,9 @@ function renderAttachment(
 
 beforeEach(() => {
   vi.clearAllMocks()
-  upload.mockImplementation(async (deductionId: string, file: File) => ({
-    storage_path: `h1/${deductionId}/uuid-${file.name}`,
-    file_name: file.name,
-  }))
+  upload.mockImplementation(
+    async (deductionId: string, file: File) => `h1/${deductionId}/uuid-${file.name}`,
+  )
   discard.mockResolvedValue(undefined)
   read.mockResolvedValue({ status: 'read', extraction })
   onExtracted.mockReturnValue(summary)
@@ -60,9 +59,7 @@ describe('useDeductionAttachment', () => {
     expect(read).toHaveBeenCalledWith(`h1/${deductionId}/uuid-receipt.pdf`, 'work_expense')
     expect(onExtracted).toHaveBeenCalledWith(extraction)
     expect(result.current.state).toEqual({ status: 'read', ...summary })
-    expect(result.current.files).toEqual([
-      { storage_path: `h1/${deductionId}/uuid-receipt.pdf`, file_name: 'receipt.pdf' },
-    ])
+    expect(result.current.path).toBe(`h1/${deductionId}/uuid-receipt.pdf`)
     expect(result.current.busy).toBe(false)
   })
 
@@ -74,7 +71,7 @@ describe('useDeductionAttachment', () => {
     expect(read).toHaveBeenCalledWith(expect.any(String), 'donation')
   })
 
-  it('mints one id for the form, so every file lands under the same prefix', async () => {
+  it('mints one id for the form, so a replacement lands under the same prefix', async () => {
     const { result } = renderAttachment()
 
     await act(async () => await result.current.addFile(receipt('first.pdf')))
@@ -85,55 +82,42 @@ describe('useDeductionAttachment', () => {
     expect(upload.mock.calls[1]![0]).toBe(id)
   })
 
-  it('reads only the first of several attached receipts', async () => {
+  it('replaces the attached file: deletes the old object and reads the new one', async () => {
     const { result } = renderAttachment()
 
     await act(async () => await result.current.addFile(receipt('first.pdf')))
+    const id = result.current.deductionId
     await act(async () => await result.current.addFile(receipt('second.pdf')))
 
-    expect(read).toHaveBeenCalledTimes(1)
-    expect(result.current.files).toHaveLength(2)
+    expect(discard).toHaveBeenCalledWith(`h1/${id}/uuid-first.pdf`)
+    expect(discard).toHaveBeenCalledTimes(1)
+    expect(result.current.path).toBe(`h1/${id}/uuid-second.pdf`)
+    expect(read).toHaveBeenCalledTimes(2)
   })
 
-  it('removes an uploaded file, discarding its stored object', async () => {
+  it('removes the uploaded file, discarding its stored object', async () => {
     const { result } = renderAttachment()
 
     await act(async () => await result.current.addFile(receipt()))
-    const path = result.current.files[0]!.storage_path
-    await act(async () => await result.current.removeFile(path))
+    const path = result.current.path!
+    await act(async () => await result.current.removeFile())
 
     expect(discard).toHaveBeenCalledWith(path)
-    expect(result.current.files).toEqual([])
+    expect(result.current.path).toBeNull()
+    expect(result.current.state).toEqual({ status: 'idle' })
   })
 
-  it('renames one uploaded file, leaving the others and every stored object alone', async () => {
-    const { result } = renderAttachment()
-
-    await act(async () => await result.current.addFile(receipt('first.pdf')))
-    await act(async () => await result.current.addFile(receipt('second.pdf')))
-    const id = result.current.deductionId
-    act(() => result.current.renameFile(`h1/${id}/uuid-second.pdf`, 'Toolkit'))
-
-    expect(result.current.files).toEqual([
-      { storage_path: `h1/${id}/uuid-first.pdf`, file_name: 'first.pdf' },
-      { storage_path: `h1/${id}/uuid-second.pdf`, file_name: 'Toolkit' },
-    ])
-    expect(upload).toHaveBeenCalledTimes(2)
-  })
-
-  it('deletes every file the member walked away from', async () => {
+  it('deletes the file the member walked away from', async () => {
     const { result, unmount } = renderAttachment()
 
-    await act(async () => await result.current.addFile(receipt('first.pdf')))
-    await act(async () => await result.current.addFile(receipt('second.pdf')))
-    const paths = result.current.files.map((file) => file.storage_path)
+    await act(async () => await result.current.addFile(receipt()))
+    const path = result.current.path
     unmount()
 
-    expect(discard).toHaveBeenCalledWith(paths[0])
-    expect(discard).toHaveBeenCalledWith(paths[1])
+    expect(discard).toHaveBeenCalledWith(path)
   })
 
-  it('leaves every uploaded file alone once the row that references them is written', async () => {
+  it('leaves the uploaded file alone once the row that references it is written', async () => {
     const { result, unmount } = renderAttachment()
 
     await act(async () => await result.current.addFile(receipt()))
@@ -144,9 +128,9 @@ describe('useDeductionAttachment', () => {
   })
 
   it('deletes an upload that lands after the form has gone', async () => {
-    let finishUpload!: (stored: { storage_path: string; file_name: string }) => void
+    let finishUpload!: (stored: string) => void
     upload.mockReturnValue(
-      new Promise<{ storage_path: string; file_name: string }>((resolve) => {
+      new Promise<string>((resolve) => {
         finishUpload = resolve
       }),
     )
@@ -161,7 +145,7 @@ describe('useDeductionAttachment', () => {
     expect(discard).not.toHaveBeenCalled()
 
     await act(async () => {
-      finishUpload({ storage_path: 'h1/d1/uuid-receipt.pdf', file_name: 'receipt.pdf' })
+      finishUpload('h1/d1/uuid-receipt.pdf')
       await pending
     })
 
@@ -183,7 +167,7 @@ describe('useDeductionAttachment', () => {
       pending = result.current.addFile(receipt())
     })
     await waitFor(() => expect(read).toHaveBeenCalled())
-    const path = result.current.files[0]?.storage_path
+    const path = result.current.path
     unmount()
 
     await act(async () => {
@@ -192,9 +176,7 @@ describe('useDeductionAttachment', () => {
     })
 
     expect(onExtracted).not.toHaveBeenCalled()
-    if (path !== undefined) {
-      expect(discard).toHaveBeenCalledWith(path)
-    }
+    expect(discard).toHaveBeenCalledWith(path)
   })
 
   it('deletes nothing when no file was ever attached', () => {
@@ -203,31 +185,15 @@ describe('useDeductionAttachment', () => {
     expect(discard).not.toHaveBeenCalled()
   })
 
-  it('reports a failed upload of the first file and attaches nothing', async () => {
+  it('reports a failed upload and attaches nothing', async () => {
     upload.mockRejectedValue(new Error('nope'))
     const { result } = renderAttachment()
 
     await act(async () => await result.current.addFile(receipt()))
 
     expect(result.current.state).toEqual({ status: 'failed', message: UPLOAD_FAILED_MESSAGE })
-    expect(result.current.files).toEqual([])
+    expect(result.current.path).toBeNull()
     expect(read).not.toHaveBeenCalled()
-  })
-
-  it('leaves the read state alone when a second file fails to upload', async () => {
-    const { result } = renderAttachment()
-    await act(async () => await result.current.addFile(receipt('first.pdf')))
-    const stateAfterFirst = result.current.state
-
-    upload.mockRejectedValue(new Error('nope'))
-    await act(async () => await result.current.addFile(receipt('second.pdf')))
-
-    // The first file's read already settled the state; a later file failing to
-    // upload is not the first file's problem to report.
-    expect(result.current.state).toEqual(stateAfterFirst)
-    expect(result.current.files).toEqual([
-      { storage_path: `h1/${result.current.deductionId}/uuid-first.pdf`, file_name: 'first.pdf' },
-    ])
   })
 
   it('keeps the receipt attached when the read fails, and pre-fills nothing', async () => {
@@ -244,7 +210,7 @@ describe('useDeductionAttachment', () => {
       await act(async () => await result.current.addFile(receipt()))
 
       expect(result.current.state).toEqual(outcome)
-      expect(result.current.files).toHaveLength(1)
+      expect(result.current.path).not.toBeNull()
       expect(onExtracted).not.toHaveBeenCalled()
       act(() => result.current.keep())
       unmount()

@@ -98,10 +98,10 @@ begin
   end;
 end $$;
 
--- The add path apportions too: create_deduction_with_receipts names both
+-- The add path apportions too: create_deduction_with_receipt names both
 -- columns explicitly, so they have to be among them or a work-use claim added
 -- from the form would fail the apportioning constraint outright.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'household_id', current_setting('db.hid')::uuid,
     'member_id', current_setting('db.mid')::uuid,
@@ -112,7 +112,7 @@ select public.create_deduction_with_receipts(
     'full_amount_cents', 80_00,
     'work_use_percent', 50
   ),
-  '[]'::jsonb
+  null
 ) as db_added \gset
 select set_config('db.added', :'db_added', false);
 
@@ -128,7 +128,7 @@ end $$;
 -- A payload naming no work-use figures at all still satisfies the apportioning
 -- constraint: full_amount_cents has no plain column default, so this exercises
 -- snapshot_deduction_full_amount through the RPC's insert, not just a direct one.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'household_id', current_setting('db.hid')::uuid,
     'member_id', current_setting('db.mid')::uuid,
@@ -137,7 +137,7 @@ select public.create_deduction_with_receipts(
     'deduction_date', '2026-08-11',
     'financial_year', 2027
   ),
-  '[]'::jsonb
+  null
 ) as db_unqualified \gset
 select set_config('db.unqualified', :'db_unqualified', false);
 

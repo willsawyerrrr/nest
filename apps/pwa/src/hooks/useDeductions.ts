@@ -4,7 +4,6 @@ import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
-import type { PendingReceipt } from './useDeductionReceipts'
 
 export type DeductionRow = Tables<'deduction'>
 
@@ -61,16 +60,16 @@ export interface DeductionInput {
 
 /**
  * What the add-deduction form saves: the id it mints for the deduction (and
- * for every receipt already uploaded under it), the deduction's own fields, and
- * the receipts already uploaded to Storage for it. The two are written together
- * by `create_deduction_with_receipts`, so a partial failure can leave neither a
- * deduction with receipts silently missing nor a receipt with no deduction to
- * hang off.
+ * for the receipt already uploaded under it), the deduction's own fields, and
+ * the path of the receipt already uploaded to Storage for it, if any. The two
+ * are written together by `create_deduction_with_receipt`, so a partial failure
+ * can leave neither a deduction with its receipt silently missing nor a receipt
+ * with no deduction to hang off.
  */
 export interface DeductionSubmission {
   id: string
   input: DeductionInput
-  receipts: readonly PendingReceipt[]
+  receiptPath: string | null
 }
 
 export interface UseDeductionsResult {
@@ -79,9 +78,9 @@ export interface UseDeductionsResult {
   loading: boolean
   reload: () => Promise<void>
   /**
-   * Writes a new deduction and its already-uploaded receipts together, under
+   * Writes a new deduction and its already-uploaded receipt together, under
    * the id the add form minted, in one transaction — see
-   * `create_deduction_with_receipts`.
+   * `create_deduction_with_receipt`.
    */
   create: (submission: DeductionSubmission) => Promise<void>
   update: (id: string, input: DeductionInput) => Promise<void>
@@ -105,18 +104,18 @@ export function useDeductions(
     match: { financial_year: financialYear },
     insertDefaults: { financial_year: financialYear },
     orderBy: 'deduction_date',
-    // create_deduction_with_receipts writes a deduction's deduction_receipt
-    // rows alongside it, and the file_donation_in_default_group trigger may
+    // create_deduction_with_receipt writes a deduction's deduction_receipt
+    // row alongside it, and the file_donation_in_default_group trigger may
     // create the member's "Donations" deduction_group, so both are refetched
     // after a write.
     alsoInvalidate: ['deduction_receipt', 'deduction_group'],
   })
 
   const create = useCallback(
-    async ({ id, input, receipts }: DeductionSubmission) => {
-      const { error } = await supabase.rpc('create_deduction_with_receipts', {
+    async ({ id, input, receiptPath }: DeductionSubmission) => {
+      const { error } = await supabase.rpc('create_deduction_with_receipt', {
         p_deduction: { ...input, id, household_id: householdId, financial_year: financialYear },
-        p_receipts: receipts.map((receipt) => ({ ...receipt })),
+        ...(receiptPath !== null && { p_receipt_path: receiptPath }),
       })
       if (error) {
         throw error

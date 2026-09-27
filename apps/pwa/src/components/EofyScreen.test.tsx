@@ -129,7 +129,6 @@ function makeReceipt(overrides: Partial<DeductionReceiptRow> = {}): DeductionRec
     household_id: 'h1',
     deduction_id: 'd1',
     storage_path: 'h1/d1/receipt.pdf',
-    file_name: 'receipt.pdf',
     created_at: '',
     ...overrides,
   }
@@ -287,14 +286,14 @@ describe('EofyScreen', () => {
     expect(within(card).queryByText(/tracking toward/i)).toBeNull()
   })
 
-  it("lists a member's claimed deductions with their total and receipts", async () => {
+  it("lists a member's claimed deductions with their total and receipt", async () => {
     const signedUrl = vi.fn().mockResolvedValue('https://example.com/receipt.pdf')
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     const user = userEvent.setup()
 
     renderScreen({
       deductions: [makeDeduction({ id: 'd1', member_id: 'm1', amount_cents: 300_00 })],
-      receipts: [makeReceipt({ id: 'r1', deduction_id: 'd1', file_name: 'invoice.pdf' })],
+      receipts: [makeReceipt({ id: 'r1', deduction_id: 'd1' })],
       signedUrl,
     })
 
@@ -304,7 +303,7 @@ describe('EofyScreen', () => {
     expect(within(card).getAllByText('$300.00')).toHaveLength(2)
     expect(within(card).getByText('Home office')).toBeInTheDocument()
 
-    await user.click(within(card).getByRole('button', { name: 'invoice.pdf' }))
+    await user.click(within(card).getByRole('button', { name: 'Receipt' }))
     expect(signedUrl).toHaveBeenCalledWith('h1/d1/receipt.pdf')
 
     openSpy.mockRestore()

@@ -51,16 +51,13 @@ function makeReceipt(overrides: Partial<DeductionReceiptRow> = {}): DeductionRec
     deduction_id: 'd1',
     household_id: 'h1',
     storage_path: 'h1/d1/abc-receipt.pdf',
-    file_name: 'receipt.pdf',
     created_at: '',
     ...overrides,
   }
 }
 
 const attachments: DeductionAttachments = {
-  upload: vi
-    .fn()
-    .mockResolvedValue({ storage_path: 'h1/new/uuid-receipt.pdf', file_name: 'receipt.pdf' }),
+  upload: vi.fn().mockResolvedValue('h1/new/uuid-receipt.pdf'),
   discard: vi.fn().mockResolvedValue(undefined),
   read: vi.fn().mockResolvedValue({ status: 'read', extraction: { model: 'x', fields: {} } }),
 }
@@ -83,7 +80,6 @@ function renderScreen(overrides: Partial<Parameters<typeof DeductionsScreen>[0]>
     onDeleteGroup: vi.fn().mockResolvedValue(undefined),
     onUploadReceipt: vi.fn().mockResolvedValue(undefined),
     onRemoveReceipt: vi.fn().mockResolvedValue(undefined),
-    onRenameReceipt: vi.fn().mockResolvedValue(undefined),
     signedUrl: vi.fn().mockResolvedValue('https://signed/url'),
     ...overrides,
   }
@@ -369,9 +365,9 @@ describe('DeductionsScreen', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     await waitFor(() =>
-      // Editing goes through a plain field update, not the receipts-replacing
+      // Editing goes through a plain field update, not the receipt-replacing
       // RPC, so it carries the deduction's own fields — never a submission
-      // shape with an `input`/`receipts` split.
+      // shape with an `input`/`receiptPath` split.
       expect(onUpdate).toHaveBeenCalledWith(
         'd1',
         expect.objectContaining({ description: 'Home office' }),
@@ -405,7 +401,7 @@ describe('DeductionsScreen', () => {
       expect(onCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           input: expect.objectContaining({ description: 'Union fees', amount_cents: 500_00 }),
-          receipts: [],
+          receiptPath: null,
         }),
       ),
     )
@@ -419,7 +415,7 @@ describe('DeductionsScreen', () => {
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
     await user.upload(input, file)
 
-    expect(onUploadReceipt).toHaveBeenCalledWith('d1', file)
+    expect(onUploadReceipt).toHaveBeenCalledWith('d1', file, undefined)
   })
 
   it('opens a stored receipt in a new tab via its signed URL', async () => {
@@ -427,7 +423,7 @@ describe('DeductionsScreen', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const { signedUrl } = renderScreen({ receipts: [makeReceipt()] })
 
-    await user.click(screen.getByRole('button', { name: 'receipt.pdf' }))
+    await user.click(screen.getByRole('button', { name: 'Receipt' }))
 
     await waitFor(() => expect(signedUrl).toHaveBeenCalledWith('h1/d1/abc-receipt.pdf'))
     await waitFor(() =>
@@ -440,7 +436,7 @@ describe('DeductionsScreen', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     renderScreen({ receipts: [makeReceipt()], signedUrl: vi.fn().mockResolvedValue(null) })
 
-    await user.click(screen.getByRole('button', { name: 'receipt.pdf' }))
+    await user.click(screen.getByRole('button', { name: 'Receipt' }))
 
     await waitFor(() => expect(open).not.toHaveBeenCalled())
   })
@@ -449,7 +445,7 @@ describe('DeductionsScreen', () => {
     const user = userEvent.setup()
     const { onRemoveReceipt } = renderScreen({ receipts: [makeReceipt()] })
 
-    await user.click(screen.getByRole('button', { name: /delete receipt receipt\.pdf/i }))
+    await user.click(screen.getByRole('button', { name: /delete receipt for home office/i }))
 
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /delete/i }))
@@ -457,77 +453,20 @@ describe('DeductionsScreen', () => {
     expect(onRemoveReceipt).toHaveBeenCalledWith(makeReceipt())
   })
 
-  it('renames a receipt in place', async () => {
+  it('replaces an existing receipt, passing the current one along', async () => {
     const user = userEvent.setup()
-    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
+    const { onUploadReceipt } = renderScreen({ receipts: [makeReceipt()] })
 
-    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
-    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
-    await user.clear(input)
-    await user.type(input, 'Officeworks invoice.pdf')
-    await user.click(screen.getByRole('button', { name: /save name for receipt\.pdf/i }))
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['y'], 'newer.pdf', { type: 'application/pdf' })
+    await user.upload(input, file)
 
-    expect(onRenameReceipt).toHaveBeenCalledWith(makeReceipt(), 'Officeworks invoice.pdf')
-    // The edit control closes once saved.
-    expect(screen.queryByRole('textbox', { name: /rename receipt\.pdf/i })).not.toBeInTheDocument()
-  })
-
-  it('blocks saving a receipt name that is blank', async () => {
-    const user = userEvent.setup()
-    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
-
-    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
-    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
-    await user.clear(input)
-    await user.type(input, '   ')
-
-    expect(screen.getByRole('button', { name: /save name for receipt\.pdf/i })).toBeDisabled()
-    // Enter bypasses the disabled button, so the guard inside save() is what
-    // actually stops a blank name — not just the disabled control.
-    await user.type(input, '{Enter}')
-    expect(onRenameReceipt).not.toHaveBeenCalled()
-    expect(screen.getByRole('textbox', { name: /rename receipt\.pdf/i })).toBeInTheDocument()
-  })
-
-  it('saves a receipt rename on Enter', async () => {
-    const user = userEvent.setup()
-    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
-
-    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
-    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
-    await user.clear(input)
-    await user.type(input, 'Officeworks invoice.pdf{Enter}')
-
-    expect(onRenameReceipt).toHaveBeenCalledWith(makeReceipt(), 'Officeworks invoice.pdf')
-    expect(screen.queryByRole('textbox', { name: /rename receipt\.pdf/i })).not.toBeInTheDocument()
-  })
-
-  it('cancels a receipt rename on Escape', async () => {
-    const user = userEvent.setup()
-    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
-
-    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
-    const input = screen.getByRole('textbox', { name: /rename receipt\.pdf/i })
-    await user.type(input, 'Something else{Escape}')
-
-    expect(onRenameReceipt).not.toHaveBeenCalled()
-    expect(screen.getByText('receipt.pdf')).toBeInTheDocument()
-  })
-
-  it('cancels a receipt rename without saving', async () => {
-    const user = userEvent.setup()
-    const { onRenameReceipt } = renderScreen({ receipts: [makeReceipt()] })
-
-    await user.click(screen.getByRole('button', { name: /rename receipt\.pdf/i }))
-    await user.type(screen.getByRole('textbox', { name: /rename receipt\.pdf/i }), 'Something else')
-    await user.click(screen.getByRole('button', { name: /cancel renaming receipt\.pdf/i }))
-
-    expect(onRenameReceipt).not.toHaveBeenCalled()
-    expect(screen.getByText('receipt.pdf')).toBeInTheDocument()
+    expect(onUploadReceipt).toHaveBeenCalledWith('d1', file, makeReceipt())
+    expect(screen.getByLabelText(/replace receipt for home office/i)).toBeInTheDocument()
   })
 
   describe('on desktop', () => {
-    it('renders each deduction as a dense row with its receipts on the caption line', () => {
+    it('renders each deduction as a dense row with its receipt on the caption line', () => {
       setWideViewport()
       renderScreen({ members: [will], receipts: [makeReceipt()] })
 
@@ -537,7 +476,7 @@ describe('DeductionsScreen', () => {
       expect(screen.getAllByText('$1,200.00')).toHaveLength(2)
       expect(screen.getByText(/1 Aug 2026/)).toBeInTheDocument()
       // The receipt and its upload control still show beneath the row.
-      expect(screen.getByRole('button', { name: 'receipt.pdf' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
     })
   })

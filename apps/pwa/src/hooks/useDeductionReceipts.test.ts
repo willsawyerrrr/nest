@@ -29,7 +29,6 @@ const receipt: DeductionReceiptRow = {
   deduction_id: 'd1',
   household_id: 'h1',
   storage_path: 'h1/d1/abc-receipt.pdf',
-  file_name: 'receipt.pdf',
   created_at: '',
 }
 
@@ -121,8 +120,8 @@ describe('useDeductionReceipts', () => {
     const [path, uploaded] = bucket.upload.mock.calls[0]!
     expect(path).toMatch(/^h1\/d2\/.*-receipt\.pdf$/)
     expect(uploaded).toBe(file)
-    expect(pending).toEqual({ storage_path: path, file_name: 'receipt.pdf' })
-    // create_deduction_with_receipts writes the row, not this call.
+    expect(pending).toBe(path)
+    // create_deduction_with_receipt writes the row, not this call.
     expect(builder.insert).not.toHaveBeenCalled()
   })
 
@@ -198,39 +197,29 @@ describe('useDeductionReceipts', () => {
     })
   })
 
-  it('renames a receipt’s display label, leaving its stored file untouched', async () => {
+  it('replaces an existing receipt: uploads, repoints the row, then deletes the old object', async () => {
     const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
+    const file = new File(['x'], 'new.pdf', { type: 'application/pdf' })
     await act(async () => {
-      await result.current.rename(receipt, 'Officeworks invoice.pdf')
+      await result.current.upload('d1', file, receipt)
     })
 
-    expect(builder.update).toHaveBeenCalledWith({ file_name: 'Officeworks invoice.pdf' })
+    const [path] = bucket.upload.mock.calls[0]!
+    expect(builder.insert).not.toHaveBeenCalled()
+    expect(builder.update).toHaveBeenCalledWith({ storage_path: path })
     expect(builder.eq).toHaveBeenCalledWith('id', 'r1')
-    // Only the label changes: no Storage call touches the underlying file.
-    expect(bucket.upload).not.toHaveBeenCalled()
-    expect(bucket.remove).not.toHaveBeenCalled()
+    expect(bucket.remove).toHaveBeenCalledWith([receipt.storage_path])
   })
 
-  it('stores a receipt named nothing under Receipt', async () => {
-    const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
-    await waitFor(() => expect(result.current.receipts).not.toBeNull())
-
-    await act(async () => {
-      await result.current.rename(receipt, '   ')
-    })
-    const pending = await result.current.uploadPending('d2', new File(['x'], ''))
-
-    expect(builder.update).toHaveBeenCalledWith({ file_name: 'Receipt' })
-    expect(pending.file_name).toBe('Receipt')
-  })
-
-  it('surfaces a failed rename', async () => {
+  it('keeps the old object when repointing the row fails', async () => {
     const { result } = renderHook(() => useDeductionReceipts(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.receipts).not.toBeNull())
 
     builder.result = { data: null, error: new Error('nope') }
-    await expect(result.current.rename(receipt, 'New name.pdf')).rejects.toThrow('nope')
+    const file = new File(['x'], 'new.pdf', { type: 'application/pdf' })
+    await expect(result.current.upload('d1', file, receipt)).rejects.toThrow('nope')
+    expect(bucket.remove).not.toHaveBeenCalled()
   })
 })

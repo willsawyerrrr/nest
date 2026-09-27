@@ -293,8 +293,8 @@ and so without the trigger.
     `help_debt`, `super_contribution`, and `payslip`. `member_id` is a
     tax/reporting attribution, not a privacy boundary: the two returns are lodged
     against one pooled pot, so each member maintains their co-member's claims.
-  - Adding a deduction is written, alongside every receipt already uploaded for
-    it, through `create_deduction_with_receipts` (below) rather than a direct
+  - Adding a deduction is written, alongside the receipt already uploaded for
+    it, through `create_deduction_with_receipt` (below) rather than a direct
     insert — the client mints the id before the row exists, so a receipt
     picked first can be filed under it. Editing an existing row is a direct
     update, as any other field write is.
@@ -317,7 +317,7 @@ and so without the trigger.
     donations gets its "Donations" group and those donations move in.
 - **deduction_group** — a named set of one member's deductions for one financial
   year: the many payments of one expense claimed more than once — a subscription
-  paid monthly, a trip's several receipts — totalled for display.
+  paid monthly, a trip's several purchases — totalled for display.
   - `id`, `household_id`, `member_id`, `name`, `financial_year`, `created_at`,
     `updated_at`. Composite FK `(member_id, household_id)` → `members`
     `on delete cascade`. Unique on `(id, household_id, member_id, financial_year)`
@@ -339,7 +339,7 @@ and so without the trigger.
     deduction can be filed under a group and a payment moved between groups or
     taken out. It is withheld only when the answer is already settled — adding a
     payment from a group's own row. The write is a plain `deduction` update, so
-    nothing passes through `create_deduction_with_receipts`.
+    nothing passes through `create_deduction_with_receipt`.
   - For a **donation** the picker's default option is the member's automatic
     "Donations" group (labelled `Donations`, not `None`): that group is folded
     into the option rather than listed, the other options exist only to move the
@@ -351,24 +351,22 @@ and so without the trigger.
     enforces this, and a stray second `Donations` group is harmless (the trigger
     picks the first).
   - RLS is **household-wide CRUD**, as for `deduction` itself.
-- **deduction_receipt** — a stored receipt file backing a deduction; many rows
-  per deduction.
-  - `id`, `deduction_id`, `household_id`, `storage_path`, `file_name`,
-    `created_at`. No `updated_at`: `file_name` is the only field an edit ever
-    touches, and nothing reads when a label was last changed.
-  - Composite FK `(deduction_id, household_id)` → `deduction (id, household_id)`
-    `on delete cascade` — deleting a deduction takes its receipt rows with it.
-    Indexed on `(deduction_id)` (the list read) and `(household_id)`.
+- **deduction_receipt** — the stored receipt file backing a deduction; at most
+  one row per deduction.
+  - `id`, `deduction_id`, `household_id`, `storage_path`, `created_at`. No
+    `updated_at`: `storage_path` is the only field an edit ever touches (a
+    replacement repoints it), and nothing reads when that happened.
+  - `deduction_id` is `unique` (`deduction_receipt_deduction_id_key`), which
+    holds a deduction to one receipt in the database rather than only in the UI
+    and doubles as the lookup index. Composite FK `(deduction_id, household_id)`
+    → `deduction (id, household_id)` `on delete cascade` — deleting a deduction
+    takes its receipt row with it. Indexed on `(household_id)`.
   - `storage_path` is the object key in the private `receipts` bucket (see
     **Storage buckets**), laid out `<household_id>/<deduction_id>/<file>`. The
     leading household segment is load-bearing: the `storage.objects` policy
     matches it against `household_ids_for_current_user()`, so the file's access
-    boundary is the row's rather than something separately administered.
-    `file_name` is the label the receipt is shown under, since the key itself is
-    generated. It is chosen as the file is attached — the file's own name, one
-    the member types, or `Receipt` where neither is given — and retyped in place
-    from the deductions list. A label alone: naming and renaming never touch
-    `storage_path` or the stored object.
+    boundary is the row's rather than something separately administered. There
+    is no file name: every listing shows the receipt as "Receipt".
   - RLS is household-wide CRUD on `household_id`, matching `deduction`. The
     boundary is drawn at the household, not the claiming member, for the same
     reason: a receipt is filing evidence for a jointly planned pair of returns,
@@ -1042,15 +1040,15 @@ transaction, not for the privileges.
   point: the household policies on both tables gate every statement in it exactly
   as they gate a direct write, and `household_id` is not updatable on conflict,
   so a slip cannot be moved or hijacked across households.
-- `create_deduction_with_receipts(deduction jsonb, receipts jsonb) returns uuid`
-  — writes one deduction and replaces its whole `deduction_receipt` set in a
-  single call. Only the add-deduction flow uses it: the form lets a member pick
-  receipt files before the deduction exists, uploading each straight to Storage
+- `create_deduction_with_receipt(deduction jsonb, receipt_path text default null) returns uuid`
+  — writes one deduction and replaces its `deduction_receipt` row in a single
+  call. Only the add-deduction flow uses it: the form lets a member pick the
+  receipt file before the deduction exists, uploading it straight to Storage
   (which has no foreign key), so the id the form mints has to reach both tables
   in one transaction — `deduction_receipt.deduction_id` is a real,
   non-deferrable foreign key, so a receipt row cannot be inserted first. Keyed
   on that same id, so a retried save rewrites the deduction and replaces its
-  receipt set rather than duplicating either. It carries the deduction's `basis`
+  receipt rather than duplicating either. It carries the deduction's `basis`
   and, on the distance basis, its `distance_km`; the group it is filed under
   (`group_id`); its work-use apportioning (`full_amount_cents`,
   `work_use_percent`); and its `category`: the add form writes every new deduction through this
@@ -1063,9 +1061,10 @@ transaction, not for the privileges.
   BEFORE INSERT trigger a direct insert relies on. Running as the caller: the
   household policies on both tables gate every statement exactly as a direct
   write would, and `household_id` is not updatable on conflict. Editing an
-  existing deduction never calls this RPC — its receipts are attached one at a
-  time through the ordinary `deduction_receipt` insert path, since the
-  deduction id is already real.
+  existing deduction never calls this RPC — its receipt is attached, replaced
+  (the row's `storage_path` repointed), or removed through the ordinary
+  `deduction_receipt` insert, update, and delete path, since the deduction id is
+  already real.
 
 The Up token and VAPID RPCs are also `SECURITY DEFINER`, but granted to
 `service_role` alone (not `authenticated`) — they are the only path to secrets

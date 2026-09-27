@@ -120,9 +120,9 @@ begin
     'each financial year with a donation should get its own Donations group';
 end $$;
 
--- The add path files a donation into Donations too: create_deduction_with_receipts
+-- The add path files a donation into Donations too: create_deduction_with_receipt
 -- inserts into deduction, so the trigger fires on it.
-select public.create_deduction_with_receipts(
+select public.create_deduction_with_receipt(
   jsonb_build_object(
     'household_id', current_setting('db.hid')::uuid,
     'member_id', current_setting('db.mid')::uuid,
@@ -132,7 +132,7 @@ select public.create_deduction_with_receipts(
     'financial_year', 2027,
     'category', 'donation'
   ),
-  '[]'::jsonb
+  null
 ) as db_added \gset
 select set_config('db.added', :'db_added', false);
 

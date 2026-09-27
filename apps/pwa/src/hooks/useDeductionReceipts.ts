@@ -8,7 +8,6 @@ import {
   readExtractionFailure,
   type ExtractionOutcome,
 } from '../lib/deductionExtraction'
-import { receiptName } from '../lib/receiptName'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
 import type { DeductionCategory } from './useDeductions'
@@ -19,22 +18,11 @@ export type DeductionReceiptRow = Tables<'deduction_receipt'>
 interface DeductionReceiptInput {
   deduction_id: string
   storage_path: string
-  file_name: string
 }
 
-/**
- * A receipt already uploaded to Storage but not yet backed by a
- * `deduction_receipt` row — the shape `create_deduction_with_receipts` takes,
- * for a deduction still being added.
- */
-export interface PendingReceipt {
+/** The one field a replacement changes: the object the receipt points at. */
+interface DeductionReceiptReplaceInput {
   storage_path: string
-  file_name: string
-}
-
-/** The one field a rename may change; the stored file and its path are untouched. */
-interface DeductionReceiptRenameInput {
-  file_name: string
 }
 
 /** The private Storage bucket receipt files live in. */
@@ -45,27 +33,21 @@ export interface UseDeductionReceiptsResult {
   loading: boolean
   reload: () => Promise<void>
   /**
-   * Uploads `file` for a deduction and records a receipt row pointing at it,
-   * labelled with the file's own name — the label the row's rename control edits.
+   * Attaches `file` as a deduction's receipt: uploads it and records a receipt
+   * row pointing at it, or — where `existing` is the deduction's current
+   * receipt — repoints that row and deletes the object it held, best effort.
    */
-  upload: (deductionId: string, file: File) => Promise<void>
+  upload: (deductionId: string, file: File, existing?: DeductionReceiptRow) => Promise<void>
   /** Removes a receipt's stored file and its row. */
   remove: (receipt: DeductionReceiptRow) => Promise<void>
-  /**
-   * Renames a receipt's display label, trimmed, or `Receipt` where the name
-   * given is blank. Purely a label: `storage_path` and the underlying stored
-   * file are untouched.
-   */
-  rename: (receipt: DeductionReceiptRow, fileName: string) => Promise<void>
   /** A short-lived signed URL for viewing a stored receipt, or null on failure. */
   signedUrl: (path: string) => Promise<string | null>
   /**
    * Uploads `file` under `deductionId` in Storage without a `deduction_receipt`
-   * row — for a deduction not yet created, whose receipts are written together
-   * with it by `create_deduction_with_receipts`. It comes back under the file's
-   * own name, which the add form offers for the household to retype.
+   * row — for a deduction not yet created, whose receipt is written together
+   * with it by `create_deduction_with_receipt`. Resolves to the object's path.
    */
-  uploadPending: (deductionId: string, file: File) => Promise<PendingReceipt>
+  uploadPending: (deductionId: string, file: File) => Promise<string>
   /**
    * Deletes an uploaded object no deduction references — one the member
    * removed, or walked away from before saving the deduction. Best effort: a
@@ -91,14 +73,12 @@ const SIGNED_URL_TTL_SECONDS = 3600
  * `<household_id>/<deduction_id>/<uuid>-<file>` so the first path segment gates
  * access to the owning household.
  *
- * `upload`/`remove`/`rename` act on an already-real deduction — the edit flow,
- * and every receipt shown against an existing deduction; `rename` only ever
- * touches `file_name`, the display label, never `storage_path` or the stored
- * file. `uploadPending`/`discardPending`/`extract` are the create flow's own: a
+ * `upload`/`remove` act on an already-real deduction — attaching, replacing, or
+ * removing the receipt shown against an existing deduction. `uploadPending`/`discardPending`/`extract` are the create flow's own: a
  * receipt picked before the deduction row exists uploads to Storage alone (no
  * `deduction_receipt` row, since `deduction_id` is a real foreign key), reads
  * through `deduction-extract` to pre-fill the add form, and is written into a
- * `deduction_receipt` row only when `create_deduction_with_receipts` creates
+ * `deduction_receipt` row only when `create_deduction_with_receipt` creates
  * the deduction itself.
  *
  * `financialYear` (defaulting to the current one) is passed to
@@ -111,30 +91,20 @@ export function useDeductionReceipts(
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_receipt',
     DeductionReceiptInput,
-    DeductionReceiptRenameInput
+    DeductionReceiptReplaceInput
   >({ table: 'deduction_receipt', orderBy: 'created_at' })
 
   const uploadFile = useCallback(
-    async (deductionId: string, file: File): Promise<PendingReceipt> => {
+    async (deductionId: string, file: File): Promise<string> => {
       const path = `${householdId}/${deductionId}/${crypto.randomUUID()}-${file.name}`
       const { error } = await supabase.storage.from(RECEIPTS_BUCKET).upload(path, file)
       if (error) {
         throw error
       }
-      return { storage_path: path, file_name: receiptName(file.name) }
+      return path
     },
     [householdId],
   )
-
-  const upload = useCallback(
-    async (deductionId: string, file: File) => {
-      const { storage_path, file_name } = await uploadFile(deductionId, file)
-      await create({ deduction_id: deductionId, storage_path, file_name })
-    },
-    [uploadFile, create],
-  )
-
-  const uploadPending = uploadFile
 
   const discardPending = useCallback(async (path: string) => {
     try {
@@ -147,6 +117,21 @@ export function useDeductionReceipts(
       // act on, so cleaning up never surfaces as a form error.
     }
   }, [])
+
+  const upload = useCallback(
+    async (deductionId: string, file: File, existing?: DeductionReceiptRow) => {
+      const storage_path = await uploadFile(deductionId, file)
+      if (!existing) {
+        await create({ deduction_id: deductionId, storage_path })
+        return
+      }
+      await update(existing.id, { storage_path })
+      await discardPending(existing.storage_path)
+    },
+    [uploadFile, create, update, discardPending],
+  )
+
+  const uploadPending = uploadFile
 
   const extract = useCallback(
     async (path: string, category: DeductionCategory): Promise<ExtractionOutcome> => {
@@ -181,13 +166,6 @@ export function useDeductionReceipts(
     [remove],
   )
 
-  const rename = useCallback(
-    async (receipt: DeductionReceiptRow, fileName: string) => {
-      await update(receipt.id, { file_name: receiptName(fileName) })
-    },
-    [update],
-  )
-
   const signedUrl = useCallback(async (path: string) => {
     const { data, error } = await supabase.storage
       .from(RECEIPTS_BUCKET)
@@ -204,7 +182,6 @@ export function useDeductionReceipts(
     reload,
     upload,
     remove: removeReceipt,
-    rename,
     signedUrl,
     uploadPending,
     discardPending,

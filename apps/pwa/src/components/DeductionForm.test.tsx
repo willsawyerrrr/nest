@@ -157,7 +157,7 @@ describe('DeductionForm', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('prefills an existing deduction, offers no receipt picker, and cancels', async () => {
+  it('prefills an existing deduction, offers no receipt picker without receipt handlers, and cancels', async () => {
     const user = userEvent.setup({ delay: null })
     const onCancel = vi.fn()
     render(
@@ -173,12 +173,44 @@ describe('DeductionForm', () => {
 
     expect(screen.getByDisplayValue('Home office')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
-    // Editing carries no attachment mechanics: receipts for an existing
-    // deduction are managed from its row in the list, not from this form.
+    // No extraction mechanics on an edit, and no picker unless the caller
+    // supplies receipt handlers.
     expect(filePicker()).toBeNull()
 
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('offers replace and delete for an existing receipt when editing', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onUploadReceipt = vi.fn().mockResolvedValue(undefined)
+    const onRemoveReceipt = vi.fn()
+    const receipt = {
+      id: 'r1',
+      deduction_id: 'd1',
+      storage_path: 'h1/d1/a.pdf',
+      file_name: 'a.pdf',
+    } as never
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction()}
+        receipt={receipt}
+        onUploadReceipt={onUploadReceipt}
+        onRemoveReceipt={onRemoveReceipt}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    const file = new File(['y'], 'newer.pdf', { type: 'application/pdf' })
+    await user.upload(filePicker() as HTMLInputElement, file)
+    expect(onUploadReceipt).toHaveBeenCalledWith(file)
+    expect(screen.getByLabelText('Replace receipt')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /delete receipt/i }))
+    expect(onRemoveReceipt).toHaveBeenCalledWith(receipt)
   })
 
   it('submits the resubmitted fields for an edit, with the deduction’s own id', async () => {

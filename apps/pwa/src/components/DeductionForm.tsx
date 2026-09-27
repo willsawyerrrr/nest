@@ -21,6 +21,7 @@ import {
 } from '../hooks/useDeductionAttachment'
 import { useDeductionFields } from '../hooks/useDeductionFields'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
+import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionCategory, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
@@ -50,6 +51,12 @@ interface DeductionFormProps {
    */
   groups?: DeductionGroupRow[]
   initial?: DeductionRow | undefined
+  /** When editing, the deduction's stored receipt, if it has one. */
+  receipt?: DeductionReceiptRow | undefined
+  /** When editing, stores a file as the deduction's receipt, replacing any current one. */
+  onUploadReceipt?: ((file: File) => Promise<void>) | undefined
+  /** When editing, removes the stored receipt. */
+  onRemoveReceipt?: ((receipt: DeductionReceiptRow) => void) | undefined
   onSubmit: (submission: DeductionSubmission) => void | Promise<void>
   onCancel?: () => void
 }
@@ -179,8 +186,9 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * (`create_deduction_with_receipt`). A file the member removes or replaces, or
  * the whole add flow they cancel, is deleted again, best effort.
  *
- * Editing an existing deduction carries none of this: its receipt is managed
- * from its row in the deductions list, so this form shows only its own fields.
+ * Editing an existing deduction carries none of the extraction: its receipt is
+ * attached, replaced, or removed from a control here that writes straight
+ * through, since the deduction already exists, and nothing is read.
  *
  * Before any of that, the member says **what kind of deduction** this is — a
  * work expense (the default), a donation, or a tax agent fee — asked up front,
@@ -230,6 +238,9 @@ export function DeductionForm({
   groupId,
   groups = [],
   initial,
+  receipt,
+  onUploadReceipt,
+  onRemoveReceipt,
   onSubmit,
   onCancel,
 }: DeductionFormProps) {
@@ -400,6 +411,38 @@ export function DeductionForm({
                 size="sm"
                 aria-label="Remove receipt"
                 onClick={() => void receipts.removeFile()}
+              >
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
+          )}
+        </Stack>
+      )}
+
+      {!adding && onUploadReceipt && (
+        <Stack gap={6}>
+          <FileInput
+            label="Receipt"
+            size="sm"
+            placeholder={receipt ? 'Replace receipt' : 'Add receipt'}
+            accept="image/*,application/pdf"
+            aria-label={`${receipt ? 'Replace' : 'Add'} receipt`}
+            value={null}
+            onChange={(file) => {
+              if (file) {
+                void onUploadReceipt(file)
+              }
+            }}
+          />
+          {receipt && onRemoveReceipt && (
+            <Group gap="xs" wrap="nowrap" justify="space-between">
+              <Text size="xs">Receipt attached</Text>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                size="sm"
+                aria-label="Delete receipt"
+                onClick={() => onRemoveReceipt(receipt)}
               >
                 <IconTrash size={14} />
               </ActionIcon>

@@ -1,5 +1,4 @@
-import { ActionIcon, Anchor, FileInput, Group, Stack, Text } from '@mantine/core'
-import { IconTrash } from '@tabler/icons-react'
+import { Anchor, Group, Stack, Text } from '@mantine/core'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionGroupInput, DeductionGroupRow } from '../hooks/useDeductionGroups'
@@ -77,22 +76,20 @@ interface DeductionItemProps {
   receipt: DeductionReceiptRow | undefined
   onEdit: () => void
   onDelete: () => void
-  onUploadReceipt: (file: File) => Promise<void>
-  onRemoveReceipt: (receipt: DeductionReceiptRow) => void
   signedUrl: (path: string) => Promise<string | null>
 }
 
 /**
- * A deduction's receipt — a "Receipt" view link and a delete control — and the
- * control that attaches one or replaces it, shared by its row and card.
+ * A deduction's description with its "Receipt" view link inline after it, so a
+ * row spends no line on the receipt and a long description wraps with the link
+ * following its last word. Attaching, replacing, and removing a receipt live in
+ * the edit form.
  */
-function DeductionReceipt({
+function DeductionTitle({
   deduction,
   receipt,
-  onUploadReceipt,
-  onRemoveReceipt,
   signedUrl,
-}: Omit<DeductionItemProps, 'onEdit' | 'onDelete'>) {
+}: Pick<DeductionItemProps, 'deduction' | 'receipt' | 'signedUrl'>) {
   const viewReceipt = async (current: DeductionReceiptRow) => {
     const url = await signedUrl(current.storage_path)
     if (url) {
@@ -101,58 +98,37 @@ function DeductionReceipt({
   }
 
   return (
-    <Stack gap={6}>
+    <Text fw={600} size="sm" style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
+      {deduction.description}
       {receipt && (
-        <Group gap="xs" wrap="nowrap" justify="space-between">
+        <>
+          {' '}
           <Anchor
             size="xs"
+            fw={400}
             component="button"
             type="button"
+            style={{ verticalAlign: 'baseline' }}
             onClick={() => void viewReceipt(receipt)}
           >
             Receipt
           </Anchor>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            size="sm"
-            aria-label={`Delete receipt for ${deduction.description}`}
-            onClick={() => onRemoveReceipt(receipt)}
-          >
-            <IconTrash size={14} />
-          </ActionIcon>
-        </Group>
+        </>
       )}
-
-      <FileInput
-        size="xs"
-        variant="light"
-        placeholder={receipt ? 'Replace receipt' : 'Add receipt'}
-        accept="image/*,application/pdf"
-        aria-label={`${receipt ? 'Replace' : 'Add'} receipt for ${deduction.description}`}
-        value={null}
-        onChange={(file) => {
-          if (file) {
-            void onUploadReceipt(file)
-          }
-        }}
-      />
-    </Stack>
+    </Text>
   )
 }
 
 /**
- * One deduction as a dense table-like row for desktop: the description grows with
- * its date as a dimmed suffix, its amount right-aligned in a fixed column, the
- * controls at the end, and its receipt and upload on the caption line beneath.
+ * One deduction as a dense table-like row for desktop: the description (with its
+ * receipt link inline) grows with its date as a dimmed suffix, its amount
+ * right-aligned in a fixed column, and the controls at the end.
  */
-function DeductionRow({ deduction, onEdit, onDelete, ...receiptProps }: DeductionItemProps) {
+function DeductionRow({ deduction, onEdit, onDelete, receipt, signedUrl }: DeductionItemProps) {
   return (
-    <ListRow caption={<DeductionReceipt deduction={deduction} {...receiptProps} />}>
+    <ListRow>
       <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
-        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
-          {deduction.description}
-        </Text>
+        <DeductionTitle deduction={deduction} receipt={receipt} signedUrl={signedUrl} />
         <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
           {deductionDateLabel(deduction)}
         </Text>
@@ -171,28 +147,22 @@ function DeductionRow({ deduction, onEdit, onDelete, ...receiptProps }: Deductio
   )
 }
 
-/** One deduction as a compact bordered card for mobile: description over its facts and receipt. */
-function DeductionCard({ deduction, onEdit, onDelete, ...receiptProps }: DeductionItemProps) {
+/** One deduction as a compact bordered card for mobile: description and receipt link over its date. */
+function DeductionCard({ deduction, onEdit, onDelete, receipt, signedUrl }: DeductionItemProps) {
   return (
     <AppCard withBorder padding="xs">
-      <Stack gap={6}>
-        <Group justify="space-between" wrap="nowrap" gap="sm">
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Text fw={600} size="sm" truncate>
-              {deduction.description}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {deductionDateLabel(deduction)}
-            </Text>
-          </Stack>
-          <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
-            <MoneyText cents={deduction.amount_cents} fw={700} size="sm" />
-            <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-          </Group>
+      <Group justify="space-between" wrap="nowrap" gap="sm" align="flex-start">
+        <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+          <DeductionTitle deduction={deduction} receipt={receipt} signedUrl={signedUrl} />
+          <Text size="xs" c="dimmed">
+            {deductionDateLabel(deduction)}
+          </Text>
+        </Stack>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <MoneyText cents={deduction.amount_cents} fw={700} size="sm" />
+          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
         </Group>
-
-        <DeductionReceipt deduction={deduction} {...receiptProps} />
-      </Stack>
+      </Group>
     </AppCard>
   )
 }
@@ -263,31 +233,36 @@ function MemberDeductions({
   const totalCents = deductions.reduce((total, deduction) => total + deduction.amount_cents, 0)
   const ungrouped = deductions.filter((deduction) => deduction.group_id === null)
 
+  const receiptFor = (deduction: DeductionRow) =>
+    receipts.find((candidate) => candidate.deduction_id === deduction.id)
+
+  // The edit form's receipt controls for one deduction: attach or replace a
+  // file, or remove the stored one after a confirm.
+  const receiptControls = (deduction: DeductionRow) => ({
+    receipt: receiptFor(deduction),
+    onUploadReceipt: (file: File) => onUploadReceipt(deduction.id, file, receiptFor(deduction)),
+    onRemoveReceipt: (current: DeductionReceiptRow) =>
+      confirm({
+        title: 'Delete receipt?',
+        itemLabel: `the receipt for ${deduction.description}`,
+        onConfirm: () => onRemoveReceipt(current),
+      }),
+  })
+
   // One payment, rendered the same whether it stands alone or sits in a group —
   // a grouped deduction is an ordinary deduction, receipt and all.
   const renderPayment = (
     deduction: DeductionRow,
     { onEdit, onDelete: onDeleteItem }: ItemControls,
-  ) => {
-    const receipt = receipts.find((candidate) => candidate.deduction_id === deduction.id)
-    return (
-      <DeductionItem
-        deduction={deduction}
-        receipt={receipt}
-        onEdit={onEdit}
-        onDelete={onDeleteItem}
-        onUploadReceipt={(file) => onUploadReceipt(deduction.id, file, receipt)}
-        onRemoveReceipt={(current) =>
-          confirm({
-            title: 'Delete receipt?',
-            itemLabel: `the receipt for ${deduction.description}`,
-            onConfirm: () => onRemoveReceipt(current),
-          })
-        }
-        signedUrl={signedUrl}
-      />
-    )
-  }
+  ) => (
+    <DeductionItem
+      deduction={deduction}
+      receipt={receiptFor(deduction)}
+      onEdit={onEdit}
+      onDelete={onDeleteItem}
+      signedUrl={signedUrl}
+    />
+  )
 
   return (
     <Stack gap="xs">
@@ -342,6 +317,7 @@ function MemberDeductions({
                   // another group, or out of them all.
                   {...(initial ? { groups } : { groupId: group.id })}
                   initial={initial}
+                  {...(initial && receiptControls(initial))}
                   onSubmit={onSubmit}
                   onCancel={onCancel}
                 />
@@ -370,7 +346,7 @@ function MemberDeductions({
         onCreate={onCreate}
         // Editing goes straight to a plain field update — the RPC that writes
         // the receipt alongside a new deduction is never reached here, so the
-        // receipt already on this deduction (managed from its row below) is
+        // receipt already on this deduction (managed from its edit form) is
         // never replaced by the empty one an edit form's submission carries.
         onUpdate={(id, submission) => onUpdate(id, submission.input)}
         onDelete={onDelete}
@@ -382,6 +358,7 @@ function MemberDeductions({
             financialYear={financialYear}
             groups={groups}
             initial={initial}
+            {...(initial && receiptControls(initial))}
             onSubmit={onSubmit}
             onCancel={onCancel}
           />

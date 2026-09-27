@@ -302,7 +302,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   flow they walk away from, is deleted again, best effort: a delete that fails
   is swallowed, and a closed tab runs no cleanup at all. Editing an existing
   deduction carries none of this — its receipt is attached, replaced, or
-  removed from its row in the deductions list, each such upload writing its
+  removed only from that deduction's edit form (a settled row shows just an
+  inline "Receipt" view link beside the description), each such upload writing its
   `deduction_receipt` row immediately since the deduction already exists (a
   replacement repoints the row and deletes the old object, best effort).
   A **group** names a set of one member's deductions for the financial year —

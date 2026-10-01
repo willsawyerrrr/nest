@@ -4,6 +4,7 @@ import {
   EXTRACTION_KEY_REJECTED_MESSAGE,
   EXTRACTION_OUT_OF_CREDIT_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
+  EXTRACTION_UNSUPPORTED_MESSAGE,
   NOT_RECEIPT_MESSAGE,
   readExtraction,
   readExtractionFailure,
@@ -113,6 +114,13 @@ describe('readExtractionFailure', () => {
   it('prefers the function’s own message, which names the size, type, or wait', () => {
     const message = 'That file is too large to read (24.0 MB; the limit is 20.0 MB).'
     expect(readExtractionFailure({ error: message })).toEqual({ status: 'failed', message })
+  })
+
+  it('reads the unsupported-type code as a file attached but not read, whatever it said', () => {
+    expect(readExtractionFailure({ code: 'unsupported_type', error: 'anything' })).toEqual({
+      status: 'unsupported',
+      message: EXTRACTION_UNSUPPORTED_MESSAGE,
+    })
   })
 
   it('falls back to a plain message when the body carries none', () => {

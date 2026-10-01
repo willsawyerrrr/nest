@@ -273,6 +273,7 @@ Deno.test('resolveMediaType prefers the recorded content type, then the extensio
   assertEquals(resolveMediaType('image/jpeg; charset=binary', 'hh/note'), 'image/jpeg')
   assertEquals(resolveMediaType('application/octet-stream', 'hh/note.JPG'), 'image/jpeg')
   assertEquals(resolveMediaType(null, 'hh/note.webp'), 'image/webp')
+  assertEquals(resolveMediaType(null, 'hh/note.gif'), 'image/gif')
 })
 
 Deno.test('resolveMediaType rejects anything the model cannot read', () => {

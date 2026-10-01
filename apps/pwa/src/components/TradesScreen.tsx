@@ -197,7 +197,6 @@ function MemberTrades({
           Trades
         </Text>
         <FileButton
-          accept="image/*,application/pdf"
           inputProps={{ 'aria-label': `Add ${member.name}'s trades from a document` }}
           onChange={setImportFile}
         >

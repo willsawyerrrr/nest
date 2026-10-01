@@ -4,6 +4,7 @@ import {
   EXTRACTION_KEY_REJECTED_MESSAGE,
   EXTRACTION_OUT_OF_CREDIT_MESSAGE,
   EXTRACTION_UNCONFIGURED_MESSAGE,
+  EXTRACTION_UNSUPPORTED_MESSAGE,
   matchInflowByLabel,
   NOT_PAYSLIP_MESSAGE,
   readExtraction,
@@ -240,6 +241,13 @@ describe('matchInflowByLabel', () => {
 })
 
 describe('readExtractionFailure', () => {
+  it('reads the unsupported-type code as a file attached but not read, whatever it said', () => {
+    expect(readExtractionFailure({ code: 'unsupported_type', error: 'anything' })).toEqual({
+      status: 'unsupported',
+      message: EXTRACTION_UNSUPPORTED_MESSAGE,
+    })
+  })
+
   it('reads an unset API key as the feature being off, not broken', () => {
     expect(
       readExtractionFailure({

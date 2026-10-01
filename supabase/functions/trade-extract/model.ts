@@ -28,6 +28,7 @@ export const SUPPORTED_MEDIA_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/png',
+  'image/gif',
   'image/webp',
 ] as const
 
@@ -39,6 +40,7 @@ const EXTENSION_MEDIA_TYPES: Record<string, SupportedMediaType> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   png: 'image/png',
+  gif: 'image/gif',
   webp: 'image/webp',
 }
 

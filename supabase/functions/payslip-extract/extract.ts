@@ -30,7 +30,6 @@ import {
   PAYSLIP_MODEL,
   type PayslipFile,
   resolveMediaType,
-  SUPPORTED_MEDIA_TYPES,
 } from './model.ts'
 
 /** The private bucket the client uploads payslip files to. */
@@ -155,9 +154,8 @@ export async function runExtract(
     return {
       status: 415,
       body: {
-        error: `That file type cannot be read. Upload a PDF, JPEG, PNG, or WebP (${
-          SUPPORTED_MEDIA_TYPES.join(', ')
-        }).`,
+        error: "That file type can't be read automatically. Enter the figures by hand.",
+        code: 'unsupported_type',
       },
     }
   }

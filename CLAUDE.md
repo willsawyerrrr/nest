@@ -306,8 +306,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   description, amount, and date that are not already the member's own — typed
   here already — with a note saying the details were extracted by AI and
   asking for them to be checked; every failure mode (an unconfigured key, a
-  file that does not look like the expected document, an unsupported type or
-  size, a rate limit, a model failure) reads as its own inline note and never
+  file that does not look like the expected document, a file type the model
+  cannot read, a size past the cap, a rate limit, a model failure) reads as its own inline note and never
   blocks the save, exactly as payslip extraction. Picking another file replaces
   the first, which is read afresh. The deduction and its uploaded receipt are
   written together in one transaction
@@ -509,8 +509,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   is signed and the slip's own totals are not — and a line whose printed amount
   cannot be converted is left out rather than filled in half-way, the gross it does
   not account for reported as unitemised against the lines themselves.
-  An unconfigured key, a file that is not a payslip, an
-  unsupported type or size, a rate limit, and a model failure each read as their own
+  An unconfigured key, a file that is not a payslip, a
+  file type the model cannot read, a size past the cap, a rate limit, and a model failure each read as their own
   inline note and fall back to manual entry; none blocks the save. A stored document
   the member clears, replaces, or walks away from is deleted again, best effort: a
   delete that fails is swallowed rather than surfaced, and a closed tab, a refresh,
@@ -579,6 +579,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `source = 'manual'`. `trade-extract` answers failures with a stable `code` and
   fixed copy. See
   [`docs/investments.md`](docs/investments.md).
+- Uploads: anywhere the app takes a file (deduction receipts, payslips, trade
+  documents) it accepts ANY type, up to 25 MiB (checked in the PWA and by the
+  `receipts`/`payslips` buckets' `file_size_limit`). The extension alone decides
+  treatment, in one table mirrored in `apps/pwa/src/lib/uploadFile.ts` and the
+  edge functions: a PDF or JPEG/PNG/GIF/WebP is stored under its own type, opened
+  inline, and read by extraction; anything else is stored as
+  `application/octet-stream` and opened as a forced download, so HTML or SVG is
+  never rendered. Extraction is skipped for a type the model cannot read — the
+  client does not call it, and the functions answer `unsupported_type` if asked —
+  the file stays stored and attached, and the form says it cannot be read
+  automatically while the details are typed by hand. A HEIC/HEIF photo is
+  re-encoded as JPEG in the browser where it can decode it.
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend

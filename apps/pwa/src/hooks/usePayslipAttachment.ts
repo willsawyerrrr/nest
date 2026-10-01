@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ExtractionFailure, PayslipExtraction } from '../lib/payslipExtraction'
+import {
+  EXTRACTION_UNSUPPORTED_MESSAGE,
+  type ExtractionFailure,
+  type PayslipExtraction,
+} from '../lib/payslipExtraction'
+import { prepareUpload } from '../lib/uploadFile'
 import type { PrefillSummary } from './usePayslipFields'
 import type { LinePrefillSummary } from './usePayslipLineDrafts'
 import type { PayslipAttachment, PayslipAttachments } from './usePayslips'
@@ -49,7 +54,9 @@ interface UsePayslipAttachmentOptions {
 }
 
 /**
- * Attaching a payslip document, and reading the figures off it.
+ * Attaching a payslip document, and reading the figures off it. Any type of
+ * file attaches; one the model cannot read is stored and attached with a note,
+ * and the figures are typed by hand.
  *
  * The document is stored **before** it is read, because extraction takes an
  * object path and because the file is the auditable record whether or not the
@@ -120,9 +127,17 @@ export function usePayslipAttachment({
         return
       }
 
+      const prepared = await prepareUpload(next)
+      if (prepared.status === 'too-large') {
+        setFile(null)
+        setState({ status: 'failed', message: prepared.message })
+        return
+      }
+      setFile(prepared.file)
+
       let stored: PayslipAttachment
       try {
-        stored = await attachments.upload(id, next)
+        stored = await attachments.upload(id, prepared.file)
       } catch {
         setFile(null)
         setState({ status: 'failed', message: UPLOAD_FAILED_MESSAGE })
@@ -136,6 +151,11 @@ export function usePayslipAttachment({
       }
       orphan.current = stored.path
       setAttachment(stored)
+      if (!prepared.readable) {
+        // Attached all the same: only the reading is skipped.
+        setState({ status: 'unsupported', message: EXTRACTION_UNSUPPORTED_MESSAGE })
+        return
+      }
       setState({ status: 'reading' })
 
       // A read that fails leaves the document attached: it is the record, and

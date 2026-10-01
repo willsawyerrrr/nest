@@ -719,7 +719,10 @@ household from the Authorization JWT, never the body. The path is the client's, 
 it is not trusted — its first segment must be the caller's own household, defence
 in depth on top of Storage RLS. The object is then downloaded with the service
 role and sent to the model. PDFs go as a document block, photos and scans as an
-image block (JPEG, PNG, WebP); anything else is rejected before a request is built.
+image block (JPEG, PNG, GIF, WebP). Any other type of file attaches all the same but
+is never sent: the client skips the call, and the function answers `415` with
+`code: 'unsupported_type'` if it is asked, which the form shows as a note that the
+file cannot be read automatically, leaving the figures to be typed.
 
 ### Response
 
@@ -927,7 +930,7 @@ Every failure is specific and none of them is a bug-shaped 500:
 | API key refused (`401 authentication_error` / `403 permission_error`) | `503` `{ keyRejected: true }` — off in the same way again, pending an operator rotating the key; no retry is offered because the same key would be refused identically |
 | Path outside the caller's household | `403` |
 | Object missing from Storage / empty | `404` / `400` |
-| Unsupported file type | `415`, naming the types it takes |
+| Unsupported file type | `415` `{ code: 'unsupported_type' }` — the file stays attached, with a note that it cannot be read automatically |
 | File past the size cap | `413` with the size and the limit (5 MiB image, 20 MiB PDF, both sized so base64 stays inside the Messages API's per-image and 32 MB request limits) |
 | Not a payslip | `422` `{ notPayslip: true, reason }` — the model says so rather than hallucinating a slip |
 | Model refusal | `422` — the model declined to read the file; nothing is wrong with the server |

@@ -99,7 +99,7 @@ describe('useDeductionReceipts', () => {
 
     const url = await result.current.signedUrl('h1/d1/abc-receipt.pdf')
     expect(url).toBe('https://x/y')
-    expect(bucket.createSignedUrl).toHaveBeenCalledWith('h1/d1/abc-receipt.pdf', 3600)
+    expect(bucket.createSignedUrl).toHaveBeenCalledWith('h1/d1/abc-receipt.pdf', 3600, undefined)
   })
 
   it('returns null when signing the URL fails', async () => {

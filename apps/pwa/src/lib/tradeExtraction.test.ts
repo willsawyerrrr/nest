@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { EXTRACTION_FAILED_MESSAGE, readExtraction, readExtractionFailure } from './tradeExtraction'
+import {
+  EXTRACTION_FAILED_MESSAGE,
+  EXTRACTION_UNSUPPORTED_MESSAGE,
+  readExtraction,
+  readExtractionFailure,
+} from './tradeExtraction'
 
 const trade = {
   fields: {
@@ -88,6 +93,13 @@ describe('readExtraction', () => {
 })
 
 describe('readExtractionFailure', () => {
+  it('reads the unsupported-type code as a document attached but not read', () => {
+    expect(readExtractionFailure({ code: 'unsupported_type', error: 'x' })).toEqual({
+      status: 'unsupported',
+      message: EXTRACTION_UNSUPPORTED_MESSAGE,
+    })
+  })
+
   it("uses the function's own message when it came with a stable code", () => {
     expect(readExtractionFailure({ code: 'not_trade_document', error: 'Not a note.' })).toEqual({
       status: 'failed',

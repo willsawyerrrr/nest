@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import { UPLOAD_FAILED_MESSAGE, type DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import {
@@ -11,6 +11,7 @@ import {
   type DeductionExtraction,
   type ExtractionOutcome,
 } from '../lib/deductionExtraction'
+import { FILE_TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES } from '../lib/uploadFile'
 import { fireEvent, render, screen, waitFor } from '../test/render'
 import { DeductionForm } from './DeductionForm'
 
@@ -214,6 +215,52 @@ describe('DeductionForm', () => {
 
     await user.click(screen.getByRole('button', { name: /delete receipt/i }))
     expect(onRemoveReceipt).toHaveBeenCalledWith(receipt)
+  })
+
+  it('says why a receipt over the size limit was not attached to an existing deduction', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onUploadReceipt = vi.fn().mockResolvedValue(undefined)
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction()}
+        onUploadReceipt={onUploadReceipt}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /more details/i }))
+    const big = new File(['y'], 'big.pdf')
+    Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 })
+    await user.upload(filePicker() as HTMLInputElement, big)
+
+    expect(await screen.findByText(FILE_TOO_LARGE_MESSAGE)).toBeInTheDocument()
+    expect(onUploadReceipt).not.toHaveBeenCalled()
+  })
+
+  it('says so when a receipt could not be attached to an existing deduction', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onUploadReceipt = vi.fn().mockRejectedValue(new Error('storage'))
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction()}
+        onUploadReceipt={onUploadReceipt}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /more details/i }))
+    await user.upload(filePicker() as HTMLInputElement, new File(['y'], 'notes.docx'))
+
+    expect(await screen.findByText(UPLOAD_FAILED_MESSAGE)).toBeInTheDocument()
+
+    await user.upload(filePicker() as HTMLInputElement, new File(['y'], 'other.docx'))
+    await waitFor(() => expect(onUploadReceipt).toHaveBeenCalledTimes(2))
   })
 
   it('submits the resubmitted fields for an edit, with the deduction’s own id', async () => {
@@ -543,6 +590,24 @@ describe('DeductionForm receipt extraction', () => {
 
     expect(screen.getByText(EXTRACTION_UNCONFIGURED_MESSAGE)).toBeInTheDocument()
     expect(screen.getByLabelText(/description/i)).toHaveValue('')
+  })
+
+  it('attaches a file the model cannot read, with a note, and the details are typed by hand', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.upload(filePicker(), new File(['x'], 'invoice.docx'))
+
+    expect(await screen.findByText(/can't be read automatically/i)).toBeInTheDocument()
+    expect(read).not.toHaveBeenCalled()
+    expect(screen.getByText('Receipt attached')).toBeInTheDocument()
   })
 
   it('reads an account out of credit as reading being off, not as a broken read', async () => {

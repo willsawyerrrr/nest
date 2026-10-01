@@ -64,8 +64,23 @@ describe('useTradeDocuments', () => {
     })
 
     expect(path).toMatch(/^h1\/d1\/.*-note\.pdf$/)
-    expect(bucket.upload).toHaveBeenCalledWith(path, file)
+    expect(bucket.upload).toHaveBeenCalledWith(path, file, { contentType: 'application/pdf' })
     expect(builder.insert).not.toHaveBeenCalled()
+  })
+
+  it('stores any type of file under a safe key, as an opaque type unless it is readable', async () => {
+    const result = await setup()
+    const file = new File(['x'], 'Tax invoice (final).html', { type: 'text/html' })
+
+    let path = ''
+    await act(async () => {
+      path = await result.current.upload('d1', file)
+    })
+
+    expect(path).toMatch(/^h1\/d1\/[0-9a-f-]{36}-Tax_invoice_final_.html$/)
+    expect(bucket.upload).toHaveBeenCalledWith(path, file, {
+      contentType: 'application/octet-stream',
+    })
   })
 
   it('throws when the upload fails', async () => {
@@ -73,6 +88,17 @@ describe('useTradeDocuments', () => {
     const result = await setup()
 
     await expect(result.current.upload('d1', new File(['x'], 'n.pdf'))).rejects.toThrow('nope')
+  })
+
+  it('signs a download for a file a browser should not render', async () => {
+    const result = await setup()
+
+    await result.current.signedUrl('h1/d1/0b6f1c9e-3a52-4a57-8f0d-3c2b7f6d9a10-page.html')
+    expect(bucket.createSignedUrl).toHaveBeenCalledWith(
+      'h1/d1/0b6f1c9e-3a52-4a57-8f0d-3c2b7f6d9a10-page.html',
+      3600,
+      { download: 'page.html' },
+    )
   })
 
   it('discards an object, swallowing a failure', async () => {

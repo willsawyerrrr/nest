@@ -24,7 +24,7 @@ can upsert its own trades without duplicating.
 ## Adding trades from a document
 
 Each member's Trades list has an **Add from document** button. The member picks a
-broker contract note, trade confirmation, or statement (PDF, JPEG, PNG, or WebP);
+broker contract note, trade confirmation, or statement (any file, up to 25 MiB);
 the file is uploaded to the private `receipts` bucket, laid out as
 `<household_id>/<document_id>/<file>`, and read by the `trade-extract` edge
 function (Claude Haiku 4.5, forced tool schema, the Vault-held `anthropic_api_key`
@@ -33,6 +33,11 @@ the answer is a list: each trade becomes its own **draft** form, pre-filled with
 ticker, side, date, units (up to six decimal places), price per unit, and
 brokerage fee. The owning member is the section the button sits in, never read
 from the document.
+
+Only a PDF or a JPEG, PNG, GIF, or WebP image is read. Any other type of file is
+still stored and linked, with a note that it cannot be read automatically, and
+the panel offers one blank trade form to fill in by hand; a HEIC photo is
+converted to JPEG in the browser where possible and then read.
 
 - Extraction writes nothing. Each draft is the member's to **save**, edit, or
   **discard**; the first save stores the document, and the rest reuse it.

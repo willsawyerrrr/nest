@@ -9,6 +9,7 @@
  */
 
 import type { TradeFormValues } from '../hooks/useTrades'
+import { UNSUPPORTED_TYPE_CODE } from './uploadFile'
 
 /** The trade fields extraction reads, keyed as the `trade` columns are. */
 const FIELD_LABELS = {
@@ -32,7 +33,16 @@ export interface ExtractedTrade {
 
 /** How reading a document ended: its trades, or the reason it could not be read. */
 export type ExtractionOutcome =
-  { status: 'read'; trades: ExtractedTrade[] } | { status: 'failed'; message: string }
+  | { status: 'read'; trades: ExtractedTrade[] }
+  | { status: 'unsupported'; message: string }
+  | { status: 'failed'; message: string }
+
+/**
+ * What the panel says when the document is a type the model cannot read. The
+ * document is stored all the same; only the reading is skipped.
+ */
+export const EXTRACTION_UNSUPPORTED_MESSAGE =
+  "This document is attached, but it can't be read automatically. Enter the trade by hand."
 
 /** What the panel says when a failure carried no message of its own. */
 export const EXTRACTION_FAILED_MESSAGE = 'Could not read this document. Enter the trades by hand.'
@@ -96,7 +106,12 @@ export function readExtraction(body: unknown): ExtractedTrade[] | null {
  * ours, whereas a body without one (a gateway or network failure, or an internal
  * message) gets the plain fallback.
  */
-export function readExtractionFailure(body: unknown): { status: 'failed'; message: string } {
+export function readExtractionFailure(
+  body: unknown,
+): Exclude<ExtractionOutcome, { status: 'read' }> {
+  if (isRecord(body) && body.code === UNSUPPORTED_TYPE_CODE) {
+    return { status: 'unsupported', message: EXTRACTION_UNSUPPORTED_MESSAGE }
+  }
   const message =
     isRecord(body) && typeof body.code === 'string' && typeof body.error === 'string'
       ? body.error

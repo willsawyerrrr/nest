@@ -37,7 +37,6 @@ import {
   type ModelResult,
   type ReceiptFile,
   resolveMediaType,
-  SUPPORTED_MEDIA_TYPES,
 } from './model.ts'
 
 /** Every `deduction.category` extraction knows how to expect a document for. */
@@ -191,9 +190,8 @@ export async function runExtract(
     return {
       status: 415,
       body: {
-        error: `That file type cannot be read. Upload a PDF, JPEG, PNG, or WebP (${
-          SUPPORTED_MEDIA_TYPES.join(', ')
-        }).`,
+        error: "That file type can't be read automatically. Enter the details by hand.",
+        code: 'unsupported_type',
       },
     }
   }

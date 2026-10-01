@@ -305,7 +305,7 @@ describe('usePayslips', () => {
     const result = await renderPayslips()
 
     expect(await result.current.signedUrl('h1/ps1/slip.pdf')).toBe('https://x/y')
-    expect(bucket.createSignedUrl).toHaveBeenCalledWith('h1/ps1/slip.pdf', 3600)
+    expect(bucket.createSignedUrl).toHaveBeenCalledWith('h1/ps1/slip.pdf', 3600, undefined)
   })
 
   it('returns null when signing the URL fails', async () => {

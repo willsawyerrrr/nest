@@ -105,11 +105,13 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
   if (
     state.status === 'not-configured' ||
     state.status === 'out-of-credit' ||
-    state.status === 'key-rejected'
+    state.status === 'key-rejected' ||
+    state.status === 'unsupported'
   ) {
-    // Off, not broken — a key never set, an account out of credit, or a key the
-    // API refuses. Each is an honest note rather than an error the member could
-    // act on, and each names its own cause so the operator's fix is clear.
+    // Off, not broken — a key never set, an account out of credit, a key the
+    // API refuses, or a file type the model cannot read. Each is an honest
+    // note rather than an error the member could act on, and each names its own
+    // cause so the operator's fix is clear.
     return (
       <Text size="xs" c="dimmed">
         {state.message}
@@ -300,11 +302,10 @@ export function PayslipForm({
         size="sm"
         description={
           initial?.file_path == null
-            ? 'Stored privately, then read to pre-fill the figures below — which you confirm.'
-            : 'Read to pre-fill the figures below, and replaces the document already attached.'
+            ? 'Any file, up to 25 MB. Stored privately, then read to pre-fill the figures below where it can be — which you confirm.'
+            : 'Any file, up to 25 MB. Read to pre-fill the figures below where it can be, and replaces the document already attached.'
         }
         placeholder="Attach the slip"
-        accept="image/*,application/pdf"
         clearable
         clearButtonProps={{ 'aria-label': 'Remove the attached document' }}
         disabled={slip.busy}

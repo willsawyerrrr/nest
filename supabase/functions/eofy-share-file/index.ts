@@ -12,6 +12,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { signedUrlOptions } from '../_shared/fileType.ts'
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveShareGrant, type ShareGrant } from '../_shared/shareGrant.ts'
 import {
@@ -103,7 +104,7 @@ async function createSignedUrl(
 ): Promise<string | null> {
   const { data, error } = await admin.storage
     .from(bucket)
-    .createSignedUrl(path, SHARE_FILE_SIGNED_URL_TTL_SECONDS)
+    .createSignedUrl(path, SHARE_FILE_SIGNED_URL_TTL_SECONDS, signedUrlOptions(path))
   if (error || !data) return null
   return data.signedUrl
 }

@@ -43,3 +43,23 @@ window.matchMedia = narrowMatchMedia
 afterEach(() => {
   window.matchMedia = narrowMatchMedia
 })
+
+// Mantine's `useTransition` defers work to `requestAnimationFrame` and
+// `setTimeout` callbacks that read `window`, even under `env="test"`. One still
+// pending when the file's environment tears down fires with no `window` and
+// surfaces as an unhandled `ReferenceError`, failing the run though every test
+// passed. Skip any such callback once the environment is gone.
+const { requestAnimationFrame: rawRaf, setTimeout: rawSetTimeout } = globalThis
+
+function whileEnvironmentLives<A extends unknown[]>(callback: (...args: A) => void) {
+  return (...args: A) => {
+    if (typeof window !== 'undefined') callback(...args)
+  }
+}
+
+globalThis.requestAnimationFrame = (callback) => rawRaf(whileEnvironmentLives(callback))
+globalThis.setTimeout = ((callback: () => void, ...rest: unknown[]) =>
+  (rawSetTimeout as (...args: unknown[]) => unknown)(
+    typeof callback === 'function' ? whileEnvironmentLives(callback) : callback,
+    ...rest,
+  )) as typeof setTimeout

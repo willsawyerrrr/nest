@@ -7,6 +7,8 @@ export interface ConfirmDeleteTarget {
   title: string
   /** The name of the thing being removed, shown in bold in the body. */
   itemLabel: string
+  /** The action's verb, used for the confirm button and the question; defaults to `Delete`. */
+  confirmLabel?: string
   /** The consequence spelled out after the name; defaults to a can't-be-undone note. */
   description?: ReactNode
   /** Removes the target once confirmed. */
@@ -31,6 +33,7 @@ export function ConfirmDeleteModal({
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const verb = target?.confirmLabel ?? 'Delete'
   return (
     <Modal
       opened={target !== null}
@@ -40,11 +43,11 @@ export function ConfirmDeleteModal({
     >
       <Stack gap="md">
         <Text size="sm">
-          Delete <b>{target?.itemLabel}</b>? {target?.description ?? DEFAULT_DESCRIPTION}
+          {verb} <b>{target?.itemLabel}</b>? {target?.description ?? DEFAULT_DESCRIPTION}
         </Text>
         <Group grow>
           <Button color="red" onClick={onConfirm} loading={deleting}>
-            Delete
+            {verb}
           </Button>
           <Button variant="default" onClick={onCancel} disabled={deleting}>
             Cancel

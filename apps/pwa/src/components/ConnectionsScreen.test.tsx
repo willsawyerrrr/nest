@@ -194,6 +194,7 @@ describe('ConnectionsScreen', () => {
     expect(within(card).getByText('Sam')).toBeInTheDocument()
     // Disconnect is offered for the signed-in member's own connection only.
     expect(within(card).getAllByRole('button', { name: /disconnect/i })).toHaveLength(1)
+    expect(within(card).getByRole('button', { name: 'Disconnect Big Bank' })).toBeInTheDocument()
   })
 
   it('disconnects a Redbark connection', async () => {
@@ -220,8 +221,67 @@ describe('ConnectionsScreen', () => {
       },
     })
 
-    await user.click(screen.getByRole('button', { name: /disconnect/i }))
+    await user.click(screen.getByRole('button', { name: 'Disconnect Big Bank' }))
+    expect(onDisconnect).not.toHaveBeenCalled()
+    await user.click(await screen.findByRole('button', { name: /^disconnect$/i }))
     expect(onDisconnect).toHaveBeenCalledWith('c1')
+  })
+
+  it('labels a connection whose member is unknown', () => {
+    renderConnections({
+      redbark: {
+        connections: [
+          {
+            id: 'c9',
+            household_id: 'h1',
+            member_id: 'gone',
+            institution_name: 'Old Bank',
+            status: 'active',
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect: vi.fn(),
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    expect(screen.getByText('Unknown')).toBeInTheDocument()
+  })
+
+  it('keeps a Redbark connection when the disconnect is cancelled', async () => {
+    const user = userEvent.setup()
+    const onDisconnect = vi.fn()
+    renderConnections({
+      redbark: {
+        connections: [
+          {
+            id: 'c1',
+            household_id: 'h1',
+            member_id: 'm1',
+            institution_name: null,
+            status: 'revoked',
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+        busy: false,
+        onConnect: vi.fn(),
+        onDisconnect,
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+
+    expect(screen.getByText('Unknown institution')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Disconnect bank' }))
+    expect(await screen.findByText('Disconnect bank?')).toBeInTheDocument()
+    expect(screen.getByText('this bank')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(onDisconnect).not.toHaveBeenCalled()
   })
 
   it('shows a success banner after connecting and dismisses it', async () => {

@@ -196,11 +196,11 @@ describe('GiftDiscretionaryCard', () => {
     })
 
     await expandCard(user)
-    await user.click(screen.getByRole('button', { name: 'Edit Flowers' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(onUpdatePurchase).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Edit Flowers' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('edits an existing ad hoc purchase', async () => {
@@ -221,7 +221,7 @@ describe('GiftDiscretionaryCard', () => {
     })
 
     await expandCard(user)
-    await user.click(screen.getByRole('button', { name: 'Edit Flowers' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     expect(onUpdatePurchase).toHaveBeenCalledWith(
@@ -247,7 +247,7 @@ describe('GiftDiscretionaryCard', () => {
     })
 
     await expandCard(user)
-    await user.click(screen.getByRole('button', { name: 'Delete Flowers' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
     expect(onDeletePurchase).toHaveBeenCalledWith('p1')

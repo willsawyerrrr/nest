@@ -128,6 +128,23 @@ describe('GiftUnassignedCard', () => {
     expect(screen.getByRole('button', { name: 'Add purchase' })).toBeInTheDocument()
   })
 
+  it('labels the assign control of an undescribed purchase generically', async () => {
+    const user = userEvent.setup()
+    renderCard({
+      purchases: [
+        makeGiftPurchase({
+          id: 'p1',
+          gift_budget_id: null,
+          gift_discretionary_budget_id: null,
+          description: '',
+        }),
+      ],
+    })
+    await expandCard(user)
+
+    expect(screen.getByRole('button', { name: 'Assign purchase' })).toBeInTheDocument()
+  })
+
   it('edits an existing unassigned purchase', async () => {
     const user = userEvent.setup()
     const onUpdatePurchase = vi.fn()
@@ -145,7 +162,7 @@ describe('GiftUnassignedCard', () => {
     })
 
     await expandCard(user)
-    await user.click(screen.getByRole('button', { name: 'Edit Wrapping paper' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     expect(onUpdatePurchase).toHaveBeenCalledWith(
@@ -170,11 +187,11 @@ describe('GiftUnassignedCard', () => {
     })
 
     await expandCard(user)
-    await user.click(screen.getByRole('button', { name: 'Edit Wrapping paper' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(onUpdatePurchase).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Edit Wrapping paper' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('deletes an unassigned purchase after confirming', async () => {
@@ -193,7 +210,7 @@ describe('GiftUnassignedCard', () => {
     })
 
     await expandCard(user)
-    await user.click(screen.getByRole('button', { name: 'Delete Wrapping paper' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
     expect(onDeletePurchase).toHaveBeenCalledWith('p1')

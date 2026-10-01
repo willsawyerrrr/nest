@@ -11,6 +11,7 @@ import { DeductionsScreen } from './DeductionsScreen'
 const dnd = vi.hoisted(() => ({
   onDragStart: undefined as ((event: unknown) => void) | undefined,
   onDragEnd: undefined as ((event: unknown) => void) | undefined,
+  onDragCancel: undefined as (() => void) | undefined,
 }))
 
 vi.mock('@dnd-kit/core', async (importOriginal) => {
@@ -21,13 +22,16 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
       children,
       onDragStart,
       onDragEnd,
+      onDragCancel,
     }: {
       children: React.ReactNode
       onDragStart?: (event: unknown) => void
       onDragEnd?: (event: unknown) => void
+      onDragCancel?: () => void
     }) => {
       dnd.onDragStart = onDragStart
       dnd.onDragEnd = onDragEnd
+      dnd.onDragCancel = onDragCancel
       return children
     },
   }
@@ -121,6 +125,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   dnd.onDragStart = undefined
   dnd.onDragEnd = undefined
+  dnd.onDragCancel = undefined
 })
 
 describe('DeductionsScreen', () => {
@@ -616,6 +621,16 @@ describe('DeductionsScreen', () => {
 
       drag('d1', null)
       expect(targets()).toHaveLength(0)
+    })
+
+    it('stops outlining targets when a drag is cancelled', () => {
+      renderScreen({ members: [will], groups: [makeGroup()] })
+
+      act(() => dnd.onDragStart?.({ active: { id: 'd1' } }))
+      expect(document.querySelectorAll('[data-drop-target="valid"]')).not.toHaveLength(0)
+
+      act(() => dnd.onDragCancel?.())
+      expect(document.querySelectorAll('[data-drop-target="valid"]')).toHaveLength(0)
     })
 
     it('reports a move that fails', async () => {

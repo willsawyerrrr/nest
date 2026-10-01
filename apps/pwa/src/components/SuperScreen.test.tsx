@@ -96,8 +96,11 @@ describe('SuperScreen', () => {
     // Will's read row shows his fund and reads as a dated-baseline estimate; Sam,
     // with no profile, reads as a plain current balance. The edit input is hidden.
     expect(screen.getByText('AustralianSuper')).toBeInTheDocument()
-    expect(screen.getByText('Estimated balance today')).toBeInTheDocument()
-    expect(screen.getByText('Current balance')).toBeInTheDocument()
+    expect(screen.getByText('Estimated')).toBeInTheDocument()
+    expect(screen.getByText(/confirmed on .* accrued from contributions/)).toBeInTheDocument()
+    expect(screen.getByText('Current')).toBeInTheDocument()
+    expect(screen.getByText('No fund set')).toBeInTheDocument()
+    expect(screen.getAllByTestId('super-profile-row')).toHaveLength(2)
     expect(screen.queryByLabelText(/fund name/i)).not.toBeInTheDocument()
     expect(screen.getByText(/bring-forward may allow/i)).toBeInTheDocument()
     expect(screen.getAllByText('Contributions').length).toBeGreaterThan(0)

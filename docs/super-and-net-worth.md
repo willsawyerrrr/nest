@@ -11,13 +11,14 @@ primary periods, as everywhere in the app.
 
 ## Super tab
 
-The Super tab shows each member as a read-only row — fund name and the effective
-balance today — with a pencil Edit affordance that swaps the row for an inline
+The Super tab shows each member as a compact list row — member name and an `Estimated` or
+`Current` pill, the fund name beneath, and the effective balance today as the
+right-aligned figure — with a pencil Edit affordance that swaps the row for an inline
 fund-name and balance form with Save and Cancel, matching the tax profiles and the
 rest of the app. The balance is held as a manual account linked from
 `super_profile.linked_account_id` — the same balance-source pattern savings goals
 use — not a column. For a dated baseline the row reads as an estimate, with the
-accrual breakdown, since it grows by modelled contributions between true-ups;
+accrual breakdown as a muted caption, since it grows by modelled contributions between true-ups;
 saving re-confirms the actual balance. The caps summary, contributions list, and
 retirement projection sit below the row unchanged.
 

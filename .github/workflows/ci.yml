@@ -284,6 +284,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade_document.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/service_role_household_buffer_grants.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/commit_planning_changes.sql
       # The migrated schema above is the reference `supabase gen types` runs

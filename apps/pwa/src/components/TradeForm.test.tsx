@@ -18,6 +18,7 @@ function makeTrade(overrides: Partial<TradeRow> = {}): TradeRow {
     price_per_unit_cents: 98_50,
     fee_cents: 9_50,
     source: 'manual',
+    document_id: null,
     external_id: null,
     created_at: '',
     updated_at: '',
@@ -102,5 +103,60 @@ describe('TradeForm', () => {
         fee_cents: 9_50,
       }),
     )
+  })
+
+  it('starts from a draft read from a document, with its own labels and notice', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const onCancel = vi.fn()
+    render(
+      <TradeForm
+        member={member}
+        initial={{ ticker: 'NDQ', side: 'sell', traded_on: '2026-03-04', units: 3 }}
+        notice={<p>Check the price.</p>}
+        submitLabel="Save trade"
+        cancelLabel="Discard"
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      />,
+    )
+
+    expect(screen.getByText('Check the price.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^ticker$/i)).toHaveValue('NDQ')
+    expect(screen.getByRole('button', { name: /^save trade$/i })).toBeDisabled()
+    await user.type(screen.getByLabelText(/price per unit/i), '40')
+    await user.click(screen.getByRole('button', { name: /^save trade$/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ side: 'sell', units: 3, price_per_unit_cents: 40_00 }),
+      ),
+    )
+    await user.click(screen.getByRole('button', { name: /^discard$/i }))
+    expect(onCancel).toHaveBeenCalled()
+  })
+
+  it('warns when the entry repeats an existing trade, but still saves it', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<TradeForm member={member} trades={[makeTrade()]} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/^ticker$/i), 'VAS')
+    await user.clear(screen.getByLabelText(/^date$/i))
+    await user.type(screen.getByLabelText(/^date$/i), '3 Feb 2026')
+    await user.type(screen.getByLabelText(/^units$/i), '12.5')
+    await user.type(screen.getByLabelText(/price per unit/i), '98.5')
+
+    expect(await screen.findByText(/already have a trade with this ticker/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^add trade$/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+  })
+
+  it('does not count the trade being edited as its own repeat', () => {
+    render(
+      <TradeForm member={member} initial={makeTrade()} trades={[makeTrade()]} onSubmit={vi.fn()} />,
+    )
+
+    expect(screen.queryByText(/already have a trade/i)).not.toBeInTheDocument()
   })
 })

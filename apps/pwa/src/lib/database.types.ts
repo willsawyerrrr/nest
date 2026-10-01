@@ -1912,6 +1912,7 @@ export type Database = {
       trade: {
         Row: {
           created_at: string
+          document_id: string | null
           external_id: string | null
           fee_cents: number
           household_id: string
@@ -1927,6 +1928,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          document_id?: string | null
           external_id?: string | null
           fee_cents?: number
           household_id: string
@@ -1942,6 +1944,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          document_id?: string | null
           external_id?: string | null
           fee_cents?: number
           household_id?: string
@@ -1957,6 +1960,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: 'trade_document_id_household_id_fkey'
+            columns: ['document_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'trade_document'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
             foreignKeyName: 'trade_household_id_fkey'
             columns: ['household_id']
             isOneToOne: false
@@ -1969,6 +1979,35 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'members'
             referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      trade_document: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'trade_document_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -2252,6 +2291,15 @@ export type Database = {
           expires_at: string
           token: string
         }[]
+      }
+      create_trades_with_document: {
+        Args: {
+          p_document_id: string
+          p_document_path: string
+          p_household_id: string
+          p_trades: Json
+        }
+        Returns: number
       }
       current_member_ids: { Args: never; Returns: string[] }
       hidden_gift_budget_ids_for_current_member: {

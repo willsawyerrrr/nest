@@ -40,9 +40,11 @@ Clients talk to the database in the way that fits each job:
   never shows changes newer than its build), while the commits newer than it are
   returned as `available` so the tab can offer a one-tap reload to the latest
   deployed version), `push-key` / `push-test` (see *Push notifications*), and
-  `payslip-extract` and `deduction-extract` (read the figures off an uploaded
-  payslip or deduction receipt with Claude Haiku 4.5 so the member can confirm
-  them: each takes the Storage object path of an already-uploaded file, checks
+  `payslip-extract`, `deduction-extract`, and `trade-extract` (read the figures
+  off an uploaded payslip, deduction receipt, or broker trade document with
+  Claude Haiku 4.5 so the member can confirm them — `trade-extract` returns a
+  list, one draft per trade on the document, and answers failures with stable
+  codes and fixed copy: each takes the Storage object path of an already-uploaded file, checks
   that path's household prefix against the caller's own household, forces a
   nullable tool schema so an absent figure comes back null rather than
   invented, converts each amount from the literal printed text to integer
@@ -53,8 +55,8 @@ Clients talk to the database in the way that fits each job:
   tokens server-side (via Vault); the Redbark functions share one
   platform-wide `REDBARK_API_KEY` (an edge function secret, not Vault —
   see *Redbark API* below); `changelog` holds a GitHub PAT server-side; the
-  push functions hold the VAPID keypair; `payslip-extract` and
-  `deduction-extract` read the same Vault-held Anthropic key. All are
+  push functions hold the VAPID keypair; `payslip-extract`,
+  `deduction-extract`, and `trade-extract` read the same Vault-held Anthropic key. All are
   JWT-verified except `up-webhook`
   (`verify_jwt=false`, signature-verified instead). The pure tax engine runs
   client-side in the PWA; an authoritative server-side tax estimate is a future
@@ -135,7 +137,7 @@ RLS.
 - **Import layer** — source-agnostic ingestion boundary; Up (transactions and
   accounts/balances) and Redbark (accounts/balances only) are its two adapters.
 - **Storage** — private buckets for the documents the household attaches:
-  `receipts` (deduction receipts) and `payslips` (payslip PDFs/images). The PWA
+  `receipts` (deduction receipts and trade documents) and `payslips` (payslip PDFs/images). The PWA
   uploads directly and views a file through a short-lived signed URL it mints
   itself; both calls are gated by the bucket's Storage RLS, so no edge function
   brokers a file. Object keys lead with `<household_id>`, which is what the

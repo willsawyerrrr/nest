@@ -436,6 +436,17 @@ and so without the trigger.
   - Composite FK on `(member_id, household_id)` → `members`. RLS is household-wide
     CRUD on `household_id`; `service_role` has `select` for the EOFY share view.
     Edited on the Investments tab.
+  - `document_id` (uuid, nullable): the `trade_document` the trade was read from;
+    composite FK on `(document_id, household_id)`, `on delete set null
+    (document_id)`. A trade read from a document stays `source = 'manual'`.
+- **trade_document** — per household; many rows (a collection). The broker
+  document (contract note, trade confirmation, or statement) one or more trades
+  were read from. See [`investments.md`](investments.md#where-the-document-lives).
+  - `id`, `household_id`, `storage_path` (unique; the object key in the private
+    `receipts` bucket, household id as its first segment), `created_at`;
+    `unique (id, household_id)` backs the composite FK from `trade`.
+  - RLS is household-wide CRUD on `household_id`. Written with its trades by
+    `create_trades_with_document`.
 - **payslip** — per member; many rows per member (a collection). One pay event's
   actual figures, reconciled through its lines against the projected inflows and
   the tax estimate. See [`payslips.md`](payslips.md).
@@ -1032,7 +1043,9 @@ starts with the owning `<household_id>` as its first path segment, and a
 applied to the files.
 
 - **receipts** — deduction receipts, keyed
-  `<household_id>/<deduction_id>/<file>`; the row is `deduction_receipt`.
+  `<household_id>/<deduction_id>/<file>`; the row is `deduction_receipt`. Also
+  holds trade documents, keyed `<household_id>/<document_id>/<file>`; the row is
+  `trade_document`.
 - **payslips** — attached payslip documents, keyed
   `<household_id>/<payslip_id>/<file>`; the key is `payslip.file_path`.
 

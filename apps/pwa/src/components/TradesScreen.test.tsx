@@ -20,9 +20,21 @@ function makeTrade(overrides: Partial<TradeRow> = {}): TradeRow {
     price_per_unit_cents: 90_00,
     fee_cents: 0,
     source: 'manual',
+    document_id: null,
     external_id: null,
     created_at: '',
     updated_at: '',
+    ...overrides,
+  }
+}
+
+function makeActions(overrides = {}) {
+  return {
+    upload: vi.fn().mockResolvedValue('h1/d1/note.pdf'),
+    discard: vi.fn().mockResolvedValue(undefined),
+    extract: vi.fn().mockResolvedValue({ status: 'failed', message: 'Not a contract note.' }),
+    save: vi.fn().mockResolvedValue(undefined),
+    signedUrl: vi.fn().mockResolvedValue('https://x/doc'),
     ...overrides,
   }
 }
@@ -35,6 +47,8 @@ function renderScreen(overrides: Partial<Parameters<typeof TradesScreen>[0]> = {
       onCreate={vi.fn().mockResolvedValue(undefined)}
       onUpdate={vi.fn().mockResolvedValue(undefined)}
       onDelete={vi.fn().mockResolvedValue(undefined)}
+      documents={[]}
+      documentActions={makeActions()}
       {...overrides}
     />,
   )
@@ -144,5 +158,76 @@ describe('TradesScreen', () => {
         expect.objectContaining({ ticker: 'VAS', units: 10, price_per_unit_cents: 90_00 }),
       ),
     )
+  })
+
+  it('links a trade read from a document to the stored file', async () => {
+    const user = userEvent.setup()
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const signedUrl = vi.fn().mockResolvedValue('https://x/doc')
+    renderScreen({
+      members: [will],
+      trades: [makeTrade({ document_id: 'd1' }), makeTrade({ id: 't2' })],
+      documents: [{ id: 'd1', household_id: 'h1', storage_path: 'h1/d1/note.pdf', created_at: '' }],
+      documentActions: makeActions({ signedUrl }),
+    })
+
+    expect(screen.getAllByRole('button', { name: /^document$/i })).toHaveLength(1)
+    await user.click(screen.getByRole('button', { name: /^document$/i }))
+
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://x/doc', '_blank', 'noopener'))
+    expect(signedUrl).toHaveBeenCalledWith('h1/d1/note.pdf')
+    open.mockRestore()
+  })
+
+  it('opens nothing when the document cannot be found or signed', async () => {
+    const user = userEvent.setup()
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const signedUrl = vi.fn().mockResolvedValue(null)
+    renderScreen({
+      members: [will],
+      trades: [makeTrade({ document_id: 'd1' }), makeTrade({ id: 't2', document_id: 'd2' })],
+      documents: [{ id: 'd1', household_id: 'h1', storage_path: 'h1/d1/note.pdf', created_at: '' }],
+      documentActions: makeActions({ signedUrl }),
+    })
+
+    for (const link of screen.getAllByRole('button', { name: /^document$/i })) {
+      await user.click(link)
+    }
+
+    await waitFor(() => expect(signedUrl).toHaveBeenCalledTimes(1))
+    expect(open).not.toHaveBeenCalled()
+    open.mockRestore()
+  })
+
+  it("reads a picked document into the member's draft trades and closes when done", async () => {
+    const user = userEvent.setup()
+    const extract = vi.fn().mockResolvedValue({
+      status: 'read',
+      trades: [{ values: { ticker: 'VAS', side: 'buy', units: 1 }, check: [] }],
+    })
+    renderScreen({ members: [will], documentActions: makeActions({ extract }) })
+
+    await user.upload(
+      screen.getByLabelText("Add Will's trades from a document"),
+      new File(['x'], 'note.pdf', { type: 'application/pdf' }),
+    )
+
+    expect(await screen.findByText(/1 trade was extracted by AI/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^discard$/i }))
+    await waitFor(() => expect(screen.queryByText(/extracted by AI/i)).not.toBeInTheDocument())
+  })
+
+  it('states why a picked document could not be read', async () => {
+    const user = userEvent.setup()
+    renderScreen({ members: [will] })
+
+    await user.upload(
+      screen.getByLabelText("Add Will's trades from a document"),
+      new File(['x'], 'note.pdf', { type: 'application/pdf' }),
+    )
+
+    expect(await screen.findByText('Not a contract note.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /close/i }))
+    expect(screen.queryByText('Not a contract note.')).not.toBeInTheDocument()
   })
 })

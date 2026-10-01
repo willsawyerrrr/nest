@@ -8,7 +8,7 @@ import {
   type UnmatchedSale,
 } from '@nest/tax'
 import type { Member } from '../hooks/useMembers'
-import type { TradeRow } from '../hooks/useTrades'
+import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import type { TradeSide } from './domain'
 import { memberName } from './members'
 import type { EquityHolding } from './super'
@@ -78,4 +78,24 @@ export function heldEquityHoldings(
       valueCents: holdingValueCents(holding, prices.get(holding.ticker)!),
     }))
     .filter((holding) => holding.valueCents > 0)
+}
+
+/**
+ * The existing trade a candidate looks like a repeat of — same member, ticker,
+ * date, units, and price — or undefined. `ignoreId` skips the trade being edited.
+ */
+export function findDuplicateTrade(
+  trades: readonly TradeRow[],
+  candidate: TradeInput,
+  ignoreId?: string,
+): TradeRow | undefined {
+  return trades.find(
+    (trade) =>
+      trade.id !== ignoreId &&
+      trade.member_id === candidate.member_id &&
+      trade.ticker === candidate.ticker &&
+      trade.traded_on === candidate.traded_on &&
+      Number(trade.units) === candidate.units &&
+      trade.price_per_unit_cents === candidate.price_per_unit_cents,
+  )
 }

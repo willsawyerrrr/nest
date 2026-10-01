@@ -586,7 +586,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   draft the member saves, edits, or discards, a likely repeat of an existing trade
   is warned about, and the document is kept (`trade_document`, `trade.document_id`,
   the `receipts` bucket) and linked from the trade; extracted trades stay
-  `source = 'manual'`. `trade-extract` answers failures with a stable `code` and
+  `source = 'manual'`. The Add trade card takes a contract note the same way the
+  Add deduction card takes a receipt (one file prefills the form; several files or
+  a multi-trade document open the bulk review); editing a trade takes none.
+  `trade-extract` answers failures with a stable `code` and
   fixed copy. A trade's unit price is the one money value held finer than a cent:
   `price_per_unit_microdollars` (integer millionths of a dollar, so CommSec's
   `33.083072` is exact), converted from printed text in TypeScript. All trade

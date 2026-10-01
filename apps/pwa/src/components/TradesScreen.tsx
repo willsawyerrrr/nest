@@ -13,6 +13,7 @@ import { EditDeleteActions } from './EditDeleteActions'
 import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
+import { TradeAddCard } from './TradeAddCard'
 import { TradeDocumentImport } from './TradeDocumentImport'
 import { TradeForm } from './TradeForm'
 
@@ -332,15 +333,25 @@ function MemberTrades({
             }
           />
         )}
-        renderForm={({ initial, onSubmit, onCancel }) => (
-          <TradeForm
-            member={member}
-            initial={initial}
-            trades={trades}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-          />
-        )}
+        renderForm={({ initial, onSubmit, onCancel }) =>
+          initial ? (
+            <TradeForm
+              member={member}
+              initial={initial}
+              trades={trades}
+              onSubmit={onSubmit}
+              onCancel={onCancel}
+            />
+          ) : (
+            <TradeAddCard
+              member={member}
+              trades={trades}
+              actions={documentActions}
+              onSubmit={onSubmit}
+              onCancel={onCancel}
+            />
+          )
+        }
       />
     </Stack>
   )
@@ -351,8 +362,9 @@ function MemberTrades({
  * current share and ETF holdings (units, cost base, average cost, and value at the
  * last traded price), the capital gains realised in each financial year, and the
  * trades they are derived from. Sales are matched to purchases first-in first-out.
- * Trades can be added by hand or read from an uploaded broker document, each
- * confirmed by the member before it is saved. Persistence lives in the caller.
+ * Trades can be added by hand, from one broker document attached to the Add trade
+ * card, or from several documents at once, each confirmed by the member before it
+ * is saved. Persistence lives in the caller.
  */
 export function TradesScreen({
   members,

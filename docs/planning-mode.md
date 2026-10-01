@@ -145,9 +145,11 @@ Navigating there with planning mode off redirects to `/summary`.
 
 It has two parts:
 
-- **Pending changes** — every held override: the table, the row (by name),
-  whether it is an edit / a new row / a removal, and for an edit each moved
-  field as `was → now`. Each row has a **Reset** that calls `resetRow`.
+- **Pending changes** — every held override as one compact `ListRow`: the row
+  (by name) with a pill for edit / new / removed, the table muted, and an icon
+  **Reset** (labelled `Reset <name>`) that calls `resetRow`. An edit's first
+  change reads beneath as `was → now`; with several moved fields it reads a
+  count instead and expanding the row lists each field as `was → now`.
 - **Projected impact** — the roll-up: the fortnightly buffer, the year's tax and
   take-home, net worth and projected net worth, and each goal's ETA, each as
   real vs proposed vs Δ through the same `ComparedAmount` / `ComparedDate` and

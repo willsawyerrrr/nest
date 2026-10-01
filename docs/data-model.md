@@ -428,8 +428,9 @@ and so without the trigger.
   derived from these rows, never stored. See [`investments.md`](investments.md).
   - `id`, `household_id`, `member_id`, `ticker` (text, upper-case and trimmed,
     non-empty), `side` (`trade_side`: `buy` | `sell`), `traded_on` (date), `units`
-    (`numeric(20,6)`, `> 0`), `price_per_unit_cents` (bigint, `>= 0`, excluding
-    brokerage), `fee_cents` (bigint, `>= 0`, default 0), `source`
+    (`numeric(20,6)`, `> 0`), `price_per_unit_microdollars` (bigint, `>= 0`:
+    the exact price per unit in millionths of a dollar, 10,000 per cent, excluding
+    brokerage; the only money column held finer than a cent), `fee_cents` (bigint, `>= 0`, default 0), `source`
     (`ledger_source`, default `manual`), `external_id` (nullable), `created_at`,
     `updated_at`.
   - `unique (source, external_id)` mirrors `transactions`, so a brokerage import

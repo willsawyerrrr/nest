@@ -587,7 +587,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   is warned about, and the document is kept (`trade_document`, `trade.document_id`,
   the `receipts` bucket) and linked from the trade; extracted trades stay
   `source = 'manual'`. `trade-extract` answers failures with a stable `code` and
-  fixed copy. See
+  fixed copy. A trade's unit price is the one money value held finer than a cent:
+  `price_per_unit_microdollars` (integer millionths of a dollar, so CommSec's
+  `33.083072` is exact), converted from printed text in TypeScript. All trade
+  arithmetic is integer (`BigInt` in `@nest/tax`'s `unitPrice.ts`) and rounds
+  half-up to cents once per trade, as a contract note prints it; brokerage is the
+  fee including GST. See
   [`docs/investments.md`](docs/investments.md).
 - Uploads: anywhere the app takes a file (deduction receipts, payslips, trade
   documents) it accepts ANY type, up to 25 MiB (checked in the PWA and by the

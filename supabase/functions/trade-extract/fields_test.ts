@@ -80,7 +80,7 @@ Deno.test('toExtractions converts a trade to column-shaped values', () => {
     side: 'buy',
     traded_on: '2026-07-06',
     units: 10.5,
-    price_per_unit_cents: 9850,
+    price_per_unit_microdollars: 98_500_000,
     fee_cents: 950,
   })
   assertEquals(extraction.text.price_per_unit, '98.50')
@@ -141,9 +141,29 @@ Deno.test('parseNonNegativeCents converts printed amounts to integer cents', () 
   assertEquals(parseNonNegativeCents(null), null)
 })
 
-Deno.test('parseNonNegativeCents drops trailing zeros but never rounds a sub-cent price', () => {
+Deno.test('parseNonNegativeCents drops trailing zeros but never rounds sub-cent digits', () => {
   assertEquals(parseNonNegativeCents('98.5000'), 9850)
   assertEquals(parseNonNegativeCents('98.4567'), null)
+})
+
+Deno.test('toExtractions holds a partial-cent price exactly', () => {
+  const [extraction] = toExtractions({
+    is_trade_document: true,
+    trades: [raw({ price_per_unit: '$33.083072' })],
+  })
+
+  assertEquals(extraction.fields.price_per_unit_microdollars, 33_083_072)
+  assertEquals(extraction.unreadable, [])
+})
+
+Deno.test('toExtractions flags a price finer than six decimal places', () => {
+  const [extraction] = toExtractions({
+    is_trade_document: true,
+    trades: [raw({ price_per_unit: '33.0830721' })],
+  })
+
+  assertEquals(extraction.fields.price_per_unit_microdollars, null)
+  assertEquals(extraction.unreadable, ['price_per_unit_microdollars'])
 })
 
 Deno.test('parseNonNegativeCents rejects a negative amount', () => {

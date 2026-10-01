@@ -15,7 +15,7 @@ function makeTrade(overrides: Partial<TradeRow> = {}): TradeRow {
     side: 'buy',
     traded_on: '2026-02-03',
     units: 12.5,
-    price_per_unit_cents: 98_50,
+    price_per_unit_microdollars: 98_500_000,
     fee_cents: 9_50,
     source: 'manual',
     document_id: null,
@@ -45,7 +45,7 @@ describe('TradeForm', () => {
           ticker: 'VAS',
           side: 'buy',
           units: 10.5,
-          price_per_unit_cents: 90_00,
+          price_per_unit_microdollars: 90_000_000,
           fee_cents: 9_50,
         }),
       ),
@@ -99,7 +99,7 @@ describe('TradeForm', () => {
         side: 'buy',
         traded_on: '2026-02-03',
         units: 12.5,
-        price_per_unit_cents: 98_50,
+        price_per_unit_microdollars: 98_500_000,
         fee_cents: 9_50,
       }),
     )
@@ -129,7 +129,11 @@ describe('TradeForm', () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ side: 'sell', units: 3, price_per_unit_cents: 40_00 }),
+        expect.objectContaining({
+          side: 'sell',
+          units: 3,
+          price_per_unit_microdollars: 40_000_000,
+        }),
       ),
     )
     await user.click(screen.getByRole('button', { name: /^discard$/i }))
@@ -150,6 +154,54 @@ describe('TradeForm', () => {
     expect(await screen.findByText(/already have a trade with this ticker/i)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^add trade$/i }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+  })
+
+  it('accepts a price to six decimal places and submits it exactly', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<TradeForm member={member} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/^ticker$/i), 'IOZ')
+    await user.type(screen.getByLabelText(/^units$/i), '2')
+    await user.type(screen.getByLabelText(/price per unit/i), '33.083072')
+    await user.click(screen.getByRole('button', { name: /^add trade$/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ price_per_unit_microdollars: 33_083_072 }),
+      ),
+    )
+  })
+
+  it('shows a saved partial-cent price without trailing noise', () => {
+    render(
+      <TradeForm
+        member={member}
+        initial={makeTrade({ price_per_unit_microdollars: 33_083_072 })}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText(/price per unit/i)).toHaveValue('$33.083072')
+  })
+
+  it('does not call prices that differ by a fraction of a cent a repeat', async () => {
+    const user = userEvent.setup()
+    render(
+      <TradeForm
+        member={member}
+        trades={[makeTrade({ price_per_unit_microdollars: 98_500_001 })]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.type(screen.getByLabelText(/^ticker$/i), 'VAS')
+    await user.clear(screen.getByLabelText(/^date$/i))
+    await user.type(screen.getByLabelText(/^date$/i), '3 Feb 2026')
+    await user.type(screen.getByLabelText(/^units$/i), '12.5')
+    await user.type(screen.getByLabelText(/price per unit/i), '98.5')
+
+    expect(screen.queryByText(/already have a trade/i)).not.toBeInTheDocument()
   })
 
   it('does not count the trade being edited as its own repeat', () => {

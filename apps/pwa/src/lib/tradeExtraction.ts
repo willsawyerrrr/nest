@@ -18,7 +18,7 @@ const FIELD_LABELS = {
   side: 'side',
   traded_on: 'date',
   units: 'units',
-  price_per_unit_cents: 'price per unit',
+  price_per_unit_microdollars: 'price per unit',
   fee_cents: 'brokerage fee',
 } as const
 
@@ -81,8 +81,11 @@ function readTrade(raw: unknown): ExtractedTrade | null {
   if (typeof fields.units === 'number' && fields.units > 0) {
     values.units = fields.units
   }
-  if (typeof fields.price_per_unit_cents === 'number' && fields.price_per_unit_cents >= 0) {
-    values.price_per_unit_cents = fields.price_per_unit_cents
+  if (
+    typeof fields.price_per_unit_microdollars === 'number' &&
+    fields.price_per_unit_microdollars >= 0
+  ) {
+    values.price_per_unit_microdollars = fields.price_per_unit_microdollars
   }
   if (typeof fields.fee_cents === 'number' && fields.fee_cents >= 0) {
     values.fee_cents = fields.fee_cents

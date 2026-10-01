@@ -313,7 +313,7 @@ describe('EofyShareSection', () => {
         side,
         traded_on: tradedOn,
         units: 10,
-        price_per_unit_cents: priceCents,
+        price_per_unit_microdollars: priceCents * 10_000,
         fee_cents: 0,
         source: 'manual',
         external_id: null,

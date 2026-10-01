@@ -1,5 +1,5 @@
 import { assertEquals } from '@std/assert'
-import { isPlaceholder, parseCents, parseIsoDate } from './money.ts'
+import { isPlaceholder, parseCents, parseIsoDate, parseMicrodollars } from './money.ts'
 
 /**
  * The converter is where a bug would silently corrupt a tax figure, so it is
@@ -164,4 +164,40 @@ Deno.test('parseIsoDate rejects anything that is not a real ISO date', () => {
   assertEquals(parseIsoDate('yesterday'), null)
   assertEquals(parseIsoDate(null), null)
   assertEquals(parseIsoDate(20260706), null)
+})
+
+Deno.test('parseMicrodollars reads prices to six decimal places exactly', () => {
+  assertEquals(parseMicrodollars('33.083072'), 33_083_072)
+  assertEquals(parseMicrodollars('$98.50'), 98_500_000)
+  assertEquals(parseMicrodollars('A$ 1,234.5'), 1_234_500_000)
+  assertEquals(parseMicrodollars('35'), 35_000_000)
+  assertEquals(parseMicrodollars('.5'), 500_000)
+  assertEquals(parseMicrodollars('0.000001'), 1)
+  assertEquals(parseMicrodollars('0'), 0)
+  // A float parse of 8.29 times 100 is 828.9999999999999; digit strings never are.
+  assertEquals(parseMicrodollars('8.29'), 8_290_000)
+})
+
+Deno.test('parseMicrodollars drops trailing zeros past six places but never rounds', () => {
+  assertEquals(parseMicrodollars('35.7900000'), 35_790_000)
+  assertEquals(parseMicrodollars('35.7900001'), null)
+  assertEquals(parseMicrodollars('0.0000005'), null)
+})
+
+Deno.test('parseMicrodollars rejects negative, ambiguous, and absent text', () => {
+  assertEquals(parseMicrodollars('-1.50'), null)
+  assertEquals(parseMicrodollars('(1.50)'), null)
+  assertEquals(parseMicrodollars('12,34'), null)
+  assertEquals(parseMicrodollars('1.2.3'), null)
+  assertEquals(parseMicrodollars('abc'), null)
+  assertEquals(parseMicrodollars('$'), null)
+  assertEquals(parseMicrodollars('n/a'), null)
+  assertEquals(parseMicrodollars(''), null)
+  assertEquals(parseMicrodollars(null), null)
+  assertEquals(parseMicrodollars(12.5), null)
+})
+
+Deno.test('parseMicrodollars rejects a price too large to hold exactly', () => {
+  assertEquals(parseMicrodollars('9999999999999.00'), null)
+  assertEquals(parseMicrodollars('99999999999999.00'), null)
 })

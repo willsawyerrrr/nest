@@ -10,6 +10,22 @@ export function formatCents(cents: number): string {
   return currency.format(cents / 100)
 }
 
+const unitPrice = new Intl.NumberFormat('en-AU', {
+  style: 'currency',
+  currency: 'AUD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 6,
+})
+
+/**
+ * Formats a unit price held as integer microdollars as an AUD currency string
+ * with at least two and at most six decimal places, dropping trailing zeros
+ * beyond the cents (`$98.50`, `$33.083072`).
+ */
+export function formatUnitPrice(microdollars: number): string {
+  return unitPrice.format(microdollars / 1_000_000)
+}
+
 /** Rounds to at most one decimal and drops a trailing `.0` (e.g. `1.2`, `150`). */
 function compactMagnitude(value: number): string {
   return (Math.round(value * 10) / 10).toString()
@@ -92,6 +108,30 @@ export function centsToDollars(cents: number | null | undefined): number | '' {
     return ''
   }
   return cents / 100
+}
+
+/** A unit price in integer microdollars as a dollars number for a `NumberInput`, or `''` when unset. */
+export function microdollarsToDollars(microdollars: number | null | undefined): number | '' {
+  if (microdollars == null) {
+    return ''
+  }
+  return microdollars / 1_000_000
+}
+
+/**
+ * A `NumberInput` dollars value as integer microdollars, or `null` when blank.
+ * A price of up to six decimal places multiplies out to within float error of a
+ * whole microdollar count, so rounding recovers it exactly.
+ */
+export function dollarsToMicrodollars(value: number | string): number | null {
+  if (value === '' || value == null) {
+    return null
+  }
+  const dollars = typeof value === 'number' ? value : Number.parseFloat(value)
+  if (!Number.isFinite(dollars)) {
+    return null
+  }
+  return Math.round(dollars * 1_000_000)
 }
 
 /** A `NumberInput` dollars value as integer cents, or `null` when blank. */

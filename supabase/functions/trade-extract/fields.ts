@@ -4,13 +4,14 @@
  *
  * The model reports each figure as the literal text printed on the document;
  * this module converts that text to the column-shaped values — an upper-case
- * ticker, a side, an ISO date, units, and integer cents — keeps the text
+ * ticker, a side, an ISO date, units, a unit price in integer
+ * microdollars, and a fee in integer cents — keeps the text
  * alongside so the form can show what was read, and names the fields that came
  * back empty or unreadable. Everything here is pure: nothing calls an API or a
  * database, and nothing writes a trade.
  */
 
-import { isPlaceholder, parseCents, parseIsoDate } from '../_shared/money.ts'
+import { isPlaceholder, parseCents, parseIsoDate, parseMicrodollars } from '../_shared/money.ts'
 
 /** The most trades read from one document; the rest are left to be added by hand. */
 export const MAX_TRADES = 100
@@ -33,7 +34,7 @@ export type ExtractedField =
   | 'side'
   | 'traded_on'
   | 'units'
-  | 'price_per_unit_cents'
+  | 'price_per_unit_microdollars'
   | 'fee_cents'
 
 /** What the model reports for one trade: the literal text it read for each field, or null. */
@@ -118,8 +119,8 @@ export function parseUnits(raw: string | null): number | null {
 
 /**
  * A non-negative amount in integer cents. Trailing zeros beyond the cents
- * (`98.5000`) are dropped; a price with real sub-cent digits cannot be held in
- * whole cents and is null rather than rounded.
+ * (`98.5000`) are dropped; sub-cent digits cannot be held in whole cents and
+ * are null rather than rounded.
  */
 export function parseNonNegativeCents(raw: string | null): number | null {
   const cents = parseCents(raw?.replace(/(\.\d{2})0+$/, '$1') ?? null)
@@ -148,7 +149,11 @@ function shapeTrade(raw: RawTrade): TradeExtraction {
   record('side', raw.side, parseSide(raw.side))
   record('traded_on', raw.trade_date, parseIsoDate(raw.trade_date))
   record('units', raw.units, parseUnits(raw.units))
-  record('price_per_unit_cents', raw.price_per_unit, parseNonNegativeCents(raw.price_per_unit))
+  record(
+    'price_per_unit_microdollars',
+    raw.price_per_unit,
+    parseMicrodollars(raw.price_per_unit),
+  )
   record('fee_cents', raw.brokerage_fee, parseNonNegativeCents(raw.brokerage_fee))
 
   return { fields, text: raw, missing, unreadable }

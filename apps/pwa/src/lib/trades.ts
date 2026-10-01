@@ -23,7 +23,8 @@ export const TRADE_SIDES: { value: TradeSide; label: string }[] = [
 /** A member's holding with its market value at the last traded price. */
 export interface HoldingView extends Holding {
   /** The last traded price per unit for the ticker, across the household. */
-  lastPriceCents: number
+  /** Integer microdollars. */
+  lastPriceMicrodollars: number
   valueCents: number
 }
 
@@ -50,11 +51,11 @@ export function memberPortfolio(trades: readonly TradeRow[], memberId: string): 
     holdings: holdings
       .filter((holding) => holding.memberId === memberId)
       .map((holding) => {
-        const lastPriceCents = prices.get(holding.ticker)!
+        const lastPriceMicrodollars = prices.get(holding.ticker)!
         return {
           ...holding,
-          lastPriceCents,
-          valueCents: holdingValueCents(holding, lastPriceCents),
+          lastPriceMicrodollars,
+          valueCents: holdingValueCents(holding, lastPriceMicrodollars),
         }
       }),
     gainsByYear: years.map((year) => capitalGainsSummary(memberGains, year)),
@@ -96,6 +97,6 @@ export function findDuplicateTrade(
       trade.ticker === candidate.ticker &&
       trade.traded_on === candidate.traded_on &&
       Number(trade.units) === candidate.units &&
-      trade.price_per_unit_cents === candidate.price_per_unit_cents,
+      trade.price_per_unit_microdollars === candidate.price_per_unit_microdollars,
   )
 }

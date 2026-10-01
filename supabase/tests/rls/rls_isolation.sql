@@ -233,8 +233,8 @@ end $$;
 
 -- Alice's share trade: a buy tagged to her member.
 insert into public.trade
-  (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents, fee_cents)
-  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'VAS', 'buy', '2026-01-10', 10.5, 98_50, 9_50);
+  (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars, fee_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'VAS', 'buy', '2026-01-10', 10.5, 98_500_000, 9_50);
 
 do $$ begin
   assert (select count(*) from public.trade) = 1, 'Alice should see her trade';

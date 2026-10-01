@@ -17,7 +17,7 @@ function makeTrade(overrides: Partial<TradeRow> = {}): TradeRow {
     side: 'buy',
     traded_on: '2024-01-10',
     units: 100,
-    price_per_unit_cents: 90_00,
+    price_per_unit_microdollars: 90_000_000,
     fee_cents: 0,
     source: 'manual',
     document_id: null,
@@ -64,7 +64,12 @@ describe('TradesScreen', () => {
     renderScreen({
       trades: [
         makeTrade({ fee_cents: 10_00 }),
-        makeTrade({ id: 't2', traded_on: '2024-06-01', units: 50, price_per_unit_cents: 100_00 }),
+        makeTrade({
+          id: 't2',
+          traded_on: '2024-06-01',
+          units: 50,
+          price_per_unit_microdollars: 100_000_000,
+        }),
       ],
     })
     const holdings = screen.getByLabelText("Will's holdings")
@@ -78,6 +83,25 @@ describe('TradesScreen', () => {
     expect(screen.queryByLabelText("Sam's holdings")).not.toBeInTheDocument()
   })
 
+  it('shows exact unit prices, with the average cost and last price to the microdollar', () => {
+    renderScreen({
+      trades: [
+        makeTrade({
+          units: 2,
+          price_per_unit_microdollars: 33_083_072,
+          fee_cents: 2_00,
+        }),
+      ],
+    })
+    const holdings = screen.getByLabelText("Will's holdings")
+    // Cost base: 2 × $33.083072 = $66.17 (rounded once) + $2.00 = $68.17; $34.085 each.
+    expect(within(holdings).getByText(/Average cost \$34\.085 /)).toBeInTheDocument()
+    expect(within(holdings).getByText(/Cost base \$68\.17/)).toBeInTheDocument()
+    expect(within(holdings).getByText('at $33.083072')).toBeInTheDocument()
+    expect(within(holdings).getByText('$66.17')).toBeInTheDocument()
+    expect(screen.getByText(/2 @ \$33\.083072/)).toBeInTheDocument()
+  })
+
   it('summarises realised gains per financial year with the discount', () => {
     renderScreen({
       trades: [
@@ -86,7 +110,7 @@ describe('TradesScreen', () => {
           id: 't2',
           side: 'sell',
           traded_on: '2026-09-01',
-          price_per_unit_cents: 110_00,
+          price_per_unit_microdollars: 110_000_000,
         }),
       ],
     })
@@ -155,7 +179,11 @@ describe('TradesScreen', () => {
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ ticker: 'VAS', units: 10, price_per_unit_cents: 90_00 }),
+        expect.objectContaining({
+          ticker: 'VAS',
+          units: 10,
+          price_per_unit_microdollars: 90_000_000,
+        }),
       ),
     )
   })

@@ -40,6 +40,16 @@ export type {
   UnmatchedSale,
 } from './capitalGains.ts'
 export {
+  centsToMicrodollars,
+  divideRoundHalfUp,
+  MICRODOLLARS_PER_CENT,
+  MICRODOLLARS_PER_DOLLAR,
+  MICRO_UNITS_PER_UNIT,
+  scaleRoundHalfUp,
+  unitsValueCents,
+} from './unitPrice.ts'
+export type { Microdollars } from './unitPrice.ts'
+export {
   familyMedicareLevySurcharge,
   householdYearSummary,
   mlsTest,

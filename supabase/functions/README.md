@@ -388,10 +388,11 @@ beyond `@nest/tax` (already vendored), and no new secret.
 - **Response** — `{ model, trades }`, where each trade is
   `{ fields, text, missing, unreadable }`: `fields` holds the converted values
   (`ticker` upper-case, `side` `buy`/`sell`, `traded_on` ISO date, `units` as a
-  number of at most six decimal places, `price_per_unit_cents`, `fee_cents`), and
-  `missing`/`unreadable` say which fields the document did not show versus which
-  were read but could not be converted safely (a sub-cent price is unreadable,
-  never rounded).
+  number of at most six decimal places, `price_per_unit_microdollars` — the exact
+  price in millionths of a dollar, so `33.083072` is `33083072` — and `fee_cents`,
+  the brokerage including GST), and `missing`/`unreadable` say which fields the
+  document did not show versus which were read but could not be converted safely
+  (a price finer than six decimal places is unreadable, never rounded).
 - **Failures** — every failure is `{ code, error }`: a stable `code` and fixed copy
   of ours. Nothing the model or the Anthropic API said reaches the client; the
   upstream error is logged with `console.error`. Codes: `path_required`,

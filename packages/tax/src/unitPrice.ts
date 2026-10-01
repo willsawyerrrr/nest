@@ -1,0 +1,51 @@
+/**
+ * Exact arithmetic on a security's unit price. Whole cents cannot hold what a
+ * broker prints (`33.083072`), so a unit price is an integer count of
+ * microdollars — millionths of a dollar — and everything derived from it is
+ * integer arithmetic. Products and ratios run in `BigInt` so no intermediate
+ * value can lose precision, and each result is rounded half-up to whole cents
+ * exactly once, at the point a dollar figure is produced.
+ */
+
+/** A unit price as an integer number of microdollars (a millionth of a dollar). */
+export type Microdollars = number
+
+/** Microdollars in one dollar: a unit price holds up to six decimal places. */
+export const MICRODOLLARS_PER_DOLLAR = 1_000_000
+
+/** Microdollars in one cent. */
+export const MICRODOLLARS_PER_CENT = 10_000
+
+/** Micro-units in one unit: units hold up to six decimal places. */
+export const MICRO_UNITS_PER_UNIT = 1_000_000
+
+/** `numerator / denominator` rounded half-up (halves toward positive infinity). */
+export function divideRoundHalfUp(numerator: bigint, denominator: bigint): bigint {
+  let quotient = numerator / denominator
+  let remainder = numerator % denominator
+  if (remainder < 0n) {
+    quotient -= 1n
+    remainder += denominator
+  }
+  return remainder * 2n >= denominator ? quotient + 1n : quotient
+}
+
+/** `value × numerator / denominator` rounded half-up, with no intermediate rounding. */
+export function scaleRoundHalfUp(value: number, numerator: number, denominator: number): number {
+  return Number(divideRoundHalfUp(BigInt(value) * BigInt(numerator), BigInt(denominator)))
+}
+
+/** `unitsMicro` micro-units at `priceMicrodollars` per unit, in whole cents (half-up). */
+export function unitsValueCents(unitsMicro: number, priceMicrodollars: Microdollars): number {
+  return Number(
+    divideRoundHalfUp(
+      BigInt(unitsMicro) * BigInt(priceMicrodollars),
+      BigInt(MICRO_UNITS_PER_UNIT) * BigInt(MICRODOLLARS_PER_CENT),
+    ),
+  )
+}
+
+/** A whole-cent amount as microdollars. */
+export function centsToMicrodollars(cents: number): Microdollars {
+  return cents * MICRODOLLARS_PER_CENT
+}

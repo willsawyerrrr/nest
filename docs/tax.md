@@ -216,6 +216,56 @@ one-off is shown as the separate figure it is.
 > income are taken as taxable income plus concessional contributions; reportable
 > fringe benefits and net investment losses are not yet modelled.
 
+## Household view and the MLS family-income test
+
+The EOFY tab opens, under the year selector, with a read-only **Household** card
+for the selected financial year. It is derived from the same
+`estimateHouseholdTax` run the member cards read (so it follows the year selector
+and, because the estimate reads the sandboxed inflows, planning mode), through
+two pure functions in `@nest/tax` (`household.ts`):
+
+- `householdYearSummary` sums each member's gross income, deductions, taxable
+  income, tax, concessional super, and take-home into household totals, with the
+  per-member rows alongside.
+- `mlsTest` runs the Medicare levy surcharge family-income test and reuses
+  `familyMedicareLevySurcharge` for the tier rate and per-member surcharge.
+
+**Income for MLS purposes** is taxable income plus reportable super contributions,
+reportable fringe benefits, and net investment losses, summed across the family
+([ATO: income for MLS purposes](https://www.ato.gov.au/individuals-and-families/medicare-and-private-health-insurance/medicare-levy-surcharge/income-for-medicare-levy-surcharge-purposes)).
+What the app captures:
+
+| Component                       | Captured                                                     |
+| ------------------------------- | ------------------------------------------------------------ |
+| Taxable income                  | Yes — the estimate's taxable income, one-offs included       |
+| Reportable super contributions  | Yes — salary sacrifice plus personal deductible (concessional) |
+| Reportable fringe benefits      | No — not recorded; `mlsTest` accepts it as an optional input |
+| Net investment losses           | No — not recorded; `mlsTest` accepts it as an optional input |
+| Net capital gain                | Yes — assessable, so already inside taxable income           |
+
+The household card also lists the net capital gain on its own line, as part of
+gross income.
+
+**Thresholds** come from each year's `medicareLevySurcharge` config, sourced from
+[ATO: MLS income thresholds and rates](https://www.ato.gov.au/individuals-and-families/medicare-and-private-health-insurance/medicare-levy-surcharge/medicare-levy-surcharge-income-thresholds-and-rates):
+
+| Tier | FY2026 family  | FY2027 family  | Rate   |
+| ---- | -------------- | -------------- | ------ |
+| 1    | over $202,000  | over $210,000  | 1%     |
+| 2    | over $236,000  | over $246,000  | 1.25%  |
+| 3    | over $316,000  | over $328,000  | 1.5%   |
+
+Each family floor rises by $1,500 for every dependent child after the first
+(`mlsTierFloorCents`). A lone member with no children is tested against the
+single-person floors. A floor is exceeded only when income is strictly above it.
+
+The card reports family income for MLS, the tier reached (0 below the first
+floor), whether the household is **liable** (a tier applies and at least one
+member lacks private hospital cover), the household surcharge, and the distance
+to the next tier's floor (none at the top tier). There is no persisted dependent
+children field, so the count is an ephemeral input on the card, starting at 0.
+The card is not part of the shared EOFY view.
+
 ## Super contribution caps and co-contribution
 
 Alongside the liability pipeline, `@nest/tax` exposes super helpers driven by
@@ -393,6 +443,9 @@ car_expense:
   ETP cap, a non-excluded payment whose whole-of-income headroom salary has already
   exhausted, both sides of the preservation-age split, an offset larger than the tax
   payable, two concessions stacked, and a payment landing outside the year.
+- Household view: household totals as member sums, income for MLS components, each
+  tier edge (at, just over), child increments, single-member floors, covered and
+  uncovered members, and the top tier's absent next threshold.
 - Non-resident cases as a follow-up.
 
 ## Presentation

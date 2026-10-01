@@ -183,6 +183,11 @@ function renderScreen(props: Partial<Parameters<typeof EofyScreen>[0]> = {}) {
 }
 
 describe('EofyScreen', () => {
+  it('renders the household section under the year selector', () => {
+    renderScreen({ householdSection: <div>Household figures</div> })
+    expect(screen.getByText('Household figures')).toBeInTheDocument()
+  })
+
   it('titles the page with the selected financial year', () => {
     renderScreen({ financialYear: 2027 })
     expect(screen.getByRole('heading', { name: /EOFY summary \(FY2027\)/ })).toBeInTheDocument()

@@ -3,6 +3,7 @@ import { Stack } from '@mantine/core'
 import { configsByYear, financialYearForDate } from '@nest/tax'
 import { EofyScreen, type EofyPayslipDocument } from '../components/EofyScreen'
 import { EofyShareControl } from '../components/EofyShareControl'
+import { HouseholdYearSummary } from '../components/HouseholdYearSummary'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
@@ -140,6 +141,14 @@ export function EofySection() {
         signedUrl={receipts.signedUrl}
         payslipDocuments={payslipDocuments}
         payslipSignedUrl={payslips.signedUrl}
+        householdSection={
+          <HouseholdYearSummary
+            members={members}
+            estimate={estimate}
+            config={config}
+            financialYear={financialYear}
+          />
+        }
       />
     </Stack>
   )

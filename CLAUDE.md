@@ -198,6 +198,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the fortnightly ones are derived net of it, and the estimate reports the
   one-off gross and its own after-tax value separately so the gap is named rather
   than read as a bug.
+- Household year view: the EOFY tab opens with a read-only Household card
+  (`HouseholdYearSummary`, passed to `EofyScreen` as `householdSection`, so the
+  shared advisor view omits it) of combined income, deductions, taxable income,
+  tax, super, and take-home with a per-member breakdown, plus the Medicare levy
+  surcharge family-income test (`mlsTest` / `householdYearSummary` in
+  `@nest/tax`): family income, tier, liability, and distance to the next
+  threshold, with an ephemeral dependent-children input. See
+  [`docs/tax.md`](docs/tax.md#household-view-and-the-mls-family-income-test) for
+  what MLS income does and does not capture.
 - EOFY summary: a read-only filing-prep tab (`/eofy`) that gathers the
   household's already-tracked tax data — the tax estimate, the payslips' actual
   PAYG withheld, deductions, super contributions, and HELP debt — into one

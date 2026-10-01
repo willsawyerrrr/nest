@@ -1,4 +1,13 @@
-import { Anchor, Collapse, Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
+import {
+  Anchor,
+  Badge,
+  Collapse,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
+  UnstyledButton,
+} from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type {
@@ -8,12 +17,14 @@ import type {
   PayslipTaxGroupVariance,
   PayslipVariance,
 } from '@nest/plan'
+import { useIsWide } from '../hooks/useIsWide'
 import type { PayslipRow } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
-import { moneyColor } from '../lib/money'
+import { formatCents, moneyColor } from '../lib/money'
 import { periodLabel } from '../lib/payslips'
 import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
+import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 
 /** What a figure with no variance to show says, where nothing more specific applies. */
@@ -345,38 +356,160 @@ function headlineVariance(variance: PayslipVariance): {
   )
 }
 
+/** The width the gross and variance columns hold on a wide row, so they line up down the list. */
+const GROSS_COLUMN_WIDTH = '7rem'
+const VARIANCE_COLUMN_WIDTH = '13rem'
+
 /**
- * The slip's gross as a collapsed card leads with it, labelled so the figure
- * cannot be read as the net.
+ * The headline variance as a single pill: its size and direction in the sign
+ * colouring, named where it is not the gross one so it is never taken for the gross
+ * figure beside it. `title` carries the full wording, which the expanded figures
+ * also state.
  */
-function HeadlineGross({ payslip }: { payslip: PayslipRow }) {
+function VariancePill({ variance }: { variance: PayslipVariance }) {
+  const { label, varianceCents } = headlineVariance(variance)
+  const prefix = label === 'Gross' ? '' : `${label} `
+  let reading: string
+  let color = 'gray'
+  if (varianceCents === null) {
+    reading = grossNullNote(variance)
+  } else if (varianceCents === 0) {
+    reading = 'On plan'
+  } else {
+    color = varianceCents > 0 ? 'positive' : 'negative'
+    reading = `${formatCents(Math.abs(varianceCents))} ${varianceCents > 0 ? 'above' : 'below'}`
+  }
   return (
-    <Group gap={4} wrap="nowrap" ml="auto" style={{ flexShrink: 0 }}>
-      <Text size="xs" c="dimmed">
-        Gross
-      </Text>
-      <MoneyText cents={payslip.gross_cents} fw={600} size="sm" />
-    </Group>
+    <Badge
+      size="xs"
+      variant="light"
+      color={color}
+      title={`${label}: ${reading}${varianceCents ? ' plan' : ''}`}
+      style={{ flexShrink: 0, maxWidth: '100%' }}
+    >
+      {prefix}
+      {reading}
+    </Badge>
   )
 }
 
 /**
- * The variance a collapsed card leads with, named where it is not the gross one so
- * the reading is never taken for the gross figure above it. A named variance is the
- * widest thing the header carries, so it takes a line of its own rather than crowd
- * the pay period off a phone.
+ * The chevron, the period, and the date the pay landed: on one line in a wide row,
+ * with the date under the period in a narrow card.
  */
-function HeadlineVarianceNote({ variance }: { variance: PayslipVariance }) {
-  const headline = headlineVariance(variance)
+function PayslipTitle({
+  payslip,
+  expanded,
+  stacked,
+}: {
+  payslip: PayslipRow
+  expanded: boolean
+  stacked: boolean
+}) {
+  const period = (
+    <Text fw={600} size="sm" truncate>
+      {periodLabel(payslip)}
+    </Text>
+  )
+  const paid = payslip.paid_on !== null && (
+    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+      Paid {formatIsoDate(payslip.paid_on)}
+    </Text>
+  )
   return (
-    <Group gap={4} wrap="nowrap" ml="auto" style={{ flexShrink: 0 }}>
-      {headline.label !== 'Gross' && (
+    <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+      {expanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+      {stacked ? (
+        <Stack gap={0} style={{ minWidth: 0 }}>
+          {period}
+          {paid}
+        </Stack>
+      ) : (
+        <Group gap="xs" wrap="nowrap" align="baseline" style={{ minWidth: 0 }}>
+          {period}
+          {paid}
+        </Group>
+      )}
+    </Group>
+  )
+}
+
+interface PayslipDetailProps {
+  payslip: PayslipRow
+  variance: PayslipVariance
+  inflowNames: ReadonlyMap<string, string>
+  onViewDocument: (path: string) => void
+}
+
+/**
+ * A payslip's expanded body: the gross / withheld / super / net quartet each with
+ * its own variance, the per-inflow and per-component breakdowns of its lines, and its
+ * note and stored document. The figure grid reflows from two columns on a phone to
+ * four from the `xs` breakpoint up — a payslip carries four figures and three
+ * variances, more than a single dense row can hold. Expectations that are a share of
+ * a pay period rather than the whole of one carry the note for the reason they are —
+ * see {@link PART_CYCLE_NOTES} — read from the cycle the slip's own withholding and
+ * super expectations rest on, since those are the figures the note is about. An
+ * earnings group on some other cadence carries its own reason on its variance, and
+ * its row already shows the variance that reason produced. A slip part of whose gross
+ * no period expects carries {@link UnmeasuredGrossNote} instead of a gross variance,
+ * that pay being measured across the year rather than against this period.
+ */
+function PayslipDetail({ payslip, variance, inflowNames, onViewDocument }: PayslipDetailProps) {
+  return (
+    <Stack gap={6}>
+      <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs">
+        <FigureCell
+          label="Gross"
+          cents={payslip.gross_cents}
+          varianceCents={variance.grossVarianceCents}
+          nullNote={grossNullNote(variance)}
+        />
+        <FigureCell
+          label="Tax withheld"
+          cents={payslip.tax_withheld_cents}
+          varianceCents={variance.taxWithheldVarianceCents}
+        />
+        <FigureCell
+          label="Super"
+          cents={variance.actualSuperCents}
+          varianceCents={variance.superVarianceCents}
+        />
+        <FigureCell label="Net" cents={payslip.net_cents} />
+      </SimpleGrid>
+
+      {variance.lineGroups.length > 0 && (
+        <LineGroups
+          groups={variance.lineGroups}
+          unallocatedCents={variance.unallocatedCents}
+          inflowNames={inflowNames}
+        />
+      )}
+
+      {variance.taxGroups.length > 0 && (
+        <TaxGroups groups={variance.taxGroups} unallocatedCents={variance.unallocatedTaxCents} />
+      )}
+
+      {variance.grossPartlyUnmeasured && (
+        <UnmeasuredGrossNote unmeasuredCents={variance.unmeasuredGrossCents} />
+      )}
+
+      {variance.partCycleReason !== null && (
         <Text size="xs" c="dimmed">
-          {headline.label}
+          {PART_CYCLE_NOTES[variance.partCycleReason]}
         </Text>
       )}
-      <VarianceNote varianceCents={headline.varianceCents} nullNote={grossNullNote(variance)} />
-    </Group>
+
+      {payslip.note !== null && (
+        <Text size="xs" c="dimmed">
+          {payslip.note}
+        </Text>
+      )}
+
+      {payslip.file_path !== null && (
+        <DocumentLink path={payslip.file_path} onView={onViewDocument} />
+      )}
+    </Stack>
   )
 }
 
@@ -391,27 +524,13 @@ interface PayslipCardProps {
 }
 
 /**
- * One payslip, collapsed to a scannable row and expandable to its full detail. A
- * household enters a slip a fortnight, so the row a card settles at names the pay
- * period, the date the pay landed, and the gross with the slip's most notable
- * variance — enough to find a slip and read whether it went to plan without opening
- * it. The three stack rather than share a line: on a phone the period, a labelled
- * figure, and a named variance cannot sit side by side without one of them being
- * cut, and the money right-aligns so a column of grosses reads down the list.
- *
- * Expanding it adds the gross / withheld / super / net quartet each with its own
- * variance, the per-inflow and per-component breakdowns of its lines, and its note
- * and stored document. The figure grid reflows from two columns on a phone to four
- * from the `xs` breakpoint up — a payslip carries four figures and three variances,
- * more than a single dense row can hold — and the headline gives way to it, since
- * the grid states the same gross and variance in full. Expectations that are a share
- * of a pay period rather than the whole of one carry the note for the reason they are
- * — see {@link PART_CYCLE_NOTES} — read from the cycle the slip's own withholding and
- * super expectations rest on, since those are the figures the note is about. An
- * earnings group on some other cadence carries its own reason on its variance, and
- * its row already shows the variance that reason produced. A slip part of whose gross
- * no period expects carries {@link UnmeasuredGrossNote} instead of a gross variance,
- * that pay being measured across the year rather than against this period.
+ * One payslip, collapsed to a single header and expandable to its full detail. A
+ * household enters a slip a fortnight, so the header names the pay period and the
+ * date the pay landed, the gross as an aligned figure, and the slip's most notable
+ * variance as one pill — enough to find a slip and read whether it went to plan
+ * without opening it. From the wide breakpoint it is a dense `ListRow` whose gross
+ * and variance columns line up down the list; below it, a compact card with the
+ * gross and pill stacked beside the period. The whole header toggles the detail.
  *
  * Editing and deleting sit outside the disclosure: correcting a slip is no reason
  * to read it. Expansion is per card and lasts as long as the tab is open, which is
@@ -425,102 +544,69 @@ export function PayslipCard({
   onDelete,
   onViewDocument,
 }: PayslipCardProps) {
+  const wide = useIsWide()
   const [expanded, { toggle }] = useDisclosure(false)
   const detailId = `payslip-detail-${payslip.id}`
+  const toggleProps = {
+    onClick: toggle,
+    'aria-expanded': expanded,
+    'aria-controls': detailId,
+  }
+  const actions = (
+    <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
+      <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+    </Group>
+  )
+  const detail = (
+    <Collapse expanded={expanded} id={detailId}>
+      <PayslipDetail
+        payslip={payslip}
+        variance={variance}
+        inflowNames={inflowNames}
+        onViewDocument={onViewDocument}
+      />
+    </Collapse>
+  )
+
+  if (wide) {
+    return (
+      <ListRow caption={detail}>
+        <UnstyledButton {...toggleProps} style={{ flex: 1, minWidth: 0 }}>
+          <Group gap="md" wrap="nowrap">
+            <PayslipTitle payslip={payslip} expanded={expanded} stacked={false} />
+            <MoneyText
+              cents={payslip.gross_cents}
+              fw={700}
+              size="sm"
+              ta="right"
+              style={{ width: GROSS_COLUMN_WIDTH, flexShrink: 0 }}
+            />
+            <Group style={{ width: VARIANCE_COLUMN_WIDTH, flexShrink: 0 }}>
+              <VariancePill variance={variance} />
+            </Group>
+          </Group>
+        </UnstyledButton>
+        {actions}
+      </ListRow>
+    )
+  }
 
   return (
     <AppCard withBorder padding="xs">
       <Stack gap={6}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
-          <UnstyledButton
-            onClick={toggle}
-            aria-expanded={expanded}
-            aria-controls={detailId}
-            style={{ flex: 1, minWidth: 0 }}
-          >
-            <Stack gap={2}>
-              <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-                {expanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
-                <Text fw={600} size="sm" truncate>
-                  {periodLabel(payslip)}
-                </Text>
-              </Group>
-              {(payslip.paid_on !== null || !expanded) && (
-                <Group gap="sm" wrap="nowrap">
-                  {payslip.paid_on !== null && (
-                    <Text size="xs" c="dimmed" truncate>
-                      Paid {formatIsoDate(payslip.paid_on)}
-                    </Text>
-                  )}
-                  {!expanded && <HeadlineGross payslip={payslip} />}
-                </Group>
-              )}
-              {!expanded && <HeadlineVarianceNote variance={variance} />}
-            </Stack>
+          <UnstyledButton {...toggleProps} style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="sm" wrap="nowrap">
+              <PayslipTitle payslip={payslip} expanded={expanded} stacked />
+              <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
+                <MoneyText cents={payslip.gross_cents} fw={700} size="sm" />
+                <VariancePill variance={variance} />
+              </Stack>
+            </Group>
           </UnstyledButton>
-          <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
-            <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-          </Group>
+          {actions}
         </Group>
-
-        <Collapse expanded={expanded} id={detailId}>
-          <Stack gap={6}>
-            <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs">
-              <FigureCell
-                label="Gross"
-                cents={payslip.gross_cents}
-                varianceCents={variance.grossVarianceCents}
-                nullNote={grossNullNote(variance)}
-              />
-              <FigureCell
-                label="Tax withheld"
-                cents={payslip.tax_withheld_cents}
-                varianceCents={variance.taxWithheldVarianceCents}
-              />
-              <FigureCell
-                label="Super"
-                cents={variance.actualSuperCents}
-                varianceCents={variance.superVarianceCents}
-              />
-              <FigureCell label="Net" cents={payslip.net_cents} />
-            </SimpleGrid>
-
-            {variance.lineGroups.length > 0 && (
-              <LineGroups
-                groups={variance.lineGroups}
-                unallocatedCents={variance.unallocatedCents}
-                inflowNames={inflowNames}
-              />
-            )}
-
-            {variance.taxGroups.length > 0 && (
-              <TaxGroups
-                groups={variance.taxGroups}
-                unallocatedCents={variance.unallocatedTaxCents}
-              />
-            )}
-
-            {variance.grossPartlyUnmeasured && (
-              <UnmeasuredGrossNote unmeasuredCents={variance.unmeasuredGrossCents} />
-            )}
-
-            {variance.partCycleReason !== null && (
-              <Text size="xs" c="dimmed">
-                {PART_CYCLE_NOTES[variance.partCycleReason]}
-              </Text>
-            )}
-
-            {payslip.note !== null && (
-              <Text size="xs" c="dimmed">
-                {payslip.note}
-              </Text>
-            )}
-
-            {payslip.file_path !== null && (
-              <DocumentLink path={payslip.file_path} onView={onViewDocument} />
-            )}
-          </Stack>
-        </Collapse>
+        {detail}
       </Stack>
     </AppCard>
   )

@@ -1,12 +1,16 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ChangelogScreen } from '../components/ChangelogScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useChangelog } from '../hooks/useChangelog'
+import { useReleaseSeen } from '../hooks/useReleaseSeen'
 import { applyLatestVersion } from '../pwa'
 
 export function ChangelogSection() {
   const { available, implemented, inProgress, configured, loading, error } = useChangelog()
+  const { markSeen } = useReleaseSeen()
   const [updating, setUpdating] = useState(false)
+
+  useEffect(() => markSeen(), [markSeen])
 
   // Each update ends in its own page reload, so a second one restarts an
   // in-flight navigation and throws away what it had already fetched — hence the

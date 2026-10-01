@@ -1,10 +1,6 @@
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import {
-  resetChangelogUpdateAvailable,
-  setChangelogUpdateAvailable,
-} from '../hooks/useChangelogUpdateAvailable'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '../test/render'
 import {
   cycleIndex,
@@ -14,6 +10,12 @@ import {
   navSections,
   TabBar,
 } from './TabBar'
+
+const hooks = vi.hoisted(() => ({ unseen: vi.fn() }))
+
+vi.mock('../hooks/useReleaseSeen', () => ({
+  useReleaseSeen: () => ({ unseen: hooks.unseen(), markSeen: vi.fn() }),
+}))
 
 /** Resizes happy-dom's viewport so responsive (`hiddenFrom`/`visibleFrom`) rules resolve. */
 function setViewportWidth(width: number) {
@@ -57,9 +59,9 @@ function groupItems(label: string) {
   return list
 }
 
-describe('TabBar', () => {
-  beforeEach(() => resetChangelogUpdateAvailable())
+beforeEach(() => hooks.unseen.mockReturnValue(false))
 
+describe('TabBar', () => {
   it('renders a link per nav item with its route as href', () => {
     renderTabBar('/summary')
 
@@ -250,8 +252,6 @@ describe('TabBar', () => {
 })
 
 describe('TabBar what’s new button', () => {
-  beforeEach(() => resetChangelogUpdateAvailable())
-
   it('navigates to the changelog from the sidebar footer, beside the color-scheme toggle', async () => {
     const user = userEvent.setup()
     renderTabBar('/summary')
@@ -266,7 +266,7 @@ describe('TabBar what’s new button', () => {
     expect(pathname()).toBe('/whats-new')
   })
 
-  it('shows no dot on any placement until the changelog reports an update available', () => {
+  it('shows no dot on any placement while no release is unseen', () => {
     renderTabBar('/summary')
 
     for (const whatsNew of screen.getAllByRole('button', { name: "What's new" })) {
@@ -276,12 +276,14 @@ describe('TabBar what’s new button', () => {
     }
   })
 
-  it('shows a dot on every placement once the changelog reports an update available', () => {
-    setChangelogUpdateAvailable(true)
+  it('shows a dot on every placement when a release is unseen', () => {
+    hooks.unseen.mockReturnValue(true)
     renderTabBar('/summary')
 
     for (const whatsNew of screen.getAllByRole('button', { name: "What's new" })) {
-      expect(whatsNew.parentElement?.querySelector('.whats-new-button__dot')).toBeInTheDocument()
+      const dot = whatsNew.parentElement?.querySelector('.whats-new-button__dot')
+      expect(dot).toBeInTheDocument()
+      expect(dot).toHaveTextContent('New release')
     }
   })
 })

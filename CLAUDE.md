@@ -807,7 +807,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   list at that commit: that commit and older are implemented (so a stale/cached
   PWA never shows entries newer than the build it is running), and the commits
   newer than it are returned as an "Update available" list with a Reload-to-update
-  button that force-updates the PWA to the latest deployed version.
+  button that force-updates the PWA to the latest deployed version. A lime dot
+  (labelled "New release") sits on the nav's "What's new" icon while the newest
+  entry's commit SHA (`available` ahead of `implemented`) differs from the one
+  last opened; opening the screen records it. "Seen" is per device in
+  `localStorage` (in-memory fallback when storage is unavailable), initialised to
+  the newest release on first load so releases predating the member raise no dot.
+  A failed or empty changelog raises none; the query is cached for ten minutes.
 - Push notifications: alerts reach the installed PWA over Web Push (RFC 8291
   payload encryption, RFC 8292 VAPID auth) — no push vendor and no native app. A
   member opts in **per device**: the subscription (endpoint plus its two keys)

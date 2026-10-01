@@ -128,6 +128,12 @@ instance and can also be run locally.
   cents, the price cannot be negative, and `create_trades_with_document` saves a
   partial-cent price (`33.083072`) exactly. It rebuilds the whole-cent shape and
   runs the migration over it.
+- `household_tax_profiles.sql` — the assertions that any member reads and writes
+  a co-member's `tax_profile` and `help_debt` rows, and sets a co-member's date of
+  birth through `set_member_date_of_birth` (the only write path; the direct column
+  grant is gone, and `name`/`email` stay own-row), while a member of another
+  household sees none of it, cannot write into the household, cannot attach a
+  profile to another household's member, and cannot set its date of birth.
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and

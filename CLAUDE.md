@@ -191,8 +191,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   rates therefore EXCLUDE the levy, which is why they read 2% under the commonly
   quoted figures). The ETP rate turns on the member's age at the payment date, so
   `members.date_of_birth` — optional, entered on the Members & tax profiles settings
-  page beside their tax
-  profile — is tested against the year's preservation age; unset reads as below
+  page beside their tax profile, for any household member (`set_member_date_of_birth`
+  is the only write path; tax profiles and HELP debts are household-wide CRUD) —
+  is tested against the year's preservation age; unset reads as below
   it, the higher rate. **The annual and fortnightly figures deliberately disagree
   about one-off money**: the annual ones are whole-year truths that include it,
   the fortnightly ones are derived net of it, and the estimate reports the

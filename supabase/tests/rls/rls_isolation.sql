@@ -147,10 +147,10 @@ begin
   end;
 end $$;
 
--- A member's date of birth is theirs to set, and it is the only thing the ETP
--- concessional rate reads to place them either side of preservation age.
-update public.members set date_of_birth = '1988-04-02'
-  where id = current_setting('test.mid')::uuid;
+-- A member's date of birth is the only thing the ETP concessional rate reads to
+-- place them either side of preservation age; it is written through
+-- `set_member_date_of_birth`, never a direct update.
+select public.set_member_date_of_birth(current_setting('test.mid')::uuid, date '1988-04-02');
 
 do $$ begin
   assert (select date_of_birth from public.members where id = current_setting('test.mid')::uuid)
@@ -591,6 +591,18 @@ set local role authenticated;
 
 -- ── Act as Bob (same role, different JWT) ────────────────────────────────────
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@example.com"}', true);
+
+do $$
+begin
+  begin
+    perform public.set_member_date_of_birth(current_setting('test.mid')::uuid, date '2000-01-01');
+    raise exception 'FAIL: Bob set the date of birth of a member of Alice''s household';
+  exception when others then
+    if sqlerrm = 'member not found in the caller''s household' then
+      raise notice 'PASS: Bob cannot set the date of birth of a member of Alice''s household';
+    else raise; end if;
+  end;
+end $$;
 
 do $$ begin
   assert (select count(*) from public.households) = 0, 'Bob must not see Alice''s household';

@@ -11,8 +11,8 @@ export interface UseMembersResult {
   loading: boolean
   reload: () => Promise<void>
   /**
-   * Records a member's date of birth, or clears it when passed null. It is the one
-   * member field the app edits, and it exists for a single reading: the member's age
+   * Records any household member's date of birth, or clears it when passed null. It
+   * is the one member field the app edits for a co-member, and it exists for a single reading: the member's age
    * at a one-off termination payment's date, which sets the rate its concessional
    * part is taxed at.
    */
@@ -33,10 +33,10 @@ export function useMembers(): UseMembersResult {
 
   const setDateOfBirth = useCallback(
     async (memberId: string, dateOfBirth: string | null) => {
-      const { error } = await supabase
-        .from('members')
-        .update({ date_of_birth: dateOfBirth })
-        .eq('id', memberId)
+      const { error } = await supabase.rpc('set_member_date_of_birth', {
+        p_member_id: memberId,
+        p_date_of_birth: dateOfBirth as string,
+      })
       if (error) {
         throw error
       }

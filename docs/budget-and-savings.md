@@ -307,11 +307,15 @@ is drawn. A "Show budget lines" switch drills each group down to its budget line
 and active temporary items (an **Other** node carries any unnamed remainder).
 One-off money stays out, as it does of `available`. The chart is plain SVG laid
 out by the pure `sankeyLayout` (`apps/pwa/src/lib/sankeyLayout.ts`): one value
-scale for every column, each column spread over the full height so both sides
-share top and bottom edges, ribbons stacked inside their node bars (ordered by
-their far end's position so flows don't cross), and a four-pixel floor on link
-thickness that shrinks the scale rather than overflowing, so thin flows stay
-visible without breaking the totals. First-column labels sit left of their bars
+scale for the whole diagram, so a ribbon is as thick at both ends as the value
+it carries and each node bar is exactly filled by its inflow and drained by its
+outflow (Available fills Needs first, Shortfall tops Needs up and funds the
+rest). The scale is the largest that fits the most crowded column; each column
+is spread over the full height, so only the gaps between nodes differ by column
+and every column shares top and bottom edges. Ribbons stack inside their node
+bars, ordered by their far end's position so flows don't cross. Nothing is
+thickened to a minimum, so a tiny flow is a hairline, kept visible by a
+sub-pixel stroke. First-column labels sit left of their bars
 and the rest right, with long names clipped, so no label crosses a ribbon at
 group level. The chart is lazy-loaded, fills the card's width with a reserved
 label margin (no horizontal scroll at phone width), grows with its tallest column

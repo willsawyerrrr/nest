@@ -9,13 +9,14 @@ interface CashFlowSankeyChartProps {
 
 const NODE_WIDTH = 8
 const NODE_PADDING = 24
-const MIN_LINK_THICKNESS = 4
 /** Vertical room one node's two-line label needs, so labels never collide. */
 const ROW_HEIGHT = 32
 const MIN_HEIGHT = 240
 const LABEL_GAP = 6
 /** Room above and below the bars for the end labels' second line. */
 const VERTICAL_MARGIN = 14
+/** Stroke that keeps a flow too small for a full pixel visible without changing its geometry. */
+const HAIRLINE = 0.75
 const FONT_SIZE = 11
 /** Approximate width of one label character at `FONT_SIZE`. */
 const CHAR_WIDTH = 6
@@ -49,7 +50,6 @@ export default function CashFlowSankeyChart({ graph }: CashFlowSankeyChartProps)
     height: height - 2 * VERTICAL_MARGIN,
     nodeWidth: NODE_WIDTH,
     nodePadding: NODE_PADDING,
-    minLinkThickness: MIN_LINK_THICKNESS,
   })
   const maxChars = Math.floor((margin - LABEL_GAP) / CHAR_WIDTH)
 
@@ -65,7 +65,13 @@ export default function CashFlowSankeyChart({ graph }: CashFlowSankeyChartProps)
                 <path
                   key={`${link.source}-${link.target}`}
                   d={ribbonPath(link)}
-                  style={{ fill: source.color, fillOpacity: 0.35 }}
+                  style={{
+                    fill: source.color,
+                    fillOpacity: 0.35,
+                    stroke: source.color,
+                    strokeOpacity: 0.35,
+                    strokeWidth: HAIRLINE,
+                  }}
                 >
                   <title>{`${source.name} to ${target.name}: ${formatCents(link.value)}`}</title>
                 </path>
@@ -83,7 +89,7 @@ export default function CashFlowSankeyChart({ graph }: CashFlowSankeyChartProps)
                     y={box.y}
                     width={box.width}
                     height={box.height}
-                    style={{ fill: color }}
+                    style={{ fill: color, stroke: color, strokeWidth: HAIRLINE }}
                   />
                   <text
                     x={x}

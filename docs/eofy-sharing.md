@@ -84,7 +84,8 @@ Three functions under `supabase/functions/`, documented in full in
   RLS, is the entire boundary here, since an anonymous bearer has no
   `auth.uid()` for Storage's household-membership policy to match either way.
   Each deduction carries at most one receipt, shown on the shared view as a
-  single "Receipt" link.
+  single "Receipt" link. Each deduction is one row: description, muted date,
+  and the link wrap beside a right-aligned amount.
 
 `_shared/shareGrant.ts` resolves a token for both anonymous functions,
 reporting the identical generic 401 whether it is malformed, matches

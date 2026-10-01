@@ -150,7 +150,7 @@ function EofyTaxSummary({
   )
 }
 
-/** One claimed deduction with its amount, date, and its stored receipt as a view link. */
+/** One claimed deduction on a single row: description, date, and receipt link wrapping beside a right-aligned amount. */
 function EofyDeductionItem({
   deduction,
   receipt,
@@ -168,33 +168,29 @@ function EofyDeductionItem({
   }
 
   return (
-    <Stack gap={2}>
-      <Group justify="space-between" gap="xs" wrap="nowrap">
-        <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
-          <Text size="sm" truncate>
-            {deduction.description}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {formatIsoDate(deduction.deduction_date)}
-          </Text>
-        </Stack>
-        <MoneyText cents={deduction.amount_cents} size="sm" fw={600} />
-      </Group>
-      {receipt ? (
-        <Anchor
-          size="xs"
-          component="button"
-          type="button"
-          onClick={() => void viewReceipt(receipt.storage_path)}
-        >
-          Receipt
-        </Anchor>
-      ) : (
-        <Text size="xs" c="dimmed" fs="italic">
-          No receipt
+    <Group justify="space-between" align="flex-start" gap="xs" wrap="nowrap">
+      <Group gap="xs" style={{ minWidth: 0, flex: 1 }}>
+        <Text size="sm">{deduction.description}</Text>
+        <Text size="xs" c="dimmed">
+          {formatIsoDate(deduction.deduction_date)}
         </Text>
-      )}
-    </Stack>
+        {receipt ? (
+          <Anchor
+            size="xs"
+            component="button"
+            type="button"
+            onClick={() => void viewReceipt(receipt.storage_path)}
+          >
+            Receipt
+          </Anchor>
+        ) : (
+          <Text size="xs" c="dimmed" fs="italic">
+            No receipt
+          </Text>
+        )}
+      </Group>
+      <MoneyText cents={deduction.amount_cents} size="sm" fw={600} />
+    </Group>
   )
 }
 

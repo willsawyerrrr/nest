@@ -301,7 +301,11 @@ describe('EofyScreen', () => {
     expect(within(card).getByText('Total deductions claimed')).toBeInTheDocument()
     // The total and the single deduction's amount are both $300.00.
     expect(within(card).getAllByText('$300.00')).toHaveLength(2)
-    expect(within(card).getByText('Home office')).toBeInTheDocument()
+    const description = within(card).getByText('Home office')
+    // Description, date, and receipt link share one row.
+    const row = description.parentElement?.parentElement as HTMLElement
+    expect(within(row).getByText(formatIsoDate('2026-09-01'))).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
 
     await user.click(within(card).getByRole('button', { name: 'Receipt' }))
     expect(signedUrl).toHaveBeenCalledWith('h1/d1/receipt.pdf')

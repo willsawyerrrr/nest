@@ -258,11 +258,12 @@ Owned by a breakdown; every breakdown is generic.
   collapsed header — tapped to expand, as a gift group is — so the planner below stays
   the first thing the tab shows; the header counts the candidates waiting
   (`From your card (n)`, dropping the count where every row has been set aside), which
-  is the signal that there is anything to act on. Each row shows the
-  transaction's description (or "Card purchase" where Up gives none), its posting
-  date, and its amount, plus a `Pending` badge and a note while the transaction is
-  still `HELD` and its amount can still change on settlement.
-  - **Link to a gift** opens an inline form: a **Recipient** picker, then an
+  is the signal that there is anything to act on. Each row is a compact list row:
+  the transaction's description (or "Card purchase" where Up gives none) over its
+  posting date, the amount as an aligned figure, and two icon actions (**Link to a
+  gift**, **Not a gift**). While the transaction is still `HELD` and its amount can
+  change on settlement, the row carries a `Pending` pill and a caption saying so.
+  - **Link to a gift** opens an inline form under the row: a **Recipient** picker, then an
     **Occasion** picker holding that recipient's occasions, and a description seeded
     from Up's wording, editable into something the gift log
     reads better. The amount and date are fixed to the transaction — a linked
@@ -287,7 +288,7 @@ Owned by a breakdown; every breakdown is generic.
     signed-in member, so their inbox never lists it.
   - **Not a gift** sets a row aside, writing a `gift_transaction_dismissal` — Up
     files charity donations in the same category, so this is routine. The set-aside
-    rows sit behind a `Set aside (n)` toggle, each with an **Undo** that deletes the
+    rows sit behind a `Set aside (n)` toggle, each the same compact row with an **Undo** icon that deletes the
     dismissal and returns the row to the inbox. A dismissal whose transaction the
     signed-in member cannot see is dropped rather than rendered as a blank row.
   - A purchase or dismissal write invalidates the `transactions` cache alongside its

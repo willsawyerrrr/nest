@@ -267,6 +267,38 @@ describe('TradesScreen', () => {
     open.mockRestore()
   })
 
+  it('opens the Add trade card with a contract note picker and closes it once a document-backed trade is saved', async () => {
+    const user = userEvent.setup()
+    const save = vi.fn().mockResolvedValue(undefined)
+    const extract = vi.fn().mockResolvedValue({
+      status: 'read',
+      trades: [
+        {
+          values: {
+            ticker: 'VAS',
+            side: 'buy',
+            traded_on: '2026-07-06',
+            units: 2,
+            price_per_unit_microdollars: 90_000_000,
+          },
+          check: [],
+        },
+      ],
+    })
+    renderScreen({ members: [will], documentActions: makeActions({ extract, save }) })
+
+    await user.click(screen.getByRole('button', { name: /^add trade$/i }))
+    await user.upload(
+      document.querySelector('input[type="file"][multiple]:not([aria-label])') as HTMLInputElement,
+      new File(['x'], 'note.pdf', { type: 'application/pdf' }),
+    )
+    await screen.findByText(/extracted from the contract note by AI/i)
+    await user.click(screen.getByRole('button', { name: /^add trade$/i }))
+
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByLabelText('Contract note')).not.toBeInTheDocument())
+  })
+
   it("reads a picked document into the member's draft trades and closes when done", async () => {
     const user = userEvent.setup()
     const extract = vi.fn().mockResolvedValue({

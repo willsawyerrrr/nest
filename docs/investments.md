@@ -64,7 +64,21 @@ can upsert its own trades without duplicating.
 
 ## Adding trades from a document
 
-Each member's Trades list has an **Add from documents** panel. The member picks
+The **Add trade** card takes a **Contract note** as its first step, as the Add
+deduction card takes a receipt. One file is stored, read by `trade-extract`, and
+its trade opens in the card's form (ticker, side, date, units, price, brokerage)
+with a note that AI read it and a note naming any field to check; the member
+confirms and saves, and the document stays attached to the saved trade
+(`create_trades_with_document`). A type that cannot be read, or a failed or
+switched-off read, shows its fixed note and leaves the document attached for hand
+entry. Remove, or pick another file, deletes the stored file; leaving the card
+deletes it unless a trade was saved. Saving is held while the file is stored or
+read. The card accepts one or many files (multi-select or drop): several files, or
+one document holding several trades, replace the form with the review below, each
+trade a draft, and **Close** ends the card. Editing a trade does not take a
+document: a document is only attached when a trade is created.
+
+Each member's Trades list also has an **Add from documents** panel. The member picks
 broker contract notes, trade confirmations, or statements — several at once, or
 dropped on the panel (any file, up to 25 MiB each; see
 [`bulk-upload.md`](bulk-upload.md)). Each file is uploaded to the private `receipts` bucket, laid out as

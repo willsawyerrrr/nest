@@ -18,6 +18,12 @@ Replacing or adding the receipt of an existing deduction stays a single-file
 control: it targets one record, so there is nothing to batch. Trade documents are
 the only surface where one file yields several drafts.
 
+The Add trade card is the single-trade path to the same machinery: it holds its own
+`useTradeUploadQueue` (the queue `TradeDocumentImport` uses) and opens one file's
+single trade in `TradeForm`. Several files, or one file holding several trades,
+hand that same queue to `BulkUploadPanel` with the trade drafts' `renderDraft`, in
+place of the form.
+
 A deduction batch is read for one kind at a time (work expense, donation receipt,
 tax agent invoice), chosen above the picker; it primes `deduction-extract` and is
 each draft's starting category, still editable per draft.

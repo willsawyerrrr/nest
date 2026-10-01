@@ -22,6 +22,10 @@ interface TradeFormProps {
   initial?: TradeFormValues | undefined
   /** The household's trades, checked for a likely repeat of what is being entered. */
   trades?: readonly TradeRow[] | undefined
+  /** Shown first, above the notice: the document picker and what became of it. */
+  attachment?: ReactNode
+  /** Whether the attachment is still being stored or read, so a save would send no document. */
+  busy?: boolean | undefined
   /** Shown above the fields, e.g. what a draft's document left for the member to check. */
   notice?: ReactNode
   submitLabel?: string | undefined
@@ -35,6 +39,8 @@ export function TradeForm({
   member,
   initial,
   trades,
+  attachment,
+  busy = false,
   notice,
   submitLabel,
   cancelLabel,
@@ -59,7 +65,8 @@ export function TradeForm({
     tradedOn !== null &&
     Number.isFinite(unitsValue) &&
     unitsValue > 0 &&
-    priceMicrodollars !== null
+    priceMicrodollars !== null &&
+    !busy
 
   const buildInput = (): TradeInput => ({
     member_id: member.id,
@@ -91,6 +98,7 @@ export function TradeForm({
       cancelLabel={cancelLabel}
       onCancel={onCancel}
     >
+      {attachment}
       {notice}
       <EnumSegmentedControl
         fullWidth

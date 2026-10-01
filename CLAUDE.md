@@ -160,7 +160,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   private-hospital cover; target financial year FY2027. Each member's HELP/HECS
   balance is a single standing figure (the `help_debt` table, not FY-scoped),
   edited on its own HELP debt tab, that feeds the tax estimate and counts as a
-  net-worth liability. A savings goal's modelled interest rate
+  net-worth liability. The HELP debt tab and the per-member tax profiles (residency,
+  hospital cover, date of birth) are compact list rows on wide screens (name, aligned
+  pill and figure columns, an `Edit <name>` pencil) and bordered cards on narrow ones;
+  editing opens inline in place of the row. A savings goal's modelled interest rate
   (`annual_interest_bps`) is assessable: the estimate adds each goal a projected
   annual figure — `startingBalance × annual_interest_bps / 10000`, a simple
   non-compounding number, off the linked saver's real balance where the goal

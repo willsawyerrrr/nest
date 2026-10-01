@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Group, Stack, Text } from '@mantine/core'
 import type { HelpDebt, HelpDebtInput } from '../hooks/useHelpDebts'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { AppCard } from './AppCard'
 import { EditAction } from './EditAction'
+import { ListRow } from './ListRow'
 import { MoneyInput } from './MoneyInput'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
@@ -15,29 +17,56 @@ interface HelpDebtScreenProps {
   onSave: (input: HelpDebtInput) => Promise<void>
 }
 
-/** One member's HELP balance as a compact read-only row with an Edit affordance. */
-function HelpDebtCard({
-  member,
-  debt,
-  onEdit,
-}: {
+interface HelpDebtItemProps {
   member: Member
   debt?: HelpDebt | undefined
   onEdit: () => void
-}) {
+}
+
+/** One member's HELP balance as a dense row for desktop: name, right-aligned balance, edit. */
+function HelpDebtRowWide({ member, debt, onEdit }: HelpDebtItemProps) {
   return (
-    <AppCard withBorder padding="xs">
+    <ListRow gap="sm" data-testid={`help-debt-${member.id}`}>
+      <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+        {member.name}
+      </Text>
+      <MoneyText
+        cents={debt?.balance_cents ?? 0}
+        fw={700}
+        size="sm"
+        ta="right"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <EditAction
+        aria-label={`Edit ${member.name}’s HELP debt`}
+        onClick={onEdit}
+        style={{ flexShrink: 0 }}
+      />
+    </ListRow>
+  )
+}
+
+/** One member's HELP balance as a compact card for mobile. */
+function HelpDebtCard({ member, debt, onEdit }: HelpDebtItemProps) {
+  return (
+    <AppCard withBorder padding="xs" data-testid={`help-debt-${member.id}`}>
       <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Stack gap={2} style={{ minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate>
-            {member.name}
-          </Text>
-          <MoneyText cents={debt?.balance_cents ?? 0} size="sm" c="dimmed" />
-        </Stack>
-        <EditAction onClick={onEdit} style={{ flexShrink: 0 }} />
+        <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
+          {member.name}
+        </Text>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <MoneyText cents={debt?.balance_cents ?? 0} fw={700} size="sm" />
+          <EditAction aria-label={`Edit ${member.name}’s HELP debt`} onClick={onEdit} />
+        </Group>
       </Group>
     </AppCard>
   )
+}
+
+/** One member's HELP balance, a dense row from the `md` breakpoint up and a compact card below it. */
+function HelpDebtItem(props: HelpDebtItemProps) {
+  const wide = useIsWide()
+  return wide ? <HelpDebtRowWide {...props} /> : <HelpDebtCard {...props} />
 }
 
 /** One member's HELP balance editor: a dollar input that upserts on save. */
@@ -73,7 +102,13 @@ function MemberHelpDebtForm({
   }
 
   return (
-    <AppCard withBorder padding="sm" component="form" onSubmit={handleSubmit}>
+    <AppCard
+      withBorder
+      padding="sm"
+      component="form"
+      onSubmit={handleSubmit}
+      data-testid={`help-debt-${member.id}`}
+    >
       <Stack gap="xs">
         <Text fw={600}>{member.name}</Text>
         <MoneyInput
@@ -135,7 +170,7 @@ export function HelpDebtScreen({ members, helpDebts, onSave }: HelpDebtScreenPro
             onCancel={() => setEditingMemberId(null)}
           />
         ) : (
-          <HelpDebtCard
+          <HelpDebtItem
             key={member.id}
             member={member}
             debt={debtForMember(member.id)}

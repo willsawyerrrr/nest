@@ -3,7 +3,7 @@ import type { Member } from '../hooks/useMembers'
 import type { TradeDocumentRow, UseTradeDocumentsResult } from '../hooks/useTradeDocuments'
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import { formatIsoDate } from '../lib/dates'
-import { formatCents } from '../lib/money'
+import { formatCents, formatUnitPrice } from '../lib/money'
 import { memberPortfolio, type HoldingView } from '../lib/trades'
 import { AppCard } from './AppCard'
 import { EditableList } from './EditableList'
@@ -45,14 +45,14 @@ function HoldingCard({ holding }: { holding: HoldingView }) {
           </Text>
           <Text size="xs" c="dimmed">
             {formatUnits(holding.units)} units &middot; Average cost{' '}
-            {formatCents(holding.averageCostCents)} &middot; Cost base{' '}
+            {formatUnitPrice(holding.averageCostMicrodollars)} &middot; Cost base{' '}
             {formatCents(holding.costBaseCents)}
           </Text>
         </Stack>
         <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
           <MoneyText cents={holding.valueCents} fw={700} size="sm" />
           <Text size="xs" c="dimmed">
-            at {formatCents(holding.lastPriceCents)}
+            at {formatUnitPrice(holding.lastPriceMicrodollars)}
           </Text>
         </Stack>
       </Group>
@@ -91,7 +91,8 @@ function TradeCard({
             )}
           </Group>
           <Text size="xs" c="dimmed">
-            {formatUnits(Number(trade.units))} @ {formatCents(trade.price_per_unit_cents)}
+            {formatUnits(Number(trade.units))} @{' '}
+            {formatUnitPrice(trade.price_per_unit_microdollars)}
             {trade.fee_cents > 0 && <> &middot; Fee {formatCents(trade.fee_cents)}</>} &middot;{' '}
             {formatIsoDate(trade.traded_on)}
           </Text>

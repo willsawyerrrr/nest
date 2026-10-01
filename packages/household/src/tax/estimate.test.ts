@@ -380,7 +380,7 @@ describe('estimateHouseholdTaxFromRows trades', () => {
       side: 'buy',
       traded_on: '2024-01-10',
       units: 100,
-      price_per_unit_cents: 90_00,
+      price_per_unit_microdollars: 90_000_000,
       fee_cents: 0,
       ...overrides,
     }
@@ -404,7 +404,7 @@ describe('estimateHouseholdTaxFromRows trades', () => {
     // 100 units: bought for $9,000, sold for $11,000 after more than 12 months → $2,000 gain, $1,000 assessed.
     const estimate = estimateWith([
       tradeRow(),
-      tradeRow({ side: 'sell', traded_on: '2026-09-01', price_per_unit_cents: 110_00 }),
+      tradeRow({ side: 'sell', traded_on: '2026-09-01', price_per_unit_microdollars: 110_000_000 }),
     ])
     expect(estimate.annualNetCapitalGainCents).toBe(1_000_00)
   })
@@ -412,7 +412,7 @@ describe('estimateHouseholdTaxFromRows trades', () => {
   it('assesses nothing for a sale in another financial year', () => {
     const estimate = estimateWith([
       tradeRow(),
-      tradeRow({ side: 'sell', traded_on: '2026-06-01', price_per_unit_cents: 110_00 }),
+      tradeRow({ side: 'sell', traded_on: '2026-06-01', price_per_unit_microdollars: 110_000_000 }),
     ])
     expect(estimate.annualNetCapitalGainCents).toBe(0)
   })

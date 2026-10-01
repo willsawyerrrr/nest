@@ -61,7 +61,7 @@ export interface TradeRow {
   side: string
   traded_on: string
   units: number
-  price_per_unit_cents: number
+  price_per_unit_microdollars: number
   fee_cents: number
 }
 

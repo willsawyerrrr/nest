@@ -25,10 +25,10 @@ select set_config('td.mid', :'mid', false);
 select set_config('td.payload', jsonb_build_array(
   jsonb_build_object('id', '82000000-0000-0000-0000-000000000001', 'member_id', current_setting('td.mid'),
     'ticker', 'VAS', 'side', 'buy', 'traded_on', '2026-01-10', 'units', 10.5,
-    'price_per_unit_cents', 98_50, 'fee_cents', 9_50),
+    'price_per_unit_microdollars', 98_500_000, 'fee_cents', 9_50),
   jsonb_build_object('id', '82000000-0000-0000-0000-000000000002', 'member_id', current_setting('td.mid'),
     'ticker', 'VGS', 'side', 'sell', 'traded_on', '2026-01-11', 'units', 2,
-    'price_per_unit_cents', 120_00)
+    'price_per_unit_microdollars', 33_083_072)
 )::text, false);
 
 -- One document, two trades, one transaction.
@@ -47,6 +47,8 @@ do $$ begin
   assert (select source from public.trade where ticker = 'VAS') = 'manual', 'an extracted trade stays manual';
   assert (select external_id from public.trade where ticker = 'VAS') is null, 'an extracted trade has no external id';
   assert (select fee_cents from public.trade where ticker = 'VGS') = 0, 'an omitted fee is nil';
+  assert (select price_per_unit_microdollars from public.trade where ticker = 'VGS') = 33_083_072,
+    'a partial-cent price is saved exactly';
   assert (select units from public.trade where ticker = 'VAS') = 10.5, 'fractional units round-trip';
 end $$;
 

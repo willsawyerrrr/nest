@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   centsToDollars,
   dollarsToCents,
+  dollarsToMicrodollars,
   formatCents,
   formatCompactDollars,
   formatPerFortnight,
   formatPerYear,
   formatRatePercent,
+  formatUnitPrice,
+  microdollarsToDollars,
   moneyColor,
   workUseAmountCents,
 } from './money'
@@ -183,5 +186,45 @@ describe('workUseAmountCents', () => {
 
   it('claims nothing of nothing', () => {
     expect(workUseAmountCents(0, 60)).toBe(0)
+  })
+})
+
+describe('formatUnitPrice', () => {
+  it('shows at least cents and up to six places without trailing zeros', () => {
+    expect(formatUnitPrice(98_500_000)).toBe('$98.50')
+    expect(formatUnitPrice(33_083_072)).toBe('$33.083072')
+    expect(formatUnitPrice(35_790_000)).toBe('$35.79')
+    expect(formatUnitPrice(1)).toBe('$0.000001')
+    expect(formatUnitPrice(1_234_500_000)).toBe('$1,234.50')
+  })
+})
+
+describe('microdollarsToDollars', () => {
+  it('returns empty string when unset', () => {
+    expect(microdollarsToDollars(null)).toBe('')
+    expect(microdollarsToDollars(undefined)).toBe('')
+  })
+
+  it('converts microdollars to a dollars number', () => {
+    expect(microdollarsToDollars(33_083_072)).toBe(33.083072)
+  })
+})
+
+describe('dollarsToMicrodollars', () => {
+  it('returns null when blank or unparseable', () => {
+    expect(dollarsToMicrodollars('')).toBeNull()
+    expect(dollarsToMicrodollars('abc')).toBeNull()
+  })
+
+  it('recovers a six-place price exactly from a number or a string', () => {
+    expect(dollarsToMicrodollars(33.083072)).toBe(33_083_072)
+    expect(dollarsToMicrodollars('33.083072')).toBe(33_083_072)
+    expect(dollarsToMicrodollars(8.29)).toBe(8_290_000)
+  })
+
+  it('round-trips every microdollar price it is given', () => {
+    for (const micro of [0, 1, 999_999, 1_000_001, 12_345_678, 4_000_123_457, 987_654_321_123]) {
+      expect(dollarsToMicrodollars(microdollarsToDollars(micro))).toBe(micro)
+    }
   })
 })

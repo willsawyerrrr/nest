@@ -151,7 +151,7 @@ describe('NetWorthSection', () => {
       side,
       traded_on: tradedOn,
       units,
-      price_per_unit_cents: priceCents,
+      price_per_unit_microdollars: priceCents * 10_000,
       fee_cents: 0,
     })
     hooks.useTrades.mockReturnValue({

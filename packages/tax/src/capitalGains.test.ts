@@ -22,7 +22,7 @@ function trade(
     side,
     tradedOn,
     units,
-    pricePerUnitCents: Math.round(priceDollars * 100),
+    pricePerUnitMicrodollars: Math.round(priceDollars * 1_000_000),
     feeCents: Math.round(feeDollars * 100),
     ...overrides,
   }
@@ -40,7 +40,7 @@ describe('matchTrades holdings', () => {
         ticker: 'VAS',
         units: 150,
         costBaseCents: 100 * 9000 + 1000 + 50 * 9600 + 1000,
-        averageCostCents: Math.round((9_000_00 + 10_00 + 4_800_00 + 10_00) / 150),
+        averageCostMicrodollars: 92_133_333,
       },
     ])
   })
@@ -63,7 +63,7 @@ describe('matchTrades holdings', () => {
     expect(holdings[0]).toMatchObject({
       units: 0.5,
       costBaseCents: 50_00,
-      averageCostCents: 100_00,
+      averageCostMicrodollars: 100_000_000,
     })
   })
 })
@@ -235,7 +235,7 @@ describe('netCapitalGainByMember', () => {
 describe('valuation', () => {
   it('values a holding at a price per unit', () => {
     const { holdings } = matchTrades([trade('buy', '2025-08-01', 12.5, 10)])
-    expect(holdingValueCents(holdings[0]!, 1_234)).toBe(Math.round(12.5 * 1234))
+    expect(holdingValueCents(holdings[0]!, 12_340_000)).toBe(Math.round(12.5 * 1234))
   })
 
   it('takes the latest trade price per ticker, later-supplied winning a tie', () => {
@@ -245,8 +245,8 @@ describe('valuation', () => {
       trade('buy', '2025-09-01', 1, 13),
       trade('buy', '2025-07-01', 1, 9, 0, { ticker: 'NDQ' }),
     ])
-    expect(prices.get('VAS')).toBe(13_00)
-    expect(prices.get('NDQ')).toBe(9_00)
+    expect(prices.get('VAS')).toBe(13_000_000)
+    expect(prices.get('NDQ')).toBe(9_000_000)
   })
 
   it('keeps the newer price when an older trade is supplied after it', () => {
@@ -254,6 +254,145 @@ describe('valuation', () => {
       trade('buy', '2025-09-01', 1, 13),
       trade('buy', '2025-01-01', 1, 9),
     ])
-    expect(prices.get('VAS')).toBe(13_00)
+    expect(prices.get('VAS')).toBe(13_000_000)
+  })
+})
+
+describe('exact unit prices', () => {
+  it("rounds a purchase's consideration to the cent once, as the contract note prints it", () => {
+    // 2 units at $33.083072 = $66.166144, printed as $66.17; plus $2.00 brokerage = $68.17.
+    const { holdings } = matchTrades([trade('buy', '2024-10-25', 2, 33.083072, 2)])
+    expect(holdings[0]).toMatchObject({
+      units: 2,
+      costBaseCents: 68_17,
+      averageCostMicrodollars: 34_085_000,
+    })
+  })
+
+  it("rounds a sale's proceeds from the exact price, net of brokerage", () => {
+    // 28 units at $35.79 = $1,002.12; less $2.00 brokerage = $1,000.12.
+    const { gains } = matchTrades([
+      trade('buy', '2024-10-25', 28, 30),
+      trade('sell', '2026-04-13', 28, 35.79, 2),
+    ])
+    expect(gains).toHaveLength(1)
+    expect(gains[0]).toMatchObject({
+      costBaseCents: 840_00,
+      proceedsCents: 1_000_12,
+      gainCents: 160_12,
+      discountEligible: true,
+    })
+  })
+
+  it('does not lose a sub-cent price that rounding it to cents would change', () => {
+    // At $0.004 a cent-rounded price is $0.00 and the 1,000-unit parcel would be free.
+    const { holdings } = matchTrades([trade('buy', '2025-08-01', 1_000, 0.004)])
+    expect(holdings[0]!.costBaseCents).toBe(4_00)
+  })
+
+  it('rounds a half cent up', () => {
+    const { holdings } = matchTrades([trade('buy', '2025-08-01', 3, 0.835)])
+    expect(holdings[0]!.costBaseCents).toBe(2_51)
+    expect(holdingValueCents(holdings[0]!, 835_000)).toBe(2_51)
+  })
+
+  it('values a holding at the exact last price', () => {
+    const { holdings } = matchTrades([trade('buy', '2025-08-01', 7, 12.345678)])
+    // 7 × 12.345678 = 86.419746
+    expect(holdingValueCents(holdings[0]!, 12_345_678)).toBe(86_42)
+    expect(lastPriceByTicker([trade('buy', '2025-08-01', 7, 12.345678)]).get('VAS')).toBe(
+      12_345_678,
+    )
+  })
+
+  it("splits a part-sold parcel's cost exactly with partial-cent prices", () => {
+    const { gains, holdings } = matchTrades([
+      trade('buy', '2025-08-01', 3, 32.418156, 2),
+      trade('sell', '2025-09-01', 1, 40.5, 2),
+      trade('sell', '2025-10-01', 1, 41.123456, 2),
+    ])
+    // Parcel cost: 3 × 32.418156 = 97.254468 → 97.25, plus 2.00 = 99.25.
+    const costs = gains.map((gain) => gain.costBaseCents)
+    expect(costs).toEqual([33_08, 33_09])
+    expect(costs[0]! + costs[1]! + holdings[0]!.costBaseCents).toBe(99_25)
+  })
+})
+
+/** A deterministic generator, so the property checks are repeatable. */
+function lcg(seed: number): () => number {
+  let state = seed
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296
+    return state / 4_294_967_296
+  }
+}
+
+/** `units` micro-units at `price` microdollars, in cents rounded half-up, by independent BigInt. */
+function exactCents(units: number, priceMicrodollars: number): number {
+  const numerator = BigInt(Math.round(units * 1e6)) * BigInt(priceMicrodollars)
+  const scale = 10n ** 10n
+  return Number((numerator * 2n + scale) / (2n * scale))
+}
+
+describe('exactness properties', () => {
+  /** Forty trades on distinct, increasing dates, selling only what is held. */
+  function randomTrades(seed: number): TradeInput[] {
+    const next = lcg(seed)
+    const trades: TradeInput[] = []
+    let held = 0
+    for (let i = 0; i < 40; i++) {
+      const date = new Date(Date.UTC(2023, 0, 1 + i * 17)).toISOString().slice(0, 10)
+      const price = Math.round((0.01 + next() * 120) * 1_000_000) / 1_000_000
+      const fee = Math.round(next() * 1500) / 100
+      const sell = held > 0 && next() < 0.4
+      const units = sell ? Math.max(1, Math.floor(next() * held)) : 1 + Math.floor(next() * 400)
+      held += sell ? -units : units
+      trades.push(trade(sell ? 'sell' : 'buy', date, units, price, fee))
+    }
+    return trades
+  }
+
+  const seeds = [1, 2, 3, 7, 11, 42, 99, 2024]
+
+  it.each(seeds)('conserves cost base, proceeds, and units across matching (seed %i)', (seed) => {
+    const trades = randomTrades(seed)
+    const { holdings, gains, unmatchedSales } = matchTrades(trades)
+    expect(unmatchedSales).toEqual([])
+
+    // A buy's cost is its exact consideration plus fee; every cent ends in a gain or a holding.
+    const bought = trades
+      .filter((t) => t.side === 'buy')
+      .reduce((total, t) => total + exactCents(t.units, t.pricePerUnitMicrodollars) + t.feeCents, 0)
+    const soldCost = gains.reduce((total, gain) => total + gain.costBaseCents, 0)
+    const heldCost = holdings.reduce((total, holding) => total + holding.costBaseCents, 0)
+    expect(soldCost + heldCost).toBe(bought)
+
+    // A sale's proceeds are fully allocated across its pieces.
+    const proceeds = trades
+      .filter((t) => t.side === 'sell')
+      .reduce((total, t) => total + exactCents(t.units, t.pricePerUnitMicrodollars) - t.feeCents, 0)
+    expect(gains.reduce((total, gain) => total + gain.proceedsCents, 0)).toBe(proceeds)
+
+    // Units are conserved to the micro-unit.
+    const micro = (units: number) => Math.round(units * 1e6)
+    const net = trades.reduce((total, t) => total + (t.side === 'buy' ? 1 : -1) * micro(t.units), 0)
+    expect(holdings.reduce((total, h) => total + micro(h.units), 0)).toBe(net)
+  })
+
+  it.each(seeds)('does not depend on the order trades are supplied in (seed %i)', (seed) => {
+    const trades = randomTrades(seed)
+    const next = lcg(seed + 1)
+    const shuffled = [...trades].sort(() => next() - 0.5)
+    expect(matchTrades(shuffled)).toEqual(matchTrades(trades))
+  })
+
+  it.each(seeds)('values every holding as the exact rounded product (seed %i)', (seed) => {
+    const next = lcg(seed)
+    for (let i = 0; i < 50; i++) {
+      const units = 1 + Math.floor(next() * 1_000_000) / 1000
+      const price = Math.round(next() * 500 * 1_000_000)
+      const { holdings } = matchTrades([trade('buy', '2025-01-01', units, 1)])
+      expect(holdingValueCents(holdings[0]!, price)).toBe(exactCents(units, price))
+    }
   })
 })

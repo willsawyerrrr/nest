@@ -7,7 +7,39 @@ deleting a trade recalculates every figure. The math is pure, in `@nest/tax`
 (`capitalGains.ts`); the schema is the `trade` table in
 [`data-model.md`](data-model.md#share-and-etf-trades).
 
-Amounts are integer cents; units may be fractional (up to six decimal places).
+Amounts are integer cents, with one exception: a **unit price** is held exactly,
+as integer **microdollars** (millionths of a dollar; 10,000 per cent), because a
+broker prints a security's average price to six decimal places (`33.083072`).
+Units may be fractional (up to six decimal places). See [Exact unit
+prices](#exact-unit-prices).
+
+## Exact unit prices
+
+`trade.price_per_unit_microdollars` is a `bigint`: `$33.083072` is `33083072`,
+`$98.50` is `98500000`. An integer column keeps the price exact end to end — no
+float or decimal sits between the database, the edge function, and `@nest/tax`.
+Everything else in the schema (deductions, income, fees) stays in integer cents;
+securities are the only place sub-cent amounts arise. The price has at most six
+decimal places; the trade form, the document reader, and the column all refuse more
+rather than round.
+
+All arithmetic on a price is integer, in `BigInt` where a product can pass 2^53
+(`@nest/tax`'s `unitPrice.ts`), and rounds to whole cents **half-up, once per
+trade**, at the point a dollar figure is produced:
+
+- A trade's **consideration** is `units × price`, rounded to the cent. This is the
+  figure a contract note prints (`2 × 33.083072 = 66.166144` → `$66.17`), so a
+  buy's cost base and a sell's proceeds reconcile with the note's total cost and
+  net proceeds to the cent.
+- A buy's cost is `consideration + brokerage`; a sell's proceeds are
+  `consideration − brokerage`. Both are whole cents from here on.
+- A parcel part-sold or a sale spread over several parcels is split in proportion
+  to the units taken, each share rounded half-up, with the remainder on the last
+  piece, so the pieces always sum to the parcel's cost and the sale's proceeds.
+- A holding's **market value** is `units × last traded price`, rounded once to the
+  cent. Its **average cost** is cost base per unit, kept as a unit price in
+  microdollars and shown to as many places as it needs (up to six).
+- Realised gains, the CGT discount, and net worth are sums of whole-cent figures.
 
 ## Recording trades
 
@@ -42,11 +74,25 @@ converted to JPEG in the browser where possible and then read.
 
 - Extraction writes nothing. Each draft is the member's to **save**, edit, or
   **discard**; the first save stores the document, and the rest reuse it.
-- Units and money are the literal printed text, converted in TypeScript: money to
-  integer cents, units to a number of at most six decimal places. A price with
-  sub-cent digits (`98.4567`) cannot be held in whole cents and is flagged for the
-  member to enter rather than rounded; trailing zeros (`98.5000`) are dropped. An
-  absent brokerage fee is nil.
+- Units and money are the literal printed text, converted in TypeScript: a price
+  to integer microdollars (`33.083072` → `33083072`), the brokerage fee to integer
+  cents, units to a number of at most six decimal places. A price finer than six
+  decimal places (`33.0830721`) is flagged for the member to enter rather than
+  rounded; zeros past the sixth place (`35.7900000`) are dropped. An absent
+  brokerage fee is nil.
+- **CommSec contract notes** are read as printed: the ticker is the code under the
+  security name, the side is “We have bought” / “We have sold”, the date is
+  `DATE:` (never the settlement date), units are `TOTAL UNITS`, and the price is
+  the six-decimal `AVERAGE PRICE` (several fills are summarised by it).
+- **Brokerage is the fee including GST.** CommSec prints `BROKERAGE & COSTS INCL
+  GST` (`$2.00`) and a separate `TOTAL GST` (`$0.18`, already inside the $2.00);
+  the fee is the first, and the GST line is never added or subtracted. For an
+  individual not registered for GST, GST on brokerage is not claimable as an
+  input tax credit, so the whole amount is an incidental cost of acquiring or
+  disposing of the asset (ITAA 1997 s 110-25(4)): it joins a buy's cost base and
+  comes off a sell's proceeds, as the contract note's `TOTAL COST` and
+  `NET PROCEEDS` already do. Where another broker prints only an ex-GST
+  brokerage figure, that figure is read; nothing is derived.
 - A field the document did not show, or showed in a form that could not be read
   safely, is left blank and named in a note on the draft.
 - A date printed without a year resolves within the financial year the trades are
@@ -89,8 +135,8 @@ to manual entry. See
 
 Each member's holding of a ticker is the units left after matching sales to
 purchases. The tab shows units, **cost base** (the unsold parcels' cost,
-brokerage included), **average cost** (cost base per unit, to the cent), and
-market value.
+brokerage included), **average cost** (cost base per unit, to up to six decimal
+places), and market value.
 
 ## Parcel matching
 
@@ -100,9 +146,12 @@ A parcel part-sold carries its remaining cost base forward; rounding remainders
 land on the last piece so a sale's proceeds and a parcel's cost are each
 allocated exactly.
 
-- A buy's cost base is `units × price + brokerage`.
-- A sell's proceeds are `units × price − brokerage`, shared across the parcels it
-  consumes in proportion to the units taken from each.
+- A buy's cost base is `units × price + brokerage`, the product rounded to the
+  cent once (see [Exact unit prices](#exact-unit-prices)); brokerage is the fee
+  including GST.
+- A sell's proceeds are `units × price − brokerage`, rounded the same way and
+  shared across the parcels it consumes in proportion to the units taken from
+  each.
 - Units sold beyond the recorded buys are left out of every gain and flagged on
   the tab so the trades can be corrected.
 

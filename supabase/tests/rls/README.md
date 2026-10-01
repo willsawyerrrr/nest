@@ -121,6 +121,13 @@ instance and can also be run locally.
   and fee, is keyed unique on `(source, external_id)` (with manual trades
   coexisting and an upsert on the key updating in place), and is readable by
   `service_role` for the EOFY share view.
+- `trade_unit_price.sql` — the assertions that the migration holding a trade's
+  unit price exactly (`price_per_unit_microdollars`) preserves every stored
+  price: a cent becomes 10,000 microdollars, a zero stays zero, a large price
+  converts without loss, no row is touched (`updated_at` holds), fees stay in
+  cents, the price cannot be negative, and `create_trades_with_document` saves a
+  partial-cent price (`33.083072`) exactly. It rebuilds the whole-cent shape and
+  runs the migration over it.
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and
@@ -149,14 +156,14 @@ instance and can also be run locally.
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_source_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
-`inflow_joint_split.sql` → `trade.sql`.
+`inflow_joint_split.sql` → `trade.sql` → `trade_unit_price.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
 ## Run locally
 
-`payslip_financial_year.sql`, `payslip_lines.sql`, and
-`deduction_donation_group.sql` include a migration by a path relative to their
+`payslip_financial_year.sql`, `payslip_lines.sql`,
+`deduction_donation_group.sql`, and `trade_unit_price.sql` include a migration by a path relative to their
 own location, so run the scripts by path with a client on the
 host rather than piping them into the container on stdin.
 
@@ -185,5 +192,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade_unit_price.sql
 docker rm -f pba-rls
 ```

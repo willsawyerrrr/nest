@@ -5,7 +5,12 @@ import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { TradeFormValues, TradeInput, TradeRow } from '../hooks/useTrades'
 import { todayIso } from '../lib/dates'
 import type { TradeSide } from '../lib/domain'
-import { centsToDollars, dollarsToCents } from '../lib/money'
+import {
+  centsToDollars,
+  dollarsToCents,
+  dollarsToMicrodollars,
+  microdollarsToDollars,
+} from '../lib/money'
 import { findDuplicateTrade, TRADE_SIDES } from '../lib/trades'
 import { EnumSegmentedControl } from './EnumSelect'
 import { FormShell } from './FormShell'
@@ -42,17 +47,19 @@ export function TradeForm({
   const [units, setUnits] = useState<number | string>(
     initial?.units === undefined ? '' : Number(initial.units),
   )
-  const [price, setPrice] = useState<number | string>(centsToDollars(initial?.price_per_unit_cents))
+  const [price, setPrice] = useState<number | string>(
+    microdollarsToDollars(initial?.price_per_unit_microdollars),
+  )
   const [fee, setFee] = useState<number | string>(centsToDollars(initial?.fee_cents))
 
   const unitsValue = typeof units === 'number' ? units : Number.parseFloat(units)
-  const priceCents = dollarsToCents(price)
+  const priceMicrodollars = dollarsToMicrodollars(price)
   const canSubmit =
     ticker.trim() !== '' &&
     tradedOn !== null &&
     Number.isFinite(unitsValue) &&
     unitsValue > 0 &&
-    priceCents !== null
+    priceMicrodollars !== null
 
   const buildInput = (): TradeInput => ({
     member_id: member.id,
@@ -60,7 +67,7 @@ export function TradeForm({
     side,
     traded_on: tradedOn!,
     units: unitsValue,
-    price_per_unit_cents: priceCents!,
+    price_per_unit_microdollars: priceMicrodollars!,
     fee_cents: dollarsToCents(fee) ?? 0,
   })
   const repeat = canSubmit && trades && findDuplicateTrade(trades, buildInput(), initial?.id)
@@ -126,7 +133,10 @@ export function TradeForm({
         <MoneyInput
           label="Price per unit"
           size="sm"
+          description="Up to six decimal places."
           min={0}
+          decimalScale={6}
+          fixedDecimalScale={false}
           hideControls
           value={price}
           onChange={setPrice}

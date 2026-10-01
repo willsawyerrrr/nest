@@ -1918,7 +1918,7 @@ export type Database = {
           household_id: string
           id: string
           member_id: string
-          price_per_unit_cents: number
+          price_per_unit_microdollars: number
           side: Database['public']['Enums']['trade_side']
           source: Database['public']['Enums']['ledger_source']
           ticker: string
@@ -1934,7 +1934,7 @@ export type Database = {
           household_id: string
           id?: string
           member_id: string
-          price_per_unit_cents: number
+          price_per_unit_microdollars: number
           side: Database['public']['Enums']['trade_side']
           source?: Database['public']['Enums']['ledger_source']
           ticker: string
@@ -1950,7 +1950,7 @@ export type Database = {
           household_id?: string
           id?: string
           member_id?: string
-          price_per_unit_cents?: number
+          price_per_unit_microdollars?: number
           side?: Database['public']['Enums']['trade_side']
           source?: Database['public']['Enums']['ledger_source']
           ticker?: string

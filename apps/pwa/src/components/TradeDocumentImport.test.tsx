@@ -21,7 +21,7 @@ const buy = {
     side: 'buy' as const,
     traded_on: '2026-07-06',
     units: 10.5,
-    price_per_unit_cents: 98_50,
+    price_per_unit_microdollars: 98_500_000,
     fee_cents: 9_50,
   },
   check: [],
@@ -124,7 +124,7 @@ describe('TradeDocumentImport', () => {
           side: 'buy',
           traded_on: '2026-07-06',
           units: 10.5,
-          price_per_unit_cents: 98_50,
+          price_per_unit_microdollars: 98_500_000,
           fee_cents: 9_50,
         },
       }),
@@ -167,7 +167,7 @@ describe('TradeDocumentImport', () => {
       ticker: 'VAS',
       traded_on: '2026-07-06',
       units: 10.5,
-      price_per_unit_cents: 98_50,
+      price_per_unit_microdollars: 98_500_000,
     } as TradeRow
     const { user } = renderImport(actions(), [existing])
     await pick(user, pdf('one.pdf'))

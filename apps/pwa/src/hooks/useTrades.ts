@@ -13,7 +13,8 @@ export interface TradeInput {
   side: Enums<'trade_side'>
   traded_on: string
   units: number
-  price_per_unit_cents: number
+  /** The exact price per unit in integer microdollars (millionths of a dollar). */
+  price_per_unit_microdollars: number
   fee_cents: number
 }
 

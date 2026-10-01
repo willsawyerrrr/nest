@@ -24,8 +24,8 @@ select set_config('tr.mid', :'mid', false);
 
 -- A hand-entered trade defaults to the manual source with no external id, and a
 -- zero fee.
-insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents)
-  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'VAS', 'buy', '2026-01-10', 10.5, 98_50);
+insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
+  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'VAS', 'buy', '2026-01-10', 10.5, 98_500_000);
 
 do $$ begin
   assert (select source from public.trade) = 'manual', 'a trade defaults to the manual source';
@@ -34,9 +34,18 @@ do $$ begin
   assert (select units from public.trade) = 10.5, 'fractional units round-trip';
 end $$;
 
+-- A price finer than a cent is held exactly, to six decimal places.
+insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
+  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'IOZ', 'buy', '2026-01-12', 2, 33_083_072);
+do $$ begin
+  assert (select price_per_unit_microdollars from public.trade where ticker = 'IOZ') = 33_083_072,
+    'a partial-cent price round-trips exactly';
+end $$;
+delete from public.trade where ticker = 'IOZ';
+
 -- Several manual trades coexist: a null external_id never collides.
-insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents)
-  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'VAS', 'sell', '2026-02-10', 5, 100_00);
+insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
+  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'VAS', 'sell', '2026-02-10', 5, 100_000_000);
 
 do $$ begin
   assert (select count(*) from public.trade) = 2, 'manual trades with no external id coexist';
@@ -48,31 +57,31 @@ declare
   v_mid uuid := current_setting('tr.mid')::uuid;
 begin
   begin
-    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents)
-      values (v_hid, v_mid, 'vas', 'buy', '2026-01-10', 1, 1_00);
+    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
+      values (v_hid, v_mid, 'vas', 'buy', '2026-01-10', 1, 1_000_000);
     raise exception 'FAIL: a lower-case ticker was saved';
   exception when check_violation then
     raise notice 'PASS: the ticker is stored upper-case';
   end;
 
   begin
-    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents)
-      values (v_hid, v_mid, '', 'buy', '2026-01-10', 1, 1_00);
+    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
+      values (v_hid, v_mid, '', 'buy', '2026-01-10', 1, 1_000_000);
     raise exception 'FAIL: an empty ticker was saved';
   exception when check_violation then
     raise notice 'PASS: the ticker cannot be empty';
   end;
 
   begin
-    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents)
-      values (v_hid, v_mid, 'VAS', 'buy', '2026-01-10', 0, 1_00);
+    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
+      values (v_hid, v_mid, 'VAS', 'buy', '2026-01-10', 0, 1_000_000);
     raise exception 'FAIL: a zero-unit trade was saved';
   exception when check_violation then
     raise notice 'PASS: units must be positive';
   end;
 
   begin
-    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents)
+    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars)
       values (v_hid, v_mid, 'VAS', 'buy', '2026-01-10', 1, -1);
     raise exception 'FAIL: a negative price was saved';
   exception when check_violation then
@@ -80,7 +89,7 @@ begin
   end;
 
   begin
-    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents, fee_cents)
+    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars, fee_cents)
       values (v_hid, v_mid, 'VAS', 'buy', '2026-01-10', 1, 1_00, -1);
     raise exception 'FAIL: a negative fee was saved';
   exception when check_violation then
@@ -90,22 +99,22 @@ end $$;
 
 -- An imported trade is keyed by (source, external_id): a repeat is refused, and
 -- an upsert on the key updates it in place.
-insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents, source, external_id)
-  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'NDQ', 'buy', '2026-03-01', 2, 40_00, 'redbark', 'rb-1');
+insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars, source, external_id)
+  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'NDQ', 'buy', '2026-03-01', 2, 40_000_000, 'redbark', 'rb-1');
 
 do $$ begin
   begin
-    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents, source, external_id)
-      values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'NDQ', 'buy', '2026-03-01', 2, 40_00, 'redbark', 'rb-1');
+    insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars, source, external_id)
+      values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'NDQ', 'buy', '2026-03-01', 2, 40_000_000, 'redbark', 'rb-1');
     raise exception 'FAIL: a duplicate (source, external_id) was saved';
   exception when unique_violation then
     raise notice 'PASS: (source, external_id) is unique';
   end;
 end $$;
 
-insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents, source, external_id)
-  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'NDQ', 'buy', '2026-03-01', 3, 41_00, 'redbark', 'rb-1')
-  on conflict (source, external_id) do update set units = excluded.units, price_per_unit_cents = excluded.price_per_unit_cents;
+insert into public.trade (household_id, member_id, ticker, side, traded_on, units, price_per_unit_microdollars, source, external_id)
+  values (current_setting('tr.hid')::uuid, current_setting('tr.mid')::uuid, 'NDQ', 'buy', '2026-03-01', 3, 41_000_000, 'redbark', 'rb-1')
+  on conflict (source, external_id) do update set units = excluded.units, price_per_unit_microdollars = excluded.price_per_unit_microdollars;
 
 do $$ begin
   assert (select count(*) from public.trade where external_id = 'rb-1') = 1, 'an upsert on the key keeps one row';

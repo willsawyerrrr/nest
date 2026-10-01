@@ -8,16 +8,25 @@
  * holding of one ticker. A buy's brokerage joins its cost base and a sell's
  * brokerage comes off its proceeds. A parcel held for MORE than 12 months when it
  * is sold is eligible for the 50% CGT discount, applied after capital losses.
- * Units are held internally as integer micro-units so fractional units sum
- * exactly.
+ * Units are held internally as integer micro-units and unit prices as integer
+ * microdollars (`unitPrice.ts`), so nothing here uses floating point. Each
+ * trade's consideration (`units × price`) is rounded half-up to whole cents once,
+ * as a contract note prints it; every other figure derives from whole cents.
  */
 
 import type { FinancialYear, Money } from './index.ts'
+import {
+  centsToMicrodollars,
+  MICRO_UNITS_PER_UNIT,
+  scaleRoundHalfUp,
+  unitsValueCents,
+  type Microdollars,
+} from './unitPrice.ts'
 
 /** The fraction of a discount-eligible gain that remains assessable (a 50% discount). */
 export const CGT_DISCOUNT_RETAINED = 0.5
 
-const MICRO = 1_000_000
+const MICRO = MICRO_UNITS_PER_UNIT
 
 /** Whether a trade acquires or disposes of units. */
 export type TradeSide = 'buy' | 'sell'
@@ -30,7 +39,8 @@ export interface TradeInput {
   /** The trade date (ISO `YYYY-MM-DD`). */
   readonly tradedOn: string
   readonly units: number
-  readonly pricePerUnitCents: Money
+  /** The exact price per unit, excluding brokerage, in microdollars. */
+  readonly pricePerUnitMicrodollars: Microdollars
   readonly feeCents: Money
 }
 
@@ -41,8 +51,8 @@ export interface Holding {
   readonly units: number
   /** Total cost of the unsold parcels, brokerage included. */
   readonly costBaseCents: Money
-  /** `costBaseCents` per unit, to the nearest cent. */
-  readonly averageCostCents: Money
+  /** `costBaseCents` per unit, in microdollars (rounded half-up). */
+  readonly averageCostMicrodollars: Microdollars
 }
 
 /** The portion of one sale matched against one purchase parcel. */
@@ -118,11 +128,6 @@ function toMicro(units: number): number {
   return Math.round(units * MICRO)
 }
 
-/** `unitsMicro` at `priceCents` per unit, to the nearest cent. */
-function valueCents(unitsMicro: number, priceCents: Money): Money {
-  return Math.round((unitsMicro * priceCents) / MICRO)
-}
-
 interface Parcel {
   readonly acquiredOn: string
   unitsMicro: number
@@ -162,7 +167,7 @@ export function matchTrades(trades: readonly TradeInput[]): TradeMatching {
       parcelsByKey.set(key, book)
     }
     const unitsMicro = toMicro(trade.units)
-    const grossCents = valueCents(unitsMicro, trade.pricePerUnitCents)
+    const grossCents = unitsValueCents(unitsMicro, trade.pricePerUnitMicrodollars)
 
     if (trade.side === 'buy') {
       book.parcels.push({
@@ -182,12 +187,12 @@ export function matchTrades(trades: readonly TradeInput[]): TradeMatching {
       const parcelExhausted = takeMicro === parcel.unitsMicro
       const costCents = parcelExhausted
         ? parcel.costCents
-        : Math.round((parcel.costCents * takeMicro) / parcel.unitsMicro)
+        : scaleRoundHalfUp(parcel.costCents, takeMicro, parcel.unitsMicro)
       remainingMicro -= takeMicro
       const piecesDone = remainingMicro === 0
       const pieceProceedsCents = piecesDone
         ? proceedsCents - allocatedProceedsCents
-        : Math.round((proceedsCents * takeMicro) / unitsMicro)
+        : scaleRoundHalfUp(proceedsCents, takeMicro, unitsMicro)
       allocatedProceedsCents += pieceProceedsCents
       gains.push({
         memberId: trade.memberId,
@@ -230,15 +235,19 @@ export function matchTrades(trades: readonly TradeInput[]): TradeMatching {
       ticker,
       units: unitsMicro / MICRO,
       costBaseCents,
-      averageCostCents: Math.round((costBaseCents * MICRO) / unitsMicro),
+      averageCostMicrodollars: scaleRoundHalfUp(
+        centsToMicrodollars(costBaseCents),
+        MICRO,
+        unitsMicro,
+      ),
     })
   }
   return { holdings, gains, unmatchedSales }
 }
 
-/** The market value of `holding` at `pricePerUnitCents`, to the nearest cent. */
-export function holdingValueCents(holding: Holding, pricePerUnitCents: Money): Money {
-  return valueCents(toMicro(holding.units), pricePerUnitCents)
+/** The market value of `holding` at `pricePerUnitMicrodollars`, to the nearest cent. */
+export function holdingValueCents(holding: Holding, pricePerUnitMicrodollars: Microdollars): Money {
+  return unitsValueCents(toMicro(holding.units), pricePerUnitMicrodollars)
 }
 
 /**
@@ -246,15 +255,15 @@ export function holdingValueCents(holding: Holding, pricePerUnitCents: Money): M
  * recent `tradedOn`, the later-supplied trade winning a tie. Values holdings at
  * the last price paid or received.
  */
-export function lastPriceByTicker(trades: readonly TradeInput[]): Map<string, Money> {
-  const latest = new Map<string, { tradedOn: string; priceCents: Money }>()
+export function lastPriceByTicker(trades: readonly TradeInput[]): Map<string, Microdollars> {
+  const latest = new Map<string, { tradedOn: string; price: Microdollars }>()
   for (const trade of trades) {
     const seen = latest.get(trade.ticker)
     if (!seen || trade.tradedOn >= seen.tradedOn) {
-      latest.set(trade.ticker, { tradedOn: trade.tradedOn, priceCents: trade.pricePerUnitCents })
+      latest.set(trade.ticker, { tradedOn: trade.tradedOn, price: trade.pricePerUnitMicrodollars })
     }
   }
-  return new Map([...latest].map(([ticker, { priceCents }]) => [ticker, priceCents]))
+  return new Map([...latest].map(([ticker, { price }]) => [ticker, price]))
 }
 
 /**

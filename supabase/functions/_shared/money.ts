@@ -120,6 +120,40 @@ export function parseCents(raw: unknown): number | null {
   return negative && cents !== 0 ? -cents : cents
 }
 
+/** The most decimal places a unit price holds: microdollars. */
+const MICRODOLLAR_PLACES = 6
+
+/** A non-negative price: thousands groups or plain digits, then any decimal digits. */
+const PRICE = /^(?:(\d{1,3}(?:,\d{3})+)|(\d*))(?:\.(\d+))?$/
+
+/**
+ * Parses a unit price as printed into integer microdollars (millionths of a
+ * dollar), or `null` when the text is not unambiguously a non-negative price of
+ * at most six decimal places. Digits past the sixth are accepted only when they
+ * are all zeros (`35.7900000`); any other is a price this precision cannot hold,
+ * so it is `null` rather than rounded. Integer arithmetic on the digit strings,
+ * as for `parseCents`.
+ */
+export function parseMicrodollars(raw: unknown): number | null {
+  if (typeof raw !== 'string') return null
+  let text = raw.replace(/\s/g, '')
+  if (isPlaceholder(text)) return null
+  const currency = CURRENCY.exec(text)
+  if (currency) text = text.slice(currency[0].length)
+
+  const match = PRICE.exec(text)
+  if (!match || !/\d/.test(text)) return null
+
+  const [, grouped, plain, fraction = ''] = match
+  const dollarDigits = (grouped ? grouped.replaceAll(',', '') : plain) || '0'
+  if (dollarDigits.replace(/^0+/, '').length > MAX_DOLLAR_DIGITS) return null
+  if (/[^0]/.test(fraction.slice(MICRODOLLAR_PLACES))) return null
+
+  const micro = Number(dollarDigits) * 1_000_000 +
+    Number(fraction.slice(0, MICRODOLLAR_PLACES).padEnd(6, '0'))
+  return Number.isSafeInteger(micro) ? micro : null
+}
+
 /**
  * Parses a date the model reports as ISO `YYYY-MM-DD`, or `null` when it is not
  * a real calendar date. The round-trip rejects an impossible day (`2026-02-31`)

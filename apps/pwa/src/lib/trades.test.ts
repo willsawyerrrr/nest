@@ -12,7 +12,7 @@ function trade(overrides: Partial<TradeRow> = {}): TradeRow {
     side: 'buy',
     traded_on: '2024-01-10',
     units: 100,
-    price_per_unit_cents: 90_00,
+    price_per_unit_microdollars: 90_000_000,
     fee_cents: 0,
     source: 'manual',
     document_id: null,
@@ -26,14 +26,21 @@ function trade(overrides: Partial<TradeRow> = {}): TradeRow {
 describe('memberPortfolio', () => {
   it('values a holding at the ticker’s last traded price, even one another member traded', () => {
     const portfolio = memberPortfolio(
-      [trade(), trade({ member_id: 'm2', traded_on: '2025-01-01', price_per_unit_cents: 120_00 })],
+      [
+        trade(),
+        trade({
+          member_id: 'm2',
+          traded_on: '2025-01-01',
+          price_per_unit_microdollars: 120_000_000,
+        }),
+      ],
       'm1',
     )
     expect(portfolio.holdings).toEqual([
       expect.objectContaining({
         ticker: 'VAS',
         units: 100,
-        lastPriceCents: 120_00,
+        lastPriceMicrodollars: 120_000_000,
         valueCents: 12_000_00,
       }),
     ])
@@ -43,8 +50,18 @@ describe('memberPortfolio', () => {
     const portfolio = memberPortfolio(
       [
         trade({ units: '10' as unknown as number }),
-        trade({ side: 'sell', traded_on: '2025-08-01', units: 4, price_per_unit_cents: 100_00 }),
-        trade({ side: 'sell', traded_on: '2026-08-01', units: 4, price_per_unit_cents: 100_00 }),
+        trade({
+          side: 'sell',
+          traded_on: '2025-08-01',
+          units: 4,
+          price_per_unit_microdollars: 100_000_000,
+        }),
+        trade({
+          side: 'sell',
+          traded_on: '2026-08-01',
+          units: 4,
+          price_per_unit_microdollars: 100_000_000,
+        }),
       ],
       'm1',
     )
@@ -74,7 +91,7 @@ describe('findDuplicateTrade', () => {
     side: 'buy' as const,
     traded_on: '2024-01-10',
     units: 100,
-    price_per_unit_cents: 90_00,
+    price_per_unit_microdollars: 90_000_000,
     fee_cents: 0,
   }
 
@@ -90,7 +107,7 @@ describe('findDuplicateTrade', () => {
     { ticker: 'VGS' },
     { traded_on: '2024-01-11' },
     { units: 101 },
-    { price_per_unit_cents: 91_00 },
+    { price_per_unit_microdollars: 91_000_000 },
   ])('does not match when %j differs', (difference) => {
     expect(findDuplicateTrade([trade(difference)], candidate)).toBeUndefined()
   })

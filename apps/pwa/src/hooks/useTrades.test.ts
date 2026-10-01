@@ -16,7 +16,7 @@ const input: TradeInput = {
   side: 'buy',
   traded_on: '2026-01-01',
   units: 10,
-  price_per_unit_cents: 90_00,
+  price_per_unit_microdollars: 90_000_000,
   fee_cents: 9_50,
 }
 

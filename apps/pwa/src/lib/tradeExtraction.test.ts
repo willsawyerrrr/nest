@@ -13,7 +13,7 @@ const trade = {
     side: 'buy',
     traded_on: '2026-07-06',
     units: 10.5,
-    price_per_unit_cents: 98_50,
+    price_per_unit_microdollars: 98_500_000,
     fee_cents: 9_50,
   },
   text: {},
@@ -30,13 +30,21 @@ describe('readExtraction', () => {
           side: 'buy',
           traded_on: '2026-07-06',
           units: 10.5,
-          price_per_unit_cents: 98_50,
+          price_per_unit_microdollars: 98_500_000,
           fee_cents: 9_50,
         },
         check: [],
       },
       expect.anything(),
     ])
+  })
+
+  it('keeps a partial-cent price exactly', () => {
+    const [read] = readExtraction({
+      model: 'm',
+      trades: [{ ...trade, fields: { ...trade.fields, price_per_unit_microdollars: 33_083_072 } }],
+    })!
+    expect(read!.values.price_per_unit_microdollars).toBe(33_083_072)
   })
 
   it('leaves out a field that is null, ill-typed, or out of range', () => {
@@ -49,7 +57,7 @@ describe('readExtraction', () => {
             side: 'swap',
             traded_on: 5,
             units: 0,
-            price_per_unit_cents: -1,
+            price_per_unit_microdollars: -1,
             fee_cents: 'x',
           },
         },
@@ -65,7 +73,7 @@ describe('readExtraction', () => {
         {
           fields: { ticker: 'VAS' },
           missing: ['traded_on', 'fee_cents', 'unknown'],
-          unreadable: ['units', 'price_per_unit_cents', 'fee_cents'],
+          unreadable: ['units', 'price_per_unit_microdollars', 'fee_cents'],
         },
       ],
     })!

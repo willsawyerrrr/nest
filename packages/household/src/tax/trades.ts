@@ -11,7 +11,7 @@ export function toTradeInputs(trades: readonly TradeRow[]): TradeInput[] {
     side: trade.side === 'sell' ? 'sell' : 'buy',
     tradedOn: trade.traded_on,
     units: Number(trade.units),
-    pricePerUnitCents: trade.price_per_unit_cents,
+    pricePerUnitMicrodollars: trade.price_per_unit_microdollars,
     feeCents: trade.fee_cents,
   }))
 }

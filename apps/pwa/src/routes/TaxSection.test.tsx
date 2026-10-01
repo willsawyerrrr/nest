@@ -173,7 +173,7 @@ describe('TaxSection', () => {
       side,
       traded_on: tradedOn,
       units: 100,
-      price_per_unit_cents: priceCents,
+      price_per_unit_microdollars: priceCents * 10_000,
       fee_cents: 0,
     })
     hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })

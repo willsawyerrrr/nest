@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import {
+  ActionIcon,
   Badge,
   Button,
   Collapse,
@@ -12,7 +13,13 @@ import {
   UnstyledButton,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
+import {
+  IconArrowBackUp,
+  IconBan,
+  IconChevronDown,
+  IconChevronRight,
+  IconGift,
+} from '@tabler/icons-react'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { GiftPurchaseInput } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
@@ -23,6 +30,7 @@ import type {
 } from '../lib/giftCandidates'
 import { AppCard } from './AppCard'
 import { FormShell } from './FormShell'
+import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 
 interface GiftCandidateInboxProps {
@@ -42,13 +50,23 @@ function candidateLabel(candidate: GiftCandidate): string {
   return candidate.description || 'Card purchase'
 }
 
-/** A candidate's description, amount, date, and a pending flag while it is held. */
-function CandidateSummary({ candidate }: { candidate: GiftCandidate }) {
+/**
+ * One candidate as a compact row: description and date on the left, a `Pending`
+ * pill while the transaction is held, the amount as an aligned figure, then the
+ * row's actions. The held-transaction note sits in the caption.
+ */
+function CandidateRow({ candidate, children }: { candidate: GiftCandidate; children?: ReactNode }) {
   return (
-    <Group justify="space-between" wrap="nowrap" gap="sm" align="flex-start">
-      <Stack gap={0} style={{ minWidth: 0 }}>
+    <ListRow
+      data-testid="gift-candidate-row"
+      gap="sm"
+      caption={
+        candidate.pending ? 'Still held by Up — the amount can change when it settles.' : undefined
+      }
+    >
+      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
         <Group gap="xxs" wrap="nowrap" style={{ minWidth: 0 }}>
-          <Text size="sm" fw={600} truncate>
+          <Text size="sm" fw={600} truncate style={{ minWidth: 0 }}>
             {candidateLabel(candidate)}
           </Text>
           {candidate.pending && (
@@ -60,14 +78,18 @@ function CandidateSummary({ candidate }: { candidate: GiftCandidate }) {
         <Text size="xs" c="dimmed">
           {formatIsoDate(candidate.postedOn)}
         </Text>
-        {candidate.pending && (
-          <Text size="xs" c="dimmed">
-            Still held by Up — the amount can change when it settles.
-          </Text>
-        )}
       </Stack>
-      <MoneyText cents={candidate.amountCents} size="sm" fw={600} style={{ flexShrink: 0 }} />
-    </Group>
+      <MoneyText
+        cents={candidate.amountCents}
+        size="sm"
+        fw={600}
+        ta="right"
+        style={{ width: '5.5rem', flexShrink: 0 }}
+      />
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
+        {children}
+      </Group>
+    </ListRow>
   )
 }
 
@@ -244,38 +266,43 @@ export function GiftCandidateInbox({
             )}
 
             {candidates.map((candidate) => (
-              <AppCard key={candidate.transactionId} withBorder padding="xs">
-                <Stack gap="xs">
-                  <CandidateSummary candidate={candidate} />
-                  {linkingId === candidate.transactionId ? (
-                    <GiftCandidateLinkForm
-                      candidate={candidate}
-                      recipientChoices={recipientChoices}
-                      onSubmit={async (input) => {
-                        await onLink(input)
-                        setLinkingId(null)
-                      }}
-                      onCancel={() => setLinkingId(null)}
-                    />
-                  ) : (
-                    <Group gap="xs" grow>
-                      <Button
-                        variant="light"
+              <Fragment key={candidate.transactionId}>
+                <CandidateRow candidate={candidate}>
+                  {linkingId !== candidate.transactionId && (
+                    <>
+                      <ActionIcon
+                        variant="subtle"
+                        aria-label="Link to a gift"
+                        title="Link to a gift"
                         disabled={recipientChoices.length === 0}
                         onClick={() => setLinkingId(candidate.transactionId)}
                       >
-                        Link to a gift
-                      </Button>
-                      <Button
+                        <IconGift size={16} />
+                      </ActionIcon>
+                      <ActionIcon
                         variant="subtle"
+                        color="gray"
+                        aria-label="Not a gift"
+                        title="Not a gift"
                         onClick={() => void onDismiss(candidate.transactionId)}
                       >
-                        Not a gift
-                      </Button>
-                    </Group>
+                        <IconBan size={16} />
+                      </ActionIcon>
+                    </>
                   )}
-                </Stack>
-              </AppCard>
+                </CandidateRow>
+                {linkingId === candidate.transactionId && (
+                  <GiftCandidateLinkForm
+                    candidate={candidate}
+                    recipientChoices={recipientChoices}
+                    onSubmit={async (input) => {
+                      await onLink(input)
+                      setLinkingId(null)
+                    }}
+                    onCancel={() => setLinkingId(null)}
+                  />
+                )}
+              </Fragment>
             ))}
 
             {dismissed.length > 0 && (
@@ -286,22 +313,18 @@ export function GiftCandidateInbox({
                   </Button>
                 </Group>
                 <Collapse expanded={showDismissed}>
-                  <Stack gap="xs">
+                  <Stack gap={0}>
                     {dismissed.map((candidate) => (
-                      <AppCard key={candidate.transactionId} withBorder padding="xs">
-                        <Stack gap="xs">
-                          <CandidateSummary candidate={candidate} />
-                          <Group gap="xs">
-                            <Button
-                              size="xs"
-                              variant="subtle"
-                              onClick={() => void onRestore(candidate.dismissalId)}
-                            >
-                              Undo
-                            </Button>
-                          </Group>
-                        </Stack>
-                      </AppCard>
+                      <CandidateRow key={candidate.transactionId} candidate={candidate}>
+                        <ActionIcon
+                          variant="subtle"
+                          aria-label="Undo"
+                          title="Undo"
+                          onClick={() => void onRestore(candidate.dismissalId)}
+                        >
+                          <IconArrowBackUp size={16} />
+                        </ActionIcon>
+                      </CandidateRow>
                     ))}
                   </Stack>
                 </Collapse>

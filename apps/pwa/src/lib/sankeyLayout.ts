@@ -11,8 +11,6 @@ export interface SankeyLayoutOptions {
   nodeWidth: number
   /** The least vertical gap between neighbouring nodes in a column. */
   nodePadding: number
-  /** The least visible thickness of any link, in pixels. */
-  minLinkThickness: number
 }
 
 /** A node's bar, in pixels. `column` 0 is the sources' column. */
@@ -42,27 +40,29 @@ export interface SankeyLayout {
   columns: number
 }
 
-const FIT_ITERATIONS = 8
-
 /**
  * Lays a flow graph out in columns of node bars joined by ribbons.
  *
  * - A node's column is its longest distance from a source; nodes with no outflow
  *   sit in the last column.
- * - One scale converts values to pixels for every column. Each column is spread
- *   to span the full height, so all columns share top and bottom edges; a lone
- *   node is centred.
- * - A link thinner than `minLinkThickness` is drawn at that thickness, and the
- *   scale shrinks to keep every column inside `height`. A node is as tall as the
- *   larger of its inflow and outflow ribbons, which stack from its top, so a
- *   ribbon always starts and ends on its node's bar.
+ * - One scale converts values to pixels for the whole diagram: a ribbon is
+ *   `value * scale` thick at both ends, and a node is `scale` times the larger of
+ *   its inflow and outflow, so balanced flows fill a bar exactly. The scale is the
+ *   largest that fits the most crowded column in `height` once its padding is
+ *   taken out (a column's padding shrinks if it would take more than half the
+ *   height); no thickness is ever enlarged, so a tiny flow is a hairline.
+ * - Each column is spread to span the full height, so all columns share top and
+ *   bottom edges and only the gaps between nodes differ by column; a lone node is
+ *   centred.
+ * - Ribbons stack from their node's top, so a ribbon always starts and ends on
+ *   its node's bar.
  * - Ribbons within a node are ordered by the vertical position of their far end,
  *   which keeps flows from crossing needlessly.
  */
 export function sankeyLayout(
   nodeCount: number,
   links: readonly SankeyLinkInput[],
-  { width, height, nodeWidth, nodePadding, minLinkThickness }: SankeyLayoutOptions,
+  { width, height, nodeWidth, nodePadding }: SankeyLayoutOptions,
 ): SankeyLayout {
   const outgoing = Array.from({ length: nodeCount }, () => [] as number[])
   links.forEach(({ source }, i) => outgoing[source]!.push(i))
@@ -79,29 +79,21 @@ export function sankeyLayout(
     column.flatMap((nodeColumn, i) => (nodeColumn === c ? [i] : [])),
   )
 
-  const fit = (weights: number[]) => {
-    const inflow = Array<number>(nodeCount).fill(0)
-    const outflow = Array<number>(nodeCount).fill(0)
-    links.forEach(({ source, target }, i) => {
-      outflow[source]! += weights[i]!
-      inflow[target]! += weights[i]!
-    })
-    const nodeWeights = inflow.map((inValue, i) => Math.max(inValue, outflow[i]!))
-    const scale = Math.min(
-      ...members.map((ids) => {
-        const total = ids.reduce((sum, i) => sum + nodeWeights[i]!, 0)
-        return (height - (ids.length - 1) * nodePadding) / total
-      }),
-    )
-    return { nodeWeights, scale }
+  const inflow = Array<number>(nodeCount).fill(0)
+  const outflow = Array<number>(nodeCount).fill(0)
+  for (const { source, target, value } of links) {
+    outflow[source]! += value
+    inflow[target]! += value
   }
-  let weights = links.map(({ value }) => value)
-  let { nodeWeights, scale } = fit(weights)
-  for (let round = 0; round < FIT_ITERATIONS; round++) {
-    const floor = minLinkThickness / scale
-    weights = links.map(({ value }) => Math.max(value, floor))
-    ;({ nodeWeights, scale } = fit(weights))
-  }
+  const nodeValues = inflow.map((inValue, i) => Math.max(inValue, outflow[i]!))
+  const padding = (ids: number[]) =>
+    ids.length > 1 ? Math.min(nodePadding, height / 2 / (ids.length - 1)) : 0
+  const scale = Math.min(
+    ...members.map((ids) => {
+      const total = ids.reduce((sum, i) => sum + nodeValues[i]!, 0)
+      return (height - (ids.length - 1) * padding(ids)) / total
+    }),
+  )
 
   const nodes: SankeyNodeLayout[] = Array.from({ length: nodeCount }, () => ({
     x: 0,
@@ -112,7 +104,7 @@ export function sankeyLayout(
   }))
   const stride = (width - nodeWidth) / Math.max(1, last)
   members.forEach((ids, c) => {
-    const heights = ids.map((i) => nodeWeights[i]! * scale)
+    const heights = ids.map((i) => nodeValues[i]! * scale)
     const total = heights.reduce((sum, h) => sum + h, 0)
     const gap = ids.length > 1 ? (height - total) / (ids.length - 1) : 0
     let y = ids.length > 1 ? 0 : (height - total) / 2
@@ -132,7 +124,7 @@ export function sankeyLayout(
       .forEach((i) => {
         const node = links[i]![side]
         tops[i] = nodes[node]!.y + used[node]!
-        used[node]! += weights[i]! * scale
+        used[node]! += links[i]!.value * scale
       })
     return tops
   }
@@ -150,7 +142,7 @@ export function sankeyLayout(
       x1: nodes[target]!.x,
       y0: sourceTops[i]!,
       y1: targetTops[i]!,
-      thickness: weights[i]! * scale,
+      thickness: value * scale,
     })),
   }
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { HouseholdTaxEstimate } from '@nest/tax'
@@ -272,5 +273,96 @@ describe('EofyShareSection', () => {
 
     hooks.invoke.mockResolvedValue({ data: null, error: null })
     await expect(signedUrl('h1/d1/receipt.pdf')).resolves.toBeNull()
+  })
+
+  describe('household section', () => {
+    const salary = {
+      id: 'i1',
+      household_id: 'h1',
+      member_id: 'm1',
+      name: 'Job',
+      taxable: true,
+      attracts_super: true,
+      type: 'salary',
+      schedule: 'annual',
+      interval_count: null,
+      pay_schedule: null,
+      pay_interval_count: null,
+      arrives_every_pay_period: true,
+      amount_cents: 120_000_00,
+      hourly_rate_cents: null,
+      hours_per_period: null,
+      starts_on: null,
+      ends_on: null,
+      pay_anchor_date: null,
+      paid_on: null,
+      one_off_tax_treatment: null,
+      years_of_service: null,
+      is_joint: false,
+      member_split_percent: null,
+      created_at: '',
+      updated_at: '',
+    } as EofyShareData['inflows'][number]
+
+    function trade(side: 'buy' | 'sell', tradedOn: string, priceCents: number) {
+      return {
+        id: `${side}-${tradedOn}`,
+        household_id: 'h1',
+        member_id: 'm1',
+        ticker: 'VGS',
+        side,
+        traded_on: tradedOn,
+        units: 10,
+        price_per_unit_cents: priceCents,
+        fee_cents: 0,
+        source: 'manual',
+        external_id: null,
+        document_id: null,
+        created_at: '',
+        updated_at: '',
+      } as EofyShareData['trades'][number]
+    }
+
+    function renderHousehold(data: EofyShareData): void {
+      hooks.useEofyShareData.mockReturnValue({ status: 'ready', data } satisfies EofyShareOutcome)
+      renderAt()
+      render(<>{hooks.screenProps?.householdSection as ReactNode}</>)
+    }
+
+    it('shows the household figures and MLS test for the shared members', () => {
+      renderHousehold({ ...shareData, inflows: [salary] })
+
+      expect(screen.getByRole('region', { name: 'Household' })).toBeInTheDocument()
+      expect(screen.getByText('Household (FY2027)')).toBeInTheDocument()
+      expect(screen.getByRole('table', { name: 'Household members' })).toHaveTextContent('Alex')
+      expect(screen.getByText('Family income for MLS')).toBeInTheDocument()
+      expect(screen.getByText('Liable at 1% (tier 1)')).toBeInTheDocument()
+      expect(screen.getByLabelText('Dependent children')).toHaveValue('0')
+      expect(screen.queryByText('of which net capital gain')).not.toBeInTheDocument()
+    })
+
+    it('shows the net capital gain from shared trades', () => {
+      renderHousehold({
+        ...shareData,
+        inflows: [salary],
+        trades: [trade('buy', '2026-07-10', 10_00), trade('sell', '2026-09-01', 20_00)],
+      })
+      expect(screen.getByText('of which net capital gain')).toBeInTheDocument()
+    })
+
+    it('covers every shared member and no others', () => {
+      renderHousehold({
+        ...shareData,
+        members: [
+          { id: 'm1', name: 'Alex', date_of_birth: null },
+          { id: 'm2', name: 'Sam', date_of_birth: null },
+        ],
+        inflows: [salary, { ...salary, id: 'i2', member_id: 'm2' }],
+      })
+      const table = screen.getByRole('table', { name: 'Household members' })
+      expect(table).toHaveTextContent('Alex')
+      expect(table).toHaveTextContent('Sam')
+      expect(screen.getAllByRole('row')).toHaveLength(3)
+    })
   })
 })

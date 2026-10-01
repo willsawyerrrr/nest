@@ -4,6 +4,7 @@ import { Center, Stack, Title } from '@mantine/core'
 import { configsByYear } from '@nest/tax'
 import { EmptyState } from '../components/EmptyState'
 import { EofyScreen, type EofyPayslipDocument } from '../components/EofyScreen'
+import { HouseholdYearSummary } from '../components/HouseholdYearSummary'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { useEofyShareData } from '../hooks/useEofyShareData'
 import { paygWithheldFromRows, payslipCountByMember } from '../lib/payslips'
@@ -148,6 +149,14 @@ export function EofyShareSection() {
         signedUrl={signedUrl}
         payslipDocuments={payslipDocuments}
         payslipSignedUrl={payslipSignedUrl}
+        householdSection={
+          <HouseholdYearSummary
+            members={data.members}
+            estimate={estimate}
+            config={config}
+            financialYear={data.financialYear}
+          />
+        }
       />
     </main>
   )

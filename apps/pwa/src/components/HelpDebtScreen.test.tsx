@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { HelpDebtScreen } from './HelpDebtScreen'
 
 const members = [
@@ -20,7 +20,8 @@ const samDebt: HelpDebt = {
 }
 
 function card(name: string): HTMLElement {
-  return screen.getByText(name).closest('.mantine-Card-root') as HTMLElement
+  const id = members.find((member) => member.name === name)!.id
+  return screen.getByTestId(`help-debt-${id}`)
 }
 
 describe('HelpDebtScreen', () => {
@@ -30,7 +31,20 @@ describe('HelpDebtScreen', () => {
     expect(within(card('Sam')).getByText('$10,000.00')).toBeInTheDocument()
     expect(within(card('Will')).getByText('$0.00')).toBeInTheDocument()
     // The input is hidden until the user clicks Edit.
-    expect(screen.queryByLabelText(/help debt/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('HELP debt')).not.toBeInTheDocument()
+  })
+
+  it('lays each balance out as an aligned row on a wide viewport', async () => {
+    setWideViewport()
+    const user = userEvent.setup()
+    render(<HelpDebtScreen members={members} helpDebts={[samDebt]} onSave={vi.fn()} />)
+
+    expect(card('Sam')).not.toHaveClass('mantine-Card-root')
+    expect(within(card('Sam')).getByText('$10,000.00')).toBeInTheDocument()
+    expect(within(card('Will')).getByText('$0.00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit Sam’s HELP debt' }))
+    expect(screen.getByLabelText('HELP debt')).toHaveValue('$10,000.00')
   })
 
   it('reveals the edit form prefilled and saves as cents', async () => {
@@ -39,11 +53,11 @@ describe('HelpDebtScreen', () => {
     render(<HelpDebtScreen members={members} helpDebts={[samDebt]} onSave={onSave} />)
 
     await user.click(within(card('Sam')).getByRole('button', { name: /edit/i }))
-    expect(within(card('Sam')).getByLabelText(/help debt/i)).toHaveValue('$10,000.00')
+    expect(within(card('Sam')).getByLabelText('HELP debt')).toHaveValue('$10,000.00')
 
     const will = card('Will')
     await user.click(within(will).getByRole('button', { name: /edit/i }))
-    await user.type(within(card('Will')).getByLabelText(/help debt/i), '25000')
+    await user.type(within(card('Will')).getByLabelText('HELP debt'), '25000')
     await user.click(within(card('Will')).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>

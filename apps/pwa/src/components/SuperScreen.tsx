@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Group, Stack, Text, Title } from '@mantine/core'
+import { Badge, Group, Stack, Text, Title } from '@mantine/core'
 import { accruedBalanceCents } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { Member } from '../hooks/useMembers'
@@ -8,8 +8,8 @@ import type { SuperProfile } from '../hooks/useSuperProfiles'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
 import type { SuperCapSummary } from '../lib/tax'
-import { AppCard } from './AppCard'
 import { EditAction } from './EditAction'
+import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { RetirementProjection } from './RetirementProjection'
@@ -18,9 +18,10 @@ import { SuperContributionList } from './SuperContributionList'
 import { SuperProfileForm, type SuperFormValues } from './SuperProfileForm'
 
 /**
- * One member's super profile as a compact read-only row: fund name and the
- * effective balance today. For a dated baseline this reads as an estimate, with
- * the accrual breakdown, since it grows by modelled contributions between true-ups.
+ * One member's super profile as a compact read-only row: member and fund, an
+ * `Estimated`/`Current` pill, and the effective balance today as the right-aligned
+ * figure. A dated baseline reads as an estimate, with the accrual breakdown as a
+ * caption, since it grows by modelled contributions between true-ups.
  */
 function SuperProfileCard({
   member,
@@ -41,35 +42,37 @@ function SuperProfileCard({
   const accruedCents = effectiveCents - baselineCents
   const trimmedFundName = fundName?.trim()
   return (
-    <AppCard withBorder padding="xs">
-      <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Stack gap={2} style={{ minWidth: 0 }}>
-          <Text fw={600} size="sm" truncate>
+    <ListRow
+      gap="sm"
+      data-testid="super-profile-row"
+      caption={
+        isTrueUp && accruedCents !== 0
+          ? `${formatCents(baselineCents)} confirmed on ${formatIsoDate(balanceAsOf)} + ${formatCents(accruedCents)} accrued from contributions`
+          : undefined
+      }
+    >
+      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+        <Group gap="xs" wrap="nowrap">
+          <Text fw={600} size="sm" truncate style={{ flexShrink: 0, maxWidth: '50%' }}>
             {member.name}
           </Text>
-          {trimmedFundName ? (
-            <Text size="sm" c="dimmed" truncate>
-              {trimmedFundName}
-            </Text>
-          ) : (
-            <Text size="sm" c="dimmed" fs="italic">
-              No fund set
-            </Text>
-          )}
-          <Text size="xs" c="dimmed">
-            {isTrueUp ? 'Estimated balance today' : 'Current balance'}
+          <Badge size="xs" variant="light" color={isTrueUp ? 'cyan' : 'gray'}>
+            {isTrueUp ? 'Estimated' : 'Current'}
+          </Badge>
+        </Group>
+        {trimmedFundName ? (
+          <Text size="xs" c="dimmed" truncate>
+            {trimmedFundName}
           </Text>
-          <MoneyText cents={effectiveCents} fw={700} fz="lg" />
-          {isTrueUp && accruedCents !== 0 && (
-            <Text size="xs" c="dimmed">
-              {formatCents(baselineCents)} confirmed on {formatIsoDate(balanceAsOf)} +{' '}
-              {formatCents(accruedCents)} accrued from contributions
-            </Text>
-          )}
-        </Stack>
-        <EditAction onClick={onEdit} style={{ flexShrink: 0 }} />
-      </Group>
-    </AppCard>
+        ) : (
+          <Text size="xs" c="dimmed" fs="italic">
+            No fund set
+          </Text>
+        )}
+      </Stack>
+      <MoneyText cents={effectiveCents} fw={700} size="sm" style={{ flexShrink: 0 }} />
+      <EditAction onClick={onEdit} style={{ flexShrink: 0 }} />
+    </ListRow>
   )
 }
 

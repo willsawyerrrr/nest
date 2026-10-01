@@ -10,6 +10,7 @@
  * persists — so a failure at any point leaves manual entry exactly as it was.
  */
 
+import type { ReadResult } from './bulkUpload'
 import { UNSUPPORTED_TYPE_CODE } from './uploadFile'
 
 /** The `payslip` date columns extraction reads, keyed as the columns are. */
@@ -324,4 +325,29 @@ export function readExtractionFailure(body: unknown): ExtractionFailure {
     }
   }
   return { status: 'failed', message: message ?? EXTRACTION_FAILED_MESSAGE }
+}
+
+/**
+ * An attach-and-read outcome in the terms the bulk upload queue acts on. A
+ * reading that is off (not configured, out of credit, key refused) halts the
+ * queue, since every other file would meet the same refusal.
+ */
+export function toReadResult(outcome: ExtractionOutcome): ReadResult<PayslipExtraction> {
+  switch (outcome.status) {
+    case 'read':
+      return { status: 'read', value: outcome.extraction }
+    case 'unsupported':
+      return { status: 'unsupported', message: outcome.message }
+    case 'not-configured':
+    case 'out-of-credit':
+    case 'key-rejected':
+      return { status: 'halt', message: outcome.message }
+    case 'not-payslip':
+      return {
+        status: 'failed',
+        message: outcome.reason === null ? outcome.message : `${outcome.message} ${outcome.reason}`,
+      }
+    case 'failed':
+      return { status: 'failed', message: outcome.message }
+  }
 }

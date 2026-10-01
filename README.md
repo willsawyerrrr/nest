@@ -61,6 +61,8 @@ A pitch-level summary; the full locked list is canonical in
   savings, the wishlist, and Summary math.
 - [`docs/investments.md`](docs/investments.md) — share and ETF trades: holdings,
   FIFO parcel matching, realised gains, the CGT discount, and the tax estimate.
+- [`docs/bulk-upload.md`](docs/bulk-upload.md) — uploading many receipts, payslips, or
+  trade documents at once into reviewable drafts.
 - [`docs/super-and-net-worth.md`](docs/super-and-net-worth.md) — super modelling
   and the net-worth view.
 - [`docs/breakdowns.md`](docs/breakdowns.md) — user-created itemised derived lines.

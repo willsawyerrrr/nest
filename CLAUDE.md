@@ -599,7 +599,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   client does not call it, and the functions answer `unsupported_type` if asked —
   the file stays stored and attached, and the form says it cannot be read
   automatically while the details are typed by hand. A HEIC/HEIF photo is
-  re-encoded as JPEG in the browser where it can decode it.
+  re-encoded as JPEG in the browser where it can decode it. Each of the three
+  surfaces also takes MANY files at once (up to 20 open at a time), picked together
+  or dropped on the panel: one shared queue (`useUploadQueue`, `BulkUploadPanel`)
+  stores and reads at most three at a time, each into its own reviewable draft with
+  its own status (queued, reading, ready, couldn't be read, unsupported type,
+  saved). One file failing never blocks the others; reading being off (not
+  configured, out of credit, key refused) stops the queue with the function's fixed
+  copy instead of repeating the call per file. Drafts are saved one by one, or
+  together with Save selected, under ids minted when the file is added, so a retry
+  cannot duplicate; a draft discarded, or a panel closed, deletes the stored files
+  no saved record references. Replacing a single deduction's receipt stays a
+  single-file control. See [`docs/bulk-upload.md`](docs/bulk-upload.md).
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend

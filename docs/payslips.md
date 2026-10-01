@@ -816,6 +816,19 @@ reasons they are blank. The form treats them identically — a field with no fig
 fill is left for the member either way — so it reads neither list; they are the
 record of why, alongside `text`.
 
+### Many payslips at once
+
+The payslips list also takes many documents at once, picked together or dropped on
+the panel above the list (see [`bulk-upload.md`](bulk-upload.md)). Each document is
+stored under its own minted id, read by `payslip-extract` (at most three at a time),
+and opened as its own payslip draft pre-filled exactly as the single form pre-fills
+it — figures, itemised lines, and the filing year derived from its own dates. The
+member saves, edits, or discards each draft, or saves the selected ones together; a
+slip is written by `upsert_payslip_with_lines` under its minted id, so a retried
+save rewrites the same slip. A document that is not a payslip, cannot be read, or is
+a type the model cannot read stays in the batch as its own entry (retry, enter by
+hand, or remove) and never blocks the others.
+
 ### Pre-filling the form
 
 `fields` is keyed as the `payslip` columns are, so the entry form maps it on by

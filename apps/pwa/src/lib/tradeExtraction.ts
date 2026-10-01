@@ -9,6 +9,7 @@
  */
 
 import type { TradeFormValues } from '../hooks/useTrades'
+import type { ReadResult } from './bulkUpload'
 import { UNSUPPORTED_TYPE_CODE } from './uploadFile'
 
 /** The trade fields extraction reads, keyed as the `trade` columns are. */
@@ -35,6 +36,7 @@ export interface ExtractedTrade {
 export type ExtractionOutcome =
   | { status: 'read'; trades: ExtractedTrade[] }
   | { status: 'unsupported'; message: string }
+  | { status: 'off'; message: string }
   | { status: 'failed'; message: string }
 
 /**
@@ -43,6 +45,9 @@ export type ExtractionOutcome =
  */
 export const EXTRACTION_UNSUPPORTED_MESSAGE =
   "This document is attached, but it can't be read automatically. Enter the trade by hand."
+
+/** The codes `trade-extract` answers with when reading is off for every document, not just this one. */
+const OFF_CODES: ReadonlySet<string> = new Set(['not_configured', 'out_of_credit', 'key_rejected'])
 
 /** What the panel says when a failure carried no message of its own. */
 export const EXTRACTION_FAILED_MESSAGE = 'Could not read this document. Enter the trades by hand.'
@@ -116,5 +121,23 @@ export function readExtractionFailure(
     isRecord(body) && typeof body.code === 'string' && typeof body.error === 'string'
       ? body.error
       : EXTRACTION_FAILED_MESSAGE
-  return { status: 'failed', message }
+  const off = isRecord(body) && typeof body.code === 'string' && OFF_CODES.has(body.code)
+  return { status: off ? 'off' : 'failed', message }
+}
+
+/**
+ * A reading's outcome in the terms the bulk upload queue acts on. A reading
+ * that is off (not configured, out of credit, key refused) halts the queue,
+ * since every other document would meet the same refusal.
+ */
+export function toReadResult(outcome: ExtractionOutcome): ReadResult<ExtractedTrade[]> {
+  switch (outcome.status) {
+    case 'read':
+      return { status: 'read', value: outcome.trades }
+    case 'off':
+      return { status: 'halt', message: outcome.message }
+    case 'unsupported':
+    case 'failed':
+      return outcome
+  }
 }

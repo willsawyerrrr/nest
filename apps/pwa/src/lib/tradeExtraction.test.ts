@@ -4,6 +4,7 @@ import {
   EXTRACTION_UNSUPPORTED_MESSAGE,
   readExtraction,
   readExtractionFailure,
+  toReadResult,
 } from './tradeExtraction'
 
 const trade = {
@@ -117,6 +118,45 @@ describe('readExtractionFailure', () => {
     expect(readExtractionFailure(body)).toEqual({
       status: 'failed',
       message: EXTRACTION_FAILED_MESSAGE,
+    })
+  })
+})
+
+describe('reading that is off', () => {
+  it.each(['not_configured', 'out_of_credit', 'key_rejected'])(
+    'reads %s as reading being off, with the functions own copy',
+    (code) => {
+      expect(readExtractionFailure({ code, error: 'Off for now.' })).toEqual({
+        status: 'off',
+        message: 'Off for now.',
+      })
+    },
+  )
+})
+
+describe('toReadResult', () => {
+  it('hands the trades to the queue', () => {
+    expect(toReadResult({ status: 'read', trades: [{ values: {}, check: [] }] })).toEqual({
+      status: 'read',
+      value: [{ values: {}, check: [] }],
+    })
+  })
+
+  it('halts the queue when reading is off', () => {
+    expect(toReadResult({ status: 'off', message: 'Off.' })).toEqual({
+      status: 'halt',
+      message: 'Off.',
+    })
+  })
+
+  it('fails or sets aside one document without stopping the queue', () => {
+    expect(toReadResult({ status: 'failed', message: 'Busy.' })).toEqual({
+      status: 'failed',
+      message: 'Busy.',
+    })
+    expect(toReadResult({ status: 'unsupported', message: 'No.' })).toEqual({
+      status: 'unsupported',
+      message: 'No.',
     })
   })
 })

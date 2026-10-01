@@ -28,7 +28,9 @@ import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionCategory, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
 import { useFormSubmit } from '../hooks/useFormSubmit'
+import type { UploadDraft } from '../lib/bulkUpload'
 import { todayIso } from '../lib/dates'
+import type { DeductionExtraction } from '../lib/deductionExtraction'
 import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
 import { currentTaxConfig } from '../lib/tax'
 import { prepareUpload } from '../lib/uploadFile'
@@ -59,6 +61,12 @@ interface DeductionFormProps {
    */
   groups?: DeductionGroupRow[]
   initial?: DeductionRow | undefined
+  /**
+   * A receipt already stored and read by a bulk upload. The form opens on what
+   * was read, attached to that file under its id, with no picker: the bulk
+   * upload owns the file's cleanup.
+   */
+  draft?: (UploadDraft<DeductionExtraction> & { category: DeductionCategory }) | undefined
   /** When editing, the deduction's stored receipt, if it has one. */
   receipt?: DeductionReceiptRow | undefined
   /** When editing, stores a file as the deduction's receipt, replacing any current one. */
@@ -67,6 +75,8 @@ interface DeductionFormProps {
   onRemoveReceipt?: ((receipt: DeductionReceiptRow) => void) | undefined
   onSubmit: (submission: DeductionSubmission) => void | Promise<void>
   onCancel?: () => void
+  /** Overrides the cancel button's label (e.g. "Discard"). */
+  cancelLabel?: string | undefined
 }
 
 type Basis = DeductionRow['basis']
@@ -248,22 +258,32 @@ export function DeductionForm({
   groupId,
   groups = [],
   initial,
+  draft,
   receipt,
   onUploadReceipt,
   onRemoveReceipt,
   onSubmit,
   onCancel,
+  cancelLabel,
 }: DeductionFormProps) {
   const adding = initial === undefined
+  const read = draft?.extraction?.fields
 
   const fields = useDeductionFields({
-    description: initial?.description ?? '',
+    description:
+      initial?.description ?? (typeof read?.description === 'string' ? read.description : ''),
     // The full cost, not the apportioned amount_cents: editing a part-claimed
     // deduction re-opens on what it cost, with the claimed share recomputed from
     // it and the percentage below, rather than showing back a figure that was
     // itself derived.
-    amount: centsToDollars(initial?.full_amount_cents ?? initial?.amount_cents),
-    deductionDate: initial?.deduction_date ?? todayIso(),
+    amount: centsToDollars(
+      initial?.full_amount_cents ??
+        initial?.amount_cents ??
+        (typeof read?.amount_cents === 'number' ? read.amount_cents : undefined),
+    ),
+    deductionDate:
+      initial?.deduction_date ??
+      (typeof read?.deduction_date === 'string' ? read.deduction_date : todayIso()),
   })
   // Chosen when adding; an existing deduction keeps the basis it was created
   // with, since a deduction on the wrong one is deleted and re-added.
@@ -288,7 +308,9 @@ export function DeductionForm({
   // not offered; the group's kind then decides the categories on offer.
   const openedFrom = groupId === undefined ? undefined : groups.find((g) => g.id === groupId)
   const [category, setCategory] = useState<DeductionCategory>(
-    initial?.category ?? (openedFrom?.kind === 'donations' ? 'donation' : 'work_expense'),
+    initial?.category ??
+      draft?.category ??
+      (openedFrom?.kind === 'donations' ? 'donation' : 'work_expense'),
   )
   const standardGroups = groups.filter((group) => group.kind === 'standard')
   // Otherwise the picker starts wherever the deduction already sits, a
@@ -382,7 +404,7 @@ export function DeductionForm({
     // no longer cleaned up as objects nothing references.
     ...(adding && { onSuccess: receipts.keep }),
     buildInput: (): DeductionSubmission => ({
-      id: initial?.id ?? receipts.deductionId,
+      id: initial?.id ?? draft?.id ?? receipts.deductionId,
       input: {
         member_id: member.id,
         description: values.description.trim(),
@@ -399,7 +421,7 @@ export function DeductionForm({
         full_amount_cents: isDistance ? computedAmountCents : fullAmountCents,
         work_use_percent: workUsePercentNumber,
       },
-      receiptPath: adding ? receipts.path : null,
+      receiptPath: adding ? (draft?.path ?? receipts.path) : null,
     }),
   })
 
@@ -414,6 +436,7 @@ export function DeductionForm({
       // button says so.
       addLabel={groupId ? 'payment' : 'deduction'}
       onCancel={onCancel}
+      cancelLabel={cancelLabel}
     >
       {adding && openedFrom?.kind !== 'donations' && (
         <EnumSegmentedControl
@@ -426,7 +449,15 @@ export function DeductionForm({
         />
       )}
 
-      {adding && (
+      {draft && (
+        <Stack gap={6}>
+          {draft.extraction !== null && (
+            <ReadFromReceipt filledNothing={Object.keys(draft.extraction.fields).length === 0} />
+          )}
+        </Stack>
+      )}
+
+      {adding && !draft && (
         <Stack gap={6}>
           <FileInput
             label="Receipt"

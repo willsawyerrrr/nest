@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Anchor, Badge, Button, FileButton, Group, Stack, Text } from '@mantine/core'
+import { Anchor, Badge, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TradeDocumentRow, UseTradeDocumentsResult } from '../hooks/useTradeDocuments'
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
@@ -123,7 +122,6 @@ function MemberTrades({
   documents: TradeDocumentRow[]
   documentActions: TradesScreenProps['documentActions']
 }) {
-  const [importFile, setImportFile] = useState<File | null>(null)
   const viewDocument = async (documentId: string) => {
     const path = documents.find((document) => document.id === documentId)?.storage_path
     const url = path ? await documentActions.signedUrl(path) : null
@@ -192,30 +190,10 @@ function MemberTrades({
         </Text>
       ))}
 
-      <Group justify="space-between" align="center">
-        <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-          Trades
-        </Text>
-        <FileButton
-          inputProps={{ 'aria-label': `Add ${member.name}'s trades from a document` }}
-          onChange={setImportFile}
-        >
-          {(props) => (
-            <Button {...props} variant="default" size="xs">
-              Add from document
-            </Button>
-          )}
-        </FileButton>
-      </Group>
-      {importFile && (
-        <TradeDocumentImport
-          file={importFile}
-          member={member}
-          trades={trades}
-          actions={documentActions}
-          onClose={() => setImportFile(null)}
-        />
-      )}
+      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+        Trades
+      </Text>
+      <TradeDocumentImport member={member} trades={trades} actions={documentActions} />
       <EditableList<TradeRow, TradeInput>
         items={memberTrades}
         addLabel="Add trade"

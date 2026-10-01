@@ -19,6 +19,8 @@
  * codebase invokes one function from another.
  */
 
+import { redbarkFailure } from '../_shared/redbarkFailure.ts'
+
 export interface FlowResult {
   status: number
   body: Record<string, unknown>
@@ -83,10 +85,7 @@ export async function runComplete(
   try {
     session = await deps.getLinkSession(linkSessionId)
   } catch (error) {
-    return {
-      status: 502,
-      body: { error: `Failed to read the Redbark link session: ${(error as Error).message}` },
-    }
+    return redbarkFailure(error, 'link session read')
   }
 
   if (session.status === 'pending') {
@@ -94,20 +93,17 @@ export async function runComplete(
   }
 
   if (session.status !== 'completed' || !session.connection) {
-    return {
-      status: 200,
-      body: { connected: false, status: 'failed', reason: session.failure_reason },
-    }
+    console.error(
+      `Redbark link session ${linkSessionId} did not complete: ${session.status} (${session.failure_reason})`,
+    )
+    return { status: 200, body: { connected: false, status: 'failed' } }
   }
 
   let connection: ConnectionDetails
   try {
     connection = await deps.getConnection(session.connection)
   } catch (error) {
-    return {
-      status: 502,
-      body: { error: `Failed to read the Redbark connection: ${(error as Error).message}` },
-    }
+    return redbarkFailure(error, 'connection read')
   }
 
   const stored = await deps.upsertConnection({

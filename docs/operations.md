@@ -659,6 +659,10 @@ a Redbark subscription costs money and needs a live signup (see
 is set, every Redbark function returns a `500` ("Redbark is not configured")
 rather than attempting a call with no key.
 
+The key's Redbark plan must be Developer or Professional: on a plan without API
+access, `redbark-connect` returns `503` with code `plan_upgrade_required` and the
+Connections card links to Redbark's billing page.
+
 ## Auth
 
 Supabase Google OAuth (consent screen published). The site URL and redirect

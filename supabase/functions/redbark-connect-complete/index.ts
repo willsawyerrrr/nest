@@ -7,7 +7,7 @@
  * the Fiskil redirect round trip by the frontend) and resolves it via
  * `RedbarkClient.getLinkSession`. A `pending` session reports
  * `{ connected: false, status: 'pending' }`; a failed or connection-less one
- * reports `{ connected: false, status: 'failed', reason }`; a completed one
+ * reports `{ connected: false, status: 'failed' }`; a completed one
  * reads the resulting connection's institution name
  * (`RedbarkClient.getConnection`), upserts a `redbark_connection` row keyed on
  * the connection id, and reports `{ connected: true }`. Refreshing the newly

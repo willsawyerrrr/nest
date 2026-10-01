@@ -1,8 +1,18 @@
 import { useState } from 'react'
-import { Alert, Badge, Button, Group, PasswordInput, Stack, Text, Title } from '@mantine/core'
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Group,
+  PasswordInput,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core'
 import type { CalendarFeedRow } from '../hooks/useCalendarFeed'
 import type { Member } from '../hooks/useMembers'
-import type { RedbarkCompleteResult, RedbarkConnection } from '../hooks/useRedbarkConnections'
+import { type RedbarkCompleteResult, type RedbarkConnection } from '../hooks/useRedbarkConnections'
 import { AppCard } from './AppCard'
 import { CalendarFeedControl } from './CalendarFeedControl'
 import { PageSection } from './PageSection'
@@ -110,6 +120,29 @@ function ConnectUpCard({
   )
 }
 
+/** Where a Redbark plan without API access is upgraded. */
+const REDBARK_BILLING_URL = 'https://app.redbark.com/settings/billing'
+
+/** Our own copy for a failed Redbark call, keyed on the edge function's stable error code. */
+function RedbarkFailureMessage({ code }: { code: string | null }) {
+  switch (code) {
+    case 'plan_upgrade_required':
+      return (
+        <>
+          Bank connections need the Redbark Developer or Professional plan.{' '}
+          <Anchor href={REDBARK_BILLING_URL} target="_blank" rel="noreferrer" inherit>
+            Upgrade your plan
+          </Anchor>
+          .
+        </>
+      )
+    case 'redbark_auth_failed':
+      return 'Bank connections are misconfigured. Try again later.'
+    default:
+      return 'Redbark is unavailable right now. Try again shortly.'
+  }
+}
+
 /** The result banner shown once, after resolving a pending Redbark connection found on mount. */
 function RedbarkCompleteBanner({
   result,
@@ -142,7 +175,7 @@ function RedbarkCompleteBanner({
         withCloseButton
         closeButtonLabel="Dismiss"
       >
-        {result.reason ?? 'Something went wrong completing the connection. Try again.'}
+        <RedbarkFailureMessage code={result.code} />
       </Alert>
     )
   }
@@ -168,6 +201,15 @@ function ConnectRedbarkCard({
 }: Pick<ConnectionsScreenProps, 'currentUserId' | 'members' | 'redbark'>) {
   const { connections, busy, onConnect, onDisconnect, completeResult, onDismissCompleteResult } =
     redbark
+  const [connectFailure, setConnectFailure] = useState<{ code: string | null }>()
+  const connect = async () => {
+    setConnectFailure(undefined)
+    try {
+      await onConnect()
+    } catch (error) {
+      setConnectFailure({ code: (error as { code?: string | null }).code ?? null })
+    }
+  }
   const currentMemberId = members.find((member) => member.user_id === currentUserId)?.id
   const memberName = (memberId: string) =>
     members.find((member) => member.id === memberId)?.name ?? 'Unknown'
@@ -187,9 +229,21 @@ function ConnectRedbarkCard({
           Connect a bank account via Redbark to fund budget items and pay splits, or link it as a
           savings goal's saver. You'll be sent to a hosted consent screen to authorise access.
         </Text>
-        <Button variant="light" loading={busy} onClick={() => void onConnect()}>
+        <Button variant="light" loading={busy} onClick={() => void connect()}>
           Connect a bank
         </Button>
+        {connectFailure && (
+          <Alert
+            color="negative"
+            variant="light"
+            title="Couldn’t connect a bank"
+            onClose={() => setConnectFailure(undefined)}
+            withCloseButton
+            closeButtonLabel="Dismiss"
+          >
+            <RedbarkFailureMessage code={connectFailure.code} />
+          </Alert>
+        )}
 
         {connections.length > 0 && (
           <Stack gap="xxs">

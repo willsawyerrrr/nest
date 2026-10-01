@@ -1,4 +1,5 @@
 import { assertEquals } from '@std/assert'
+import { RedbarkApiError } from '../_shared/redbark.ts'
 import { type ConnectDeps, normaliseReturnUrl, runConnect } from './connect.ts'
 
 /** Default happy-path deps, overridable per test. */
@@ -59,18 +60,23 @@ Deno.test('runConnect surfaces a member-resolution error and never starts a sess
   assertEquals(started, false)
 })
 
-Deno.test('runConnect reports a Redbark failure as a 502', async () => {
-  const result = await runConnect(
-    'https://nest.test/return',
-    deps({
-      createLinkSession: () =>
-        Promise.reject(new Error('Redbark API 500 for /link_sessions: boom')),
-    }),
-  )
+function failing(error: Error) {
+  return deps({ createLinkSession: () => Promise.reject(error) })
+}
 
-  assertEquals(result.status, 502)
-  assertEquals(
-    (result.body.error as string).includes('Redbark API 500 for /link_sessions: boom'),
-    true,
-  )
+Deno.test('runConnect reports a Redbark failure with a stable code and no upstream text', async () => {
+  const original = console.error
+  console.error = () => {}
+  try {
+    const result = await runConnect(
+      'https://nest.test/return',
+      failing(new RedbarkApiError(403, 'plan_upgrade_required', 'req_123 upstream detail')),
+    )
+
+    assertEquals(result.status, 503)
+    assertEquals(result.body.code, 'plan_upgrade_required')
+    assertEquals(JSON.stringify(result.body).includes('req_123'), false)
+  } finally {
+    console.error = original
+  }
 })

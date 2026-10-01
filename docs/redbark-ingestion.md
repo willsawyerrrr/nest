@@ -170,12 +170,23 @@ connection the household makes, unlike Up's per-member Vault-held token. See
   `returnUrl`. There is no server-side pending-session table: the frontend
   carries `linkSessionId` through the round trip itself (e.g. in
   `sessionStorage`).
+  A failed Redbark call returns our own stable `code` with fixed copy in
+  `error` — never Redbark's response text, which is logged server-side only
+  (`_shared/redbarkFailure.ts`, shared by `redbark-connect`,
+  `redbark-connect-complete`, and `redbark-disconnect`): `plan_upgrade_required`
+  (503) when the Redbark account's plan lacks API access — the API needs the
+  Developer or Professional plan, so connecting is unavailable until the plan
+  is upgraded at <https://app.redbark.com/settings/billing>;
+  `redbark_auth_failed` (500) when Redbark rejects `REDBARK_API_KEY`; and
+  `redbark_unavailable` (502) for anything else. The PWA keys off `code` and
+  renders its own copy on the Connections card, with an upgrade link for
+  `plan_upgrade_required`.
 - **`redbark-connect-complete`** — takes `{ linkSessionId }`, resolves the
   caller's own member and household, and resolves the session
   (`GET /link_sessions/{id}`). A `pending` session reports
   `{ connected: false, status: 'pending' }` (a normal, expected state, not an
   error); a failed or connection-less one reports
-  `{ connected: false, status: 'failed', reason }`; a completed one reads the
+  `{ connected: false, status: 'failed' }` (Redbark's failure reason is logged, not returned); a completed one reads the
   resulting connection's institution (`GET /connections/{id}`), upserts a
   `redbark_connection` row, and reports `{ connected: true }`. Refreshing the
   newly connected accounts is left to the frontend (calling `redbark-sync`

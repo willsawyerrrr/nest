@@ -99,6 +99,8 @@ Deno.test('runDisconnect reports a Redbark revoke failure as a 502 and deletes n
   )
 
   assertEquals(result.status, 502)
+  assertEquals(result.body.code, 'redbark_unavailable')
+  assertEquals(JSON.stringify(result.body).includes('boom'), false)
   assertEquals(deleted, false)
 })
 

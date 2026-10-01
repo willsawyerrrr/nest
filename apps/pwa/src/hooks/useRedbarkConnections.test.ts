@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HouseholdProvider } from '../components/HouseholdProvider'
 import { makeWrapper } from '../test/queryWrapper'
-import { useRedbarkConnections } from './useRedbarkConnections'
+import { RedbarkConnectError, useRedbarkConnections } from './useRedbarkConnections'
 
 const LINK_SESSION_STORAGE_KEY = 'redbark-link-session-id'
 
@@ -95,6 +95,28 @@ describe('useRedbarkConnections', () => {
     expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()
   })
 
+  it.each([
+    [
+      'its error body code',
+      new Response(JSON.stringify({ code: 'plan_upgrade_required' })),
+      'plan_upgrade_required',
+    ],
+    ['no code for a body without one', new Response('{}'), null],
+    ['no code for a non-JSON body', new Response('<html>'), null],
+    ['no code without a response body', undefined, null],
+  ])('connect rejects with %s', async (_name, context, code) => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('generic'), { context }),
+    })
+    const { result } = renderHook(() => useRedbarkConnections(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const failure = await result.current.connect('https://app.example').catch((e: unknown) => e)
+    expect(failure).toBeInstanceOf(RedbarkConnectError)
+    expect(failure).toMatchObject({ message: 'generic', code })
+  })
+
   it('disconnects a connection, then reloads connections and accounts', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
@@ -162,10 +184,26 @@ describe('useRedbarkConnections completing a pending link session', () => {
     expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()
   })
 
-  it('reports a failure with its reason and clears the stashed link session id', async () => {
+  it('reports a failure and clears the stashed link session id', async () => {
     invoke.mockResolvedValue({
-      data: { connected: false, status: 'failed', reason: 'Consent declined' },
+      data: { connected: false, status: 'failed' },
       error: null,
+    })
+
+    const { result } = renderHook(() => useRedbarkConnections(), { wrapper: makeWrapper() })
+
+    await waitFor(() =>
+      expect(result.current.completeResult).toEqual({ status: 'failed', code: null }),
+    )
+    expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()
+  })
+
+  it('reports a failure when redbark-connect-complete itself errors', async () => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('network error'), {
+        context: new Response(JSON.stringify({ code: 'redbark_unavailable' })),
+      }),
     })
 
     const { result } = renderHook(() => useRedbarkConnections(), { wrapper: makeWrapper() })
@@ -173,21 +211,7 @@ describe('useRedbarkConnections completing a pending link session', () => {
     await waitFor(() =>
       expect(result.current.completeResult).toEqual({
         status: 'failed',
-        reason: 'Consent declined',
-      }),
-    )
-    expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()
-  })
-
-  it('reports a failure when redbark-connect-complete itself errors', async () => {
-    invoke.mockResolvedValue({ data: null, error: new Error('network error') })
-
-    const { result } = renderHook(() => useRedbarkConnections(), { wrapper: makeWrapper() })
-
-    await waitFor(() =>
-      expect(result.current.completeResult).toEqual({
-        status: 'failed',
-        reason: 'network error',
+        code: 'redbark_unavailable',
       }),
     )
     expect(sessionStorage.getItem(LINK_SESSION_STORAGE_KEY)).toBeNull()

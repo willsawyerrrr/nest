@@ -311,19 +311,28 @@ and so without the trigger.
     Indexed on `(group_id)`.
   - A `donation` written with `group_id` null is the exception to "null is a
     standalone claim": the `file_donation_in_default_group` trigger
-    (`before insert or update`) files it into the member's "Donations"
+    (`before insert or update`) files it into the member's `donations`-kind
     `deduction_group` for its financial year, creating that group the first time
-    it is needed. A work expense or tax agent fee is never auto-grouped, and a
-    donation the member filed into a named group (`group_id` already set) keeps
-    it — the trigger acts only when `group_id` is null. So a donation is always
-    grouped, and clearing its group snaps it back to "Donations". The
-    20260913000000 migration also backfills: every year with standalone
-    donations gets its "Donations" group and those donations move in.
+    it is needed. A work expense or tax agent fee is never auto-grouped.
+  - Donations and `donations` groups belong together in both directions, both
+    enforced by the same trigger (check violation `deduction_donation_group_kind`):
+    only a `donation` can sit in a `donations` group, and a `donation` can sit
+    in no other group. So a donation is always grouped, clearing its group snaps
+    it back. A deduction's category never changes, so none moves in or out by
+    re-categorising. The 20260921010000
+    migration flags each member-year's existing "Donations" group (the one
+    holding the most donations when a year has several), creates the group for
+    any year with a donation but none, moves every donation into it, and moves
+    any other category out of it (`group_id` null).
 - **deduction_group** — a named set of one member's deductions for one financial
   year: the many payments of one expense claimed more than once — a subscription
   paid monthly, a trip's several purchases — totalled for display.
-  - `id`, `household_id`, `member_id`, `name`, `financial_year`, `created_at`,
-    `updated_at`. Composite FK `(member_id, household_id)` → `members`
+  - `id`, `household_id`, `member_id`, `name`, `financial_year`, `kind`,
+    `created_at`, `updated_at`. `kind` is `standard` (default; a group the member
+    names and fills) or `donations` (the automatic group of the member's donations
+    for the year), checked in `deduction_group_kind_check`. A partial unique index
+    on `(household_id, member_id, financial_year) where kind = 'donations'` allows
+    one donations group per member and year. Composite FK `(member_id, household_id)` → `members`
     `on delete cascade`. Unique on `(id, household_id, member_id, financial_year)`
     — the key a deduction composite-FKs against, which is what holds a payment to
     its group's member and year in the same reference.
@@ -337,35 +346,38 @@ and so without the trigger.
     group spanning years would total money from two returns, and the Deductions
     tab — which shows one year — could only ever display part of it.
   - Deleting a group ungroups its payments rather than deleting them: each stays
-    an ordinary deduction, still claimable on its own.
+    an ordinary deduction, still claimable on its own. A `donations` group is
+    the exception: the delete policy applies to `standard` groups only, so a
+    member's delete of a donations group removes nothing (deleting the household
+    or member still cascades to it). Its `name` and `kind` are also immutable
+    (`protect_donations_group`, check violation
+    `deduction_group_donations_fixed`), and `kind` never changes on any group.
+    The Deductions tab hides edit and delete on it. A group a member names
+    "Donations" is a `standard` group like any other.
   - Membership is editable after the fact. The deduction form's Group picker
-    lists the member's groups for the year plus an explicit None, so a standalone
-    deduction can be filed under a group and a payment moved between groups or
-    taken out. It is withheld only when the answer is already settled — adding a
-    payment from a group's own row. The write is a plain `deduction` update, so
-    nothing passes through `create_deduction_with_receipt`. On an edit the picker
-    sits behind the form's "More details" toggle, open from the start only when
-    the deduction is already in a group.
+    lists the member's `standard` groups for the year plus an explicit None, so a
+    standalone non-donation can be filed under a group and a payment moved
+    between groups or taken out. It is withheld when the answer is already
+    settled — adding a payment from a group's own row — and for a donation,
+    which always sits in its donations group. The write is a plain `deduction`
+    update, so nothing passes through `create_deduction_with_receipt`. On an edit
+    the picker sits behind the form's "More details" toggle, open from the start
+    only when the deduction is already in a standard group.
   - The Deductions tab also files by drag and drop (`@dnd-kit`, pointer and
     touch; the Group picker stays the keyboard path). A payment's grip handle
     drags it onto a group to file it, onto another group to move it, or onto the
-    ungrouped list to clear `group_id` (a donation then snaps back into
-    "Donations"). Each member has their own drag context over that year's
-    groups, so every target offered satisfies the composite FK; those that
-    accept the dragged payment are outlined while it moves. The drop is the same
+    ungrouped list to clear `group_id`. Donations have no handle: they sit in
+    their donations group alone, and no other deduction can be dropped on it.
+    Each member has their own drag context over that year's groups, so every
+    target offered satisfies the composite FK; those that accept the dragged
+    payment are outlined while it moves. The drop is the same
     plain `deduction` update the form makes, and group totals, summed at read
     time, follow.
-  - For a **donation** the picker's default option is the member's automatic
-    "Donations" group (labelled `Donations`, not `None`): that group is folded
-    into the option rather than listed, the other options exist only to move the
-    donation to a named group, and picking the default writes `group_id` null
-    for `file_donation_in_default_group` to resolve. With no other groups a note
-    stands in for the picker.
-  - A group named `Donations` is created and used by the trigger, so a member's
-    own manually-created donation groups should carry another name; nothing
-    enforces this, and a stray second `Donations` group is harmless (the trigger
-    picks the first).
-  - RLS is **household-wide CRUD**, as for `deduction` itself.
+  - The deduction form follows the same split: a form opened from a `donations`
+    group adds donations alone (no category control), one opened from a standard
+    group offers no donation category, and a donation shows no Group picker.
+  - RLS is **household-wide** (select, insert, update, and delete of `standard`
+    groups), as for `deduction` itself.
 - **deduction_receipt** — the stored receipt file backing a deduction; at most
   one row per deduction.
   - `id`, `deduction_id`, `household_id`, `storage_path`, `created_at`. No

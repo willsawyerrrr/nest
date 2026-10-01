@@ -11,7 +11,10 @@ export const groupDropId = (groupId: string) => `group:${groupId}`
  * The `group_id` a deduction takes when dropped on `dropId`: a group's id, `null`
  * for the ungrouped list, or `undefined` when the drop is not a valid move —
  * onto a group of another member or financial year (the composite reference
- * would refuse it), or onto where the deduction already sits.
+ * would refuse it), onto where the deduction already sits, or across the
+ * donations boundary: a donation sits in a donations group alone, so it can be
+ * dropped on no standard group or the ungrouped list (where the database would
+ * file it straight back), and no other deduction on a donations group.
  */
 export function droppedGroupId(
   deduction: DeductionRow,
@@ -19,14 +22,15 @@ export function droppedGroupId(
   groups: DeductionGroupRow[],
 ): string | null | undefined {
   if (dropId === UNGROUPED_DROP_ID) {
-    return deduction.group_id === null ? undefined : null
+    return deduction.group_id === null || deduction.category === 'donation' ? undefined : null
   }
   const group = groups.find((candidate) => groupDropId(candidate.id) === dropId)
   if (
     !group ||
     group.id === deduction.group_id ||
     group.member_id !== deduction.member_id ||
-    group.financial_year !== deduction.financial_year
+    group.financial_year !== deduction.financial_year ||
+    (group.kind === 'donations') !== (deduction.category === 'donation')
   ) {
     return undefined
   }

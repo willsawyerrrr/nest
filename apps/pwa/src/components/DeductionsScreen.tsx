@@ -22,7 +22,7 @@ import { AppCard } from './AppCard'
 import { DropTarget } from './DeductionDrop'
 import { DeductionForm } from './DeductionForm'
 import { DeductionGroup, DeductionGroupForm } from './DeductionGroup'
-import { DraggableDeduction } from './DeductionItem'
+import { DeductionItem, DraggableDeduction } from './DeductionItem'
 import { EditableList, type ItemControls } from './EditableList'
 import { FinancialYearSelect } from './FinancialYearSelect'
 import { MoneyText } from './MoneyText'
@@ -177,18 +177,23 @@ function MemberDeductions({
 
   // One payment, rendered the same whether it stands alone or sits in a group —
   // a grouped deduction is an ordinary deduction, receipt and all.
+  // A donation sits in its donations group and nowhere else, so it has no grip
+  // to drag by.
   const renderPayment = (
     deduction: DeductionRow,
     { onEdit, onDelete: onDeleteItem }: ItemControls,
-  ) => (
-    <DraggableDeduction
-      deduction={deduction}
-      receipt={receiptFor(deduction)}
-      onEdit={onEdit}
-      onDelete={onDeleteItem}
-      signedUrl={signedUrl}
-    />
-  )
+  ) => {
+    const Item = deduction.category === 'donation' ? DeductionItem : DraggableDeduction
+    return (
+      <Item
+        deduction={deduction}
+        receipt={receiptFor(deduction)}
+        onEdit={onEdit}
+        onDelete={onDeleteItem}
+        signedUrl={signedUrl}
+      />
+    )
+  }
 
   return (
     <DndContext
@@ -252,7 +257,8 @@ function MemberDeductions({
                       // no picker is offered. Editing a payment already in it is
                       // where the picker earns its place: that is how one moves to
                       // another group, or out of them all.
-                      {...(initial ? { groups } : { groupId: group.id })}
+                      groups={groups}
+                      {...(!initial && { groupId: group.id })}
                       initial={initial}
                       {...(initial && receiptControls(initial))}
                       onSubmit={onSubmit}

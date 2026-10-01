@@ -336,30 +336,35 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   financial_year) holds a payment to its group's member and year, and dropping
   a group ungroups its payments rather than deleting them — each is still
   claimable on its own. Which group a deduction sits in is editable after the
-  fact: the form offers a Group picker listing that member's groups for the
-  year, with an explicit None, so a standalone deduction can be filed under one
-  and a payment can be moved or taken back out. The picker is offered wherever
+  fact: the form offers a Group picker listing that member's standard groups for
+  the year, with an explicit None, so a standalone non-donation can be filed
+  under one and a payment can be moved or taken back out. The picker is offered wherever
   the group is a question — editing any deduction, or adding a standalone one —
   and withheld where it is already answered, namely adding a payment from a
   group's own row, which is what that control means. Editing is a plain field
   update rather than `create_deduction_with_receipt`, so the group it writes
   cannot be dropped the way the add path's was.
-  **A donation is grouped automatically.** A `donation` saved with no group is
-  filed into the member's "Donations" `deduction_group` for the year by the
-  `file_donation_in_default_group` trigger (`before insert or update`), that
-  group created the first time it is needed; the 20260913000000 migration
-  backfills existing standalone donations the same way. A work expense or tax
-  agent fee is never auto-grouped, and a donation the member filed into a named
-  group of their own keeps it — the trigger acts only when `group_id` is null,
-  so clearing a donation's group snaps it back to "Donations". A donation is
-  therefore always in a group. The form's Group picker for a donation offers
-  that automatic group as its default option (labelled `Donations`, the real
-  group row folded in rather than listed) and lists the member's other groups
-  only to move the donation to one; with no other groups a note stands in.
-  A payment can also be dragged (pointer or touch, by its grip handle) onto a
-  group to file it, onto another group to move it, or onto the ungrouped list
-  to clear its group; only that member's groups for the year are targets, and
-  the form's picker remains the keyboard path.
+  **A donation is grouped automatically, into a group of donations alone.** A
+  `donation` saved with no group is filed by the
+  `file_donation_in_default_group` trigger (`before insert or update`) into the
+  member's `donations`-kind `deduction_group` for the year (`deduction_group.kind`
+  is `standard`, the default, or `donations`), that group created the first time
+  it is needed; the 20260921010000 migration flags existing automatic groups and
+  files existing donations the same way. The kind, not the name, marks the group,
+  so a member's own group named "Donations" is an ordinary standard group. Only a
+  donation can sit in a `donations` group and a donation can sit in no other
+  group — the same trigger refuses either — so a donation is always in its
+  donations group, and clearing a donation's group snaps it back. A work expense
+  or tax agent fee is never auto-grouped. The `donations` group cannot be renamed
+  or re-kinded (a trigger) or deleted (row-level security), and the Deductions
+  tab shows it with no edit or delete control. A donation has no Group picker or
+  drag handle, the picker lists only standard groups, and a form opened from a
+  donations group offers donations alone (a standard group offers no donation);
+  changing a donation to another category takes it out of the group.
+  A non-donation payment can also be dragged (pointer or touch, by its grip
+  handle) onto a standard group to file it, onto another to move it, or onto the
+  ungrouped list to clear its group; only that member's standard groups for the
+  year are targets, and the form's picker remains the keyboard path.
   Nothing downstream notices — the tax estimate, EOFY tab, and Summary read
   `deduction` rows regardless of grouping.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one

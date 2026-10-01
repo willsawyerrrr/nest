@@ -27,9 +27,10 @@ export type DeductionCategory = DeductionRow['category']
  * right either way, and the group's total is the sum of its payments rather
  * than a figure of its own. A `donation` written with no `group_id` is the
  * exception: the `file_donation_in_default_group` trigger files it into the
- * member's "Donations" group for its financial year, creating that group the
- * first time it is needed. So a donation is always grouped; the member can
- * still move it to another named group.
+ * member's `donations` group for its financial year, creating that group the
+ * first time it is needed. So a donation is always grouped, and into a
+ * `donations` group alone: it can sit in no other, and no other category can sit
+ * in that one.
  *
  * `full_amount_cents` and `work_use_percent` record how `amount_cents` was
  * apportioned: the whole cost and the share of it claimed. Both default so an
@@ -106,7 +107,7 @@ export function useDeductions(
     orderBy: 'deduction_date',
     // create_deduction_with_receipt writes a deduction's deduction_receipt
     // row alongside it, and the file_donation_in_default_group trigger may
-    // create the member's "Donations" deduction_group, so both are refetched
+    // create the member's donations deduction_group, so both are refetched
     // after a write.
     alsoInvalidate: ['deduction_receipt', 'deduction_group'],
   })

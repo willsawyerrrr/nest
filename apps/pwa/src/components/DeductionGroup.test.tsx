@@ -12,6 +12,7 @@ function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRo
     id: 'g1',
     household_id: 'h1',
     member_id: 'm1',
+    kind: 'standard',
     name: 'Adobe Creative Cloud',
     financial_year: 2027,
     created_at: '',
@@ -167,5 +168,21 @@ describe('DeductionGroup', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onDelete).toHaveBeenCalled()
+  })
+
+  it('has no edit or delete control for a donations group', () => {
+    render(
+      <DeductionGroup
+        group={makeGroup({ name: 'Donations', kind: 'donations' })}
+        payments={[]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      >
+        <div />
+      </DeductionGroup>,
+    )
+
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
   })
 })

@@ -620,7 +620,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer, shown on the
-  Summary as a ledger, an allocation donut, and a lazy-loaded cash-flow Sankey
+  Summary as a ledger, an allocation donut, and a lazy-loaded SVG cash-flow Sankey
   (`cashFlowGraph`) that follows the donut's take-home/gross basis, draws a
   negative buffer as a Shortfall source, and can drill into budget lines; actual-spend
   reconciliation via Up ingestion is a later enhancement. Each line carries an

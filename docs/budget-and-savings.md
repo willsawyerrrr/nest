@@ -303,10 +303,18 @@ the buffer is negative a **Shortfall** source feeds the groups for the part
 Available cannot cover, filling them in reconciliation order, and no Buffer node
 is drawn. A "Show budget lines" switch drills each group down to its budget lines
 and active temporary items (an **Other** node carries any unnamed remainder).
-One-off money stays out, as it does of `available`. The chart is lazy-loaded with
-the donut's recharts chunk, fills the card's width with a reserved label margin
-(no horizontal scroll at phone width), and is hidden from assistive tech in
-favour of a list stating every flow in formatted cents.
+One-off money stays out, as it does of `available`. The chart is plain SVG laid
+out by the pure `sankeyLayout` (`apps/pwa/src/lib/sankeyLayout.ts`): one value
+scale for every column, each column spread over the full height so both sides
+share top and bottom edges, ribbons stacked inside their node bars (ordered by
+their far end's position so flows don't cross), and a four-pixel floor on link
+thickness that shrinks the scale rather than overflowing, so thin flows stay
+visible without breaking the totals. First-column labels sit left of their bars
+and the rest right, with long names clipped, so no label crosses a ribbon at
+group level. The chart is lazy-loaded, fills the card's width with a reserved
+label margin (no horizontal scroll at phone width), grows with its tallest column
+so labels never collide, and is hidden from assistive tech in favour of a list
+stating every flow in formatted cents.
 
 | Line          | Composition                          |
 | ------------- | ------------------------------------ |

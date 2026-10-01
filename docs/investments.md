@@ -49,13 +49,16 @@ price per unit, and brokerage fee. A trade belongs to one member; holdings are
 per member and ticker.
 
 Trades, holdings, and realised gains use the same compact list-row style as the
-budget lines: a dense row from the `sm` breakpoint up, with fixed-width columns
-that line up across rows, and a bordered card below it. A trade row reads side
-pill, ticker, and **Document** link, then muted date, units, exact price
-(`at $33.083072`), and brokerage, then the trade value (units at price, before
-brokerage) right-aligned beside the edit and delete controls. Holdings and each
-financial year's gains read as a title, muted figures, and a right-aligned
-figure.
+budget lines: a dense row from the `sm` breakpoint up, with columns that line up
+across rows, and a bordered card below it. A trade row reads side pill and
+ticker (never truncated), then muted date, units (`1 unit`, `1.5 units`), and
+exact price (`at $33.083072`), then the brokerage as an outlined pill showing
+just the fee (`$9.50`, titled `Brokerage $9.50`; an em dash when there is none),
+then the trade value (units at price, before brokerage) right-aligned beside the
+**Document** icon (when the trade was read from a document), edit, and delete
+controls. The card reads the same facts as one muted line (`$9.50 brokerage`),
+with a **Document** link beside the ticker. Holdings and each financial year's
+gains read as a title, muted figures, and a right-aligned figure.
 
 Trades carry `source` (`manual` by default) and `external_id`, unique together
 exactly as `transactions` is, so a later brokerage import (the SnapTrade rail in

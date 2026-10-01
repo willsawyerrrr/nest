@@ -264,7 +264,10 @@ floor), whether the household is **liable** (a tier applies and at least one
 member lacks private hospital cover), the household surcharge, and the distance
 to the next tier's floor (none at the top tier). There is no persisted dependent
 children field, so the count is an ephemeral input on the card, starting at 0.
-The card is not part of the shared EOFY view.
+The shared EOFY view shows the same card, computed client-side from the shared
+rows by the same functions, with the same ephemeral children input starting at 0
+that the viewer may change locally; nothing is saved
+([`eofy-sharing.md`](eofy-sharing.md#household-section)).
 
 ## Super contribution caps and co-contribution
 

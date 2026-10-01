@@ -146,6 +146,25 @@ goal's projected savings interest lands in the shared estimate too. It serves
 `trades` likewise, unfiltered by financial year because a sale is matched against
 earlier purchases, so a member's net capital gain lands in the shared estimate.
 
+### Household section
+
+`EofyShareSection.tsx` passes the same `HouseholdYearSummary` to `EofyScreen` as
+`householdSection`, over the `estimate` it already computes, so the figures are
+the in-app card's by construction. No function or grant change is needed:
+
+- **Scope.** A share always covers the whole household for its financial year,
+  so every member's estimate is already in the payload and the household totals
+  (sums of those per-member figures, plus the MLS test over them) reveal nothing
+  the page does not already show. A share never covers a subset of members, so
+  the household figures cannot disagree with the member cards.
+- **Children.** The dependent-children count has no stored value. The card
+  starts at 0 and the input stays editable: a viewer may change it to see the
+  MLS tier and distance to the next threshold for another count. It is local
+  state, never sent anywhere or saved, so the page stays read-only and the
+  figures shown on load are explicitly those for 0 children.
+- Net capital gain appears on its own line only when the shared trades produce
+  one.
+
 `App.tsx` matches `/share/eofy/:token` in its own top-level `<Routes>`,
 ahead of the session gate (renamed `AuthGate`, otherwise unchanged): a tax
 agent opening a shared link never calls `supabase.auth.getSession()`.
@@ -182,7 +201,7 @@ recovered on a later visit even by the household that created it.
   v1; a planner view would need the same client-side-composition treatment
   built fresh, not reuse `EofyScreen`.
 - Per-member share scope — a share always covers the whole household's EOFY
-  data for its financial year.
+  data for its financial year, household section included.
 - Share history / audit log — single active share only.
 
 ## Status

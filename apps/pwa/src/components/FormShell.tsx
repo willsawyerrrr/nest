@@ -16,9 +16,11 @@ interface FormShellProps {
   /** The noun completing the add label, e.g. `deduction` → "Add deduction". */
   addLabel?: string
   /** Overrides the derived submit label (e.g. "Save", "Update actual balance"). */
-  submitLabel?: string
+  submitLabel?: string | undefined
   /** Renders a Cancel button beside submit when provided. */
   onCancel?: (() => void) | undefined
+  /** Overrides the cancel button's label (e.g. "Discard"). */
+  cancelLabel?: string | undefined
   /** Extra content between the error block and the footer, e.g. a saved status. */
   status?: ReactNode
   /** The form fields. */
@@ -40,6 +42,7 @@ export function FormShell({
   addLabel,
   submitLabel,
   onCancel,
+  cancelLabel = 'Cancel',
   status,
   children,
 }: FormShellProps) {
@@ -61,7 +64,7 @@ export function FormShell({
           </Button>
           {onCancel && (
             <Button type="button" variant="default" onClick={onCancel}>
-              Cancel
+              {cancelLabel}
             </Button>
           )}
         </Group>

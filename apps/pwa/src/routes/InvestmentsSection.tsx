@@ -1,11 +1,13 @@
 import { LoadingScreen } from '../components/LoadingScreen'
 import { TradesScreen } from '../components/TradesScreen'
 import { useMembers } from '../hooks/useMembers'
+import { useTradeDocuments } from '../hooks/useTradeDocuments'
 import { useTrades } from '../hooks/useTrades'
 
 export function InvestmentsSection() {
   const { members, loading: membersLoading } = useMembers()
   const trades = useTrades()
+  const { documents, ...documentActions } = useTradeDocuments()
 
   if (membersLoading || trades.loading || !members) {
     return <LoadingScreen />
@@ -18,6 +20,8 @@ export function InvestmentsSection() {
       onCreate={trades.create}
       onUpdate={trades.update}
       onDelete={trades.remove}
+      documents={documents ?? []}
+      documentActions={documentActions}
     />
   )
 }

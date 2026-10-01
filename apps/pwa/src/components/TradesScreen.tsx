@@ -1,5 +1,7 @@
-import { Badge, Group, Stack, Text } from '@mantine/core'
+import { useState } from 'react'
+import { Anchor, Badge, Button, FileButton, Group, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
+import type { TradeDocumentRow, UseTradeDocumentsResult } from '../hooks/useTradeDocuments'
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents } from '../lib/money'
@@ -9,6 +11,7 @@ import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
+import { TradeDocumentImport } from './TradeDocumentImport'
 import { TradeForm } from './TradeForm'
 
 interface TradesScreenProps {
@@ -18,6 +21,13 @@ interface TradesScreenProps {
   onCreate: (input: TradeInput) => Promise<void>
   onUpdate: (id: string, input: TradeInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  /** The stored documents trades were read from. */
+  documents: TradeDocumentRow[]
+  /** Uploading, reading, and saving a trade document, and viewing a stored one. */
+  documentActions: Pick<
+    UseTradeDocumentsResult,
+    'upload' | 'discard' | 'extract' | 'save' | 'signedUrl'
+  >
 }
 
 /** A units figure without trailing zeros, grouped by thousands. */
@@ -56,10 +66,13 @@ function TradeCard({
   trade,
   onEdit,
   onDelete,
+  onViewDocument,
 }: {
   trade: TradeRow
   onEdit: () => void
   onDelete: () => void
+  /** Opens the document the trade was read from; absent when it has none. */
+  onViewDocument?: (() => void) | undefined
 }) {
   return (
     <AppCard withBorder padding="xs">
@@ -72,6 +85,11 @@ function TradeCard({
             <Text fw={600} size="sm" truncate>
               {trade.ticker}
             </Text>
+            {onViewDocument && (
+              <Anchor size="xs" component="button" type="button" onClick={onViewDocument}>
+                Document
+              </Anchor>
+            )}
           </Group>
           <Text size="xs" c="dimmed">
             {formatUnits(Number(trade.units))} @ {formatCents(trade.price_per_unit_cents)}
@@ -94,13 +112,26 @@ function MemberTrades({
   onCreate,
   onUpdate,
   onDelete,
+  documents,
+  documentActions,
 }: {
   member: Member
   trades: TradeRow[]
   onCreate: (input: TradeInput) => Promise<void>
   onUpdate: (id: string, input: TradeInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  documents: TradeDocumentRow[]
+  documentActions: TradesScreenProps['documentActions']
 }) {
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const viewDocument = async (documentId: string) => {
+    const path = documents.find((document) => document.id === documentId)?.storage_path
+    const url = path ? await documentActions.signedUrl(path) : null
+    if (url) {
+      window.open(url, '_blank', 'noopener')
+    }
+  }
+
   const { holdings, gainsByYear, unmatchedSales } = memberPortfolio(trades, member.id)
   const memberTrades = trades
     .filter((trade) => trade.member_id === member.id)
@@ -161,9 +192,31 @@ function MemberTrades({
         </Text>
       ))}
 
-      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-        Trades
-      </Text>
+      <Group justify="space-between" align="center">
+        <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+          Trades
+        </Text>
+        <FileButton
+          accept="image/*,application/pdf"
+          inputProps={{ 'aria-label': `Add ${member.name}'s trades from a document` }}
+          onChange={setImportFile}
+        >
+          {(props) => (
+            <Button {...props} variant="default" size="xs">
+              Add from document
+            </Button>
+          )}
+        </FileButton>
+      </Group>
+      {importFile && (
+        <TradeDocumentImport
+          file={importFile}
+          member={member}
+          trades={trades}
+          actions={documentActions}
+          onClose={() => setImportFile(null)}
+        />
+      )}
       <EditableList<TradeRow, TradeInput>
         items={memberTrades}
         addLabel="Add trade"
@@ -176,10 +229,23 @@ function MemberTrades({
         onUpdate={onUpdate}
         onDelete={onDelete}
         renderItem={(trade, { onEdit, onDelete: onDeleteItem }) => (
-          <TradeCard trade={trade} onEdit={onEdit} onDelete={onDeleteItem} />
+          <TradeCard
+            trade={trade}
+            onEdit={onEdit}
+            onDelete={onDeleteItem}
+            onViewDocument={
+              trade.document_id ? () => void viewDocument(trade.document_id!) : undefined
+            }
+          />
         )}
         renderForm={({ initial, onSubmit, onCancel }) => (
-          <TradeForm member={member} initial={initial} onSubmit={onSubmit} onCancel={onCancel} />
+          <TradeForm
+            member={member}
+            initial={initial}
+            trades={trades}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
+          />
         )}
       />
     </Stack>
@@ -191,9 +257,18 @@ function MemberTrades({
  * current share and ETF holdings (units, cost base, average cost, and value at the
  * last traded price), the capital gains realised in each financial year, and the
  * trades they are derived from. Sales are matched to purchases first-in first-out.
- * Persistence lives in the caller.
+ * Trades can be added by hand or read from an uploaded broker document, each
+ * confirmed by the member before it is saved. Persistence lives in the caller.
  */
-export function TradesScreen({ members, trades, onCreate, onUpdate, onDelete }: TradesScreenProps) {
+export function TradesScreen({
+  members,
+  trades,
+  onCreate,
+  onUpdate,
+  onDelete,
+  documents,
+  documentActions,
+}: TradesScreenProps) {
   return (
     <PageSection
       title="Investments"
@@ -207,6 +282,8 @@ export function TradesScreen({ members, trades, onCreate, onUpdate, onDelete }: 
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          documents={documents}
+          documentActions={documentActions}
         />
       ))}
     </PageSection>

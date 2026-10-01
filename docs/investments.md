@@ -21,6 +21,60 @@ exactly as `transactions` is, so a later brokerage import (the SnapTrade rail in
 [`redbark-ingestion.md`](redbark-ingestion.md#brokerage-rail-out-of-scope-unbuilt))
 can upsert its own trades without duplicating.
 
+## Adding trades from a document
+
+Each member's Trades list has an **Add from document** button. The member picks a
+broker contract note, trade confirmation, or statement (PDF, JPEG, PNG, or WebP);
+the file is uploaded to the private `receipts` bucket, laid out as
+`<household_id>/<document_id>/<file>`, and read by the `trade-extract` edge
+function (Claude Haiku 4.5, forced tool schema, the Vault-held `anthropic_api_key`
+the payslip and deduction extractors use). A document can hold several trades, so
+the answer is a list: each trade becomes its own **draft** form, pre-filled with
+ticker, side, date, units (up to six decimal places), price per unit, and
+brokerage fee. The owning member is the section the button sits in, never read
+from the document.
+
+- Extraction writes nothing. Each draft is the member's to **save**, edit, or
+  **discard**; the first save stores the document, and the rest reuse it.
+- Units and money are the literal printed text, converted in TypeScript: money to
+  integer cents, units to a number of at most six decimal places. A price with
+  sub-cent digits (`98.4567`) cannot be held in whole cents and is flagged for the
+  member to enter rather than rounded; trailing zeros (`98.5000`) are dropped. An
+  absent brokerage fee is nil.
+- A field the document did not show, or showed in a form that could not be read
+  safely, is left blank and named in a note on the draft.
+- A date printed without a year resolves within the financial year the trades are
+  being added to (the current financial year), as for payslips and deduction
+  receipts.
+- A draft that matches an existing trade of the same member, ticker, date, units,
+  and price shows a warning. It does not block saving: two identical fills on one
+  day are legitimate. The same warning shows when adding or editing by hand.
+- A document with no saved trade is deleted again when the panel closes, so a
+  failed or abandoned read leaves nothing behind.
+
+### Where the document lives
+
+Saved trades keep the document they were read from. The `trade_document` table
+holds one row per stored document (`storage_path` into the `receipts` bucket), and
+`trade.document_id` points at it — a statement's trades share one row. The trade
+card shows a **Document** link that opens the file through a short-lived signed
+URL. The `create_trades_with_document` function writes the document row and the
+confirmed trade together in one transaction, keyed on ids minted in the browser so
+a retried save does not duplicate either. Deleting a trade leaves the stored file and its row: the document remains the
+record for any other trade read from it.
+
+A trade read from a document stays `source = 'manual'` with a null `external_id`:
+those columns are a brokerage import's idempotency key, and every extracted trade
+is confirmed by hand, so `document_id` is the only mark that a trade was extracted.
+
+### Failures
+
+`trade-extract` answers every failure with a stable `code` and fixed copy of its
+own; nothing the model or the Anthropic API said reaches the client, and the
+upstream detail is logged server-side. The panel shows the message and falls back
+to manual entry. See
+[`supabase/functions/README.md`](../supabase/functions/README.md#trade-extraction).
+
 ## Holdings
 
 Each member's holding of a ticker is the units left after matching sales to

@@ -565,7 +565,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the tax estimate — in the annual figures and out of the fortnightly ones, like
   one-off money — and shows in the Tax tab and the EOFY views, the shared one
   included. Holdings count toward net worth in the Equity group at the ticker's
-  last traded price and stay flat in the projection. See
+  last traded price and stay flat in the projection. A member can also add
+  trades by uploading a broker contract note, confirmation, or statement
+  (`trade-extract`, Claude Haiku 4.5): each trade on it becomes a reviewable
+  draft the member saves, edits, or discards, a likely repeat of an existing trade
+  is warned about, and the document is kept (`trade_document`, `trade.document_id`,
+  the `receipts` bucket) and linked from the trade; extracted trades stay
+  `source = 'manual'`. `trade-extract` answers failures with a stable `code` and
+  fixed copy. See
   [`docs/investments.md`](docs/investments.md).
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /

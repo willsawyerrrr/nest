@@ -44,7 +44,7 @@ that `push-test` and `notify-eval` share — is exercised against a stubbed
 a push service. On the same
 pattern, `_shared/money.ts` holds the cents/date conversion shared by both
 document-reading functions, `payslip-extract/{fields,extract}.ts` and
-`deduction-extract/{fields,extract}.ts` hold their own field shaping and
+`deduction-extract/{fields,extract}.ts` (and `trade-extract/{fields,extract}.ts`) hold their own field shaping and
 extraction flow, and each function's `model.ts` takes an injectable `fetch` the
 same way `UpClient` does, so the Anthropic request is asserted against a stub.
 `_shared/redbark.ts`'s `RedbarkClient` takes the same injectable `fetch`;
@@ -121,7 +121,7 @@ directory.
 
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
-`payslip-extract`, `deduction-extract`, `share-create`, `intent-summary`,
+`payslip-extract`, `deduction-extract`, `trade-extract`, `share-create`, `intent-summary`,
 `goal-progress`, `notify-eval`, `redbark-connect`, `redbark-connect-complete`,
 `redbark-disconnect`, and `redbark-sync` are JWT-verified (the default, so they
 carry no `config.toml` entry) — the caller is resolved from their JWT, so a
@@ -148,6 +148,7 @@ supabase functions serve up-webhook
 supabase functions serve up-sync
 supabase functions serve payslip-extract
 supabase functions serve deduction-extract
+supabase functions serve trade-extract
 supabase functions serve eofy-share
 supabase functions serve eofy-share-file
 supabase functions serve share-create
@@ -364,6 +365,42 @@ key (`anthropic_api_key`).
   `502` an API error or unusable output, `504` a timeout, and `503` with
   `{ configured: false }` / `{ outOfCredit: true }` / `{ keyRejected: true }` for
   the three operator-fixable "reading is off" cases.
+
+## Trade extraction
+
+`trade-extract` reads the share and ETF trades off an uploaded broker contract
+note, trade confirmation, or statement so the member can confirm them, on the
+same shape as `deduction-extract`: JWT-verified, takes an already-uploaded object
+path in the private `receipts` bucket, checks the path's household prefix,
+downloads with the service role, and forces a tool schema over Claude Haiku 4.5.
+It **never writes a trade anywhere**; it shares `_shared/money.ts` and the Vault
+key (`anthropic_api_key`). It is deployed with every other function on merge
+(`deploy-functions.yml`) and needs no `config.toml` entry, no vendored package
+beyond `@nest/tax` (already vendored), and no new secret.
+
+- **Request** — `POST { "path": "<household_id>/<document_id>/…", "financialYear": 2027 }`.
+  Both are required; a yearless date resolves within that financial year's
+  1 July – 30 June window.
+- **Fields** — the schema asks for a list of trades, each with `ticker`, `side`,
+  `trade_date`, `units`, `price_per_unit`, and `brokerage_fee`, all nullable text
+  as printed. At most 100 trades are read from one document; an answer cut off
+  mid-list is rejected as unreadable rather than read as a shorter statement.
+- **Response** — `{ model, trades }`, where each trade is
+  `{ fields, text, missing, unreadable }`: `fields` holds the converted values
+  (`ticker` upper-case, `side` `buy`/`sell`, `traded_on` ISO date, `units` as a
+  number of at most six decimal places, `price_per_unit_cents`, `fee_cents`), and
+  `missing`/`unreadable` say which fields the document did not show versus which
+  were read but could not be converted safely (a sub-cent price is unreadable,
+  never rounded).
+- **Failures** — every failure is `{ code, error }`: a stable `code` and fixed copy
+  of ours. Nothing the model or the Anthropic API said reaches the client; the
+  upstream error is logged with `console.error`. Codes: `path_required`,
+  `financial_year_required` (`400`), `wrong_household` (`403`), `household_not_found`,
+  `file_not_found` (`404`), `file_empty` (`400`), `unsupported_type` (`415`),
+  `file_too_large` (`413`), `not_trade_document`, `no_trades`, `refused` (`422`),
+  `rate_limited` (`429`), `unreadable`, `unavailable` (`502`; only `unavailable`
+  invites a retry), `timeout` (`504`), and `not_configured`, `out_of_credit`,
+  `key_rejected` (`503`, the three operator-fixable "reading is off" cases).
 
 ### Secret
 

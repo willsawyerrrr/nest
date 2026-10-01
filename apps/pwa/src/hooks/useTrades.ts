@@ -17,6 +17,12 @@ export interface TradeInput {
   fee_cents: number
 }
 
+/**
+ * What the trade form can start from: a saved trade, or a draft read from a
+ * document, where a field the document did not give is absent.
+ */
+export type TradeFormValues = Partial<Omit<TradeInput, 'member_id'>> & { id?: string }
+
 export interface UseTradesResult {
   trades: TradeRow[] | null
   loading: boolean

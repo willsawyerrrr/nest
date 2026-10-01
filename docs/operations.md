@@ -289,7 +289,7 @@ environment provisions them with the deploy:
 
 | Bucket     | Migration                          | Holds                      |
 | ---------- | ---------------------------------- | -------------------------- |
-| `receipts` | `20260803000000_tax_deduction.sql` | deduction receipt files    |
+| `receipts` | `20260803000000_tax_deduction.sql` | deduction receipt files and trade documents |
 | `payslips` | `20260811000000_payslip.sql`       | attached payslip documents |
 
 Each is **private** (`public = false`) with a single `for all to authenticated`
@@ -322,7 +322,7 @@ Vault holds every secret that must never reach a client:
 | `redbark_sync_cron_key`  | the service-role key that cron POSTs with                  |
 | `notify_cron_url`        | the daily cron's `notify-eval` invocation URL              |
 | `notify_cron_key`        | the service-role key that cron POSTs with                  |
-| `anthropic_api_key`      | the `payslip-extract`/`deduction-extract` functions' Anthropic key (see below) |
+| `anthropic_api_key`      | the `payslip-extract`/`deduction-extract`/`trade-extract` functions' Anthropic key (see below) |
 | `GITHUB_CHANGELOG_TOKEN` | the `changelog` function's GitHub PAT (see below)          |
 | `vapid_public_key`       | the Web Push VAPID public key, base64url (see below)       |
 | `vapid_private_key`      | the Web Push VAPID private key, base64url                  |
@@ -467,9 +467,9 @@ keypair set (below); without it `notify-eval` answers `503` and sends nothing.
 
 ## `anthropic_api_key` setup
 
-The `payslip-extract` and `deduction-extract` functions each read an uploaded
-document with Claude Haiku 4.5, pinned to `claude-haiku-4-5-20251001`. The key
-is one household-wide credential shared by both functions (not per member), so
+The `payslip-extract`, `deduction-extract`, and `trade-extract` functions each read
+an uploaded document with Claude Haiku 4.5, pinned to `claude-haiku-4-5-20251001`.
+The key is one household-wide credential shared by all three functions (not per member), so
 it is a single Vault secret named `anthropic_api_key`. There is no store RPC —
 no client ever supplies this key — so the operator writes it by hand once, from
 the SQL editor or `psql`:
@@ -539,8 +539,8 @@ channel. The function logs are: each carries the upstream status and `error.type
 verbatim, so a `401` (a bad key) and a `403` (a key without permission) are told
 apart there, alongside this section.
 
-The `payslip-extract` and `deduction-extract` functions log every Anthropic API
-failure with `console.error` and answer with their own fixed copy only; nothing the
+The `payslip-extract`, `deduction-extract`, and `trade-extract` functions log every
+Anthropic API failure with `console.error` and answer with their own fixed copy only; nothing the
 API said reaches the client.
 
 Every other upstream failure stays a `502`/`429`/`504`, deliberately. Only the

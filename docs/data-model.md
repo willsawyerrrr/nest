@@ -264,7 +264,11 @@ and so without the trigger.
     `distance` basis: a donation and tax agent fees are claimed in full or not
     at all, never apportioned. They cannot take the `distance` basis at all
     (`deduction_distance_basis_work_expense`), and the add form shows the
-    dollar/distance toggle for a work expense alone. `deduction-extract` reads `category` too,
+    dollar/distance toggle for a work expense alone. The category is chosen when
+    adding and fixed thereafter: the `deduction_category_immutable` BEFORE UPDATE
+    trigger refuses an update that changes it (any other update, such as filing
+    the row into a group, is unaffected), so a deduction entered under the wrong
+    category is deleted and re-added. `deduction-extract` reads `category` too,
     priming the model to expect a purchase receipt/invoice for `work_expense`,
     a donation tax receipt for `donation`, or an invoice for `tax_agent_fees`,
     so a genuine DGR donation tax receipt is not rejected for failing to look
@@ -339,7 +343,9 @@ and so without the trigger.
     deduction can be filed under a group and a payment moved between groups or
     taken out. It is withheld only when the answer is already settled — adding a
     payment from a group's own row. The write is a plain `deduction` update, so
-    nothing passes through `create_deduction_with_receipt`.
+    nothing passes through `create_deduction_with_receipt`. On an edit the picker
+    sits behind the form's "More details" toggle, open from the start only when
+    the deduction is already in a group.
   - The Deductions tab also files by drag and drop (`@dnd-kit`, pointer and
     touch; the Group picker stays the keyboard path). A payment's grip handle
     drags it onto a group to file it, onto another group to move it, or onto the

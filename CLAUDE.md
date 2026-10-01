@@ -262,7 +262,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   deduction also states its `category` (`work_expense`, the default,
   `donation`, or `tax_agent_fees` — extensible for any future kind that is not
   a super contribution) up front, before the receipt is picked, mirroring how
-  `basis` is a form choice for a work expense. `deduction_work_use_basis` pins
+  `basis` is a form choice for a work expense. The category is fixed once the
+  deduction exists (`deduction_category_immutable`, a BEFORE UPDATE trigger), so
+  the edit form has no category control: a deduction entered under the wrong one
+  is deleted and re-added. The edit form stays near the row's compact footprint
+  — description, amount (or kilometres), and date — with the basis toggle, "Work
+  use %", the Group picker, and the receipt controls behind a "More details"
+  toggle that starts open only when the deduction already uses one of them.
+  `deduction_work_use_basis` pins
   `work_use_percent`
   at 100 for every category but `work_expense` too, the same rule as the
   distance basis: a donation and tax agent fees are claimed in full or not at

@@ -2,6 +2,9 @@ import { useState } from 'react'
 import {
   ActionIcon,
   Alert,
+  Anchor,
+  Button,
+  FileButton,
   FileInput,
   Group,
   Loader,
@@ -190,12 +193,20 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * attached, replaced, or removed from a control here that writes straight
  * through, since the deduction already exists, and nothing is read.
  *
- * Before any of that, the member says **what kind of deduction** this is — a
- * work expense (the default), a donation, or a tax agent fee — asked up front,
- * before the receipt is picked: it primes `deduction-extract` to expect the
- * right kind of document (a purchase receipt/invoice, a donation tax receipt,
- * or an invoice) rather than rejecting a genuine donation tax receipt for not
- * being a purchase.
+ * Adding starts with **what kind of deduction** this is — a work expense (the
+ * default), a donation, or a tax agent fee — asked up front, before the receipt
+ * is picked: it primes `deduction-extract` to expect the right kind of document
+ * (a purchase receipt/invoice, a donation tax receipt, or an invoice) rather
+ * than rejecting a genuine donation tax receipt for not being a purchase. The
+ * category is fixed once the deduction exists (`deduction_category_immutable`),
+ * so editing offers no picker for it.
+ *
+ * Editing stays near the row's own footprint: the description, the amount (or
+ * kilometres), and the date sit on two lines, with explanatory hints dropped.
+ * The rest — the dollar/distance basis, work use %, the group, and the receipt
+ * controls — sits behind a "More details" toggle that starts open only when the
+ * deduction already uses one of them (a distance basis, a part-claimed work use,
+ * or a group). Adding shows every field.
  *
  * A **donation** is grouped automatically: saved with no group of its own, the
  * `file_donation_in_default_group` trigger files it into the member's
@@ -255,7 +266,10 @@ export function DeductionForm({
     amount: centsToDollars(initial?.full_amount_cents ?? initial?.amount_cents),
     deductionDate: initial?.deduction_date ?? todayIso(),
   })
-  const [category, setCategory] = useState<DeductionCategory>(initial?.category ?? 'work_expense')
+  // Chosen when adding; an existing deduction keeps the category it was created
+  // with, since a deduction entered under the wrong one is deleted and re-added.
+  const [chosenCategory, setCategory] = useState<DeductionCategory>('work_expense')
+  const category = initial?.category ?? chosenCategory
   const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
   // The member's own "Donations" group, if it has been created — a donation
   // filed into it shows as the default option, not as a named group, so its
@@ -278,6 +292,18 @@ export function DeductionForm({
   const [workUsePercent, setWorkUsePercent] = useState<number | string>(
     initial?.work_use_percent ?? 100,
   )
+  // Adding shows every field. Editing keeps the form to the description, the
+  // amount (or distance), and the date, with the rest behind a toggle that
+  // starts open only when the deduction already departs from the defaults.
+  const [detailsToggled, setDetailsToggled] = useState(
+    initial !== undefined &&
+      (initial.basis === 'distance' ||
+        initial.work_use_percent < 100 ||
+        (initial.group_id !== null &&
+          !(initial.category === 'donation' && initial.group_id === autoDonationsGroupId))),
+  )
+  const showDetails = adding || detailsToggled
+  const hint = (text: string) => (adding ? text : undefined)
   const receipts = useDeductionAttachment({
     attachments,
     category,
@@ -376,14 +402,16 @@ export function DeductionForm({
       addLabel={groupId ? 'payment' : 'deduction'}
       onCancel={onCancel}
     >
-      <EnumSegmentedControl
-        fullWidth
-        size="sm"
-        aria-label="What kind of deduction?"
-        value={category}
-        onChange={setCategory}
-        data={CATEGORY_OPTIONS}
-      />
+      {adding && (
+        <EnumSegmentedControl
+          fullWidth
+          size="sm"
+          aria-label="What kind of deduction?"
+          value={category}
+          onChange={setCategory}
+          data={CATEGORY_OPTIONS}
+        />
+      )}
 
       {adding && (
         <Stack gap={6}>
@@ -419,38 +447,6 @@ export function DeductionForm({
         </Stack>
       )}
 
-      {!adding && onUploadReceipt && (
-        <Stack gap={6}>
-          <FileInput
-            label="Receipt"
-            size="sm"
-            placeholder={receipt ? 'Replace receipt' : 'Add receipt'}
-            accept="image/*,application/pdf"
-            aria-label={`${receipt ? 'Replace' : 'Add'} receipt`}
-            value={null}
-            onChange={(file) => {
-              if (file) {
-                void onUploadReceipt(file)
-              }
-            }}
-          />
-          {receipt && onRemoveReceipt && (
-            <Group gap="xs" wrap="nowrap" justify="space-between">
-              <Text size="xs">Receipt attached</Text>
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                size="sm"
-                aria-label="Delete receipt"
-                onClick={() => onRemoveReceipt(receipt)}
-              >
-                <IconTrash size={14} />
-              </ActionIcon>
-            </Group>
-          )}
-        </Stack>
-      )}
-
       <TextInput
         label="Description"
         size="sm"
@@ -459,7 +455,74 @@ export function DeductionForm({
         onChange={(event) => fields.setDescription(event.currentTarget.value)}
       />
 
-      {basisApplies && (
+      <Group grow wrap="nowrap" align="flex-start" gap="xs">
+        {isDistance ? (
+          <NumberInput
+            label="Kilometres travelled"
+            size="sm"
+            description={hint(
+              `Work-related kilometres travelled, at FY${financialYear}'s ${(config.carExpense.centsPerKm / 100).toFixed(2)}c/km ATO rate.`,
+            )}
+            suffix=" km"
+            decimalScale={2}
+            min={0}
+            hideControls
+            value={distanceKm}
+            onChange={setDistanceKm}
+          />
+        ) : (
+          <MoneyInput
+            label="Amount"
+            size="sm"
+            description={hint(
+              apportionable
+                ? 'What the expense cost in full.'
+                : 'The receipted amount, claimed in full.',
+            )}
+            min={0}
+            hideControls
+            value={values.amount}
+            onChange={fields.setAmount}
+          />
+        )}
+        <DateInput
+          label="Date"
+          size="sm"
+          valueFormat="D MMM YYYY"
+          value={values.deductionDate}
+          onChange={fields.setDeductionDate}
+        />
+      </Group>
+
+      {isDistance && (
+        <Text size="sm" c="dimmed">
+          Deductible amount: <b>{formatCents(computedAmountCents)}</b>
+        </Text>
+      )}
+      {overCap && (
+        <Alert color="warning" variant="light" p="xs">
+          <Text size="xs">
+            Over the ATO's {config.carExpense.maxClaimableKm.toLocaleString()}km cap per car, per
+            year for the cents-per-kilometre method. Kilometres beyond the cap need the logbook
+            method or actual costs instead.
+          </Text>
+        </Alert>
+      )}
+
+      {!adding && (
+        <Anchor
+          component="button"
+          type="button"
+          size="xs"
+          ta="left"
+          aria-expanded={detailsToggled}
+          onClick={() => setDetailsToggled((open) => !open)}
+        >
+          {detailsToggled ? 'Fewer details' : 'More details'}
+        </Anchor>
+      )}
+
+      {showDetails && basisApplies && (
         <EnumSegmentedControl
           fullWidth
           size="sm"
@@ -473,70 +536,27 @@ export function DeductionForm({
         />
       )}
 
-      {isDistance ? (
-        <>
-          <NumberInput
-            label="Kilometres travelled"
-            size="sm"
-            description={`Work-related kilometres travelled, at FY${financialYear}'s ${(config.carExpense.centsPerKm / 100).toFixed(2)}c/km ATO rate.`}
-            suffix=" km"
-            decimalScale={2}
-            min={0}
-            hideControls
-            value={distanceKm}
-            onChange={setDistanceKm}
-          />
-          <Text size="sm" c="dimmed">
-            Deductible amount: <b>{formatCents(computedAmountCents)}</b>
-          </Text>
-          {overCap && (
-            <Alert color="warning" variant="light" p="xs">
-              <Text size="xs">
-                Over the ATO's {config.carExpense.maxClaimableKm.toLocaleString()}km cap per car,
-                per year for the cents-per-kilometre method. Kilometres beyond the cap need the
-                logbook method or actual costs instead.
-              </Text>
-            </Alert>
-          )}
-        </>
-      ) : (
-        <>
-          <MoneyInput
-            label="Amount"
-            size="sm"
-            description={
-              apportionable
-                ? 'What the expense cost in full.'
-                : 'The receipted amount, claimed in full.'
-            }
-            min={0}
-            hideControls
-            value={values.amount}
-            onChange={fields.setAmount}
-          />
-          {apportionable && (
-            <NumberInput
-              label="Work use %"
-              size="sm"
-              description="The share used for work; 100% if it's for work only."
-              suffix="%"
-              decimalScale={2}
-              min={0.01}
-              max={100}
-              hideControls
-              value={workUsePercent}
-              onChange={setWorkUsePercent}
-            />
-          )}
-          {apportionable && workUsePercentValid && workUsePercentNumber !== 100 && (
-            <Text size="sm" c="dimmed">
-              Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
-            </Text>
-          )}
-        </>
+      {showDetails && apportionable && (
+        <NumberInput
+          label="Work use %"
+          size="sm"
+          description={hint("The share used for work; 100% if it's for work only.")}
+          suffix="%"
+          decimalScale={2}
+          min={0.01}
+          max={100}
+          hideControls
+          value={workUsePercent}
+          onChange={setWorkUsePercent}
+        />
+      )}
+      {showDetails && apportionable && workUsePercentValid && workUsePercentNumber !== 100 && (
+        <Text size="sm" c="dimmed">
+          Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
+        </Text>
       )}
 
-      {groupId === undefined && (groupOptions.length > 0 || isDonation) && (
+      {showDetails && groupId === undefined && (groupOptions.length > 0 || isDonation) && (
         <Select
           label="Group"
           size="sm"
@@ -559,13 +579,36 @@ export function DeductionForm({
         />
       )}
 
-      <DateInput
-        label="Date"
-        size="sm"
-        valueFormat="D MMM YYYY"
-        value={values.deductionDate}
-        onChange={fields.setDeductionDate}
-      />
+      {showDetails && !adding && onUploadReceipt && (
+        <Group gap="xs" wrap="nowrap">
+          <FileButton
+            accept="image/*,application/pdf"
+            inputProps={{ 'aria-label': `${receipt ? 'Replace' : 'Add'} receipt` }}
+            onChange={(file) => {
+              if (file) {
+                void onUploadReceipt(file)
+              }
+            }}
+          >
+            {(props) => (
+              <Button {...props} variant="default" size="xs">
+                {receipt ? 'Replace receipt' : 'Add receipt'}
+              </Button>
+            )}
+          </FileButton>
+          {receipt && onRemoveReceipt && (
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              size="sm"
+              aria-label="Delete receipt"
+              onClick={() => onRemoveReceipt(receipt)}
+            >
+              <IconTrash size={14} />
+            </ActionIcon>
+          )}
+        </Group>
+      )}
     </FormShell>
   )
 }

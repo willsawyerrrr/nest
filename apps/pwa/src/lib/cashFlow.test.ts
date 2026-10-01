@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { BudgetSummary, GroupSummary } from '@nest/plan'
-import { cashFlowGraph, describeCashFlow, type CashFlowGraph, type CashFlowLine } from './cashFlow'
+import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import {
+  cashFlowGraph,
+  cashFlowLines,
+  describeCashFlow,
+  type CashFlowGraph,
+  type CashFlowLine,
+} from './cashFlow'
 
 const group = (fortnightlyCents: number): GroupSummary => ({
   fortnightlyCents,
@@ -160,5 +168,46 @@ describe('describeCashFlow', () => {
     expect(describeCashFlow(cashFlowGraph(summary, 'take-home'))).toContain(
       'Available to Needs: $2,000.00',
     )
+  })
+})
+
+describe('cashFlowLines', () => {
+  const budgetLine: BudgetLine = {
+    id: 'l1',
+    household_id: 'h',
+    line_group: 'wants',
+    name: 'Coffee',
+    amount_cents: 1_000,
+    frequency: 'fortnightly',
+    interval_count: null,
+    goal_id: null,
+    destination_account_id: null,
+    breakdown_id: null,
+    gift_recipient_member_id: null,
+    is_gift_line: false,
+    created_at: '',
+    updated_at: '',
+  }
+  const item = (name: string, targetDate: string): TemporaryItem => ({
+    id: name,
+    household_id: 'h',
+    name,
+    contribution_cents: 5_000,
+    target_date: targetDate,
+    created_at: '',
+    updated_at: '',
+  })
+
+  it('lists budget lines and active temporary items, dropping ended ones', () => {
+    const lines = cashFlowLines(
+      [budgetLine],
+      [item('Trip', '2030-01-01'), item('Done', '2020-01-01')],
+      { genericTotalsByBreakdownId: new Map(), giftTotalsByMember: new Map() },
+      new Date('2026-06-01'),
+    )
+    expect(lines).toEqual([
+      { group: 'wants', name: 'Coffee', fortnightlyCents: 1_000 },
+      { group: 'temporary', name: 'Trip', fortnightlyCents: 5_000 },
+    ])
   })
 })

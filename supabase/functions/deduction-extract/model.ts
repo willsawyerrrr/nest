@@ -347,6 +347,9 @@ async function extractWithClient(
       }],
     })
   } catch (error) {
+    // The upstream detail is logged and goes no further: a failure's `message` is
+    // our own fixed wording, so nothing the API said can reach a client.
+    console.error('Anthropic request failed:', error)
     if (error instanceof Anthropic.APIConnectionTimeoutError) {
       return { ok: false, failure: 'timeout', message: 'The model did not answer in time.' }
     }
@@ -354,14 +357,14 @@ async function extractWithClient(
       return {
         ok: false,
         failure: apiFailure(error),
-        message: error.message,
+        message: 'The model API returned an error.',
         ...(typeof error.status === 'number' ? { status: error.status } : {}),
       }
     }
     return {
       ok: false,
       failure: 'api_error',
-      message: error instanceof Error ? error.message : 'Could not reach the model.',
+      message: 'Could not reach the model.',
     }
   }
 

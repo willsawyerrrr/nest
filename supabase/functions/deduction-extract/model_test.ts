@@ -1,4 +1,4 @@
-import { assertEquals } from '@std/assert'
+import { assertEquals, assertStringIncludes } from '@std/assert'
 import { toExtraction } from './fields.ts'
 import {
   anthropicExtractor,
@@ -432,4 +432,36 @@ Deno.test('maxBytesFor caps PDFs and images separately', () => {
   // whole-request limits.
   assertEquals(Math.ceil(MAX_IMAGE_BYTES * 4 / 3) < 10 * 1000 * 1000, true)
   assertEquals(Math.ceil(MAX_PDF_BYTES * 4 / 3) < 32 * 1000 * 1000, true)
+})
+
+Deno.test('the extractor logs the upstream detail and reports only its own wording', async () => {
+  const logged: unknown[][] = []
+  const original = console.error
+  console.error = (...args: unknown[]) => void logged.push(args)
+  try {
+    const { fetchImpl } = stub(() =>
+      Response.json(
+        { type: 'error', error: { type: 'api_error', message: 'upstream secret detail' } },
+        { status: 500 },
+      )
+    )
+    const apiResult = await anthropicExtractor('sk-ant-test', fetchImpl)({
+      mediaType: 'application/pdf',
+      bytes: new Uint8Array([1]),
+    }, FINANCIAL_YEAR)
+    const transport = (() =>
+      Promise.reject(new TypeError('socket detail'))) as unknown as typeof fetch
+    const transportResult = await anthropicExtractor('sk-ant-test', transport)({
+      mediaType: 'application/pdf',
+      bytes: new Uint8Array([1]),
+    }, FINANCIAL_YEAR)
+
+    assertEquals(!apiResult.ok && apiResult.message, 'The model API returned an error.')
+    assertEquals(!transportResult.ok && transportResult.message, 'The model API returned an error.')
+    assertEquals(logged.length >= 2, true)
+    assertStringIncludes(String(logged[0]![1]), 'upstream secret detail')
+    assertEquals(logged[1]![1] instanceof Error, true)
+  } finally {
+    console.error = original
+  }
 })

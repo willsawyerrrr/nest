@@ -539,6 +539,10 @@ channel. The function logs are: each carries the upstream status and `error.type
 verbatim, so a `401` (a bad key) and a `403` (a key without permission) are told
 apart there, alongside this section.
 
+The `payslip-extract` and `deduction-extract` functions log every Anthropic API
+failure with `console.error` and answer with their own fixed copy only; nothing the
+API said reaches the client.
+
 Every other upstream failure stays a `502`/`429`/`504`, deliberately. Only the
 API's own verdict on the key matches `keyRejected` — the status **and** that
 status's own `error.type` from the response body together — so a `401` from a proxy

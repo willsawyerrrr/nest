@@ -237,8 +237,8 @@ function EofyDeductionItem({
 /**
  * A member's claimed deductions for the year, with a running total and their
  * receipts. Each group (the automatic donations group included) is a heading
- * with its payments beneath and their summed total; deductions in no group follow,
- * under an "Ungrouped" heading when there are groups to tell them from.
+ * with its payments beneath and their summed total; deductions in no group follow
+ * as top-level rows beside the group headings.
  */
 function EofyDeductionsSummary({
   deductions,
@@ -282,19 +282,7 @@ function EofyDeductionsSummary({
           )}
         </Stack>
       ))}
-      {grouped.ungrouped.length > 0 &&
-        (groups.length === 0 ? (
-          renderItems(grouped.ungrouped)
-        ) : (
-          <Stack gap={4}>
-            <Text size="sm" c="dimmed" fw={600}>
-              Ungrouped
-            </Text>
-            <Stack gap="xs" pl="sm">
-              {renderItems(grouped.ungrouped)}
-            </Stack>
-          </Stack>
-        ))}
+      {renderItems(grouped.ungrouped)}
     </Stack>
   )
 }

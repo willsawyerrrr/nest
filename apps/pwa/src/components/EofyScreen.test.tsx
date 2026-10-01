@@ -355,7 +355,7 @@ describe('EofyScreen', () => {
     openSpy.mockRestore()
   })
 
-  it('lists each group with its summed total and payments, then the ungrouped deductions', async () => {
+  it('lists each group with its summed total and payments, then the ungrouped deductions as top-level rows', async () => {
     const signedUrl = vi.fn().mockResolvedValue('https://example.com/receipt.pdf')
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     const user = userEvent.setup()
@@ -397,7 +397,6 @@ describe('EofyScreen', () => {
     expect(within(trip).getByText('$0.00')).toBeInTheDocument()
 
     expect(within(card).queryByText('Their group')).toBeNull()
-    expect(within(card).getByText('Ungrouped')).toBeInTheDocument()
     expect(within(card).getByText('Desk')).toBeInTheDocument()
     expect(within(adobe).queryByText('Desk')).toBeNull()
 
@@ -489,14 +488,12 @@ describe('EofyScreen', () => {
     })
     const card = screen.getByRole('region', { name: 'Alex' })
     expect(within(card).getByRole('region', { name: 'Donations' })).toBeInTheDocument()
-    expect(within(card).queryByText('Ungrouped')).toBeNull()
   })
 
-  it('lists ungrouped deductions without a heading when the member has no groups', () => {
+  it('lists ungrouped deductions alone when the member has no groups', () => {
     renderScreen({ deductions: [makeDeduction({ id: 'd4', description: 'Desk' })] })
     const card = screen.getByRole('region', { name: 'Alex' })
     expect(within(card).getByText('Desk')).toBeInTheDocument()
-    expect(within(card).queryByText('Ungrouped')).toBeNull()
   })
 
   it('shows an empty group rather than the empty state when a member has groups but no payments', () => {

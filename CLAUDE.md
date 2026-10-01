@@ -214,7 +214,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   rather than reading as a year that withheld nothing), lists their claimed
   deductions grouped as on the Deductions tab (each group, the automatic donations
   group included, a heading with its payments and summed total, then the
-  ungrouped) with their receipt, shows their super contributions against the same
+  ungrouped deductions as top-level rows) with their receipt, shows their super contributions against the same
   cap warnings as the Super tab, and shows their standing HELP balance with the
   year's estimated repayment; nothing on the tab is editable.
 - Tax deductions: each member owns many deductible expenses on their own Tax

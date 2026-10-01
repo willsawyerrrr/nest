@@ -95,8 +95,7 @@ Three functions under `supabase/functions/`, documented in full in
   need no further grant. Deductions are grouped as on
   the Deductions tab: each `deduction_group` (the automatic donations group
   included) is a heading with its payments beneath and their summed total, and
-  deductions in no group follow under "Ungrouped" (or alone, for a member with
-  no groups). A group with no payments still shows, at $0.00.
+  deductions in no group follow as top-level rows with no heading. A group with no payments still shows, at $0.00.
 
 `_shared/shareGrant.ts` resolves a token for both anonymous functions,
 reporting the identical generic 401 whether it is malformed, matches

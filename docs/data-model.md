@@ -304,7 +304,9 @@ and so without the trigger.
     it, through `create_deduction_with_receipt` (below) rather than a direct
     insert — the client mints the id before the row exists, so a receipt
     picked first can be filed under it. Editing an existing row is a direct
-    update, as any other field write is.
+    update, as any other field write is. Adding many deductions from many
+    receipts at once writes each through the same RPC under its own minted id
+    (see `docs/bulk-upload.md`).
   - `group_id` files the deduction as one payment of an expense claimed more
     than once, or is null for a standalone claim. Composite FK
     `(group_id, household_id, member_id, financial_year)` → `deduction_group`,

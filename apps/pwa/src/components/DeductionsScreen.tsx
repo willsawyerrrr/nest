@@ -23,6 +23,7 @@ import { DropTarget } from './DeductionDrop'
 import { DeductionForm } from './DeductionForm'
 import { DeductionGroup, DeductionGroupForm } from './DeductionGroup'
 import { DeductionItem, DraggableDeduction } from './DeductionItem'
+import { DeductionReceiptImport } from './DeductionReceiptImport'
 import { EditableList, type ItemControls } from './EditableList'
 import { FinancialYearSelect } from './FinancialYearSelect'
 import { MoneyText } from './MoneyText'
@@ -209,6 +210,14 @@ function MemberDeductions({
             {formatCents(totalCents)}
           </Text>
         </Group>
+
+        <DeductionReceiptImport
+          member={member}
+          attachments={attachments}
+          financialYear={financialYear}
+          groups={groups}
+          onCreate={onCreate}
+        />
 
         <EditableList<DeductionGroupRow, DeductionGroupInput>
           items={groups}

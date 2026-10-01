@@ -23,9 +23,10 @@ can upsert its own trades without duplicating.
 
 ## Adding trades from a document
 
-Each member's Trades list has an **Add from document** button. The member picks a
-broker contract note, trade confirmation, or statement (any file, up to 25 MiB);
-the file is uploaded to the private `receipts` bucket, laid out as
+Each member's Trades list has an **Add from documents** panel. The member picks
+broker contract notes, trade confirmations, or statements — several at once, or
+dropped on the panel (any file, up to 25 MiB each; see
+[`bulk-upload.md`](bulk-upload.md)). Each file is uploaded to the private `receipts` bucket, laid out as
 `<household_id>/<document_id>/<file>`, and read by the `trade-extract` edge
 function (Claude Haiku 4.5, forced tool schema, the Vault-held `anthropic_api_key`
 the payslip and deduction extractors use). A document can hold several trades, so
@@ -54,8 +55,12 @@ converted to JPEG in the browser where possible and then read.
 - A draft that matches an existing trade of the same member, ticker, date, units,
   and price shows a warning. It does not block saving: two identical fills on one
   day are legitimate. The same warning shows when adding or editing by hand.
-- A document with no saved trade is deleted again when the panel closes, so a
-  failed or abandoned read leaves nothing behind.
+- A document with no saved trade is deleted again when its drafts are discarded or
+  the panel is closed, so a failed or abandoned read leaves nothing behind.
+- Each document is its own entry in the batch, with its own status and its own set
+  of trade drafts. **Save selected** saves the valid drafts across documents; a
+  draft with a blank required field is reported instead of saved. A retried save
+  reuses each trade's and document's id, so nothing duplicates.
 
 ### Where the document lives
 

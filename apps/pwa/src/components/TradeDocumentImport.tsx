@@ -1,36 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Group, Loader, Stack, Text } from '@mantine/core'
+import { Alert, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { UseTradeDocumentsResult } from '../hooks/useTradeDocuments'
 import type { TradeRow } from '../hooks/useTrades'
+import { useUploadQueue } from '../hooks/useUploadQueue'
 import {
   EXTRACTION_UNSUPPORTED_MESSAGE,
+  toReadResult,
   type ExtractedTrade,
-  type ExtractionOutcome,
 } from '../lib/tradeExtraction'
-import { prepareUpload } from '../lib/uploadFile'
+import { BulkUploadPanel, type DraftControls } from './BulkUploadPanel'
 import { TradeForm } from './TradeForm'
 
 interface TradeDocumentImportProps {
-  /** The broker document the member picked. */
-  file: File
   member: Member
-  /** The household's trades, checked for repeats of what the document lists. */
+  /** The household's trades, checked for repeats of what the documents list. */
   trades: TradeRow[]
   actions: Pick<UseTradeDocumentsResult, 'upload' | 'discard' | 'extract' | 'save'>
-  onClose: () => void
 }
 
-/** A trade read from the document, held until the member saves or discards it. */
+/** A trade read from a document, held until the member saves or discards it. */
 interface Draft extends ExtractedTrade {
   /** Minted per draft, so a retried save of it does not duplicate the trade. */
   id: string
 }
-
-type Stage =
-  | { status: 'reading' }
-  | { status: 'failed'; message: string }
-  | { status: 'ready'; path: string; documentId: string; unreadable: string | null }
 
 /** What a draft says about the fields the document left for the member. */
 function checkNotice(check: string[]) {
@@ -46,132 +39,54 @@ function checkNotice(check: string[]) {
 }
 
 /**
- * Reads a broker contract note, trade confirmation, or statement and offers each
- * trade on it as a draft form. The document is stored first, then read; every
- * draft is the member's to save, edit, or discard, and nothing is written until
- * they save it. A document with no saved trade is deleted again when the panel
- * closes, so an abandoned or failed read leaves nothing behind.
+ * The drafts of one document: a form for each trade read from it, or one blank
+ * form for a document nothing could be read from. The document's review ends when
+ * every draft is saved or discarded — saved if any trade was, otherwise the
+ * document is deleted again.
  */
-export function TradeDocumentImport({
-  file,
+function DocumentDrafts({
+  documentId,
+  path,
+  read,
+  extracted,
   member,
   trades,
   actions,
-  onClose,
-}: TradeDocumentImportProps) {
-  const [stage, setStage] = useState<Stage>({ status: 'reading' })
-  const [drafts, setDrafts] = useState<Draft[]>([])
+  controls,
+}: {
+  documentId: string
+  path: string
+  read: ExtractedTrade[]
+  /** Whether the trades were read from the document, rather than a blank one for hand entry. */
+  extracted: boolean
+  member: Member
+  trades: TradeRow[]
+  actions: TradeDocumentImportProps['actions']
+  controls: DraftControls
+}) {
+  const [drafts, setDrafts] = useState<Draft[]>(() =>
+    read.map((trade) => ({ ...trade, id: crypto.randomUUID() })),
+  )
   const saved = useRef(false)
-  const act = useRef(actions)
-  act.current = actions
-
-  useEffect(() => {
-    let cancelled = false
-    let stored: string | null = null
-    const documentId = crypto.randomUUID()
-
-    const run = async () => {
-      const prepared = await prepareUpload(file)
-      if (cancelled) {
-        return
-      }
-      if (prepared.status === 'too-large') {
-        setStage({ status: 'failed', message: prepared.message })
-        return
-      }
-      try {
-        stored = await act.current.upload(documentId, prepared.file)
-      } catch {
-        if (!cancelled) {
-          setStage({
-            status: 'failed',
-            message: 'Could not upload this document. Try again, or enter the trades by hand.',
-          })
-        }
-        return
-      }
-      if (cancelled) {
-        void act.current.discard(stored)
-        return
-      }
-      const outcome: ExtractionOutcome = prepared.readable
-        ? await act.current.extract(stored)
-        : { status: 'unsupported', message: EXTRACTION_UNSUPPORTED_MESSAGE }
-      if (cancelled) {
-        return
-      }
-      if (outcome.status === 'failed') {
-        setStage(outcome)
-        return
-      }
-      // A document the model cannot read is still attached: one blank trade to
-      // fill in by hand.
-      const read = outcome.status === 'read' ? outcome.trades : [{ values: {}, check: [] }]
-      setDrafts(read.map((trade) => ({ ...trade, id: crypto.randomUUID() })))
-      setStage({
-        status: 'ready',
-        path: stored,
-        documentId,
-        unreadable: outcome.status === 'unsupported' ? outcome.message : null,
-      })
-    }
-    void run()
-
-    return () => {
-      cancelled = true
-      if (stored !== null && !saved.current) {
-        void act.current.discard(stored)
-      }
-    }
-  }, [file])
-
-  // The panel closes itself once every draft has been saved or discarded.
-  const allResolved = stage.status === 'ready' && drafts.length === 0
-  useEffect(() => {
-    if (allResolved) {
-      onClose()
-    }
-  }, [allResolved, onClose])
+  const finish = useRef(controls.finish)
+  finish.current = controls.finish
 
   const resolve = (id: string) => setDrafts((current) => current.filter((draft) => draft.id !== id))
 
-  if (stage.status === 'reading') {
-    return (
-      <Group gap="xs">
-        <Loader size="xs" />
-        <Text size="sm" c="dimmed">
-          Reading the document…
-        </Text>
-      </Group>
-    )
-  }
-
-  if (stage.status === 'failed') {
-    return (
-      <Alert color="red" variant="light" p="xs" title="Could not read the document">
-        <Stack gap="xs" align="flex-start">
-          <Text size="sm">{stage.message}</Text>
-          <Button size="xs" variant="default" onClick={onClose}>
-            Close
-          </Button>
-        </Stack>
-      </Alert>
-    )
-  }
+  const resolved = drafts.length === 0
+  useEffect(() => {
+    if (resolved) {
+      finish.current(saved.current)
+    }
+  }, [resolved])
 
   return (
-    <Stack gap="xs">
-      {stage.unreadable === null ? (
-        <Alert color="info" variant="light" p="xs" title="Read from the document">
-          <Text size="sm">
-            {drafts.length === 1 ? '1 trade was' : `${drafts.length} trades were`} extracted by AI —
-            check each against the document, then save or discard it.
-          </Text>
-        </Alert>
-      ) : (
-        <Alert color="info" variant="light" p="xs" title="Document attached">
-          <Text size="sm">{stage.unreadable}</Text>
-        </Alert>
+    <>
+      {extracted && (
+        <Text size="xs" c="dimmed">
+          {drafts.length === 1 ? '1 trade was' : `${drafts.length} trades were`} extracted by AI —
+          check each against the document, then save or discard it.
+        </Text>
       )}
       {drafts.map((draft) => (
         <TradeForm
@@ -182,19 +97,65 @@ export function TradeDocumentImport({
           notice={checkNotice(draft.check)}
           submitLabel="Save trade"
           cancelLabel="Discard"
-          onSubmit={async (input) => {
-            await actions.save({
-              documentId: stage.documentId,
-              path: stage.path,
-              id: draft.id,
-              input,
-            })
-            saved.current = true
-            resolve(draft.id)
-          }}
+          onSubmit={(input) =>
+            controls.save(async () => {
+              await actions.save({ documentId, path, id: draft.id, input })
+              saved.current = true
+              resolve(draft.id)
+            }, false)
+          }
           onCancel={() => resolve(draft.id)}
         />
       ))}
-    </Stack>
+    </>
+  )
+}
+
+/**
+ * Reads broker contract notes, trade confirmations, and statements — any number
+ * at once — and offers each trade on each as a draft form. Every document is
+ * stored, then read; every draft is the member's to save, edit, or discard, and
+ * nothing is written until they save it. A document with no saved trade is
+ * deleted again when its drafts are discarded or the panel is closed, so an
+ * abandoned or failed read leaves nothing behind.
+ */
+export function TradeDocumentImport({ member, trades, actions }: TradeDocumentImportProps) {
+  const act = useRef(actions)
+  act.current = actions
+
+  const queue = useUploadQueue({
+    upload: (id, file) => act.current.upload(id, file),
+    discard: (path) => act.current.discard(path),
+    read: async (path) => toReadResult(await act.current.extract(path)),
+    // A document the model cannot read is still attached: one blank trade to fill
+    // in by hand.
+    blank: (): ExtractedTrade[] => [{ values: {}, check: [] }],
+    unsupportedMessage: EXTRACTION_UNSUPPORTED_MESSAGE,
+  })
+
+  return (
+    <BulkUploadPanel
+      queue={queue}
+      noun="documents"
+      pickerLabel={`Add ${member.name}'s trades from documents`}
+      meta={undefined}
+      controls={
+        <Text size="xs" c="dimmed">
+          Add several documents at once; the trades on each are read into drafts to check.
+        </Text>
+      }
+      renderDraft={(item, controls) => (
+        <DocumentDrafts
+          documentId={item.id}
+          path={item.path!}
+          read={item.value!}
+          extracted={item.status === 'ready'}
+          member={member}
+          trades={trades}
+          actions={actions}
+          controls={controls}
+        />
+      )}
+    />
   )
 }

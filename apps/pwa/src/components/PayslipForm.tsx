@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, FileInput, Group, Loader, SimpleGrid, Text, TextInput } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow } from '../hooks/useInflows'
-import { usePayslipAttachment, type ExtractionState } from '../hooks/usePayslipAttachment'
+import {
+  usePayslipAttachment,
+  type ExtractionState,
+  type PayslipPrefillSummary,
+} from '../hooks/usePayslipAttachment'
 import { usePayslipFields } from '../hooks/usePayslipFields'
 import { lineEntered, usePayslipLineDrafts, type LineDraft } from '../hooks/usePayslipLineDrafts'
 import type { PayslipLineInput, PayslipLineRow } from '../hooks/usePayslipLines'
@@ -13,8 +17,10 @@ import type {
   PayslipRow,
   PayslipSubmission,
 } from '../hooks/usePayslips'
+import type { UploadDraft } from '../lib/bulkUpload'
 import { isoDaysBefore, todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
+import type { PayslipExtraction } from '../lib/payslipExtraction'
 import { financialYearForPayslip } from '../lib/payslips'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
@@ -32,8 +38,16 @@ interface PayslipFormProps {
   /** Storing, discarding, and reading the document the member attaches. */
   attachments: PayslipAttachments
   initial?: PayslipRow | undefined
+  /**
+   * A document already stored and read by a bulk upload. The form opens on what
+   * was read, attached to that file under its id, with no picker: the bulk
+   * upload owns the file's cleanup.
+   */
+  draft?: UploadDraft<PayslipExtraction> | undefined
   onSubmit: (submission: PayslipSubmission) => void | Promise<void>
   onCancel?: () => void
+  /** Overrides the cancel button's label (e.g. "Discard"). */
+  cancelLabel?: string | undefined
 }
 
 /** A dollars `MoneyInput` in the form's two-column field grid. */
@@ -168,8 +182,10 @@ export function PayslipForm({
   initialLines = [],
   attachments,
   initial,
+  draft,
   onSubmit,
   onCancel,
+  cancelLabel,
 }: PayslipFormProps) {
   const memberInflows = inflows.filter((inflow) => inflow.taxable && inflow.member_id === member.id)
   const inflowOptions = memberInflows.map((inflow) => ({ value: inflow.id, label: inflow.name }))
@@ -195,7 +211,7 @@ export function PayslipForm({
   const drafts = usePayslipLineDrafts(initialLines)
   const slip = usePayslipAttachment({
     attachments,
-    payslipId: initial?.id ?? null,
+    payslipId: initial?.id ?? draft?.id ?? null,
     // One read fills the figures and the itemisation together, each under its own
     // rule about what is already the member's.
     onExtracted: (extraction) => ({
@@ -204,6 +220,19 @@ export function PayslipForm({
     }),
   })
   const [note, setNote] = useState(initial?.note ?? '')
+  // What the bulk upload read off the document, applied once as the form opens.
+  const [draftRead, setDraftRead] = useState<PayslipPrefillSummary | null>(null)
+  const draftExtraction = draft?.extraction ?? null
+  useEffect(() => {
+    if (draftExtraction !== null) {
+      setDraftRead({
+        ...fields.prefill(draftExtraction),
+        ...drafts.prefill(draftExtraction, inflowOptions),
+      })
+    }
+    // Applied once, as the form opens on the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { values } = fields
   const { lines } = drafts
@@ -283,7 +312,7 @@ export function PayslipForm({
         label: line.label.trim(),
         amount_cents: dollarsToCents(line.amount) ?? 0,
       })),
-      attachment: slip.attachment,
+      attachment: draft ? { payslipId: draft.id, path: draft.path } : slip.attachment,
     }),
   })
 
@@ -296,24 +325,28 @@ export function PayslipForm({
       editing={Boolean(initial)}
       addLabel="payslip"
       onCancel={onCancel}
+      cancelLabel={cancelLabel}
     >
-      <FileInput
-        label="Payslip document"
-        size="sm"
-        description={
-          initial?.file_path == null
-            ? 'Any file, up to 25 MB. Stored privately, then read to pre-fill the figures below where it can be — which you confirm.'
-            : 'Any file, up to 25 MB. Read to pre-fill the figures below where it can be, and replaces the document already attached.'
-        }
-        placeholder="Attach the slip"
-        clearable
-        clearButtonProps={{ 'aria-label': 'Remove the attached document' }}
-        disabled={slip.busy}
-        value={slip.file}
-        onChange={(file) => void slip.choose(file)}
-      />
+      {draft && draftRead !== null && <ReadFromSlip state={{ status: 'read', ...draftRead }} />}
+      {!draft && (
+        <FileInput
+          label="Payslip document"
+          size="sm"
+          description={
+            initial?.file_path == null
+              ? 'Any file, up to 25 MB. Stored privately, then read to pre-fill the figures below where it can be — which you confirm.'
+              : 'Any file, up to 25 MB. Read to pre-fill the figures below where it can be, and replaces the document already attached.'
+          }
+          placeholder="Attach the slip"
+          clearable
+          clearButtonProps={{ 'aria-label': 'Remove the attached document' }}
+          disabled={slip.busy}
+          value={slip.file}
+          onChange={(file) => void slip.choose(file)}
+        />
+      )}
 
-      <ExtractionNote state={slip.state} />
+      {!draft && <ExtractionNote state={slip.state} />}
 
       <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="xs">
         <DateInput

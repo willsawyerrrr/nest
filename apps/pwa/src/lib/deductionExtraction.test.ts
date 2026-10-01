@@ -8,6 +8,7 @@ import {
   NOT_RECEIPT_MESSAGE,
   readExtraction,
   readExtractionFailure,
+  toReadResult,
 } from './deductionExtraction'
 
 describe('readExtraction', () => {
@@ -153,6 +154,48 @@ describe('readExtractionFailure', () => {
     expect(readExtractionFailure({ keyRejected: true })).toEqual({
       status: 'key-rejected',
       message: EXTRACTION_KEY_REJECTED_MESSAGE,
+    })
+  })
+})
+
+describe('toReadResult', () => {
+  const extraction = { model: 'm', fields: {} }
+
+  it('hands a read to the queue as is', () => {
+    expect(toReadResult({ status: 'read', extraction })).toEqual({
+      status: 'read',
+      value: extraction,
+    })
+  })
+
+  it('treats an unreadable type as unsupported', () => {
+    expect(toReadResult({ status: 'unsupported', message: 'no' })).toEqual({
+      status: 'unsupported',
+      message: 'no',
+    })
+  })
+
+  it.each(['not-configured', 'out-of-credit', 'key-rejected'] as const)(
+    'halts the queue when reading is off (%s)',
+    (status) => {
+      expect(toReadResult({ status, message: 'off' })).toEqual({ status: 'halt', message: 'off' })
+    },
+  )
+
+  it('fails one file that is not a receipt, with its reason where it has one', () => {
+    expect(toReadResult({ status: 'not-receipt', message: 'Not one.', reason: null })).toEqual({
+      status: 'failed',
+      message: 'Not one.',
+    })
+    expect(toReadResult({ status: 'not-receipt', message: 'Not one.', reason: 'A menu.' })).toEqual(
+      { status: 'failed', message: 'Not one. A menu.' },
+    )
+  })
+
+  it('fails one file that could not be read', () => {
+    expect(toReadResult({ status: 'failed', message: 'Busy.' })).toEqual({
+      status: 'failed',
+      message: 'Busy.',
     })
   })
 })

@@ -22,6 +22,7 @@ import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { FigureCell, PayslipCard, VarianceNote } from './PayslipCard'
 import { PayslipForm } from './PayslipForm'
+import { PayslipImport } from './PayslipImport'
 
 interface PayslipsScreenProps {
   members: Member[]
@@ -270,6 +271,13 @@ function MemberPayslips({
           financialYear={financialYear}
         />
       )}
+
+      <PayslipImport
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onCreate={onCreate}
+      />
 
       <EditableList<PayslipRow, PayslipSubmission>
         items={payslips}

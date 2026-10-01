@@ -465,7 +465,7 @@ describe('DeductionsScreen', () => {
     renderScreen({ receipts: [makeReceipt()] })
 
     expect(screen.getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
-    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(screen.queryByLabelText(/^(add|replace) receipt$/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /delete receipt/i })).not.toBeInTheDocument()
   })
 
@@ -473,7 +473,7 @@ describe('DeductionsScreen', () => {
     renderScreen()
 
     expect(screen.queryByRole('button', { name: 'Receipt' })).not.toBeInTheDocument()
-    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(screen.queryByLabelText(/^(add|replace) receipt$/i)).toBeNull()
   })
 
   it('puts the receipt link inline with the description', () => {
@@ -489,7 +489,7 @@ describe('DeductionsScreen', () => {
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
     await user.click(screen.getByRole('button', { name: /more details/i }))
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const input = screen.getByLabelText(/^(add|replace) receipt$/i)
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
     await user.upload(input, file)
 
@@ -539,7 +539,7 @@ describe('DeductionsScreen', () => {
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
     await user.click(screen.getByRole('button', { name: /more details/i }))
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const input = screen.getByLabelText(/^(add|replace) receipt$/i)
     const file = new File(['y'], 'newer.pdf', { type: 'application/pdf' })
     await user.upload(input, file)
 

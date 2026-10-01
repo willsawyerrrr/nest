@@ -208,7 +208,7 @@ describe('TradesScreen', () => {
     renderScreen({ members: [will], documentActions: makeActions({ extract }) })
 
     await user.upload(
-      screen.getByLabelText("Add Will's trades from a document"),
+      screen.getByLabelText("Add Will's trades from documents"),
       new File(['x'], 'note.pdf', { type: 'application/pdf' }),
     )
 
@@ -222,12 +222,12 @@ describe('TradesScreen', () => {
     renderScreen({ members: [will] })
 
     await user.upload(
-      screen.getByLabelText("Add Will's trades from a document"),
+      screen.getByLabelText("Add Will's trades from documents"),
       new File(['x'], 'note.pdf', { type: 'application/pdf' }),
     )
 
     expect(await screen.findByText('Not a contract note.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /close/i }))
+    await user.click(screen.getByRole('button', { name: /remove note\.pdf/i }))
     expect(screen.queryByText('Not a contract note.')).not.toBeInTheDocument()
   })
 })

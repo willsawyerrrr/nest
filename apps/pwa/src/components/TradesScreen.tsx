@@ -1,4 +1,5 @@
-import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core'
+import { ActionIcon, Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core'
+import { IconFileText } from '@tabler/icons-react'
 import { MICRO_UNITS_PER_UNIT, unitsValueCents } from '@nest/tax'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
@@ -36,6 +37,11 @@ interface TradesScreenProps {
 /** A units figure without trailing zeros, grouped by thousands. */
 function formatUnits(units: number): string {
   return units.toLocaleString('en-AU', { maximumFractionDigits: 6 })
+}
+
+/** A units figure with its noun, e.g. `1 unit`, `1.5 units`. */
+function unitsText(units: number): string {
+  return `${formatUnits(units)} ${units === 1 ? 'unit' : 'units'}`
 }
 
 interface SummaryRowProps {
@@ -103,7 +109,7 @@ function HoldingRow({ holding }: { holding: HoldingView }) {
     <SummaryRow
       title={holding.ticker}
       cells={[
-        `${formatUnits(holding.units)} units`,
+        unitsText(holding.units),
         `Avg cost ${formatUnitPrice(holding.averageCostMicrodollars)}`,
         `Cost base ${formatCents(holding.costBaseCents)}`,
       ]}
@@ -123,7 +129,7 @@ interface TradeItemProps {
 
 /** A trade's units, e.g. `120 units`. */
 function unitsLabel(trade: TradeRow): string {
-  return `${formatUnits(Number(trade.units))} units`
+  return unitsText(Number(trade.units))
 }
 
 /** A trade's exact unit price, e.g. `at $33.083072`. */
@@ -145,13 +151,20 @@ function tradeValueCents(trade: TradeRow): number {
 }
 
 /** The side pill, ticker, and document link of a trade. */
-function TradeTitle({ trade, onViewDocument }: Pick<TradeItemProps, 'trade' | 'onViewDocument'>) {
+function TradeTitle({
+  trade,
+  onViewDocument,
+}: {
+  trade: TradeRow
+  /** Shown as a text link beside the ticker; omitted where the row has its own control. */
+  onViewDocument?: (() => void) | undefined
+}) {
   return (
-    <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
+    <Group gap={6} wrap="nowrap" align="center" style={{ flexShrink: 0 }}>
       <Badge size="xs" variant="light" color={trade.side === 'buy' ? 'cyan' : 'orange'}>
         {trade.side === 'buy' ? 'Buy' : 'Sell'}
       </Badge>
-      <Text fw={600} size="sm" truncate>
+      <Text fw={600} size="sm" style={{ whiteSpace: 'nowrap' }}>
         {trade.ticker}
       </Text>
       {onViewDocument && (
@@ -165,34 +178,58 @@ function TradeTitle({ trade, onViewDocument }: Pick<TradeItemProps, 'trade' | 'o
 
 /**
  * One trade as a dense table-like row for desktop, like a budget line: the side
- * pill, ticker, and document link grow, with the date, units, price, and brokerage
- * in fixed muted columns, the trade value (units at price, before brokerage)
- * right-aligned, and the controls at the end.
+ * pill and ticker (never truncated) lead, with the date, units, and price in muted
+ * columns sized to their content, the brokerage as an outlined pill (an em dash
+ * when there is none), the trade value (units at
+ * price, before brokerage) right-aligned, and the document, edit, and delete
+ * controls at the end.
  */
 function TradeRowWide({ trade, onEdit, onDelete, onViewDocument }: TradeItemProps) {
   return (
     <ListRow gap="sm">
-      <Box style={{ flex: 1, minWidth: 0 }}>
-        <TradeTitle trade={trade} onViewDocument={onViewDocument} />
+      <Box style={{ flex: 1, minWidth: 'fit-content' }}>
+        <TradeTitle trade={trade} />
       </Box>
       {[
-        [formatIsoDate(trade.traded_on), '6.5rem'],
-        [unitsLabel(trade), '6.5rem'],
-        [priceLabel(trade), '7rem'],
-        [brokerageLabel(trade), '7rem'],
+        [formatIsoDate(trade.traded_on), '6.25rem'],
+        [unitsLabel(trade), '4.75rem'],
+        [priceLabel(trade), '6rem'],
       ].map(([label, width]) => (
         <Text key={width + label!} size="xs" c="dimmed" ta="right" style={{ width, flexShrink: 0 }}>
           {label}
         </Text>
       ))}
+      <Group justify="flex-end" style={{ width: '4.5rem', flexShrink: 0 }}>
+        {trade.fee_cents > 0 ? (
+          <Badge
+            size="sm"
+            variant="outline"
+            color="gray"
+            c="var(--mantine-color-text)"
+            tt="none"
+            title={`Brokerage ${formatCents(trade.fee_cents)}`}
+          >
+            {formatCents(trade.fee_cents)}
+          </Badge>
+        ) : (
+          <Text size="xs" c="dimmed" title="No brokerage">
+            {'\u2014'}
+          </Text>
+        )}
+      </Group>
       <MoneyText
         cents={tradeValueCents(trade)}
         fw={700}
         size="sm"
         ta="right"
-        style={{ width: '6.5rem', flexShrink: 0 }}
+        style={{ width: '5.5rem', flexShrink: 0 }}
       />
-      <Group gap="xxs" wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
+      <Group gap="xxs" wrap="nowrap" justify="flex-end" style={{ width: '5.5rem', flexShrink: 0 }}>
+        {onViewDocument && (
+          <ActionIcon variant="subtle" aria-label="Document" onClick={onViewDocument}>
+            <IconFileText size={16} />
+          </ActionIcon>
+        )}
         <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
       </Group>
     </ListRow>

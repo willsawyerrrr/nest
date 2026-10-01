@@ -173,9 +173,11 @@ describe('TradesScreen', () => {
     setWideViewport()
     const user = userEvent.setup()
     const onDelete = vi.fn().mockResolvedValue(undefined)
+    const signedUrl = vi.fn().mockResolvedValue(null)
     renderScreen({
       members: [will],
       onDelete,
+      documentActions: makeActions({ signedUrl }),
       documents: [
         {
           id: 'd1',
@@ -195,15 +197,26 @@ describe('TradesScreen', () => {
     expect(screen.getByText('100 units')).toBeInTheDocument()
     // Both trades and the holding's last price.
     expect(screen.getAllByText('at $90.00')).toHaveLength(3)
-    expect(screen.getByText('$9.50 brokerage')).toBeInTheDocument()
+    expect(screen.getByTitle('Brokerage $9.50')).toHaveTextContent('$9.50')
+    expect(screen.getByTitle('No brokerage')).toHaveTextContent('\u2014')
     expect(screen.getByText('$9,000.00')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Document' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Document' }))
+    await waitFor(() => expect(signedUrl).toHaveBeenCalledWith('h1/d1/note.pdf'))
 
     await user.click(screen.getAllByRole('button', { name: /delete/i })[0]!)
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: /delete/i }),
     )
     expect(onDelete).toHaveBeenCalled()
+  })
+
+  it('says one unit in the singular and fractional units in the plural', () => {
+    renderScreen({
+      members: [will],
+      trades: [makeTrade({ units: 1 }), makeTrade({ id: 't2', units: 1.5 })],
+    })
+    expect(screen.getByText(/ 1 unit . at/)).toBeInTheDocument()
+    expect(screen.getByText(/ 1\.5 units . at/)).toBeInTheDocument()
   })
 
   it('adds a trade', async () => {

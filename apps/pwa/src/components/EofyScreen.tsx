@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom'
 import { Anchor, Card, Group, Stack, Text, Title } from '@mantine/core'
-import type { HelpPayoffProjection, HouseholdTaxEstimate, MemberTaxEstimate } from '@nest/tax'
+import {
+  configsByYear,
+  type HelpPayoffProjection,
+  type HouseholdTaxEstimate,
+  type MemberTaxEstimate,
+} from '@nest/tax'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
@@ -8,6 +13,7 @@ import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { groupDeductions } from '../lib/deductionGroups'
+import { formatCents } from '../lib/money'
 import { helpPayoffSummary, type SuperCapSummary } from '../lib/tax'
 import { EmptyState } from './EmptyState'
 import { FinancialYearSelect } from './FinancialYearSelect'
@@ -157,7 +163,25 @@ function EofyTaxSummary({
   )
 }
 
-/** One claimed deduction on a single row: description, date, and receipt link wrapping beside a right-aligned amount. */
+/**
+ * How a deduction's claim was worked out, for a tax agent checking it: the
+ * kilometres (at the financial year's published rate, when there is one) on the
+ * distance basis, or the full cost and work use percentage when claimed at less
+ * than 100%. Null for a deduction claimed in full.
+ */
+function claimWorkings(deduction: DeductionRow): string | null {
+  if (deduction.basis === 'distance' && deduction.distance_km !== null) {
+    const rate = configsByYear[deduction.financial_year]?.carExpense.centsPerKm
+    const km = `${deduction.distance_km.toLocaleString()} km`
+    return rate === undefined ? km : `${km} at ${(rate / 100).toFixed(2)}c/km`
+  }
+  if (deduction.work_use_percent < 100) {
+    return `${formatCents(deduction.full_amount_cents)} at ${deduction.work_use_percent}%`
+  }
+  return null
+}
+
+/** One claimed deduction on a single row: description, date, and receipt link wrapping beside a right-aligned amount with its workings beneath. */
 function EofyDeductionItem({
   deduction,
   receipt,
@@ -173,6 +197,8 @@ function EofyDeductionItem({
       window.open(url, '_blank', 'noopener')
     }
   }
+
+  const workings = claimWorkings(deduction)
 
   return (
     <Group justify="space-between" align="flex-start" gap="xs" wrap="nowrap">
@@ -196,7 +222,14 @@ function EofyDeductionItem({
           </Text>
         )}
       </Group>
-      <MoneyText cents={deduction.amount_cents} size="sm" fw={600} />
+      <Stack gap={0} align="flex-end">
+        <MoneyText cents={deduction.amount_cents} size="sm" fw={600} />
+        {workings && (
+          <Text size="xs" c="dimmed" ta="right">
+            {workings}
+          </Text>
+        )}
+      </Stack>
     </Group>
   )
 }

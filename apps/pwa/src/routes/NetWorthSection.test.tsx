@@ -11,6 +11,7 @@ const hooks = vi.hoisted(() => ({
   useInflows: vi.fn(),
   useHelpDebts: vi.fn(),
   useEquityGrants: vi.fn(),
+  useTrades: vi.fn(),
   useTaxProfiles: vi.fn(),
   useDeductions: vi.fn(),
   useGoals: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('../hooks/useSuperContributions', () => ({
 vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
+vi.mock('../hooks/useTrades', () => ({ useTrades: hooks.useTrades }))
 vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
@@ -53,6 +55,7 @@ function mockLoaded() {
   hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [] })
+  hooks.useTrades.mockReturnValue({ loading: false, trades: [] })
   hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
   hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
@@ -136,6 +139,29 @@ describe('NetWorthSection', () => {
       { label: 'Alex — Shares', valueCents: 50_00 },
       { label: 'Unknown — Options', valueCents: 50_00 },
     ])
+  })
+
+  it('adds held shares to equity at the last traded price, projected flat', () => {
+    mockLoaded()
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    const trade = (side: string, tradedOn: string, units: number, priceCents: number) => ({
+      id: `${side}-${tradedOn}`,
+      member_id: 'm1',
+      ticker: 'VAS',
+      side,
+      traded_on: tradedOn,
+      units,
+      price_per_unit_cents: priceCents,
+      fee_cents: 0,
+    })
+    hooks.useTrades.mockReturnValue({
+      loading: false,
+      trades: [trade('buy', '2025-01-01', 10, 90_00), trade('buy', '2025-06-01', 5, 100_00)],
+    })
+    render(<NetWorthSection />)
+
+    // 15 units at the last traded price of $100.00.
+    expect(hooks.screenProps?.equity).toEqual([{ label: 'Alex — VAS', valueCents: 1_500_00 }])
   })
 
   it('maps each member with a positive HELP balance to a named liability', () => {

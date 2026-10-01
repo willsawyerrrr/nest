@@ -59,14 +59,16 @@ persisted in localStorage, not stored in the database.
 The Net worth tab totals assets less liabilities. Assets are the `balance_cents`
 of every account the member can see, split into Super vs Other accounts, plus the
 current vested value of each equity grant (from the `equity_grant` table — see the
-Equity tab) shown in an Equity group. Liabilities, shown as negative figures in a
+Equity tab) and the market value of each member's share and ETF holdings (from
+the `trade` table — see [`investments.md`](investments.md)) shown in an Equity
+group. Liabilities, shown as negative figures in a
 Liabilities group and subtracted from the grand total, are each home-loan account
 synced from Up (an `account_type = 'home_loan'` account — Up reports its balance
 as a negative number, the amount owing, which the view shows as a positive amount
 owed) and each member's outstanding HELP debt (from the `help_debt` table — see
 the HELP debt tab). A home-loan account is a liability, not an "other" account, so
 it never appears among the assets or in a routing picker. So the grand total is
-super + other accounts + vested equity − liabilities. A co-member's
+super + other accounts + vested equity and held shares − liabilities. A co-member's
 private spending / saver balances
 are excluded, so each member's total covers only balances they can see (the
 per-account balance-privacy model — see
@@ -103,7 +105,7 @@ nominal (future dollars): super compounds and accrues its net annual contributio
 each savings goal's ongoing fortnightly contribution (the sum of the budget lines
 funding it, as on the Goals tab), accruing only up to the goal's target and then
 holding flat; each equity grant is valued at its vested portion at that future date
-so the equity line lifts as grants vest at today's price (`equityTotalCents`); each
+so the equity line lifts as grants vest at today's price (`equityTotalCents`), while held shares and ETFs stay flat at today's value (`heldEquityCents`); each
 member's HELP debt follows the payoff projection from the Tax tab
 (`projectHelpPayoff`), summed across members; and each home-loan account's amount
 owed, along with any other account carrying a negative balance (a credit card or
@@ -155,4 +157,5 @@ The Equity tab shows both figures for an option grant — the gross vested value
 the exercise cost, and the net that counts toward net worth — while a share
 grant, whose gross equals its net, shows the single value. The Net worth tab
 sums every grant's net value into its Equity assets group, captioned to note the
-figure is the vested value net of the strike/exercise cost.
+figure is the vested value net of the strike/exercise cost, and shares and ETFs at
+their last traded price.

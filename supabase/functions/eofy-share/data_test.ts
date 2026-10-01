@@ -13,6 +13,7 @@ function emptyRows(): EofyShareRows {
     deductionReceipts: [],
     payslips: [],
     savingsGoals: [],
+    trades: [],
     accounts: [],
   }
 }

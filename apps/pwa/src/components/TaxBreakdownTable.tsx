@@ -90,9 +90,10 @@ function ComponentTable({ label, lines }: { label: string; lines: ComponentLine[
  * one-off money and a reader comparing the two columns would otherwise read the gap
  * as an error.
  *
- * Projected savings interest is already inside gross income (the tax estimate
- * counts it as `other` income), so it shows as an indented detail line under
- * gross rather than a step in the running total.
+ * Projected savings interest and the net capital gain are already inside gross
+ * income (the tax estimate counts them as `other` income and as a capital gain),
+ * so each shows as an indented detail line under gross rather than a step in the
+ * running total.
  */
 export function BreakdownTable({
   breakdown,
@@ -102,6 +103,7 @@ export function BreakdownTable({
   oneOffGrossCents = 0,
   oneOffTaxFreeCents = 0,
   projectedInterestCents = 0,
+  netCapitalGainCents = 0,
 }: {
   breakdown: TaxBreakdown
   grossCents: number
@@ -113,6 +115,8 @@ export function BreakdownTable({
   oneOffTaxFreeCents?: number
   /** Projected annual savings interest inside `grossCents`, shown as a detail line. */
   projectedInterestCents?: number
+  /** Net capital gain inside `grossCents`, shown as a detail line. */
+  netCapitalGainCents?: number
 }) {
   const incomeLines: ComponentLine[] = [
     { label: 'Gross income', annualCents: grossCents, alwaysShow: true },
@@ -121,6 +125,7 @@ export function BreakdownTable({
       annualCents: projectedInterestCents,
       detail: true,
     },
+    { label: 'Net capital gain', annualCents: netCapitalGainCents, detail: true },
     { label: 'Tax-free one-off payments', annualCents: oneOffTaxFreeCents, subtract: true },
     { label: 'Concessional super', annualCents: concessionalCents, subtract: true },
     { label: 'Deductions', annualCents: deductionsCents, subtract: true },

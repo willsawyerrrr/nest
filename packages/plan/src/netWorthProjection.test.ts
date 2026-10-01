@@ -373,3 +373,26 @@ describe('projectNetWorth', () => {
     })
   })
 })
+
+describe('projectNetWorth held equity', () => {
+  it('adds shares already held to every year’s equity band, flat', () => {
+    const points = projectNetWorth({
+      asOf: new Date('2026-01-01'),
+      horizonYears: 2,
+      superInput: {
+        currentBalanceCents: 0,
+        annualContributionCents: 0,
+        nominalReturnRate: 0,
+        contributionGrowthRate: 0,
+      },
+      otherCents: 0,
+      equityGrants: [],
+      heldEquityCents: 5_000_00,
+      helpCentsByYear: [],
+      savingsGoals: [],
+      debtCents: 0,
+    })
+    expect(points.map((point) => point.equityCents)).toEqual([5_000_00, 5_000_00, 5_000_00])
+    expect(points.map((point) => point.totalCents)).toEqual([5_000_00, 5_000_00, 5_000_00])
+  })
+})

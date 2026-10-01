@@ -122,6 +122,9 @@ function EofyTaxSummary({
   return (
     <Stack gap={4}>
       <FigureLine label="Taxable income" cents={breakdown.taxableIncomeCents} fw={600} />
+      {estimate.annualNetCapitalGainCents > 0 && (
+        <FigureLine label="Net capital gain" cents={estimate.annualNetCapitalGainCents} />
+      )}
       <FigureLine label="Income tax" cents={incomeTaxCents} />
       <FigureLine label="Medicare levy" cents={breakdown.medicareLevyCents} />
       {breakdown.medicareLevySurchargeCents > 0 && (
@@ -481,7 +484,7 @@ export function EofyScreen({
       )}
 
       <Text size="xs" c="dimmed">
-        This estimate excludes capital gains tax, which is not tracked.
+        Capital gains are counted only for the share and ETF trades recorded on the Investments tab.
       </Text>
       {disclaimerNote && (
         <Text size="xs" c="dimmed">

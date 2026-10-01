@@ -5,7 +5,7 @@
  * deterministic — `asOf` and every assumption are passed in, never read from the
  * clock. Figures are nominal (future dollars): super compounds and accrues
  * contributions, cash starts flat and grows by ongoing savings-goal contributions,
- * equity grows only as it vests at today's price, HELP follows a supplied paydown,
+ * equity grows only as it vests at today's price (held shares and ETFs stay flat), HELP follows a supplied paydown,
  * and debt-account balances are held flat.
  */
 
@@ -73,6 +73,12 @@ export interface NetWorthProjectionInput {
   readonly superInput: NetWorthSuperInput
   readonly otherCents: Money
   readonly equityGrants: readonly EquityGrant[]
+  /**
+   * Shares and ETFs already held, at today's value, added to every year's equity
+   * band flat — traded holdings do not vest, and no return is assumed on them.
+   * Absent reads as nil.
+   */
+  readonly heldEquityCents?: Money
   readonly helpCentsByYear: readonly Money[]
   readonly savingsGoals: readonly NetWorthGoal[]
   readonly debtCents: Money
@@ -202,6 +208,7 @@ export function projectNetWorth(input: NetWorthProjectionInput): NetWorthProject
     superInput,
     otherCents,
     equityGrants,
+    heldEquityCents = 0,
     helpCentsByYear,
     savingsGoals,
     debtCents,
@@ -227,7 +234,7 @@ export function projectNetWorth(input: NetWorthProjectionInput): NetWorthProject
       contributionGrowthRate: superInput.contributionGrowthRate,
     }).nominalCents
     const cashCents = otherCents + goalsSavedByYear(accruals, year) + queuedCashByYear[year]!
-    const equityCents = equityTotalCents(equityGrants, addYears(asOf, year))
+    const equityCents = equityTotalCents(equityGrants, addYears(asOf, year)) + heldEquityCents
     const helpCents = helpAt(helpCentsByYear, year)
     points.push({
       year,

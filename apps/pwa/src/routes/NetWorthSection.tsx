@@ -14,6 +14,7 @@ import { useMembers } from '../hooks/useMembers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
+import { useTrades } from '../hooks/useTrades'
 import { equityGrantToPlan } from '../lib/equity'
 import { memberName } from '../lib/members'
 import {
@@ -30,6 +31,7 @@ import {
   type ProjectionHorizonOption,
 } from '../lib/retirement'
 import { superAccountIds, type EquityHolding, type Liability } from '../lib/super'
+import { heldEquityHoldings } from '../lib/trades'
 
 export function NetWorthSection() {
   const { active: planning } = usePlanningMode()
@@ -39,6 +41,7 @@ export function NetWorthSection() {
   const inflows = useInflows()
   const helpDebts = useHelpDebts()
   const equityGrants = useEquityGrants()
+  const trades = useTrades()
   const taxProfiles = useTaxProfiles()
   const deductions = useDeductions()
   const goals = useGoals()
@@ -53,6 +56,7 @@ export function NetWorthSection() {
     inflows.loading ||
     helpDebts.loading ||
     equityGrants.loading ||
+    trades.loading ||
     taxProfiles.loading ||
     deductions.loading ||
     goals.loading ||
@@ -77,12 +81,17 @@ export function NetWorthSection() {
 
   const today = new Date()
   const planGrants = grantRows.map(equityGrantToPlan)
-  const equity: EquityHolding[] = grantRows
-    .map((grant) => ({
-      label: `${memberName(members, grant.member_id)} — ${grant.label}`,
-      valueCents: grantValueCents(equityGrantToPlan(grant), today),
-    }))
-    .filter((holding) => holding.valueCents > 0)
+  const heldEquity = heldEquityHoldings(trades.trades ?? [], members)
+  const heldEquityCents = heldEquity.reduce((total, holding) => total + holding.valueCents, 0)
+  const equity: EquityHolding[] = [
+    ...grantRows
+      .map((grant) => ({
+        label: `${memberName(members, grant.member_id)} — ${grant.label}`,
+        valueCents: grantValueCents(equityGrantToPlan(grant), today),
+      }))
+      .filter((holding) => holding.valueCents > 0),
+    ...heldEquity,
+  ]
 
   const superIds = superAccountIds(profileRows)
 
@@ -118,6 +127,7 @@ export function NetWorthSection() {
       planGrants,
       liabilities,
       equity,
+      heldEquityCents,
       inflows: inflowRows,
       goals: goalRows,
       budgetLines: lineRows,

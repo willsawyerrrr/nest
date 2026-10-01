@@ -4,6 +4,7 @@ import type {
   Frequency as PlanFrequency,
   VestingFrequency as PlanVestingFrequency,
 } from '@nest/plan'
+import type { TradeSide as TaxTradeSide } from '@nest/tax'
 import type { Enums, Tables } from './database.types'
 
 /**
@@ -23,6 +24,9 @@ export type EquityInstrumentType = Enums<'equity_instrument_type'>
 
 /** How often an equity grant's tranches vest after the cliff, from the `equity_vesting_frequency` enum. */
 export type VestingFrequency = Enums<'equity_vesting_frequency'>
+
+/** Whether a trade is a buy or a sell, from the `trade_side` enum. */
+export type TradeSide = Enums<'trade_side'>
 
 /** `T` with every property made non-nullable except those named in `K`. */
 type NonNullableExcept<T, K extends PropertyKey> = {
@@ -77,7 +81,12 @@ const _assertVestingFrequency: [VestingFrequency, PlanVestingFrequency] = [
   null as unknown as PlanVestingFrequency,
   null as unknown as VestingFrequency,
 ]
+const _assertTradeSide: [TradeSide, TaxTradeSide] = [
+  null as unknown as TaxTradeSide,
+  null as unknown as TradeSide,
+]
 void _assertFrequency
 void _assertBudgetGroup
 void _assertEquityInstrumentType
 void _assertVestingFrequency
+void _assertTradeSide

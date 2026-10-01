@@ -207,7 +207,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   estimate's balance is that year's real refund or bill rather than a liability
   with nothing paid against it — the same figure the Tax tab shows for the same
   rows, in the same words. It aggregates existing data
-  only: no new tables, no actual-paid-tax tracking, and no checklist state. Each
+  only: no new tables of its own (the net capital gain is derived from recorded
+  trades), no actual-paid-tax tracking, and no checklist state. Each
   member's card condenses their filing-relevant tax figures, states the withheld
   total and the number of payslips behind it (a year with no payslips says so,
   rather than reading as a year that withheld nothing), lists their claimed
@@ -552,6 +553,20 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   at their gain over the strike, shares at the price per share) and that vested
   value counts toward net worth as an asset. The vesting and valuation math is
   pure, in `@nest/plan`.
+- Investments: each member records their share and ETF buys and sells by hand on
+  the Investments tab (`/investments`, the `trade` table: ticker, date, units,
+  price per unit, brokerage fee), keyed by `source` + `external_id` as
+  `transactions` is so a later brokerage import can upsert. Holdings (units, cost
+  base, average cost), FIFO parcel matching, realised gains per financial year,
+  and the 50% CGT discount for parcels held more than 12 months are all derived
+  from the trades in `@nest/tax` (`capitalGains.ts`), never stored, so editing or
+  deleting a trade recalculates everything. A member's net capital gain (after
+  losses, with losses carried forward, and the discount) is assessable income in
+  the tax estimate — in the annual figures and out of the fortnightly ones, like
+  one-off money — and shows in the Tax tab and the EOFY views, the shared one
+  included. Holdings count toward net worth in the Equity group at the ticker's
+  last traded price and stay flat in the projection. See
+  [`docs/investments.md`](docs/investments.md).
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer; actual-spend

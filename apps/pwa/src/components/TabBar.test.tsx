@@ -386,6 +386,7 @@ describe('flattenNavItems', () => {
       '/wishlist',
       '/super',
       '/equity',
+      '/investments',
       '/tax',
       '/payslips',
       '/deductions',

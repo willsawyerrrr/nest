@@ -16,6 +16,7 @@ import { useShareGrant } from '../hooks/useShareGrant'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
+import { useTrades } from '../hooks/useTrades'
 import { paygWithheldFromRows, payslipCountByMember } from '../lib/payslips'
 import {
   availableFinancialYears,
@@ -40,6 +41,7 @@ export function EofySection() {
   const payslips = usePayslips(financialYear)
   const goals = useGoals()
   const savers = useSavers()
+  const trades = useTrades()
   const shareGrant = useShareGrant()
 
   if (
@@ -54,6 +56,7 @@ export function EofySection() {
     payslips.loading ||
     goals.loading ||
     savers.loading ||
+    trades.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -77,6 +80,7 @@ export function EofySection() {
     paygWithheldFromRows(payslipRows),
     members,
     projectedInterestIncomeInputs(goals.goals ?? [], savers.savers ?? [], members),
+    trades.trades ?? [],
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],

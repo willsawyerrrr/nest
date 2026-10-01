@@ -60,6 +60,8 @@ const will: MemberTaxEstimate = {
   annualAfterTaxCents: 7_500_000,
   annualOneOffGrossCents: 0,
   annualOneOffAfterTaxCents: 0,
+  annualNetCapitalGainCents: 0,
+  annualCapitalGainTaxCents: 0,
   fortnightlyGrossCents: 384_615,
   fortnightlyTaxCents: 96_154,
   fortnightlyAfterTaxCents: 288_461,
@@ -77,6 +79,8 @@ const sam: MemberTaxEstimate = {
   annualAfterTaxCents: 5_000_000,
   annualOneOffGrossCents: 0,
   annualOneOffAfterTaxCents: 0,
+  annualNetCapitalGainCents: 0,
+  annualCapitalGainTaxCents: 0,
   fortnightlyGrossCents: 230_769,
   fortnightlyTaxCents: 38_462,
   fortnightlyAfterTaxCents: 192_307,
@@ -94,6 +98,8 @@ const estimate: HouseholdTaxEstimate = {
   annualAfterTaxCents: 12_500_000,
   annualOneOffGrossCents: 0,
   annualOneOffAfterTaxCents: 0,
+  annualNetCapitalGainCents: 0,
+  annualCapitalGainTaxCents: 0,
   fortnightlyGrossCents: 615_384,
   fortnightlyTaxCents: 134_616,
   fortnightlyAfterTaxCents: 480_768,
@@ -222,6 +228,8 @@ describe('TaxEstimateView', () => {
       annualAfterTaxCents: 0,
       annualOneOffGrossCents: 0,
       annualOneOffAfterTaxCents: 0,
+      annualNetCapitalGainCents: 0,
+      annualCapitalGainTaxCents: 0,
       fortnightlyGrossCents: 0,
       fortnightlyTaxCents: 0,
       fortnightlyAfterTaxCents: 0,
@@ -380,6 +388,32 @@ describe('TaxEstimateView', () => {
     expect(
       within(incomeTable('Sam')).queryByRole('row', { name: /Investment income \(projected\)/ }),
     ).toBeNull()
+  })
+
+  it('shows a "Net capital gain" detail line and a note only for a member with a net capital gain', async () => {
+    const user = userEvent.setup()
+    const withGain: MemberTaxEstimate = {
+      ...will,
+      annualNetCapitalGainCents: 3_000_00,
+      annualCapitalGainTaxCents: 900_00,
+    }
+    render(
+      <TaxEstimateView
+        estimate={{ ...estimate, members: [withGain, sam] }}
+        financialYear={2027}
+        memberName={memberName}
+        config={config}
+      />,
+    )
+
+    await showBreakdown(user, 'Will')
+    expect(
+      within(incomeTable('Will')).getByRole('row', { name: /Net capital gain/ }),
+    ).toHaveTextContent('$3,000.00')
+    expect(screen.getAllByText(/of net capital gain in the annual figures/i)).toHaveLength(1)
+
+    await showBreakdown(user, 'Sam')
+    expect(within(incomeTable('Sam')).queryByRole('row', { name: /Net capital gain/ })).toBeNull()
   })
 
   it('shows gross and taxable income with no deduction row when there is no concessional super', async () => {
@@ -718,7 +752,7 @@ describe('TaxEstimateView', () => {
     expect(screen.queryByText(/tracking toward/i)).toBeNull()
   })
 
-  it('notes that capital gains tax is excluded', () => {
+  it('notes that capital gains are counted only for recorded trades', () => {
     render(
       <TaxEstimateView
         estimate={estimate}
@@ -727,7 +761,9 @@ describe('TaxEstimateView', () => {
         config={config}
       />,
     )
-    expect(screen.getByText(/excludes capital gains tax/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Capital gains are counted only for the share and ETF trades/i),
+    ).toBeInTheDocument()
   })
 
   // Combined surcharge income $270,000 sits in the FY2027 family 1.25% tier.
@@ -848,6 +884,8 @@ describe('TaxEstimateView', () => {
       annualAfterTaxCents: 0,
       annualOneOffGrossCents: 0,
       annualOneOffAfterTaxCents: 0,
+      annualNetCapitalGainCents: 0,
+      annualCapitalGainTaxCents: 0,
       fortnightlyGrossCents: 0,
       fortnightlyTaxCents: 0,
       fortnightlyAfterTaxCents: 0,
@@ -928,6 +966,8 @@ describe('TaxEstimateView', () => {
       ...will,
       annualOneOffGrossCents: 40_000_00,
       annualOneOffAfterTaxCents: 22_000_00,
+      annualNetCapitalGainCents: 0,
+      annualCapitalGainTaxCents: 0,
     }
     render(
       <TaxEstimateView
@@ -950,6 +990,8 @@ describe('TaxEstimateView', () => {
       ...will,
       annualOneOffGrossCents: 100_000_00,
       annualOneOffAfterTaxCents: 60_000_00,
+      annualNetCapitalGainCents: 0,
+      annualCapitalGainTaxCents: 0,
       breakdown: { ...breakdown, taxableIncomeCents: 80_000_00, oneOffOffsetCents: 5_000_00 },
       input: {
         ...inputFor(10_000_000),

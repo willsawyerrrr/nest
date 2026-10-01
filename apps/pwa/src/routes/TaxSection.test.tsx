@@ -16,6 +16,7 @@ const hooks = vi.hoisted(() => ({
   usePayslips: vi.fn(),
   useGoals: vi.fn(),
   useSavers: vi.fn(),
+  useTrades: vi.fn(),
   planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -38,6 +39,7 @@ vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions })
 vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
 vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
+vi.mock('../hooks/useTrades', () => ({ useTrades: hooks.useTrades }))
 vi.mock('../components/TaxEstimateView', () => ({
   TaxEstimateView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -49,6 +51,7 @@ describe('TaxSection', () => {
   beforeEach(() => {
     hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
+    hooks.useTrades.mockReturnValue({ loading: false, trades: [] })
   })
 
   it('shows the loading screen until data loads', () => {
@@ -158,6 +161,38 @@ describe('TaxSection', () => {
     expect(withInterest.members[0]!.annualGrossCents).toBe(
       estimateHouseholdTaxFromRows([makeInflow()], []).members[0]!.annualGrossCents + 4_500_00,
     )
+  })
+
+  it('assesses the net capital gain from the household’s trades', () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const trade = (side: string, tradedOn: string, priceCents: number) => ({
+      id: `${side}-${tradedOn}`,
+      household_id: 'h1',
+      member_id: 'm1',
+      ticker: 'VAS',
+      side,
+      traded_on: tradedOn,
+      units: 100,
+      price_per_unit_cents: priceCents,
+      fee_cents: 0,
+    })
+    hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [makeInflow()] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
+    // Bought for $9,000 in 2020, sold today for $11,000: a $2,000 gain, halved by the discount.
+    hooks.useTrades.mockReturnValue({
+      loading: false,
+      trades: [trade('buy', '2020-01-01', 90_00), trade('sell', today, 110_00)],
+    })
+    render(<TaxSection />)
+
+    const estimate = hooks.screenProps?.estimate as HouseholdTaxEstimate
+    expect(estimate.members[0]!.annualNetCapitalGainCents).toBe(1_000_00)
   })
 
   it('leaves the estimate unoffset when no payslip has been entered', () => {

@@ -244,6 +244,7 @@ function FiguresCard({
   helpPayoff,
   oneOffTaxFreeCents = 0,
   projectedInterestCents = 0,
+  netCapitalGainCents = 0,
 }: {
   name: string
   row: Row
@@ -260,6 +261,8 @@ function FiguresCard({
   oneOffTaxFreeCents?: number
   /** Projected annual savings interest inside gross income, for the build-up. */
   projectedInterestCents?: number
+  /** Net capital gain inside gross income, for the build-up. */
+  netCapitalGainCents?: number
 }) {
   return (
     <Card component="section" aria-label={name} withBorder radius="md" p="md">
@@ -268,6 +271,12 @@ function FiguresCard({
         <HeroFigures row={row} baselineRow={baselineRow} />
         {row.annualOneOffGrossCents > 0 && (
           <OneOffNote oneOffGrossCents={row.annualOneOffGrossCents} />
+        )}
+        {netCapitalGainCents > 0 && (
+          <Text size="xs" c="dimmed">
+            Includes <MoneyText span cents={netCapitalGainCents} /> of net capital gain in the
+            annual figures. The fortnightly ones leave it out.
+          </Text>
         )}
         <TaxBiteBar
           label={name}
@@ -300,6 +309,7 @@ function FiguresCard({
                 oneOffGrossCents={row.annualOneOffGrossCents}
                 oneOffTaxFreeCents={oneOffTaxFreeCents}
                 projectedInterestCents={projectedInterestCents}
+                netCapitalGainCents={netCapitalGainCents}
               />
             </Stack>
           </Disclosure>
@@ -358,6 +368,7 @@ export function TaxEstimateView({
               concessionalCapCents={concessionalCapCentsByMember?.get(member.memberId)}
               helpPayoff={helpPayoff?.get(member.memberId)}
               projectedInterestCents={projectedInterestCentsByMember?.get(member.memberId) ?? 0}
+              netCapitalGainCents={member.annualNetCapitalGainCents}
               oneOffTaxFreeCents={
                 member.annualOneOffGrossCents -
                 member.input.assessableIncome.employmentTerminationCents
@@ -365,7 +376,8 @@ export function TaxEstimateView({
             />
           ))}
           <Text size="xs" c="dimmed">
-            This estimate excludes capital gains tax, which is not modelled.
+            Capital gains are counted only for the share and ETF trades recorded on the Investments
+            tab.
           </Text>
         </Stack>
       )}

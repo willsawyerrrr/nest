@@ -231,6 +231,17 @@ do $$ begin
     = 10000, 'Alice''s equity quantity should round-trip';
 end $$;
 
+-- Alice's share trade: a buy tagged to her member.
+insert into public.trade
+  (household_id, member_id, ticker, side, traded_on, units, price_per_unit_cents, fee_cents)
+  values (current_setting('test.hid')::uuid, current_setting('test.mid')::uuid, 'VAS', 'buy', '2026-01-10', 10.5, 98_50, 9_50);
+
+do $$ begin
+  assert (select count(*) from public.trade) = 1, 'Alice should see her trade';
+  assert (select units from public.trade where member_id = current_setting('test.mid')::uuid)
+    = 10.5, 'Alice''s trade units should round-trip';
+end $$;
+
 -- Alice's tax deduction: a deductible expense tagged to her member and FY.
 insert into public.deduction
   (household_id, member_id, description, amount_cents, deduction_date, financial_year)
@@ -594,6 +605,7 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 0, 'Bob must not see Alice''s super contributions';
   assert (select count(*) from public.help_debt) = 0, 'Bob must not see Alice''s HELP debts';
   assert (select count(*) from public.equity_grant) = 0, 'Bob must not see Alice''s equity grants';
+  assert (select count(*) from public.trade) = 0, 'Bob must not see Alice''s trades';
   assert (select count(*) from public.deduction) = 0, 'Bob must not see Alice''s deductions';
   assert (select count(*) from public.deduction_receipt) = 0, 'Bob must not see Alice''s deduction receipts';
   assert (select count(*) from public.gift_recipient) = 0, 'Bob must not see Alice''s gift recipients';
@@ -707,6 +719,7 @@ do $$ begin
   assert (select count(*) from public.super_contribution) = 2, 'Carol should see Alice''s super contributions';
   assert (select count(*) from public.help_debt) = 1, 'Carol should see Alice''s HELP debt';
   assert (select count(*) from public.equity_grant) = 1, 'Carol should see Alice''s equity grant';
+  assert (select count(*) from public.trade) = 1, 'Carol should see Alice''s trade';
   assert (select count(*) from public.deduction) = 2, 'Carol should see both of Alice''s deductions';
   assert (select count(*) from public.deduction_receipt) = 1,
     'Carol should see the receipt left on Alice''s deduction after its retried save';

@@ -832,3 +832,48 @@ describe('estimateHouseholdTax family Medicare levy surcharge', () => {
     expect(surchargeOf(household, 'sam')).toBe(0)
   })
 })
+
+describe('estimateHouseholdTax capital gains', () => {
+  const income: IncomeInput[] = [salary('annual', 90_000_00)]
+  const profile: TaxProfileInput[] = [
+    { memberId: 'm', residency: 'resident', privateHospitalCover: true, helpDebtCents: 0 },
+  ]
+  const without = estimateHouseholdTax(income, profile, FY2027_CONFIG)
+  const gains = new Map([['m', 20_000_00]])
+  const withGain = estimateHouseholdTax(
+    income,
+    profile,
+    FY2027_CONFIG,
+    undefined,
+    undefined,
+    undefined,
+    gains,
+  )
+
+  it('adds the net capital gain to taxable income and raises tax', () => {
+    const [member] = withGain.members
+    expect(member!.breakdown.taxableIncomeCents).toBe(
+      without.members[0]!.breakdown.taxableIncomeCents + 20_000_00,
+    )
+    expect(member!.annualNetCapitalGainCents).toBe(20_000_00)
+    expect(member!.annualGrossCents).toBe(without.annualGrossCents + 20_000_00)
+  })
+
+  it('reports the tax the gain adds as the liability difference', () => {
+    expect(withGain.annualCapitalGainTaxCents).toBe(
+      withGain.annualTaxCents - without.annualTaxCents,
+    )
+    expect(withGain.annualCapitalGainTaxCents).toBeGreaterThan(0)
+  })
+
+  it('leaves the fortnightly figures as they are without the gain', () => {
+    expect(withGain.fortnightlyGrossCents).toBe(without.fortnightlyGrossCents)
+    expect(withGain.fortnightlyTaxCents).toBe(without.fortnightlyTaxCents)
+    expect(withGain.fortnightlyAfterTaxCents).toBe(without.fortnightlyAfterTaxCents)
+  })
+
+  it('is nil for a member without a gain', () => {
+    expect(without.annualNetCapitalGainCents).toBe(0)
+    expect(without.annualCapitalGainTaxCents).toBe(0)
+  })
+})

@@ -1909,6 +1909,69 @@ export type Database = {
           },
         ]
       }
+      trade: {
+        Row: {
+          created_at: string
+          external_id: string | null
+          fee_cents: number
+          household_id: string
+          id: string
+          member_id: string
+          price_per_unit_cents: number
+          side: Database['public']['Enums']['trade_side']
+          source: Database['public']['Enums']['ledger_source']
+          ticker: string
+          traded_on: string
+          units: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_id?: string | null
+          fee_cents?: number
+          household_id: string
+          id?: string
+          member_id: string
+          price_per_unit_cents: number
+          side: Database['public']['Enums']['trade_side']
+          source?: Database['public']['Enums']['ledger_source']
+          ticker: string
+          traded_on: string
+          units: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string | null
+          fee_cents?: number
+          household_id?: string
+          id?: string
+          member_id?: string
+          price_per_unit_cents?: number
+          side?: Database['public']['Enums']['trade_side']
+          source?: Database['public']['Enums']['ledger_source']
+          ticker?: string
+          traded_on?: string
+          units?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'trade_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'trade_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string
@@ -2317,6 +2380,7 @@ export type Database = {
         'salary_sacrifice' | 'personal_deductible' | 'personal_non_concessional' | 'spouse'
       super_contribution_mode: 'amount' | 'percent'
       tax_residency: 'resident' | 'foreign_resident'
+      trade_side: 'buy' | 'sell'
       transaction_kind: 'income' | 'expense' | 'transfer'
       transaction_status: 'pending' | 'settled'
     }
@@ -2485,6 +2549,7 @@ export const Constants = {
       ],
       super_contribution_mode: ['amount', 'percent'],
       tax_residency: ['resident', 'foreign_resident'],
+      trade_side: ['buy', 'sell'],
       transaction_kind: ['income', 'expense', 'transfer'],
       transaction_status: ['pending', 'settled'],
     },

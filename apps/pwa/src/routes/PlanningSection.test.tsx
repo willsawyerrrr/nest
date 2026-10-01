@@ -414,6 +414,21 @@ describe('PlanningSection', () => {
         },
       ],
     })
+    hooks.useTrades.mockReturnValue({
+      loading: false,
+      trades: [
+        {
+          id: 't1',
+          member_id: 'm1',
+          ticker: 'VAS',
+          side: 'buy',
+          traded_on: '2025-01-01',
+          units: 10,
+          price_per_unit_cents: 90_00,
+          fee_cents: 0,
+        },
+      ],
+    })
     hooks.useSavers.mockReturnValue({
       loading: false,
       savers: [makeSaver({ id: 's1', balance_cents: 500_000 })],

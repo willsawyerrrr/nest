@@ -115,6 +115,19 @@ describe('TradesScreen', () => {
     expect(onDelete).toHaveBeenCalledWith('t1')
   })
 
+  it('names a sell by its side in the delete confirmation', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      members: [will],
+      trades: [makeTrade(), makeTrade({ id: 't2', side: 'sell', units: 1 })],
+    })
+
+    const card = screen.getByText('Sell').closest('.mantine-Card-root') as HTMLElement
+    await user.click(within(card).getByRole('button', { name: /delete/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/Sell VAS/)).toBeInTheDocument()
+  })
+
   it('adds a trade', async () => {
     const user = userEvent.setup()
     const onCreate = vi.fn().mockResolvedValue(undefined)

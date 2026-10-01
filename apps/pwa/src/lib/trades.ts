@@ -50,7 +50,7 @@ export function memberPortfolio(trades: readonly TradeRow[], memberId: string): 
     holdings: holdings
       .filter((holding) => holding.memberId === memberId)
       .map((holding) => {
-        const lastPriceCents = prices.get(holding.ticker) ?? 0
+        const lastPriceCents = prices.get(holding.ticker)!
         return {
           ...holding,
           lastPriceCents,
@@ -75,7 +75,7 @@ export function heldEquityHoldings(
   return matchTrades(inputs)
     .holdings.map((holding) => ({
       label: `${memberName(members, holding.memberId)} — ${holding.ticker}`,
-      valueCents: holdingValueCents(holding, prices.get(holding.ticker) ?? 0),
+      valueCents: holdingValueCents(holding, prices.get(holding.ticker)!),
     }))
     .filter((holding) => holding.valueCents > 0)
 }

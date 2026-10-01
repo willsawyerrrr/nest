@@ -200,6 +200,16 @@ describe('capitalGainsSummary', () => {
     expect(summary.netCapitalGainCents).toBe(700_00)
   })
 
+  it('walks several earlier years in order, carrying a loss across them', () => {
+    const summary = capitalGainsSummary(
+      [gain(500_00, false, 2026), gain(-900_00, false, 2025), gain(1_000_00, false)],
+      2027,
+    )
+    // 2025's $900 loss is absorbed by 2026's $500 gain, leaving $400 for 2027.
+    expect(summary.carriedInLossesCents).toBe(400_00)
+    expect(summary.netCapitalGainCents).toBe(600_00)
+  })
+
   it('ignores gains from later years', () => {
     const summary = capitalGainsSummary([gain(500_00, false, 2028)], 2027)
     expect(summary.netCapitalGainCents).toBe(0)
@@ -237,5 +247,13 @@ describe('valuation', () => {
     ])
     expect(prices.get('VAS')).toBe(13_00)
     expect(prices.get('NDQ')).toBe(9_00)
+  })
+
+  it('keeps the newer price when an older trade is supplied after it', () => {
+    const prices = lastPriceByTicker([
+      trade('buy', '2025-09-01', 1, 13),
+      trade('buy', '2025-01-01', 1, 9),
+    ])
+    expect(prices.get('VAS')).toBe(13_00)
   })
 })

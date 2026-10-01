@@ -339,6 +339,9 @@ export function DeductionForm({
       Number.isFinite(enteredWorkUsePercent) &&
       enteredWorkUsePercent > 0 &&
       enteredWorkUsePercent <= 100)
+  const showWorkUse = showDetails && apportionable
+  const showGroupPicker =
+    showDetails && groupId === undefined && !isDonation && standardGroups.length > 0
   const workUsePercentNumber = apportionable ? enteredWorkUsePercent : 100
   const apportionedAmountCents = workUsePercentValid
     ? workUseAmountCents(fullAmountCents, workUsePercentNumber)
@@ -527,41 +530,46 @@ export function DeductionForm({
         />
       )}
 
-      {showDetails && apportionable && (
-        <NumberInput
-          label="Work use %"
-          size="sm"
-          description={hint("The share used for work; 100% if it's for work only.")}
-          suffix="%"
-          decimalScale={2}
-          min={0.01}
-          max={100}
-          hideControls
-          value={workUsePercent}
-          onChange={setWorkUsePercent}
-        />
+      {(showWorkUse || showGroupPicker) && (
+        <Group align="flex-start" gap="xs" wrap="wrap">
+          {showWorkUse && (
+            <NumberInput
+              label="Work use %"
+              size="sm"
+              description={hint("The share used for work; 100% if it's for work only.")}
+              suffix="%"
+              decimalScale={2}
+              min={0.01}
+              max={100}
+              hideControls
+              value={workUsePercent}
+              onChange={setWorkUsePercent}
+              style={showGroupPicker ? { flex: '0 0 7rem' } : { flex: '1 1 100%' }}
+            />
+          )}
+          {showGroupPicker && (
+            <Select
+              label="Group"
+              size="sm"
+              description="File this under a group, or leave it on its own."
+              allowDeselect={false}
+              data={[
+                { value: NO_GROUP, label: 'None' },
+                ...standardGroups.map((group) => ({ value: group.id, label: group.name })),
+              ]}
+              value={pickedGroupId ?? NO_GROUP}
+              onChange={(value) =>
+                setPickedGroupId(value === null || value === NO_GROUP ? null : value)
+              }
+              style={{ flex: '1 1 12rem' }}
+            />
+          )}
+        </Group>
       )}
-      {showDetails && apportionable && workUsePercentValid && workUsePercentNumber !== 100 && (
+      {showWorkUse && workUsePercentValid && workUsePercentNumber !== 100 && (
         <Text size="sm" c="dimmed">
           Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
         </Text>
-      )}
-
-      {showDetails && groupId === undefined && !isDonation && standardGroups.length > 0 && (
-        <Select
-          label="Group"
-          size="sm"
-          description="File this under a group, or leave it on its own."
-          allowDeselect={false}
-          data={[
-            { value: NO_GROUP, label: 'None' },
-            ...standardGroups.map((group) => ({ value: group.id, label: group.name })),
-          ]}
-          value={pickedGroupId ?? NO_GROUP}
-          onChange={(value) =>
-            setPickedGroupId(value === null || value === NO_GROUP ? null : value)
-          }
-        />
       )}
 
       {showDetails && !adding && onUploadReceipt && (

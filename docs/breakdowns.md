@@ -293,9 +293,16 @@ Owned by a breakdown; every breakdown is generic.
     signed-in member cannot see is dropped rather than rendered as a blank row.
   - A purchase or dismissal write invalidates the `transactions` cache alongside its
     own table, so a claimed or set-aside row leaves the inbox with no reload.
+- **Gift rows** — each pairing is a compact list row (a card on narrow screens)
+  showing its label, date, and `Left $X` (red once over budget) over a thin spend
+  progress bar; tapping it expands the budget and spent figures, its purchases, an
+  add-purchase form, and edit / delete budget. A gift for the signed-in member shows
+  its budget alone with an edit pencil.
 - **Gift purchase rows** — every pairing row takes a hand-entered purchase
-  (description, amount, date) as well; a purchase linked from a synced transaction
-  carries a neutral `From Up` badge, so card spend reads apart from a typed one.
+  (description, amount, date) as well. A purchase is a compact row with the shared
+  edit / delete actions (plus Assign for an ad hoc one); one linked from a synced
+  transaction carries a neutral `From Up` badge, so card spend reads apart from a
+  typed one.
 - **`/breakdowns/:id`** — the item editor: the item list with add / edit / remove
   (name + amount + frequency, `every_n_weeks`/`every_n_months` taking an interval as
   elsewhere); rename the breakdown; choose its group; delete the breakdown.

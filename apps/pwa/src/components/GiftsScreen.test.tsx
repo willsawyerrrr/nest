@@ -7,7 +7,7 @@ import {
   makeGiftPurchase,
   makeGiftTransaction,
 } from '../test/fixtures'
-import { render, screen, within } from '../test/render'
+import { render, screen, setWideViewport, within } from '../test/render'
 import { GiftsScreen } from './GiftsScreen'
 
 const alice: GiftRecipient = {
@@ -429,7 +429,6 @@ describe('GiftsScreen private gifts for the current member', () => {
       .closest('.mantine-Card-root') as HTMLElement
     for (const card of [meCard, totalCard]) {
       expect(within(card).queryByText(/^Spent /)).not.toBeInTheDocument()
-      expect(within(card).queryByText(/^Left /)).not.toBeInTheDocument()
     }
     expect(screen.queryByLabelText('Me spend')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Total gift spend')).not.toBeInTheDocument()
@@ -500,10 +499,10 @@ describe('GiftsScreen purchases', () => {
     renderScreen({ purchases: [purchase] })
 
     await expandRow(user)
-    await user.click(screen.getByRole('button', { name: 'Edit Book' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.getByRole('button', { name: 'Edit Book' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('cancels editing a budget from a row', async () => {
@@ -549,14 +548,14 @@ describe('GiftsScreen purchases', () => {
     renderScreen({ purchases: [purchase], onUpdatePurchase, onDeletePurchase })
 
     await expandRow(user)
-    await user.click(screen.getByRole('button', { name: 'Edit Book' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(onUpdatePurchase).toHaveBeenCalledWith(
       'p1',
       expect.objectContaining({ gift_budget_id: 'b1', amount_cents: 30_00, description: 'Book' }),
     )
 
-    await user.click(screen.getByRole('button', { name: 'Delete Book' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
     expect(onDeletePurchase).toHaveBeenCalledWith('p1')
   })
@@ -579,8 +578,11 @@ describe('GiftsScreen purchases', () => {
     renderScreen({ purchases: [purchase] })
 
     await expandRow(user)
-    expect(screen.getByRole('button', { name: 'Edit purchase' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Delete purchase' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(within(screen.getByRole('dialog')).getByText(/Purchase/)).toBeInTheDocument()
   })
 })
 
@@ -766,9 +768,55 @@ describe('GiftsScreen ad hoc discretionary buffer', () => {
     })
 
     await user.click(screen.getByRole('button', { name: /Ad hoc gifts/ }))
-    await user.click(screen.getByRole('button', { name: 'Delete Flowers' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
     expect(onDeletePurchase).toHaveBeenCalledWith('p1')
+  })
+})
+
+describe('GiftsScreen wide rows', () => {
+  const meRecipient: GiftRecipient = { ...alice, id: 'r9', name: 'Me', member_id: 'me' }
+
+  beforeEach(() => {
+    localStorage.clear()
+    setWideViewport()
+  })
+
+  it('lays a gift and its purchases out as table rows with the remaining figure', async () => {
+    const user = userEvent.setup()
+    const purchase = makeGiftPurchase({
+      id: 'p1',
+      gift_budget_id: 'b1',
+      amount_cents: 30_00,
+      description: 'Book',
+      transaction_id: 't1',
+    })
+    renderScreen({ purchases: [purchase] })
+
+    expect(screen.getAllByText('Left $70.00').length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('Alice spend')).toBeInTheDocument()
+
+    await expandRow(user)
+    expect(screen.getByText('Budget $100.00 · Spent $30.00')).toBeInTheDocument()
+    expect(screen.getByText('Book')).toBeInTheDocument()
+    expect(screen.getByText('From Up')).toBeInTheDocument()
+    expect(screen.getByText('$30.00')).toBeInTheDocument()
+  })
+
+  it('shows only the agreed budget, with an edit control, for a gift for the current member', async () => {
+    const user = userEvent.setup()
+    renderScreen({
+      recipients: [meRecipient],
+      budgets: [{ ...budget, recipient_id: 'r9' }],
+      currentMemberId: 'me',
+    })
+
+    await user.click(screen.getByRole('button', { name: /Christmas/ }))
+
+    expect(screen.getByText('$100.00')).toBeInTheDocument()
+    expect(screen.getByText(/spending on this gift is hidden from you/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit budget' }))
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
   })
 })

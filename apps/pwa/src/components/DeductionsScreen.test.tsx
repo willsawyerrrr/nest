@@ -66,6 +66,7 @@ function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRo
     id: 'g1',
     household_id: 'h1',
     member_id: 'm1',
+    kind: 'standard',
     name: 'Adobe Creative Cloud',
     financial_year: 2027,
     created_at: '',
@@ -190,6 +191,24 @@ describe('DeductionsScreen', () => {
     renderScreen({ deductions: [makeDeduction({ description: 'Union fees' })] })
     const card = screen.getByText('Union fees').closest('.mantine-Card-root') as HTMLElement
     expect(within(card).queryByText(/work use/)).not.toBeInTheDocument()
+  })
+
+  it('gives a donation no drag handle and its group no edit or delete control', () => {
+    renderScreen({
+      members: [will],
+      groups: [makeGroup({ id: 'gd', name: 'Donations', kind: 'donations' })],
+      deductions: [
+        makeDeduction({ id: 'd1', description: 'Red Cross', category: 'donation', group_id: 'gd' }),
+        makeDeduction({ id: 'd2', description: 'Home office' }),
+      ],
+    })
+
+    expect(
+      screen.queryByRole('button', { name: 'Drag Red Cross to a group' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Drag Home office to a group' })).toBeInTheDocument()
+    const group = screen.getByText('Donations').closest('.mantine-Card-root') as HTMLElement
+    expect(within(group).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
   })
 
   it('reads a group as one row, its payments totalled underneath', async () => {
@@ -603,6 +622,23 @@ describe('DeductionsScreen', () => {
       drag('d1', null)
       drag('d1', 'group:g1')
       drag('d1', 'group:g3')
+
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
+
+    it('keeps a donation in the donations group and a work expense out of it', () => {
+      const { onUpdate } = renderScreen({
+        members: [will],
+        deductions: [
+          makeDeduction({ id: 'd1', category: 'donation', group_id: 'gd' }),
+          makeDeduction({ id: 'd2' }),
+        ],
+        groups: [makeGroup({ id: 'gd', name: 'Donations', kind: 'donations' }), makeGroup()],
+      })
+
+      drag('d1', 'group:g1')
+      drag('d1', 'ungrouped')
+      drag('d2', 'group:gd')
 
       expect(onUpdate).not.toHaveBeenCalled()
     })

@@ -42,6 +42,7 @@ function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRo
     id: 'g1',
     household_id: 'h1',
     member_id: 'm1',
+    kind: 'standard',
     name: 'Adobe Creative Cloud',
     financial_year: 2027,
     created_at: '',
@@ -971,37 +972,7 @@ describe('DeductionForm category', () => {
     expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
   })
 
-  it('saves a new donation with no group, for the trigger to file into Donations', async () => {
-    const user = userEvent.setup({ delay: null })
-    const onSubmit = vi.fn()
-    render(
-      <DeductionForm
-        member={member}
-        attachments={attachments}
-        financialYear={2027}
-        groups={[]}
-        onSubmit={onSubmit}
-      />,
-    )
-
-    await user.click(screen.getByText('Donation'))
-    // The picker names where the donation goes, even with no other groups.
-    expect(screen.getByRole('combobox', { name: 'Group' })).toHaveValue('Donations')
-
-    await user.type(screen.getByLabelText(/description/i), 'Red Cross')
-    await user.type(screen.getByLabelText(/^amount/i), '250')
-    await user.click(screen.getByRole('button', { name: /add deduction/i }))
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: expect.objectContaining({ category: 'donation', group_id: null }),
-        }),
-      ),
-    )
-  })
-
-  it('lists the member’s other groups for a donation and files it into a chosen one', async () => {
+  it('saves a new donation with no group, for the trigger to file into the donations group', async () => {
     const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()
     render(
@@ -1016,19 +987,36 @@ describe('DeductionForm category', () => {
 
     await user.click(screen.getByText('Donation'))
     await user.type(screen.getByLabelText(/description/i), 'Red Cross')
-    await user.type(screen.getByLabelText(/^amount/i), '50')
-    await user.click(screen.getByRole('combobox', { name: 'Group' }))
-    await user.click(await screen.findByRole('option', { name: 'Red Cross monthly' }))
+    await user.type(screen.getByLabelText(/^amount/i), '250')
     await user.click(screen.getByRole('button', { name: /add deduction/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ input: expect.objectContaining({ group_id: 'gx' }) }),
+        expect.objectContaining({
+          input: expect.objectContaining({ category: 'donation', group_id: null }),
+        }),
       ),
     )
   })
 
-  it('folds the member’s own Donations group into the default option for a donation', async () => {
+  it('offers a donation no group picker', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groups={[makeGroup({ id: 'gx', name: 'Red Cross monthly' })]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Group' })).toBeInTheDocument()
+    await user.click(screen.getByText('Donation'))
+    expect(screen.queryByRole('combobox', { name: 'Group' })).not.toBeInTheDocument()
+  })
+
+  it('lists only standard groups for a work expense, with None', async () => {
     const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
@@ -1036,24 +1024,21 @@ describe('DeductionForm category', () => {
         attachments={attachments}
         financialYear={2027}
         groups={[
-          makeGroup({ id: 'gd', name: 'Donations' }),
+          makeGroup({ id: 'gd', name: 'Donations', kind: 'donations' }),
           makeGroup({ id: 'gx', name: 'Red Cross monthly' }),
         ]}
-        initial={makeDeduction({ category: 'donation', group_id: 'gd' })}
         onSubmit={vi.fn()}
       />,
     )
 
     await user.click(screen.getByRole('button', { name: /more details/i }))
-    // The donation already sits in the auto group; the picker shows it as the
-    // default and never lists a second "Donations" option.
-    expect(screen.getByRole('combobox', { name: 'Group' })).toHaveValue('Donations')
     await user.click(screen.getByRole('combobox', { name: 'Group' }))
-    expect(screen.getAllByRole('option', { name: 'Donations' })).toHaveLength(1)
+    expect(screen.getByRole('option', { name: 'None' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Red Cross monthly' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Donations' })).not.toBeInTheDocument()
   })
 
-  it('keeps None and lists every group for a work expense', async () => {
+  it('offers a group named Donations that the member made, since it is a standard group', async () => {
     const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
@@ -1066,8 +1051,65 @@ describe('DeductionForm category', () => {
     )
 
     await user.click(screen.getByRole('combobox', { name: 'Group' }))
-    expect(screen.getByRole('option', { name: 'None' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Donations' })).toBeInTheDocument()
+  })
+
+  it('takes a donation out of its group when it is changed to a work expense', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groups={[makeGroup({ id: 'gd', name: 'Donations', kind: 'donations' })]}
+        initial={makeDeduction({ category: 'donation', group_id: 'gd' })}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByText('Work expense'))
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ category: 'work_expense', group_id: null }),
+        }),
+      ),
+    )
+  })
+
+  it('adds only donations from the donations group', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groupId="gd"
+        groups={[makeGroup({ id: 'gd', name: 'Donations', kind: 'donations' })]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByLabelText('What kind of deduction?')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
+  })
+
+  it('offers no donation category when adding to a standard group', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        groupId="gx"
+        groups={[makeGroup({ id: 'gx' })]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Donation')).not.toBeInTheDocument()
+    expect(screen.getByText('Work expense')).toBeInTheDocument()
   })
 
   it('offers the dollar/distance basis toggle for a work expense only', async () => {

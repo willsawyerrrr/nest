@@ -65,6 +65,9 @@ export function DeductionGroupForm({
  * deduction with its own date, amount, and receipts — and the control that adds
  * the next one.
  *
+ * A `donations` group is the automatic one holding the member's donations: it
+ * carries no edit or delete control, as the database refuses both.
+ *
  * The total is summed from the payments rather than stored: every payment is a
  * deduction the tax estimate already counts, so a stored group total would be
  * the only figure in the app able to disagree with what is actually claimed.
@@ -113,7 +116,7 @@ export function DeductionGroup({
             <Text fw={600} size="sm">
               {formatCents(totalCents)}
             </Text>
-            <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+            {group.kind === 'standard' && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />}
           </Group>
         </Group>
 

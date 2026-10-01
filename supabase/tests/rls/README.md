@@ -45,12 +45,14 @@ instance and can also be run locally.
   carries the category it is given (defaulting it to `work_expense`).
 - `deduction_donation_group.sql` — the assertions that
   `file_donation_in_default_group` files a member's donations into their
-  "Donations" group: the first donation of a year creates that group and lands
-  in it, later ones reuse it, a donation the member filed into a named group
-  keeps it, clearing a donation's group snaps it back, a work expense is never
-  auto-grouped, and each year gets its own group; plus the backfill run from
-  the migration itself, which groups exactly the standalone donations, reuses a
-  Donations group that is already there, and rewrites nothing on a second pass.
+  `donations`-kind group (the first donation of a year creates it, later ones
+  reuse it, clearing a donation's group snaps it back, each year gets its own),
+  that only donations can sit in that group and donations can sit in no other,
+  that the group cannot be renamed, re-kinded, or deleted while a group the
+  member names "Donations" is an ordinary one, and a work expense is never
+  auto-grouped; plus the migration run from its own file against pre-migration
+  data, which flags the existing groups, creates the missing ones, moves
+  donations in and other categories out, and rewrites nothing on a second pass.
 - `deduction_single_receipt.sql` — the assertions that the database holds a
   deduction to one receipt, and that the migration introducing the constraint
   keeps the earliest of several receipts, drops only the surplus rows, leaves a

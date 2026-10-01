@@ -498,6 +498,7 @@ export type Database = {
           financial_year: number
           household_id: string
           id: string
+          kind: string
           member_id: string
           name: string
           updated_at: string
@@ -507,6 +508,7 @@ export type Database = {
           financial_year: number
           household_id: string
           id?: string
+          kind?: string
           member_id: string
           name: string
           updated_at?: string
@@ -516,6 +518,7 @@ export type Database = {
           financial_year?: number
           household_id?: string
           id?: string
+          kind?: string
           member_id?: string
           name?: string
           updated_at?: string

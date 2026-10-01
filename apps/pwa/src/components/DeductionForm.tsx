@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   ActionIcon,
   Alert,
@@ -7,7 +7,6 @@ import {
   FileButton,
   FileInput,
   Group,
-  Loader,
   NumberInput,
   Select,
   Stack,
@@ -21,7 +20,6 @@ import {
   UPLOAD_FAILED_MESSAGE,
   useDeductionAttachment,
   type DeductionAttachments,
-  type ExtractionState,
 } from '../hooks/useDeductionAttachment'
 import { useDeductionFields } from '../hooks/useDeductionFields'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
@@ -34,7 +32,9 @@ import type { DeductionExtraction } from '../lib/deductionExtraction'
 import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
 import { currentTaxConfig } from '../lib/tax'
 import { prepareUpload } from '../lib/uploadFile'
+import { ExtractionNote, ReadFromReceipt } from './DeductionExtractionNote'
 import { EnumSegmentedControl } from './EnumSelect'
+import { FileDropArea } from './FileDropArea'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
@@ -67,6 +67,13 @@ interface DeductionFormProps {
    * upload owns the file's cleanup.
    */
   draft?: (UploadDraft<DeductionExtraction> & { category: DeductionCategory }) | undefined
+  /**
+   * When adding on its own, hands several receipts picked or dropped at once to
+   * a bulk upload, as the chosen kind of deduction, and closes the form; one
+   * receipt is read into this form as usual. Omitted — inside a group, where a
+   * payment belongs to that group — the picker takes a single receipt.
+   */
+  onAddFiles?: ((files: File[], category: DeductionCategory) => void) | undefined
   /** When editing, the deduction's stored receipt, if it has one. */
   receipt?: DeductionReceiptRow | undefined
   /** When editing, stores a file as the deduction's receipt, replacing any current one. */
@@ -108,78 +115,17 @@ function toDistanceValue(km: number | string | null | undefined): number | strin
   return typeof km === 'number' ? km : Number.parseFloat(km)
 }
 
-/**
- * What a successful read did, in one line. Every field it filled is already on
- * screen in the field it filled, so the note attributes the lot to the model
- * and asks for a check against the receipt rather than restating values the
- * member is looking at.
- */
-function ReadFromReceipt({ filledNothing }: { filledNothing: boolean }) {
-  return (
-    <Alert color="info" variant="light" p="xs" title="Read from the receipt">
-      <Text size="xs">
-        {filledNothing
-          ? 'Nothing on the receipt could be filled in for you.'
-          : 'The details below were extracted from the receipt by AI — check them against it before saving.'}
-      </Text>
-    </Alert>
-  )
-}
-
-/**
- * Where reading the first attached receipt has got to, shown under the file
- * picker. Every failure reads as what it is — the feature switched off, a file
- * that is not a receipt, one too large or of a type that cannot be read — and
- * none of them blocks the save: the details are typed by hand exactly as they
- * always were.
- */
-function ExtractionNote({ state }: { state: ExtractionState }) {
-  if (state.status === 'idle') {
-    return null
-  }
-  if (state.status === 'uploading' || state.status === 'reading') {
-    return (
-      <Group gap="xs" role="status">
-        <Loader size="xs" />
-        <Text size="xs" c="dimmed">
-          {state.status === 'uploading' ? 'Storing the receipt…' : 'Reading the receipt…'}
-        </Text>
-      </Group>
-    )
-  }
-  if (
-    state.status === 'not-configured' ||
-    state.status === 'out-of-credit' ||
-    state.status === 'key-rejected' ||
-    state.status === 'unsupported'
-  ) {
-    // Off, not broken — a key never set, an account out of credit, a key the
-    // API refuses, or a file type the model cannot read.
-    // Each names its own cause so the operator's fix is clear.
-    return (
-      <Text size="xs" c="dimmed">
-        {state.message}
-      </Text>
-    )
-  }
-  if (state.status === 'not-receipt') {
-    return (
-      <Alert color="warning" variant="light" p="xs">
-        <Text size="xs">
-          {state.message}
-          {state.reason !== null && ` ${state.reason}`} Enter the details by hand.
-        </Text>
-      </Alert>
-    )
-  }
-  if (state.status === 'failed') {
-    return (
-      <Alert color="warning" variant="light" p="xs">
-        <Text size="xs">{state.message}</Text>
-      </Alert>
-    )
-  }
-  return <ReadFromReceipt filledNothing={state.filledNothing} />
+/** Wraps `children` in a drop area while `enabled`, else leaves them as they are. */
+function ConditionalDropArea({
+  enabled,
+  onFiles,
+  children,
+}: {
+  enabled: boolean
+  onFiles: (files: File[]) => void
+  children: ReactNode
+}) {
+  return enabled ? <FileDropArea onFiles={onFiles}>{children}</FileDropArea> : <>{children}</>
 }
 
 /**
@@ -215,6 +161,13 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * The rest — work use %, the group, and the receipt controls — sits behind a
  * "More details" toggle that starts open only when the deduction already uses
  * one of them (a part-claimed work use or a group). Adding shows every field.
+ *
+ * A top-level add opens on the receipt prompt alone — the kind of deduction, the
+ * receipt input, and a secondary "Enter details manually" — and the fields appear
+ * when the member chooses to type, or once a receipt has been stored and read (or
+ * could not be), staying once shown. A form opened from a group, a draft, and an
+ * edit open on their fields. Given `onAddFiles`, the receipt input also takes
+ * several files, handing them to a bulk upload and closing the form.
  *
  * A **donation** is grouped automatically: saved with no group of its own, the
  * `file_donation_in_default_group` trigger files it into the member's donations
@@ -259,6 +212,7 @@ export function DeductionForm({
   groups = [],
   initial,
   draft,
+  onAddFiles,
   receipt,
   onUploadReceipt,
   onRemoveReceipt,
@@ -335,6 +289,11 @@ export function DeductionForm({
         (initial.group_id !== null && initial.category !== 'donation')),
   )
   const showDetails = adding || detailsToggled
+  // A top-level add opens on the receipt prompt alone. The fields appear once
+  // the member chooses to type them, or as soon as a file has been stored and
+  // read (or could not be), and stay once shown so removing the file never
+  // hides what was typed or filled.
+  const [revealed, setRevealed] = useState(false)
   const hint = (text: string) => (adding ? text : undefined)
   const receipts = useDeductionAttachment({
     attachments,
@@ -343,6 +302,35 @@ export function DeductionForm({
   })
 
   const { values } = fields
+  const receiptSettled = !['idle', 'uploading', 'reading'].includes(receipts.state.status)
+  if (receiptSettled && !revealed) {
+    setRevealed(true)
+  }
+  const showFields = !adding || draft !== undefined || groupId !== undefined || revealed
+  // One receipt is read into this form; several go to the bulk upload and the
+  // form gives way to their review.
+  const handleFiles = (files: File[]) => {
+    if (receipts.busy) {
+      return
+    }
+    if (onAddFiles && files.length > 1) {
+      onAddFiles(files, category)
+      onCancel?.()
+      return
+    }
+    if (files[0]) {
+      void receipts.addFile(files[0])
+    }
+  }
+  const receiptInput = {
+    label: onAddFiles ? 'Receipts' : 'Receipt',
+    size: 'sm',
+    description: showFields
+      ? 'Any file, up to 25 MB. Stored privately, then read to pre-fill the details below where it can be — which you confirm. Pick again to replace it.'
+      : `${onAddFiles ? 'Add a receipt or several, or drop them here. ' : ''}We'll read the details for you to check — no typing needed. Any file, up to 25 MB.`,
+    placeholder: onAddFiles ? 'Attach a receipt or several' : 'Attach a receipt',
+    disabled: receipts.busy,
+  } as const
   const config = configsByYear[financialYear] ?? currentTaxConfig()
   // The dollar/distance choice is a work-expense concern alone: a donation or a
   // tax agent fee is always a dollar figure, so the picker is hidden and the
@@ -458,197 +446,211 @@ export function DeductionForm({
       )}
 
       {adding && !draft && (
-        <Stack gap={6}>
-          <FileInput
-            label="Receipt"
-            size="sm"
-            description="Any file, up to 25 MB. Stored privately, then read to pre-fill the details below where it can be — which you confirm. Pick again to replace it."
-            placeholder="Attach a receipt"
-            disabled={receipts.busy}
-            value={null}
-            onChange={(file) => {
-              if (file) {
-                void receipts.addFile(file)
-              }
-            }}
-          />
-          <ExtractionNote state={receipts.state} />
-          {receipts.path !== null && (
-            <Group gap="xs" wrap="nowrap" justify="space-between">
-              <Text size="xs">Receipt attached</Text>
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                size="sm"
-                aria-label="Remove receipt"
-                onClick={() => void receipts.removeFile()}
+        <ConditionalDropArea enabled={!showFields} onFiles={handleFiles}>
+          <Stack gap={6}>
+            {onAddFiles ? (
+              <FileInput {...receiptInput} multiple value={[]} onChange={handleFiles} />
+            ) : (
+              <FileInput
+                {...receiptInput}
+                value={null}
+                onChange={(file) => handleFiles(file ? [file] : [])}
+              />
+            )}
+            <ExtractionNote state={receipts.state} />
+            {receipts.path !== null && (
+              <Group gap="xs" wrap="nowrap" justify="space-between">
+                <Text size="xs">Receipt attached</Text>
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  size="sm"
+                  aria-label="Remove receipt"
+                  onClick={() => void receipts.removeFile()}
+                >
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Group>
+            )}
+            {!showFields && (
+              <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                ta="left"
+                disabled={receipts.busy}
+                onClick={() => setRevealed(true)}
               >
-                <IconTrash size={14} />
-              </ActionIcon>
+                Enter details manually
+              </Anchor>
+            )}
+          </Stack>
+        </ConditionalDropArea>
+      )}
+
+      {showFields && (
+        <>
+          <TextInput
+            label="Description"
+            size="sm"
+            placeholder="e.g. Home office running costs"
+            value={values.description}
+            onChange={(event) => fields.setDescription(event.currentTarget.value)}
+          />
+
+          <Group grow wrap="nowrap" align="flex-start" gap="xs">
+            {isDistance ? (
+              <NumberInput
+                label="Kilometres travelled"
+                size="sm"
+                description={hint(
+                  `Work-related kilometres travelled, at FY${financialYear}'s ${(config.carExpense.centsPerKm / 100).toFixed(2)}c/km ATO rate.`,
+                )}
+                suffix=" km"
+                decimalScale={2}
+                min={0}
+                hideControls
+                value={distanceKm}
+                onChange={setDistanceKm}
+              />
+            ) : (
+              <MoneyInput
+                label="Amount"
+                size="sm"
+                description={hint(
+                  apportionable
+                    ? 'What the expense cost in full.'
+                    : 'The receipted amount, claimed in full.',
+                )}
+                min={0}
+                hideControls
+                value={values.amount}
+                onChange={fields.setAmount}
+              />
+            )}
+            <DateInput
+              label="Date"
+              size="sm"
+              valueFormat="D MMM YYYY"
+              value={values.deductionDate}
+              onChange={fields.setDeductionDate}
+            />
+          </Group>
+
+          {isDistance && (
+            <Text size="sm" c="dimmed">
+              Deductible amount: <b>{formatCents(computedAmountCents)}</b>
+            </Text>
+          )}
+          {overCap && (
+            <Alert color="warning" variant="light" p="xs">
+              <Text size="xs">
+                Over the ATO's {config.carExpense.maxClaimableKm.toLocaleString()}km cap per car,
+                per year for the cents-per-kilometre method. Kilometres beyond the cap need the
+                logbook method or actual costs instead.
+              </Text>
+            </Alert>
+          )}
+
+          {!adding && (
+            <Anchor
+              component="button"
+              type="button"
+              size="xs"
+              ta="left"
+              aria-expanded={detailsToggled}
+              onClick={() => setDetailsToggled((open) => !open)}
+            >
+              {detailsToggled ? 'Fewer details' : 'More details'}
+            </Anchor>
+          )}
+
+          {adding && basisApplies && (
+            <EnumSegmentedControl
+              fullWidth
+              size="sm"
+              aria-label="Entry basis"
+              value={basis}
+              onChange={setBasis}
+              data={[
+                { value: 'amount', label: 'Dollar' },
+                { value: 'distance', label: 'Distance (km)' },
+              ]}
+            />
+          )}
+
+          {(showWorkUse || showGroupPicker) && (
+            <Group align="flex-start" gap="xs" wrap="wrap">
+              {showWorkUse && (
+                <NumberInput
+                  label="Work use %"
+                  size="sm"
+                  description={hint("The share used for work; 100% if it's for work only.")}
+                  suffix="%"
+                  decimalScale={2}
+                  min={0.01}
+                  max={100}
+                  hideControls
+                  value={workUsePercent}
+                  onChange={setWorkUsePercent}
+                  style={showGroupPicker ? { flex: '0 0 7rem' } : { flex: '1 1 100%' }}
+                />
+              )}
+              {showGroupPicker && (
+                <Select
+                  label="Group"
+                  size="sm"
+                  description="File this under a group, or leave it on its own."
+                  allowDeselect={false}
+                  data={[
+                    { value: NO_GROUP, label: 'None' },
+                    ...standardGroups.map((group) => ({ value: group.id, label: group.name })),
+                  ]}
+                  value={pickedGroupId ?? NO_GROUP}
+                  onChange={(value) =>
+                    setPickedGroupId(value === null || value === NO_GROUP ? null : value)
+                  }
+                  style={{ flex: '1 1 12rem' }}
+                />
+              )}
             </Group>
           )}
-        </Stack>
-      )}
-
-      <TextInput
-        label="Description"
-        size="sm"
-        placeholder="e.g. Home office running costs"
-        value={values.description}
-        onChange={(event) => fields.setDescription(event.currentTarget.value)}
-      />
-
-      <Group grow wrap="nowrap" align="flex-start" gap="xs">
-        {isDistance ? (
-          <NumberInput
-            label="Kilometres travelled"
-            size="sm"
-            description={hint(
-              `Work-related kilometres travelled, at FY${financialYear}'s ${(config.carExpense.centsPerKm / 100).toFixed(2)}c/km ATO rate.`,
-            )}
-            suffix=" km"
-            decimalScale={2}
-            min={0}
-            hideControls
-            value={distanceKm}
-            onChange={setDistanceKm}
-          />
-        ) : (
-          <MoneyInput
-            label="Amount"
-            size="sm"
-            description={hint(
-              apportionable
-                ? 'What the expense cost in full.'
-                : 'The receipted amount, claimed in full.',
-            )}
-            min={0}
-            hideControls
-            value={values.amount}
-            onChange={fields.setAmount}
-          />
-        )}
-        <DateInput
-          label="Date"
-          size="sm"
-          valueFormat="D MMM YYYY"
-          value={values.deductionDate}
-          onChange={fields.setDeductionDate}
-        />
-      </Group>
-
-      {isDistance && (
-        <Text size="sm" c="dimmed">
-          Deductible amount: <b>{formatCents(computedAmountCents)}</b>
-        </Text>
-      )}
-      {overCap && (
-        <Alert color="warning" variant="light" p="xs">
-          <Text size="xs">
-            Over the ATO's {config.carExpense.maxClaimableKm.toLocaleString()}km cap per car, per
-            year for the cents-per-kilometre method. Kilometres beyond the cap need the logbook
-            method or actual costs instead.
-          </Text>
-        </Alert>
-      )}
-
-      {!adding && (
-        <Anchor
-          component="button"
-          type="button"
-          size="xs"
-          ta="left"
-          aria-expanded={detailsToggled}
-          onClick={() => setDetailsToggled((open) => !open)}
-        >
-          {detailsToggled ? 'Fewer details' : 'More details'}
-        </Anchor>
-      )}
-
-      {adding && basisApplies && (
-        <EnumSegmentedControl
-          fullWidth
-          size="sm"
-          aria-label="Entry basis"
-          value={basis}
-          onChange={setBasis}
-          data={[
-            { value: 'amount', label: 'Dollar' },
-            { value: 'distance', label: 'Distance (km)' },
-          ]}
-        />
-      )}
-
-      {(showWorkUse || showGroupPicker) && (
-        <Group align="flex-start" gap="xs" wrap="wrap">
-          {showWorkUse && (
-            <NumberInput
-              label="Work use %"
-              size="sm"
-              description={hint("The share used for work; 100% if it's for work only.")}
-              suffix="%"
-              decimalScale={2}
-              min={0.01}
-              max={100}
-              hideControls
-              value={workUsePercent}
-              onChange={setWorkUsePercent}
-              style={showGroupPicker ? { flex: '0 0 7rem' } : { flex: '1 1 100%' }}
-            />
+          {showWorkUse && workUsePercentValid && workUsePercentNumber !== 100 && (
+            <Text size="sm" c="dimmed">
+              Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
+            </Text>
           )}
-          {showGroupPicker && (
-            <Select
-              label="Group"
-              size="sm"
-              description="File this under a group, or leave it on its own."
-              allowDeselect={false}
-              data={[
-                { value: NO_GROUP, label: 'None' },
-                ...standardGroups.map((group) => ({ value: group.id, label: group.name })),
-              ]}
-              value={pickedGroupId ?? NO_GROUP}
-              onChange={(value) =>
-                setPickedGroupId(value === null || value === NO_GROUP ? null : value)
-              }
-              style={{ flex: '1 1 12rem' }}
-            />
-          )}
-        </Group>
-      )}
-      {showWorkUse && workUsePercentValid && workUsePercentNumber !== 100 && (
-        <Text size="sm" c="dimmed">
-          Deductible amount: <b>{formatCents(apportionedAmountCents)}</b>
-        </Text>
-      )}
 
-      {showDetails && !adding && onUploadReceipt && (
-        <Group gap="xs" wrap="nowrap">
-          <FileButton
-            inputProps={{ 'aria-label': `${receipt ? 'Replace' : 'Add'} receipt` }}
-            onChange={(file) => {
-              if (file) {
-                void replaceReceipt(file, onUploadReceipt)
-              }
-            }}
-          >
-            {(props) => (
-              <Button {...props} variant="default" size="xs">
-                {receipt ? 'Replace receipt' : 'Add receipt'}
-              </Button>
-            )}
-          </FileButton>
-          {receipt && onRemoveReceipt && (
-            <ActionIcon
-              variant="subtle"
-              color="red"
-              size="sm"
-              aria-label="Delete receipt"
-              onClick={() => onRemoveReceipt(receipt)}
-            >
-              <IconTrash size={14} />
-            </ActionIcon>
+          {showDetails && !adding && onUploadReceipt && (
+            <Group gap="xs" wrap="nowrap">
+              <FileButton
+                inputProps={{ 'aria-label': `${receipt ? 'Replace' : 'Add'} receipt` }}
+                onChange={(file) => {
+                  if (file) {
+                    void replaceReceipt(file, onUploadReceipt)
+                  }
+                }}
+              >
+                {(props) => (
+                  <Button {...props} variant="default" size="xs">
+                    {receipt ? 'Replace receipt' : 'Add receipt'}
+                  </Button>
+                )}
+              </FileButton>
+              {receipt && onRemoveReceipt && (
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  size="sm"
+                  aria-label="Delete receipt"
+                  onClick={() => onRemoveReceipt(receipt)}
+                >
+                  <IconTrash size={14} />
+                </ActionIcon>
+              )}
+            </Group>
           )}
-        </Group>
+        </>
       )}
       {receiptError !== null && (
         <Text size="xs" c="red" role="alert">

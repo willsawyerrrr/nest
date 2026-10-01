@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UPLOAD_FAILED_MESSAGE, type DeductionAttachments } from '../hooks/useDeductionAttachment'
@@ -107,6 +107,7 @@ describe('DeductionForm', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '350')
@@ -135,6 +136,7 @@ describe('DeductionForm', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '10')
@@ -309,6 +311,7 @@ describe('DeductionForm', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Client visits')
     await user.click(screen.getByText('Distance (km)'))
@@ -338,6 +341,7 @@ describe('DeductionForm', () => {
         onSubmit={vi.fn()}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByText('Distance (km)'))
     await user.type(screen.getByLabelText(/kilometres/i), '6000')
@@ -492,6 +496,7 @@ describe('DeductionForm receipt extraction', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'My own label')
     await attach(user)
@@ -784,6 +789,7 @@ describe('DeductionForm receipt extraction', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Tools')
     await user.type(screen.getByLabelText(/amount/i), '10')
@@ -811,6 +817,7 @@ describe('DeductionForm work-use apportioning', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Union fees')
     await user.type(screen.getByLabelText(/^amount/i), '500')
@@ -842,6 +849,7 @@ describe('DeductionForm work-use apportioning', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Phone plan')
     await user.type(screen.getByLabelText(/^amount/i), '100')
@@ -876,6 +884,7 @@ describe('DeductionForm work-use apportioning', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Phone plan')
     await user.type(screen.getByLabelText(/^amount/i), '100')
@@ -916,6 +925,7 @@ describe('DeductionForm work-use apportioning', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.type(screen.getByLabelText(/description/i), 'Client visits')
     // Set a part-private percentage on the amount basis, then switch to distance.
@@ -940,7 +950,8 @@ describe('DeductionForm work-use apportioning', () => {
 })
 
 describe('DeductionForm category', () => {
-  it('defaults to a work expense, with the work-use field shown', () => {
+  it('defaults to a work expense, with the work-use field shown', async () => {
+    const user = userEvent.setup({ delay: null })
     render(
       <DeductionForm
         member={member}
@@ -949,6 +960,7 @@ describe('DeductionForm category', () => {
         onSubmit={vi.fn()}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     expect(screen.getByLabelText(/work use/i)).toBeInTheDocument()
   })
@@ -964,6 +976,7 @@ describe('DeductionForm category', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByText('Donation'))
     // A non-sequitur on a donation: it's claimed in full or not at all.
@@ -998,6 +1011,7 @@ describe('DeductionForm category', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByText('Tax agent fee'))
     expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
@@ -1088,6 +1102,7 @@ describe('DeductionForm category', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByText('Donation'))
     await user.type(screen.getByLabelText(/description/i), 'Red Cross')
@@ -1114,6 +1129,7 @@ describe('DeductionForm category', () => {
         onSubmit={vi.fn()}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     expect(screen.getByRole('combobox', { name: 'Group' })).toBeInTheDocument()
     await user.click(screen.getByText('Donation'))
@@ -1134,6 +1150,7 @@ describe('DeductionForm category', () => {
         onSubmit={vi.fn()}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByRole('combobox', { name: 'Group' }))
     expect(screen.getByRole('option', { name: 'None' })).toBeInTheDocument()
@@ -1152,6 +1169,7 @@ describe('DeductionForm category', () => {
         onSubmit={vi.fn()}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByRole('combobox', { name: 'Group' }))
     expect(screen.getByRole('option', { name: 'Donations' })).toBeInTheDocument()
@@ -1199,6 +1217,7 @@ describe('DeductionForm category', () => {
         onSubmit={vi.fn()}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     expect(screen.getByText('Distance (km)')).toBeInTheDocument()
 
@@ -1220,6 +1239,7 @@ describe('DeductionForm category', () => {
         onSubmit={onSubmit}
       />,
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     await user.click(screen.getByText('Distance (km)'))
     await user.type(screen.getByLabelText(/kilometres/i), '100')
@@ -1244,5 +1264,181 @@ describe('DeductionForm category', () => {
         }),
       ),
     )
+  })
+})
+
+describe('DeductionForm receipt-first start', () => {
+  function renderAdd(props: Partial<ComponentProps<typeof DeductionForm>> = {}) {
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+        {...props}
+      />,
+    )
+    return { onSubmit, user: userEvent.setup({ delay: null }) }
+  }
+  const manualButton = () => screen.getByRole('button', { name: /enter details manually/i })
+  const fieldsShown = () => screen.queryByLabelText(/description/i) !== null
+  const drop = (...files: File[]) => {
+    const area = screen.getByRole('group', { name: 'Drop files here' })
+    fireEvent.drop(area, { dataTransfer: { types: ['Files'], files } })
+  }
+  const pdf = (name: string) => new File(['x'], name, { type: 'application/pdf' })
+
+  it('opens on the receipt prompt alone, with entering details by hand as the secondary choice', () => {
+    renderAdd()
+
+    expect(screen.getByLabelText('What kind of deduction?')).toBeInTheDocument()
+    expect(filePicker()).toBeInTheDocument()
+    expect(screen.getByText(/we'll read the details for you to check/i)).toBeInTheDocument()
+    expect(manualButton()).toBeInTheDocument()
+    expect(fieldsShown()).toBe(false)
+    expect(screen.queryByLabelText(/amount/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Entry basis')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add deduction/i })).toBeDisabled()
+  })
+
+  it('reveals the fields, and drops the manual choice, once the member chooses to type', async () => {
+    const { user } = renderAdd()
+
+    await user.click(manualButton())
+
+    expect(fieldsShown()).toBe(true)
+    expect(screen.queryByRole('button', { name: /enter details manually/i })).toBeNull()
+    expect(screen.getByLabelText('Entry basis')).toBeInTheDocument()
+  })
+
+  it('reveals the fields prefilled once a receipt has been read, and keeps them if it is removed', async () => {
+    const { user } = renderAdd()
+
+    await user.upload(filePicker(), pdf('r.pdf'))
+    expect(await screen.findByLabelText(/description/i)).toHaveValue('Officeworks')
+    expect(screen.getByText(/extracted from the receipt by AI/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Remove receipt' }))
+
+    expect(screen.getByLabelText(/description/i)).toHaveValue('Officeworks')
+  })
+
+  it('shows the fields with the hand-entry note when the receipt cannot be read', async () => {
+    read.mockResolvedValue({
+      status: 'not-configured',
+      message: EXTRACTION_UNCONFIGURED_MESSAGE,
+    } satisfies ExtractionOutcome)
+    const { user } = renderAdd()
+
+    await user.upload(filePicker(), pdf('r.pdf'))
+
+    expect(await screen.findByText(EXTRACTION_UNCONFIGURED_MESSAGE)).toBeInTheDocument()
+    expect(fieldsShown()).toBe(true)
+  })
+
+  it('shows the fields for a file type that cannot be read', async () => {
+    const { user } = renderAdd()
+
+    await user.upload(filePicker(), new File(['x'], 'invoice.docx'))
+
+    expect(await screen.findByText(/can't be read automatically/i)).toBeInTheDocument()
+    expect(fieldsShown()).toBe(true)
+  })
+
+  it('keeps the prompt while a receipt is being stored, with no manual choice to take', async () => {
+    let finishUpload!: () => void
+    upload.mockImplementation(
+      async (id: string, file: File) =>
+        await new Promise<string>((resolve) => {
+          finishUpload = () => resolve(`h1/${id}/${file.name}`)
+        }),
+    )
+    const { user } = renderAdd()
+
+    await user.upload(filePicker(), pdf('r.pdf'))
+
+    expect(screen.getByText(/storing the receipt/i)).toBeInTheDocument()
+    expect(manualButton()).toBeDisabled()
+    expect(fieldsShown()).toBe(false)
+    drop(pdf('late.pdf'))
+    expect(upload).toHaveBeenCalledTimes(1)
+
+    finishUpload()
+    await screen.findByLabelText(/description/i)
+  })
+
+  it('opens a form inside a group, and an edit, on its fields', () => {
+    renderAdd({ groupId: 'g1', groups: [makeGroup()] })
+    expect(fieldsShown()).toBe(true)
+    expect(screen.queryByRole('button', { name: /enter details manually/i })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Drop files here' })).toBeNull()
+  })
+
+  it('opens a draft read by a bulk upload on its fields', () => {
+    renderAdd({
+      draft: { id: 'd9', path: 'p', extraction: extraction(), category: 'work_expense' },
+    })
+    expect(fieldsShown()).toBe(true)
+    expect(filePicker()).toBeNull()
+  })
+
+  it('reads a single receipt picked or dropped on the card, even where several are welcome', async () => {
+    const onAddFiles = vi.fn()
+    const { user } = renderAdd({ onAddFiles })
+
+    await user.upload(filePicker(), pdf('one.pdf'))
+    expect(await screen.findByLabelText(/description/i)).toHaveValue('Officeworks')
+    expect(onAddFiles).not.toHaveBeenCalled()
+  })
+
+  it('hands several receipts picked together to the bulk upload as the chosen kind, and closes', async () => {
+    const onAddFiles = vi.fn()
+    const onCancel = vi.fn()
+    const { user } = renderAdd({ onAddFiles, onCancel })
+    await user.click(screen.getByText('Donation'))
+
+    await user.upload(filePicker(), [pdf('a.pdf'), pdf('b.pdf')])
+
+    expect(onAddFiles).toHaveBeenCalledWith([expect.any(File), expect.any(File)], 'donation')
+    expect(onCancel).toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+  })
+
+  it('hands several receipts dropped on the card to the bulk upload', () => {
+    const onAddFiles = vi.fn()
+    renderAdd({ onAddFiles })
+
+    drop(pdf('a.pdf'), pdf('b.pdf'))
+
+    expect(onAddFiles).toHaveBeenCalledWith([expect.any(File), expect.any(File)], 'work_expense')
+  })
+
+  it('hands several receipts over without a form to close', async () => {
+    const onAddFiles = vi.fn()
+    const { user } = renderAdd({ onAddFiles })
+
+    await user.upload(filePicker(), [pdf('a.pdf'), pdf('b.pdf')])
+
+    expect(onAddFiles).toHaveBeenCalled()
+  })
+
+  it('reads one receipt dropped on the card, and ignores an empty drop', async () => {
+    renderAdd()
+
+    drop()
+    expect(upload).not.toHaveBeenCalled()
+    drop(pdf('dropped.pdf'))
+
+    expect(await screen.findByLabelText(/description/i)).toHaveValue('Officeworks')
+  })
+
+  it('takes the first of several receipts where no bulk upload is offered', async () => {
+    renderAdd()
+
+    drop(pdf('a.pdf'), pdf('b.pdf'))
+
+    await screen.findByLabelText(/description/i)
+    expect(upload).toHaveBeenCalledTimes(1)
   })
 })

@@ -447,6 +447,7 @@ describe('DeductionsScreen', () => {
     const { onCreate } = renderScreen({ members: [will], deductions: [] })
 
     await user.click(screen.getByRole('button', { name: /add deduction/i }))
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
     await user.type(screen.getByLabelText(/description/i), 'Union fees')
     await user.type(screen.getByLabelText(/amount/i), '500')
     await user.click(screen.getByRole('button', { name: /^add deduction$/i }))
@@ -684,5 +685,21 @@ describe('DeductionsScreen', () => {
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/could not move/i)
     })
+  })
+
+  it('hands several receipts from the Add deduction card to a review of their own drafts', async () => {
+    const user = userEvent.setup()
+    renderScreen({ members: [will], deductions: [] })
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, [
+      new File(['x'], 'a.pdf', { type: 'application/pdf' }),
+      new File(['x'], 'b.pdf', { type: 'application/pdf' }),
+    ])
+
+    expect(await screen.findByLabelText('a.pdf')).toBeInTheDocument()
+    expect(screen.getByLabelText('b.pdf')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /enter details manually/i })).toBeNull()
+    expect(screen.queryByLabelText("Add Will's deductions from receipts")).toBeNull()
   })
 })

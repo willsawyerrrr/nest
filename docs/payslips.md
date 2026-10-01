@@ -822,8 +822,9 @@ record of why, alongside `text`.
 
 ### Many payslips at once
 
-The payslips list also takes many documents at once, picked together or dropped on
-the panel above the list (see [`bulk-upload.md`](bulk-upload.md)). Each document is
+The Add payslip card's document input takes many documents at once, picked together
+or dropped on the card; one is read into the card, several close it and open a
+review above the list (see [`bulk-upload.md`](bulk-upload.md)). Each document is
 stored under its own minted id, read by `payslip-extract` (at most three at a time),
 and opened as its own payslip draft pre-filled exactly as the single form pre-fills
 it — figures, itemised lines, and the filing year derived from its own dates. The

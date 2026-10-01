@@ -26,7 +26,7 @@ import {
   taxLine,
   upload,
 } from '../test/payslipForm'
-import { render, screen, waitFor } from '../test/render'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { PayslipForm } from './PayslipForm'
 
 beforeEach(resetPayslipAttachmentMocks)
@@ -849,5 +849,85 @@ describe('PayslipForm extracted lines', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(submitted(onSubmit).lines).toEqual([earningLine(null, 'Ordinary Hours', 5_495_50)])
     expect(submitted(onSubmit).attachment).not.toBeNull()
+  })
+})
+
+describe('PayslipForm several documents', () => {
+  const pdf = (name: string) => new File(['x'], name, { type: 'application/pdf' })
+  const drop = (...files: File[]) =>
+    fireEvent.drop(screen.getByRole('group', { name: 'Drop files here' }), {
+      dataTransfer: { types: ['Files'], files },
+    })
+
+  function renderAdd(onAddFiles?: (files: File[]) => void, onCancel?: () => void) {
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        {...(onAddFiles && { onAddFiles })}
+        onSubmit={vi.fn()}
+        {...(onCancel && { onCancel })}
+      />,
+    )
+    return userEvent.setup({ delay: null })
+  }
+
+  it('hands several documents picked together to the bulk upload and closes', async () => {
+    const onAddFiles = vi.fn()
+    const onCancel = vi.fn()
+    const user = renderAdd(onAddFiles, onCancel)
+
+    await user.upload(filePicker(), [pdf('a.pdf'), pdf('b.pdf')])
+
+    expect(onAddFiles).toHaveBeenCalledWith([expect.any(File), expect.any(File)])
+    expect(onCancel).toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+  })
+
+  it('hands several documents dropped on the card over, with no form to close', () => {
+    const onAddFiles = vi.fn()
+    renderAdd(onAddFiles)
+
+    drop(pdf('a.pdf'), pdf('b.pdf'))
+
+    expect(onAddFiles).toHaveBeenCalled()
+  })
+
+  it('reads one document picked or dropped into the form, and clears it', async () => {
+    const onAddFiles = vi.fn()
+    const user = renderAdd(onAddFiles)
+
+    await user.upload(filePicker(), pdf('one.pdf'))
+    await screen.findByText(/extracted from the document by AI/i)
+    expect(onAddFiles).not.toHaveBeenCalled()
+
+    await user.click(screen.getByLabelText('Remove the attached document'))
+    expect(screen.queryByText(/extracted from the document by AI/i)).not.toBeInTheDocument()
+  })
+
+  it('ignores a drop while a document is being stored', async () => {
+    let finish!: () => void
+    upload.mockImplementation(
+      async (id: string) =>
+        await new Promise((resolve) => {
+          finish = () => resolve({ path: `h1/${id}/x`, name: 'x' })
+        }),
+    )
+    const user = renderAdd(vi.fn())
+
+    await user.upload(filePicker(), pdf('a.pdf'))
+    drop(pdf('b.pdf'))
+    expect(upload).toHaveBeenCalledTimes(1)
+    finish()
+    await waitFor(() => expect(read).toHaveBeenCalled())
+  })
+
+  it('takes a single document where no bulk upload is offered', async () => {
+    const user = renderAdd()
+
+    await user.upload(filePicker(), pdf('one.pdf'))
+
+    await screen.findByText(/extracted from the document by AI/i)
   })
 })

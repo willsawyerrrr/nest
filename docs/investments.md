@@ -67,8 +67,9 @@ can upsert its own trades without duplicating.
 
 ## Adding trades from a document
 
-The **Add trade** card takes a **Contract note** as its first step, as the Add
-deduction card takes a receipt. One file is stored, read by `trade-extract`, and
+The **Add trade** card opens on a **Contract notes** prompt, as the Add deduction
+card opens on a receipt prompt: the trade's fields appear when the member chooses
+**Enter details manually**, or once a file has been read or could not be. One file is stored, read by `trade-extract`, and
 its trade opens in the card's form (ticker, side, date, units, price, brokerage)
 with a note that AI read it and a note naming any field to check; the member
 confirms and saves, and the document stays attached to the saved trade
@@ -81,9 +82,8 @@ one document holding several trades, replace the form with the review below, eac
 trade a draft, and **Close** ends the card. Editing a trade does not take a
 document: a document is only attached when a trade is created.
 
-Each member's Trades list also has an **Add from documents** panel. The member picks
-broker contract notes, trade confirmations, or statements — several at once, or
-dropped on the panel (any file, up to 25 MiB each; see
+The member picks broker contract notes, trade confirmations, or statements —
+several at once, or dropped on the card (any file, up to 25 MiB each; see
 [`bulk-upload.md`](bulk-upload.md)). Each file is uploaded to the private `receipts` bucket, laid out as
 `<household_id>/<document_id>/<file>`, and read by the `trade-extract` edge
 function (Claude Haiku 4.5, forced tool schema, the Vault-held `anthropic_api_key`
@@ -95,7 +95,7 @@ from the document.
 
 Only a PDF or a JPEG, PNG, GIF, or WebP image is read. Any other type of file is
 still stored and linked, with a note that it cannot be read automatically, and
-the panel offers one blank trade form to fill in by hand; a HEIC photo is
+the card offers one blank trade form to fill in by hand; a HEIC photo is
 converted to JPEG in the browser where possible and then read.
 
 - Extraction writes nothing. Each draft is the member's to **save**, edit, or
@@ -128,7 +128,7 @@ converted to JPEG in the browser where possible and then read.
   and price shows a warning. It does not block saving: two identical fills on one
   day are legitimate. The same warning shows when adding or editing by hand.
 - A document with no saved trade is deleted again when its drafts are discarded or
-  the panel is closed, so a failed or abandoned read leaves nothing behind.
+  the card is closed, so a failed or abandoned read leaves nothing behind.
 - Each document is its own entry in the batch, with its own status and its own set
   of trade drafts. **Save selected** saves the valid drafts across documents; a
   draft with a blank required field is reported instead of saved. A retried save
@@ -153,7 +153,7 @@ is confirmed by hand, so `document_id` is the only mark that a trade was extract
 
 `trade-extract` answers every failure with a stable `code` and fixed copy of its
 own; nothing the model or the Anthropic API said reaches the client, and the
-upstream detail is logged server-side. The panel shows the message and falls back
+upstream detail is logged server-side. The card shows the message and falls back
 to manual entry. See
 [`supabase/functions/README.md`](../supabase/functions/README.md#trade-extraction).
 

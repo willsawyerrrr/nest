@@ -56,9 +56,11 @@ export interface UploadQueue<T, M> {
   items: QueueItem<T, M>[]
   /** The reason the queue stopped, while it is stopped. */
   halted: string | null
+  /** How many files the last `add` left out for being over the batch limit. */
+  skipped: number
   /** Whether any file is still waiting or being read. */
   working: boolean
-  /** Queues `files`, up to the batch limit; resolves to how many were left out. */
+  /** Queues `files`, up to the batch limit; returns how many were left out. */
   add: (files: File[], meta: M) => number
   /** Takes a file out and deletes its stored copy unless a record references it. */
   remove: (id: string) => void
@@ -91,6 +93,7 @@ export interface UploadQueue<T, M> {
 export function useUploadQueue<T, M>(options: UploadQueueOptions<T, M>): UploadQueue<T, M> {
   const [items, setItems] = useState<QueueItem<T, M>[]>([])
   const [halted, setHalted] = useState<string | null>(null)
+  const [skipped, setSkipped] = useState(0)
   // The source of truth: updated synchronously so the scheduler and the async
   // steps always see every change made so far, and mirrored into state to render.
   const current = useRef<QueueItem<T, M>[]>([])
@@ -231,7 +234,9 @@ export function useUploadQueue<T, M>(options: UploadQueueOptions<T, M>): UploadQ
         ])
         pump()
       }
-      return files.length - accepted.length
+      const left = files.length - accepted.length
+      setSkipped(left)
+      return left
     },
     [pump, set],
   )
@@ -283,11 +288,13 @@ export function useUploadQueue<T, M>(options: UploadQueueOptions<T, M>): UploadQ
     }
     set([])
     setHalted(null)
+    setSkipped(0)
   }, [set])
 
   return {
     items,
     halted,
+    skipped,
     working: items.some((item) => item.status === 'queued' || item.status === 'reading'),
     add,
     remove,

@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { usePayslipQueue } from '../hooks/usePayslipQueue'
 import { EXTRACTION_OUT_OF_CREDIT_MESSAGE } from '../lib/payslipExtraction'
 import {
   attachments,
@@ -13,22 +14,37 @@ import {
 import { render, screen, waitFor, within } from '../test/render'
 import { PayslipImport } from './PayslipImport'
 
-const PICKER = "Add Will's payslips from documents"
+const PICKER = 'Payslip documents'
 
 function pdf(name: string) {
   return new File(['x'], name, { type: 'application/pdf' })
 }
 
+/** Stands in for the Add payslip card's file input, which feeds the queue. */
+function Harness({ onCreate }: { onCreate: () => Promise<void> }) {
+  const queue = usePayslipQueue(attachments)
+  return (
+    <>
+      <input
+        type="file"
+        multiple
+        aria-label={PICKER}
+        onChange={(event) => queue.add([...(event.currentTarget.files ?? [])], undefined)}
+      />
+      <PayslipImport
+        queue={queue}
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onCreate={onCreate}
+      />
+    </>
+  )
+}
+
 function setup() {
   const onCreate = vi.fn().mockResolvedValue(undefined)
-  render(
-    <PayslipImport
-      member={member}
-      inflows={inflows}
-      attachments={attachments}
-      onCreate={onCreate}
-    />,
-  )
+  render(<Harness onCreate={onCreate} />)
   return { onCreate, user: userEvent.setup({ delay: null }) }
 }
 

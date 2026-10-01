@@ -5,6 +5,7 @@ import type { HouseholdTaxEstimate, TaxYearConfig } from '@nest/tax'
 import type { Inflow } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
 import type { PayslipLineRow } from '../hooks/usePayslipLines'
+import { usePayslipQueue } from '../hooks/usePayslipQueue'
 import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
 import {
@@ -242,6 +243,7 @@ function MemberPayslips({
   onDelete: (id: string) => Promise<void>
   signedUrl: (path: string) => Promise<string | null>
 }) {
+  const queue = usePayslipQueue(attachments)
   const memberEstimate = estimate.members.find((each) => each.memberId === member.id)
   // Measured once for the member: each card reads its own slip's measurement out
   // of this, and both year-to-date readings sum the very same ones.
@@ -273,6 +275,7 @@ function MemberPayslips({
       )}
 
       <PayslipImport
+        queue={queue}
         member={member}
         inflows={inflows}
         attachments={attachments}
@@ -309,6 +312,7 @@ function MemberPayslips({
             }
             attachments={attachments}
             initial={initial}
+            {...(!initial && { onAddFiles: (files: File[]) => queue.add(files, undefined) })}
             onSubmit={onSubmit}
             onCancel={onCancel}
           />

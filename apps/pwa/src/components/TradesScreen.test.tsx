@@ -225,6 +225,7 @@ describe('TradesScreen', () => {
     renderScreen({ members: [will], onCreate })
 
     await user.click(screen.getByRole('button', { name: /add trade/i }))
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
     await user.type(screen.getByLabelText(/^ticker$/i), 'vas')
     await user.type(screen.getByLabelText(/^units$/i), '10')
     await user.type(screen.getByLabelText(/price per unit/i), '90')
@@ -310,37 +311,5 @@ describe('TradesScreen', () => {
 
     await waitFor(() => expect(save).toHaveBeenCalled())
     await waitFor(() => expect(screen.queryByLabelText('Contract note')).not.toBeInTheDocument())
-  })
-
-  it("reads a picked document into the member's draft trades and closes when done", async () => {
-    const user = userEvent.setup()
-    const extract = vi.fn().mockResolvedValue({
-      status: 'read',
-      trades: [{ values: { ticker: 'VAS', side: 'buy', units: 1 }, check: [] }],
-    })
-    renderScreen({ members: [will], documentActions: makeActions({ extract }) })
-
-    await user.upload(
-      screen.getByLabelText("Add Will's trades from documents"),
-      new File(['x'], 'note.pdf', { type: 'application/pdf' }),
-    )
-
-    expect(await screen.findByText(/1 trade was extracted by AI/i)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^discard$/i }))
-    await waitFor(() => expect(screen.queryByText(/extracted by AI/i)).not.toBeInTheDocument())
-  })
-
-  it('states why a picked document could not be read', async () => {
-    const user = userEvent.setup()
-    renderScreen({ members: [will] })
-
-    await user.upload(
-      screen.getByLabelText("Add Will's trades from documents"),
-      new File(['x'], 'note.pdf', { type: 'application/pdf' }),
-    )
-
-    expect(await screen.findByText('Not a contract note.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /remove note\.pdf/i }))
-    expect(screen.queryByText('Not a contract note.')).not.toBeInTheDocument()
   })
 })

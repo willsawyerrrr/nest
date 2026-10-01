@@ -1,15 +1,15 @@
-import { createEvent, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { TradeRow } from '../hooks/useTrades'
+import { useTradeUploadQueue, type TradeDocumentActions } from '../hooks/useTradeUploadQueue'
 import { MAX_BATCH_FILES } from '../lib/bulkUpload'
 import { FILE_TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES } from '../lib/uploadFile'
 import { makeMember } from '../test/fixtures'
 import { render, screen, waitFor, within } from '../test/render'
-import { TradeDocumentImport } from './TradeDocumentImport'
+import { TradeDocumentReview } from './TradeDocumentDrafts'
 
 const will = makeMember({ id: 'm1', name: 'Will' })
-const PICKER = "Add Will's trades from documents"
+const PICKER = 'Contract notes'
 
 function pdf(name: string) {
   return new File(['x'], name, { type: 'application/pdf' })
@@ -41,8 +41,24 @@ function actions(overrides = {}) {
   }
 }
 
+/** Stands in for the Add trade card's file input, which feeds the queue. */
+function Harness({ trades, actions: a }: { trades: TradeRow[]; actions: TradeDocumentActions }) {
+  const queue = useTradeUploadQueue(a)
+  return (
+    <>
+      <input
+        type="file"
+        multiple
+        aria-label={PICKER}
+        onChange={(event) => queue.add([...(event.currentTarget.files ?? [])], undefined)}
+      />
+      <TradeDocumentReview queue={queue} member={will} trades={trades} actions={a} />
+    </>
+  )
+}
+
 function renderImport(a = actions(), trades: TradeRow[] = []) {
-  const view = render(<TradeDocumentImport member={will} trades={trades} actions={a} />)
+  const view = render(<Harness trades={trades} actions={a} />)
   return { ...view, a, user: userEvent.setup() }
 }
 
@@ -277,26 +293,6 @@ describe('TradeDocumentImport', () => {
     await pick(user, ...Array.from({ length: MAX_BATCH_FILES + 2 }, (_, i) => pdf(`f${i}.pdf`)))
 
     expect(await screen.findByText(/2 files were left out/i)).toBeInTheDocument()
-  })
-
-  it('adds files dropped on it, and ignores a drag that carries no files', async () => {
-    const { a } = renderImport()
-    const area = screen.getByLabelText(PICKER).closest('[role="group"]') as HTMLElement
-
-    fireEvent.dragOver(area, { dataTransfer: { types: ['text/plain'] } })
-    fireEvent.drop(area, { dataTransfer: { types: ['text/plain'], files: [] } })
-    expect(a.upload).not.toHaveBeenCalled()
-
-    fireEvent.dragOver(area, { dataTransfer: { types: ['Files'] } })
-    fireEvent.dragLeave(area, { relatedTarget: document.body })
-    fireEvent.dragOver(area, { dataTransfer: { types: ['Files'] } })
-    const leaving = createEvent.dragLeave(area)
-    Object.defineProperty(leaving, 'relatedTarget', { value: area.firstElementChild })
-    fireEvent(area, leaving)
-    fireEvent.drop(area, { dataTransfer: { types: ['Files'], files: [pdf('dropped.pdf')] } })
-
-    await waitFor(() => expect(a.upload).toHaveBeenCalledTimes(1))
-    expect(await screen.findByLabelText('dropped.pdf')).toBeInTheDocument()
   })
 
   describe('saving several drafts', () => {

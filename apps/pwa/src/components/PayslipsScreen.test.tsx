@@ -9,6 +9,7 @@ import {
   makePayslipLine,
   makePayslipTaxLine,
 } from '../test/fixtures'
+import { extraction } from '../test/payslipForm'
 import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { PayslipsScreen } from './PayslipsScreen'
 
@@ -863,5 +864,23 @@ describe('PayslipsScreen', () => {
     const [, samCard] = screen.getAllByRole('button', { expanded: false })
     expect(samCard).toHaveTextContent('$900.00')
     expect(screen.getAllByText('YTD gross')[1]!.parentElement).toHaveTextContent('$900.00')
+  })
+
+  it('hands several documents from the Add payslip card to a review of their own drafts', async () => {
+    const user = userEvent.setup()
+    const upload = vi
+      .fn()
+      .mockImplementation(async (id: string) => ({ payslipId: id, path: `h1/${id}/x` }))
+    const read = vi.fn().mockResolvedValue({ status: 'read', extraction: extraction() })
+    renderScreen({ attachments: { upload, discard: vi.fn().mockResolvedValue(undefined), read } })
+
+    await user.click(screen.getByRole('button', { name: /add payslip/i }))
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, [
+      new File(['x'], 'a.pdf', { type: 'application/pdf' }),
+      new File(['x'], 'b.pdf', { type: 'application/pdf' }),
+    ])
+
+    expect(await screen.findByLabelText('a.pdf')).toBeInTheDocument()
+    expect(screen.getByLabelText('b.pdf')).toBeInTheDocument()
   })
 })

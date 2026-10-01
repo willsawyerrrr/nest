@@ -1,8 +1,8 @@
 /**
  * Shapes the EOFY tab's own data set for a tax agent's shared view: the same
  * raw rows `EofySection.tsx` loads through its RLS-scoped hooks — inflows,
- * tax profiles, super contributions and profiles, HELP debts, deductions and
- * their receipts, and payslips — sourced instead from a validated share token.
+ * tax profiles, super contributions and profiles, HELP debts, deductions, their
+ * groups and receipts, and payslips — sourced instead from a validated share token.
  *
  * Kept a pure module with its I/O injected — resolving the grant and loading
  * the rows are both deps — so the one ordering that matters here (resolve the
@@ -41,6 +41,8 @@ export interface EofyShareRows {
   /** Unfiltered by financial year: a HELP balance is a standing figure, not FY-scoped, matching `useHelpDebts`. */
   helpDebts: Row[]
   deductions: Row[]
+  /** The year's deduction groups, including the automatic donations group, ordered by name. */
+  deductionGroups: Row[]
   /** Pre-filtered to the deductions already in scope, unlike `useDeductionReceipts` (which loads every year and lets the caller filter) — nothing here is served for a year outside the share. */
   deductionReceipts: Row[]
   payslips: Row[]

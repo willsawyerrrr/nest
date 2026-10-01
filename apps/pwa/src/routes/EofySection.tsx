@@ -4,6 +4,7 @@ import { configsByYear, financialYearForDate } from '@nest/tax'
 import { EofyScreen, type EofyPayslipDocument } from '../components/EofyScreen'
 import { EofyShareControl } from '../components/EofyShareControl'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
 import { useGoals } from '../hooks/useGoals'
@@ -37,6 +38,7 @@ export function EofySection() {
   const superProfiles = useSuperProfiles(financialYear)
   const helpDebts = useHelpDebts()
   const deductions = useDeductions(financialYear)
+  const deductionGroups = useDeductionGroups(financialYear)
   const receipts = useDeductionReceipts()
   const payslips = usePayslips(financialYear)
   const goals = useGoals()
@@ -52,6 +54,7 @@ export function EofySection() {
     superProfiles.loading ||
     helpDebts.loading ||
     deductions.loading ||
+    deductionGroups.loading ||
     receipts.loading ||
     payslips.loading ||
     goals.loading ||
@@ -131,6 +134,7 @@ export function EofySection() {
         helpDebts={helpDebts.helpDebts ?? []}
         helpPayoff={helpPayoff}
         deductions={deductionRows}
+        deductionGroups={deductionGroups.groups ?? []}
         payslipCounts={payslipCountByMember(payslipRows)}
         receipts={receiptRows}
         signedUrl={receipts.signedUrl}

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import type { Account } from './useAccounts'
+import type { DeductionGroupRow } from './useDeductionGroups'
 import type { DeductionReceiptRow } from './useDeductionReceipts'
 import type { DeductionRow } from './useDeductions'
 import type { Goal } from './useGoals'
@@ -30,6 +31,8 @@ export interface EofyShareData {
   superProfiles: SuperProfile[]
   helpDebts: HelpDebt[]
   deductions: DeductionRow[]
+  /** The year's deduction groups, including the automatic donations group, ordered by name. */
+  deductionGroups: DeductionGroupRow[]
   deductionReceipts: DeductionReceiptRow[]
   payslips: PayslipRow[]
   savingsGoals: Goal[]

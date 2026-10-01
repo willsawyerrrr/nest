@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { Anchor, Card, Group, Stack, Text, Title } from '@mantine/core'
 import type { HelpPayoffProjection, HouseholdTaxEstimate, MemberTaxEstimate } from '@nest/tax'
+import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
+import { groupDeductions } from '../lib/deductionGroups'
 import { helpPayoffSummary, type SuperCapSummary } from '../lib/tax'
 import { EmptyState } from './EmptyState'
 import { FinancialYearSelect } from './FinancialYearSelect'
@@ -41,6 +43,8 @@ interface EofyScreenProps {
   /** Each member's HELP/HECS payoff projection, keyed by member id (positive debts only). */
   helpPayoff: ReadonlyMap<string, HelpPayoffProjection>
   deductions: readonly DeductionRow[]
+  /** The selected FY's deduction groups, in display order; each member's own are listed under their name. */
+  deductionGroups: readonly DeductionGroupRow[]
   /**
    * How many payslips each member has entered for the selected year, keyed by
    * member id; a member with none is absent. It is what tells a year with nothing
@@ -197,31 +201,67 @@ function EofyDeductionItem({
   )
 }
 
-/** A member's claimed deductions for the year, with a running total and their receipts. */
+/**
+ * A member's claimed deductions for the year, with a running total and their
+ * receipts. Each group (the automatic donations group included) is a heading
+ * with its payments beneath and their summed total; deductions in no group follow,
+ * under an "Ungrouped" heading when there are groups to tell them from.
+ */
 function EofyDeductionsSummary({
   deductions,
+  groups,
   receipts,
   signedUrl,
 }: {
   deductions: readonly DeductionRow[]
+  groups: readonly DeductionGroupRow[]
   receipts: readonly DeductionReceiptRow[]
   signedUrl: (path: string) => Promise<string | null>
 }) {
-  if (deductions.length === 0) {
+  if (deductions.length === 0 && groups.length === 0) {
     return <EmptyState>No deductions claimed.</EmptyState>
   }
   const totalCents = deductions.reduce((total, deduction) => total + deduction.amount_cents, 0)
+  const grouped = groupDeductions(groups, deductions)
+  const renderItems = (items: readonly DeductionRow[]) =>
+    items.map((deduction) => (
+      <EofyDeductionItem
+        key={deduction.id}
+        deduction={deduction}
+        receipt={receipts.find((receipt) => receipt.deduction_id === deduction.id)}
+        signedUrl={signedUrl}
+      />
+    ))
   return (
     <Stack gap="xs">
       <FigureLine label="Total deductions claimed" cents={totalCents} fw={600} />
-      {deductions.map((deduction) => (
-        <EofyDeductionItem
-          key={deduction.id}
-          deduction={deduction}
-          receipt={receipts.find((receipt) => receipt.deduction_id === deduction.id)}
-          signedUrl={signedUrl}
-        />
+      {grouped.groups.map(({ group, payments, totalCents: groupCents }) => (
+        <Stack key={group.id} gap={4} aria-label={group.name} component="section">
+          <FigureLine label={group.name} cents={groupCents} fw={600} />
+          {payments.length === 0 ? (
+            <Text size="xs" c="dimmed" fs="italic">
+              No payments
+            </Text>
+          ) : (
+            <Stack gap="xs" pl="sm">
+              {renderItems(payments)}
+            </Stack>
+          )}
+        </Stack>
       ))}
+      {grouped.ungrouped.length > 0 &&
+        (groups.length === 0 ? (
+          renderItems(grouped.ungrouped)
+        ) : (
+          <Stack gap={4}>
+            <Text size="sm" c="dimmed" fw={600}>
+              Ungrouped
+            </Text>
+            <Stack gap="xs" pl="sm">
+              {renderItems(grouped.ungrouped)}
+            </Stack>
+          </Stack>
+        ))}
     </Stack>
   )
 }
@@ -324,6 +364,7 @@ function EofyMemberCard({
   helpDebt,
   helpPayoffProjection,
   deductions,
+  deductionGroups,
   receipts,
   signedUrl,
   payslipDocuments,
@@ -337,6 +378,7 @@ function EofyMemberCard({
   helpDebt: HelpDebt | undefined
   helpPayoffProjection: HelpPayoffProjection | undefined
   deductions: readonly DeductionRow[]
+  deductionGroups: readonly DeductionGroupRow[]
   receipts: readonly DeductionReceiptRow[]
   signedUrl: (path: string) => Promise<string | null>
   /** This member's payslip documents; omitted (with `payslipSignedUrl`) when the section is off. */
@@ -363,6 +405,7 @@ function EofyMemberCard({
           <SubsectionTitle>Deductions</SubsectionTitle>
           <EofyDeductionsSummary
             deductions={deductions}
+            groups={deductionGroups}
             receipts={receipts}
             signedUrl={signedUrl}
           />
@@ -414,6 +457,7 @@ export function EofyScreen({
   helpDebts,
   helpPayoff,
   deductions,
+  deductionGroups,
   payslipCounts,
   receipts,
   signedUrl,
@@ -471,6 +515,7 @@ export function EofyScreen({
             helpDebt={helpDebtByMember.get(member.id)}
             helpPayoffProjection={helpPayoff.get(member.id)}
             deductions={deductions.filter((deduction) => deduction.member_id === member.id)}
+            deductionGroups={deductionGroups.filter((group) => group.member_id === member.id)}
             receipts={receipts}
             signedUrl={signedUrl}
             {...(showPayslipDocuments && {

@@ -29,6 +29,7 @@ const hooks = vi.hoisted(() => ({
   useSuperProfiles: vi.fn(),
   useHelpDebts: vi.fn(),
   useDeductions: vi.fn(),
+  useDeductionGroups: vi.fn(),
   useDeductionReceipts: vi.fn(),
   usePayslips: vi.fn(),
   useGoals: vi.fn(),
@@ -52,6 +53,9 @@ vi.mock('../hooks/useSuperContributions', () => ({
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
+vi.mock('../hooks/useDeductionGroups', () => ({
+  useDeductionGroups: hooks.useDeductionGroups,
+}))
 vi.mock('../hooks/useDeductionReceipts', () => ({
   useDeductionReceipts: hooks.useDeductionReceipts,
 }))
@@ -91,6 +95,7 @@ function mockLoaded() {
   hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+  hooks.useDeductionGroups.mockReturnValue({ loading: false, groups: [] })
   hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [], signedUrl: vi.fn() })
   hooks.usePayslips.mockReturnValue({ loading: false, payslips: [] })
   hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
@@ -119,6 +124,7 @@ describe('EofySection', () => {
     hooks.useSuperProfiles.mockReturnValue({ loading: false })
     hooks.useHelpDebts.mockReturnValue({ loading: false })
     hooks.useDeductions.mockReturnValue({ loading: false })
+    hooks.useDeductionGroups.mockReturnValue({ loading: false })
     hooks.useDeductionReceipts.mockReturnValue({ loading: false })
     hooks.usePayslips.mockReturnValue({ loading: false })
     hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
@@ -267,6 +273,17 @@ describe('EofySection', () => {
     expect(withInterest.totalLiabilityCents).toBeGreaterThan(withoutInterest.totalLiabilityCents)
     // The withheld total is unchanged, so a larger liability means a larger bill.
     expect(withInterest.balanceCents).toBeGreaterThan(withoutInterest.balanceCents)
+  })
+
+  it("loads the selected year's deduction groups and passes them to the screen", () => {
+    mockLoaded()
+    const groups = [{ id: 'g1', member_id: 'm1', name: 'Donations', kind: 'donations' }]
+    hooks.useDeductionGroups.mockReturnValue({ loading: false, groups })
+
+    render(<EofySection />)
+
+    expect(hooks.useDeductionGroups).toHaveBeenCalledWith(currentFy)
+    expect(hooks.screenProps?.deductionGroups).toEqual(groups)
   })
 
   it("filters deduction receipts to the selected FY's loaded deductions", () => {

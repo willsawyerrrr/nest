@@ -51,10 +51,14 @@ async function selectForHousehold(
   table: string,
   householdId: string,
   financialYear?: number,
+  orderBy?: string,
 ): Promise<Row[]> {
   let query = admin.from(table).select('*').eq('household_id', householdId)
   if (financialYear !== undefined) {
     query = query.eq('financial_year', financialYear)
+  }
+  if (orderBy !== undefined) {
+    query = query.order(orderBy)
   }
   const { data, error } = await query
   if (error) {
@@ -96,6 +100,7 @@ async function loadEofyShareRows(
     superProfiles,
     helpDebts,
     deductions,
+    deductionGroups,
     payslips,
     savingsGoals,
     trades,
@@ -107,6 +112,7 @@ async function loadEofyShareRows(
     selectForHousehold(admin, 'super_profile', householdId, financialYear),
     selectForHousehold(admin, 'help_debt', householdId),
     selectForHousehold(admin, 'deduction', householdId, financialYear),
+    selectForHousehold(admin, 'deduction_group', householdId, financialYear, 'name'),
     selectForHousehold(admin, 'payslip', householdId, financialYear),
     // Unfiltered by financial year, matching `useGoals`; feeds projected savings
     // interest into the shared tax estimate.
@@ -138,6 +144,7 @@ async function loadEofyShareRows(
     superProfiles,
     helpDebts,
     deductions,
+    deductionGroups,
     deductionReceipts,
     payslips,
     savingsGoals,

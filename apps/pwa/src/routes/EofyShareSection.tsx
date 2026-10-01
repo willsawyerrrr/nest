@@ -142,6 +142,7 @@ export function EofyShareSection() {
         helpDebts={data.helpDebts}
         helpPayoff={helpPayoff}
         deductions={data.deductions}
+        deductionGroups={data.deductionGroups}
         payslipCounts={payslipCountByMember(data.payslips)}
         receipts={data.deductionReceipts}
         signedUrl={signedUrl}

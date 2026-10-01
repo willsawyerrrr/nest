@@ -144,12 +144,13 @@ so the rule it enforces holds app-wide.
 - **List layout.** Long or variable-length lists use the dense `ListRow` on
   desktop with a mobile card; short per-member or per-section surfaces use
   `AppCard`. A row carrying several figures at once — a payslip's gross, withheld,
-  super, and net, each with its own variance — stays an `AppCard` at every width
-  and reflows its figure grid instead (`SimpleGrid cols={{ base: 2, xs: 4 }}`),
-  since a single dense line cannot hold them. A list long enough to scroll past —
-  a year of fortnightly payslips — puts that grid and everything under it inside
-  the card's own disclosure and settles at a summary row, so the list is scannable
-  and the detail is one tap away.
+  super, and net, each with its own variance — settles at a one-line header (the
+  period and date, the gross, and one variance `Badge size="xs"`) as a `ListRow`
+  on desktop and an `AppCard` on mobile, with the figure grid
+  (`SimpleGrid cols={{ base: 2, xs: 4 }}`) in the row's own disclosure, since a
+  single dense line cannot hold them. A list long enough to scroll past — a year of
+  fortnightly payslips — keeps that grid and everything under it behind the header,
+  so the list is scannable and the detail is one tap away.
 - **Variance.** A variance is a signed money figure, so it renders through
   `MoneyText`/`moneyColor` like any other — above plan positive, below plan
   negative — with the direction spelled out in words beside it, never left to the

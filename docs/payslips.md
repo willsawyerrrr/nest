@@ -588,17 +588,21 @@ tab**:
   withheld tax the lines do not account for. The form takes both sets of lines
   inline — a name, an amount, and either the inflow it draws on or the component
   it pays per row — and reports each unallocated remainder as it is typed.
-- **A card is collapsed to a row and expands to its detail.** A year of
-  fortnightly slips is 26 cards, so each settles at a row naming the pay period,
-  the date the pay landed, and the gross with the slip's **most notable variance**
-  — the largest of gross, withholding, and super by size, named where it is not
-  the gross one, so a withholding gap on a slip whose gross landed on plan is seen
-  without opening anything. Gross wins a tie, so a slip on plan throughout reads
-  against the figure the plan projects, and a slip mapped to no projection says so.
-  Tapping the row reveals the quartet with every variance, the per-inflow and
-  per-component breakdowns, the unallocated remainders, the part-period note, the
-  slip's own note, and the document link; the headline gives way to the quartet,
-  which states the same gross in full. Neither remainder competes for the headline:
+- **A card is collapsed to a one-line header and expands to its detail.** A year of
+  fortnightly slips is 26 cards, so each settles at a header naming the pay period
+  and the date the pay landed, the gross as an aligned figure, and one pill for the
+  slip's **most notable variance** — the largest of gross, withholding, and super by
+  size, named in the pill where it is not the gross one, so a withholding gap on a
+  slip whose gross landed on plan is seen without opening anything. Gross wins a
+  tie, so a slip on plan throughout reads against the figure the plan projects, and
+  a slip mapped to no projection says so. The pill carries the size and direction
+  (_"$12.00 above"_) in the sign colouring, with the full wording (_"Gross: $12.00
+  above plan"_) as its `title`. From the wide breakpoint the header is a dense
+  `ListRow` whose gross and pill columns line up down the list; below it, a compact
+  card with the gross and pill stacked beside the period. Tapping the header
+  reveals the quartet with every variance, the per-inflow and per-component
+  breakdowns, the unallocated remainders, the part-period note, the slip's own
+  note, and the document link. Neither remainder competes for the headline:
   gross the earnings lines miss is already inside the gross variance, and tax the
   tax lines miss leaves the printed total the refund or bill is worked out from
   untouched, so both are itemisation gaps rather than pay off plan. Editing and

@@ -9,7 +9,7 @@ import {
   makePayslipLine,
   makePayslipTaxLine,
 } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { PayslipsScreen } from './PayslipsScreen'
 
 const config = FY2027_CONFIG
@@ -129,14 +129,31 @@ describe('PayslipsScreen', () => {
     expect(screen.getAllByText(/no payslips yet/i)).toHaveLength(2)
   })
 
-  it('heads a collapsed card with its pay period, payment date, and gross', () => {
+  it('heads a collapsed card with its pay period, payment date, gross, and a variance pill', () => {
     renderScreen()
     const toggle = cardToggle()
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(toggle).toHaveTextContent('1 July 2026 – 14 July 2026')
     expect(toggle).toHaveTextContent('Paid 15 July 2026')
-    expect(toggle).toHaveTextContent('Gross')
     expect(toggle).toHaveTextContent('$5,000.00')
+    expect(toggle).toHaveTextContent(/Tax withheld \$\d.* below/)
+    expect(within(toggle).getByTitle(/^Tax withheld: .* below plan$/)).toBeInTheDocument()
+  })
+
+  it('heads a wide row with the same period, gross, pill, and toggle', async () => {
+    setWideViewport()
+    const user = userEvent.setup()
+    renderScreen()
+    const toggle = cardToggle()
+    expect(toggle).toHaveTextContent('Paid 15 July 2026')
+    expect(toggle).toHaveTextContent('$5,000.00')
+    expect(toggle).toHaveTextContent(/Tax withheld .* below/)
+    expect(cardDetail()).toHaveAttribute('aria-hidden', 'true')
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(cardDetail()).toHaveAttribute('aria-hidden', 'false')
+    expect(screen.getByText('Net')).toBeVisible()
   })
 
   it('heads a slip that states no payment date on its pay period alone', async () => {
@@ -144,7 +161,7 @@ describe('PayslipsScreen', () => {
     renderScreen({ payslips: [makePayslip({ paid_on: null })] })
 
     expect(cardToggle()).not.toHaveTextContent(/Paid/)
-    expect(cardToggle()).toHaveTextContent('Gross')
+    expect(cardToggle()).toHaveTextContent('$5,000.00')
 
     await user.click(cardToggle())
     expect(cardToggle()).not.toHaveTextContent(/Paid/)
@@ -166,7 +183,7 @@ describe('PayslipsScreen', () => {
     expect(screen.getByText('Earnings lines')).toBeVisible()
   })
 
-  it('folds a card away again, restoring its headline', async () => {
+  it('folds a card away again', async () => {
     const user = userEvent.setup()
     renderScreen()
 
@@ -175,8 +192,6 @@ describe('PayslipsScreen', () => {
 
     expect(cardToggle()).toHaveAttribute('aria-expanded', 'false')
     expect(cardDetail()).toHaveAttribute('aria-hidden', 'true')
-    // The summary the expanded grid had taken over is back in the header.
-    expect(cardToggle()).toHaveTextContent('Gross')
   })
 
   it('expands each card on its own', async () => {
@@ -214,8 +229,9 @@ describe('PayslipsScreen', () => {
 
     // The gross overrun dwarfs the others, so it is what the collapsed card leads
     // with — unnamed, since the figure above it is the gross itself.
-    expect(cardToggle()).toHaveTextContent(/above plan/)
+    expect(cardToggle()).toHaveTextContent(/above$/)
     expect(cardToggle()).not.toHaveTextContent(/Tax withheld/)
+    expect(within(cardToggle()).getByTitle(/^Gross: .* above plan$/)).toBeInTheDocument()
 
     await expandCards(user)
     expect(figureCell('Gross')).toHaveTextContent(/above plan/)
@@ -237,7 +253,7 @@ describe('PayslipsScreen', () => {
     // the only thing off plan — and the one thing worth noticing from the outside.
     renderScreen()
     expect(cardToggle()).toHaveTextContent('Tax withheld')
-    expect(cardToggle()).toHaveTextContent(/below plan/)
+    expect(cardToggle()).toHaveTextContent(/below$/)
   })
 
   it('reads super paid at the guarantee rate as on plan, sacrifice included', async () => {
@@ -384,6 +400,14 @@ describe('PayslipsScreen', () => {
     expect(screen.queryByText('Tax lines')).not.toBeInTheDocument()
   })
 
+  it('says in the pill that a slip mapped to no projection has nothing to compare', () => {
+    renderScreen({
+      payslips: [makePayslip({ tax_withheld_cents: onPlanWithheld - 355 })],
+      lines: [makePayslipLine({ source_inflow_id: null })],
+    })
+    expect(cardToggle()).toHaveTextContent('No projection to compare')
+  })
+
   it('says there is no projection to compare when no line names one', async () => {
     const user = userEvent.setup()
     renderScreen({ lines: [makePayslipLine({ source_inflow_id: null })] })
@@ -439,8 +463,8 @@ describe('PayslipsScreen', () => {
     // The cards read $500 over then $200 under; the year is their sum, not the
     // $700 of movement between them.
     const [first, second] = screen.getAllByRole('button', { expanded: false })
-    expect(first).toHaveTextContent('$500.00 above plan')
-    expect(second).toHaveTextContent('$200.00 below plan')
+    expect(first).toHaveTextContent('$500.00 above')
+    expect(second).toHaveTextContent('$200.00 below')
     expect(figureCell('YTD gross')).toHaveTextContent('$10,300.00')
     expect(figureCell('YTD gross')).toHaveTextContent('$300.00 above plan')
   })

@@ -343,4 +343,44 @@ describe('SummaryView', () => {
     expect(screen.queryByText(/nothing to reconcile yet/i)).not.toBeInTheDocument()
     expect(screen.getByText(/of one-off money lands/)).toBeInTheDocument()
   })
+
+  describe('cash flow', () => {
+    const flows = () => within(screen.getByRole('list', { name: 'Cash flow amounts' }))
+
+    it('lists take-home flows from Available, following the basis toggle', async () => {
+      render(<SummaryView summary={summary} />)
+      expect(flows().getByText('Available to Needs: $2,000.00')).toBeInTheDocument()
+      expect(flows().queryByText(/Tax/)).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('radio', { name: 'Gross' }))
+      expect(flows().getByText('Gross income to Tax: $1,500.00')).toBeInTheDocument()
+    })
+
+    it('names a negative buffer as a Shortfall', () => {
+      const over: BudgetSummary = {
+        ...summary,
+        available: { fortnightlyCents: 300_000, annualCents: 7_800_000 },
+        afterSaving: { fortnightlyCents: -75_000, annualCents: -1_950_000 },
+      }
+      render(<SummaryView summary={over} />)
+      expect(flows().getByText('Shortfall to Savings: $750.00')).toBeInTheDocument()
+      expect(flows().queryByText(/to Buffer/)).not.toBeInTheDocument()
+    })
+
+    it('drills down to budget lines when asked', async () => {
+      render(
+        <SummaryView
+          summary={summary}
+          lines={[{ group: 'needs', name: 'Rent', fortnightlyCents: 200_000 }]}
+        />,
+      )
+      expect(flows().queryByText(/Rent/)).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('switch', { name: 'Show budget lines' }))
+      expect(flows().getByText('Needs to Rent: $2,000.00')).toBeInTheDocument()
+    })
+
+    it('omits the lines switch without lines', () => {
+      render(<SummaryView summary={summary} />)
+      expect(screen.queryByRole('switch', { name: 'Show budget lines' })).not.toBeInTheDocument()
+    })
+  })
 })

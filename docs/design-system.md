@@ -75,7 +75,9 @@ The theme restyles Mantine components app-wide:
 `chartColors` maps the six budget groups plus buffer/tax/sacrifice segments to
 CSS-variable colour refs; `chartPalette` is the ordered categorical palette
 (budget-group order) a multi-series chart cycles through. Charts reference these
-tokens, never inline hex.
+tokens, never inline hex. The cash-flow Sankey colours each group node and its
+outgoing links from the same tokens; Gross income, Available, and Buffer take the
+neutral buffer grey, and Tax and the negative-buffer Shortfall take the tax hue.
 
 The six budget groups span six distinct hues so a chart or category chip reads as
 a varied spectrum, not a single family: Needs → indigo, Wants → violet,

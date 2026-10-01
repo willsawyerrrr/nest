@@ -292,6 +292,22 @@ Salary sacrifice row of tiles above those three, and leads the ledger with a
 (itself then read as after-tax, after-super cash); everything from Available
 downward is identical in both modes.
 
+Beneath the donut, a **cash-flow Sankey** (`cashFlowGraph` in
+`apps/pwa/src/lib/cashFlow.ts`, a pure function) draws the path from income to
+the groups, following the donut's basis toggle. Take-home starts at Available;
+gross starts at Gross income, which splits into Tax, Salary sacrifice, and
+Available. Available then flows to each non-empty group and to the leftover
+Buffer, every node valued from the same `BudgetSummary` the ledger reads, so
+the figures reconcile to the cent. A Sankey cannot draw a negative flow, so when
+the buffer is negative a **Shortfall** source feeds the groups for the part
+Available cannot cover, filling them in reconciliation order, and no Buffer node
+is drawn. A "Show budget lines" switch drills each group down to its budget lines
+and active temporary items (an **Other** node carries any unnamed remainder).
+One-off money stays out, as it does of `available`. The chart is lazy-loaded with
+the donut's recharts chunk, fills the card's width with a reserved label margin
+(no horizontal scroll at phone width), and is hidden from assistive tech in
+favour of a list stating every flow in formatted cents.
+
 | Line          | Composition                          |
 | ------------- | ------------------------------------ |
 | Available     | after-tax income + non-taxable in    |
@@ -375,7 +391,7 @@ reload-safe; keyboard shortcuts jump between them.
 - **Budget screen** — grouped-line CRUD with a universal "Add item" button,
   search, and sort (Default / Name / Amount + direction, persisted to
   localStorage).
-- **Summary screen** — the reconciliation dashboard, led by an allocation donut.
+- **Summary screen** — the reconciliation dashboard, led by an allocation donut and a cash-flow Sankey.
 - **Goals screen** — targets, dates, current balance, modelled interest rate,
   progress + ETA; link Savings lines to a goal.
 

@@ -14,6 +14,7 @@ import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
 import { derivedAmountContext } from '../lib/breakdowns'
+import { cashFlowLines } from '../lib/cashFlow'
 import { summariseHousehold } from '../lib/summary'
 
 export function SummarySection() {
@@ -84,5 +85,12 @@ export function SummarySection() {
       )
     : undefined
 
-  return <SummaryView summary={summary} {...(baseline && { baseline })} />
+  const lines = cashFlowLines(
+    budgetLines.lines ?? [],
+    temporaryItems.items ?? [],
+    context,
+    new Date(),
+  )
+
+  return <SummaryView summary={summary} lines={lines} {...(baseline && { baseline })} />
 }

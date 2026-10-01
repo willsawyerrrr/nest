@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   Checkbox,
-  FileButton,
   Group,
   Loader,
   Progress,
@@ -21,7 +20,6 @@ import {
   type UploadQueue,
 } from '../hooks/useUploadQueue'
 import { batchLimitMessage } from '../lib/bulkUpload'
-import { FileDropArea } from './FileDropArea'
 
 /** How a draft's form reports back to the queue it was opened from. */
 export interface DraftControls {
@@ -40,22 +38,8 @@ export interface DraftControls {
   attention: boolean
 }
 
-/** A picker and drop area the panel offers itself, for a surface whose add card does not feed it. */
-interface PanelPicker<M> {
-  /** What the member picks, for the picker's label: "receipts", "payslips", "documents". */
-  noun: string
-  /** Names the picker for assistive technology and tests. */
-  pickerLabel: string
-  /** Sent with every file added. */
-  meta: M
-  /** Shown above the picker. */
-  controls?: ReactNode
-}
-
 interface BulkUploadPanelProps<T, M> {
   queue: UploadQueue<T, M>
-  /** Omitted when files reach the queue from the add card's own file input. */
-  picker?: PanelPicker<M>
   /** The form for one file's draft. */
   renderDraft: (item: QueueItem<T, M>, controls: DraftControls) => ReactNode
 }
@@ -166,7 +150,7 @@ function ItemHeader<T, M>({
  * yet is reported rather than saved, and one that fails does not stop the rest.
  * Closing the panel deletes the stored files of drafts that were not saved.
  */
-export function BulkUploadPanel<T, M>({ queue, picker, renderDraft }: BulkUploadPanelProps<T, M>) {
+export function BulkUploadPanel<T, M>({ queue, renderDraft }: BulkUploadPanelProps<T, M>) {
   const [deselected, setDeselected] = useState<ReadonlySet<string>>(new Set())
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
@@ -222,36 +206,12 @@ export function BulkUploadPanel<T, M>({ queue, picker, renderDraft }: BulkUpload
     )
   }
 
-  if (queue.items.length === 0 && picker === undefined) {
+  if (queue.items.length === 0) {
     return null
   }
 
-  const panel = (
+  return (
     <Stack gap="xs" ref={container}>
-      {picker && (
-        <>
-          {picker.controls}
-          <Group gap="xs">
-            <FileButton
-              multiple
-              inputProps={{ 'aria-label': picker.pickerLabel }}
-              onChange={(files) => {
-                queue.add(files, picker.meta)
-                setSummary(null)
-              }}
-            >
-              {(props) => (
-                <Button {...props} variant="default" size="xs">
-                  Choose {picker.noun}
-                </Button>
-              )}
-            </FileButton>
-            <Text size="xs" c="dimmed">
-              or drop several here. Any file type, up to 25 MB each.
-            </Text>
-          </Group>
-        </>
-      )}
       {queue.skipped > 0 && (
         <Alert color="yellow" variant="light" p="xs">
           <Text size="xs">{batchLimitMessage(queue.skipped)}</Text>
@@ -359,18 +319,5 @@ export function BulkUploadPanel<T, M>({ queue, picker, renderDraft }: BulkUpload
         </Button>
       )}
     </Stack>
-  )
-
-  return picker ? (
-    <FileDropArea
-      onFiles={(files) => {
-        queue.add(files, picker.meta)
-        setSummary(null)
-      }}
-    >
-      {panel}
-    </FileDropArea>
-  ) : (
-    panel
   )
 }

@@ -15,7 +15,6 @@ import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { TradeAddCard } from './TradeAddCard'
-import { TradeDocumentImport } from './TradeDocumentImport'
 import { TradeForm } from './TradeForm'
 
 interface TradesScreenProps {
@@ -348,7 +347,6 @@ function MemberTrades({
       <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
         Trades
       </Text>
-      <TradeDocumentImport member={member} trades={trades} actions={documentActions} />
       <EditableList<TradeRow, TradeInput>
         items={memberTrades}
         addLabel="Add trade"

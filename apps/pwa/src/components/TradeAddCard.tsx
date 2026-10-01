@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   ActionIcon,
   Alert,
+  Anchor,
   Button,
   Card,
   FileInput,
@@ -84,24 +85,44 @@ function Attachment({
   queue,
   item,
   onPick,
+  onManual,
 }: {
   queue: UploadQueue<ExtractedTrade[], undefined>
   item: Item | undefined
   onPick: (files: File[]) => void
+  /** Reveals the fields to type; offered only while they are hidden. */
+  onManual: (() => void) | undefined
 }) {
+  const busy = item?.status === 'queued' || item?.status === 'reading'
   return (
     <Stack gap={6}>
       <FileInput
-        label="Contract note"
         size="sm"
-        description="Any file, up to 25 MB. Stored privately, then read to pre-fill the details below where it can be — which you confirm. Pick again to replace it. Choose or drop several to review each document's trades."
-        placeholder="Attach a contract note"
-        disabled={item?.status === 'queued' || item?.status === 'reading'}
+        label="Contract notes"
+        description={
+          onManual
+            ? "Add a contract note or several, or drop them here. We'll read the details for you to check — no typing needed. Any file, up to 25 MB."
+            : "Any file, up to 25 MB. Stored privately, then read to pre-fill the details below where it can be — which you confirm. Pick again to replace it. Choose or drop several to review each document's trades."
+        }
+        placeholder="Attach a contract note or several"
+        disabled={busy}
         multiple
         value={[]}
         onChange={onPick}
       />
       {item && <ReadNote item={item} halted={queue.halted} />}
+      {onManual && (
+        <Anchor
+          component="button"
+          type="button"
+          size="xs"
+          ta="left"
+          disabled={busy}
+          onClick={onManual}
+        >
+          Enter details manually
+        </Anchor>
+      )}
       {item?.path != null && (
         <Group gap="xs" wrap="nowrap" justify="space-between">
           <Text size="xs">Contract note attached</Text>
@@ -121,7 +142,9 @@ function Attachment({
 }
 
 /**
- * The Add trade card. A contract note, trade confirmation, or statement can be
+ * The Add trade card. It opens on the contract-note prompt alone; the trade's fields
+ * appear when the member chooses to enter details manually, or once a note has been
+ * read or could not be, and stay once shown. A contract note, trade confirmation, or statement can be
  * attached as the first step: it is stored, read through `trade-extract`, and
  * its trade opens in the form for the member to check and save, kept attached to
  * the saved trade. A document the model cannot read stays attached with a note,
@@ -146,18 +169,20 @@ export function TradeAddCard({ member, trades, actions, onSubmit, onCancel }: Tr
   }
 
   const read = item?.status === 'ready' ? item.value! : []
+  // The card opens on the contract-note prompt alone. The fields appear when the
+  // member chooses to type, or once a note has been stored and read (or could
+  // not be), and stay once shown so removing the note never hides them.
+  const [revealed, setRevealed] = useState(false)
+  const settled = item !== undefined && item.status !== 'queued' && item.status !== 'reading'
+  if (settled && !revealed) {
+    setRevealed(true)
+  }
 
   if (queue.items.length > 1 || read.length > 1) {
     return (
       <Card withBorder radius="md" p="sm">
         <Stack gap="xs">
-          <TradeDocumentReview
-            queue={queue}
-            pickerLabel={`Add ${member.name}'s trades from contract notes`}
-            member={member}
-            trades={trades}
-            actions={actions}
-          />
+          <TradeDocumentReview queue={queue} member={member} trades={trades} actions={actions} />
           <Button variant="default" size="xs" onClick={onCancel}>
             Close
           </Button>
@@ -175,10 +200,16 @@ export function TradeAddCard({ member, trades, actions, onSubmit, onCancel }: Tr
       initial={single?.values}
       trades={trades}
       busy={item?.status === 'queued' || item?.status === 'reading'}
+      showFields={revealed}
       attachment={
         <Stack gap="xs">
           <FileDropArea onFiles={pick}>
-            <Attachment queue={queue} item={item} onPick={pick} />
+            <Attachment
+              queue={queue}
+              item={item}
+              onPick={pick}
+              onManual={revealed ? undefined : () => setRevealed(true)}
+            />
           </FileDropArea>
           {item?.status === 'ready' && (
             <ReadFromNote filledNothing={!single || Object.keys(single.values).length === 0} />

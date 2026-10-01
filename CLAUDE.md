@@ -593,9 +593,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   draft the member saves, edits, or discards, a likely repeat of an existing trade
   is warned about, and the document is kept (`trade_document`, `trade.document_id`,
   the `receipts` bucket) and linked from the trade; extracted trades stay
-  `source = 'manual'`. The Add trade card takes a contract note the same way the
-  Add deduction card takes a receipt (one file prefills the form; several files or
-  a multi-trade document open the bulk review); editing a trade takes none.
+  `source = 'manual'`. The Add trade card opens on a contract-note prompt the same
+  way the Add deduction card opens on a receipt prompt (fields appear on Enter
+  details manually, or once a file is read or cannot be; one file prefills the
+  form; several files or a multi-trade document open the bulk review); editing a
+  trade takes none.
   `trade-extract` answers failures with a stable `code` and
   fixed copy. A trade's unit price is the one money value held finer than a cent:
   `price_per_unit_microdollars` (integer millionths of a dollar, so CommSec's
@@ -616,11 +618,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the file stays stored and attached, and the form says it cannot be read
   automatically while the details are typed by hand. A HEIC/HEIF photo is
   re-encoded as JPEG in the browser where it can decode it. Each of the three
-  surfaces also takes MANY files at once (up to 20 open at a time): deductions and
-  payslips from the Add card's own file input (one file is read into the card as
-  ever, several are handed to the queue and the card closes; a form opened inside
-  a deduction group, and edits, take one file), trade documents from the panel's
-  picker and drop area: one shared queue (`useUploadQueue`, `BulkUploadPanel`)
+  surfaces also takes MANY files at once (up to 20 open at a time) from the Add
+  card's own file input, picked together or dropped on the card (one file is read
+  into the card as ever; several are handed to the queue, and for deductions and
+  payslips the card closes; a form opened inside a deduction group, and edits, take
+  one file): one shared queue (`useUploadQueue`, `BulkUploadPanel`)
   stores and reads at most three at a time, each into its own reviewable draft with
   its own status (queued, reading, ready, couldn't be read, unsupported type,
   saved). One file failing never blocks the others; reading being off (not

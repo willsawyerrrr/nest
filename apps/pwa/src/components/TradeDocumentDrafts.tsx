@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { TradeRow } from '../hooks/useTrades'
@@ -103,15 +103,11 @@ export function DocumentDrafts({
 /** The bulk panel for trade documents: each file's trades as draft forms. */
 export function TradeDocumentReview({
   queue,
-  pickerLabel,
-  controls,
   member,
   trades,
   actions,
 }: {
   queue: UploadQueue<ExtractedTrade[], undefined>
-  pickerLabel: string
-  controls?: ReactNode
   member: Member
   trades: TradeRow[]
   actions: TradeDocumentActions
@@ -119,10 +115,6 @@ export function TradeDocumentReview({
   return (
     <BulkUploadPanel
       queue={queue}
-      noun="documents"
-      pickerLabel={pickerLabel}
-      meta={undefined}
-      controls={controls}
       renderDraft={(item, draftControls) => (
         <DocumentDrafts
           documentId={item.id}

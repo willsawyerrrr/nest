@@ -148,6 +148,9 @@ describe('DeductionReceiptImport', () => {
 
     expect(await screen.findByText(/does not look like a receipt\./)).toBeInTheDocument()
     expect(screen.getByText("Couldn't be read")).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /remove a\.pdf/i }))
+    expect(screen.queryByLabelText('a.pdf')).not.toBeInTheDocument()
   })
 
   it('discards a draft and deletes its stored receipt', async () => {

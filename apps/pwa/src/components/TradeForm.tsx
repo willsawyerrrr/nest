@@ -26,6 +26,11 @@ interface TradeFormProps {
   attachment?: ReactNode
   /** Whether the attachment is still being stored or read, so a save would send no document. */
   busy?: boolean | undefined
+  /**
+   * Whether the fields are shown. Hidden, the form is just its attachment and
+   * notice, so a card can open on the document prompt alone.
+   */
+  showFields?: boolean
   /** Shown above the fields, e.g. what a draft's document left for the member to check. */
   notice?: ReactNode
   submitLabel?: string | undefined
@@ -41,6 +46,7 @@ export function TradeForm({
   trades,
   attachment,
   busy = false,
+  showFields = true,
   notice,
   submitLabel,
   cancelLabel,
@@ -100,69 +106,73 @@ export function TradeForm({
     >
       {attachment}
       {notice}
-      <EnumSegmentedControl
-        fullWidth
-        size="sm"
-        aria-label="Trade side"
-        value={side}
-        onChange={setSide}
-        data={TRADE_SIDES}
-      />
+      {showFields && (
+        <>
+          <EnumSegmentedControl
+            fullWidth
+            size="sm"
+            aria-label="Trade side"
+            value={side}
+            onChange={setSide}
+            data={TRADE_SIDES}
+          />
 
-      <Group grow align="flex-start">
-        <TextInput
-          label="Ticker"
-          size="sm"
-          placeholder="e.g. VAS"
-          value={ticker}
-          onChange={(event) => setTicker(event.currentTarget.value)}
-        />
-        <DateInput
-          label="Date"
-          size="sm"
-          valueFormat="D MMM YYYY"
-          value={tradedOn}
-          onChange={setTradedOn}
-        />
-      </Group>
+          <Group grow align="flex-start">
+            <TextInput
+              label="Ticker"
+              size="sm"
+              placeholder="e.g. VAS"
+              value={ticker}
+              onChange={(event) => setTicker(event.currentTarget.value)}
+            />
+            <DateInput
+              label="Date"
+              size="sm"
+              valueFormat="D MMM YYYY"
+              value={tradedOn}
+              onChange={setTradedOn}
+            />
+          </Group>
 
-      <NumberInput
-        label="Units"
-        size="sm"
-        description="Up to six decimal places."
-        min={0}
-        decimalScale={6}
-        hideControls
-        value={units}
-        onChange={setUnits}
-      />
+          <NumberInput
+            label="Units"
+            size="sm"
+            description="Up to six decimal places."
+            min={0}
+            decimalScale={6}
+            hideControls
+            value={units}
+            onChange={setUnits}
+          />
 
-      <Group grow align="flex-start">
-        <MoneyInput
-          label="Price per unit"
-          size="sm"
-          description="Up to six decimal places."
-          min={0}
-          decimalScale={6}
-          fixedDecimalScale={false}
-          hideControls
-          value={price}
-          onChange={setPrice}
-        />
-        <MoneyInput
-          label="Brokerage fee"
-          size="sm"
-          min={0}
-          hideControls
-          value={fee}
-          onChange={setFee}
-        />
-      </Group>
-      {repeat && (
-        <Alert color="yellow" variant="light" p="xs">
-          You already have a trade with this ticker, date, units, and price. Save it only if it is a
-          separate trade.
-        </Alert>
+          <Group grow align="flex-start">
+            <MoneyInput
+              label="Price per unit"
+              size="sm"
+              description="Up to six decimal places."
+              min={0}
+              decimalScale={6}
+              fixedDecimalScale={false}
+              hideControls
+              value={price}
+              onChange={setPrice}
+            />
+            <MoneyInput
+              label="Brokerage fee"
+              size="sm"
+              min={0}
+              hideControls
+              value={fee}
+              onChange={setFee}
+            />
+          </Group>
+          {repeat && (
+            <Alert color="yellow" variant="light" p="xs">
+              You already have a trade with this ticker, date, units, and price. Save it only if it
+              is a separate trade.
+            </Alert>
+          )}
+        </>
       )}
     </FormShell>
   )

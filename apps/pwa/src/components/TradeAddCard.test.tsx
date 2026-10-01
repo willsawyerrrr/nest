@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { FILE_TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES } from '../lib/uploadFile'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor } from '../test/render'
+import { fireEvent, render, screen, waitFor } from '../test/render'
 import { TradeAddCard } from './TradeAddCard'
 
 const will = makeMember({ id: 'm1', name: 'Will' })
@@ -51,8 +51,73 @@ async function attach(user: ReturnType<typeof userEvent.setup>, name = 'note.pdf
 }
 
 describe('TradeAddCard', () => {
+  it('opens on the contract-note prompt alone, with entering details by hand as the secondary choice', () => {
+    setup()
+
+    expect(filePicker()).toBeInTheDocument()
+    expect(screen.getByText(/we'll read the details for you to check/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /enter details manually/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^ticker$/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Trade side' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^add trade$/i })).toBeDisabled()
+  })
+
+  it('reveals the fields, and drops the manual choice, when the member chooses to type', async () => {
+    const { user } = setup()
+
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
+
+    expect(screen.getByLabelText(/^ticker$/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /enter details manually/i })).toBeNull()
+  })
+
+  it('keeps the fields shown after the attached note is removed', async () => {
+    const { user } = setup()
+    await attach(user)
+    await screen.findByLabelText(/^ticker$/i)
+
+    await user.click(screen.getByRole('button', { name: 'Remove contract note' }))
+
+    expect(screen.getByLabelText(/^ticker$/i)).toBeInTheDocument()
+  })
+
+  it('shows the fields for a file that cannot be read', async () => {
+    const { user } = setup()
+
+    await user.upload(filePicker(), new File(['x'], 'note.docx'))
+
+    expect(await screen.findByLabelText(/^ticker$/i)).toBeInTheDocument()
+  })
+
+  it('keeps the prompt while a note is being stored and read, with no manual choice to take', async () => {
+    let finish: (outcome: unknown) => void = () => {}
+    const { user } = setup(
+      actions({ extract: vi.fn(() => new Promise((resolve) => (finish = resolve))) }),
+    )
+
+    await attach(user)
+
+    expect(await screen.findByText('Reading the contract note…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /enter details manually/i })).toBeDisabled()
+    expect(screen.queryByLabelText(/^ticker$/i)).not.toBeInTheDocument()
+    finish({ status: 'read', trades: [buy] })
+    expect(await screen.findByLabelText(/^ticker$/i)).toHaveValue('VAS')
+  })
+
+  it('reads a contract note dropped on the card', async () => {
+    const { a } = setup()
+
+    fireEvent.drop(screen.getByRole('group', { name: 'Drop files here' }), {
+      dataTransfer: { types: ['Files'], files: [new File(['x'], 'note.pdf')] },
+    })
+
+    await waitFor(() => expect(a.upload).toHaveBeenCalledTimes(1))
+    expect(await screen.findByLabelText(/^ticker$/i)).toHaveValue('VAS')
+  })
+
   it('adds a trade by hand without a document', async () => {
     const { a, onSubmit, user } = setup()
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
     await user.type(screen.getByLabelText(/^ticker$/i), 'vas')
     await user.type(screen.getByLabelText(/^units$/i), '2')
     await user.type(screen.getByLabelText(/price per unit/i), '90')
@@ -118,6 +183,7 @@ describe('TradeAddCard', () => {
     const { user } = setup(
       actions({ extract: vi.fn(() => new Promise((resolve) => (finish = resolve))) }),
     )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
     await user.type(screen.getByLabelText(/^ticker$/i), 'vas')
     await user.type(screen.getByLabelText(/^units$/i), '2')
     await user.type(screen.getByLabelText(/price per unit/i), '90')
@@ -253,7 +319,7 @@ describe('TradeAddCard', () => {
 
       await waitFor(() => expect(screen.getAllByLabelText(/^ticker$/i)).toHaveLength(2))
       expect(a.extract).toHaveBeenCalledTimes(2)
-      expect(screen.getByLabelText("Add Will's trades from contract notes")).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
     })
 
     it('returns to the blank form and deletes the document when every draft is discarded', async () => {

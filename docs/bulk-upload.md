@@ -1,11 +1,11 @@
 # Bulk upload
 
-Deduction receipts and payslips are added from the **Add** card's own file input,
-which takes one file or many (multi-select, or dropped on the card). One file is
-read into the card's fields to check, as ever. Several are handed to a queue and
-the card closes, leaving a review of one draft per file above the list. Trade
-documents are still added from a **Choose** button and drop area on a panel above
-the list. No new tables, functions, or migrations: a file is stored and read as in
+Deduction receipts, payslips, and trade documents are added from the **Add** card's
+own file input, which takes one file or many (multi-select, or dropped on the
+card). One file is read into the card's fields to check, as ever. Several are
+handed to a queue: for deductions and payslips the card closes, leaving a review of
+one draft per file above the list; for trades the review replaces the card's form.
+No separate bulk input exists. No new tables, functions, or migrations: a file is stored and read as in
 the single-file flows, and every draft is saved through the same RPC the single
 form uses.
 
@@ -15,32 +15,41 @@ form uses.
 | -------------- | ------------------------ | -------------------------- | --------------------------------- |
 | Deductions     | `DeductionReceiptImport` | one deduction draft        | `create_deduction_with_receipt`   |
 | Payslips       | `PayslipImport`          | one payslip draft          | `upsert_payslip_with_lines`       |
-| Investments    | `TradeDocumentImport`    | a draft per trade on it    | `create_trades_with_document`     |
+| Investments    | `TradeDocumentReview`    | a draft per trade on it    | `create_trades_with_document`     |
 
 A form opened inside a deduction group, and every edit form, takes a single file:
 a payment belongs to its group and an edit targets one record, so neither hands
 files to a batch. Replacing or adding the receipt of an existing deduction stays a
-single-file control: it targets one record, so there is nothing to batch. Trade documents are
-the only surface where one file yields several drafts.
+single-file control: it targets one record, so there is nothing to batch. Trade
+documents are the only surface where one file yields several drafts.
 
-The Add trade card is the single-trade path to the same machinery: it holds its own
-`useTradeUploadQueue` (the queue `TradeDocumentImport` uses) and opens one file's
-single trade in `TradeForm`. Several files, or one file holding several trades,
-hand that same queue to `BulkUploadPanel` with the trade drafts' `renderDraft`, in
-place of the form.
+The Add trade card holds its own `useTradeUploadQueue` and opens one file's single
+trade in `TradeForm`. Several files, or one file holding several trades, hand that
+same queue to `TradeDocumentReview` (`BulkUploadPanel` with the trade drafts'
+`renderDraft`), in place of the form.
 
 A deduction batch is read for one kind at a time (work expense, donation receipt,
 tax agent invoice), the kind chosen on the Add deduction card before the files are
-picked; it primes `deduction-extract` and is
-each draft's starting category, still editable per draft.
+picked; it primes `deduction-extract` and is each draft's starting category, still editable per draft.
 
 ## The queue
 
 `useUploadQueue` holds every file in a batch and drives it; `BulkUploadPanel` renders
 the review. Each surface supplies its own `upload`, `discard`, `read`, and form
-(`useDeductionReceiptQueue`, `usePayslipQueue`). The screen owns the queue, passes
-its `add` to the Add card, and passes the queue to the review panel, which renders
-nothing until a file is queued.
+(`useDeductionReceiptQueue`, `usePayslipQueue`, `useTradeUploadQueue`). For
+deductions and payslips the screen owns the queue, passes its `add` to the Add
+card, and passes the queue to the review panel, which renders nothing until a file
+is queued; the Add trade card owns its queue.
+
+## The Add cards start on a prompt
+
+The Add deduction and Add trade cards open on the file prompt alone (a receipt, or a
+contract note), with one line saying the details are read for the member to check
+and a secondary **Enter details manually**. The fields appear when the member
+chooses to type, or once a file has been stored and read, prefilled for checking, or
+could not be read or is an unsupported type, with the usual note. Once shown they
+stay, so removing the file never hides what was typed or filled. A deduction form
+opened inside a group, a draft, and every edit form open on their fields.
 
 - **Statuses**: queued, reading, ready, unsupported type, enter by hand, couldn't be
   read, saved. A file over 25 MB, or that fails to store, is "couldn't be read"

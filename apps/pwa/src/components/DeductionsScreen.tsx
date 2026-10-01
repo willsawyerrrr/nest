@@ -1,19 +1,30 @@
-import { Anchor, Group, Stack, Text } from '@mantine/core'
+import { useState } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { Group, Stack, Text } from '@mantine/core'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionGroupInput, DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionInput, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
-import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
+import { droppedGroupId, groupDropId, UNGROUPED_DROP_ID } from '../lib/deductionDrop'
 import { formatCents } from '../lib/money'
 import { AppCard } from './AppCard'
+import { DropTarget } from './DeductionDrop'
 import { DeductionForm } from './DeductionForm'
 import { DeductionGroup, DeductionGroupForm } from './DeductionGroup'
+import { DraggableDeduction } from './DeductionItem'
 import { EditableList, type ItemControls } from './EditableList'
-import { EditDeleteActions } from './EditDeleteActions'
 import { FinancialYearSelect } from './FinancialYearSelect'
-import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 
@@ -44,138 +55,6 @@ interface DeductionsScreenProps {
   signedUrl: (path: string) => Promise<string | null>
 }
 
-/** A day-month-year label for an ISO date string, built without a timezone shift. */
-function formatIsoDate(iso: string): string {
-  const [year, month, day] = iso.split('-').map(Number)
-  return new Date(year!, month! - 1, day!).toLocaleDateString('en-AU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-/**
- * The date, plus the claimed distance for a distance-basis deduction (e.g.
- * "1 Aug 2026 · 120km") or the work-use share for a part-claimed one (e.g.
- * "1 Aug 2026 · 60% work use"). A distance-basis row is pinned at 100% work
- * use, so the two never both apply.
- */
-function deductionDateLabel(deduction: DeductionRow): string {
-  const date = formatIsoDate(deduction.deduction_date)
-  if (deduction.basis === 'distance' && deduction.distance_km != null) {
-    return `${date} · ${deduction.distance_km}km`
-  }
-  if (deduction.work_use_percent < 100) {
-    return `${date} · ${deduction.work_use_percent}% work use`
-  }
-  return date
-}
-
-interface DeductionItemProps {
-  deduction: DeductionRow
-  receipt: DeductionReceiptRow | undefined
-  onEdit: () => void
-  onDelete: () => void
-  signedUrl: (path: string) => Promise<string | null>
-}
-
-/**
- * A deduction's description with its "Receipt" view link inline after it, so a
- * row spends no line on the receipt and a long description wraps with the link
- * following its last word. Attaching, replacing, and removing a receipt live in
- * the edit form.
- */
-function DeductionTitle({
-  deduction,
-  receipt,
-  signedUrl,
-}: Pick<DeductionItemProps, 'deduction' | 'receipt' | 'signedUrl'>) {
-  const viewReceipt = async (current: DeductionReceiptRow) => {
-    const url = await signedUrl(current.storage_path)
-    if (url) {
-      window.open(url, '_blank', 'noopener')
-    }
-  }
-
-  return (
-    <Text fw={600} size="sm" style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
-      {deduction.description}
-      {receipt && (
-        <>
-          {' '}
-          <Anchor
-            size="xs"
-            fw={400}
-            component="button"
-            type="button"
-            style={{ verticalAlign: 'baseline' }}
-            onClick={() => void viewReceipt(receipt)}
-          >
-            Receipt
-          </Anchor>
-        </>
-      )}
-    </Text>
-  )
-}
-
-/**
- * One deduction as a dense table-like row for desktop: the description (with its
- * receipt link inline) grows with its date as a dimmed suffix, its amount
- * right-aligned in a fixed column, and the controls at the end.
- */
-function DeductionRow({ deduction, onEdit, onDelete, receipt, signedUrl }: DeductionItemProps) {
-  return (
-    <ListRow>
-      <Group gap={6} wrap="nowrap" align="baseline" style={{ flex: 1, minWidth: 0 }}>
-        <DeductionTitle deduction={deduction} receipt={receipt} signedUrl={signedUrl} />
-        <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-          {deductionDateLabel(deduction)}
-        </Text>
-      </Group>
-      <MoneyText
-        cents={deduction.amount_cents}
-        fw={700}
-        size="sm"
-        ta="right"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
-      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
-        <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-      </Group>
-    </ListRow>
-  )
-}
-
-/** One deduction as a compact bordered card for mobile: description and receipt link over its date. */
-function DeductionCard({ deduction, onEdit, onDelete, receipt, signedUrl }: DeductionItemProps) {
-  return (
-    <AppCard withBorder padding="xs">
-      <Group justify="space-between" wrap="nowrap" gap="sm" align="flex-start">
-        <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
-          <DeductionTitle deduction={deduction} receipt={receipt} signedUrl={signedUrl} />
-          <Text size="xs" c="dimmed">
-            {deductionDateLabel(deduction)}
-          </Text>
-        </Stack>
-        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
-          <MoneyText cents={deduction.amount_cents} fw={700} size="sm" />
-          <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-        </Group>
-      </Group>
-    </AppCard>
-  )
-}
-
-/**
- * A single deduction, rendered as a dense table-like row from the `sm` breakpoint
- * up and as a compact bordered card below it.
- */
-function DeductionItem(props: DeductionItemProps) {
-  const wide = useIsWide()
-  return wide ? <DeductionRow {...props} /> : <DeductionCard {...props} />
-}
-
 /**
  * A member's deductions with a running total, an add affordance, and inline
  * forms.
@@ -186,6 +65,13 @@ function DeductionItem(props: DeductionItemProps) {
  * payments themselves. Each payment is an ordinary deduction — its own date,
  * amount, and receipt — so the member's total below counts grouped and
  * ungrouped rows alike, and grouping never changes what is claimed.
+ *
+ * A payment's grip handle drags it onto a group to file it there, between
+ * groups to move it, or onto the ungrouped list to take it out; the groups and
+ * list that would accept it are outlined while it is dragged. The drag context
+ * is this member's own, and its groups are this year's, so every target shown
+ * is one the deduction's composite reference accepts. The form's Group picker
+ * is the keyboard path.
  */
 function MemberDeductions({
   member,
@@ -233,6 +119,46 @@ function MemberDeductions({
   const totalCents = deductions.reduce((total, deduction) => total + deduction.amount_cents, 0)
   const ungrouped = deductions.filter((deduction) => deduction.group_id === null)
 
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const dragging = deductions.find((deduction) => deduction.id === draggingId)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+  )
+  const isValidTarget = (dropId: string) =>
+    dragging !== undefined && droppedGroupId(dragging, dropId, groups) !== undefined
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setMoveError(null)
+    setDraggingId(String(event.active.id))
+  }
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDraggingId(null)
+    const deduction = deductions.find((candidate) => candidate.id === String(event.active.id))
+    if (!deduction || !event.over) {
+      return
+    }
+    const groupId = droppedGroupId(deduction, String(event.over.id), groups)
+    if (groupId === undefined) {
+      return
+    }
+    // The whole row is written back, as any other edit does, with only its
+    // group changed; group totals are summed from the rows, so they follow.
+    onUpdate(deduction.id, {
+      member_id: deduction.member_id,
+      description: deduction.description,
+      amount_cents: deduction.amount_cents,
+      deduction_date: deduction.deduction_date,
+      basis: deduction.basis,
+      distance_km: deduction.distance_km,
+      full_amount_cents: deduction.full_amount_cents,
+      work_use_percent: deduction.work_use_percent,
+      category: deduction.category,
+      group_id: groupId,
+    }).catch(() => setMoveError('Could not move this deduction. Please try again.'))
+  }
+
   const receiptFor = (deduction: DeductionRow) =>
     receipts.find((candidate) => candidate.deduction_id === deduction.id)
 
@@ -255,7 +181,7 @@ function MemberDeductions({
     deduction: DeductionRow,
     { onEdit, onDelete: onDeleteItem }: ItemControls,
   ) => (
-    <DeductionItem
+    <DraggableDeduction
       deduction={deduction}
       receipt={receiptFor(deduction)}
       onEdit={onEdit}
@@ -265,108 +191,146 @@ function MemberDeductions({
   )
 
   return (
-    <Stack gap="xs">
-      <Group justify="space-between">
-        <Text fw={600}>{member.name}</Text>
-        <Text fw={600} size="sm">
-          {formatCents(totalCents)}
-        </Text>
-      </Group>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setDraggingId(null)}
+    >
+      <Stack gap="xs">
+        <Group justify="space-between">
+          <Text fw={600}>{member.name}</Text>
+          <Text fw={600} size="sm">
+            {formatCents(totalCents)}
+          </Text>
+        </Group>
 
-      <EditableList<DeductionGroupRow, DeductionGroupInput>
-        items={groups}
-        addLabel="Add group"
-        emptyMessage=""
-        deleteTarget={(group) => ({
-          title: 'Delete group?',
-          itemLabel: group.name,
-        })}
-        onCreate={onCreateGroup}
-        onUpdate={onUpdateGroup}
-        onDelete={onDeleteGroup}
-        renderItem={(group, { onEdit, onDelete: onDeleteItem }) => (
-          <DeductionGroup
-            group={group}
-            payments={deductions.filter((deduction) => deduction.group_id === group.id)}
-            onEdit={onEdit}
-            onDelete={onDeleteItem}
-          >
-            {/* The group's own payments list: adding here files the payment
+        <EditableList<DeductionGroupRow, DeductionGroupInput>
+          items={groups}
+          addLabel="Add group"
+          emptyMessage=""
+          deleteTarget={(group) => ({
+            title: 'Delete group?',
+            itemLabel: group.name,
+          })}
+          onCreate={onCreateGroup}
+          onUpdate={onUpdateGroup}
+          onDelete={onDeleteGroup}
+          renderItem={(group, { onEdit, onDelete: onDeleteItem }) => (
+            <DropTarget
+              id={groupDropId(group.id)}
+              valid={isValidTarget(groupDropId(group.id))}
+              dragging={dragging !== undefined}
+            >
+              <DeductionGroup
+                group={group}
+                payments={deductions.filter((deduction) => deduction.group_id === group.id)}
+                onEdit={onEdit}
+                onDelete={onDeleteItem}
+              >
+                {/* The group's own payments list: adding here files the payment
                 into the group, and editing or deleting one is the same
                 operation it is on a standalone deduction. */}
-            <EditableList<DeductionRow, DeductionSubmission>
-              items={deductions.filter((deduction) => deduction.group_id === group.id)}
-              addLabel="Add payment"
-              emptyMessage="No payments yet."
-              deleteTarget={(deduction) => ({
-                title: 'Delete payment?',
-                itemLabel: deduction.description,
-              })}
-              onCreate={onCreate}
-              onUpdate={(id, submission) => onUpdate(id, submission.input)}
-              onDelete={onDelete}
-              renderItem={(deduction, controls) => renderPayment(deduction, controls)}
-              renderForm={({ initial, onSubmit, onCancel }) => (
-                <DeductionForm
-                  member={member}
-                  attachments={attachments}
-                  financialYear={financialYear}
-                  // Adding here is adding to THIS group, so it is settled and
-                  // no picker is offered. Editing a payment already in it is
-                  // where the picker earns its place: that is how one moves to
-                  // another group, or out of them all.
-                  {...(initial ? { groups } : { groupId: group.id })}
-                  initial={initial}
-                  {...(initial && receiptControls(initial))}
-                  onSubmit={onSubmit}
-                  onCancel={onCancel}
+                <EditableList<DeductionRow, DeductionSubmission>
+                  items={deductions.filter((deduction) => deduction.group_id === group.id)}
+                  addLabel="Add payment"
+                  emptyMessage="No payments yet."
+                  deleteTarget={(deduction) => ({
+                    title: 'Delete payment?',
+                    itemLabel: deduction.description,
+                  })}
+                  onCreate={onCreate}
+                  onUpdate={(id, submission) => onUpdate(id, submission.input)}
+                  onDelete={onDelete}
+                  renderItem={(deduction, controls) => renderPayment(deduction, controls)}
+                  renderForm={({ initial, onSubmit, onCancel }) => (
+                    <DeductionForm
+                      member={member}
+                      attachments={attachments}
+                      financialYear={financialYear}
+                      // Adding here is adding to THIS group, so it is settled and
+                      // no picker is offered. Editing a payment already in it is
+                      // where the picker earns its place: that is how one moves to
+                      // another group, or out of them all.
+                      {...(initial ? { groups } : { groupId: group.id })}
+                      initial={initial}
+                      {...(initial && receiptControls(initial))}
+                      onSubmit={onSubmit}
+                      onCancel={onCancel}
+                    />
+                  )}
                 />
-              )}
+              </DeductionGroup>
+            </DropTarget>
+          )}
+          renderForm={({ initial, onSubmit, onCancel }) => (
+            <DeductionGroupForm
+              member={member}
+              initial={initial}
+              onSubmit={onSubmit}
+              onCancel={onCancel}
             />
-          </DeductionGroup>
-        )}
-        renderForm={({ initial, onSubmit, onCancel }) => (
-          <DeductionGroupForm
-            member={member}
-            initial={initial}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-          />
-        )}
-      />
+          )}
+        />
 
-      <EditableList<DeductionRow, DeductionSubmission>
-        items={ungrouped}
-        addLabel="Add deduction"
-        emptyMessage="No deductions yet."
-        deleteTarget={(deduction) => ({
-          title: 'Delete deduction?',
-          itemLabel: deduction.description,
-        })}
-        onCreate={onCreate}
-        // Editing goes straight to a plain field update — the RPC that writes
-        // the receipt alongside a new deduction is never reached here, so the
-        // receipt already on this deduction (managed from its edit form) is
-        // never replaced by the empty one an edit form's submission carries.
-        onUpdate={(id, submission) => onUpdate(id, submission.input)}
-        onDelete={onDelete}
-        renderItem={(deduction, controls) => renderPayment(deduction, controls)}
-        renderForm={({ initial, onSubmit, onCancel }) => (
-          <DeductionForm
-            member={member}
-            attachments={attachments}
-            financialYear={financialYear}
-            groups={groups}
-            initial={initial}
-            {...(initial && receiptControls(initial))}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-          />
+        {moveError && (
+          <Text size="sm" c="red" role="alert">
+            {moveError}
+          </Text>
         )}
-      />
 
-      {modal}
-    </Stack>
+        <DropTarget
+          id={UNGROUPED_DROP_ID}
+          valid={isValidTarget(UNGROUPED_DROP_ID)}
+          dragging={dragging !== undefined}
+        >
+          <EditableList<DeductionRow, DeductionSubmission>
+            items={ungrouped}
+            addLabel="Add deduction"
+            emptyMessage="No deductions yet."
+            deleteTarget={(deduction) => ({
+              title: 'Delete deduction?',
+              itemLabel: deduction.description,
+            })}
+            onCreate={onCreate}
+            // Editing goes straight to a plain field update — the RPC that writes
+            // the receipt alongside a new deduction is never reached here, so the
+            // receipt already on this deduction (managed from its edit form) is
+            // never replaced by the empty one an edit form's submission carries.
+            onUpdate={(id, submission) => onUpdate(id, submission.input)}
+            onDelete={onDelete}
+            renderItem={(deduction, controls) => renderPayment(deduction, controls)}
+            renderForm={({ initial, onSubmit, onCancel }) => (
+              <DeductionForm
+                member={member}
+                attachments={attachments}
+                financialYear={financialYear}
+                groups={groups}
+                initial={initial}
+                {...(initial && receiptControls(initial))}
+                onSubmit={onSubmit}
+                onCancel={onCancel}
+              />
+            )}
+          />
+        </DropTarget>
+
+        <DragOverlay>
+          {dragging && (
+            <AppCard withBorder padding="xs">
+              <Group justify="space-between" wrap="nowrap" gap="sm">
+                <Text fw={600} size="sm" truncate>
+                  {dragging.description}
+                </Text>
+                <MoneyText cents={dragging.amount_cents} fw={700} size="sm" />
+              </Group>
+            </AppCard>
+          )}
+        </DragOverlay>
+
+        {modal}
+      </Stack>
+    </DndContext>
   )
 }
 

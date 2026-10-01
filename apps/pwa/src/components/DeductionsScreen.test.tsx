@@ -5,8 +5,33 @@ import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import { makeMember } from '../test/fixtures'
-import { render, screen, setWideViewport, waitFor, within } from '../test/render'
+import { act, render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { DeductionsScreen } from './DeductionsScreen'
+
+const dnd = vi.hoisted(() => ({
+  onDragStart: undefined as ((event: unknown) => void) | undefined,
+  onDragEnd: undefined as ((event: unknown) => void) | undefined,
+}))
+
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...actual,
+    DndContext: ({
+      children,
+      onDragStart,
+      onDragEnd,
+    }: {
+      children: React.ReactNode
+      onDragStart?: (event: unknown) => void
+      onDragEnd?: (event: unknown) => void
+    }) => {
+      dnd.onDragStart = onDragStart
+      dnd.onDragEnd = onDragEnd
+      return children
+    },
+  }
+})
 
 const will = makeMember({ id: 'm1', name: 'Will', user_id: 'u1' })
 const sam = makeMember({ id: 'm2', name: 'Sam', user_id: 'u2' })
@@ -92,7 +117,11 @@ function groupPicker() {
   return screen.getByRole('combobox', { name: 'Group' })
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  dnd.onDragStart = undefined
+  dnd.onDragEnd = undefined
+})
 
 describe('DeductionsScreen', () => {
   it('titles the page with the selected financial year', () => {
@@ -503,6 +532,102 @@ describe('DeductionsScreen', () => {
       // The receipt link sits with the description.
       expect(screen.getByRole('button', { name: 'Receipt' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+    })
+  })
+  describe('drag and drop', () => {
+    const drag = (id: string, overId: string | null) =>
+      act(() => dnd.onDragEnd?.({ active: { id }, over: overId === null ? null : { id: overId } }))
+
+    it('files a deduction into the group it is dropped on', async () => {
+      const { onUpdate } = renderScreen({ members: [will], groups: [makeGroup()] })
+
+      drag('d1', 'group:g1')
+
+      await waitFor(() =>
+        expect(onUpdate).toHaveBeenCalledWith(
+          'd1',
+          expect.objectContaining({
+            member_id: 'm1',
+            description: 'Home office',
+            amount_cents: 1_200_00,
+            group_id: 'g1',
+          }),
+        ),
+      )
+    })
+
+    it('moves a payment to another group', async () => {
+      const { onUpdate } = renderScreen({
+        members: [will],
+        deductions: [makeDeduction({ group_id: 'g1' })],
+        groups: [makeGroup(), makeGroup({ id: 'g2', name: 'Trip' })],
+      })
+
+      drag('d1', 'group:g2')
+
+      await waitFor(() =>
+        expect(onUpdate).toHaveBeenCalledWith('d1', expect.objectContaining({ group_id: 'g2' })),
+      )
+    })
+
+    it('clears the group of a payment dropped on the ungrouped list', async () => {
+      const { onUpdate } = renderScreen({
+        members: [will],
+        deductions: [makeDeduction({ group_id: 'g1' })],
+        groups: [makeGroup()],
+      })
+
+      drag('d1', 'ungrouped')
+
+      await waitFor(() =>
+        expect(onUpdate).toHaveBeenCalledWith('d1', expect.objectContaining({ group_id: null })),
+      )
+    })
+
+    it('ignores a drop outside every target, on its own group, or on a group of another year', () => {
+      const { onUpdate } = renderScreen({
+        members: [will],
+        deductions: [makeDeduction({ group_id: 'g1' })],
+        groups: [makeGroup(), makeGroup({ id: 'g3', financial_year: 2026 })],
+      })
+
+      drag('d1', null)
+      drag('d1', 'group:g1')
+      drag('d1', 'group:g3')
+
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
+
+    it('outlines only the targets that accept the dragged deduction', () => {
+      renderScreen({
+        members: [will],
+        deductions: [makeDeduction({ group_id: 'g1' })],
+        groups: [makeGroup(), makeGroup({ id: 'g2', name: 'Trip' })],
+      })
+      const targets = () => document.querySelectorAll('[data-drop-target="valid"]')
+      expect(targets()).toHaveLength(0)
+
+      act(() => dnd.onDragStart?.({ active: { id: 'd1' } }))
+
+      // The other group and the ungrouped list; not the group it already sits in.
+      expect(targets()).toHaveLength(2)
+      expect(screen.getByText('Trip').closest('[data-drop-target="valid"]')).not.toBeNull()
+      expect(screen.getByText('Adobe Creative Cloud').closest('[data-drop-target]')).toBeNull()
+
+      drag('d1', null)
+      expect(targets()).toHaveLength(0)
+    })
+
+    it('reports a move that fails', async () => {
+      renderScreen({
+        members: [will],
+        groups: [makeGroup()],
+        onUpdate: vi.fn().mockRejectedValue(new Error('nope')),
+      })
+
+      drag('d1', 'group:g1')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/could not move/i)
     })
   })
 })

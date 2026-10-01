@@ -349,6 +349,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   that automatic group as its default option (labelled `Donations`, the real
   group row folded in rather than listed) and lists the member's other groups
   only to move the donation to one; with no other groups a note stands in.
+  A payment can also be dragged (pointer or touch, by its grip handle) onto a
+  group to file it, onto another group to move it, or onto the ungrouped list
+  to clear its group; only that member's groups for the year are targets, and
+  the form's picker remains the keyboard path.
   Nothing downstream notices — the tax estimate, EOFY tab, and Summary read
   `deduction` rows regardless of grouping.
 - Payslips: each member owns many payslips (the `payslip` table, FY-scoped), one

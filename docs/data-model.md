@@ -340,6 +340,15 @@ and so without the trigger.
     taken out. It is withheld only when the answer is already settled — adding a
     payment from a group's own row. The write is a plain `deduction` update, so
     nothing passes through `create_deduction_with_receipt`.
+  - The Deductions tab also files by drag and drop (`@dnd-kit`, pointer and
+    touch; the Group picker stays the keyboard path). A payment's grip handle
+    drags it onto a group to file it, onto another group to move it, or onto the
+    ungrouped list to clear `group_id` (a donation then snaps back into
+    "Donations"). Each member has their own drag context over that year's
+    groups, so every target offered satisfies the composite FK; those that
+    accept the dragged payment are outlined while it moves. The drop is the same
+    plain `deduction` update the form makes, and group totals, summed at read
+    time, follow.
   - For a **donation** the picker's default option is the member's automatic
     "Donations" group (labelled `Donations`, not `None`): that group is folded
     into the option rather than listed, the other options exist only to move the

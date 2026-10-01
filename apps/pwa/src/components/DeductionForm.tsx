@@ -198,10 +198,9 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  *
  * Editing stays near the row's own footprint: the description, the amount (or
  * kilometres), and the date sit on two lines, with explanatory hints dropped.
- * The rest — the dollar/distance basis, work use %, the group, and the receipt
- * controls — sits behind a "More details" toggle that starts open only when the
- * deduction already uses one of them (a distance basis, a part-claimed work use,
- * or a group). Adding shows every field.
+ * The rest — work use %, the group, and the receipt controls — sits behind a
+ * "More details" toggle that starts open only when the deduction already uses
+ * one of them (a part-claimed work use or a group). Adding shows every field.
  *
  * A **donation** is grouped automatically: saved with no group of its own, the
  * `file_donation_in_default_group` trigger files it into the member's donations
@@ -212,7 +211,9 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
  * A **work expense** is entered on an **amount** basis (a dollar figure, typed
  * directly) or a **distance** basis (kilometres travelled for a work-related car
  * expense claimed under the ATO's cents-per-kilometre method), toggled by the
- * segmented control. The toggle is shown for a work expense alone: a **donation**
+ * segmented control when adding. The basis is fixed once the deduction exists
+ * (`deduction_basis_immutable`), so editing offers no toggle: a deduction on the
+ * wrong basis is deleted and re-added. The toggle is shown for a work expense alone: a **donation**
  * or a **tax agent fee** is always a plain dollar figure — a distance prices
  * nothing there — so it is entered on the amount basis with no choice offered.
  * On the distance basis the dollar amount is computed and
@@ -260,7 +261,10 @@ export function DeductionForm({
     amount: centsToDollars(initial?.full_amount_cents ?? initial?.amount_cents),
     deductionDate: initial?.deduction_date ?? todayIso(),
   })
-  const [basis, setBasis] = useState<Basis>(initial?.basis ?? 'amount')
+  // Chosen when adding; an existing deduction keeps the basis it was created
+  // with, since a deduction on the wrong one is deleted and re-added.
+  const [chosenBasis, setBasis] = useState<Basis>('amount')
+  const basis = initial?.basis ?? chosenBasis
   // Opened from a group, the deduction belongs to that group and the picker is
   // not offered; the group's kind then decides the categories on offer.
   const openedFrom = groupId === undefined ? undefined : groups.find((g) => g.id === groupId)
@@ -286,8 +290,7 @@ export function DeductionForm({
   // starts open only when the deduction already departs from the defaults.
   const [detailsToggled, setDetailsToggled] = useState(
     initial !== undefined &&
-      (initial.basis === 'distance' ||
-        initial.work_use_percent < 100 ||
+      (initial.work_use_percent < 100 ||
         (initial.group_id !== null && initial.category !== 'donation')),
   )
   const showDetails = adding || detailsToggled
@@ -510,7 +513,7 @@ export function DeductionForm({
         </Anchor>
       )}
 
-      {showDetails && basisApplies && (
+      {adding && basisApplies && (
         <EnumSegmentedControl
           fullWidth
           size="sm"

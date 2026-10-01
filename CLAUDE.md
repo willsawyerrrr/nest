@@ -265,10 +265,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `basis` is a form choice for a work expense. The category is fixed once the
   deduction exists (`deduction_category_immutable`, a BEFORE UPDATE trigger), so
   the edit form has no category control: a deduction entered under the wrong one
-  is deleted and re-added. The edit form stays near the row's compact footprint
-  — description, amount (or kilometres), and date — with the basis toggle, "Work
-  use %", the Group picker, and the receipt controls behind a "More details"
-  toggle that starts open only when the deduction already uses one of them.
+  is deleted and re-added. The basis is fixed the same way
+  (`deduction_basis_immutable`), so the edit form has no basis toggle either.
+  The edit form stays near the row's compact footprint — description, amount (or
+  kilometres), and date — with "Work use %", the Group picker, and the receipt
+  controls behind a "More details" toggle that starts open only when the
+  deduction already uses one of them.
   `deduction_work_use_basis` pins
   `work_use_percent`
   at 100 for every category but `work_expense` too, the same rule as the

@@ -312,6 +312,45 @@ describe('DeductionForm', () => {
     expect(screen.getByLabelText(/kilometres/i)).toHaveValue('250 km')
     expect(screen.getByText('$227.50')).toBeInTheDocument()
   })
+
+  it('offers no basis toggle when editing', () => {
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction()}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Distance (km)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Dollar' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the basis an existing deduction was created with when saving', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction({ basis: 'distance', distance_km: 250, amount_cents: 227_50 })}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ basis: 'distance', distance_km: 250 }),
+        }),
+      ),
+    )
+  })
 })
 
 describe('DeductionForm receipt extraction', () => {

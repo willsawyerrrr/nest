@@ -268,7 +268,10 @@ and so without the trigger.
     adding and fixed thereafter: the `deduction_category_immutable` BEFORE UPDATE
     trigger refuses an update that changes it (any other update, such as filing
     the row into a group, is unaffected), so a deduction entered under the wrong
-    category is deleted and re-added. `deduction-extract` reads `category` too,
+    category is deleted and re-added. The basis is fixed likewise: the
+    `deduction_basis_immutable` BEFORE UPDATE trigger refuses an update that
+    changes it, the edit form offers no dollar/distance toggle, and a deduction
+    on the wrong basis is deleted and re-added. `deduction-extract` reads `category` too,
     priming the model to expect a purchase receipt/invoice for `work_expense`,
     a donation tax receipt for `donation`, or an invoice for `tax_agent_fees`,
     so a genuine DGR donation tax receipt is not rejected for failing to look

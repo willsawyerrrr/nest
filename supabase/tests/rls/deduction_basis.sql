@@ -1,4 +1,4 @@
--- Assertions for a deduction's amount/distance basis.
+-- Assertions for a deduction's amount/distance basis and its immutability.
 --
 -- A deduction states its `basis`: the default `amount`, entered directly, or
 -- `distance`, entered as `distance_km` kilometres for a work-related car expense
@@ -93,6 +93,23 @@ begin
     'the distance-basis deduction should record its distance';
   assert (select amount_cents from public.deduction where id = v_id) = 91_00,
     'amount_cents should be the figure the client computed and sent';
+end $$;
+
+-- A deduction's basis is fixed once it exists: rewriting it is refused, while
+-- an update that leaves it alone still succeeds.
+do $$
+declare v_id uuid := current_setting('db.distance')::uuid;
+begin
+  begin
+    update public.deduction set basis = 'amount', distance_km = null where id = v_id;
+    raise exception 'FAIL: a deduction''s basis was changed';
+  exception when check_violation then
+    raise notice 'PASS: a deduction''s basis cannot be changed';
+  end;
+
+  update public.deduction set basis = 'distance', description = 'Site visits' where id = v_id;
+  assert (select description from public.deduction where id = v_id) = 'Site visits',
+    'an update that leaves the basis alone should succeed';
 end $$;
 
 rollback;

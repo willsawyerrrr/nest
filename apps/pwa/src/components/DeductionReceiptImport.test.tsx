@@ -1,11 +1,13 @@
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
+import { useDeductionReceiptQueue } from '../hooks/useDeductionReceiptQueue'
+import type { DeductionCategory, DeductionSubmission } from '../hooks/useDeductions'
 import { EXTRACTION_KEY_REJECTED_MESSAGE } from '../lib/deductionExtraction'
 import { render, screen, waitFor, within } from '../test/render'
 import { DeductionReceiptImport } from './DeductionReceiptImport'
 
-const PICKER = "Add Will's deductions from receipts"
+const PICKER = 'Receipts'
 const member = { id: 'm1', name: 'Will' }
 
 const upload = vi.fn()
@@ -17,17 +19,38 @@ function receipt(name: string) {
   return new File(['x'], name, { type: 'application/pdf' })
 }
 
-function setup() {
-  const onCreate = vi.fn().mockResolvedValue(undefined)
-  render(
-    <DeductionReceiptImport
-      member={member}
-      attachments={attachments}
-      financialYear={2026}
-      groups={[]}
-      onCreate={onCreate}
-    />,
+/** Stands in for the Add deduction card's file input, which feeds the queue. */
+function Harness({
+  category,
+  onCreate,
+}: {
+  category: DeductionCategory
+  onCreate: (submission: DeductionSubmission) => Promise<void>
+}) {
+  const queue = useDeductionReceiptQueue(attachments)
+  return (
+    <>
+      <input
+        type="file"
+        multiple
+        aria-label={PICKER}
+        onChange={(event) => queue.add([...(event.currentTarget.files ?? [])], category)}
+      />
+      <DeductionReceiptImport
+        queue={queue}
+        member={member}
+        attachments={attachments}
+        financialYear={2026}
+        groups={[]}
+        onCreate={onCreate}
+      />
+    </>
   )
+}
+
+function setup(category: DeductionCategory = 'work_expense') {
+  const onCreate = vi.fn().mockResolvedValue(undefined)
+  render(<Harness category={category} onCreate={onCreate} />)
   return { onCreate, user: userEvent.setup({ delay: null }) }
 }
 
@@ -48,8 +71,7 @@ beforeEach(() => {
 
 describe('DeductionReceiptImport', () => {
   it('reads each receipt into its own deduction draft, as the chosen kind', async () => {
-    const { user } = setup()
-    await user.click(screen.getByText('Donation receipts'))
+    const { user } = setup('donation')
     await user.upload(screen.getByLabelText(PICKER), [receipt('a.pdf'), receipt('b.pdf')])
 
     await waitFor(() => expect(screen.getAllByLabelText('Description')).toHaveLength(2))

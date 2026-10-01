@@ -40,16 +40,22 @@ export interface DraftControls {
   attention: boolean
 }
 
-interface BulkUploadPanelProps<T, M> {
-  queue: UploadQueue<T, M>
+/** A picker and drop area the panel offers itself, for a surface whose add card does not feed it. */
+interface PanelPicker<M> {
   /** What the member picks, for the picker's label: "receipts", "payslips", "documents". */
   noun: string
   /** Names the picker for assistive technology and tests. */
   pickerLabel: string
-  /** Sent with every file added, such as a deduction's category. */
+  /** Sent with every file added. */
   meta: M
-  /** Shown above the picker, e.g. a choice that applies to the files added next. */
+  /** Shown above the picker. */
   controls?: ReactNode
+}
+
+interface BulkUploadPanelProps<T, M> {
+  queue: UploadQueue<T, M>
+  /** Omitted when files reach the queue from the add card's own file input. */
+  picker?: PanelPicker<M>
   /** The form for one file's draft. */
   renderDraft: (item: QueueItem<T, M>, controls: DraftControls) => ReactNode
 }
@@ -151,34 +157,23 @@ function ItemHeader<T, M>({
 }
 
 /**
- * The review surface for a bulk upload: a picker and drop area, then one card per
- * file with its status and — once read — the surface's own form for the draft.
+ * The review surface for a bulk upload: one card per file the queue holds, with its
+ * status and — once read — the surface's own form for the draft. It renders
+ * nothing until the queue has a file; files reach the queue from the add card's
+ * file input, which hands several at once to `queue.add`.
  * Each draft is confirmed, edited, or discarded on its own; **Save selected**
  * submits every selected draft's own form in turn, so a draft that is not valid
  * yet is reported rather than saved, and one that fails does not stop the rest.
  * Closing the panel deletes the stored files of drafts that were not saved.
  */
-export function BulkUploadPanel<T, M>({
-  queue,
-  noun,
-  pickerLabel,
-  meta,
-  controls,
-  renderDraft,
-}: BulkUploadPanelProps<T, M>) {
+export function BulkUploadPanel<T, M>({ queue, picker, renderDraft }: BulkUploadPanelProps<T, M>) {
   const [deselected, setDeselected] = useState<ReadonlySet<string>>(new Set())
-  const [skipped, setSkipped] = useState(0)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [summary, setSummary] = useState<string | null>(null)
   const [attention, setAttention] = useState<ReadonlySet<string>>(new Set())
   const container = useRef<HTMLDivElement>(null)
   // The saves each file's forms have started during a Save selected run.
   const submissions = useRef(new Map<string, Promise<void>[]>())
-
-  const add = (files: File[]) => {
-    setSkipped(queue.add(files, meta))
-    setSummary(null)
-  }
 
   const drafts = queue.items.filter((item) => DRAFT_STATUSES.includes(item.status))
   const selected = drafts.filter((item) => !deselected.has(item.id))
@@ -227,135 +222,155 @@ export function BulkUploadPanel<T, M>({
     )
   }
 
-  return (
-    <FileDropArea onFiles={add}>
-      <Stack gap="xs" ref={container}>
-        {controls}
-        <Group gap="xs">
-          <FileButton
-            multiple
-            inputProps={{ 'aria-label': pickerLabel }}
-            onChange={(files) => add(files)}
-          >
-            {(props) => (
-              <Button {...props} variant="default" size="xs">
-                Choose {noun}
-              </Button>
-            )}
-          </FileButton>
-          <Text size="xs" c="dimmed">
-            or drop several here. Any file type, up to 25 MB each.
-          </Text>
-        </Group>
+  if (queue.items.length === 0 && picker === undefined) {
+    return null
+  }
 
-        {skipped > 0 && (
-          <Alert color="yellow" variant="light" p="xs">
-            <Text size="xs">{batchLimitMessage(skipped)}</Text>
-          </Alert>
-        )}
-        {queue.halted !== null && (
-          <Alert color="yellow" variant="light" p="xs" title="Reading has stopped">
-            <Text size="xs">{queue.halted}</Text>
-          </Alert>
-        )}
-
-        {queue.items.map((item) => (
-          <Card
-            key={item.id}
-            withBorder
-            p="xs"
-            radius="md"
-            aria-label={item.file.name}
-            data-draft={item.id}
-          >
-            <Stack gap="xs">
-              <ItemHeader
-                item={item}
-                queue={queue}
-                selected={!deselected.has(item.id)}
-                onSelect={(on) => toggle(item.id, on)}
-              />
-              {attention.has(item.id) && (
-                <Text size="xs" c="red" role="alert">
-                  This one still needs a look.
-                </Text>
+  const panel = (
+    <Stack gap="xs" ref={container}>
+      {picker && (
+        <>
+          {picker.controls}
+          <Group gap="xs">
+            <FileButton
+              multiple
+              inputProps={{ 'aria-label': picker.pickerLabel }}
+              onChange={(files) => {
+                queue.add(files, picker.meta)
+                setSummary(null)
+              }}
+            >
+              {(props) => (
+                <Button {...props} variant="default" size="xs">
+                  Choose {picker.noun}
+                </Button>
               )}
-              {DRAFT_STATUSES.includes(item.status) &&
-                renderDraft(item, {
-                  attention: attention.has(item.id),
-                  discard: () => queue.finish(item.id, false),
-                  finish: (saved) => queue.finish(item.id, saved),
-                  save: async (run, completes = true) => {
-                    const started = run().then(() => {
-                      queue.keep(item.id)
-                      if (completes) {
-                        queue.finish(item.id, true)
-                      }
-                    })
-                    submissions.current.get(item.id)?.push(started)
-                    await started
-                  },
-                })}
-            </Stack>
-          </Card>
-        ))}
+            </FileButton>
+            <Text size="xs" c="dimmed">
+              or drop several here. Any file type, up to 25 MB each.
+            </Text>
+          </Group>
+        </>
+      )}
+      {queue.skipped > 0 && (
+        <Alert color="yellow" variant="light" p="xs">
+          <Text size="xs">{batchLimitMessage(queue.skipped)}</Text>
+        </Alert>
+      )}
+      {queue.halted !== null && (
+        <Alert color="yellow" variant="light" p="xs" title="Reading has stopped">
+          <Text size="xs">{queue.halted}</Text>
+        </Alert>
+      )}
 
-        {drafts.length > 0 && (
+      {queue.items.map((item) => (
+        <Card
+          key={item.id}
+          withBorder
+          p="xs"
+          radius="md"
+          aria-label={item.file.name}
+          data-draft={item.id}
+        >
           <Stack gap="xs">
-            <Group justify="space-between" wrap="wrap" gap="xs">
-              <Checkbox
-                size="xs"
-                label="Select all"
-                checked={selected.length === drafts.length}
-                indeterminate={selected.length > 0 && selected.length < drafts.length}
-                onChange={(event) =>
-                  setDeselected(
-                    event.currentTarget.checked ? new Set() : new Set(drafts.map((d) => d.id)),
-                  )
-                }
-              />
-              <Button
-                size="xs"
-                disabled={selected.length === 0 || saving}
-                onClick={() => void saveSelected()}
-              >
-                {saving ? 'Saving…' : `Save selected (${selected.length})`}
-              </Button>
-            </Group>
-            {progress !== null && (
-              <Stack gap={4} role="status">
-                <Progress value={(progress.done / progress.total) * 100} size="sm" />
-                <Text size="xs" c="dimmed">
-                  Saved {progress.done} of {progress.total}
-                </Text>
-              </Stack>
+            <ItemHeader
+              item={item}
+              queue={queue}
+              selected={!deselected.has(item.id)}
+              onSelect={(on) => toggle(item.id, on)}
+            />
+            {attention.has(item.id) && (
+              <Text size="xs" c="red" role="alert">
+                This one still needs a look.
+              </Text>
             )}
+            {DRAFT_STATUSES.includes(item.status) &&
+              renderDraft(item, {
+                attention: attention.has(item.id),
+                discard: () => queue.finish(item.id, false),
+                finish: (saved) => queue.finish(item.id, saved),
+                save: async (run, completes = true) => {
+                  const started = run().then(() => {
+                    queue.keep(item.id)
+                    if (completes) {
+                      queue.finish(item.id, true)
+                    }
+                  })
+                  submissions.current.get(item.id)?.push(started)
+                  await started
+                },
+              })}
           </Stack>
-        )}
+        </Card>
+      ))}
 
-        {summary !== null && (
-          <Text size="sm" role="status">
-            {summary}
-          </Text>
-        )}
+      {drafts.length > 0 && (
+        <Stack gap="xs">
+          <Group justify="space-between" wrap="wrap" gap="xs">
+            <Checkbox
+              size="xs"
+              label="Select all"
+              checked={selected.length === drafts.length}
+              indeterminate={selected.length > 0 && selected.length < drafts.length}
+              onChange={(event) =>
+                setDeselected(
+                  event.currentTarget.checked ? new Set() : new Set(drafts.map((d) => d.id)),
+                )
+              }
+            />
+            <Button
+              size="xs"
+              disabled={selected.length === 0 || saving}
+              onClick={() => void saveSelected()}
+            >
+              {saving ? 'Saving…' : `Save selected (${selected.length})`}
+            </Button>
+          </Group>
+          {progress !== null && (
+            <Stack gap={4} role="status">
+              <Progress value={(progress.done / progress.total) * 100} size="sm" />
+              <Text size="xs" c="dimmed">
+                Saved {progress.done} of {progress.total}
+              </Text>
+            </Stack>
+          )}
+        </Stack>
+      )}
 
-        {queue.items.length > 0 && (
-          <Button
-            size="xs"
-            variant="default"
-            disabled={saving}
-            onClick={() => {
-              queue.clear()
-              setSummary(null)
-              setSkipped(0)
-              setAttention(new Set())
-              setDeselected(new Set())
-            }}
-          >
-            {unsaved ? 'Discard all' : 'Done'}
-          </Button>
-        )}
-      </Stack>
+      {summary !== null && (
+        <Text size="sm" role="status">
+          {summary}
+        </Text>
+      )}
+
+      {queue.items.length > 0 && (
+        <Button
+          size="xs"
+          variant="default"
+          disabled={saving}
+          onClick={() => {
+            queue.clear()
+            setSummary(null)
+            setAttention(new Set())
+            setDeselected(new Set())
+          }}
+        >
+          {unsaved ? 'Discard all' : 'Done'}
+        </Button>
+      )}
+    </Stack>
+  )
+
+  return picker ? (
+    <FileDropArea
+      onFiles={(files) => {
+        queue.add(files, picker.meta)
+        setSummary(null)
+      }}
+    >
+      {panel}
     </FileDropArea>
+  ) : (
+    panel
   )
 }

@@ -13,8 +13,14 @@ import { Group, Stack, Text } from '@mantine/core'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionGroupInput, DeductionGroupRow } from '../hooks/useDeductionGroups'
+import { useDeductionReceiptQueue } from '../hooks/useDeductionReceiptQueue'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
-import type { DeductionInput, DeductionRow, DeductionSubmission } from '../hooks/useDeductions'
+import type {
+  DeductionCategory,
+  DeductionInput,
+  DeductionRow,
+  DeductionSubmission,
+} from '../hooks/useDeductions'
 import type { Member } from '../hooks/useMembers'
 import { droppedGroupId, groupDropId, UNGROUPED_DROP_ID } from '../lib/deductionDrop'
 import { formatCents } from '../lib/money'
@@ -114,6 +120,7 @@ function MemberDeductions({
   // A second confirm dialog for a deduction's receipt; the deduction's own
   // delete is owned by the EditableList. Only one is ever open at a time.
   const { confirm, modal } = useConfirmDelete()
+  const queue = useDeductionReceiptQueue(attachments)
 
   // The member's total counts every deduction, grouped or not — a group is a
   // reading of rows that are each claimed in their own right.
@@ -212,6 +219,7 @@ function MemberDeductions({
         </Group>
 
         <DeductionReceiptImport
+          queue={queue}
           member={member}
           attachments={attachments}
           financialYear={financialYear}
@@ -322,7 +330,12 @@ function MemberDeductions({
                 financialYear={financialYear}
                 groups={groups}
                 initial={initial}
-                {...(initial && receiptControls(initial))}
+                {...(initial
+                  ? receiptControls(initial)
+                  : {
+                      onAddFiles: (files: File[], category: DeductionCategory) =>
+                        queue.add(files, category),
+                    })}
                 onSubmit={onSubmit}
                 onCancel={onCancel}
               />

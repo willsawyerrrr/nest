@@ -22,6 +22,7 @@ import { isoDaysBefore, todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import type { PayslipExtraction } from '../lib/payslipExtraction'
 import { financialYearForPayslip } from '../lib/payslips'
+import { FileDropArea } from './FileDropArea'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 import { PayslipEarningsLinesField, PayslipTaxLinesField } from './PayslipLinesField'
@@ -44,6 +45,12 @@ interface PayslipFormProps {
    * upload owns the file's cleanup.
    */
   draft?: UploadDraft<PayslipExtraction> | undefined
+  /**
+   * When adding, hands several documents picked or dropped at once to a bulk
+   * upload and closes the form; one document is read into this form as usual.
+   * Omitted, the picker takes a single document.
+   */
+  onAddFiles?: ((files: File[]) => void) | undefined
   onSubmit: (submission: PayslipSubmission) => void | Promise<void>
   onCancel?: () => void
   /** Overrides the cancel button's label (e.g. "Discard"). */
@@ -183,6 +190,7 @@ export function PayslipForm({
   attachments,
   initial,
   draft,
+  onAddFiles,
   onSubmit,
   onCancel,
   cancelLabel,
@@ -235,6 +243,32 @@ export function PayslipForm({
   }, [])
 
   const { values } = fields
+  const multiple = onAddFiles !== undefined && initial === undefined
+  // One document is read into this form; several go to the bulk upload and the
+  // form gives way to their review.
+  const handleFiles = (files: File[]) => {
+    if (slip.busy) {
+      return
+    }
+    if (multiple && files.length > 1) {
+      onAddFiles(files)
+      onCancel?.()
+      return
+    }
+    void slip.choose(files[0] ?? null)
+  }
+  const documentInput = {
+    label: multiple ? 'Payslip documents' : 'Payslip document',
+    size: 'sm',
+    description:
+      initial?.file_path == null
+        ? `${multiple ? 'Add a payslip or several: one is read into the figures below to check, several are each read into their own payslip to review. ' : ''}Any file, up to 25 MB. Stored privately, then read to pre-fill the figures below where it can be — which you confirm.`
+        : 'Any file, up to 25 MB. Read to pre-fill the figures below where it can be, and replaces the document already attached.',
+    placeholder: multiple ? 'Attach a payslip or several' : 'Attach the slip',
+    clearable: true,
+    clearButtonProps: { 'aria-label': 'Remove the attached document' },
+    disabled: slip.busy,
+  } as const
   const { lines } = drafts
   const earningDrafts = lines.filter((line) => line.kind === 'earning')
   const taxDrafts = lines.filter((line) => line.kind === 'tax')
@@ -329,21 +363,22 @@ export function PayslipForm({
     >
       {draft && draftRead !== null && <ReadFromSlip state={{ status: 'read', ...draftRead }} />}
       {!draft && (
-        <FileInput
-          label="Payslip document"
-          size="sm"
-          description={
-            initial?.file_path == null
-              ? 'Any file, up to 25 MB. Stored privately, then read to pre-fill the figures below where it can be — which you confirm.'
-              : 'Any file, up to 25 MB. Read to pre-fill the figures below where it can be, and replaces the document already attached.'
-          }
-          placeholder="Attach the slip"
-          clearable
-          clearButtonProps={{ 'aria-label': 'Remove the attached document' }}
-          disabled={slip.busy}
-          value={slip.file}
-          onChange={(file) => void slip.choose(file)}
-        />
+        <FileDropArea onFiles={handleFiles}>
+          {multiple ? (
+            <FileInput
+              {...documentInput}
+              multiple
+              value={slip.file ? [slip.file] : []}
+              onChange={handleFiles}
+            />
+          ) : (
+            <FileInput
+              {...documentInput}
+              value={slip.file}
+              onChange={(file) => void slip.choose(file)}
+            />
+          )}
+        </FileDropArea>
       )}
 
       {!draft && <ExtractionNote state={slip.state} />}

@@ -1,21 +1,26 @@
 # Bulk upload
 
-Deduction receipts, payslips, and trade documents each take many files at once.
-Each surface has a panel above its list: a **Choose** button (multi-select) and a
-drop area, for desktop drag-and-drop. No new tables, functions, or migrations: a
-file is stored and read as in the single-file flows, and every draft is saved
-through the same RPC the single form uses.
+Deduction receipts and payslips are added from the **Add** card's own file input,
+which takes one file or many (multi-select, or dropped on the card). One file is
+read into the card's fields to check, as ever. Several are handed to a queue and
+the card closes, leaving a review of one draft per file above the list. Trade
+documents are still added from a **Choose** button and drop area on a panel above
+the list. No new tables, functions, or migrations: a file is stored and read as in
+the single-file flows, and every draft is saved through the same RPC the single
+form uses.
 
 ## Surfaces
 
-| Surface        | Panel                    | One file becomes           | Saved by                          |
+| Surface        | Review panel             | One file becomes           | Saved by                          |
 | -------------- | ------------------------ | -------------------------- | --------------------------------- |
 | Deductions     | `DeductionReceiptImport` | one deduction draft        | `create_deduction_with_receipt`   |
 | Payslips       | `PayslipImport`          | one payslip draft          | `upsert_payslip_with_lines`       |
 | Investments    | `TradeDocumentImport`    | a draft per trade on it    | `create_trades_with_document`     |
 
-Replacing or adding the receipt of an existing deduction stays a single-file
-control: it targets one record, so there is nothing to batch. Trade documents are
+A form opened inside a deduction group, and every edit form, takes a single file:
+a payment belongs to its group and an edit targets one record, so neither hands
+files to a batch. Replacing or adding the receipt of an existing deduction stays a
+single-file control: it targets one record, so there is nothing to batch. Trade documents are
 the only surface where one file yields several drafts.
 
 The Add trade card is the single-trade path to the same machinery: it holds its own
@@ -25,13 +30,17 @@ hand that same queue to `BulkUploadPanel` with the trade drafts' `renderDraft`, 
 place of the form.
 
 A deduction batch is read for one kind at a time (work expense, donation receipt,
-tax agent invoice), chosen above the picker; it primes `deduction-extract` and is
+tax agent invoice), the kind chosen on the Add deduction card before the files are
+picked; it primes `deduction-extract` and is
 each draft's starting category, still editable per draft.
 
 ## The queue
 
 `useUploadQueue` holds every file in a batch and drives it; `BulkUploadPanel` renders
-it. Each surface supplies its own `upload`, `discard`, `read`, and form.
+the review. Each surface supplies its own `upload`, `discard`, `read`, and form
+(`useDeductionReceiptQueue`, `usePayslipQueue`). The screen owns the queue, passes
+its `add` to the Add card, and passes the queue to the review panel, which renders
+nothing until a file is queued.
 
 - **Statuses**: queued, reading, ready, unsupported type, enter by hand, couldn't be
   read, saved. A file over 25 MB, or that fails to store, is "couldn't be read"

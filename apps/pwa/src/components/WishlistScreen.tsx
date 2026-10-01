@@ -1,5 +1,6 @@
-import { ActionIcon, Badge, Button, Group, Select, Stack, Text } from '@mantine/core'
-import { IconBuildingBank, IconTargetArrow } from '@tabler/icons-react'
+import { ActionIcon, Badge, Group, Menu, Select, Stack, Text } from '@mantine/core'
+import { IconBuildingBank, IconDots, IconTargetArrow } from '@tabler/icons-react'
+import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import { useSortPreference } from '../hooks/useSortPreference'
 import type { WishlistItem, WishlistItemInput } from '../hooks/useWishlist'
@@ -8,6 +9,7 @@ import { sortBy, type SortPreference } from '../lib/sort'
 import { AppCard } from './AppCard'
 import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
+import { ListRow } from './ListRow'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
 import { WishlistForm } from './WishlistForm'
@@ -41,69 +43,111 @@ interface WishlistScreenProps {
   onPromoteToBudget: (item: WishlistItem) => void
 }
 
-/** One wishlist item: its name, rough cost, optional owner and note, with promote and edit controls. */
-function WishlistItemCard({
-  item,
-  ownerName,
-  onEdit,
-  onDelete,
-  onPromoteToGoal,
-  onPromoteToBudget,
-}: {
+interface WishlistItemProps {
   item: WishlistItem
   ownerName: string | null
   onEdit: () => void
   onDelete: () => void
   onPromoteToGoal: () => void
   onPromoteToBudget: () => void
-}) {
+}
+
+/** The overflow menu holding an item's two promote actions. */
+function PromoteMenu({
+  onPromoteToGoal,
+  onPromoteToBudget,
+}: Pick<WishlistItemProps, 'onPromoteToGoal' | 'onPromoteToBudget'>) {
   return (
-    <AppCard withBorder padding="sm">
-      <Stack gap="xs">
-        <Group justify="space-between" wrap="nowrap" gap="sm" align="flex-start">
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Group gap="xs" wrap="nowrap">
-              <Text fw={600} size="sm" truncate>
-                {item.name}
-              </Text>
-              {ownerName && (
-                <Badge size="xs" variant="light" color="gray">
-                  {ownerName}
-                </Badge>
-              )}
-            </Group>
-            {item.note && (
-              <Text size="xs" c="dimmed">
-                {item.note}
-              </Text>
-            )}
-          </Stack>
-          <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }} align="center">
-            <MoneyText cents={item.amount_cents} fw={600} size="sm" />
-            <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+    <Menu position="bottom-end" withinPortal>
+      <Menu.Target>
+        <ActionIcon variant="subtle" color="gray" aria-label="Promote">
+          <IconDots size={16} />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Item leftSection={<IconTargetArrow size={14} />} onClick={onPromoteToGoal}>
+          Make a savings goal
+        </Menu.Item>
+        <Menu.Item leftSection={<IconBuildingBank size={14} />} onClick={onPromoteToBudget}>
+          Add to budget
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  )
+}
+
+/** The owner pill beside an item's name. */
+function OwnerBadge({ ownerName }: { ownerName: string | null }) {
+  return (
+    ownerName && (
+      <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+        {ownerName}
+      </Badge>
+    )
+  )
+}
+
+/**
+ * One wishlist item as a dense table-like row for desktop: the name and owner pill
+ * grow to fill, the note sits beneath as a caption, and the amount lines up in a
+ * fixed right-aligned column ahead of the promote menu and edit/delete controls.
+ */
+function WishlistRow({ item, ownerName, ...actions }: WishlistItemProps) {
+  return (
+    <ListRow gap="sm" caption={item.note ?? undefined}>
+      <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
+          {item.name}
+        </Text>
+        <OwnerBadge ownerName={ownerName} />
+      </Group>
+      <MoneyText
+        cents={item.amount_cents}
+        fw={600}
+        size="sm"
+        ta="right"
+        style={{ width: '7rem', flexShrink: 0 }}
+      />
+      <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
+        <PromoteMenu {...actions} />
+        <EditDeleteActions onEdit={actions.onEdit} onDelete={actions.onDelete} />
+      </Group>
+    </ListRow>
+  )
+}
+
+/** One wishlist item as a compact bordered card for mobile. */
+function WishlistCard({ item, ownerName, ...actions }: WishlistItemProps) {
+  return (
+    <AppCard withBorder padding="xs">
+      <Group justify="space-between" wrap="nowrap" gap="sm" align="flex-start">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Group gap={6} wrap="nowrap">
+            <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
+              {item.name}
+            </Text>
+            <OwnerBadge ownerName={ownerName} />
           </Group>
+          {item.note && (
+            <Text size="xs" c="dimmed">
+              {item.note}
+            </Text>
+          )}
+        </Stack>
+        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }} align="center">
+          <MoneyText cents={item.amount_cents} fw={600} size="sm" />
+          <PromoteMenu {...actions} />
+          <EditDeleteActions onEdit={actions.onEdit} onDelete={actions.onDelete} />
         </Group>
-        <Group gap="xs">
-          <Button
-            size="compact-xs"
-            variant="light"
-            leftSection={<IconTargetArrow size={14} />}
-            onClick={onPromoteToGoal}
-          >
-            Make a savings goal
-          </Button>
-          <Button
-            size="compact-xs"
-            variant="light"
-            leftSection={<IconBuildingBank size={14} />}
-            onClick={onPromoteToBudget}
-          >
-            Add to budget
-          </Button>
-        </Group>
-      </Stack>
+      </Group>
     </AppCard>
   )
+}
+
+/** A wishlist item as a dense row from the `sm` breakpoint up and a compact card below it. */
+function WishlistItemView(props: WishlistItemProps) {
+  const wide = useIsWide()
+  return wide ? <WishlistRow {...props} /> : <WishlistCard {...props} />
 }
 
 /**
@@ -163,7 +207,7 @@ export function WishlistScreen({
         onUpdate={onUpdate}
         onDelete={onDelete}
         renderItem={(item, { onEdit, onDelete: onDeleteItem }) => (
-          <WishlistItemCard
+          <WishlistItemView
             item={item}
             ownerName={item.member_id ? memberName(members, item.member_id) : null}
             onEdit={onEdit}

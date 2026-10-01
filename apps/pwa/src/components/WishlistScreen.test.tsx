@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeMember, makeWishlistItem } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { WishlistScreen } from './WishlistScreen'
 
 const members = [makeMember({ id: 'm1', name: 'Will' }), makeMember({ id: 'm2', name: 'Sam' })]
@@ -114,15 +114,37 @@ describe('WishlistScreen', () => {
     expect(onDelete).toHaveBeenCalledWith('w1')
   })
 
-  it('promotes an item to a goal and to the budget', async () => {
+  it.each([
+    ['narrow', false],
+    ['wide', true],
+  ])('promotes an item to a goal and to the budget from its menu (%s)', async (_name, wide) => {
+    if (wide) {
+      setWideViewport()
+    }
     const user = userEvent.setup()
     const item = makeWishlistItem({ id: 'w1', name: 'Couch' })
     const { onPromoteToGoal, onPromoteToBudget } = renderScreen({ items: [item] })
 
-    await user.click(screen.getByRole('button', { name: /make a savings goal/i }))
+    expect(screen.queryByRole('button', { name: /make a savings goal/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /promote/i }))
+    await user.click(await screen.findByRole('menuitem', { name: /make a savings goal/i }))
     expect(onPromoteToGoal).toHaveBeenCalledWith(item)
 
-    await user.click(screen.getByRole('button', { name: /add to budget/i }))
+    await user.click(screen.getByRole('button', { name: /promote/i }))
+    await user.click(await screen.findByRole('menuitem', { name: /add to budget/i }))
     expect(onPromoteToBudget).toHaveBeenCalledWith(item)
+  })
+
+  it('renders the wide row with its owner pill and note caption', () => {
+    setWideViewport()
+    renderScreen({
+      items: [
+        makeWishlistItem({ name: 'Bike', member_id: 'm2', note: 'Gravel', amount_cents: 900_00 }),
+      ],
+    })
+    expect(screen.getByText('Sam')).toBeInTheDocument()
+    expect(screen.getByText('Gravel')).toBeInTheDocument()
+    expect(screen.getByText('$900.00')).toBeInTheDocument()
   })
 })

@@ -262,7 +262,10 @@ token.
 - **Disconnect** — `redbark-disconnect` checks the caller owns the named
   connection (404 if it does not exist, 403 if it belongs to a co-member),
   revokes it with Redbark (`DELETE /connections/{id}`, treating an
-  already-gone connection as success), and deletes the local row.
+  already-gone connection as success), and deletes the local row. The
+  Connections card lists each connection as a `ListRow` (institution, member,
+  fixed-width status pill) with an icon Disconnect action, shown for the
+  caller's own connections only and guarded by a confirm dialog.
 - **Sync** — `redbark-sync` follows `up-sync`'s cron-vs-manual JWT pattern.
   Per connection: lists its accounts, filters to `category = 'banking'`
   (brokerage has no home in the schema), reads each account's balance, and

@@ -40,6 +40,12 @@ describe('ConfirmDeleteModal', () => {
     expect(screen.queryByText(/This cannot be undone\./)).not.toBeInTheDocument()
   })
 
+  it('uses a custom verb for the question and the confirm button', () => {
+    renderModal({ target: { ...target, confirmLabel: 'Disconnect' } })
+    expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+  })
+
   it('invokes onConfirm from the Delete button', async () => {
     const user = userEvent.setup()
     const onConfirm = vi.fn()

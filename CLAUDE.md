@@ -349,7 +349,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `file_donation_in_default_group` trigger (`before insert or update`) into the
   member's `donations`-kind `deduction_group` for the year (`deduction_group.kind`
   is `standard`, the default, or `donations`), that group created the first time
-  it is needed; the 20260921000000 migration flags existing automatic groups and
+  it is needed; the 20260921010000 migration flags existing automatic groups and
   files existing donations the same way. The kind, not the name, marks the group,
   so a member's own group named "Donations" is an ordinary standard group. Only a
   donation can sit in a `donations` group and a donation can sit in no other

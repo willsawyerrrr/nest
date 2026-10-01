@@ -14,7 +14,7 @@
 -- transaction and rolled back.
 
 \set ON_ERROR_STOP on
-\set MIGRATION ../../migrations/20260921000000_donations_only_group.sql
+\set MIGRATION ../../migrations/20260921010000_donations_only_group.sql
 begin;
 
 insert into auth.users (instance_id, id, aud, role, email) values

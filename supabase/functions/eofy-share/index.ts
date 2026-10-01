@@ -65,7 +65,7 @@ async function selectForHousehold(
 
 /**
  * Loads every row the shared view needs, scoped to the resolved grant:
- * unfiltered by financial year for `members`, `inflows`, and `helpDebts`
+ * unfiltered by financial year for `members`, `inflows`, `helpDebts`, and `trades`
  * (mirroring `useInflows`/`useHelpDebts`, which read the household's whole
  * history), scoped to the grant's financial year for the rest, and
  * `deductionReceipts` pre-filtered to the deductions already loaded — never
@@ -98,6 +98,7 @@ async function loadEofyShareRows(
     deductions,
     payslips,
     savingsGoals,
+    trades,
     accounts,
   ] = await Promise.all([
     selectForHousehold(admin, 'inflows', householdId),
@@ -110,6 +111,8 @@ async function loadEofyShareRows(
     // Unfiltered by financial year, matching `useGoals`; feeds projected savings
     // interest into the shared tax estimate.
     selectForHousehold(admin, 'savings_goal', householdId),
+    // Unfiltered by financial year, matching `useTrades`; feeds the net capital gain.
+    selectForHousehold(admin, 'trade', householdId),
     loadAccountsWithBalance(admin, householdId),
   ])
 
@@ -138,6 +141,7 @@ async function loadEofyShareRows(
     deductionReceipts,
     payslips,
     savingsGoals,
+    trades,
     accounts,
   }
 }

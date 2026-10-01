@@ -11,6 +11,7 @@ import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
+import { useTrades } from '../hooks/useTrades'
 import { memberName } from '../lib/members'
 import { paygWithheldFromRows } from '../lib/payslips'
 import {
@@ -33,6 +34,7 @@ export function TaxSection() {
   const payslips = usePayslips()
   const goals = useGoals()
   const savers = useSavers()
+  const trades = useTrades()
 
   if (
     membersLoading ||
@@ -45,6 +47,7 @@ export function TaxSection() {
     payslips.loading ||
     goals.loading ||
     savers.loading ||
+    trades.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -76,6 +79,7 @@ export function TaxSection() {
     paygWithheldFromRows(payslips.payslips ?? []),
     members,
     interestIncomes,
+    trades.trades ?? [],
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],
@@ -103,6 +107,7 @@ export function TaxSection() {
         paygWithheldFromRows(payslips.payslips ?? []),
         members,
         projectedInterestIncomeInputs(goals.baselineGoals ?? [], saverRows, members),
+        trades.trades ?? [],
       )
     : undefined
 

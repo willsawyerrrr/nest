@@ -228,8 +228,10 @@ concurrency — but a `429` is surfaced (`RedbarkApiError`, message names
 
 Holdings and trades ride SnapTrade on Redbark's Professional tier, with
 credential-based auth rather than a revocable CDR consent, and would need
-their own table and reconcile pass — `equity_grant` models startup equity, not
-market-listed securities. Worth taking on only once a brokerage balance
+their own reconcile pass. The `trade` table (see
+[`investments.md`](investments.md)) already holds manually entered trades keyed
+by `source` and `external_id` like `transactions`, so an import upserts into it;
+`equity_grant` models startup equity, not market-listed securities. Worth taking on only once a brokerage balance
 genuinely needs to be in net worth, and as its own phase after this one.
 
 ## Where this lands

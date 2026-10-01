@@ -44,6 +44,9 @@ const EofyShareSection = lazy(() =>
 const EquitySection = lazy(() =>
   import('./routes/EquitySection').then((m) => ({ default: m.EquitySection })),
 )
+const InvestmentsSection = lazy(() =>
+  import('./routes/InvestmentsSection').then((m) => ({ default: m.InvestmentsSection })),
+)
 const GiftsSection = lazy(() =>
   import('./routes/GiftsSection').then((m) => ({ default: m.GiftsSection })),
 )
@@ -246,6 +249,7 @@ function HouseholdShell({
             <Route path="/help-debt" element={<HelpDebtSection />} />
             <Route path="/eofy" element={<EofySection />} />
             <Route path="/equity" element={<EquitySection />} />
+            <Route path="/investments" element={<InvestmentsSection />} />
             <Route path="/gifts" element={<GiftsSection />} />
             <Route path="/breakdowns" element={<BreakdownsSection />} />
             <Route path="/breakdowns/:id" element={<BreakdownDetailSection />} />

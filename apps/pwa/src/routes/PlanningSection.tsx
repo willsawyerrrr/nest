@@ -24,6 +24,7 @@ import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
+import { useTrades } from '../hooks/useTrades'
 import { derivedAmountContext } from '../lib/breakdowns'
 import { equityGrantToPlan } from '../lib/equity'
 import { memberName } from '../lib/members'
@@ -34,6 +35,7 @@ import { readAssumptions, readMemberAges, readProjectionHorizon } from '../lib/r
 import { summariseHousehold } from '../lib/summary'
 import type { EquityHolding, Liability } from '../lib/super'
 import { estimateHouseholdTaxFromRows, projectedInterestIncomeInputs } from '../lib/tax'
+import { heldEquityHoldings } from '../lib/trades'
 
 const TABLE_LABEL: Record<PlanningTable, string> = {
   inflows: 'Inflow',
@@ -170,6 +172,7 @@ export function PlanningSection() {
   const helpDebts = useHelpDebts()
   const deductions = useDeductions()
   const equityGrants = useEquityGrants()
+  const trades = useTrades()
   const temporaryItems = useTemporaryItems()
   const gifts = useGifts()
   const breakdowns = useBreakdowns()
@@ -191,6 +194,7 @@ export function PlanningSection() {
     helpDebts.loading ||
     deductions.loading ||
     equityGrants.loading ||
+    trades.loading ||
     temporaryItems.loading ||
     gifts.loading ||
     breakdowns.loading ||
@@ -274,12 +278,17 @@ export function PlanningSection() {
       balanceCents: debt.balance_cents,
     }))
   const planGrants = grantRows.map(equityGrantToPlan)
-  const equity: EquityHolding[] = grantRows
-    .map((grant) => ({
-      label: `${memberName(members, grant.member_id)} — ${grant.label}`,
-      valueCents: grantValueCents(equityGrantToPlan(grant), today),
-    }))
-    .filter((holding) => holding.valueCents > 0)
+  const heldEquity = heldEquityHoldings(trades.trades ?? [], members)
+  const heldEquityCents = heldEquity.reduce((total, holding) => total + holding.valueCents, 0)
+  const equity: EquityHolding[] = [
+    ...grantRows
+      .map((grant) => ({
+        label: `${memberName(members, grant.member_id)} — ${grant.label}`,
+        valueCents: grantValueCents(equityGrantToPlan(grant), today),
+      }))
+      .filter((holding) => holding.valueCents > 0),
+    ...heldEquity,
+  ]
   const ages = readMemberAges()
   const assumptions = readAssumptions()
   const horizonYears = resolveHorizonYears(
@@ -301,6 +310,7 @@ export function PlanningSection() {
       planGrants,
       liabilities,
       equity,
+      heldEquityCents,
       inflows: inf,
       goals: gls,
       budgetLines: lines,

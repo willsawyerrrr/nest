@@ -50,6 +50,17 @@ export interface DeductionRow {
   amount_cents: number
 }
 
+/** The `trade` columns holdings, realised gains, and the net capital gain read. */
+export interface TradeRow {
+  member_id: string
+  ticker: string
+  side: string
+  traded_on: string
+  units: number
+  price_per_unit_cents: number
+  fee_cents: number
+}
+
 /** The `super_contribution` columns the estimate and the cap summary read. */
 export interface SuperContributionRow {
   member_id: string

@@ -8,6 +8,7 @@
 
 import {
   estimateHouseholdTax,
+  netCapitalGainByMember,
   type HouseholdTaxEstimate,
   type IncomeInput,
   type Residency,
@@ -21,6 +22,7 @@ import type {
   MemberRow,
   SuperContributionRow,
   TaxProfileRow,
+  TradeRow,
 } from '../rows.ts'
 import { currentTaxConfig } from './config.ts'
 import { inflowIncomeInputs } from './income.ts'
@@ -31,6 +33,7 @@ import {
   grossByMemberFromInflows,
   helpDebtCentsByMember,
 } from './superBases.ts'
+import { toTradeInputs } from './trades.ts'
 
 /**
  * Maps a `tax_profile` row to the tax engine's `TaxProfileInput`. The member's
@@ -75,6 +78,10 @@ function toTaxProfileInput(profile: TaxProfileRow, helpDebtCents: number): TaxPr
  * ({@link projectedInterestIncomeInputs}), assessable as `other` income and
  * carrying no effective window, so the same figure reaches this whole-year
  * estimate and the budget's active-now rerun.
+ * `trades`, when supplied, are every recorded share and ETF trade (not just the
+ * year's, since a sale is matched against earlier purchases): each member's net
+ * capital gain for `config.financialYear` joins their assessable income
+ * (`netCapitalGainByMember`).
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly InflowRow[],
@@ -86,6 +93,7 @@ export function estimateHouseholdTaxFromRows(
   paygWithheld?: ReadonlyMap<string, number>,
   members: readonly MemberRow[] = [],
   extraIncomes: readonly IncomeInput[] = [],
+  trades: readonly TradeRow[] = [],
 ): HouseholdTaxEstimate {
   // Keyed to allow a null member id, which a taxable inflow can carry: it simply
   // matches no member, and an unknown date of birth reads as the higher rate.
@@ -140,5 +148,6 @@ export function estimateHouseholdTaxFromRows(
     concessionalByMember(contributions, grossByMember),
     deductionsByMember(deductions),
     paygWithheld,
+    netCapitalGainByMember(toTradeInputs(trades), config.financialYear),
   )
 }

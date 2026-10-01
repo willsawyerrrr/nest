@@ -11,6 +11,7 @@ import type { PayslipRow } from './usePayslips'
 import type { SuperContribution } from './useSuperContributions'
 import type { SuperProfile } from './useSuperProfiles'
 import type { TaxProfile } from './useTaxProfiles'
+import type { TradeRow } from './useTrades'
 
 /**
  * The `eofy-share` response: the same raw rows `EofySection.tsx` loads for the
@@ -32,6 +33,8 @@ export interface EofyShareData {
   deductionReceipts: DeductionReceiptRow[]
   payslips: PayslipRow[]
   savingsGoals: Goal[]
+  /** Every trade, unfiltered by financial year: a sale is matched against earlier purchases. */
+  trades: TradeRow[]
   /** `{ id, owner_member_id, balance_cents }` per account — enough to attribute projected savings interest. */
   accounts: Pick<Account, 'id' | 'owner_member_id' | 'balance_cents'>[]
 }

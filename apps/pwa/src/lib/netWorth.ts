@@ -156,8 +156,10 @@ export interface NetWorthComputeInput {
   planGrants: EquityGrant[]
   /** Named liabilities (each member's HELP debt) subtracted from the total. */
   liabilities: Liability[]
-  /** Vested equity holdings added to the total. */
+  /** Equity holdings (vested grants and held shares) added to the total. */
   equity: EquityHolding[]
+  /** The part of `equity` that is shares and ETFs already held, kept flat in the projection. */
+  heldEquityCents?: number
   inflows: Inflow[]
   goals: Goal[]
   budgetLines: BudgetLine[]
@@ -194,6 +196,7 @@ export function computeNetWorth({
   planGrants,
   liabilities,
   equity,
+  heldEquityCents = 0,
   inflows,
   goals,
   budgetLines,
@@ -259,6 +262,7 @@ export function computeNetWorth({
     },
     otherCents: cashCents,
     equityGrants: planGrants,
+    heldEquityCents,
     helpCentsByYear,
     savingsGoals,
     debtCents: debtCents + homeLoanDebtCents,

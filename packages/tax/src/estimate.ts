@@ -142,6 +142,14 @@ export interface MemberTaxEstimate {
    * offset), the Medicare levy, the HELP repayment, and Division 293.
    */
   readonly annualOneOffAfterTaxCents: Money
+  /**
+   * The member's net capital gain for the year — after capital losses and the CGT
+   * discount — assessed as income. Part of `annualGrossCents` and excluded from the
+   * fortnightly figures, as a gain realised on a sale has no fortnightly share.
+   */
+  readonly annualNetCapitalGainCents: Money
+  /** The tax the net capital gain itself adds: the liability with it less the liability without. */
+  readonly annualCapitalGainTaxCents: Money
   readonly fortnightlyGrossCents: Money
   readonly fortnightlyTaxCents: Money
   readonly fortnightlyAfterTaxCents: Money
@@ -165,6 +173,8 @@ export interface HouseholdTaxEstimate {
   readonly annualAfterTaxCents: Money
   readonly annualOneOffGrossCents: Money
   readonly annualOneOffAfterTaxCents: Money
+  readonly annualNetCapitalGainCents: Money
+  readonly annualCapitalGainTaxCents: Money
   readonly fortnightlyGrossCents: Money
   readonly fortnightlyTaxCents: Money
   readonly fortnightlyAfterTaxCents: Money
@@ -317,6 +327,7 @@ export function estimateHouseholdTax(
   concessionalByMember?: ReadonlyMap<string, Money>,
   deductionsByMember?: ReadonlyMap<string, Money>,
   paygWithheldByMember?: ReadonlyMap<string, Money>,
+  capitalGainsByMember?: ReadonlyMap<string, Money>,
 ): HouseholdTaxEstimate {
   const incomeByMember = new Map<string, MemberIncome>()
   const memberOrder: string[] = []
@@ -376,6 +387,7 @@ export function estimateHouseholdTax(
     const profile = profileByMember.get(memberId) ?? { memberId, ...DEFAULT_PROFILE }
     const concessionalCents = concessionalByMember?.get(memberId) ?? 0
     const deductionsCents = deductionsByMember?.get(memberId) ?? 0
+    const capitalGainCents = capitalGainsByMember?.get(memberId) ?? 0
     // The whole-of-income cap is measured against the member's other TAXABLE income,
     // so the recurring gross is taken net of their deductions and concessional super
     // exactly as `taxableIncome` takes it.
@@ -391,6 +403,7 @@ export function estimateHouseholdTax(
         investmentCents: 0,
         otherCents: bucket.otherCents,
         employmentTerminationCents: oneOffs.assessableCents,
+        netCapitalGainCents: capitalGainCents,
       },
       deductionsCents,
       residency: profile.residency,
@@ -406,6 +419,7 @@ export function estimateHouseholdTax(
       profile,
       concessionalCents,
       deductionsCents,
+      capitalGainCents,
       oneOffs,
       input,
       firstPass: computeTax(input, config),
@@ -429,7 +443,15 @@ export function estimateHouseholdTax(
   // Pass 2: re-run each member with the family-assessed surcharge injected, so the
   // surcharge line and total liability reflect the combined-income assessment.
   const members = contexts.map((context, index) => {
-    const { memberId, bucket, concessionalCents, deductionsCents, oneOffs, input } = context
+    const {
+      memberId,
+      bucket,
+      concessionalCents,
+      deductionsCents,
+      capitalGainCents,
+      oneOffs,
+      input,
+    } = context
     const perMemberSurchargeCents = familySurcharge.perMemberSurchargeCents[index]
     const assessedInput: TaxInput = {
       ...input,
@@ -438,19 +460,33 @@ export function estimateHouseholdTax(
       }),
     }
     const breakdown = computeTax(assessedInput, config)
-    // The same member without their one-offs, so the tax the one-offs themselves add
-    // is a difference of two liabilities rather than a marginal rate guessed at. The
-    // family-assessed surcharge is carried on both sides, holding it constant across
-    // the pair.
+    // The same member without their net capital gain, then without their one-offs
+    // as well, so the tax each adds is a difference of liabilities rather than a
+    // marginal rate guessed at. The family-assessed surcharge is carried on every
+    // side, holding it constant across them. The gain is stripped first, so the
+    // one-offs' tax is measured on the recurring-plus-one-off base and the three
+    // liabilities telescope: recurring + one-offs + gain = the full liability.
+    const withoutGain = computeTax(
+      {
+        ...assessedInput,
+        assessableIncome: { ...input.assessableIncome, netCapitalGainCents: 0 },
+      },
+      config,
+    )
     const withoutOneOffs = computeTax(
       {
         ...assessedInput,
-        assessableIncome: { ...input.assessableIncome, employmentTerminationCents: 0 },
+        assessableIncome: {
+          ...input.assessableIncome,
+          employmentTerminationCents: 0,
+          netCapitalGainCents: 0,
+        },
         oneOffConcessions: [],
       },
       config,
     )
-    const annualGross = bucket.salaryOrWagesCents + bucket.otherCents + oneOffs.grossCents
+    const annualGross =
+      bucket.salaryOrWagesCents + bucket.otherCents + oneOffs.grossCents + capitalGainCents
     const annualTax = breakdown.totalLiabilityCents
     // After-tax cash excludes concessional super (diverted from cash to the fund).
     const annualAfterTax = annualGross - concessionalCents - annualTax
@@ -459,8 +495,10 @@ export function estimateHouseholdTax(
     const netConcessionalCents = Math.round(
       concessionalCents * (1 - config.super.contributionsTaxRate),
     )
-    const oneOffTax = annualTax - withoutOneOffs.totalLiabilityCents
+    const capitalGainTax = annualTax - withoutGain.totalLiabilityCents
+    const oneOffTax = withoutGain.totalLiabilityCents - withoutOneOffs.totalLiabilityCents
     const annualOneOffAfterTax = oneOffs.grossCents - oneOffTax
+    const capitalGainAfterTax = capitalGainCents - capitalGainTax
     // The fortnightly figures fund the budget, so they are derived from the year NET
     // of one-off money: what lands once has no fortnightly share to plan against.
     return {
@@ -473,9 +511,13 @@ export function estimateHouseholdTax(
       annualAfterTaxCents: annualAfterTax,
       annualOneOffGrossCents: oneOffs.grossCents,
       annualOneOffAfterTaxCents: annualOneOffAfterTax,
-      fortnightlyGrossCents: fortnightlyOf(annualGross - oneOffs.grossCents),
-      fortnightlyTaxCents: fortnightlyOf(annualTax - oneOffTax),
-      fortnightlyAfterTaxCents: fortnightlyOf(annualAfterTax - annualOneOffAfterTax),
+      annualNetCapitalGainCents: capitalGainCents,
+      annualCapitalGainTaxCents: capitalGainTax,
+      fortnightlyGrossCents: fortnightlyOf(annualGross - oneOffs.grossCents - capitalGainCents),
+      fortnightlyTaxCents: fortnightlyOf(annualTax - oneOffTax - capitalGainTax),
+      fortnightlyAfterTaxCents: fortnightlyOf(
+        annualAfterTax - annualOneOffAfterTax - capitalGainAfterTax,
+      ),
       breakdown,
       input,
     } satisfies MemberTaxEstimate
@@ -496,6 +538,8 @@ export function estimateHouseholdTax(
     annualAfterTaxCents: sum((member) => member.annualAfterTaxCents),
     annualOneOffGrossCents: sum((member) => member.annualOneOffGrossCents),
     annualOneOffAfterTaxCents: sum((member) => member.annualOneOffAfterTaxCents),
+    annualNetCapitalGainCents: sum((member) => member.annualNetCapitalGainCents),
+    annualCapitalGainTaxCents: sum((member) => member.annualCapitalGainTaxCents),
     fortnightlyGrossCents: sum((member) => member.fortnightlyGrossCents),
     fortnightlyTaxCents: sum((member) => member.fortnightlyTaxCents),
     fortnightlyAfterTaxCents: sum((member) => member.fortnightlyAfterTaxCents),

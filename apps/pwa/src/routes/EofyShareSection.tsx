@@ -98,6 +98,7 @@ export function EofyShareSection() {
     paygWithheldFromRows(data.payslips),
     data.members,
     projectedInterestIncomeInputs(data.savingsGoals, data.accounts, data.members),
+    data.trades,
   )
   const capSummaries = superCapSummaryFromRows(
     data.inflows,

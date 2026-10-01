@@ -148,6 +148,10 @@ one-off is shown as the separate figure it is.
   owner, split 50/50 across the household's members for a joint saver or a goal
   with no resolvable link. Added in the `@nest/household` adapter
   (`projectedInterestIncomeInputs`); `@nest/tax` is untouched.
+- Net capital gain: from the household's recorded share and ETF trades, after
+  capital losses and the 50% CGT discount (`AssessableIncome.netCapitalGainCents`,
+  supplied through `estimateHouseholdTax`'s `capitalGainsByMember`). In the annual
+  figures and out of the fortnightly ones. See [`investments.md`](investments.md).
 - Deductions (work-related, etc.).
 - Residency status (resident vs non-resident brackets differ).
 - Claims tax-free threshold (affects withholding expectations).
@@ -406,8 +410,11 @@ detailing the part of gross that is modelled interest rather than a step in the
 running total. A joint inflow contributes each partner their own share of its
 annualised amount, so it lifts both members' gross income at their own marginal
 rate rather than one member's. Because the surcharge is a household assessment, each member's
-surcharge line already reflects the combined-income family tier. A footnote
-reiterates that the estimate excludes capital gains tax.
+surcharge line already reflects the combined-income family tier. A member with a net
+capital gain also gets an indented "Net capital gain" line beneath gross income
+and a note that the annual figures include it and the fortnightly ones leave it
+out. A footnote states that capital gains are counted only for the share and ETF
+trades recorded on the Investments tab.
 
 The **withholding position** (`WithholdingPosition`) names where the year's actual
 withholding sits against that liability: what the member's payslips withheld, of
@@ -477,6 +484,7 @@ persisted to the database.
 
 ## Out of scope (initially)
 
-- Capital gains tax, franking credits, negative gearing schedules, PAYG
-  instalments, and business/GST accounting. Model as future extensions. The Tax
-  tab notes the capital-gains exclusion so the estimate is not read as complete.
+- Capital gains on anything but recorded share and ETF trades, franking credits,
+  negative gearing schedules, PAYG instalments, and business/GST accounting.
+  Model as future extensions. The Tax tab notes that capital gains are counted
+  only for recorded trades so the estimate is not read as complete.

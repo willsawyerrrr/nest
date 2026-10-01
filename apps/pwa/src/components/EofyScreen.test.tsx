@@ -51,6 +51,8 @@ function makeMemberEstimate(overrides: Partial<MemberTaxEstimate> = {}): MemberT
     annualAfterTaxCents: 0,
     annualOneOffGrossCents: 0,
     annualOneOffAfterTaxCents: 0,
+    annualNetCapitalGainCents: 0,
+    annualCapitalGainTaxCents: 0,
     fortnightlyGrossCents: 0,
     fortnightlyTaxCents: 0,
     fortnightlyAfterTaxCents: 0,
@@ -71,6 +73,8 @@ function makeEstimate(members: MemberTaxEstimate[] = []): HouseholdTaxEstimate {
     annualAfterTaxCents: 0,
     annualOneOffGrossCents: 0,
     annualOneOffAfterTaxCents: 0,
+    annualNetCapitalGainCents: 0,
+    annualCapitalGainTaxCents: 0,
     fortnightlyGrossCents: 0,
     fortnightlyTaxCents: 0,
     fortnightlyAfterTaxCents: 0,
@@ -205,6 +209,22 @@ describe('EofyScreen', () => {
     expect(within(card).getByText('Total tax liability')).toBeInTheDocument()
     expect(within(card).getByText('Net take-home')).toBeInTheDocument()
     expect(within(card).getByText('$700,000.00')).toBeInTheDocument()
+  })
+
+  it('shows the net capital gain only when the member has one', () => {
+    renderScreen({
+      members: [makeMember({ id: 'm1', name: 'Alex' }), makeMember({ id: 'm2', name: 'Sam' })],
+      estimate: makeEstimate([
+        makeMemberEstimate({ memberId: 'm1', annualNetCapitalGainCents: 4_000_00 }),
+        makeMemberEstimate({ memberId: 'm2' }),
+      ]),
+    })
+
+    const alex = screen.getByRole('region', { name: 'Alex' })
+    expect(within(alex).getByText('Net capital gain')).toBeInTheDocument()
+    expect(within(alex).getByText('$4,000.00')).toBeInTheDocument()
+    const sam = screen.getByRole('region', { name: 'Sam' })
+    expect(within(sam).queryByText('Net capital gain')).not.toBeInTheDocument()
   })
 
   it('omits the surcharge and Division 293 lines when neither applies', () => {
@@ -388,12 +408,14 @@ describe('EofyScreen', () => {
     expect(screen.getByRole('link', { name: 'Tax' })).toBeInTheDocument()
   })
 
-  it('shows a disclaimer note when supplied, alongside the capital gains tax note', () => {
+  it('shows a disclaimer note when supplied, alongside the capital gains note', () => {
     renderScreen({ disclaimerNote: 'These figures are estimates, not a filed tax return.' })
     expect(
       screen.getByText('These figures are estimates, not a filed tax return.'),
     ).toBeInTheDocument()
-    expect(screen.getByText(/excludes capital gains tax/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Capital gains are counted only for the share and ETF trades/i),
+    ).toBeInTheDocument()
   })
 
   it('shows no disclaimer note when none is supplied', () => {

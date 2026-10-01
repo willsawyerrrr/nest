@@ -52,6 +52,12 @@ export interface EofyShareRows {
    */
   savingsGoals: Row[]
   /**
+   * Share and ETF trades, unfiltered by financial year (matching `useTrades`): a
+   * sale is matched against earlier purchases, so the shared estimate's net
+   * capital gain agrees with the household's own.
+   */
+  trades: Row[]
+  /**
    * `{ id, owner_member_id, balance_cents }` per household account — the
    * identity joined to its balance, as `accounts_with_balance` gives the
    * household's own tab. Resolves a goal's linked saver balance and its

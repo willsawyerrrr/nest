@@ -18,6 +18,24 @@ export type {
   TaxProfileInput,
 } from './estimate.ts'
 
+export {
+  CGT_DISCOUNT_RETAINED,
+  capitalGainsSummary,
+  holdingValueCents,
+  lastPriceByTicker,
+  matchTrades,
+  netCapitalGainByMember,
+} from './capitalGains.ts'
+export type {
+  CapitalGainsSummary,
+  Holding,
+  RealisedGain,
+  TradeInput,
+  TradeMatching,
+  TradeSide,
+  UnmatchedSale,
+} from './capitalGains.ts'
+
 export { splitOneOffPayment } from './oneOff.ts'
 export type {
   OneOffConcession,
@@ -248,6 +266,12 @@ export interface AssessableIncome {
    * (`oneOffOffsetCents`), never by holding the payment out of income.
    */
   readonly employmentTerminationCents: Money
+  /**
+   * The member's net capital gain for the year, already net of capital losses and
+   * the CGT discount (see `capitalGainsSummary`); absent reads as nil. Assessable
+   * income like any other, so it lifts the same taxable-income-driven figures.
+   */
+  readonly netCapitalGainCents?: Money
 }
 
 /** A member's figures for one financial year, paired with a `TaxYearConfig`. */
@@ -433,9 +457,15 @@ export function taxableIncome(input: TaxInput): Money {
     investmentCents,
     otherCents,
     employmentTerminationCents,
+    netCapitalGainCents = 0,
   } = input.assessableIncome
   const assessable =
-    salaryOrWagesCents + businessCents + investmentCents + otherCents + employmentTerminationCents
+    salaryOrWagesCents +
+    businessCents +
+    investmentCents +
+    otherCents +
+    employmentTerminationCents +
+    netCapitalGainCents
   const concessional = input.concessionalContributionsCents ?? 0
   return Math.max(0, assessable - input.deductionsCents - concessional)
 }

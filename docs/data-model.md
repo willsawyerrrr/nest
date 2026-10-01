@@ -421,6 +421,21 @@ and so without the trigger.
     valuation are computed client-side by `@nest/plan` (`vestedQuantity`,
     `grantValueCents`); the vested value seeds the Net worth tab as an asset.
     Edited on the Equity tab.
+- **trade** — per member; many rows per member (a collection). A recorded buy or
+  sell of a share or ETF; holdings, cost base, and realised capital gains are
+  derived from these rows, never stored. See [`investments.md`](investments.md).
+  - `id`, `household_id`, `member_id`, `ticker` (text, upper-case and trimmed,
+    non-empty), `side` (`trade_side`: `buy` | `sell`), `traded_on` (date), `units`
+    (`numeric(20,6)`, `> 0`), `price_per_unit_cents` (bigint, `>= 0`, excluding
+    brokerage), `fee_cents` (bigint, `>= 0`, default 0), `source`
+    (`ledger_source`, default `manual`), `external_id` (nullable), `created_at`,
+    `updated_at`.
+  - `unique (source, external_id)` mirrors `transactions`, so a brokerage import
+    can upsert on the key; a manual trade has a null `external_id`, which never
+    collides.
+  - Composite FK on `(member_id, household_id)` → `members`. RLS is household-wide
+    CRUD on `household_id`; `service_role` has `select` for the EOFY share view.
+    Edited on the Investments tab.
 - **payslip** — per member; many rows per member (a collection). One pay event's
   actual figures, reconciled through its lines against the projected inflows and
   the tax estimate. See [`payslips.md`](payslips.md).

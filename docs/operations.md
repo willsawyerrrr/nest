@@ -241,7 +241,9 @@ token holder has no `auth.uid()` for those tables' RLS to match
 (`20260831000000_share_grant.sql`). `eofy-share` also reads `savings_goal`,
 `accounts`, and `account_balance` — reusing the `service_role` `select` grants
 `notify-eval` and the ledger already added — to feed a goal's projected savings
-interest into the shared tax estimate the same way the household's own tab does.
+interest into the shared tax estimate the same way the household's own tab does,
+and `trade` (`select`, `20261001000000_trade.sql`) to feed the shared estimate's
+net capital gain.
 `notify-eval`, the daily notification
 evaluator, reads the plan tables it reconciles the buffer and goal ETAs from:
 `budget_line`, `savings_goal`, and `temporary_item` gain a `service_role`

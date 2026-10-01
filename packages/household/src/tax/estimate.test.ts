@@ -8,6 +8,7 @@ import type {
   SuperContributionRow,
   SuperProfileRow,
   TaxProfileRow,
+  TradeRow,
 } from '../rows.ts'
 import { estimateHouseholdTaxFromRows, superCapSummaryFromRows, toIncomeInput } from '../tax.ts'
 
@@ -368,5 +369,55 @@ describe('estimateHouseholdTaxFromRows for a joint inflow', () => {
         { ...jointOther, is_joint: false, member_split_percent: null },
       ]),
     ).toBe(9_000_00)
+  })
+})
+
+describe('estimateHouseholdTaxFromRows trades', () => {
+  function tradeRow(overrides: Partial<TradeRow> = {}): TradeRow {
+    return {
+      member_id: 'm1',
+      ticker: 'VAS',
+      side: 'buy',
+      traded_on: '2024-01-10',
+      units: 100,
+      price_per_unit_cents: 90_00,
+      fee_cents: 0,
+      ...overrides,
+    }
+  }
+  const salaryRows = [inflow({ schedule: 'annual', interval_count: null, amount_cents: 90_000_00 })]
+  const estimateWith = (trades: TradeRow[]) =>
+    estimateHouseholdTaxFromRows(
+      salaryRows,
+      [profile],
+      [],
+      [],
+      [],
+      undefined,
+      undefined,
+      [member()],
+      [],
+      trades,
+    ).members[0]!
+
+  it('assesses the discounted net capital gain of a sale in the financial year', () => {
+    // 100 units: bought for $9,000, sold for $11,000 after more than 12 months → $2,000 gain, $1,000 assessed.
+    const estimate = estimateWith([
+      tradeRow(),
+      tradeRow({ side: 'sell', traded_on: '2026-09-01', price_per_unit_cents: 110_00 }),
+    ])
+    expect(estimate.annualNetCapitalGainCents).toBe(1_000_00)
+  })
+
+  it('assesses nothing for a sale in another financial year', () => {
+    const estimate = estimateWith([
+      tradeRow(),
+      tradeRow({ side: 'sell', traded_on: '2026-06-01', price_per_unit_cents: 110_00 }),
+    ])
+    expect(estimate.annualNetCapitalGainCents).toBe(0)
+  })
+
+  it('assesses nothing for unsold holdings', () => {
+    expect(estimateWith([tradeRow()]).annualNetCapitalGainCents).toBe(0)
   })
 })

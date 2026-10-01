@@ -53,6 +53,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: '/wishlist', label: 'Wishlist' },
       { path: '/super', label: 'Super' },
       { path: '/equity', label: 'Equity' },
+      { path: '/investments', label: 'Investments' },
     ],
   },
   {

@@ -115,6 +115,12 @@ instance and can also be run locally.
   `other` inflow can be joint with a percent 0–100 (bounds included), and the
   database refuses a percent without `is_joint`, an `is_joint` without a percent,
   a percent outside the range, a joint salary, and a joint one-off.
+- `trade.sql` — the assertions that a share or ETF trade defaults to the manual
+  source with no external id and no brokerage, keeps fractional units, is held
+  to an upper-case non-empty ticker, positive units, and a non-negative price
+  and fee, is keyed unique on `(source, external_id)` (with manual trades
+  coexisting and an upsert on the key updating in place), and is readable by
+  `service_role` for the EOFY share view.
 - `share_grant.sql` — the assertions that an EOFY share grant is minted,
   replaced, and revoked only through `create_share_grant`/`revoke_share_grant`:
   a fresh household has no share, creating one returns a 64-hex-char token and
@@ -143,7 +149,7 @@ instance and can also be run locally.
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_source_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
-`inflow_joint_split.sql`.
+`inflow_joint_split.sql` → `trade.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -178,5 +184,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/redbark_connection.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/wishlist_item.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade.sql
 docker rm -f pba-rls
 ```

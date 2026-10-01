@@ -55,7 +55,7 @@ One table, `share_grant` (`supabase/migrations/20260831000000_share_grant.sql`):
 - **`service_role` reads `share_grant` by `token_hash`**, plus the source
   tables `eofy-share` assembles (`members`, `inflows`, `tax_profile`,
   `super_contribution`, `super_profile`, `help_debt`, `deduction`,
-  `deduction_receipt`, `payslip`, `savings_goal`, `accounts`,
+  `deduction_receipt`, `payslip`, `savings_goal`, `trade`, `accounts`,
   `account_balance`) — surgical per-feature grants, following
   `docs/operations.md`'s `service_role` grants stance. `savings_goal` and the
   account identity/balance pair feed projected savings interest into the
@@ -101,7 +101,7 @@ authenticated tab) already passed it:
   HELP debt anchor links on the shared route, which point at authenticated
   pages a tax agent has no session for.
 - `disclaimerNote` renders a second dimmed line beside the existing
-  "excludes capital gains tax" note — the shared route's estimates-not-a-
+  "capital gains are counted only for recorded trades" note — the shared route's estimates-not-a-
   filed-return caveat.
 - `members` narrows to `Pick<Member, 'id' | 'name'>[]`, which the shared
   payload's `{id, name, date_of_birth}` rows (see below) satisfy
@@ -131,7 +131,9 @@ For the same reason `eofy-share` serves `savingsGoals` and a minimal
 `accounts` set (`{ id, owner_member_id, balance_cents }`): the shared
 `estimateHouseholdTaxFromRows` call passes them through
 `projectedInterestIncomeInputs` exactly as `EofySection.tsx` does, so a
-goal's projected savings interest lands in the shared estimate too.
+goal's projected savings interest lands in the shared estimate too. It serves
+`trades` likewise, unfiltered by financial year because a sale is matched against
+earlier purchases, so a member's net capital gain lands in the shared estimate.
 
 `App.tsx` matches `/share/eofy/:token` in its own top-level `<Routes>`,
 ahead of the session gate (renamed `AuthGate`, otherwise unchanged): a tax

@@ -273,7 +273,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   The edit form stays near the row's compact footprint — description, amount (or
   kilometres), and date — with "Work use %", the Group picker, and the receipt
   controls behind a "More details" toggle that starts open only when the
-  deduction already uses one of them.
+  deduction already uses one of them. The EOFY tab and the shared EOFY
+  link show a part-claimed deduction's full cost and work use beneath its
+  deductible amount (`$200.00 at 60%`), and a distance-basis one its kilometres
+  and the year's cents-per-km rate, so a tax agent can check the claim.
   `deduction_work_use_basis` pins
   `work_use_percent`
   at 100 for every category but `work_expense` too, the same rule as the

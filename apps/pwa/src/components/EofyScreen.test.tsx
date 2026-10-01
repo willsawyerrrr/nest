@@ -1,7 +1,13 @@
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown, TaxInput } from '@nest/tax'
+import {
+  configsByYear,
+  type HouseholdTaxEstimate,
+  type MemberTaxEstimate,
+  type TaxBreakdown,
+  type TaxInput,
+} from '@nest/tax'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
@@ -396,6 +402,84 @@ describe('EofyScreen', () => {
     expect(within(adobe).queryByText('Desk')).toBeNull()
 
     openSpy.mockRestore()
+  })
+
+  it('shows a part-claimed deduction with its full cost and work use percentage', () => {
+    renderScreen({
+      deductions: [
+        makeDeduction({
+          description: 'Laptop',
+          amount_cents: 120_00,
+          full_amount_cents: 200_00,
+          work_use_percent: 60,
+        }),
+      ],
+    })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).getByText('$200.00 at 60%')).toBeInTheDocument()
+    expect(within(card).getAllByText('$120.00')).toHaveLength(2)
+  })
+
+  it('shows a fully claimed deduction without workings', () => {
+    renderScreen({
+      deductions: [makeDeduction({ amount_cents: 300_00, full_amount_cents: 300_00 })],
+    })
+    expect(screen.getByRole('region', { name: 'Alex' }).textContent).not.toMatch(/ at \d/)
+  })
+
+  it('shows a distance deduction with its kilometres and the rate', () => {
+    renderScreen({
+      deductions: [makeDeduction({ basis: 'distance', distance_km: 1200, amount_cents: 1020_00 })],
+    })
+    const rate = (configsByYear[2027]?.carExpense.centsPerKm ?? 0) / 100
+    expect(
+      within(screen.getByRole('region', { name: 'Alex' })).getByText(
+        `1,200 km at ${rate.toFixed(2)}c/km`,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a distance deduction from a year with no published rate by its kilometres alone', () => {
+    renderScreen({
+      deductions: [makeDeduction({ basis: 'distance', distance_km: 300, financial_year: 1999 })],
+    })
+    expect(
+      within(screen.getByRole('region', { name: 'Alex' })).getByText('300 km'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the workings of part-claimed payments inside a group, and none for a donation', () => {
+    renderScreen({
+      deductionGroups: [
+        makeGroup({ id: 'g1', name: 'Adobe' }),
+        makeGroup({ id: 'g2', name: 'Donations', kind: 'donations' }),
+      ],
+      deductions: [
+        makeDeduction({
+          id: 'd1',
+          description: 'Adobe Jan',
+          amount_cents: 30_00,
+          full_amount_cents: 60_00,
+          work_use_percent: 50,
+          group_id: 'g1',
+        }),
+        makeDeduction({
+          id: 'd2',
+          description: 'Red Cross',
+          amount_cents: 25_00,
+          full_amount_cents: 25_00,
+          category: 'donation',
+          group_id: 'g2',
+        }),
+      ],
+    })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(
+      within(within(card).getByRole('region', { name: 'Adobe' })).getByText('$60.00 at 50%'),
+    ).toBeInTheDocument()
+    expect(
+      within(within(card).getByRole('region', { name: 'Donations' })).queryByText(/ at /),
+    ).toBeNull()
   })
 
   it('lists a donations-only year as the donations group alone', () => {

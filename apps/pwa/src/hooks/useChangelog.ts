@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { setChangelogUpdateAvailable } from './useChangelogUpdateAvailable'
 
 export interface ImplementedEntry {
   type: string
@@ -51,6 +50,9 @@ export function useChangelog(): UseChangelogResult {
 
   const query = useQuery({
     queryKey: ['changelog', sha],
+    // The nav reads this on every page, so it is cached long enough that browsing
+    // does not re-hit GitHub through the function.
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const body = sha ? { sha } : {}
       const { data, error } = await supabase.functions.invoke<ChangelogResponse>('changelog', {
@@ -59,11 +61,9 @@ export function useChangelog(): UseChangelogResult {
       if (error || !data) {
         throw new Error(LOAD_ERROR_MESSAGE)
       }
-      const available = data.available ?? []
-      setChangelogUpdateAvailable(available.length > 0)
       return {
         configured: data.configured,
-        available,
+        available: data.available ?? [],
         implemented: data.implemented,
         inProgress: data.inProgress,
       }

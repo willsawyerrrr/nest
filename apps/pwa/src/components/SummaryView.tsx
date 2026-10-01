@@ -36,7 +36,7 @@ import { PageSection } from './PageSection'
 // chart's diameter so streaming it in causes no layout shift.
 const AllocationDonutChart = lazy(() => import('./AllocationDonutChart'))
 
-// Likewise the cash-flow Sankey, which shares the recharts chunk.
+// Likewise the cash-flow Sankey, so its layout code stays out of the default route.
 const CashFlowSankeyChart = lazy(() => import('./CashFlowSankeyChart'))
 
 /** The donut's diameter in pixels, matched by the loading fallback. */

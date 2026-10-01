@@ -8,17 +8,10 @@ vi.mock('@mantine/hooks', async (importOriginal) => ({
   useElementSize: () => ({ ref: { current: null }, width: 320, height: 240 }),
 }))
 
-vi.mock('recharts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('recharts')>()),
-  Tooltip: ({ formatter }: { formatter: (value: number) => string }) => (
-    <span>{formatter(12_345)}</span>
-  ),
-}))
-
 const graph: CashFlowGraph = {
   nodes: [
     { name: 'Available', color: 'red', valueCents: 300_000 },
-    { name: 'Needs', color: 'blue', valueCents: 200_000 },
+    { name: 'A very long budget line name', color: 'blue', valueCents: 200_000 },
     { name: 'Buffer', color: 'gray', valueCents: 100_000 },
   ],
   links: [
@@ -28,11 +21,17 @@ const graph: CashFlowGraph = {
 }
 
 describe('CashFlowSankeyChart', () => {
-  it('labels each node with its name and formatted cents', () => {
+  it('labels each node with its name and formatted cents, clipping long names', () => {
     render(<CashFlowSankeyChart graph={graph} />)
-    expect(screen.getByText('Needs')).toBeInTheDocument()
-    expect(screen.getByText('$2,000.00')).toBeInTheDocument()
-    expect(screen.getByText('$123.45')).toBeInTheDocument()
+    expect(screen.getByText('Available')).toBeInTheDocument()
     expect(screen.getByText('$3,000.00')).toBeInTheDocument()
+    expect(screen.getByText('$2,000.00')).toBeInTheDocument()
+    expect(screen.queryByText('A very long budget line name')).not.toBeInTheDocument()
+    expect(screen.getByText(/^A very.*…$/)).toBeInTheDocument()
+  })
+
+  it('titles each ribbon with its flow', () => {
+    render(<CashFlowSankeyChart graph={graph} />)
+    expect(screen.getByText('Available to Buffer: $1,000.00')).toBeInTheDocument()
   })
 })

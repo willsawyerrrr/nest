@@ -865,9 +865,9 @@ describe('PayslipForm several documents', () => {
         member={member}
         inflows={inflows}
         attachments={attachments}
-        onAddFiles={onAddFiles}
+        {...(onAddFiles && { onAddFiles })}
         onSubmit={vi.fn()}
-        onCancel={onCancel}
+        {...(onCancel && { onCancel })}
       />,
     )
     return userEvent.setup({ delay: null })

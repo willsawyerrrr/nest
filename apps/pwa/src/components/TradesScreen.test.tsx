@@ -1,8 +1,9 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import type { TradeDocumentRow } from '../hooks/useTradeDocuments'
 import type { TradeRow } from '../hooks/useTrades'
 import { makeMember } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { TradesScreen } from './TradesScreen'
 
 const will = makeMember({ id: 'm1', name: 'Will' })
@@ -76,7 +77,7 @@ describe('TradesScreen', () => {
     expect(within(holdings).getByText('VAS')).toBeInTheDocument()
     expect(within(holdings).getByText(/150 units/)).toBeInTheDocument()
     // Cost base $9,000 + $10 fee + $5,000 = $14,010.00; average $93.40.
-    expect(within(holdings).getByText(/Average cost \$93\.40/)).toBeInTheDocument()
+    expect(within(holdings).getByText(/Avg cost \$93\.40/)).toBeInTheDocument()
     expect(within(holdings).getByText(/Cost base \$14,010\.00/)).toBeInTheDocument()
     // 150 units at the last traded price of $100.00.
     expect(within(holdings).getByText('$15,000.00')).toBeInTheDocument()
@@ -95,11 +96,13 @@ describe('TradesScreen', () => {
     })
     const holdings = screen.getByLabelText("Will's holdings")
     // Cost base: 2 × $33.083072 = $66.17 (rounded once) + $2.00 = $68.17; $34.085 each.
-    expect(within(holdings).getByText(/Average cost \$34\.085 /)).toBeInTheDocument()
+    expect(within(holdings).getByText(/Avg cost \$34\.085 /)).toBeInTheDocument()
     expect(within(holdings).getByText(/Cost base \$68\.17/)).toBeInTheDocument()
     expect(within(holdings).getByText('at $33.083072')).toBeInTheDocument()
     expect(within(holdings).getByText('$66.17')).toBeInTheDocument()
-    expect(screen.getByText(/2 @ \$33\.083072/)).toBeInTheDocument()
+    expect(screen.getByText(/2 units . at \$33\.083072 . \$2\.00 brokerage/)).toBeInTheDocument()
+    // 2 × $33.083072 = $66.17, shown beside the trade.
+    expect(screen.getAllByText('$66.17')).toHaveLength(2)
   })
 
   it('summarises realised gains per financial year with the discount', () => {
@@ -164,6 +167,43 @@ describe('TradesScreen', () => {
     await user.click(within(card).getByRole('button', { name: /delete/i }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/Sell VAS/)).toBeInTheDocument()
+  })
+
+  it('lays summaries and trades out as dense rows on a wide viewport', async () => {
+    setWideViewport()
+    const user = userEvent.setup()
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    renderScreen({
+      members: [will],
+      onDelete,
+      documents: [
+        {
+          id: 'd1',
+          storage_path: 'h1/d1/note.pdf',
+        } as TradeDocumentRow,
+      ],
+      trades: [
+        makeTrade({ document_id: 'd1', fee_cents: 9_50 }),
+        makeTrade({ id: 't2', side: 'sell', traded_on: '2026-09-01', units: 40 }),
+      ],
+    })
+
+    expect(within(screen.getByLabelText("Will's holdings")).getByText('VAS')).toBeInTheDocument()
+    expect(
+      within(screen.getByLabelText("Will's realised gains")).getByText('FY2027'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('100 units')).toBeInTheDocument()
+    // Both trades and the holding's last price.
+    expect(screen.getAllByText('at $90.00')).toHaveLength(3)
+    expect(screen.getByText('$9.50 brokerage')).toBeInTheDocument()
+    expect(screen.getByText('$9,000.00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Document' })).toBeInTheDocument()
+
+    await user.click(screen.getAllByRole('button', { name: /delete/i })[0]!)
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete/i }),
+    )
+    expect(onDelete).toHaveBeenCalled()
   })
 
   it('adds a trade', async () => {

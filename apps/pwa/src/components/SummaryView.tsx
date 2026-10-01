@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import {
   Card,
   ColorSwatch,
@@ -7,13 +7,22 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
+  Switch,
   Table,
   Text,
   Title,
+  VisuallyHidden,
 } from '@mantine/core'
 import { useLocalStorage } from '@mantine/hooks'
 import type { Amounts, BudgetSummary } from '@nest/plan'
 import { useIsWide } from '../hooks/useIsWide'
+import {
+  cashFlowGraph,
+  describeCashFlow,
+  GROUP_ORDER,
+  type CashFlowLine,
+  type IncomeBasis,
+} from '../lib/cashFlow'
 import { formatCents } from '../lib/money'
 import { chartColors } from '../lib/tokens'
 import { ComparedAmount } from './ComparedAmount'
@@ -27,17 +36,16 @@ import { PageSection } from './PageSection'
 // chart's diameter so streaming it in causes no layout shift.
 const AllocationDonutChart = lazy(() => import('./AllocationDonutChart'))
 
+// Likewise the cash-flow Sankey, which shares the recharts chunk.
+const CashFlowSankeyChart = lazy(() => import('./CashFlowSankeyChart'))
+
 /** The donut's diameter in pixels, matched by the loading fallback. */
 const DONUT_DIAMETER = 180
 
-/**
- * The basis the allocation donut divides against: take-home (post-tax) available
- * cash, or gross (pre-tax) income with the tax and salary-sacrifice slices
- * prepended.
- */
-type IncomeBasis = 'take-home' | 'gross'
+/** The cash-flow Sankey's minimum height in pixels, matched by the loading fallback. */
+const SANKEY_MIN_HEIGHT = 240
 
-/** localStorage key persisting the allocation donut's income basis. */
+/** localStorage key persisting the income basis shared by the donut and the cash-flow Sankey. */
 const INCOME_BASIS_STORAGE_KEY = 'summary-income-basis'
 
 interface SummaryViewProps {
@@ -48,6 +56,11 @@ interface SummaryViewProps {
    * `real → proposed (±Δ)` fortnightly move.
    */
   baseline?: BudgetSummary
+  /**
+   * Each budget line's fortnightly amount, so the cash-flow Sankey can drill from
+   * a group down to its lines. Absent ⇒ the Sankey stays at group level.
+   */
+  lines?: CashFlowLine[]
 }
 
 const percent = new Intl.NumberFormat('en-AU', {
@@ -78,21 +91,6 @@ interface LedgerRow {
   /** Whether the amount takes the money-sign colour. */
   signed?: boolean
 }
-
-/**
- * The six budget groups in reconciliation order, each with its human label. The
- * allocation-segment colour each takes in the donut comes from the shared
- * `chartColors` token palette (`chartColors[key]`), so the palette lives in one
- * place across the app.
- */
-const GROUP_ORDER: { key: keyof BudgetSummary['groups']; label: string }[] = [
-  { key: 'needs', label: 'Needs' },
-  { key: 'wants', label: 'Wants' },
-  { key: 'discretionary', label: 'Discretionary' },
-  { key: 'temporary', label: 'Temporary' },
-  { key: 'savings', label: 'Savings' },
-  { key: 'investments', label: 'Investments' },
-]
 
 /** The keys of the groups that make up outgoings, in reconciliation order. */
 const OUTGOING_KEYS: (keyof BudgetSummary['groups'])[] = [
@@ -283,6 +281,62 @@ function AllocationDonut({
 }
 
 /**
+ * A Sankey of how fortnightly income flows to the groups and the leftover buffer,
+ * on the donut's take-home or gross basis. A negative buffer shows as a
+ * Shortfall source. Where `lines` are supplied, a switch drills each group down to
+ * its budget lines. The chart is decorative for assistive tech; a hidden list
+ * states every flow instead.
+ */
+function CashFlowSankey({
+  summary,
+  mode,
+  lines,
+}: {
+  summary: BudgetSummary
+  mode: IncomeBasis
+  lines: CashFlowLine[]
+}) {
+  const [drilled, setDrilled] = useState(false)
+  const graph = cashFlowGraph(summary, mode, drilled ? lines : [])
+  if (graph.links.length === 0) {
+    return null
+  }
+
+  return (
+    <Card component="section" aria-label="Cash flow" withBorder radius="md" p="md">
+      <Stack gap="md">
+        <Title order={3} size="h5">
+          Fortnightly cash flow
+        </Title>
+        <Text size="xs" c="dimmed">
+          Follows the income basis chosen above.
+        </Text>
+        {lines.length > 0 && (
+          <Switch
+            size="xs"
+            label="Show budget lines"
+            checked={drilled}
+            onChange={(event) => setDrilled(event.currentTarget.checked)}
+          />
+        )}
+        <div aria-hidden="true">
+          <Suspense fallback={<Skeleton height={SANKEY_MIN_HEIGHT} animate={false} />}>
+            <CashFlowSankeyChart graph={graph} />
+          </Suspense>
+        </div>
+        <VisuallyHidden>
+          <ul aria-label="Cash flow amounts">
+            {describeCashFlow(graph).map((flow) => (
+              <li key={flow}>{flow}</li>
+            ))}
+          </ul>
+        </VisuallyHidden>
+      </Stack>
+    </Card>
+  )
+}
+
+/**
  * One reconciliation line as a compact ledger row: the label on the left and,
  * inline on the right, the fortnightly amount (emphasised) with the portion
  * trailing as a smaller dimmed figure — each its own text node. The annual
@@ -460,7 +514,7 @@ function OneOffNote({ oneOffCents }: { oneOffCents: number }) {
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  * Any one-off money the year carries is reported under the ledger, outside it.
  */
-export function SummaryView({ summary, baseline }: SummaryViewProps) {
+export function SummaryView({ summary, baseline, lines = [] }: SummaryViewProps) {
   const wide = useIsWide()
   const [mode, setMode] = useLocalStorage<IncomeBasis>({
     key: INCOME_BASIS_STORAGE_KEY,
@@ -495,6 +549,7 @@ export function SummaryView({ summary, baseline }: SummaryViewProps) {
       ) : (
         <>
           <AllocationDonut summary={summary} mode={mode} setMode={setMode} />
+          <CashFlowSankey summary={summary} mode={mode} lines={lines} />
           {wide ? (
             <DataTable label="Reconciliation">
               <Table.Thead>

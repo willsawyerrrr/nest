@@ -1,6 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { TradeRow } from '../hooks/useTrades'
+import { FILE_TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES } from '../lib/uploadFile'
 import { makeMember } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { TradeDocumentImport } from './TradeDocumentImport'
@@ -174,6 +175,7 @@ describe('TradeDocumentImport', () => {
     const a = actions({ upload: vi.fn(() => new Promise<string>((resolve) => (finish = resolve))) })
     const { unmount } = renderImport(a)
 
+    await waitFor(() => expect(a.upload).toHaveBeenCalled())
     unmount()
     finish('h1/d1/late.pdf')
 
@@ -198,10 +200,63 @@ describe('TradeDocumentImport', () => {
     const a = actions({ upload: vi.fn(() => new Promise<string>((_, reject) => (fail = reject))) })
     const { unmount } = renderImport(a)
 
+    await waitFor(() => expect(a.upload).toHaveBeenCalled())
     unmount()
     fail(new Error('storage'))
 
-    await waitFor(() => expect(a.upload).toHaveBeenCalled())
+    await waitFor(() => expect(a.extract).not.toHaveBeenCalled())
+  })
+
+  it('uploads nothing when the panel closes before the file is ready', async () => {
+    const a = actions()
+    const { unmount } = renderImport(a)
+
+    unmount()
+
+    await waitFor(() => expect(a.upload).not.toHaveBeenCalled())
+  })
+
+  it('refuses a file over the size limit without uploading it', async () => {
+    const big = new File(['x'], 'big.pdf')
+    Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 })
+    const a = actions()
+    render(
+      <TradeDocumentImport file={big} member={will} trades={[]} actions={a} onClose={vi.fn()} />,
+    )
+
+    expect(await screen.findByText(FILE_TOO_LARGE_MESSAGE)).toBeInTheDocument()
+    expect(a.upload).not.toHaveBeenCalled()
+  })
+
+  it('attaches a document the model cannot read and offers a blank trade to fill in', async () => {
+    const a = actions()
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <TradeDocumentImport
+        file={new File(['x'], 'contract.docx')}
+        member={will}
+        trades={[]}
+        actions={a}
+        onClose={onClose}
+      />,
+    )
+
+    expect(await screen.findByText(/can't be read automatically/i)).toBeInTheDocument()
     expect(a.extract).not.toHaveBeenCalled()
+    expect((screen.getByLabelText(/^ticker$/i) as HTMLInputElement).value).toBe('')
+
+    await user.click(screen.getByRole('button', { name: /discard/i }))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('offers a blank trade when the function reports the type unreadable', async () => {
+    const a = actions({
+      extract: vi.fn().mockResolvedValue({ status: 'unsupported', message: 'Not readable.' }),
+    })
+    renderImport(a)
+
+    expect(await screen.findByText('Not readable.')).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/^ticker$/i)).toHaveLength(1)
   })
 })

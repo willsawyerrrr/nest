@@ -18,6 +18,7 @@ import { DateInput } from '@mantine/dates'
 import { IconTrash } from '@tabler/icons-react'
 import { carExpenseDeductionCents, configsByYear } from '@nest/tax'
 import {
+  UPLOAD_FAILED_MESSAGE,
   useDeductionAttachment,
   type DeductionAttachments,
   type ExtractionState,
@@ -30,6 +31,7 @@ import { useFormSubmit } from '../hooks/useFormSubmit'
 import { todayIso } from '../lib/dates'
 import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
 import { currentTaxConfig } from '../lib/tax'
+import { prepareUpload } from '../lib/uploadFile'
 import { EnumSegmentedControl } from './EnumSelect'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
@@ -138,10 +140,12 @@ function ExtractionNote({ state }: { state: ExtractionState }) {
   if (
     state.status === 'not-configured' ||
     state.status === 'out-of-credit' ||
-    state.status === 'key-rejected'
+    state.status === 'key-rejected' ||
+    state.status === 'unsupported'
   ) {
-    // Off, not broken — a key never set, an account out of credit, or a key the
-    // API refuses. Each names its own cause so the operator's fix is clear.
+    // Off, not broken — a key never set, an account out of credit, a key the
+    // API refuses, or a file type the model cannot read.
+    // Each names its own cause so the operator's fix is clear.
     return (
       <Text size="xs" c="dimmed">
         {state.message}
@@ -263,6 +267,21 @@ export function DeductionForm({
   })
   // Chosen when adding; an existing deduction keeps the basis it was created
   // with, since a deduction on the wrong one is deleted and re-added.
+  // Why the receipt picked on an existing deduction was not attached.
+  const [receiptError, setReceiptError] = useState<string | null>(null)
+  const replaceReceipt = async (file: File, upload: (file: File) => Promise<void>) => {
+    setReceiptError(null)
+    const prepared = await prepareUpload(file)
+    if (prepared.status === 'too-large') {
+      setReceiptError(prepared.message)
+      return
+    }
+    try {
+      await upload(prepared.file)
+    } catch {
+      setReceiptError(UPLOAD_FAILED_MESSAGE)
+    }
+  }
   const [chosenBasis, setBasis] = useState<Basis>('amount')
   const basis = initial?.basis ?? chosenBasis
   // Opened from a group, the deduction belongs to that group and the picker is
@@ -412,9 +431,8 @@ export function DeductionForm({
           <FileInput
             label="Receipt"
             size="sm"
-            description="Stored privately, then read to pre-fill the details below — which you confirm. Pick again to replace it."
+            description="Any file, up to 25 MB. Stored privately, then read to pre-fill the details below where it can be — which you confirm. Pick again to replace it."
             placeholder="Attach a receipt"
-            accept="image/*,application/pdf"
             disabled={receipts.busy}
             value={null}
             onChange={(file) => {
@@ -575,11 +593,10 @@ export function DeductionForm({
       {showDetails && !adding && onUploadReceipt && (
         <Group gap="xs" wrap="nowrap">
           <FileButton
-            accept="image/*,application/pdf"
             inputProps={{ 'aria-label': `${receipt ? 'Replace' : 'Add'} receipt` }}
             onChange={(file) => {
               if (file) {
-                void onUploadReceipt(file)
+                void replaceReceipt(file, onUploadReceipt)
               }
             }}
           >
@@ -601,6 +618,11 @@ export function DeductionForm({
             </ActionIcon>
           )}
         </Group>
+      )}
+      {receiptError !== null && (
+        <Text size="xs" c="red" role="alert">
+          {receiptError}
+        </Text>
       )}
     </FormShell>
   )

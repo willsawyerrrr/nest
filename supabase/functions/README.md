@@ -310,7 +310,7 @@ write — which also means a failure at any step can leave nothing half-written.
   is forced with a tool schema rather than parsed out of prose, and every field in
   it is nullable, so a slip without super — or a figure the model cannot find —
   comes back null rather than invented. PDFs go as a `document` block, photos and
-  scans as an `image` block; anything else is rejected.
+  scans as an `image` block (JPEG, PNG, GIF, WebP); any other type is never sent.
 - **Money** — the model reports each amount as the **literal text printed on the
   slip** (`"4,120.50"`, `"$1,234"`); `money.ts` converts it to integer cents with
   integer arithmetic on the digit strings. The model is never asked to multiply by
@@ -323,7 +323,7 @@ write — which also means a failure at any step can leave nothing half-written.
   the fields whose text could not be converted safely. A partial extraction is a
   success — the member fills the gaps.
 - **Failures** — `400` bad path or empty file, `403` a path outside the caller's
-  household, `404` no such object, `415` an unsupported file type, `413` a file
+  household, `404` no such object, `415` with `{ code: 'unsupported_type' }` for a file type the model cannot read (the file stays attached and the form says it cannot be read automatically), `413` a file
   past the size cap (5 MiB for an image, 20 MiB for a PDF, both sized so base64
   stays inside the Messages API's per-image and 32 MB request limits), `422` the
   model reporting the document is not a payslip — or declining to read it at all,
@@ -360,7 +360,7 @@ key (`anthropic_api_key`).
   and `missing`/`unreadable` say which fields the receipt did not show versus
   which were read but could not be converted safely.
 - **Failures** — the same taxonomy as `payslip-extract`: `400`/`403`/`404`/`415`/
-  `413` on the request or file, `422` when the model reports the document is not
+  `413` on the request or file (`415` carries `code: 'unsupported_type'`), `422` when the model reports the document is not
   a receipt (`notReceipt: true`) or declines to read it, `429` a rate limit,
   `502` an API error or unusable output, `504` a timeout, and `503` with
   `{ configured: false }` / `{ outOfCredit: true }` / `{ keyRejected: true }` for
@@ -454,7 +454,9 @@ never a Supabase account or Google OAuth. Three functions:
   boundary, not a convenience on top of Storage RLS, which never matches an
   `auth.uid()`-less caller anyway. Logic lives in `file.ts`, DI-tested against
   fakes covering a path from another household, one from an out-of-scope
-  financial year, and one with no matching row.
+  financial year, and one with no matching row. A file that is not a PDF or a
+  JPEG/PNG/GIF/WebP image is signed with Storage's `download` option
+  (`_shared/fileType.ts`), so HTML or SVG is saved rather than rendered.
 
 Both anonymous functions report the identical generic 401 whether a token is
 malformed, matches nothing, or has expired — `_shared/shareGrant.ts` never

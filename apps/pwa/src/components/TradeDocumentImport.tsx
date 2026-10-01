@@ -3,7 +3,12 @@ import { Alert, Button, Group, Loader, Stack, Text } from '@mantine/core'
 import type { Member } from '../hooks/useMembers'
 import type { UseTradeDocumentsResult } from '../hooks/useTradeDocuments'
 import type { TradeRow } from '../hooks/useTrades'
-import type { ExtractedTrade } from '../lib/tradeExtraction'
+import {
+  EXTRACTION_UNSUPPORTED_MESSAGE,
+  type ExtractedTrade,
+  type ExtractionOutcome,
+} from '../lib/tradeExtraction'
+import { prepareUpload } from '../lib/uploadFile'
 import { TradeForm } from './TradeForm'
 
 interface TradeDocumentImportProps {
@@ -25,7 +30,7 @@ interface Draft extends ExtractedTrade {
 type Stage =
   | { status: 'reading' }
   | { status: 'failed'; message: string }
-  | { status: 'ready'; path: string; documentId: string }
+  | { status: 'ready'; path: string; documentId: string; unreadable: string | null }
 
 /** What a draft says about the fields the document left for the member. */
 function checkNotice(check: string[]) {
@@ -66,8 +71,16 @@ export function TradeDocumentImport({
     const documentId = crypto.randomUUID()
 
     const run = async () => {
+      const prepared = await prepareUpload(file)
+      if (cancelled) {
+        return
+      }
+      if (prepared.status === 'too-large') {
+        setStage({ status: 'failed', message: prepared.message })
+        return
+      }
       try {
-        stored = await act.current.upload(documentId, file)
+        stored = await act.current.upload(documentId, prepared.file)
       } catch {
         if (!cancelled) {
           setStage({
@@ -81,7 +94,9 @@ export function TradeDocumentImport({
         void act.current.discard(stored)
         return
       }
-      const outcome = await act.current.extract(stored)
+      const outcome: ExtractionOutcome = prepared.readable
+        ? await act.current.extract(stored)
+        : { status: 'unsupported', message: EXTRACTION_UNSUPPORTED_MESSAGE }
       if (cancelled) {
         return
       }
@@ -89,8 +104,16 @@ export function TradeDocumentImport({
         setStage(outcome)
         return
       }
-      setDrafts(outcome.trades.map((trade) => ({ ...trade, id: crypto.randomUUID() })))
-      setStage({ status: 'ready', path: stored, documentId })
+      // A document the model cannot read is still attached: one blank trade to
+      // fill in by hand.
+      const read = outcome.status === 'read' ? outcome.trades : [{ values: {}, check: [] }]
+      setDrafts(read.map((trade) => ({ ...trade, id: crypto.randomUUID() })))
+      setStage({
+        status: 'ready',
+        path: stored,
+        documentId,
+        unreadable: outcome.status === 'unsupported' ? outcome.message : null,
+      })
     }
     void run()
 
@@ -138,12 +161,18 @@ export function TradeDocumentImport({
 
   return (
     <Stack gap="xs">
-      <Alert color="info" variant="light" p="xs" title="Read from the document">
-        <Text size="sm">
-          {drafts.length === 1 ? '1 trade was' : `${drafts.length} trades were`} extracted by AI —
-          check each against the document, then save or discard it.
-        </Text>
-      </Alert>
+      {stage.unreadable === null ? (
+        <Alert color="info" variant="light" p="xs" title="Read from the document">
+          <Text size="sm">
+            {drafts.length === 1 ? '1 trade was' : `${drafts.length} trades were`} extracted by AI —
+            check each against the document, then save or discard it.
+          </Text>
+        </Alert>
+      ) : (
+        <Alert color="info" variant="light" p="xs" title="Document attached">
+          <Text size="sm">{stage.unreadable}</Text>
+        </Alert>
+      )}
       {drafts.map((draft) => (
         <TradeForm
           key={draft.id}

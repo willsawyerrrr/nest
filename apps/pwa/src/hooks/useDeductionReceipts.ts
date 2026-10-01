@@ -9,6 +9,7 @@ import {
   type ExtractionOutcome,
 } from '../lib/deductionExtraction'
 import { supabase } from '../lib/supabase'
+import { signedUrlOptions, storageKeyName, storedContentType } from '../lib/uploadFile'
 import { useHouseholdCollection } from './useCollection'
 import type { DeductionCategory } from './useDeductions'
 
@@ -96,8 +97,10 @@ export function useDeductionReceipts(
 
   const uploadFile = useCallback(
     async (deductionId: string, file: File): Promise<string> => {
-      const path = `${householdId}/${deductionId}/${crypto.randomUUID()}-${file.name}`
-      const { error } = await supabase.storage.from(RECEIPTS_BUCKET).upload(path, file)
+      const path = `${householdId}/${deductionId}/${crypto.randomUUID()}-${storageKeyName(file.name)}`
+      const { error } = await supabase.storage.from(RECEIPTS_BUCKET).upload(path, file, {
+        contentType: storedContentType(file.name),
+      })
       if (error) {
         throw error
       }
@@ -169,7 +172,7 @@ export function useDeductionReceipts(
   const signedUrl = useCallback(async (path: string) => {
     const { data, error } = await supabase.storage
       .from(RECEIPTS_BUCKET)
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS, signedUrlOptions(path))
     if (error) {
       return null
     }

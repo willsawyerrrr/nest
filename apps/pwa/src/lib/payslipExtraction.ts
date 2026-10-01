@@ -10,6 +10,8 @@
  * persists — so a failure at any point leaves manual entry exactly as it was.
  */
 
+import { UNSUPPORTED_TYPE_CODE } from './uploadFile'
+
 /** The `payslip` date columns extraction reads, keyed as the columns are. */
 export const EXTRACTED_DATE_FIELDS = ['period_start', 'period_end', 'paid_on'] as const
 
@@ -87,6 +89,7 @@ export type ExtractionOutcome =
   | { status: 'out-of-credit'; message: string }
   | { status: 'key-rejected'; message: string }
   | { status: 'not-payslip'; message: string; reason: string | null }
+  | { status: 'unsupported'; message: string }
   | { status: 'failed'; message: string }
 
 /** Every outcome but a successful read: the form falls back to manual entry. */
@@ -116,6 +119,13 @@ export const EXTRACTION_KEY_REJECTED_MESSAGE =
 
 /** What the form says when the model reports the file is not a payslip. */
 export const NOT_PAYSLIP_MESSAGE = 'That file does not look like a payslip.'
+
+/**
+ * What the form says when the file is a type the model cannot read. The file is
+ * stored and attached all the same; only the reading is skipped.
+ */
+export const EXTRACTION_UNSUPPORTED_MESSAGE =
+  "This file is attached, but it can't be read automatically. Enter the figures by hand."
 
 /** What the form says when a failure carried no message of its own. */
 export const EXTRACTION_FAILED_MESSAGE = 'Could not read this payslip. Enter the figures by hand.'
@@ -287,12 +297,16 @@ export function readExtractionFailure(body: unknown): ExtractionFailure {
         keyRejected?: unknown
         notPayslip?: unknown
         reason?: unknown
+        code?: unknown
       }
     | null
     | undefined
   const message =
     typeof detail?.error === 'string' && !INTERNAL_MESSAGES.has(detail.error) ? detail.error : null
 
+  if (detail?.code === UNSUPPORTED_TYPE_CODE) {
+    return { status: 'unsupported', message: EXTRACTION_UNSUPPORTED_MESSAGE }
+  }
   if (detail?.configured === false) {
     return { status: 'not-configured', message: message ?? EXTRACTION_UNCONFIGURED_MESSAGE }
   }

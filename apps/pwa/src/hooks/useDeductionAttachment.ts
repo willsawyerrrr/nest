@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DeductionExtraction, ExtractionFailure } from '../lib/deductionExtraction'
+import {
+  EXTRACTION_UNSUPPORTED_MESSAGE,
+  type DeductionExtraction,
+  type ExtractionFailure,
+} from '../lib/deductionExtraction'
+import { prepareUpload } from '../lib/uploadFile'
 import type { PrefillSummary } from './useDeductionFields'
 import type { DeductionCategory } from './useDeductions'
 
@@ -69,6 +74,8 @@ interface UseDeductionAttachmentOptions {
 
 /**
  * Attaching a receipt to a deduction being added, and reading the figures off it.
+ * Any type of file attaches; one the model cannot read is stored and attached
+ * with a note, and the figures are typed by hand.
  *
  * The file is stored **before** the deduction row exists: `create_deduction_
  * with_receipt` takes the already-uploaded path, and Storage has no foreign
@@ -128,9 +135,15 @@ export function useDeductionAttachment({
     async (file: File) => {
       setState({ status: 'uploading' })
 
+      const prepared = await prepareUpload(file)
+      if (prepared.status === 'too-large') {
+        setState({ status: 'failed', message: prepared.message })
+        return
+      }
+
       let stored: string
       try {
-        stored = await attachments.upload(deductionId, file)
+        stored = await attachments.upload(deductionId, prepared.file)
       } catch {
         setState({ status: 'failed', message: UPLOAD_FAILED_MESSAGE })
         return
@@ -146,6 +159,12 @@ export function useDeductionAttachment({
       setPath(stored)
       if (replaced !== null) {
         void discard.current(replaced)
+      }
+
+      if (!prepared.readable) {
+        // Attached all the same: only the reading is skipped.
+        setState({ status: 'unsupported', message: EXTRACTION_UNSUPPORTED_MESSAGE })
+        return
       }
 
       setState({ status: 'reading' })

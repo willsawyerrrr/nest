@@ -1,6 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DeductionExtraction, ExtractionFailure } from '../lib/deductionExtraction'
+import {
+  EXTRACTION_UNSUPPORTED_MESSAGE,
+  type DeductionExtraction,
+  type ExtractionFailure,
+} from '../lib/deductionExtraction'
+import { FILE_TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES } from '../lib/uploadFile'
 import {
   UPLOAD_FAILED_MESSAGE,
   useDeductionAttachment,
@@ -183,6 +188,33 @@ describe('useDeductionAttachment', () => {
     const { unmount } = renderAttachment()
     unmount()
     expect(discard).not.toHaveBeenCalled()
+  })
+
+  it('attaches a file the model cannot read without reading it', async () => {
+    const { result } = renderAttachment()
+
+    await act(async () => await result.current.addFile(receipt('notes.docx')))
+
+    expect(upload).toHaveBeenCalled()
+    expect(read).not.toHaveBeenCalled()
+    expect(result.current.path).toMatch(/notes\.docx$/)
+    expect(result.current.state).toEqual({
+      status: 'unsupported',
+      message: EXTRACTION_UNSUPPORTED_MESSAGE,
+    })
+    expect(result.current.busy).toBe(false)
+  })
+
+  it('refuses a file over the size limit without storing it', async () => {
+    const { result } = renderAttachment()
+    const big = receipt('big.pdf')
+    Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 })
+
+    await act(async () => await result.current.addFile(big))
+
+    expect(upload).not.toHaveBeenCalled()
+    expect(result.current.state).toEqual({ status: 'failed', message: FILE_TOO_LARGE_MESSAGE })
+    expect(result.current.path).toBeNull()
   })
 
   it('reports a failed upload and attaches nothing', async () => {

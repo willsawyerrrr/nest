@@ -108,7 +108,7 @@ const FAILURES: Record<FailureCode, { status: number; error: string }> = {
   file_empty: { status: 400, error: 'That document is empty.' },
   unsupported_type: {
     status: 415,
-    error: 'That file type cannot be read. Upload a PDF, JPEG, PNG, or WebP.',
+    error: "That file type can't be read automatically. Enter the trade by hand.",
   },
   file_too_large: { status: 413, error: 'That file is too large to read.' },
   not_trade_document: {

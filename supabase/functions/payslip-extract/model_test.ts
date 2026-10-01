@@ -587,6 +587,7 @@ Deno.test('resolveMediaType falls back to the extension when Storage records non
   assertEquals(resolveMediaType('application/octet-stream', 'hh/slip.JPG'), 'image/jpeg')
   assertEquals(resolveMediaType(undefined, 'hh/slip.jpeg'), 'image/jpeg')
   assertEquals(resolveMediaType('', 'hh/slip.webp'), 'image/webp')
+  assertEquals(resolveMediaType(null, 'hh/slip.gif'), 'image/gif')
 })
 
 Deno.test('resolveMediaType rejects anything the model cannot read', () => {

@@ -9,6 +9,7 @@ import {
   type ExtractionOutcome,
 } from '../lib/payslipExtraction'
 import { supabase } from '../lib/supabase'
+import { signedUrlOptions, storageKeyName, storedContentType } from '../lib/uploadFile'
 import { useHouseholdCollection } from './useCollection'
 import type { PayslipLineInput } from './usePayslipLines'
 
@@ -147,8 +148,10 @@ export function usePayslips(
 
   const uploadFile = useCallback(
     async (payslipId: string, file: File): Promise<PayslipAttachment> => {
-      const path = `${householdId}/${payslipId}/${crypto.randomUUID()}-${file.name}`
-      const { error } = await supabase.storage.from(PAYSLIPS_BUCKET).upload(path, file)
+      const path = `${householdId}/${payslipId}/${crypto.randomUUID()}-${storageKeyName(file.name)}`
+      const { error } = await supabase.storage.from(PAYSLIPS_BUCKET).upload(path, file, {
+        contentType: storedContentType(file.name),
+      })
       if (error) {
         throw error
       }
@@ -248,7 +251,7 @@ export function usePayslips(
   const signedUrl = useCallback(async (path: string) => {
     const { data, error } = await supabase.storage
       .from(PAYSLIPS_BUCKET)
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS, signedUrlOptions(path))
     if (error) {
       return null
     }

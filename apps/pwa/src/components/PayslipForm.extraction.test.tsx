@@ -205,6 +205,24 @@ describe('PayslipForm extraction', () => {
     expect(screen.getByRole('button', { name: 'Payslip document' })).not.toBeDisabled()
   })
 
+  it('attaches a file the model cannot read, with a note, and the figures are typed by hand', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(
+      <PayslipForm
+        member={member}
+        inflows={inflows}
+        attachments={attachments}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.upload(filePicker(), new File(['x'], 'slip.docx'))
+
+    expect(await screen.findByText(/can't be read automatically/i)).toBeInTheDocument()
+    expect(read).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Gross')).toHaveValue('')
+  })
+
   it('falls back to manual entry with an honest note when extraction is not configured', async () => {
     const user = userEvent.setup({ delay: null })
     const onSubmit = vi.fn()

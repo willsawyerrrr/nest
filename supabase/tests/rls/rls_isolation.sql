@@ -2018,6 +2018,17 @@ do $$ begin
     'the payslips bucket must be private';
 end $$;
 
+-- Both file buckets cap an upload at 25 MiB and accept any type of file.
+do $$ begin
+  assert (
+    select count(*) from storage.buckets b
+    where b.id in ('receipts', 'payslips')
+      and b.file_size_limit = 25 * 1024 * 1024
+      and b.allowed_mime_types is null
+  ) = 2, 'the receipts and payslips buckets must cap uploads at 25 MiB with no type restriction';
+  raise notice 'PASS: file buckets cap uploads at 25 MiB and accept any type';
+end $$;
+
 savepoint payslip_objects;
 insert into storage.objects (bucket_id, name)
   values ('payslips', current_setting('test.priv_hid') || '/slips/bob-july.pdf');

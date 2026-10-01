@@ -137,7 +137,9 @@ RLS.
 - **Import layer** — source-agnostic ingestion boundary; Up (transactions and
   accounts/balances) and Redbark (accounts/balances only) are its two adapters.
 - **Storage** — private buckets for the documents the household attaches:
-  `receipts` (deduction receipts and trade documents) and `payslips` (payslip PDFs/images). The PWA
+  `receipts` (deduction receipts and trade documents) and `payslips` (payslip documents). Any
+  type of file up to 25 MiB is accepted; only PDFs and JPEG/PNG/GIF/WebP images are read
+  by extraction, and anything that is not one of those is opened as a download. The PWA
   uploads directly and views a file through a short-lived signed URL it mints
   itself; both calls are gated by the bucket's Storage RLS, so no edge function
   brokers a file. Object keys lead with `<household_id>`, which is what the

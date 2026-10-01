@@ -1,6 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ExtractionOutcome, PayslipExtraction } from '../lib/payslipExtraction'
+import {
+  EXTRACTION_UNSUPPORTED_MESSAGE,
+  type ExtractionOutcome,
+  type PayslipExtraction,
+} from '../lib/payslipExtraction'
+import { FILE_TOO_LARGE_MESSAGE, MAX_UPLOAD_BYTES } from '../lib/uploadFile'
 import {
   UPLOAD_FAILED_MESSAGE,
   usePayslipAttachment,
@@ -42,6 +47,32 @@ beforeEach(() => {
 })
 
 describe('usePayslipAttachment', () => {
+  it('attaches a file the model cannot read without reading it', async () => {
+    const { result } = renderAttachment()
+
+    await act(async () => await result.current.choose(slip('slip.xlsx')))
+
+    expect(upload).toHaveBeenCalled()
+    expect(read).not.toHaveBeenCalled()
+    expect(result.current.attachment?.path).toMatch(/slip\.xlsx$/)
+    expect(result.current.state).toEqual({
+      status: 'unsupported',
+      message: EXTRACTION_UNSUPPORTED_MESSAGE,
+    })
+  })
+
+  it('refuses a file over the size limit without storing it', async () => {
+    const { result } = renderAttachment()
+    const big = slip('big.pdf')
+    Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 })
+
+    await act(async () => await result.current.choose(big))
+
+    expect(upload).not.toHaveBeenCalled()
+    expect(result.current.file).toBeNull()
+    expect(result.current.state).toEqual({ status: 'failed', message: FILE_TOO_LARGE_MESSAGE })
+  })
+
   it('stores the slip, reads it, and pre-fills from what it read', async () => {
     const { result } = renderAttachment()
     const file = slip()

@@ -293,7 +293,7 @@ Deno.test('runExtract rejects an empty file', async () => {
   assertEquals((result.body as Record<string, unknown>).error, 'That payslip file is empty.')
 })
 
-Deno.test('runExtract rejects an unsupported file type with the types it takes', async () => {
+Deno.test('runExtract reports an unsupported file type with its stable code', async () => {
   const d = deps({
     downloadObject: () =>
       Promise.resolve({ bytes: new Uint8Array([1]), contentType: 'image/heic' }),
@@ -301,9 +301,7 @@ Deno.test('runExtract rejects an unsupported file type with the types it takes',
   const result = await runExtract(`${HOUSEHOLD}/slip.heic`, FINANCIAL_YEAR, d)
 
   assertEquals(result.status, 415)
-  const error = (result.body as Record<string, string>).error
-  assertEquals(error.includes('PDF, JPEG, PNG, or WebP'), true)
-  assertEquals(error.includes('application/pdf'), true)
+  assertEquals((result.body as Record<string, string>).code, 'unsupported_type')
   assertEquals(d.calls, ['resolveHousehold', 'apiKey', 'downloadObject'])
 })
 

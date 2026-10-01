@@ -9,6 +9,7 @@ import {
   readExtractionFailure,
   type ExtractionOutcome,
 } from '../lib/tradeExtraction'
+import { signedUrlOptions, storageKeyName, storedContentType } from '../lib/uploadFile'
 import { useHouseholdCollection } from './useCollection'
 import type { TradeInput } from './useTrades'
 
@@ -75,8 +76,10 @@ export function useTradeDocuments(
 
   const upload = useCallback(
     async (documentId: string, file: File): Promise<string> => {
-      const path = `${householdId}/${documentId}/${crypto.randomUUID()}-${file.name}`
-      const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, file)
+      const path = `${householdId}/${documentId}/${crypto.randomUUID()}-${storageKeyName(file.name)}`
+      const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, file, {
+        contentType: storedContentType(file.name),
+      })
       if (error) {
         throw error
       }
@@ -134,7 +137,7 @@ export function useTradeDocuments(
   const signedUrl = useCallback(async (path: string) => {
     const { data, error } = await supabase.storage
       .from(DOCUMENTS_BUCKET)
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS, signedUrlOptions(path))
     return error ? null : data.signedUrl
   }, [])
 

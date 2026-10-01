@@ -1049,6 +1049,20 @@ applied to the files.
 - **payslips** — attached payslip documents, keyed
   `<household_id>/<payslip_id>/<file>`; the key is `payslip.file_path`.
 
+**Any type of file** is accepted in both buckets — a Word or Excel document, a
+saved email, a HEIC photo, plain text — up to **25 MiB** (the buckets'
+`file_size_limit`, which the PWA also checks before it uploads). The `<file>`
+segment is the original name reduced to letters, digits, dots, dashes, and
+underscores behind a generated uuid, so no name a device produces is rejected as a
+key. The file's extension alone decides how it is treated, in the PWA
+(`lib/uploadFile.ts`) and in the edge functions (`_shared/fileType.ts`): a PDF,
+JPEG, PNG, GIF, or WebP is stored under its own content type, shown inline when
+opened, and read by the extraction functions; every other type is stored as
+`application/octet-stream` and opened as a forced download, so HTML or SVG is
+never rendered. A HEIC/HEIF photo is re-encoded as JPEG in the browser where it
+can decode it, and otherwise kept as is. Extraction is skipped for a type the
+model cannot read: the file is still stored and attached.
+
 ## RPCs
 
 Membership and invites run through `SECURITY DEFINER` functions so a

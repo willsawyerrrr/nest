@@ -48,6 +48,7 @@ export const SUPPORTED_MEDIA_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/png',
+  'image/gif',
   'image/webp',
 ] as const
 
@@ -59,6 +60,7 @@ const EXTENSION_MEDIA_TYPES: Record<string, SupportedMediaType> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   png: 'image/png',
+  gif: 'image/gif',
   webp: 'image/webp',
 }
 
@@ -111,7 +113,7 @@ export type PayslipExtractor = (file: PayslipFile, financialYear: number) => Pro
  * Resolves the media type to send, preferring what Storage recorded and falling
  * back to the object's extension (uploads routinely land as
  * `application/octet-stream`). Null for anything unsupported — a HEIC photo or a
- * spreadsheet is rejected with a clear message rather than sent and refused.
+ * spreadsheet is reported as such rather than sent and refused.
  */
 export function resolveMediaType(
   contentType: string | null | undefined,

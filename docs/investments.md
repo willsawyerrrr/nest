@@ -48,6 +48,15 @@ add / edit / delete: side (buy or sell), ticker (stored upper-case), date, units
 price per unit, and brokerage fee. A trade belongs to one member; holdings are
 per member and ticker.
 
+Trades, holdings, and realised gains use the same compact list-row style as the
+budget lines: a dense row from the `sm` breakpoint up, with fixed-width columns
+that line up across rows, and a bordered card below it. A trade row reads side
+pill, ticker, and **Document** link, then muted date, units, exact price
+(`at $33.083072`), and brokerage, then the trade value (units at price, before
+brokerage) right-aligned beside the edit and delete controls. Holdings and each
+financial year's gains read as a title, muted figures, and a right-aligned
+figure.
+
 Trades carry `source` (`manual` by default) and `external_id`, unique together
 exactly as `transactions` is, so a later brokerage import (the SnapTrade rail in
 [`redbark-ingestion.md`](redbark-ingestion.md#brokerage-rail-out-of-scope-unbuilt))
@@ -113,7 +122,7 @@ converted to JPEG in the browser where possible and then read.
 Saved trades keep the document they were read from. The `trade_document` table
 holds one row per stored document (`storage_path` into the `receipts` bucket), and
 `trade.document_id` points at it — a statement's trades share one row. The trade
-card shows a **Document** link that opens the file through a short-lived signed
+row shows a **Document** link that opens the file through a short-lived signed
 URL. The `create_trades_with_document` function writes the document row and the
 confirmed trade together in one transaction, keyed on ids minted in the browser so
 a retried save does not duplicate either. Deleting a trade leaves the stored file and its row: the document remains the

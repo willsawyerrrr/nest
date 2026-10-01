@@ -318,8 +318,8 @@ and so without the trigger.
     enforced by the same trigger (check violation `deduction_donation_group_kind`):
     only a `donation` can sit in a `donations` group, and a `donation` can sit
     in no other group. So a donation is always grouped, clearing its group snaps
-    it back, and re-categorising a donation while it is in the group is refused
-    (the client clears `group_id` in the same write). The 20260921010000
+    it back. A deduction's category never changes, so none moves in or out by
+    re-categorising. The 20260921010000
     migration flags each member-year's existing "Donations" group (the one
     holding the most donations when a year has several), creates the group for
     any year with a donation but none, moves every donation into it, and moves

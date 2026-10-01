@@ -288,8 +288,7 @@ export function DeductionForm({
     initial !== undefined &&
       (initial.basis === 'distance' ||
         initial.work_use_percent < 100 ||
-        (initial.group_id !== null &&
-          !(initial.category === 'donation' && initial.group_id === autoDonationsGroupId))),
+        (initial.group_id !== null && initial.category !== 'donation')),
   )
   const showDetails = adding || detailsToggled
   const hint = (text: string) => (adding ? text : undefined)

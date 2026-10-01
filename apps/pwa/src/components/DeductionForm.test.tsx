@@ -1031,7 +1031,6 @@ describe('DeductionForm category', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /more details/i }))
     await user.click(screen.getByRole('combobox', { name: 'Group' }))
     expect(screen.getByRole('option', { name: 'None' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Red Cross monthly' })).toBeInTheDocument()
@@ -1052,32 +1051,6 @@ describe('DeductionForm category', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Group' }))
     expect(screen.getByRole('option', { name: 'Donations' })).toBeInTheDocument()
-  })
-
-  it('takes a donation out of its group when it is changed to a work expense', async () => {
-    const user = userEvent.setup({ delay: null })
-    const onSubmit = vi.fn()
-    render(
-      <DeductionForm
-        member={member}
-        attachments={attachments}
-        financialYear={2027}
-        groups={[makeGroup({ id: 'gd', name: 'Donations', kind: 'donations' })]}
-        initial={makeDeduction({ category: 'donation', group_id: 'gd' })}
-        onSubmit={onSubmit}
-      />,
-    )
-
-    await user.click(screen.getByText('Work expense'))
-    await user.click(screen.getByRole('button', { name: /save/i }))
-
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: expect.objectContaining({ category: 'work_expense', group_id: null }),
-        }),
-      ),
-    )
   })
 
   it('adds only donations from the donations group', () => {

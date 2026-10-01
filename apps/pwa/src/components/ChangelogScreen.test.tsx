@@ -1,11 +1,17 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
-import { render, screen } from '../test/render'
+import { render, screen, setWideViewport } from '../test/render'
 import { ChangelogScreen } from './ChangelogScreen'
 
 const inProgress: InProgressEntry[] = [
-  { type: 'feat', scope: 'splits', description: 'Confirm pay splits', number: 120, url: 'u' },
+  {
+    type: 'feat',
+    scope: 'splits',
+    description: 'Confirm pay splits',
+    number: 120,
+    url: 'https://github.com/o/r/pull/120',
+  },
   { type: 'perf', scope: 'up-sync', description: 'Batch account upserts', number: 121, url: 'u' },
 ]
 
@@ -123,5 +129,41 @@ describe('ChangelogScreen', () => {
 
     expect(screen.getByText('Tidy things up')).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('shows each status pill and its date beneath the description when narrow', () => {
+    renderScreen({ available, inProgress, implemented })
+
+    expect(screen.getByText('Available')).toBeInTheDocument()
+    expect(screen.getAllByText('Implemented')).toHaveLength(2)
+    expect(screen.getAllByText('In progress')).toHaveLength(3)
+    expect(screen.getByText(/^8 Jul/)).toBeInTheDocument()
+  })
+
+  it('shows the date in its own column when wide', () => {
+    setWideViewport()
+    renderScreen({ implemented })
+
+    expect(screen.getByText(/^8 Jul/)).toBeInTheDocument()
+  })
+
+  it('reveals the commit reference on expanding an implemented row', async () => {
+    renderScreen({ implemented })
+
+    const row = screen.getByRole('button', { name: /correct a rounding error/i })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Commit ccc333')).toBeInTheDocument()
+  })
+
+  it('links an in-progress row to its pull request on expanding', async () => {
+    renderScreen({ inProgress })
+
+    await userEvent.click(screen.getByRole('button', { name: /confirm pay splits/i }))
+    expect(screen.getByRole('link', { name: 'Pull request #120' })).toHaveAttribute(
+      'href',
+      'https://github.com/o/r/pull/120',
+    )
   })
 })

@@ -1,6 +1,22 @@
 import type { ReactNode } from 'react'
-import { Alert, Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core'
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Collapse,
+  Group,
+  Loader,
+  Stack,
+  Text,
+  UnstyledButton,
+} from '@mantine/core'
+import { useDisclosure } from '@mantine/hooks'
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
+import { useIsWide } from '../hooks/useIsWide'
+import { formatIsoDate } from '../lib/dates'
+import { ListRow } from './ListRow'
 import { PageSection } from './PageSection'
 
 interface ChangelogScreenProps {
@@ -31,14 +47,102 @@ function TypeEmoji({ type }: { type: string }) {
   )
 }
 
-function Entry({ type, description }: { type: string; description: string }) {
+type EntryStatus = 'available' | 'implemented' | 'in-progress'
+
+const STATUS_PILL: Record<EntryStatus, { label: string; color: string }> = {
+  available: { label: 'Available', color: 'info' },
+  implemented: { label: 'Implemented', color: 'teal' },
+  'in-progress': { label: 'In progress', color: 'gray' },
+}
+
+interface EntryProps {
+  id: string
+  type: string
+  description: string
+  status: EntryStatus
+  /** ISO timestamp the change landed; absent while it is still in progress. */
+  date?: string
+  /** The reference shown when expanded: a short commit SHA or a pull request link. */
+  reference: ReactNode
+}
+
+/**
+ * One change as a compact row: type emoji, the description clamped to two lines,
+ * the date, and a status pill. Expanding shows the full description and the
+ * change's reference.
+ */
+function Entry({ id, type, description, status, date, reference }: EntryProps) {
+  const wide = useIsWide()
+  const [expanded, { toggle }] = useDisclosure(false)
+  const detailId = `changelog-detail-${id}`
+  const pill = STATUS_PILL[status]
+  const when = date === undefined ? null : formatIsoDate(date.slice(0, 10))
   return (
-    <Card withBorder padding="sm" radius="md">
-      <Group align="flex-start" wrap="nowrap" gap="xs">
-        <TypeEmoji type={type} />
-        <Text style={{ minWidth: 0 }}>{description}</Text>
-      </Group>
-    </Card>
+    <ListRow
+      gap="xs"
+      caption={
+        <Collapse expanded={expanded} id={detailId}>
+          <Text size="xs" c="dimmed" pl={34} pt={2}>
+            {reference}
+          </Text>
+        </Collapse>
+      }
+    >
+      <UnstyledButton
+        onClick={toggle}
+        aria-expanded={expanded}
+        aria-controls={detailId}
+        style={{ flex: 1, minWidth: 0 }}
+      >
+        <Group gap="xs" wrap="nowrap" align="flex-start">
+          {expanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+          <TypeEmoji type={type} />
+          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+            <Text size="sm" {...(expanded ? {} : { lineClamp: 2 })}>
+              {description}
+            </Text>
+            {!wide && when !== null && (
+              <Text size="xs" c="dimmed">
+                {when}
+              </Text>
+            )}
+          </Stack>
+        </Group>
+      </UnstyledButton>
+      {wide && (
+        <Text size="xs" c="dimmed" w={96} ta="right" style={{ flexShrink: 0 }}>
+          {when}
+        </Text>
+      )}
+      <Badge
+        size="xs"
+        variant="light"
+        color={pill.color}
+        w={wide ? 90 : undefined}
+        style={{ flexShrink: 0 }}
+      >
+        {pill.label}
+      </Badge>
+    </ListRow>
+  )
+}
+
+function ImplementedEntryRow({
+  entry,
+  status,
+}: {
+  entry: ImplementedEntry
+  status: 'available' | 'implemented'
+}) {
+  return (
+    <Entry
+      id={entry.sha}
+      type={entry.type}
+      description={entry.description}
+      status={status}
+      date={entry.date}
+      reference={`Commit ${entry.sha.slice(0, 7)}`}
+    />
   )
 }
 
@@ -55,9 +159,9 @@ function Section({
 }) {
   return (
     <Stack gap="xs">
-      <Title order={3} size="h5">
+      <Text size="xs" fw={600} c="dimmed" tt="uppercase" component="h3">
         {title}
-      </Title>
+      </Text>
       {count === 0 ? (
         <Text size="sm" c="dimmed">
           {emptyLabel}
@@ -102,9 +206,9 @@ export function ChangelogScreen({
                   A newer version of the app is ready. Reload to get{' '}
                   {available.length === 1 ? 'this change' : `these ${available.length} changes`}.
                 </Text>
-                <Stack gap="xs">
+                <Stack gap={0}>
                   {available.map((entry) => (
-                    <Entry key={entry.sha} type={entry.type} description={entry.description} />
+                    <ImplementedEntryRow key={entry.sha} entry={entry} status="available" />
                   ))}
                 </Stack>
                 {/*
@@ -140,17 +244,28 @@ export function ChangelogScreen({
             count={inProgress.length}
             emptyLabel="Nothing in the works right now."
           >
-            <Stack gap="xs">
+            <Stack gap={0}>
               {inProgress.map((entry) => (
-                <Entry key={entry.number} type={entry.type} description={entry.description} />
+                <Entry
+                  key={entry.number}
+                  id={`pr-${entry.number}`}
+                  type={entry.type}
+                  description={entry.description}
+                  status="in-progress"
+                  reference={
+                    <Anchor href={entry.url} target="_blank" rel="noreferrer" size="xs">
+                      Pull request #{entry.number}
+                    </Anchor>
+                  }
+                />
               ))}
             </Stack>
           </Section>
 
           <Section title="Implemented" count={implemented.length} emptyLabel="Nothing here yet.">
-            <Stack gap="xs">
+            <Stack gap={0}>
               {implemented.map((entry) => (
-                <Entry key={entry.sha} type={entry.type} description={entry.description} />
+                <ImplementedEntryRow key={entry.sha} entry={entry} status="implemented" />
               ))}
             </Stack>
           </Section>

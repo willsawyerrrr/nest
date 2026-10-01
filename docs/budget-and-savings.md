@@ -211,7 +211,9 @@ The **Wishlist** tab (`/wishlist`) holds the household's aspirational purchases 
 things it wants to buy one day, kept apart from the budget. A wishlist item is a
 name, a rough cost (`amount_cents`, always positive), an optional `member_id`
 tag naming whose wish it is, and an optional `note`. The tab lists the items
-sorted by title or amount, with add / edit / delete.
+sorted by title or amount as compact rows (an owner pill beside the name, the
+note as a caption, the amount in an aligned column), with add / edit / delete.
+The two promote actions sit in each row's overflow menu.
 
 The `member_id` tag is a **display and reporting label only** — money stays fully
 pooled, there are no per-person budgets, and the tag feeds nothing downstream. It

@@ -742,7 +742,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   only — money stays pooled, there are no per-person budgets, and it feeds
   nothing downstream (`on delete set null` if the member goes). A wishlist item
   carries no cadence, funds nothing, and is absent from the fortnightly buffer,
-  the tax estimate, and pay splits. Two per-item promote actions open a target
+  the tax estimate, and pay splits. Two per-item promote actions, in each row's overflow menu, open a target
   tab's add form prefilled and leave the wishlist row in place (no "promoted"
   state): "Make a savings goal" seeds a `savings_goal` with the item's name and
   `target_amount_cents` and no date; "Add to budget" seeds a `budget_line` with

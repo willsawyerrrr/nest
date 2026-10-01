@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Anchor, Card, Group, Stack, Text, Title } from '@mantine/core'
 import {
@@ -75,6 +76,8 @@ interface EofyScreenProps {
    */
   payslipDocuments?: readonly EofyPayslipDocument[]
   payslipSignedUrl?: (path: string) => Promise<string | null>
+  /** Household-level content shown under the year selector, ahead of the member cards; omitted where the caller has none. */
+  householdSection?: ReactNode
 }
 
 /** A dimmed label over its money figure, right-aligned, for a dense filing-figure list. */
@@ -486,6 +489,7 @@ export function EofyScreen({
   disclaimerNote,
   payslipDocuments,
   payslipSignedUrl,
+  householdSection,
 }: EofyScreenProps) {
   const helpDebtByMember = new Map(helpDebts.map((debt) => [debt.member_id, debt]))
   const showPayslipDocuments = payslipDocuments !== undefined && payslipSignedUrl !== undefined
@@ -521,6 +525,8 @@ export function EofyScreen({
           </Group>
         )}
       </Group>
+
+      {householdSection}
 
       {members.length === 0 ? (
         <EmptyState>No household members yet.</EmptyState>

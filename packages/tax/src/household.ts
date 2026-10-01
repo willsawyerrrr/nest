@@ -1,0 +1,261 @@
+/**
+ * Household-level views over the per-member estimate: combined totals for a
+ * financial year and the Medicare levy surcharge (MLS) family-income test. Pure;
+ * every figure derives from a `HouseholdTaxEstimate` and the year's config.
+ */
+
+import type { HouseholdTaxEstimate } from './estimate.ts'
+import { type MedicareLevySurchargeTier, type Money, type TaxYearConfig } from './index.ts'
+
+/**
+ * The income floor `tier` applies from for a household of `memberCount` with
+ * `dependentChildren`: the family floor raised by the config's increment for every
+ * dependent child after the first, or the single-person floor for a lone member
+ * with no children.
+ */
+export function mlsTierFloorCents(
+  tier: MedicareLevySurchargeTier,
+  memberCount: number,
+  dependentChildren: number,
+  config: TaxYearConfig,
+): Money {
+  if (memberCount === 1 && dependentChildren === 0) {
+    return tier.incomeOverCents
+  }
+  const increment =
+    Math.max(0, dependentChildren - 1) *
+    config.medicareLevySurcharge.familyDependentChildIncrementCents
+  return tier.familyIncomeOverCents + increment
+}
+
+/** One member's inputs to the family Medicare levy surcharge assessment. */
+export interface FamilyMlsMember {
+  readonly incomeForSurchargeCents: Money
+  readonly hasPrivateHospitalCover: boolean
+}
+
+/**
+ * The outcome of a family Medicare levy surcharge assessment. `tierRate` is the
+ * single rate the combined family income selects; `thresholdCents` is the family
+ * floor it was compared against (the selected tier's, or the lowest tier's when no
+ * surcharge applies). `perMemberSurchargeCents` is aligned to the input order, nil
+ * for a member who holds cover; `totalSurchargeCents` sums it.
+ */
+export interface FamilyMlsResult {
+  readonly combinedIncomeForSurchargeCents: Money
+  readonly tierRate: number
+  readonly thresholdCents: Money
+  readonly perMemberSurchargeCents: readonly Money[]
+  readonly totalSurchargeCents: Money
+}
+
+/**
+ * Assesses the Medicare levy surcharge across a household. The tier RATE is chosen
+ * by the members' COMBINED surcharge income against the FAMILY thresholds, each
+ * tier's effective family floor being `familyIncomeOverCents` plus
+ * `familyDependentChildIncrementCents` for every dependent child after the first.
+ * A member is liable only when they lack cover; when liable, their surcharge is
+ * their OWN income at the family-selected rate (a per-person base, family-selected
+ * rate), rounded to whole cents. A single-member household with no dependent
+ * children falls back to the single-person floors, so the helper is correct for
+ * both shapes. Nil rate and nil total when combined income is at or below the
+ * lowest applicable floor.
+ */
+export function familyMedicareLevySurcharge(
+  members: readonly FamilyMlsMember[],
+  dependentChildren: number,
+  config: TaxYearConfig,
+): FamilyMlsResult {
+  const { tiers } = config.medicareLevySurcharge
+  const floorOf = (t: MedicareLevySurchargeTier) =>
+    mlsTierFloorCents(t, members.length, dependentChildren, config)
+
+  const combinedIncomeForSurchargeCents = members.reduce(
+    (total, member) => total + member.incomeForSurchargeCents,
+    0,
+  )
+
+  let tierRate = 0
+  let thresholdCents = tiers.length > 0 ? floorOf(tiers[0]!) : 0
+  for (const tier of tiers) {
+    if (combinedIncomeForSurchargeCents <= floorOf(tier)) break
+    tierRate = tier.rate
+    thresholdCents = floorOf(tier)
+  }
+
+  const perMemberSurchargeCents = members.map((member) =>
+    member.hasPrivateHospitalCover ? 0 : Math.round(member.incomeForSurchargeCents * tierRate),
+  )
+  const totalSurchargeCents = perMemberSurchargeCents.reduce((total, cents) => total + cents, 0)
+
+  return {
+    combinedIncomeForSurchargeCents,
+    tierRate,
+    thresholdCents,
+    perMemberSurchargeCents,
+    totalSurchargeCents,
+  }
+}
+
+/**
+ * One member's inputs to the MLS test: the components of income for MLS purposes.
+ * `reportableFringeBenefitsCents` and `netInvestmentLossCents` default to nil, as
+ * the app does not record them.
+ */
+export interface MlsMemberInput {
+  readonly memberId: string
+  readonly taxableIncomeCents: Money
+  /** Reportable super contributions: salary sacrifice plus personal deductible. */
+  readonly reportableSuperCents: Money
+  readonly reportableFringeBenefitsCents?: Money
+  readonly netInvestmentLossCents?: Money
+  readonly hasPrivateHospitalCover: boolean
+}
+
+/**
+ * The MLS test outcome. `tier` is 0 below the first threshold, else the 1-based
+ * tier reached. `currentFloorCents` is the floor of that tier (null at tier 0);
+ * `next` is the next tier's floor and the income still to add to reach it (null
+ * at the top tier). `liable` holds when
+ * a tier applies and at least one member lacks cover.
+ */
+export interface MlsTestResult {
+  readonly familyIncomeCents: Money
+  readonly dependentChildren: number
+  readonly tier: number
+  readonly rate: number
+  readonly currentFloorCents: Money | null
+  readonly next: { readonly floorCents: Money; readonly distanceCents: Money } | null
+  readonly liable: boolean
+  readonly totalSurchargeCents: Money
+  readonly members: readonly {
+    readonly memberId: string
+    readonly incomeForMlsCents: Money
+    readonly surchargeCents: Money
+  }[]
+}
+
+/**
+ * Runs the MLS family-income test: each member's income for MLS purposes is
+ * taxable income plus reportable super contributions, reportable fringe benefits
+ * and net investment losses; the family sum selects a tier against the config's
+ * family floors (raised per dependent child after the first; single floors for a
+ * lone member with no children), reusing `familyMedicareLevySurcharge`.
+ */
+export function mlsTest(
+  members: readonly MlsMemberInput[],
+  dependentChildren: number,
+  config: TaxYearConfig,
+): MlsTestResult {
+  const incomes = members.map(
+    (member) =>
+      member.taxableIncomeCents +
+      member.reportableSuperCents +
+      (member.reportableFringeBenefitsCents ?? 0) +
+      (member.netInvestmentLossCents ?? 0),
+  )
+  const assessment = familyMedicareLevySurcharge(
+    members.map((member, index) => ({
+      incomeForSurchargeCents: incomes[index]!,
+      hasPrivateHospitalCover: member.hasPrivateHospitalCover,
+    })),
+    dependentChildren,
+    config,
+  )
+  const floors = config.medicareLevySurcharge.tiers.map((tier) =>
+    mlsTierFloorCents(tier, members.length, dependentChildren, config),
+  )
+  const tier = floors.filter((floor) => assessment.combinedIncomeForSurchargeCents > floor).length
+  const nextFloorCents = floors[tier]
+  return {
+    familyIncomeCents: assessment.combinedIncomeForSurchargeCents,
+    dependentChildren,
+    tier,
+    rate: assessment.tierRate,
+    currentFloorCents: tier === 0 ? null : floors[tier - 1]!,
+    next:
+      nextFloorCents === undefined
+        ? null
+        : {
+            floorCents: nextFloorCents,
+            distanceCents: nextFloorCents - assessment.combinedIncomeForSurchargeCents,
+          },
+    liable: assessment.tierRate > 0 && members.some((member) => !member.hasPrivateHospitalCover),
+    totalSurchargeCents: assessment.totalSurchargeCents,
+    members: members.map((member, index) => ({
+      memberId: member.memberId,
+      incomeForMlsCents: incomes[index]!,
+      surchargeCents: assessment.perMemberSurchargeCents[index]!,
+    })),
+  }
+}
+
+/** One member's contribution to the household totals. */
+export interface HouseholdMemberSummary {
+  readonly memberId: string
+  /** Gross income, net capital gain included. */
+  readonly grossIncomeCents: Money
+  readonly netCapitalGainCents: Money
+  readonly deductionsCents: Money
+  readonly taxableIncomeCents: Money
+  readonly taxCents: Money
+  readonly concessionalSuperCents: Money
+  readonly afterTaxCents: Money
+}
+
+/** The household's combined figures for a financial year, with the MLS test. */
+export interface HouseholdYearSummary {
+  readonly members: readonly HouseholdMemberSummary[]
+  readonly grossIncomeCents: Money
+  readonly netCapitalGainCents: Money
+  readonly deductionsCents: Money
+  readonly taxableIncomeCents: Money
+  readonly taxCents: Money
+  readonly concessionalSuperCents: Money
+  readonly afterTaxCents: Money
+  readonly mls: MlsTestResult
+}
+
+/**
+ * Combines a household estimate's members into year totals (each the sum of the
+ * members' figures) and runs the MLS test over them, taking each member's cover
+ * from the profile the estimate was computed with.
+ */
+export function householdYearSummary(
+  estimate: HouseholdTaxEstimate,
+  dependentChildren: number,
+  config: TaxYearConfig,
+): HouseholdYearSummary {
+  const members = estimate.members.map((member) => ({
+    memberId: member.memberId,
+    grossIncomeCents: member.annualGrossCents,
+    netCapitalGainCents: member.annualNetCapitalGainCents,
+    deductionsCents: member.annualDeductionsCents,
+    taxableIncomeCents: member.breakdown.taxableIncomeCents,
+    taxCents: member.annualTaxCents,
+    concessionalSuperCents: member.annualConcessionalContributionsCents,
+    afterTaxCents: member.annualAfterTaxCents,
+  }))
+  const sum = (pick: (member: HouseholdMemberSummary) => Money): Money =>
+    members.reduce((total, member) => total + pick(member), 0)
+  return {
+    members,
+    grossIncomeCents: sum((member) => member.grossIncomeCents),
+    netCapitalGainCents: sum((member) => member.netCapitalGainCents),
+    deductionsCents: sum((member) => member.deductionsCents),
+    taxableIncomeCents: sum((member) => member.taxableIncomeCents),
+    taxCents: sum((member) => member.taxCents),
+    concessionalSuperCents: sum((member) => member.concessionalSuperCents),
+    afterTaxCents: sum((member) => member.afterTaxCents),
+    mls: mlsTest(
+      estimate.members.map((member) => ({
+        memberId: member.memberId,
+        taxableIncomeCents: member.breakdown.taxableIncomeCents,
+        reportableSuperCents: member.annualConcessionalContributionsCents,
+        hasPrivateHospitalCover: member.input.privateHospitalCover,
+      })),
+      dependentChildren,
+      config,
+    ),
+  }
+}

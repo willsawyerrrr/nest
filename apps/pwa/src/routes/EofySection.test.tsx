@@ -153,6 +153,7 @@ describe('EofySection', () => {
     expect(hooks.useHelpDebts).toHaveBeenCalledWith()
 
     expect(hooks.screenProps?.financialYear).toBe(currentFy)
+    expect(hooks.screenProps?.householdSection).toBeTruthy()
     // Descending order, so the extra 2025 config sorts after the real FY2027.
     expect(hooks.screenProps?.availableFinancialYears).toEqual(
       Object.keys(extendedConfigsByYear)

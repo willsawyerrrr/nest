@@ -39,6 +39,20 @@ export type {
   TradeSide,
   UnmatchedSale,
 } from './capitalGains.ts'
+export {
+  familyMedicareLevySurcharge,
+  householdYearSummary,
+  mlsTest,
+  mlsTierFloorCents,
+} from './household.ts'
+export type {
+  FamilyMlsMember,
+  FamilyMlsResult,
+  HouseholdMemberSummary,
+  HouseholdYearSummary,
+  MlsMemberInput,
+  MlsTestResult,
+} from './household.ts'
 
 export { splitOneOffPayment } from './oneOff.ts'
 export type {
@@ -531,77 +545,6 @@ export function medicareLevySurcharge(
     rate = tier.rate
   }
   return roundCents(incomeForSurchargeCents * rate)
-}
-
-/** One member's inputs to the family Medicare levy surcharge assessment. */
-export interface FamilyMlsMember {
-  readonly incomeForSurchargeCents: Money
-  readonly hasPrivateHospitalCover: boolean
-}
-
-/**
- * The outcome of a family Medicare levy surcharge assessment. `tierRate` is the
- * single rate the combined family income selects; `thresholdCents` is the family
- * floor it was compared against (the selected tier's, or the lowest tier's when no
- * surcharge applies). `perMemberSurchargeCents` is aligned to the input order, nil
- * for a member who holds cover; `totalSurchargeCents` sums it.
- */
-export interface FamilyMlsResult {
-  readonly combinedIncomeForSurchargeCents: Money
-  readonly tierRate: number
-  readonly thresholdCents: Money
-  readonly perMemberSurchargeCents: readonly Money[]
-  readonly totalSurchargeCents: Money
-}
-
-/**
- * Assesses the Medicare levy surcharge across a household. The tier RATE is chosen
- * by the members' COMBINED surcharge income against the FAMILY thresholds, each
- * tier's effective family floor being `familyIncomeOverCents` plus
- * `familyDependentChildIncrementCents` for every dependent child after the first.
- * A member is liable only when they lack cover; when liable, their surcharge is
- * their OWN income at the family-selected rate (a per-person base, family-selected
- * rate), rounded to whole cents. A single-member household with no dependent
- * children falls back to the single-person floors, so the helper is correct for
- * both shapes. Nil rate and nil total when combined income is at or below the
- * lowest applicable floor.
- */
-export function familyMedicareLevySurcharge(
-  members: readonly FamilyMlsMember[],
-  dependentChildren: number,
-  config: TaxYearConfig,
-): FamilyMlsResult {
-  const { tiers, familyDependentChildIncrementCents } = config.medicareLevySurcharge
-  const useSingleFloors = members.length === 1 && dependentChildren === 0
-  const increment = Math.max(0, dependentChildren - 1) * familyDependentChildIncrementCents
-  const floorOf = (tier: MedicareLevySurchargeTier): Money =>
-    useSingleFloors ? tier.incomeOverCents : tier.familyIncomeOverCents + increment
-
-  const combinedIncomeForSurchargeCents = members.reduce(
-    (total, member) => total + member.incomeForSurchargeCents,
-    0,
-  )
-
-  let tierRate = 0
-  let thresholdCents = tiers.length > 0 ? floorOf(tiers[0]!) : 0
-  for (const tier of tiers) {
-    if (combinedIncomeForSurchargeCents <= floorOf(tier)) break
-    tierRate = tier.rate
-    thresholdCents = floorOf(tier)
-  }
-
-  const perMemberSurchargeCents = members.map((member) =>
-    member.hasPrivateHospitalCover ? 0 : roundCents(member.incomeForSurchargeCents * tierRate),
-  )
-  const totalSurchargeCents = perMemberSurchargeCents.reduce((total, cents) => total + cents, 0)
-
-  return {
-    combinedIncomeForSurchargeCents,
-    tierRate,
-    thresholdCents,
-    perMemberSurchargeCents,
-    totalSurchargeCents,
-  }
 }
 
 /**

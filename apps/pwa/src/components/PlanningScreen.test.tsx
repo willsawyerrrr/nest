@@ -85,6 +85,22 @@ describe('PlanningScreen', () => {
     expect(screen.getByText(/amount: \$1,000\.00 → \$1,500\.00/)).toBeInTheDocument()
   })
 
+  it('shows a count for several changes and reveals each on expand', async () => {
+    renderScreen([
+      {
+        ...anUpdate,
+        changes: [...anUpdate.changes, { field: 'frequency', was: 'weekly', now: 'monthly' }],
+      },
+    ])
+    expect(screen.getByText('2 changes')).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: /^day job/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('amount: $1,000.00 → $1,500.00')).toBeVisible()
+    expect(screen.getByText('frequency: weekly → monthly')).toBeVisible()
+  })
+
   it('labels an id field without the _id suffix', () => {
     renderScreen([
       {

@@ -1,10 +1,24 @@
 /* eslint-disable react/only-export-components -- the screen and its row-shape types are one unit. */
-import { Alert, Badge, Button, Group, Stack, Table, Text } from '@mantine/core'
+import {
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Collapse,
+  Group,
+  Stack,
+  Table,
+  Text,
+  UnstyledButton,
+} from '@mantine/core'
+import { useDisclosure } from '@mantine/hooks'
+import { IconArrowBackUp, IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { PlanningTable } from '../lib/planningMode'
 import { AppCard } from './AppCard'
 import { ComparedAmount, ComparedDate } from './ComparedAmount'
 import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
+import { ListRow } from './ListRow'
 import { PageSection } from './PageSection'
 
 /** One field a sandbox update moved, with its real and proposed values already formatted. */
@@ -62,37 +76,86 @@ const KIND_LABEL: Record<PlanningOverride['kind'], { label: string; color: strin
   delete: { label: 'Removed', color: 'negative' },
 }
 
-/** One held row: its name, what kind of edit, the moved fields, and a Reset. */
+/** A change as `field: was → now`. */
+function changeText(change: PlanningOverrideChange): string {
+  return `${fieldLabel(change.field)}: ${change.was} → ${change.now}`
+}
+
+/**
+ * One held row on a single line: the name with its kind as a pill, the table
+ * muted, and a Reset. An edit's first change reads beneath as the caption, or a
+ * count when several fields moved, and expanding lists every was → now.
+ */
 function OverrideRow({ override, onReset }: { override: PlanningOverride; onReset: () => void }) {
   const kind = KIND_LABEL[override.kind]
-  return (
-    <Stack
-      gap={4}
-      py="xs"
-      style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-    >
-      <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-          <Badge size="xs" variant="light" color={kind.color}>
-            {kind.label}
-          </Badge>
-          <Text size="sm" fw={600} truncate>
-            {override.rowName}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {override.tableLabel}
-          </Text>
-        </Group>
-        <Button size="compact-xs" variant="subtle" onClick={onReset} style={{ flexShrink: 0 }}>
-          Reset
-        </Button>
-      </Group>
-      {override.changes.map((change) => (
-        <Text key={change.field} size="xs" c="dimmed">
-          {`${fieldLabel(change.field)}: ${change.was} → ${change.now}`}
+  const [expanded, { toggle }] = useDisclosure(false)
+  const [first, ...rest] = override.changes
+  const expandable = rest.length > 0
+  const detailId = `planning-override-${override.table}-${override.id}`
+  const title = (
+    <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+      {expandable &&
+        (expanded ? (
+          <IconChevronDown size={16} style={{ flexShrink: 0 }} />
+        ) : (
+          <IconChevronRight size={16} style={{ flexShrink: 0 }} />
+        ))}
+      <Text size="sm" fw={600} truncate>
+        {override.rowName}
+      </Text>
+      <Badge size="xs" variant="light" color={kind.color} style={{ flexShrink: 0 }}>
+        {kind.label}
+      </Badge>
+      <Text size="xs" c="dimmed" truncate style={{ flexShrink: 0 }}>
+        {override.tableLabel}
+      </Text>
+    </Group>
+  )
+  const caption =
+    first &&
+    (expandable ? (
+      <>
+        <Text size="xs" c="dimmed">
+          {`${override.changes.length} changes`}
         </Text>
-      ))}
-    </Stack>
+        <Collapse expanded={expanded} id={detailId}>
+          <Stack gap={2}>
+            {override.changes.map((change) => (
+              <Text key={change.field} size="xs" c="dimmed">
+                {changeText(change)}
+              </Text>
+            ))}
+          </Stack>
+        </Collapse>
+      </>
+    ) : (
+      <Text size="xs" c="dimmed" truncate>
+        {changeText(first)}
+      </Text>
+    ))
+  return (
+    <ListRow caption={caption}>
+      {expandable ? (
+        <UnstyledButton
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-controls={detailId}
+          style={{ flex: 1, minWidth: 0 }}
+        >
+          {title}
+        </UnstyledButton>
+      ) : (
+        title
+      )}
+      <ActionIcon
+        variant="subtle"
+        aria-label={`Reset ${override.rowName}`}
+        onClick={onReset}
+        style={{ flexShrink: 0 }}
+      >
+        <IconArrowBackUp size={16} />
+      </ActionIcon>
+    </ListRow>
   )
 }
 

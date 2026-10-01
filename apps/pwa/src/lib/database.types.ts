@@ -2369,6 +2369,10 @@ export type Database = {
         Args: { p_account_id: string }
         Returns: undefined
       }
+      set_member_date_of_birth: {
+        Args: { p_date_of_birth: string; p_member_id: string }
+        Returns: undefined
+      }
       store_up_token: {
         Args: { p_member_id: string; p_token: string }
         Returns: undefined

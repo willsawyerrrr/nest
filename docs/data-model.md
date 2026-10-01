@@ -45,7 +45,11 @@ and so without the trigger.
     one-off payment's date, tested against the financial year's preservation age
     to set the concessional rate an employment termination payment is taxed at
     (see [`tax.md`](tax.md)). Unset reads as below preservation age — the higher
-    rate — so a missing date understates the payment, never the tax.
+    rate — so a missing date understates the payment, never the tax. Any member
+    of the household sets any member's date of birth, through
+    `set_member_date_of_birth` (`SECURITY DEFINER`, scoped to the caller's
+    households): it is the only client write path, and `name`/`email` stay
+    editable on a member's own row only.
   - Unique on `(household_id, user_id)`. All members can manage everything in
     the household; member attribution elsewhere is a tax/reporting tag, not a
     permission.
@@ -55,8 +59,7 @@ and so without the trigger.
     token is stored/read/cleared solely by SECURITY DEFINER RPCs granted to
     `service_role` (`store_up_token` / `up_token_for_member` / `clear_up_token`).
     It is service-role-write-only: `authenticated` holds column-scoped UPDATE on
-    `name`/`email`/`date_of_birth` only, so a client cannot forge its Up
-    connection status.
+    `name`/`email` only, so a client cannot forge its Up connection status.
   - `service_role` holds the table grants the Up edge functions read under:
     `select` on `members` and `select`/`insert`/`update` on `accounts`, for member
     lookup and for resolving a synced transaction's account. The sync's writes go
@@ -197,7 +200,12 @@ and so without the trigger.
     `residency` (`resident` | `foreign_resident`),
     `has_private_hospital_cover` (Medicare levy surcharge), `created_at`,
     `updated_at`.
-  - Unique on `(member_id, financial_year)`.
+  - Unique on `(member_id, financial_year)`; composite FK on
+    `(member_id, household_id)` → `members`. RLS is **household-wide CRUD**: any
+    member views and edits every member's profile (and `help_debt`, and the
+    member's date of birth via `set_member_date_of_birth`) on the Members & tax
+    profiles page. Edits raise no notification and keep no audit trail; an EOFY
+    share grant reads the rows read-only through `service_role`.
 - **help_debt** — per member; one standing HELP/HECS balance, not
   financial-year-scoped.
   - `id`, `household_id`, `member_id`, `balance_cents` (bigint, `>= 0`),

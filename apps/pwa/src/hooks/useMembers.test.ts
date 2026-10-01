@@ -4,16 +4,17 @@ import { makeMember } from '../test/fixtures'
 import { makeWrapper } from '../test/queryWrapper'
 import { useMembers } from './useMembers'
 
-const { builder } = await vi.hoisted(async () => {
+const { builder, rpc } = await vi.hoisted(async () => {
   const { makeSupabaseBuilder } = await import('../test/supabaseBuilder')
-  return { builder: makeSupabaseBuilder(['select', 'update', 'eq', 'order']) }
+  return { builder: makeSupabaseBuilder(['select', 'order']), rpc: vi.fn() }
 })
 
-vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
+vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder), rpc } }))
 
 beforeEach(() => {
   vi.clearAllMocks()
   builder.result = { data: [makeMember()], error: null }
+  rpc.mockResolvedValue({ error: null })
 })
 
 describe('useMembers', () => {
@@ -39,8 +40,10 @@ describe('useMembers', () => {
     builder.select.mockClear()
     await act(() => result.current.setDateOfBirth('m1', '1990-01-01'))
 
-    expect(builder.update).toHaveBeenCalledWith({ date_of_birth: '1990-01-01' })
-    expect(builder.eq).toHaveBeenCalledWith('id', 'm1')
+    expect(rpc).toHaveBeenCalledWith('set_member_date_of_birth', {
+      p_member_id: 'm1',
+      p_date_of_birth: '1990-01-01',
+    })
     // The refetch after the write is what puts the new value in front of the form.
     await waitFor(() => expect(builder.select).toHaveBeenCalled())
   })
@@ -50,14 +53,17 @@ describe('useMembers', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     await act(() => result.current.setDateOfBirth('m1', null))
-    expect(builder.update).toHaveBeenCalledWith({ date_of_birth: null })
+    expect(rpc).toHaveBeenCalledWith('set_member_date_of_birth', {
+      p_member_id: 'm1',
+      p_date_of_birth: null,
+    })
   })
 
   it('propagates a write error', async () => {
     const { result } = renderHook(() => useMembers(), { wrapper: makeWrapper() })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    builder.result = { data: null, error: new Error('write failed') }
+    rpc.mockResolvedValue({ error: new Error('write failed') })
     await expect(result.current.setDateOfBirth('m1', null)).rejects.toThrow('write failed')
   })
 })

@@ -81,7 +81,7 @@ export function TaxProfileForm({ member, initial, onSubmit, onCancel }: TaxProfi
       <DateInput
         label="Date of birth"
         size="sm"
-        description="Optional. Used for one thing only: your age when a one-off termination payment lands, which sets the rate its concessional part is taxed at. Left blank, the estimate assumes you are below preservation age — the higher rate."
+        description="Optional. Used for one thing only: their age when a one-off termination payment lands, which sets the rate its concessional part is taxed at. Left blank, the estimate assumes they are below preservation age — the higher rate."
         valueFormat="D MMM YYYY"
         clearable
         value={dateOfBirth}

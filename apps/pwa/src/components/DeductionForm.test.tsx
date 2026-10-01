@@ -173,6 +173,7 @@ describe('DeductionForm', () => {
 
     expect(screen.getByDisplayValue('Home office')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText('What kind of deduction?')).not.toBeInTheDocument()
     // No extraction mechanics on an edit, and no picker unless the caller
     // supplies receipt handlers.
     expect(filePicker()).toBeNull()
@@ -204,6 +205,7 @@ describe('DeductionForm', () => {
       />,
     )
 
+    await user.click(screen.getByRole('button', { name: /more details/i }))
     const file = new File(['y'], 'newer.pdf', { type: 'application/pdf' })
     await user.upload(filePicker() as HTMLInputElement, file)
     expect(onUploadReceipt).toHaveBeenCalledWith(file)
@@ -929,6 +931,32 @@ describe('DeductionForm category', () => {
     expect(read).toHaveBeenCalledWith(expect.any(String), 'donation')
   })
 
+  it('keeps an existing deduction on its category, with no control to change it', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction({ category: 'donation' })}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    expect(screen.queryByLabelText('What kind of deduction?')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tax agent fee')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ category: 'donation' }),
+        }),
+      ),
+    )
+  })
+
   it('reopens an existing donation on its own category, with the work-use field hidden', () => {
     render(
       <DeductionForm
@@ -1016,6 +1044,7 @@ describe('DeductionForm category', () => {
       />,
     )
 
+    await user.click(screen.getByRole('button', { name: /more details/i }))
     // The donation already sits in the auto group; the picker shows it as the
     // default and never lists a second "Donations" option.
     expect(screen.getByRole('combobox', { name: 'Group' })).toHaveValue('Donations')

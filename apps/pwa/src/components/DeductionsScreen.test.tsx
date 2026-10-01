@@ -331,6 +331,7 @@ describe('DeductionsScreen', () => {
 
     const card = screen.getByText('Home office').closest('.mantine-Card-root') as HTMLElement
     await user.click(within(card).getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /more details/i }))
     await user.click(groupPicker())
     await user.click(await screen.findByRole('option', { name: 'Adobe Creative Cloud' }))
     await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -468,6 +469,7 @@ describe('DeductionsScreen', () => {
     const { onUploadReceipt } = renderScreen()
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /more details/i }))
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = new File(['x'], 'receipt.pdf', { type: 'application/pdf' })
     await user.upload(input, file)
@@ -503,6 +505,7 @@ describe('DeductionsScreen', () => {
     const { onRemoveReceipt } = renderScreen({ receipts: [makeReceipt()] })
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /more details/i }))
     await user.click(screen.getByRole('button', { name: /delete receipt/i }))
 
     const dialog = await screen.findByRole('dialog')
@@ -516,6 +519,7 @@ describe('DeductionsScreen', () => {
     const { onUploadReceipt } = renderScreen({ receipts: [makeReceipt()] })
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /more details/i }))
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = new File(['y'], 'newer.pdf', { type: 'application/pdf' })
     await user.upload(input, file)

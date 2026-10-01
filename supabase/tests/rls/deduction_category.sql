@@ -1,5 +1,5 @@
--- Assertions for a deduction's category and its interaction with work-use
--- apportioning.
+-- Assertions for a deduction's category, its immutability, and its interaction
+-- with work-use apportioning.
 --
 -- `category` defaults to `work_expense`, matching existing behaviour for every
 -- deduction written before the column existed. `deduction_work_use_basis` pins
@@ -100,6 +100,24 @@ begin
   -- A work expense on the distance basis is still fine.
   insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, category, basis, distance_km, full_amount_cents, work_use_percent)
     values (v_hid, v_mid, 'Client visits', 91_00, '2026-08-08', 2027, 'work_expense', 'distance', 100, 91_00, 100);
+end $$;
+
+-- A deduction's category is fixed once it exists: rewriting it to another kind
+-- is refused, while an update that leaves it alone — such as filing the row
+-- into a group — still succeeds.
+do $$
+declare v_donation uuid := current_setting('db.donation')::uuid;
+begin
+  begin
+    update public.deduction set category = 'work_expense' where id = v_donation;
+    raise exception 'FAIL: a deduction''s category was changed';
+  exception when check_violation then
+    raise notice 'PASS: a deduction''s category cannot be changed';
+  end;
+
+  update public.deduction set category = 'donation', description = 'Red Cross appeal' where id = v_donation;
+  assert (select description from public.deduction where id = v_donation) = 'Red Cross appeal',
+    'an update that leaves the category alone should succeed';
 end $$;
 
 -- The add path carries the category too: create_deduction_with_receipt names

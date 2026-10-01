@@ -55,7 +55,7 @@ One table, `share_grant` (`supabase/migrations/20260831000000_share_grant.sql`):
 - **`service_role` reads `share_grant` by `token_hash`**, plus the source
   tables `eofy-share` assembles (`members`, `inflows`, `tax_profile`,
   `super_contribution`, `super_profile`, `help_debt`, `deduction`,
-  `deduction_receipt`, `payslip`, `savings_goal`, `trade`, `accounts`,
+  `deduction_group`, `deduction_receipt`, `payslip`, `savings_goal`, `trade`, `accounts`,
   `account_balance`) — surgical per-feature grants, following
   `docs/operations.md`'s `service_role` grants stance. `savings_goal` and the
   account identity/balance pair feed projected savings interest into the
@@ -76,7 +76,7 @@ Three functions under `supabase/functions/`, documented in full in
   without a link.
 - **`eofy-share`** (`verify_jwt = false`) resolves the bearer token against
   `share_grant` and returns the same raw rows the household's own EOFY tab
-  loads, scoped to the token's household (and, for the FY-scoped tables, its
+  loads (including the year's deduction groups, ordered by name), scoped to the token's household (and, for the FY-scoped tables, its
   financial year) with a service-role client.
 - **`eofy-share-file`** (`verify_jwt = false`) signs a 5-minute Storage URL
   (shorter than the household's own hour-long ones) for one deduction
@@ -85,7 +85,11 @@ Three functions under `supabase/functions/`, documented in full in
   `auth.uid()` for Storage's household-membership policy to match either way.
   Each deduction carries at most one receipt, shown on the shared view as a
   single "Receipt" link. Each deduction is one row: description, muted date,
-  and the link wrap beside a right-aligned amount.
+  and the link wrap beside a right-aligned amount. Deductions are grouped as on
+  the Deductions tab: each `deduction_group` (the automatic donations group
+  included) is a heading with its payments beneath and their summed total, and
+  deductions in no group follow under "Ungrouped" (or alone, for a member with
+  no groups). A group with no payments still shows, at $0.00.
 
 `_shared/shareGrant.ts` resolves a token for both anonymous functions,
 reporting the identical generic 401 whether it is malformed, matches

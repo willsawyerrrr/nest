@@ -397,7 +397,7 @@ never a Supabase account or Google OAuth. Three functions:
   client, since the caller has no `auth.uid()` for the household's own RLS to
   match — returns the same raw rows `EofySection.tsx` loads for the
   household's own EOFY tab (inflows, tax profiles, super contributions and
-  profiles, HELP debts, deductions, and payslips), scoped by hand to the
+  profiles, HELP debts, deductions and their groups, and payslips), scoped by hand to the
   grant's household and, where the corresponding hook is FY-scoped, its
   financial year. It also returns `savings_goal` and a minimal per-account
   balance set (`{ id, owner_member_id, balance_cents }`, rebuilt from `accounts`

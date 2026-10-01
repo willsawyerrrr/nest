@@ -10,6 +10,7 @@ function emptyRows(): EofyShareRows {
     superProfiles: [],
     helpDebts: [],
     deductions: [],
+    deductionGroups: [],
     deductionReceipts: [],
     payslips: [],
     savingsGoals: [],

@@ -212,7 +212,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   member's card condenses their filing-relevant tax figures, states the withheld
   total and the number of payslips behind it (a year with no payslips says so,
   rather than reading as a year that withheld nothing), lists their claimed
-  deductions with their receipt, shows their super contributions against the same
+  deductions grouped as on the Deductions tab (each group, the automatic donations
+  group included, a heading with its payments and summed total, then the
+  ungrouped) with their receipt, shows their super contributions against the same
   cap warnings as the Super tab, and shows their standing HELP balance with the
   year's estimated repayment; nothing on the tab is editable.
 - Tax deductions: each member owns many deductible expenses on their own Tax

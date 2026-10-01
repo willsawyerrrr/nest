@@ -2,6 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { HouseholdTaxEstimate, MemberTaxEstimate, TaxBreakdown, TaxInput } from '@nest/tax'
+import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import type { HelpDebt } from '../hooks/useHelpDebts'
@@ -127,6 +128,20 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
   }
 }
 
+function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRow {
+  return {
+    id: 'g1',
+    household_id: 'h1',
+    member_id: 'm1',
+    financial_year: 2027,
+    name: 'Adobe',
+    kind: 'standard',
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
 function makeReceipt(overrides: Partial<DeductionReceiptRow> = {}): DeductionReceiptRow {
   return {
     id: 'r1',
@@ -151,6 +166,7 @@ function renderScreen(props: Partial<Parameters<typeof EofyScreen>[0]> = {}) {
         helpDebts={[]}
         helpPayoff={new Map()}
         deductions={[]}
+        deductionGroups={[]}
         payslipCounts={new Map()}
         receipts={[]}
         signedUrl={vi.fn()}
@@ -331,6 +347,79 @@ describe('EofyScreen', () => {
     expect(signedUrl).toHaveBeenCalledWith('h1/d1/receipt.pdf')
 
     openSpy.mockRestore()
+  })
+
+  it('lists each group with its summed total and payments, then the ungrouped deductions', async () => {
+    const signedUrl = vi.fn().mockResolvedValue('https://example.com/receipt.pdf')
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const user = userEvent.setup()
+
+    renderScreen({
+      deductionGroups: [
+        makeGroup({ id: 'g1', name: 'Adobe' }),
+        makeGroup({ id: 'g2', name: 'Donations', kind: 'donations' }),
+        makeGroup({ id: 'g3', name: 'Trip' }),
+        makeGroup({ id: 'g4', name: 'Their group', member_id: 'm2' }),
+      ],
+      deductions: [
+        makeDeduction({ id: 'd1', description: 'Adobe Jan', amount_cents: 60_00, group_id: 'g1' }),
+        makeDeduction({ id: 'd2', description: 'Adobe Feb', amount_cents: 40_00, group_id: 'g1' }),
+        makeDeduction({ id: 'd3', description: 'Red Cross', amount_cents: 25_00, group_id: 'g2' }),
+        makeDeduction({ id: 'd4', description: 'Desk', amount_cents: 300_00 }),
+      ],
+      receipts: [makeReceipt({ id: 'r1', deduction_id: 'd1' })],
+      signedUrl,
+    })
+
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).getByText('Total deductions claimed').nextSibling).toHaveTextContent(
+      '$425.00',
+    )
+    const adobe = within(card).getByRole('region', { name: 'Adobe' })
+    expect(within(adobe).getByText('$100.00')).toBeInTheDocument()
+    expect(within(adobe).getByText('Adobe Jan')).toBeInTheDocument()
+    expect(within(adobe).getByText('Adobe Feb')).toBeInTheDocument()
+    await user.click(within(adobe).getByRole('button', { name: 'Receipt' }))
+    expect(signedUrl).toHaveBeenCalledWith('h1/d1/receipt.pdf')
+
+    const donations = within(card).getByRole('region', { name: 'Donations' })
+    expect(within(donations).getAllByText('$25.00')).toHaveLength(2)
+    expect(within(donations).getByText('Red Cross')).toBeInTheDocument()
+
+    const trip = within(card).getByRole('region', { name: 'Trip' })
+    expect(within(trip).getByText('No payments')).toBeInTheDocument()
+    expect(within(trip).getByText('$0.00')).toBeInTheDocument()
+
+    expect(within(card).queryByText('Their group')).toBeNull()
+    expect(within(card).getByText('Ungrouped')).toBeInTheDocument()
+    expect(within(card).getByText('Desk')).toBeInTheDocument()
+    expect(within(adobe).queryByText('Desk')).toBeNull()
+
+    openSpy.mockRestore()
+  })
+
+  it('lists a donations-only year as the donations group alone', () => {
+    renderScreen({
+      deductionGroups: [makeGroup({ id: 'g2', name: 'Donations', kind: 'donations' })],
+      deductions: [makeDeduction({ id: 'd3', description: 'Red Cross', group_id: 'g2' })],
+    })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).getByRole('region', { name: 'Donations' })).toBeInTheDocument()
+    expect(within(card).queryByText('Ungrouped')).toBeNull()
+  })
+
+  it('lists ungrouped deductions without a heading when the member has no groups', () => {
+    renderScreen({ deductions: [makeDeduction({ id: 'd4', description: 'Desk' })] })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).getByText('Desk')).toBeInTheDocument()
+    expect(within(card).queryByText('Ungrouped')).toBeNull()
+  })
+
+  it('shows an empty group rather than the empty state when a member has groups but no payments', () => {
+    renderScreen({ deductionGroups: [makeGroup()] })
+    const card = screen.getByRole('region', { name: 'Alex' })
+    expect(within(card).queryByText(/no deductions claimed/i)).toBeNull()
+    expect(within(card).getByRole('region', { name: 'Adobe' })).toBeInTheDocument()
   })
 
   it('shows an empty state when a member has no deductions', () => {

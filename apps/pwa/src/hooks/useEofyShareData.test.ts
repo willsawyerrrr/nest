@@ -16,6 +16,7 @@ const shareData: EofyShareData = {
   superProfiles: [],
   helpDebts: [],
   deductions: [],
+  deductionGroups: [],
   deductionReceipts: [],
   payslips: [],
   savingsGoals: [],

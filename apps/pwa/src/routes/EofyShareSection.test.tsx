@@ -41,6 +41,7 @@ const shareData: EofyShareData = {
   superProfiles: [],
   helpDebts: [],
   deductions: [],
+  deductionGroups: [],
   deductionReceipts: [],
   payslips: [],
   savingsGoals: [],
@@ -81,6 +82,18 @@ describe('EofyShareSection', () => {
       'These figures are estimates for planning purposes, not a filed tax return.',
     )
     expect((hooks.screenProps!.estimate as HouseholdTaxEstimate).members).toEqual([])
+  })
+
+  it('passes the shared deduction groups to EofyScreen', () => {
+    const deductionGroups = [
+      { id: 'g1', member_id: 'm1', name: 'Donations', kind: 'donations' },
+    ] as EofyShareData['deductionGroups']
+    hooks.useEofyShareData.mockReturnValue({
+      status: 'ready',
+      data: { ...shareData, deductionGroups },
+    } satisfies EofyShareOutcome)
+    renderAt()
+    expect(hooks.screenProps?.deductionGroups).toEqual(deductionGroups)
   })
 
   it('feeds a shared goal’s projected savings interest into the estimate', () => {

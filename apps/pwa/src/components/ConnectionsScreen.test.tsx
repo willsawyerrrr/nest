@@ -114,6 +114,46 @@ describe('ConnectionsScreen', () => {
     expect(onConnect).toHaveBeenCalledOnce()
   })
 
+  function renderWithConnect(onConnect: () => Promise<void>) {
+    renderConnections({
+      redbark: {
+        connections: [],
+        busy: false,
+        onConnect,
+        onDisconnect: vi.fn(),
+        completeResult: null,
+        onDismissCompleteResult: vi.fn(),
+      },
+    })
+  }
+
+  it('explains a Redbark plan without API access, linking to billing', async () => {
+    const user = userEvent.setup()
+    renderWithConnect(() =>
+      Promise.reject(Object.assign(new Error('raw'), { code: 'plan_upgrade_required' })),
+    )
+
+    await user.click(screen.getByRole('button', { name: /^connect a bank$/i }))
+
+    expect(await screen.findByText(/Developer or Professional plan/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Upgrade your plan' })).toHaveAttribute(
+      'href',
+      'https://app.redbark.com/settings/billing',
+    )
+  })
+
+  it('shows generic copy for any other connect failure, which can be dismissed', async () => {
+    const user = userEvent.setup()
+    renderWithConnect(() => Promise.reject(new Error('raw upstream text')))
+
+    await user.click(screen.getByRole('button', { name: /^connect a bank$/i }))
+    expect(await screen.findByText(/Redbark is unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText(/raw upstream text/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText(/Redbark is unavailable/)).not.toBeInTheDocument()
+  })
+
   it('lists Redbark connections with the owning member and status', () => {
     renderConnections({
       redbark: {
@@ -203,20 +243,20 @@ describe('ConnectionsScreen', () => {
     expect(onDismissCompleteResult).toHaveBeenCalledOnce()
   })
 
-  it('shows the failure reason in the error banner', () => {
+  it('shows our own copy for the failure code in the error banner', () => {
     renderConnections({
       redbark: {
         connections: [],
         busy: false,
         onConnect: vi.fn(),
         onDisconnect: vi.fn(),
-        completeResult: { status: 'failed', reason: 'Consent was declined' },
+        completeResult: { status: 'failed', code: 'redbark_auth_failed' },
         onDismissCompleteResult: vi.fn(),
       },
     })
 
     expect(screen.getByText('Connection failed')).toBeInTheDocument()
-    expect(screen.getByText('Consent was declined')).toBeInTheDocument()
+    expect(screen.getByText(/misconfigured/)).toBeInTheDocument()
   })
 
   it('shows a pending banner when the connection has not finished yet', () => {

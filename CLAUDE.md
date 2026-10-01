@@ -836,6 +836,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   a deferred slice, a follow-up, a bug, a polish pass on already-merged
   work — gets its own new Linear issue (related to the originating one),
   not just a note in a PR description. One issue per shippable change.
+- Edge functions never pass a third-party API's response (body, message,
+  request id, URL) through to the client. A failed upstream call returns our own
+  stable `code` plus fixed copy, the upstream detail is logged server-side
+  (`console.error`, no secrets), and the PWA renders its own copy per `code`.
+  Redbark does this via `_shared/redbarkFailure.ts`.
 - Money is stored as integer minor units (cents); never floats.
 - Integer-cent numeric literals are grouped to read as dollars: a trailing `_NN`
   for the cents, then `_NNN` groups for the dollars (e.g. `18_200_00` = $18,200.00).

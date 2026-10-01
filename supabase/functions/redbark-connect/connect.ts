@@ -9,6 +9,8 @@
  * member from their JWT (never the body).
  */
 
+import { redbarkFailure } from '../_shared/redbarkFailure.ts'
+
 export interface FlowResult {
   status: number
   body: Record<string, unknown>
@@ -53,10 +55,7 @@ export async function runConnect(rawReturnUrl: unknown, deps: ConnectDeps): Prom
   try {
     session = await deps.createLinkSession(returnUrl)
   } catch (error) {
-    return {
-      status: 502,
-      body: { error: `Failed to start a Redbark connection: ${(error as Error).message}` },
-    }
+    return redbarkFailure(error, 'link session creation')
   }
 
   return { status: 200, body: { linkSessionId: session.id, url: session.url } }

@@ -10,6 +10,8 @@
  * 403 when it belongs to a different member.
  */
 
+import { redbarkFailure } from '../_shared/redbarkFailure.ts'
+
 export interface FlowResult {
   status: number
   body: Record<string, unknown>
@@ -66,10 +68,7 @@ export async function runDisconnect(
   try {
     await deps.revokeConnection(connectionId)
   } catch (error) {
-    return {
-      status: 502,
-      body: { error: `Failed to revoke the Redbark connection: ${(error as Error).message}` },
-    }
+    return redbarkFailure(error, 'connection revoke')
   }
 
   if (!(await deps.deleteConnection(connectionId))) {

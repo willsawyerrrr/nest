@@ -9,7 +9,34 @@ export type RedbarkConnection = Tables<'redbark_connection'>
 
 /** Where a completed (or abandoned) Redbark Link Session round-trip landed. */
 export type RedbarkCompleteResult =
-  { status: 'connected' } | { status: 'pending' } | { status: 'failed'; reason: string | null }
+  { status: 'connected' } | { status: 'pending' } | { status: 'failed'; code: string | null }
+
+/** A failed `redbark-connect` call, carrying the function's stable error `code` when it sent one. */
+export class RedbarkConnectError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+  ) {
+    super(message)
+    this.name = 'RedbarkConnectError'
+  }
+}
+
+/**
+ * Reads the stable `code` from the JSON body of a non-2xx edge function
+ * response, or null when the body carries none.
+ */
+async function failureCode(error: Error & { context?: unknown }): Promise<string | null> {
+  if (!(error.context instanceof Response)) {
+    return null
+  }
+  try {
+    const body = (await error.context.json()) as { code?: unknown }
+    return typeof body.code === 'string' ? body.code : null
+  } catch {
+    return null
+  }
+}
 
 /**
  * The `sessionStorage` key a pending Link Session id is stashed under across the
@@ -28,7 +55,7 @@ export interface UseRedbarkConnectionsResult {
    * Starts a new connection: calls `redbark-connect`, stashes the returned link
    * session id in `sessionStorage`, then navigates the browser to Redbark's
    * hosted consent page. Never resolves on success — the navigation away is the
-   * result.
+   * result. Rejects with a {@link RedbarkConnectError} on failure.
    */
   connect: (returnUrl: string) => Promise<void>
   /** Disconnects a household member's bank connection. */
@@ -107,7 +134,7 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
           body: { linkSessionId },
         })
         if (error) {
-          setCompleteResult({ status: 'failed', reason: error.message })
+          setCompleteResult({ status: 'failed', code: await failureCode(error) })
           return
         }
         if (data.connected) {
@@ -116,9 +143,7 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
           await Promise.all([reload(), refreshAccounts()])
         } else {
           setCompleteResult(
-            data.status === 'failed'
-              ? { status: 'failed', reason: data.reason ?? null }
-              : { status: 'pending' },
+            data.status === 'failed' ? { status: 'failed', code: null } : { status: 'pending' },
           )
         }
       } finally {
@@ -137,7 +162,7 @@ export function useRedbarkConnections(): UseRedbarkConnectionsResult {
         body: { returnUrl },
       })
       if (error) {
-        throw error
+        throw new RedbarkConnectError(error.message, await failureCode(error))
       }
       sessionStorage.setItem(LINK_SESSION_STORAGE_KEY, data.linkSessionId)
       window.location.href = data.url

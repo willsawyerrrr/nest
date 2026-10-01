@@ -63,7 +63,7 @@ Deno.test('runComplete reports a pending session without touching the connection
   assertEquals(readConnection, false)
 })
 
-Deno.test('runComplete reports a failed session with its failure reason', async () => {
+Deno.test('runComplete reports a failed session without its upstream failure reason', async () => {
   const result = await runComplete(
     'sess-1',
     deps({
@@ -78,7 +78,7 @@ Deno.test('runComplete reports a failed session with its failure reason', async 
 
   assertEquals(result, {
     status: 200,
-    body: { connected: false, status: 'failed', reason: 'user_cancelled' },
+    body: { connected: false, status: 'failed' },
   })
 })
 
@@ -93,7 +93,7 @@ Deno.test('runComplete reports a completed session with no connection id as fail
 
   assertEquals(result, {
     status: 200,
-    body: { connected: false, status: 'failed', reason: null },
+    body: { connected: false, status: 'failed' },
   })
 })
 
@@ -107,7 +107,8 @@ Deno.test('runComplete surfaces a link-session read failure as a 502', async () 
   )
 
   assertEquals(result.status, 502)
-  assertEquals((result.body.error as string).includes('boom'), true)
+  assertEquals(result.body.code, 'redbark_unavailable')
+  assertEquals(JSON.stringify(result.body).includes('boom'), false)
 })
 
 Deno.test('runComplete surfaces a connection read failure as a 502', async () => {

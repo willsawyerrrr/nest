@@ -148,12 +148,12 @@ describe('ChangelogScreen', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 
-  it('shows each status pill and its date beneath the description when narrow', () => {
+  it('shows the date beneath the description when narrow', () => {
     renderScreen({ available, inProgress, implemented })
 
-    expect(screen.getByText('Available')).toBeInTheDocument()
-    expect(screen.getAllByText('Implemented')).toHaveLength(2)
-    expect(screen.getAllByText('In progress')).toHaveLength(3)
+    expect(screen.queryByText('Available')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Implemented')).toHaveLength(1)
+    expect(screen.getAllByText('In progress')).toHaveLength(1)
     expect(screen.getByText(/^8 Jul/)).toBeInTheDocument()
   })
 

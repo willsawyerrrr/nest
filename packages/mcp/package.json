@@ -1,0 +1,27 @@
+{
+  "name": "@nest/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "nest-mcp": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@nest/household": "workspace:*",
+    "@nest/plan": "workspace:*",
+    "@nest/tax": "workspace:*",
+    "@supabase/supabase-js": "^2.116.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "~7.0.2",
+    "vitest": "^5.0.0"
+  }
+}

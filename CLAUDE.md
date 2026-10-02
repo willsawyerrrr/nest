@@ -26,6 +26,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   voice invocation of an App Shortcut is unavailable outright, confirmed by
   Apple DTS — a platform limitation, not an entitlement question. See
   [`docs/ios.md`](docs/ios.md).
+- Agent access: `packages/mcp` (`@nest/mcp`) is a stdio MCP server that lets an
+  agent act as a household member. It signs in with that member's Supabase
+  session (anon key plus a refresh or access token from the environment, the
+  rotating session kept in a `0600` file) and reaches data only through
+  PostgREST, RPC, Storage, and edge functions under RLS — never a service-role
+  key. Read tools: `list_budget_lines`, `get_fortnightly_buffer` (the shared
+  `summariseHouseholdFromRows`), `list_savings_goals`, `list_wishlist`. Write
+  tools: `add_wishlist_item` and `create_deduction_from_document` (upload to
+  `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
+  following the Uploads rules). Money is integer cents; failures are stable
+  `code`s with fixed copy, never an upstream body. See
+  [`docs/mcp.md`](docs/mcp.md).
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
   Vault. Direct PostgREST + RLS for CRUD; edge functions for tax engine + Up sync.
   Schema migrations under `supabase/migrations/` auto-deploy to prod on merge to

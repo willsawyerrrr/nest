@@ -819,4 +819,36 @@ describe('BudgetLineList', () => {
     // Unlike the per-group button, it defaults to the first group, not a scoped one.
     expect(screen.getByRole('combobox', { name: /group/i })).toHaveValue('Needs')
   })
+
+  it.each([
+    ['wide', true],
+    ['narrow', false],
+  ])('links a line with a management URL to it in a new tab (%s)', (_label, wide) => {
+    if (wide) {
+      setWideViewport()
+    }
+    render(
+      <BudgetLineList
+        lines={[
+          line({
+            id: 'n',
+            line_group: 'wants',
+            name: 'Netflix',
+            management_url: 'https://www.netflix.com/account',
+          }),
+          line({ id: 'p', line_group: 'wants', name: 'Plain' }),
+        ]}
+        goals={[]}
+        onCreate={vi.fn()}
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    const link = screen.getByRole('link', { name: 'Manage Netflix subscription' })
+    expect(link).toHaveAttribute('href', 'https://www.netflix.com/account')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.queryByRole('link', { name: 'Manage Plain subscription' })).toBeNull()
+  })
 })

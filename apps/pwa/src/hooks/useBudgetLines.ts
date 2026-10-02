@@ -21,6 +21,8 @@ export interface BudgetLineInput {
   gift_recipient_member_id: string | null
   /** True for a gift-derived line — the per-member and external gift lines — identifying it independently of `breakdown_id`. */
   is_gift_line: boolean
+  /** Optional http(s) URL of the subscription's management page, or null. */
+  management_url: string | null
 }
 
 export interface UseBudgetLinesResult {

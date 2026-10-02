@@ -255,6 +255,7 @@ export type Database = {
           interval_count: number | null
           is_gift_line: boolean
           line_group: Database['public']['Enums']['budget_group']
+          management_url: string | null
           name: string
           updated_at: string
         }
@@ -271,6 +272,7 @@ export type Database = {
           interval_count?: number | null
           is_gift_line?: boolean
           line_group: Database['public']['Enums']['budget_group']
+          management_url?: string | null
           name: string
           updated_at?: string
         }
@@ -287,6 +289,7 @@ export type Database = {
           interval_count?: number | null
           is_gift_line?: boolean
           line_group?: Database['public']['Enums']['budget_group']
+          management_url?: string | null
           name?: string
           updated_at?: string
         }

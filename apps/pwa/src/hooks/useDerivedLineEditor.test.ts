@@ -69,6 +69,7 @@ describe('useDerivedLineEditor', () => {
         line_group: 'discretionary',
         destination_account_id: 'will-txn',
         gift_recipient_member_id: 'm-sam',
+        management_url: null,
       }),
     )
   })

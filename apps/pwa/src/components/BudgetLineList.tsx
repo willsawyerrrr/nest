@@ -12,7 +12,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { IconChevronRight } from '@tabler/icons-react'
+import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
 import { fortnightlyCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
@@ -127,6 +127,27 @@ function DerivedLineControls({
   )
 }
 
+/** A small icon link opening a line's subscription management page in a new tab. */
+function ManagementLink({ line }: { line: BudgetLine }) {
+  if (!line.management_url) {
+    return null
+  }
+  return (
+    <ActionIcon
+      component="a"
+      href={line.management_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      variant="subtle"
+      size="sm"
+      aria-label={`Manage ${line.name} subscription`}
+      style={{ flexShrink: 0 }}
+    >
+      <IconExternalLink size={14} />
+    </ActionIcon>
+  )
+}
+
 /** A subtle badge naming where a line routes: its linked goal or its funding account. */
 function RouteBadge({ route }: { route: LineRoute }) {
   return (
@@ -175,6 +196,7 @@ function BudgetLineRow({
         <Text fw={600} size="sm" truncate>
           {line.name}
         </Text>
+        <ManagementLink line={line} />
         {route && <RouteBadge route={route} />}
       </Group>
       <MoneyText
@@ -237,6 +259,7 @@ function BudgetLineCard({
             <Text fw={600} size="sm" truncate>
               {line.name}
             </Text>
+            <ManagementLink line={line} />
             {route && <RouteBadge route={route} />}
           </Group>
           <Group gap={6} wrap="nowrap">

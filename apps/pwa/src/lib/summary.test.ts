@@ -74,6 +74,7 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     breakdown_id: null,
     gift_recipient_member_id: null,
     is_gift_line: false,
+    management_url: null,
     created_at: '',
     updated_at: '',
     ...overrides,

@@ -354,7 +354,8 @@ income tables.
     `is_gift_line` (bool; true on a gift-derived line rolled up directly from the
     gift tables, with `breakdown_id` null — see above),
     `destination_account_id` (nullable; the Up account funding the line, for the
-    Pay splits tab).
+    Pay splits tab), `management_url` (nullable; http(s) link to the
+    subscription's management page, shown as an icon link on the line's row).
   - Temporary is a Summary group derived from the `temporary_item` table, not a
     `budget_group` value: a budget line is never authored as temporary.
 - **SavingsGoal** — a persistent target.

@@ -109,6 +109,12 @@ instance and can also be run locally.
   a direct insert/update/delete on `calendar_feed` as `authenticated` is refused,
   a co-member's household cannot see another household's feed, and
   `revoke_calendar_feed_token` deletes the row (a no-op when there is none).
+- `budget_line_management_url.sql` — the assertions that a budget line's
+  `management_url` is optional (null by default) and held to the
+  `budget_line_management_url_http` check: a stored value must be a trimmed
+  http(s) URL with a host and at most 2048 characters; blank, padded,
+  whitespace-bearing, non-http(s), host-less, bare-domain, and over-long values
+  are refused on insert and update.
 - `inflow_joint_split.sql` — the assertions that a joint inflow's `is_joint` and
   `member_split_percent` are held to the `inflows_joint_split` check constraint:
   a plain inflow defaults to not-joint with no percent, a recurring taxable

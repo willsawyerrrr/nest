@@ -728,6 +728,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   outside the occasion/person grouping, with its own editable budgeted amount
   and purchase list, each purchase's optional recipient picker sourced from the
   household's existing recipients (members and external) rather than free text.
+  A line can carry an optional `management_url` — the page for managing or
+  cancelling the subscription it pays for. The budget line form accepts a bare
+  domain (stored as `https://…`) and rejects other schemes, a CHECK holds the
+  stored value to a trimmed http(s) URL, and the row shows a "Manage <name>
+  subscription" icon link opening it in a new tab with `rel="noopener noreferrer"`.
   A line can also be **routed** to the account that funds it via
   `budget_line.destination_account_id` (Savings/Investments route through their
   goal's linked saver instead); the Pay splits tab sums each account's routed lines

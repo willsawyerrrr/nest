@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Alert, Badge, Button, Group, Loader, Stack, Text, UnstyledButton } from '@mantine/core'
+import { Alert, Button, Group, Loader, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
@@ -36,33 +36,23 @@ function TypeEmoji({ type }: { type: string }) {
   )
 }
 
-type EntryStatus = 'available' | 'implemented' | 'in-progress'
-
-const STATUS_PILL: Record<EntryStatus, { label: string; color: string }> = {
-  available: { label: 'Available', color: 'info' },
-  implemented: { label: 'Implemented', color: 'teal' },
-  'in-progress': { label: 'In progress', color: 'gray' },
-}
-
 interface EntryProps {
   type: string
   description: string
-  status: EntryStatus
   /** ISO timestamp the change landed; absent while it is still in progress. */
   date?: string
 }
 
 /**
  * One change as a compact row: type emoji, the description clamped to two lines,
- * the date, and a status pill. A row whose description is clamped expands to show
+ * and the date. A row whose description is clamped expands to show
  * all of it; a row that already shows it in full has no chevron and does not toggle.
  */
-function Entry({ type, description, status, date }: EntryProps) {
+function Entry({ type, description, date }: EntryProps) {
   const wide = useIsWide()
   const [expanded, { toggle }] = useDisclosure(false)
   const [clamped, setClamped] = useState(false)
   const textRef = useRef<HTMLParagraphElement>(null)
-  const pill = STATUS_PILL[status]
   const when = date === undefined ? null : formatIsoDate(date.slice(0, 10))
 
   useEffect(() => {
@@ -116,29 +106,12 @@ function Entry({ type, description, status, date }: EntryProps) {
           {when}
         </Text>
       )}
-      <Badge
-        size="xs"
-        variant="light"
-        color={pill.color}
-        w={wide ? 90 : undefined}
-        style={{ flexShrink: 0 }}
-      >
-        {pill.label}
-      </Badge>
     </ListRow>
   )
 }
 
-function ImplementedEntryRow({
-  entry,
-  status,
-}: {
-  entry: ImplementedEntry
-  status: 'available' | 'implemented'
-}) {
-  return (
-    <Entry type={entry.type} description={entry.description} status={status} date={entry.date} />
-  )
+function ImplementedEntryRow({ entry }: { entry: ImplementedEntry }) {
+  return <Entry type={entry.type} description={entry.description} date={entry.date} />
 }
 
 function Section({
@@ -203,7 +176,7 @@ export function ChangelogScreen({
                 </Text>
                 <Stack gap={0}>
                   {available.map((entry) => (
-                    <ImplementedEntryRow key={entry.sha} entry={entry} status="available" />
+                    <ImplementedEntryRow key={entry.sha} entry={entry} />
                   ))}
                 </Stack>
                 {/*
@@ -241,12 +214,7 @@ export function ChangelogScreen({
           >
             <Stack gap={0}>
               {inProgress.map((entry) => (
-                <Entry
-                  key={entry.number}
-                  type={entry.type}
-                  description={entry.description}
-                  status="in-progress"
-                />
+                <Entry key={entry.number} type={entry.type} description={entry.description} />
               ))}
             </Stack>
           </Section>
@@ -254,7 +222,7 @@ export function ChangelogScreen({
           <Section title="Implemented" count={implemented.length} emptyLabel="Nothing here yet.">
             <Stack gap={0}>
               {implemented.map((entry) => (
-                <ImplementedEntryRow key={entry.sha} entry={entry} status="implemented" />
+                <ImplementedEntryRow key={entry.sha} entry={entry} />
               ))}
             </Stack>
           </Section>

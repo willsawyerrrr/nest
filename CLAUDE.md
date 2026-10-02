@@ -836,7 +836,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the newest release on first load so releases predating the member raise no dot.
   A failed or empty changelog raises none; the query is cached for ten minutes.
   Entries are compact list rows (type emoji, description clamped to two lines,
-  date, status pill for Available / In progress / Implemented). A row expands
+  date; in progress rows have none). Status comes from the section heading, not
+  a per-row pill. A row expands
   only to show a clamped description in full; one that already fits has no
   chevron and does not toggle. Commit SHAs and pull-request links are never
   shown (members have no use for them); the SHA stays in the data for the

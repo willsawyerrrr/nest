@@ -396,6 +396,8 @@ employment_termination:
 car_expense:
   cents_per_km: 91          # ATO cents-per-kilometre car expense deduction rate
   max_claimable_km: 5000    # cap on business km claimable per car per year under this method
+work_from_home:
+  cents_per_hour: 70        # ATO fixed rate for working from home, per hour worked
 ```
 
 > **Values above are illustrative.** Each FY's real figures must be sourced from
@@ -415,7 +417,8 @@ car_expense:
   contributions/Division 293 rate, the co-contribution income test, and
   preservation age 60), and the 2025-26 termination figures ($260,000 ETP cap, the
   $180,000 whole-of-income cap, and a $13,100 + $6,552-per-year genuine-redundancy
-  tax-free amount). See `packages/tax/src/configs.ts`.
+  tax-free amount), and the 70c/hour working-from-home fixed rate. See
+  `packages/tax/src/configs.ts`.
 - **FY2027** (`FY2027_CONFIG`, also in `configsByYear`) — a verified resident
   config with real ATO figures for 2026-27, including the Budget top-up cut that
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
@@ -426,7 +429,9 @@ car_expense:
   one-off uplift for 2026-27, capped at 5,000km per car per year) is final, not
   provisional — legislated ahead of the year via the Income Tax Assessment
   (Cents per Kilometre Deduction Rate for Car Expenses) Determination 2026. It
-  also carries the verified 2026-27
+  carries the latest published working-from-home fixed rate (70c per hour, set
+  for 2025-26) as a provisional figure, since the ATO has not published a 2026-27
+  rate. It  also carries the verified 2026-27
   super figures (concessional cap $32,500, non-concessional cap $130,000, the
   $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the
   co-contribution income test, and preservation age 60) and the 2026-27 termination

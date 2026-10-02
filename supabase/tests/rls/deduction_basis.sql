@@ -112,4 +112,67 @@ begin
     'an update that leaves the basis alone should succeed';
 end $$;
 
+-- The hours basis (ATO fixed rate for working from home) mirrors distance:
+-- it names its hours, carries no distance, is a work-expense concern alone, and
+-- is pinned at 100% work use.
+do $$
+declare
+  v_hid uuid := current_setting('db.hid')::uuid;
+  v_mid uuid := current_setting('db.mid')::uuid;
+  v_id uuid;
+begin
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, basis)
+      values (v_hid, v_mid, 'WFH', 70_00, '2026-08-02', 2027, 'hours');
+    raise exception 'FAIL: an hours-basis deduction was saved with no hours';
+  exception when check_violation then
+    raise notice 'PASS: an hours-basis deduction must name its hours';
+  end;
+
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, basis, work_from_home_hours)
+      values (v_hid, v_mid, 'WFH', 70_00, '2026-08-02', 2027, 'hours', -1);
+    raise exception 'FAIL: negative hours were saved';
+  exception when check_violation then
+    raise notice 'PASS: work_from_home_hours cannot be negative';
+  end;
+
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, basis, work_from_home_hours)
+      values (v_hid, v_mid, 'Tools', 350_00, '2026-08-03', 2027, 'amount', 5);
+    raise exception 'FAIL: an amount-basis deduction was saved with hours';
+  exception when check_violation then
+    raise notice 'PASS: an amount-basis deduction carries no hours';
+  end;
+
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, basis, distance_km, work_from_home_hours)
+      values (v_hid, v_mid, 'Mixed', 70_00, '2026-08-03', 2027, 'hours', 10, 100);
+    raise exception 'FAIL: an hours-basis deduction was saved with a distance';
+  exception when check_violation then
+    raise notice 'PASS: an hours-basis deduction carries no distance';
+  end;
+
+  begin
+    insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, basis, work_from_home_hours, category)
+      values (v_hid, v_mid, 'Gift', 70_00, '2026-08-03', 2027, 'hours', 100, 'donation');
+    raise exception 'FAIL: a donation was saved on the hours basis';
+  exception when check_violation then
+    raise notice 'PASS: the hours basis is for work expenses alone';
+  end;
+
+  insert into public.deduction (household_id, member_id, description, amount_cents, deduction_date, financial_year, basis, work_from_home_hours)
+    values (v_hid, v_mid, 'WFH', 70_00, '2026-08-02', 2027, 'hours', 100)
+    returning id into v_id;
+  assert (select work_from_home_hours from public.deduction where id = v_id) = 100,
+    'the hours-basis deduction should record its hours';
+
+  begin
+    update public.deduction set basis = 'amount', work_from_home_hours = null where id = v_id;
+    raise exception 'FAIL: an hours deduction''s basis was changed';
+  exception when check_violation then
+    raise notice 'PASS: an hours deduction''s basis cannot be changed';
+  end;
+end $$;
+
 rollback;

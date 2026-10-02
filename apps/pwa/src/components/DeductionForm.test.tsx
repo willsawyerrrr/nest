@@ -28,6 +28,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    work_from_home_hours: null,
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
@@ -290,6 +291,7 @@ describe('DeductionForm', () => {
         deduction_date: '2026-08-01',
         basis: 'amount',
         distance_km: null,
+        work_from_home_hours: null,
         group_id: null,
         category: 'work_expense',
         full_amount_cents: 1_200_00,
@@ -329,6 +331,40 @@ describe('DeductionForm', () => {
       amount_cents: 91_00,
       basis: 'distance',
       distance_km: 100,
+    })
+  })
+
+  it('computes the amount from hours at the FY2027 fixed rate on the hours basis', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
+
+    await user.type(screen.getByLabelText(/description/i), 'Working from home')
+    await user.click(screen.getByText('Hours at home'))
+    await user.type(screen.getByLabelText(/hours worked from home/i), '100')
+
+    // 100 hours at 70c/hour = $70.00.
+    expect(await screen.findByText('$70.00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input).toMatchObject({
+      amount_cents: 70_00,
+      full_amount_cents: 70_00,
+      work_use_percent: 100,
+      basis: 'hours',
+      work_from_home_hours: 100,
+      distance_km: null,
     })
   })
 
@@ -1260,6 +1296,7 @@ describe('DeductionForm category', () => {
             category: 'donation',
             basis: 'amount',
             distance_km: null,
+            work_from_home_hours: null,
             amount_cents: 250_00,
           }),
         }),

@@ -51,6 +51,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    work_from_home_hours: null,
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,

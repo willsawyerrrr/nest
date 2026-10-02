@@ -237,11 +237,12 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   tax estimate — so their estimated tax falls and take-home rises — appearing as
   a Deductions line in the Tax tab's income build-up and flowing through to the
   Summary. `amount_cents` is always the figure saved and read downstream; a
-  deduction states its `basis` (`amount`, the default, or `distance`) to say how
-  that figure was arrived at. The dollar/distance choice is a **work expense**
+  deduction states its `basis` (`amount`, the default, `distance`, or `hours`) to say how
+  that figure was arrived at. The dollar/distance/hours choice is a **work expense**
   concern alone — a donation and a tax agent fee are always a receipted dollar
   figure, so the form offers them no toggle and
-  `deduction_distance_basis_work_expense` holds the `distance` basis to
+  `deduction_distance_basis_work_expense` and
+  `deduction_hours_basis_work_expense` hold the `distance` and `hours` bases to
   `category = 'work_expense'` in the database. A work-related car expense claimed under the ATO's
   cents-per-kilometre method is entered as `distance_km` kilometres instead of a
   dollar figure: the form computes and shows back `amount_cents` from the
@@ -251,9 +252,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   snapshot-at-write-time pattern `payslip_line.attracts_super` follows so a later
   change to the ATO rate cannot retroactively move a deduction already claimed.
   The form warns, without blocking the save, when the distance exceeds the ATO's
-  cap on kilometres claimable per car per year under this method. The
+  cap on kilometres claimable per car per year under this method. Working from
+  home under the ATO's fixed rate method is the `hours` basis the same way: the
+  member enters `work_from_home_hours`, and the form computes and shows back
+  `amount_cents` from the year's `workFromHome` cents-per-hour rate
+  (`workFromHomeDeductionCents`), saving that figure rather than the hours. The
   `deduction_basis_attribution` check constraint holds each basis to its own
-  column (`distance_km` set only when `basis = 'distance'`); the database does
+  column (`distance_km` set only when `basis = 'distance'`,
+  `work_from_home_hours` only when `basis = 'hours'`); the database does
   not itself compute `amount_cents` from `distance_km`, since the cents-per-km
   rate is versioned in `@nest/tax`, not stored in Postgres. A deduction on the
   amount basis may be claimed at less than its full cost: `full_amount_cents`
@@ -268,8 +274,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   deduction reopens on what it cost rather than showing back a figure that was
   itself derived; a "Work use %" field beside it (`deduction_work_use_range`:
   greater than 0, at most 100) shows the claimable amount once it departs from
-  100. A distance-basis claim is pinned at 100% work use
-  (`deduction_work_use_basis`): its kilometres are work-related already, so a
+  100. A distance- or hours-basis claim is pinned at 100% work use
+  (`deduction_work_use_basis`): its kilometres or hours are work-related already, so a
   percentage on top would discount the claim twice. `full_amount_cents` has no
   plain column default — "whatever `amount_cents` says" depends on another
   column of the same row, which `DEFAULT` cannot express — so a

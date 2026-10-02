@@ -218,8 +218,9 @@ and so without the trigger.
   income. Edited on the member's Tax deductions tab.
   - `id`, `household_id`, `member_id`, `description`, `amount_cents` (bigint,
     `>= 0`), `deduction_date` (date), `financial_year` (int, ending year),
-    `basis` (`deduction_basis` enum: `amount` default, or `distance`),
-    `distance_km` (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
+    `basis` (`deduction_basis` enum: `amount` default, `distance`, or `hours`),
+    `distance_km` (`numeric(8,2)`, nullable), `work_from_home_hours`
+    (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
     `>= 0`), `work_use_percent` (`numeric(5,2)`, default 100), `category`
     (`deduction_category` enum: `work_expense` default, `donation`, or
     `tax_agent_fees`), `created_at`, `updated_at`.
@@ -245,6 +246,15 @@ and so without the trigger.
     figure the add form never offers a distance toggle for. The
     database does not itself derive `amount_cents` from `distance_km`, since the
     rate is versioned in `@nest/tax`, not stored in Postgres.
+  - The `hours` basis is the ATO's fixed rate method for working from home: the
+    form computes `amount_cents` from `work_from_home_hours` at
+    `financial_year`'s cents-per-hour rate (`@nest/tax`'s `workFromHome` config,
+    via `workFromHomeDeductionCents`) and saves that figure, with the same
+    snapshot-at-write-time reasoning as `distance`. `deduction_basis_attribution`
+    holds hours to `basis = 'hours'` alone (non-null, `>= 0`, with no
+    `distance_km`), `deduction_hours_basis_work_expense` restricts it to
+    `category = 'work_expense'`, and `deduction_work_use_basis` pins
+    `work_use_percent` at 100 on it; the basis is immutable like the others.
   - On the `amount` basis, `amount_cents` may be less than the expense's full
     cost: `full_amount_cents` records what it cost, `work_use_percent` the share
     claimed (100 by default). `deduction_work_use_apportioned` requires

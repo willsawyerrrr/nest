@@ -169,7 +169,7 @@ function EofyTaxSummary({
 /**
  * How a deduction's claim was worked out, for a tax agent checking it: the
  * kilometres (at the financial year's published rate, when there is one) on the
- * distance basis, or the full cost and work use percentage when claimed at less
+ * distance basis, the hours at the fixed rate on the hours basis, or the full cost and work use percentage when claimed at less
  * than 100%. Null for a deduction claimed in full.
  */
 function claimWorkings(deduction: DeductionRow): string | null {
@@ -177,6 +177,11 @@ function claimWorkings(deduction: DeductionRow): string | null {
     const rate = configsByYear[deduction.financial_year]?.carExpense.centsPerKm
     const km = `${deduction.distance_km.toLocaleString()} km`
     return rate === undefined ? km : `${km} at ${formatCentsRate(rate, 'km')}`
+  }
+  if (deduction.basis === 'hours' && deduction.work_from_home_hours !== null) {
+    const rate = configsByYear[deduction.financial_year]?.workFromHome.centsPerHour
+    const hours = `${deduction.work_from_home_hours.toLocaleString()} hours`
+    return rate === undefined ? hours : `${hours} at ${formatCentsRate(rate, 'hr')}`
   }
   if (deduction.work_use_percent < 100) {
     return `${formatCents(deduction.full_amount_cents)} at ${deduction.work_use_percent}%`

@@ -435,6 +435,7 @@ export type Database = {
           id: string
           member_id: string
           updated_at: string
+          work_from_home_hours: number | null
           work_use_percent: number
         }
         Insert: {
@@ -452,6 +453,7 @@ export type Database = {
           id?: string
           member_id: string
           updated_at?: string
+          work_from_home_hours?: number | null
           work_use_percent?: number
         }
         Update: {
@@ -469,6 +471,7 @@ export type Database = {
           id?: string
           member_id?: string
           updated_at?: string
+          work_from_home_hours?: number | null
           work_use_percent?: number
         }
         Relationships: [
@@ -2410,7 +2413,7 @@ export type Database = {
       breakdown_kind: 'generic'
       budget_group: 'needs' | 'wants' | 'discretionary' | 'savings' | 'investments'
       category_kind: 'income' | 'expense'
-      deduction_basis: 'amount' | 'distance'
+      deduction_basis: 'amount' | 'distance' | 'hours'
       deduction_category: 'work_expense' | 'donation' | 'tax_agent_fees'
       equity_instrument_type: 'option' | 'share'
       equity_vesting_frequency: 'monthly' | 'quarterly' | 'annual'
@@ -2566,7 +2569,7 @@ export const Constants = {
       breakdown_kind: ['generic'],
       budget_group: ['needs', 'wants', 'discretionary', 'savings', 'investments'],
       category_kind: ['income', 'expense'],
-      deduction_basis: ['amount', 'distance'],
+      deduction_basis: ['amount', 'distance', 'hours'],
       deduction_category: ['work_expense', 'donation', 'tax_agent_fees'],
       equity_instrument_type: ['option', 'share'],
       equity_vesting_frequency: ['monthly', 'quarterly', 'annual'],

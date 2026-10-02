@@ -123,6 +123,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     deduction_date: '2026-09-01',
     basis: 'amount',
     distance_km: null,
+    work_from_home_hours: null,
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
@@ -436,6 +437,17 @@ describe('EofyScreen', () => {
     })
     expect(
       within(screen.getByRole('region', { name: 'Alex' })).getByText('1,200 km at 91c/km'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an hours deduction with its hours and the rate', () => {
+    renderScreen({
+      deductions: [
+        makeDeduction({ basis: 'hours', work_from_home_hours: 400, amount_cents: 280_00 }),
+      ],
+    })
+    expect(
+      within(screen.getByRole('region', { name: 'Alex' })).getByText('400 hours at 70c/hr'),
     ).toBeInTheDocument()
   })
 

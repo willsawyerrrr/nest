@@ -174,6 +174,15 @@ export const FY2026_CONFIG: TaxYearConfig = {
     centsPerKm: 88,
     maxClaimableKm: 5_000,
   },
+
+  // Fixed rate for working from home in 2025-26: 70c per hour worked from home
+  // (ATO Practical Compliance Guideline PCG 2023/1, 2025-26 rate unchanged from
+  // 2024-25), covering energy, internet, phone, stationery, and computer
+  // consumables; it needs a contemporaneous record of every hour worked:
+  //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/working-from-home-expenses/fixed-rate-method
+  workFromHome: {
+    centsPerHour: 70,
+  },
 }
 
 /**
@@ -333,6 +342,14 @@ export const FY2027_CONFIG: TaxYearConfig = {
   carExpense: {
     centsPerKm: 91,
     maxClaimableKm: 5_000,
+  },
+
+  // Fixed rate for working from home in 2026-27: the ATO has not yet published
+  // a 2026-27 rate, so this carries the latest published figure (70c per hour,
+  // 2025-26) and is provisional until it does:
+  //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/working-from-home-expenses/fixed-rate-method
+  workFromHome: {
+    centsPerHour: 70,
   },
 }
 

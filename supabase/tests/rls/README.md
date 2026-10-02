@@ -36,7 +36,10 @@ instance and can also be run locally.
   distance-basis row must name a non-negative distance, an amount-basis row must
   name none, and a valid distance-basis row round-trips the client-computed
   `amount_cents` unchanged (the database does not re-derive it from the
-  cents-per-km rate, which lives in `@nest/tax`, not in Postgres).
+  cents-per-km rate, which lives in `@nest/tax`, not in Postgres). The `hours`
+  basis is held the same way: it must name non-negative `work_from_home_hours`
+  and no distance, no other basis carries hours, a donation cannot take it, and
+  its basis is immutable.
 - `deduction_category.sql` — the assertions that a deduction's `category`
   defaults to `work_expense`, that `deduction_work_use_basis` pins
   `work_use_percent` at 100 for a donation and a tax agent fee, that

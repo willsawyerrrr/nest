@@ -22,6 +22,7 @@ import {
   splitOneOffPayment,
   superCoContribution,
   taxableIncome,
+  workFromHomeDeductionCents,
   type AssessableIncome,
   type TaxInput,
   type TaxYearConfig,
@@ -107,6 +108,9 @@ const FIXTURE_CONFIG: TaxYearConfig = {
   carExpense: {
     centsPerKm: 90,
     maxClaimableKm: 5_000,
+  },
+  workFromHome: {
+    centsPerHour: 70,
   },
 }
 
@@ -1416,5 +1420,28 @@ describe('carExpenseDeductionCents', () => {
   it("uses each financial year's own published rate", () => {
     expect(carExpenseDeductionCents(5_000, FY2026_CONFIG)).toBe(4_400_00) // 5,000km × 88c
     expect(carExpenseDeductionCents(5_000, FY2027_CONFIG)).toBe(4_550_00) // 5,000km × 91c
+  })
+})
+
+describe('workFromHomeDeductionCents', () => {
+  it('multiplies hours by the rate and rounds to whole cents', () => {
+    // 100 hours × 70c = $70.00.
+    expect(workFromHomeDeductionCents(100, FIXTURE_CONFIG)).toBe(70_00)
+  })
+
+  it('rounds fractional hours to the nearest cent', () => {
+    // 7.25 hours × 70c = $5.075, rounding to $5.08.
+    expect(workFromHomeDeductionCents(7.25, FIXTURE_CONFIG)).toBe(5_08)
+  })
+
+  it('is nil for zero hours and floors negative hours at zero', () => {
+    expect(workFromHomeDeductionCents(0, FIXTURE_CONFIG)).toBe(0)
+    expect(workFromHomeDeductionCents(-10, FIXTURE_CONFIG)).toBe(0)
+  })
+
+  it("uses each financial year's configured rate", () => {
+    expect(FY2026_CONFIG.workFromHome.centsPerHour).toBe(70)
+    expect(FY2027_CONFIG.workFromHome.centsPerHour).toBe(70)
+    expect(workFromHomeDeductionCents(1_000, FY2026_CONFIG)).toBe(700_00)
   })
 })

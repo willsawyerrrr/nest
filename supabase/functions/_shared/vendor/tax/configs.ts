@@ -174,6 +174,18 @@ export const FY2026_CONFIG: TaxYearConfig = {
     centsPerKm: 88,
     maxClaimableKm: 5_000,
   },
+
+  // ATO fixed rate method for working from home, 2025-26: 70c per hour worked
+  // from home (also 70c for 2024-25; 67c for 2022-23 and 2023-24). It covers
+  // energy, internet, mobile and home phone, stationery, and computer
+  // consumables, and needs a record of the actual hours worked. Verified on the
+  // ATO's fixed rate method page and the myTax 2026 other work-related expenses
+  // instructions (both state 70c for 2025-26):
+  //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/working-from-home-expenses/fixed-rate-method
+  //   https://www.ato.gov.au/individuals-and-families/your-tax-return/instructions-to-complete-your-tax-return/mytax-instructions/2026/deductions/work-related-expenses/other-work-related-expenses
+  workFromHome: {
+    centsPerHour: 70,
+  },
 }
 
 /**
@@ -333,6 +345,15 @@ export const FY2027_CONFIG: TaxYearConfig = {
   carExpense: {
     centsPerKm: 91,
     maxClaimableKm: 5_000,
+  },
+
+  // ATO fixed rate method for working from home, 2026-27: the ATO has not yet
+  // published a 2026-27 rate (its fixed rate method page lists rates only
+  // through 2025-26), so this carries the latest published figure, 70c per
+  // hour, and is provisional until it does:
+  //   https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/working-from-home-expenses/fixed-rate-method
+  workFromHome: {
+    centsPerHour: 70,
   },
 }
 

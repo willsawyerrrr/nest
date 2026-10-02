@@ -19,7 +19,10 @@ export type DeductionCategory = DeductionRow['category']
  * directly, or `'distance'`, computed by the form from `distance_km` at the
  * financial year's cents-per-km car expense rate before being submitted here.
  * `amount_cents` is always the figure that is saved and read downstream;
- * `distance_km` is set only alongside `'distance'`.
+ * `distance_km` is set only alongside `'distance'`. `'hours'` is the ATO's fixed
+ * rate method for working from home: the form computes `amount_cents` from
+ * `work_from_home_hours` at the year's cents-per-hour rate, and that hours
+ * figure is set only alongside `'hours'`.
  *
  * `group_id` files the deduction under a `deduction_group` — one payment of an
  * expense claimed more than once — or is null for a standalone deduction.
@@ -51,6 +54,7 @@ export interface DeductionInput {
   deduction_date: string
   basis?: DeductionRow['basis']
   distance_km?: number | null
+  work_from_home_hours?: number | null
   group_id?: string | null
   /** What the expense cost in full, before the work-use share was applied. Equal to `amount_cents` at 100%. */
   full_amount_cents?: number

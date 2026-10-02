@@ -174,6 +174,7 @@ export interface TaxYearConfig {
   readonly super: SuperConfig
   readonly employmentTermination: EmploymentTerminationConfig
   readonly carExpense: CarExpenseConfig
+  readonly workFromHome: WorkFromHomeConfig
 }
 
 /**
@@ -236,6 +237,15 @@ export interface GenuineRedundancyConfig {
 export interface CarExpenseConfig {
   readonly centsPerKm: number
   readonly maxClaimableKm: number
+}
+
+/**
+ * ATO fixed rate method for working from home. `centsPerHour` is a rate in whole
+ * cents (e.g. `70` means $0.70/hour), not a `Money` amount, so a deduction
+ * claimed as `hours` converts to `round(hours * centsPerHour)` integer cents.
+ */
+export interface WorkFromHomeConfig {
+  readonly centsPerHour: number
 }
 
 /**
@@ -457,6 +467,15 @@ export function activeFractionOfFinancialYear(
  */
 function roundCents(value: number): Money {
   return Math.round(value)
+}
+
+/**
+ * The dollar deduction for working from home under the ATO's fixed rate method:
+ * `hours` worked from home at `config.workFromHome`'s rate, rounded to the
+ * nearest whole cent. Never negative; negative `hours` is treated as zero.
+ */
+export function workFromHomeDeductionCents(hours: number, config: TaxYearConfig): Money {
+  return roundCents(Math.max(0, hours) * config.workFromHome.centsPerHour)
 }
 
 /**

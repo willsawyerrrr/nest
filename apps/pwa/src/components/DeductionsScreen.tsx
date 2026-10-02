@@ -160,6 +160,7 @@ function MemberDeductions({
       deduction_date: deduction.deduction_date,
       basis: deduction.basis,
       distance_km: deduction.distance_km,
+      work_from_home_hours: deduction.work_from_home_hours,
       full_amount_cents: deduction.full_amount_cents,
       work_use_percent: deduction.work_use_percent,
       category: deduction.category,

@@ -15,7 +15,7 @@ import {
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconTrash } from '@tabler/icons-react'
-import { carExpenseDeductionCents, configsByYear } from '@nest/tax'
+import { carExpenseDeductionCents, configsByYear, workFromHomeDeductionCents } from '@nest/tax'
 import {
   UPLOAD_FAILED_MESSAGE,
   useDeductionAttachment,
@@ -111,10 +111,10 @@ const CATEGORY_OPTIONS: { value: DeductionCategory; label: string }[] = [
 const NO_GROUP = 'none'
 
 /**
- * A distance in kilometres as a `NumberInput` value, or `''` when unset.
- * `distance_km` is a `numeric(8,2)` column, so it may arrive as a string.
+ * A distance or hours figure as a `NumberInput` value, or `''` when unset.
+ * `distance_km` and `work_from_home_hours` are `numeric(8,2)`, so may arrive as strings.
  */
-function toDistanceValue(km: number | string | null | undefined): number | string {
+function toNumericValue(km: number | string | null | undefined): number | string {
   if (km == null || km === '') {
     return ''
   }
@@ -182,15 +182,18 @@ function ConditionalDropArea({
  * donations group holds donations alone.
  *
  * A **work expense** is entered on an **amount** basis (a dollar figure, typed
- * directly) or a **distance** basis (kilometres travelled for a work-related car
- * expense claimed under the ATO's cents-per-kilometre method), toggled by the
- * segmented control when adding. The basis is fixed once the deduction exists
+ * directly), a **distance** basis (kilometres travelled for a work-related car
+ * expense claimed under the ATO's cents-per-kilometre method), or an **hours**
+ * basis (hours worked from home, claimed under the ATO's fixed rate method),
+ * toggled by the segmented control when adding. The basis is fixed once the deduction exists
  * (`deduction_basis_immutable`), so editing offers no toggle: a deduction on the
  * wrong basis is deleted and re-added. The toggle is shown for a work expense alone: a **donation**
  * or a **tax agent fee** is always a plain dollar figure — a distance prices
  * nothing there — so it is entered on the amount basis with no choice offered.
- * On the distance basis the dollar amount is computed and
- * shown back, read-only, from `financialYear`'s published cents-per-km rate, and
+ * On the hours basis the dollar amount is computed from `financialYear`'s
+ * cents-per-hour rate and shown back the same way; it needs no receipt, but a
+ * timesheet of the hours. On the distance basis the dollar amount is computed
+ * and shown back, read-only, from `financialYear`'s published cents-per-km rate, and
  * a warning appears if the distance exceeds the ATO's cap on kilometres
  * claimable per car per year under this method — advisory only, it never blocks
  * a save. On the amount basis, for a **work expense**, "Amount" is what the
@@ -201,11 +204,11 @@ function ConditionalDropArea({
  * result every downstream reader uses, so editing a part-claimed deduction
  * reopens on its full cost — not the apportioned amount — with the claim
  * recomputed from it and the percentage. Work use is pinned at 100% and the
- * field is hidden wherever apportioning does not apply: on the distance basis,
- * whose kilometres are work-related already, and for a **donation** or
+ * field is hidden wherever apportioning does not apply: on the distance and hours
+ * bases, whose kilometres and hours are work-related already, and for a **donation** or
  * **tax agent fee**, which is claimed in full or not at all — a percentage on
  * top would discount the claim twice, or make no sense at all. The category,
- * the basis (for a work expense), the distance, and the work-use percentage are
+ * the basis (for a work expense), the distance, the hours, and the work-use percentage are
  * all the member's own throughout: a receipt read fills the description, amount,
  * and date alone, so none of them is pre-fillable and all stay outside
  * `useDeductionFields`.
@@ -281,7 +284,10 @@ export function DeductionForm({
     return standardGroups.some((group) => group.id === start) ? start : null
   })
   const [distanceKm, setDistanceKm] = useState<number | string>(
-    toDistanceValue(initial?.distance_km),
+    toNumericValue(initial?.distance_km),
+  )
+  const [workFromHomeHours, setWorkFromHomeHours] = useState<number | string>(
+    toNumericValue(initial?.work_from_home_hours),
   )
   const [workUsePercent, setWorkUsePercent] = useState<number | string>(
     initial?.work_use_percent ?? 100,
@@ -346,6 +352,8 @@ export function DeductionForm({
   const basisApplies = category === 'work_expense'
   const effectiveBasis: Basis = basisApplies ? basis : 'amount'
   const isDistance = effectiveBasis === 'distance'
+  const isHours = effectiveBasis === 'hours'
+  const isDerived = isDistance || isHours
   // A donation is filed into the donations group by the database, so it has no
   // picker; a donations group holds donations alone, so a form opened from one
   // offers no other category, and one opened from a standard group no donation.
@@ -354,18 +362,22 @@ export function DeductionForm({
     openedFrom?.kind === 'standard'
       ? CATEGORY_OPTIONS.filter((option) => option.value !== 'donation')
       : CATEGORY_OPTIONS
-  const distanceKmNumber =
-    typeof distanceKm === 'number' ? distanceKm : Number.parseFloat(distanceKm)
-  const distanceValid =
-    distanceKm !== '' && Number.isFinite(distanceKmNumber) && distanceKmNumber >= 0
-  const computedAmountCents = distanceValid ? carExpenseDeductionCents(distanceKmNumber, config) : 0
-  const overCap = isDistance && distanceValid && distanceKmNumber > config.carExpense.maxClaimableKm
+  const derivedInput = isHours ? workFromHomeHours : distanceKm
+  const derivedNumber =
+    typeof derivedInput === 'number' ? derivedInput : Number.parseFloat(derivedInput)
+  const derivedValid = derivedInput !== '' && Number.isFinite(derivedNumber) && derivedNumber >= 0
+  const computedAmountCents = !derivedValid
+    ? 0
+    : isHours
+      ? workFromHomeDeductionCents(derivedNumber, config)
+      : carExpenseDeductionCents(derivedNumber, config)
+  const overCap = isDistance && derivedValid && derivedNumber > config.carExpense.maxClaimableKm
   const fullAmountCents = dollarsToCents(values.amount) ?? 0
   // Work use is pinned to 100% wherever it cannot be apportioned: the distance
-  // basis, whose kilometres are work-related already, or a non-work-expense
+  // and hours bases, whose kilometres and hours are work-related already, or a non-work-expense
   // category — a donation and tax agent fees are claimed in full or not at
   // all, never split by work use.
-  const apportionable = !isDistance && category === 'work_expense'
+  const apportionable = !isDerived && category === 'work_expense'
   const enteredWorkUsePercent =
     typeof workUsePercent === 'number' ? workUsePercent : Number.parseFloat(workUsePercent)
   const workUsePercentValid =
@@ -384,7 +396,7 @@ export function DeductionForm({
 
   const canSubmit =
     values.description.trim() !== '' &&
-    (isDistance ? distanceValid : values.amount !== '' && workUsePercentValid) &&
+    (isDerived ? derivedValid : values.amount !== '' && workUsePercentValid) &&
     values.deductionDate !== null &&
     // A save while a receipt is still being stored or read would send no
     // receipt for it, leaving the object filed under an id no row is written under.
@@ -402,17 +414,18 @@ export function DeductionForm({
       input: {
         member_id: member.id,
         description: values.description.trim(),
-        amount_cents: isDistance ? computedAmountCents : apportionedAmountCents,
+        amount_cents: isDerived ? computedAmountCents : apportionedAmountCents,
         deduction_date: values.deductionDate!,
         basis: effectiveBasis,
-        distance_km: isDistance ? distanceKmNumber : null,
+        distance_km: isDistance ? derivedNumber : null,
+        work_from_home_hours: isHours ? derivedNumber : null,
         group_id: isDonation ? null : (groupId ?? pickedGroupId),
         category,
         // Pinned at 100% wherever it cannot be apportioned, regardless of
         // whatever the percentage field last held from an earlier
         // work-expense/amount-basis edit; deduction_work_use_basis holds the
         // database to the same rule.
-        full_amount_cents: isDistance ? computedAmountCents : fullAmountCents,
+        full_amount_cents: isDerived ? computedAmountCents : fullAmountCents,
         work_use_percent: workUsePercentNumber,
       },
       receiptPath: adding ? (draft?.path ?? receipts.path) : null,
@@ -505,19 +518,21 @@ export function DeductionForm({
           />
 
           <Group grow wrap="nowrap" align="flex-start" gap="xs">
-            {isDistance ? (
+            {isDerived ? (
               <NumberInput
-                label="Kilometres travelled"
+                label={isHours ? 'Hours worked from home' : 'Kilometres travelled'}
                 size="sm"
                 description={hint(
-                  `Work-related kilometres travelled, at FY${financialYear}'s ${formatCentsRate(config.carExpense.centsPerKm, 'km')} ATO rate.`,
+                  isHours
+                    ? `At FY${financialYear}'s ${formatCentsRate(config.workFromHome.centsPerHour, 'hr')} ATO fixed rate. Covers energy, internet, phone, and stationery; keep a timesheet.`
+                    : `Work-related kilometres travelled, at FY${financialYear}'s ${formatCentsRate(config.carExpense.centsPerKm, 'km')} ATO rate.`,
                 )}
-                suffix=" km"
+                suffix={isHours ? ' hours' : ' km'}
                 decimalScale={2}
                 min={0}
                 hideControls
-                value={distanceKm}
-                onChange={setDistanceKm}
+                value={isHours ? workFromHomeHours : distanceKm}
+                onChange={isHours ? setWorkFromHomeHours : setDistanceKm}
               />
             ) : (
               <MoneyInput
@@ -543,7 +558,7 @@ export function DeductionForm({
             />
           </Group>
 
-          {isDistance && (
+          {isDerived && (
             <Text size="sm" c="dimmed">
               Deductible amount: <b>{formatCents(computedAmountCents)}</b>
             </Text>
@@ -581,6 +596,7 @@ export function DeductionForm({
               data={[
                 { value: 'amount', label: 'Dollar' },
                 { value: 'distance', label: 'Distance (km)' },
+                { value: 'hours', label: 'Hours at home' },
               ]}
             />
           )}

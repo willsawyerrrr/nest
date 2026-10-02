@@ -396,6 +396,8 @@ employment_termination:
 car_expense:
   cents_per_km: 91          # ATO cents-per-kilometre car expense deduction rate
   max_claimable_km: 5000    # cap on business km claimable per car per year under this method
+work_from_home:
+  cents_per_hour: 70        # ATO fixed rate method, per hour worked from home
 ```
 
 > **Values above are illustrative.** Each FY's real figures must be sourced from
@@ -415,7 +417,9 @@ car_expense:
   contributions/Division 293 rate, the co-contribution income test, and
   preservation age 60), and the 2025-26 termination figures ($260,000 ETP cap, the
   $180,000 whole-of-income cap, and a $13,100 + $6,552-per-year genuine-redundancy
-  tax-free amount). See `packages/tax/src/configs.ts`.
+  tax-free amount). Its working-from-home fixed rate is 70c per hour, verified
+  on the ATO's fixed rate method page and the myTax 2026 instructions. See
+  `packages/tax/src/configs.ts`.
 - **FY2027** (`FY2027_CONFIG`, also in `configsByYear`) — a verified resident
   config with real ATO figures for 2026-27, including the Budget top-up cut that
   drops the lowest marginal rate from 16% to 15% from 1 July 2026. Every figure
@@ -431,8 +435,23 @@ car_expense:
   $250,000 Division 293 threshold, 15% contributions/Division 293 rate, the
   co-contribution income test, and preservation age 60) and the 2026-27 termination
   figures ($270,000 ETP cap, the unindexed $180,000 whole-of-income cap, and a
-  $13,598 + $6,801-per-year genuine-redundancy tax-free amount). See
-  `packages/tax/src/configs.ts`.
+  $13,598 + $6,801-per-year genuine-redundancy tax-free amount). Its
+  working-from-home fixed rate (70c per hour) is provisional: the ATO's fixed
+  rate method page lists rates only through 2025-26, so it carries that latest
+  published figure. See `packages/tax/src/configs.ts`.
+
+### Working from home (fixed rate method)
+
+A deduction on the `hours` basis is `hours` worked from home at the financial
+year's `work_from_home.cents_per_hour`, rounded to whole cents
+(`workFromHomeDeductionCents`) and saved at entry, so a later rate change never
+moves it. ATO rates per hour worked: 52c (2020-21, 2021-22), 67c (2022-23,
+2023-24), 70c (2024-25, 2025-26). The rate covers energy (electricity and gas),
+internet and data, mobile and home phone, and stationery and computer
+consumables, so those cannot also be claimed; depreciating assets are separate.
+The member must keep a record of the actual hours worked. Sources:
+[fixed rate method](https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/work-related-deductions/working-from-home-expenses/fixed-rate-method),
+[myTax 2026 other work-related expenses](https://www.ato.gov.au/individuals-and-families/your-tax-return/instructions-to-complete-your-tax-return/mytax-instructions/2026/deductions/work-related-expenses/other-work-related-expenses).
 
 ## Testing
 

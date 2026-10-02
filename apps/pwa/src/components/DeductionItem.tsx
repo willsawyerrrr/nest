@@ -22,14 +22,18 @@ function formatIsoDate(iso: string): string {
 
 /**
  * The date, plus the claimed distance for a distance-basis deduction (e.g.
- * "1 Aug 2026 · 120km") or the work-use share for a part-claimed one (e.g.
- * "1 Aug 2026 · 60% work use"). A distance-basis row is pinned at 100% work
- * use, so the two never both apply.
+ * "1 Aug 2026 · 120km"), the hours for an hours-basis one (e.g. "1 Aug 2026 ·
+ * 40 hours"), or the work-use share for a part-claimed one (e.g.
+ * "1 Aug 2026 · 60% work use"). A distance- or hours-basis row is pinned at
+ * 100% work use, so the two never both apply.
  */
 function deductionDateLabel(deduction: DeductionRow): string {
   const date = formatIsoDate(deduction.deduction_date)
   if (deduction.basis === 'distance' && deduction.distance_km != null) {
     return `${date} · ${deduction.distance_km}km`
+  }
+  if (deduction.basis === 'hours' && deduction.work_from_home_hours != null) {
+    return `${date} · ${deduction.work_from_home_hours} hours`
   }
   if (deduction.work_use_percent < 100) {
     return `${date} · ${deduction.work_use_percent}% work use`

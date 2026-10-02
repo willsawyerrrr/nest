@@ -51,6 +51,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    work_from_home_hours: null,
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
@@ -170,6 +171,20 @@ describe('DeductionsScreen', () => {
     })
     const card = screen.getByText('Client visits').closest('.mantine-Card-root') as HTMLElement
     expect(within(card).getByText(/1 Aug 2026 · 120km/)).toBeInTheDocument()
+  })
+
+  it('renders the hours beside the date of an hours-basis deduction', () => {
+    renderScreen({
+      deductions: [
+        makeDeduction({
+          description: 'Home office',
+          basis: 'hours',
+          work_from_home_hours: 40,
+        }),
+      ],
+    })
+    const card = screen.getByText('Home office').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText(/1 Aug 2026 · 40 hours/)).toBeInTheDocument()
   })
 
   it('renders the work-use share beside the date of a part-claimed deduction', () => {

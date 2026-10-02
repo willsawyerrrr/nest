@@ -28,6 +28,7 @@ function makeDeduction(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    work_from_home_hours: null,
     group_id: null,
     full_amount_cents: 1_200_00,
     work_use_percent: 100,
@@ -290,6 +291,7 @@ describe('DeductionForm', () => {
         deduction_date: '2026-08-01',
         basis: 'amount',
         distance_km: null,
+        work_from_home_hours: null,
         group_id: null,
         category: 'work_expense',
         full_amount_cents: 1_200_00,
@@ -329,6 +331,94 @@ describe('DeductionForm', () => {
       amount_cents: 91_00,
       basis: 'distance',
       distance_km: 100,
+    })
+  })
+
+  it('computes the amount from hours at the FY2027 cents-per-hour rate on the hours basis', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={onSubmit}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
+
+    await user.type(screen.getByLabelText(/description/i), 'Home office')
+    await user.click(screen.getByText('Hours at home'))
+    expect(screen.getByText(/keep a timesheet/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/work use/i)).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText(/hours worked from home/i), '120')
+
+    // FY2027's rate is 70c/hour: 120 hours = $84.00.
+    expect(await screen.findByText('$84.00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /add deduction/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input).toMatchObject({
+      description: 'Home office',
+      amount_cents: 84_00,
+      full_amount_cents: 84_00,
+      basis: 'hours',
+      distance_km: null,
+      work_from_home_hours: 120,
+      work_use_percent: 100,
+    })
+  })
+
+  it('needs hours before an hours-basis deduction can be added', async () => {
+    const user = userEvent.setup({ delay: null })
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        onSubmit={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
+    await user.type(screen.getByLabelText(/description/i), 'Home office')
+    await user.click(screen.getByText('Hours at home'))
+
+    expect(screen.getByRole('button', { name: /add deduction/i })).toBeDisabled()
+  })
+
+  it('prefills an existing hours-basis deduction and edits only its hours', async () => {
+    const user = userEvent.setup({ delay: null })
+    const onSubmit = vi.fn()
+    render(
+      <DeductionForm
+        member={member}
+        attachments={attachments}
+        financialYear={2027}
+        initial={makeDeduction({
+          basis: 'hours',
+          work_from_home_hours: 100,
+          amount_cents: 70_00,
+          full_amount_cents: 70_00,
+        })}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    expect(screen.getByLabelText(/hours worked from home/i)).toHaveValue('100 hours')
+    expect(screen.queryByText('Hours at home')).not.toBeInTheDocument()
+    expect(screen.getByText('$70.00')).toBeInTheDocument()
+
+    const hours = screen.getByLabelText(/hours worked from home/i)
+    await user.clear(hours)
+    await user.type(hours, '200')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(submitted(onSubmit).input).toMatchObject({
+      basis: 'hours',
+      work_from_home_hours: 200,
+      amount_cents: 140_00,
     })
   })
 
@@ -1221,12 +1311,15 @@ describe('DeductionForm category', () => {
     await user.click(screen.getByRole('button', { name: /enter details manually/i }))
 
     expect(screen.getByText('Distance (km)')).toBeInTheDocument()
+    expect(screen.getByText('Hours at home')).toBeInTheDocument()
 
     await user.click(screen.getByText('Donation'))
     expect(screen.queryByText('Distance (km)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hours at home')).not.toBeInTheDocument()
 
     await user.click(screen.getByText('Tax agent fee'))
     expect(screen.queryByText('Distance (km)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hours at home')).not.toBeInTheDocument()
   })
 
   it('forces the amount basis when a work expense on the distance basis is switched to a donation', async () => {
@@ -1260,6 +1353,7 @@ describe('DeductionForm category', () => {
             category: 'donation',
             basis: 'amount',
             distance_km: null,
+            work_from_home_hours: null,
             amount_cents: 250_00,
           }),
         }),

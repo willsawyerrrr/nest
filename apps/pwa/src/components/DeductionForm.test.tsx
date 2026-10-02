@@ -317,6 +317,7 @@ describe('DeductionForm', () => {
     await user.click(screen.getByText('Distance (km)'))
     await user.type(screen.getByLabelText(/kilometres/i), '100')
 
+    expect(screen.getByText(/at FY2027's 91c\/km ATO rate/)).toBeInTheDocument()
     // FY2027's published rate is 91c/km: 100km = $91.00.
     expect(await screen.findByText('$91.00')).toBeInTheDocument()
 

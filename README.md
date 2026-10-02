@@ -81,6 +81,8 @@ A pitch-level summary; the full locked list is canonical in
   (`.ics`) feed of the household's money dates.
 - [`docs/ios.md`](docs/ios.md) — the native iOS app (`apps/ios`): the embedded
   PWA plus Siri / App Intents access to key figures (WSD-95).
+- [`docs/mcp.md`](docs/mcp.md) — the MCP server (`packages/mcp`) that gives an
+  agent member-scoped access to budget, goals, wishlist, and deductions.
 
 Planned and in-progress work is tracked in the
 [Nest project in Linear](https://linear.app/willsawyerrrr-dev/project/nest-277c083e9a78).
@@ -92,6 +94,7 @@ apps/pwa        React PWA (Vite, TypeScript) — iOS + web
 apps/ios        Native iOS app — embedded PWA + Siri / App Intents (see docs/ios.md)
 packages/tax    Shared, pure tax engine (used by the PWA and edge functions)
 packages/plan   Shared, pure budget / summary / goal math
+packages/mcp    MCP server for agent access to household data (see docs/mcp.md)
 supabase        Postgres migrations, edge functions, and local config
 ```
 

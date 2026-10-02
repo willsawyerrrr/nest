@@ -509,7 +509,10 @@ the workflow token is scoped `contents: read`:
   only when all six pass. Alongside the packages and the app, the repo scripts
   carry their own Vitest project (`scripts/vitest.config.js`) so the drift checks'
   comparison logic is exercised against fixtures; it sits outside the coverage
-  thresholds, which measure the money-critical packages and the app. The shard
+  thresholds, which measure the money-critical packages and the app. `packages/mcp`
+  is likewise a plain Vitest project (picked up by the `packages/*` glob, so it is
+  sharded with the rest) and a `pnpm -r typecheck` member, outside the coverage
+  thresholds. The shard
   pairs the `default` reporter with `blob` to sidestep a Vitest coverage race
   that fails a shard with every test green (the `ci.yml` comment has the
   detail); `blob` stays for the merge.

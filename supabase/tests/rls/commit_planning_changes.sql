@@ -115,6 +115,40 @@ begin
     'a patch explicitly setting a field to null should clear it, not leave the prior value alone';
 end $$;
 
+-- ── A budget line's management link rides a create and an update ──────────────
+
+do $$
+declare v_id uuid := gen_random_uuid();
+begin
+  perform public.commit_planning_changes(
+    p_budget_line_creates := jsonb_build_array(jsonb_build_object(
+      'id', v_id, 'household_id', current_setting('cpc.alice_hid'),
+      'line_group', 'wants', 'name', 'Netflix', 'amount_cents', 20_00, 'frequency', 'monthly',
+      'management_url', 'https://www.netflix.com/account'
+    ))
+  );
+  assert (select management_url from public.budget_line where id = v_id) = 'https://www.netflix.com/account',
+    'a created budget line should carry its management link';
+
+  perform public.commit_planning_changes(
+    p_budget_line_updates := jsonb_build_object(v_id::text, jsonb_build_object('amount_cents', 25_00))
+  );
+  assert (select management_url from public.budget_line where id = v_id) = 'https://www.netflix.com/account',
+    'a patch not naming the management link should leave it as stored';
+
+  perform public.commit_planning_changes(
+    p_budget_line_updates := jsonb_build_object(v_id::text, jsonb_build_object('management_url', 'https://netflix.com/cancel'))
+  );
+  assert (select management_url from public.budget_line where id = v_id) = 'https://netflix.com/cancel',
+    'a patch naming the management link should set it';
+
+  perform public.commit_planning_changes(
+    p_budget_line_updates := jsonb_build_object(v_id::text, jsonb_build_object('management_url', null))
+  );
+  assert (select management_url from public.budget_line where id = v_id) is null,
+    'a patch setting the management link to null should clear it';
+end $$;
+
 -- ── Household RLS, not the function body, is what scopes every write ──────────
 --
 -- Alice's own view of Bob's row is RLS-hidden entirely (0 rows, not a row she

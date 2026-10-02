@@ -36,6 +36,7 @@ describe('BudgetLineForm', () => {
         destination_account_id: null,
         gift_recipient_member_id: null,
         is_gift_line: false,
+        management_url: null,
       }),
     )
   })
@@ -89,6 +90,7 @@ describe('BudgetLineForm', () => {
         destination_account_id: null,
         gift_recipient_member_id: null,
         is_gift_line: false,
+        management_url: null,
       }),
     )
   })
@@ -116,6 +118,7 @@ describe('BudgetLineForm', () => {
         destination_account_id: null,
         gift_recipient_member_id: null,
         is_gift_line: false,
+        management_url: null,
       }),
     )
   })
@@ -143,6 +146,7 @@ describe('BudgetLineForm', () => {
         destination_account_id: null,
         gift_recipient_member_id: null,
         is_gift_line: false,
+        management_url: null,
       }),
     )
   })
@@ -406,6 +410,57 @@ describe('BudgetLineForm', () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ goal_id: 'g1' })),
+    )
+  })
+
+  it('saves a typed management link, adding https to a bare domain', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<BudgetLineForm defaultGroup="wants" onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Netflix')
+    await user.type(screen.getByLabelText(/amount/i), '20')
+    await user.type(screen.getByLabelText(/management link/i), 'netflix.com/account')
+    await user.click(screen.getByRole('button', { name: /add item/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ management_url: 'https://netflix.com/account' }),
+      ),
+    )
+  })
+
+  it('rejects a non-http(s) management link and blocks submit', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<BudgetLineForm defaultGroup="wants" onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText(/name/i), 'Netflix')
+    await user.type(screen.getByLabelText(/amount/i), '20')
+    await user.type(screen.getByLabelText(/management link/i), 'javascript:alert(1)')
+
+    expect(screen.getByText(/starting with http/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add item/i })).toBeDisabled()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('seeds and clears an existing management link on edit', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const line = makeBudgetLine({
+      line_group: 'wants',
+      name: 'Netflix',
+      management_url: 'https://www.netflix.com/account',
+    })
+    render(<BudgetLineForm initial={line} onSubmit={onSubmit} />)
+
+    const input = screen.getByLabelText(/management link/i)
+    expect(input).toHaveValue('https://www.netflix.com/account')
+    await user.clear(input)
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ management_url: null })),
     )
   })
 })

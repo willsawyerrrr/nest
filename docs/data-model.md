@@ -632,7 +632,7 @@ no per-member scoping; each line stands alone under the household.
     on inflows),
     `goal_id` (nullable), `breakdown_id` (nullable), `is_gift_line` (bool),
     `gift_recipient_member_id` (nullable), `destination_account_id`
-    (nullable), `created_at`, `updated_at`.
+    (nullable), `management_url` (nullable), `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
   - `breakdown_id` marks a **derived line** whose amount is rolled up from a
@@ -652,6 +652,13 @@ no per-member scoping; each line stands alone under the household.
     `(destination_account_id, household_id)` → `accounts`, `on delete set null`.
     A CHECK (`budget_line_destination_group`) bars it on `savings`/`investments`
     lines, which route via their goal's linked saver instead.
+  - `management_url` optionally links a recurring-subscription line to that
+    subscription's management or account page. A CHECK
+    (`budget_line_management_url_http`) holds a stored value to a trimmed http(s)
+    URL with a host, at most 2048 characters. The form normalises a bare domain to
+    `https://` and rejects any other scheme; a line that has one shows a "Manage
+    <name> subscription" icon link opening it in a new tab. `commit_planning_changes`
+    carries it on budget-line creates and updates.
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
     (nullable), `current_balance_cents` (default 0), `linked_account_id`

@@ -5,6 +5,7 @@ import { useFormSubmit } from '../hooks/useFormSubmit'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
+import { isManagementUrlValid, normaliseManagementUrl } from '../lib/managementUrl'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { EnumSelect } from './EnumSelect'
 import { FormShell } from './FormShell'
@@ -49,6 +50,7 @@ export function BudgetLineForm({
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
     initial?.destination_account_id ?? null,
   )
+  const [managementUrl, setManagementUrl] = useState(initial?.management_url ?? '')
   const showGoalPicker = groupLinksGoal(group)
   // Savings/Investments lines route to their goal's account, so they carry no
   // direct destination; every other group offers a "Funded from" picker.
@@ -67,8 +69,12 @@ export function BudgetLineForm({
     }
   }
 
+  const managementUrlValid = isManagementUrlValid(managementUrl)
   const canSubmit =
-    name.trim() !== '' && amount !== '' && (isEveryN ? interval !== '' && intervalValid : true)
+    name.trim() !== '' &&
+    amount !== '' &&
+    (isEveryN ? interval !== '' && intervalValid : true) &&
+    managementUrlValid
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
@@ -85,6 +91,7 @@ export function BudgetLineForm({
       destination_account_id: showAccountPicker ? destinationAccountId : null,
       gift_recipient_member_id: null,
       is_gift_line: false,
+      management_url: normaliseManagementUrl(managementUrl),
     }),
   })
 
@@ -180,6 +187,19 @@ export function BudgetLineForm({
           nothingFoundMessage="No matching accounts"
         />
       )}
+
+      <TextInput
+        label="Management link"
+        size="sm"
+        description="Optional. Where to manage or cancel this subscription."
+        placeholder="netflix.com/account"
+        inputMode="url"
+        value={managementUrl}
+        onChange={(event) => setManagementUrl(event.currentTarget.value)}
+        error={
+          managementUrlValid ? undefined : 'Enter a web address starting with http:// or https://'
+        }
+      />
     </FormShell>
   )
 }

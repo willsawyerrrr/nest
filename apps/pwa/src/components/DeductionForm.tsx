@@ -29,7 +29,13 @@ import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { UploadDraft } from '../lib/bulkUpload'
 import { todayIso } from '../lib/dates'
 import type { DeductionExtraction } from '../lib/deductionExtraction'
-import { centsToDollars, dollarsToCents, formatCents, workUseAmountCents } from '../lib/money'
+import {
+  centsToDollars,
+  dollarsToCents,
+  formatCents,
+  formatCentsRate,
+  workUseAmountCents,
+} from '../lib/money'
 import { currentTaxConfig } from '../lib/tax'
 import { prepareUpload } from '../lib/uploadFile'
 import { ExtractionNote, ReadFromReceipt } from './DeductionExtractionNote'
@@ -504,7 +510,7 @@ export function DeductionForm({
                 label="Kilometres travelled"
                 size="sm"
                 description={hint(
-                  `Work-related kilometres travelled, at FY${financialYear}'s ${(config.carExpense.centsPerKm / 100).toFixed(2)}c/km ATO rate.`,
+                  `Work-related kilometres travelled, at FY${financialYear}'s ${formatCentsRate(config.carExpense.centsPerKm, 'km')} ATO rate.`,
                 )}
                 suffix=" km"
                 decimalScale={2}

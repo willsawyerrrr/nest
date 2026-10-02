@@ -4,6 +4,7 @@ import {
   dollarsToCents,
   dollarsToMicrodollars,
   formatCents,
+  formatCentsRate,
   formatCompactDollars,
   formatPerFortnight,
   formatPerYear,
@@ -226,5 +227,20 @@ describe('dollarsToMicrodollars', () => {
     for (const micro of [0, 1, 999_999, 1_000_001, 12_345_678, 4_000_123_457, 987_654_321_123]) {
       expect(dollarsToMicrodollars(microdollarsToDollars(micro))).toBe(micro)
     }
+  })
+})
+
+describe('formatCentsRate', () => {
+  it('shows whole cents without decimals', () => {
+    expect(formatCentsRate(88, 'km')).toBe('88c/km')
+  })
+
+  it('does not divide the cents by 100', () => {
+    expect(formatCentsRate(88, 'km')).not.toBe('0.88c/km')
+  })
+
+  it('shows fractional cents trimmed to two decimals', () => {
+    expect(formatCentsRate(67.5, 'hr')).toBe('67.5c/hr')
+    expect(formatCentsRate(67.456, 'hr')).toBe('67.46c/hr')
   })
 })

@@ -14,7 +14,7 @@ import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { groupDeductions } from '../lib/deductionGroups'
-import { formatCents } from '../lib/money'
+import { formatCents, formatCentsRate } from '../lib/money'
 import { helpPayoffSummary, type SuperCapSummary } from '../lib/tax'
 import { EmptyState } from './EmptyState'
 import { FinancialYearSelect } from './FinancialYearSelect'
@@ -176,7 +176,7 @@ function claimWorkings(deduction: DeductionRow): string | null {
   if (deduction.basis === 'distance' && deduction.distance_km !== null) {
     const rate = configsByYear[deduction.financial_year]?.carExpense.centsPerKm
     const km = `${deduction.distance_km.toLocaleString()} km`
-    return rate === undefined ? km : `${km} at ${(rate / 100).toFixed(2)}c/km`
+    return rate === undefined ? km : `${km} at ${formatCentsRate(rate, 'km')}`
   }
   if (deduction.work_use_percent < 100) {
     return `${formatCents(deduction.full_amount_cents)} at ${deduction.work_use_percent}%`

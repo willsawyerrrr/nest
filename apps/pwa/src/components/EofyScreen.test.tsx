@@ -2,7 +2,6 @@ import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  configsByYear,
   type HouseholdTaxEstimate,
   type MemberTaxEstimate,
   type TaxBreakdown,
@@ -435,11 +434,8 @@ describe('EofyScreen', () => {
     renderScreen({
       deductions: [makeDeduction({ basis: 'distance', distance_km: 1200, amount_cents: 1020_00 })],
     })
-    const rate = (configsByYear[2027]?.carExpense.centsPerKm ?? 0) / 100
     expect(
-      within(screen.getByRole('region', { name: 'Alex' })).getByText(
-        `1,200 km at ${rate.toFixed(2)}c/km`,
-      ),
+      within(screen.getByRole('region', { name: 'Alex' })).getByText('1,200 km at 91c/km'),
     ).toBeInTheDocument()
   })
 

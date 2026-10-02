@@ -161,3 +161,13 @@ export function workUseAmountCents(fullAmountCents: number, workUsePercent: numb
   const hundredthsOfAPercent = Math.round(workUsePercent * 100)
   return Math.round((fullAmountCents * hundredthsOfAPercent) / 10_000)
 }
+
+/**
+ * A per-unit rate held in cents, e.g. `formatCentsRate(88, 'km')` is
+ * `88c/km` and `formatCentsRate(67.5, 'hr')` is `67.5c/hr`.
+ *
+ * Whole cents show no decimals; fractional cents show up to two, trimmed.
+ */
+export function formatCentsRate(cents: number, unit: string): string {
+  return `${Number(cents.toFixed(2))}c/${unit}`
+}

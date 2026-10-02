@@ -89,7 +89,7 @@ Three functions under `supabase/functions/`, documented in full in
   than its full cost shows a muted `$200.00 at 60%` (`full_amount_cents` at
   `work_use_percent`) beneath its deductible amount, and a distance-basis one
   its kilometres at the financial year's published rate (`1,200 km at
-  88.00c/km`, or the kilometres alone when the year has no published rate), so
+  88c/km`, or the kilometres alone when the year has no published rate), so
   the tax agent can check the claim; a deduction claimed in full shows the
   amount alone. `eofy-share` selects every `deduction` column, so the fields
   need no further grant. Deductions are grouped as on

@@ -831,8 +831,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the newest release on first load so releases predating the member raise no dot.
   A failed or empty changelog raises none; the query is cached for ten minutes.
   Entries are compact list rows (type emoji, description clamped to two lines,
-  date, status pill for Available / In progress / Implemented); expanding a row
-  shows the full description and its commit SHA or pull-request link.
+  date, status pill for Available / In progress / Implemented). A row expands
+  only to show a clamped description in full; one that already fits has no
+  chevron and does not toggle. Commit SHAs and pull-request links are never
+  shown (members have no use for them); the SHA stays in the data for the
+  unseen-release dot.
 - Push notifications: alerts reach the installed PWA over Web Push (RFC 8291
   payload encryption, RFC 8292 VAPID auth) — no push vendor and no native app. A
   member opts in **per device**: the subscription (endpoint plus its two keys)

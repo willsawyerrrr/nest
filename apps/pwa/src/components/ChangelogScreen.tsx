@@ -1,16 +1,5 @@
-import type { ReactNode } from 'react'
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Collapse,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  UnstyledButton,
-} from '@mantine/core'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Alert, Badge, Button, Group, Loader, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
@@ -56,59 +45,72 @@ const STATUS_PILL: Record<EntryStatus, { label: string; color: string }> = {
 }
 
 interface EntryProps {
-  id: string
   type: string
   description: string
   status: EntryStatus
   /** ISO timestamp the change landed; absent while it is still in progress. */
   date?: string
-  /** The reference shown when expanded: a short commit SHA or a pull request link. */
-  reference: ReactNode
 }
 
 /**
  * One change as a compact row: type emoji, the description clamped to two lines,
- * the date, and a status pill. Expanding shows the full description and the
- * change's reference.
+ * the date, and a status pill. A row whose description is clamped expands to show
+ * all of it; a row that already shows it in full has no chevron and does not toggle.
  */
-function Entry({ id, type, description, status, date, reference }: EntryProps) {
+function Entry({ type, description, status, date }: EntryProps) {
   const wide = useIsWide()
   const [expanded, { toggle }] = useDisclosure(false)
-  const detailId = `changelog-detail-${id}`
+  const [clamped, setClamped] = useState(false)
+  const textRef = useRef<HTMLParagraphElement>(null)
   const pill = STATUS_PILL[status]
   const when = date === undefined ? null : formatIsoDate(date.slice(0, 10))
-  return (
-    <ListRow
-      gap="xs"
-      caption={
-        <Collapse expanded={expanded} id={detailId}>
-          <Text size="xs" c="dimmed" pl={34} pt={2}>
-            {reference}
-          </Text>
-        </Collapse>
+
+  useEffect(() => {
+    const measure = () => {
+      const el = textRef.current
+      if (el && !expanded) {
+        setClamped(el.scrollHeight > el.clientHeight)
       }
-    >
-      <UnstyledButton
-        onClick={toggle}
-        aria-expanded={expanded}
-        aria-controls={detailId}
-        style={{ flex: 1, minWidth: 0 }}
-      >
-        <Group gap="xs" wrap="nowrap" align="flex-start">
-          {expanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
-          <TypeEmoji type={type} />
-          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-            <Text size="sm" {...(expanded ? {} : { lineClamp: 2 })}>
-              {description}
-            </Text>
-            {!wide && when !== null && (
-              <Text size="xs" c="dimmed">
-                {when}
-              </Text>
-            )}
-          </Stack>
-        </Group>
-      </UnstyledButton>
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [description, wide, expanded])
+
+  const expandable = clamped || expanded
+  const content = (
+    <Group gap="xs" wrap="nowrap" align="flex-start">
+      {expandable ? (
+        expanded ? (
+          <IconChevronDown size={16} />
+        ) : (
+          <IconChevronRight size={16} />
+        )
+      ) : (
+        <span style={{ width: 16, flexShrink: 0 }} />
+      )}
+      <TypeEmoji type={type} />
+      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+        <Text ref={textRef} size="sm" {...(expanded ? {} : { lineClamp: 2 })}>
+          {description}
+        </Text>
+        {!wide && when !== null && (
+          <Text size="xs" c="dimmed">
+            {when}
+          </Text>
+        )}
+      </Stack>
+    </Group>
+  )
+  return (
+    <ListRow gap="xs">
+      {expandable ? (
+        <UnstyledButton onClick={toggle} aria-expanded={expanded} style={{ flex: 1, minWidth: 0 }}>
+          {content}
+        </UnstyledButton>
+      ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>{content}</div>
+      )}
       {wide && (
         <Text size="xs" c="dimmed" w={96} ta="right" style={{ flexShrink: 0 }}>
           {when}
@@ -135,14 +137,7 @@ function ImplementedEntryRow({
   status: 'available' | 'implemented'
 }) {
   return (
-    <Entry
-      id={entry.sha}
-      type={entry.type}
-      description={entry.description}
-      status={status}
-      date={entry.date}
-      reference={`Commit ${entry.sha.slice(0, 7)}`}
-    />
+    <Entry type={entry.type} description={entry.description} status={status} date={entry.date} />
   )
 }
 
@@ -248,15 +243,9 @@ export function ChangelogScreen({
               {inProgress.map((entry) => (
                 <Entry
                   key={entry.number}
-                  id={`pr-${entry.number}`}
                   type={entry.type}
                   description={entry.description}
                   status="in-progress"
-                  reference={
-                    <Anchor href={entry.url} target="_blank" rel="noreferrer" size="xs">
-                      Pull request #{entry.number}
-                    </Anchor>
-                  }
                 />
               ))}
             </Stack>

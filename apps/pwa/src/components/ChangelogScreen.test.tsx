@@ -1,5 +1,6 @@
+import { act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ImplementedEntry, InProgressEntry } from '../hooks/useChangelog'
 import { render, screen, setWideViewport } from '../test/render'
 import { ChangelogScreen } from './ChangelogScreen'
@@ -35,6 +36,18 @@ const available: ImplementedEntry[] = [
   },
 ]
 
+/** Makes every element report its text as overflowing (clamped) or fitting. */
+function mockOverflow(overflowing: boolean) {
+  const scroll = vi
+    .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+    .mockReturnValue(overflowing ? 100 : 20)
+  const client = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(20)
+  return () => {
+    scroll.mockRestore()
+    client.mockRestore()
+  }
+}
+
 function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> = {}) {
   return render(
     <ChangelogScreen
@@ -51,6 +64,10 @@ function renderScreen(overrides: Partial<Parameters<typeof ChangelogScreen>[0]> 
 }
 
 describe('ChangelogScreen', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('prefixes entries with a type emoji and shows no scope', () => {
     renderScreen({ inProgress, implemented })
 
@@ -147,23 +164,48 @@ describe('ChangelogScreen', () => {
     expect(screen.getByText(/^8 Jul/)).toBeInTheDocument()
   })
 
-  it('reveals the commit reference on expanding an implemented row', async () => {
+  it('shows no commit or pull request reference', async () => {
+    mockOverflow(true)
+    renderScreen({ inProgress, implemented })
+
+    await userEvent.click(screen.getByRole('button', { name: /correct a rounding error/i }))
+    await userEvent.click(screen.getByRole('button', { name: /confirm pay splits/i }))
+    expect(screen.queryByText(/commit/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('expands a clamped description to show it in full', async () => {
+    mockOverflow(true)
     renderScreen({ implemented })
 
     const row = screen.getByRole('button', { name: /correct a rounding error/i })
     expect(row).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('Commit ccc333')).toBeInTheDocument()
+    await userEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('links an in-progress row to its pull request on expanding', async () => {
-    renderScreen({ inProgress })
+  it('offers no expand affordance when the description already fits', () => {
+    mockOverflow(false)
+    renderScreen({ inProgress, implemented })
 
-    await userEvent.click(screen.getByRole('button', { name: /confirm pay splits/i }))
-    expect(screen.getByRole('link', { name: 'Pull request #120' })).toHaveAttribute(
-      'href',
-      'https://github.com/o/r/pull/120',
-    )
+    expect(screen.getByText('Correct a rounding error')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /rounding error|pay splits/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('re-measures the description when the window resizes', () => {
+    const restore = mockOverflow(false)
+    renderScreen({ implemented })
+    expect(screen.queryByRole('button', { name: /rounding error/i })).not.toBeInTheDocument()
+
+    restore()
+    mockOverflow(true)
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.getByRole('button', { name: /rounding error/i })).toBeInTheDocument()
   })
 })

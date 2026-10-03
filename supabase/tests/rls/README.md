@@ -37,6 +37,11 @@ instance and can also be run locally.
   name none, and a valid distance-basis row round-trips the client-computed
   `amount_cents` unchanged (the database does not re-derive it from the
   cents-per-km rate, which lives in `@nest/tax`, not in Postgres).
+- `deduction_hours.sql` — the assertions that the `hours` basis is held to
+  `deduction_basis_attribution` (hours required and non-negative, no distance
+  alongside, no hours on the other bases), restricted to work expenses
+  (`deduction_hours_basis_work_expense`), pinned at 100% work use, immutable
+  once saved, and carried by `create_deduction_with_receipt`.
 - `deduction_category.sql` — the assertions that a deduction's `category`
   defaults to `work_expense`, that `deduction_work_use_basis` pins
   `work_use_percent` at 100 for a donation and a tax agent fee, that

@@ -168,15 +168,20 @@ function EofyTaxSummary({
 
 /**
  * How a deduction's claim was worked out, for a tax agent checking it: the
- * kilometres (at the financial year's published rate, when there is one) on the
- * distance basis, or the full cost and work use percentage when claimed at less
- * than 100%. Null for a deduction claimed in full.
+ * kilometres or hours (at the financial year's published rate, when there is
+ * one) on the distance or hours basis, or the full cost and work use percentage
+ * when claimed at less than 100%. Null for a deduction claimed in full.
  */
 function claimWorkings(deduction: DeductionRow): string | null {
   if (deduction.basis === 'distance' && deduction.distance_km !== null) {
     const rate = configsByYear[deduction.financial_year]?.carExpense.centsPerKm
     const km = `${deduction.distance_km.toLocaleString()} km`
     return rate === undefined ? km : `${km} at ${formatCentsRate(rate, 'km')}`
+  }
+  if (deduction.basis === 'hours' && deduction.work_from_home_hours !== null) {
+    const rate = configsByYear[deduction.financial_year]?.workFromHome.centsPerHour
+    const hours = `${deduction.work_from_home_hours.toLocaleString()} hours`
+    return rate === undefined ? hours : `${hours} at ${formatCentsRate(rate, 'hr')}`
   }
   if (deduction.work_use_percent < 100) {
     return `${formatCents(deduction.full_amount_cents)} at ${deduction.work_use_percent}%`
@@ -210,7 +215,7 @@ function EofyDeductionItem({
         <Text size="xs" c="dimmed">
           {formatIsoDate(deduction.deduction_date)}
         </Text>
-        {receipt ? (
+        {deduction.basis === 'hours' ? null : receipt ? (
           <Anchor
             size="xs"
             component="button"

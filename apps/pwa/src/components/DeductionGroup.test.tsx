@@ -32,6 +32,7 @@ function makePayment(overrides: Partial<DeductionRow> = {}): DeductionRow {
     financial_year: 2027,
     basis: 'amount',
     distance_km: null,
+    work_from_home_hours: null,
     group_id: 'g1',
     full_amount_cents: 64_99,
     work_use_percent: 100,

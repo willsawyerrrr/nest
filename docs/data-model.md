@@ -218,8 +218,8 @@ and so without the trigger.
   income. Edited on the member's Tax deductions tab.
   - `id`, `household_id`, `member_id`, `description`, `amount_cents` (bigint,
     `>= 0`), `deduction_date` (date), `financial_year` (int, ending year),
-    `basis` (`deduction_basis` enum: `amount` default, or `distance`),
-    `distance_km` (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
+    `basis` (`deduction_basis` enum: `amount` default, `distance`, or `hours`),
+    `distance_km` and `work_from_home_hours` (`numeric(8,2)`, nullable), `full_amount_cents` (bigint,
     `>= 0`), `work_use_percent` (`numeric(5,2)`, default 100), `category`
     (`deduction_category` enum: `work_expense` default, `donation`, or
     `tax_agent_fees`), `created_at`, `updated_at`.
@@ -245,6 +245,17 @@ and so without the trigger.
     figure the add form never offers a distance toggle for. The
     database does not itself derive `amount_cents` from `distance_km`, since the
     rate is versioned in `@nest/tax`, not stored in Postgres.
+  - The `hours` basis is the ATO's fixed rate method for working from home: the
+    form computes `amount_cents` from `work_from_home_hours` at `financial_year`'s
+    cents-per-hour rate (`@nest/tax`'s `workFromHome` config, via
+    `workFromHomeDeductionCents`) and saves that figure, so a later rate change
+    never moves a claimed deduction. `deduction_basis_attribution` requires a
+    non-negative `work_from_home_hours` exactly when `basis = 'hours'` (and
+    `distance_km` exactly when `basis = 'distance'`), and
+    `deduction_hours_basis_work_expense` restricts it to
+    `category = 'work_expense'`. The rate covers energy, internet, phone, and
+    stationery and consumables, which therefore cannot also be claimed; a record
+    of the hours worked is the member's to keep.
   - On the `amount` basis, `amount_cents` may be less than the expense's full
     cost: `full_amount_cents` records what it cost, `work_use_percent` the share
     claimed (100 by default). `deduction_work_use_apportioned` requires
@@ -255,7 +266,7 @@ and so without the trigger.
     will accept. `deduction_work_use_range` bounds `work_use_percent` to `(0,
     100]` and `full_amount_cents` to non-negative;
     `deduction_work_use_basis` pins `work_use_percent` at 100 on the `distance`
-    basis, since its kilometres are work-related already and a percentage on top
+    and `hours` bases, since their kilometres and hours are work-related already and a percentage on top
     would discount the claim twice. `full_amount_cents` has no plain column
     default — "whatever `amount_cents` says" is not a constant, `DEFAULT` cannot
     read another column of the same row — so a BEFORE INSERT trigger,
@@ -271,14 +282,14 @@ and so without the trigger.
     every category but `work_expense`, exactly as it already pins the
     `distance` basis: a donation and tax agent fees are claimed in full or not
     at all, never apportioned. They cannot take the `distance` basis at all
-    (`deduction_distance_basis_work_expense`), and the add form shows the
-    dollar/distance toggle for a work expense alone. The category is chosen when
+    (`deduction_distance_basis_work_expense`, `deduction_hours_basis_work_expense`),
+    and the add form shows the dollar/distance/hours toggle for a work expense alone. The category is chosen when
     adding and fixed thereafter: the `deduction_category_immutable` BEFORE UPDATE
     trigger refuses an update that changes it (any other update, such as filing
     the row into a group, is unaffected), so a deduction entered under the wrong
     category is deleted and re-added. The basis is fixed likewise: the
     `deduction_basis_immutable` BEFORE UPDATE trigger refuses an update that
-    changes it, the edit form offers no dollar/distance toggle, and a deduction
+    changes it, the edit form offers no basis toggle, and a deduction
     on the wrong basis is deleted and re-added. `deduction-extract` reads `category` too,
     priming the model to expect a purchase receipt/invoice for `work_expense`,
     a donation tax receipt for `donation`, or an invoice for `tax_agent_fees`,
@@ -1139,7 +1150,7 @@ transaction, not for the privileges.
   non-deferrable foreign key, so a receipt row cannot be inserted first. Keyed
   on that same id, so a retried save rewrites the deduction and replaces its
   receipt rather than duplicating either. It carries the deduction's `basis`
-  and, on the distance basis, its `distance_km`; the group it is filed under
+  and, on the distance and hours bases, its `distance_km` or `work_from_home_hours`; the group it is filed under
   (`group_id`); its work-use apportioning (`full_amount_cents`,
   `work_use_percent`); and its `category`: the add form writes every new deduction through this
   function, so a column it does not name is one the add path cannot set, and a

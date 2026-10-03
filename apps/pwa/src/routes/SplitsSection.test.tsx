@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { makeMemberAllowance } from '../test/fixtures'
 import { render, screen } from '../test/render'
 import { SplitsSection } from './SplitsSection'
 
@@ -9,6 +10,8 @@ const hooks = vi.hoisted(() => ({
   useSuperProfiles: vi.fn(),
   usePaySplits: vi.fn(),
   usePayAccount: vi.fn(),
+  useMembers: vi.fn(() => ({ loading: false, members: [] as unknown[] })),
+  useMemberAllowances: vi.fn(() => ({ loading: false, allowances: [] as unknown[] })),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -23,6 +26,10 @@ vi.mock('../hooks/useAccountDirectory', () => ({
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/usePaySplits', () => ({ usePaySplits: hooks.usePaySplits }))
 vi.mock('../hooks/usePayAccount', () => ({ usePayAccount: hooks.usePayAccount }))
+vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
+vi.mock('../hooks/useMemberAllowances', () => ({
+  useMemberAllowances: hooks.useMemberAllowances,
+}))
 vi.mock('../components/SplitsScreen', () => ({
   SplitsScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -71,5 +78,30 @@ describe('SplitsSection', () => {
     const onClear = hooks.screenProps?.onClear as (id: string) => void
     onClear('a1')
     expect(clear).toHaveBeenCalledWith('a1')
+  })
+
+  it('hands the screen each member’s allowance, named and routed', () => {
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+    hooks.useGoals.mockReturnValue({ loading: false, goals: [] })
+    hooks.useAccountDirectory.mockReturnValue({ loading: false, accounts: [] })
+    hooks.useSuperProfiles.mockReturnValue({ loading: false, profiles: [] })
+    hooks.usePaySplits.mockReturnValue({ loading: false, configuredByAccount: {} })
+    hooks.usePayAccount.mockReturnValue({ loading: false, payAccountId: null })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Ada' }] })
+    hooks.useMemberAllowances.mockReturnValue({
+      loading: false,
+      allowances: [makeMemberAllowance({ destination_account_id: 'a1' })],
+    })
+    render(<SplitsSection />)
+
+    expect(hooks.screenProps?.allowances).toEqual([
+      {
+        memberId: 'm1',
+        amountCents: 200_00,
+        frequency: 'fortnightly',
+        name: 'Ada’s allowance',
+        destinationAccountId: 'a1',
+      },
+    ])
   })
 })

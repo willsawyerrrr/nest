@@ -120,6 +120,13 @@ instance and can also be run locally.
   http(s) URL with a host and at most 2048 characters; blank, padded,
   whitespace-bearing, non-http(s), host-less, bare-domain, and over-long values
   are refused on insert and update.
+- `member_allowance.sql` — the assertions for the per-member spending allowance:
+  one positive-amount allowance per member on the budget line cadence rule, a
+  manual Discretionary line drawn from it through `allowance_member_id` (other
+  groups, derived lines, a line with its own destination, and a member with no
+  allowance are refused), `commit_planning_changes` carrying the column, deleting
+  an allowance releasing its lines, household isolation and co-member editing, and
+  `service_role` holding `select` only.
 - `inflow_joint_split.sql` — the assertions that a joint inflow's `is_joint` and
   `member_split_percent` are held to the `inflows_joint_split` check constraint:
   a plain inflow defaults to not-joint with no percent, a recurring taxable

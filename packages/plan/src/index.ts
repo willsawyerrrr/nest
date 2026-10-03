@@ -19,6 +19,9 @@ export {
 
 export { MS_PER_DAY } from './constants.ts'
 
+export { isDrawnFromAllowance, summariseAllowances } from './allowance.ts'
+export type { AllowanceSummary, MemberAllowance } from './allowance.ts'
+
 export { isActiveOn, isTemporaryActive, summarise } from './summary.ts'
 export type {
   Amounts,
@@ -72,7 +75,13 @@ export {
   resolveDestinationAccountId,
   roundCentsUpToStep,
 } from './splits.ts'
-export type { AccountAssignments, AssignableLine, AssignmentLine, RoutableGoal } from './splits.ts'
+export type {
+  AccountAssignments,
+  AssignableAllowance,
+  AssignableLine,
+  AssignmentLine,
+  RoutableGoal,
+} from './splits.ts'
 
 export { financialYearDayCount, financialYearPeriod, prorateAnnualToPeriod } from './payPeriod.ts'
 export type { PayPeriod } from './payPeriod.ts'
@@ -164,6 +173,13 @@ export interface BudgetLine {
    * `frequency`.
    */
   readonly interval?: number
+  /**
+   * The member whose allowance this Discretionary line is drawn from. A drawn
+   * line is one person's expense paid out of their allowance, so it counts against
+   * the allowance rather than on top of the Discretionary group; null or absent
+   * means an ordinary line.
+   */
+  readonly allowanceMemberId?: string | null
 }
 
 /**

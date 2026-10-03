@@ -75,6 +75,7 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     gift_recipient_member_id: null,
     is_gift_line: false,
     management_url: null,
+    allowance_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,
@@ -86,6 +87,7 @@ const now = new Date('2026-12-01T00:00:00Z')
 const sources = (inflows: Inflow[], budgetLines: BudgetLine[] = []) => ({
   inflows,
   budgetLines,
+  memberAllowances: [],
   taxProfiles: [taxProfile()],
   contributions: [],
   helpDebts: [],

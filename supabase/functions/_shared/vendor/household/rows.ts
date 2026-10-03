@@ -111,6 +111,16 @@ export interface BudgetLineRow {
   amount_cents: number
   frequency: string
   interval_count: number | null
+  /** The member whose allowance the line is drawn from; null or absent for an ordinary line. */
+  allowance_member_id?: string | null
+}
+
+/** The `member_allowance` columns the buffer reads. */
+export interface MemberAllowanceRow {
+  member_id: string
+  amount_cents: number
+  frequency: string
+  interval_count: number | null
 }
 
 /** A `temporary_item` row: a fortnightly contribution running through a target date. */
@@ -136,6 +146,8 @@ export interface TaxEstimateRows {
  */
 export interface BudgetSummaryBundle extends TaxEstimateRows {
   budgetLines: readonly BudgetLineRow[]
+  /** Members' spending allowances — each the Discretionary outgoing for its member, with drawn lines counting against it. */
+  memberAllowances: readonly MemberAllowanceRow[]
   temporaryItems: readonly TemporaryItemRow[]
   /** Savings goals — a goal modelling an interest rate feeds projected interest into the estimate. */
   savingsGoals: readonly InterestGoalRow[]

@@ -19,6 +19,7 @@ interface BudgetLineRecord {
   breakdown_id: string | null
   goal_id: string | null
   destination_account_id: string | null
+  allowance_member_id: string | null
 }
 
 /**
@@ -47,6 +48,7 @@ export async function listBudgetLines(ctx: NestContext, input: { name?: string |
         derived: row.breakdown_id !== null || row.is_gift_line,
         goal_id: row.goal_id,
         destination_account_id: row.destination_account_id,
+        allowance_member_id: row.allowance_member_id,
       }
     })
   return { lines }
@@ -178,6 +180,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     deductions,
     members,
     budgetLines,
+    memberAllowances,
     temporaryItems,
     savingsGoals,
     accounts,
@@ -187,8 +190,9 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     selectAll<BudgetSummaryBundle['contributions'][number]>(ctx, 'super_contribution', scoped),
     selectAll<BudgetSummaryBundle['helpDebts'][number]>(ctx, 'help_debt'),
     selectAll<BudgetSummaryBundle['deductions'][number]>(ctx, 'deduction', scoped),
-    selectAll<BudgetSummaryBundle['members'][number]>(ctx, 'members'),
+    selectAll<BudgetSummaryBundle['members'][number] & { name: string }>(ctx, 'members'),
     selectAll<BudgetSummaryBundle['budgetLines'][number]>(ctx, 'budget_line'),
+    selectAll<BudgetSummaryBundle['memberAllowances'][number]>(ctx, 'member_allowance'),
     selectAll<BudgetSummaryBundle['temporaryItems'][number]>(ctx, 'temporary_item'),
     selectAll<BudgetSummaryBundle['savingsGoals'][number]>(ctx, 'savings_goal'),
     selectAll<AccountRecord>(ctx, 'accounts_with_balance'),
@@ -210,6 +214,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
       deductions,
       members,
       budgetLines,
+      memberAllowances,
       temporaryItems,
       savingsGoals,
       savers,
@@ -227,5 +232,13 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     groups_fortnightly_cents: Object.fromEntries(
       Object.entries(summary.groups).map(([group, amounts]) => [group, amounts.fortnightlyCents]),
     ),
+    allowances: summary.allowances.map((allowance) => ({
+      member: members.find((member) => member.id === allowance.memberId)?.name ?? null,
+      member_id: allowance.memberId,
+      allowance_fortnightly_cents: allowance.allowance.fortnightlyCents,
+      drawn_fortnightly_cents: allowance.drawn.fortnightlyCents,
+      remaining_fortnightly_cents: allowance.remaining.fortnightlyCents,
+      overdrawn: allowance.overdrawn,
+    })),
   }
 }

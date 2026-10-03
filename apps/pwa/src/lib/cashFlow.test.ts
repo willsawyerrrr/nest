@@ -31,6 +31,7 @@ const summary: BudgetSummary = {
     savings: group(75_000),
     investments: group(25_000),
   },
+  allowances: [],
   outgoings: amounts(375_000),
   savingsBlock: amounts(100_000),
   afterOutgoing: amounts(125_000),
@@ -186,6 +187,7 @@ describe('cashFlowLines', () => {
     gift_recipient_member_id: null,
     is_gift_line: false,
     management_url: null,
+    allowance_member_id: null,
     created_at: '',
     updated_at: '',
   }
@@ -209,6 +211,44 @@ describe('cashFlowLines', () => {
     expect(lines).toEqual([
       { group: 'wants', name: 'Coffee', fortnightlyCents: 1_000 },
       { group: 'temporary', name: 'Trip', fortnightlyCents: 5_000 },
+    ])
+  })
+
+  it('shows a member’s allowance in place of the lines drawn from it', () => {
+    const lines = cashFlowLines(
+      [
+        { ...budgetLine, line_group: 'discretionary', name: 'Gym', allowance_member_id: 'ada' },
+        { ...budgetLine, line_group: 'discretionary', name: 'Coffee', allowance_member_id: 'ada' },
+        { ...budgetLine, id: 'l3', line_group: 'discretionary', name: 'Books' },
+      ],
+      [],
+      { genericTotalsByBreakdownId: new Map(), giftTotalsByMember: new Map() },
+      new Date('2026-06-01'),
+      [{ memberId: 'ada', amountCents: 50_00, frequency: 'fortnightly', name: 'Ada’s allowance' }],
+    )
+    expect(lines).toEqual([
+      { group: 'discretionary', name: 'Books', fortnightlyCents: 1_000 },
+      { group: 'discretionary', name: 'Ada’s allowance', fortnightlyCents: 50_00 },
+    ])
+  })
+
+  it('counts an overdrawn allowance for what is drawn', () => {
+    const lines = cashFlowLines(
+      [
+        {
+          ...budgetLine,
+          line_group: 'discretionary',
+          amount_cents: 80_00,
+          allowance_member_id: 'ada',
+        },
+      ],
+      [],
+      { genericTotalsByBreakdownId: new Map(), giftTotalsByMember: new Map() },
+      new Date('2026-06-01'),
+      [{ memberId: 'ada', amountCents: 50_00, frequency: 'fortnightly', name: 'Ada’s allowance' }],
+    )
+    expect(lines).toEqual([
+      { group: 'discretionary', name: 'Ada’s allowance', fortnightlyCents: 80_00 },
     ])
   })
 })

@@ -6,6 +6,7 @@ import type { DeductionRow } from '../hooks/useDeductions'
 import type { Goal } from '../hooks/useGoals'
 import type { HelpDebt } from '../hooks/useHelpDebts'
 import type { Inflow } from '../hooks/useInflows'
+import type { MemberAllowance } from '../hooks/useMemberAllowances'
 import type { Member } from '../hooks/useMembers'
 import type { SuperContribution } from '../hooks/useSuperContributions'
 import type { TaxProfile } from '../hooks/useTaxProfiles'
@@ -17,6 +18,8 @@ import { applyBreakdownAmounts } from './derivedBudget'
 export interface HouseholdSummarySources {
   inflows: Inflow[]
   budgetLines: BudgetLine[]
+  /** Members' spending allowances — each the Discretionary outgoing for its member, with drawn lines counting against it. */
+  memberAllowances: MemberAllowance[]
   taxProfiles: TaxProfile[]
   contributions: SuperContribution[]
   helpDebts: HelpDebt[]
@@ -45,6 +48,7 @@ export interface HouseholdSummarySources {
 export function summariseHousehold({
   inflows,
   budgetLines,
+  memberAllowances,
   taxProfiles,
   contributions,
   helpDebts,
@@ -65,6 +69,7 @@ export function summariseHousehold({
       deductions,
       members,
       budgetLines: applyBreakdownAmounts(budgetLines, derivedAmounts),
+      memberAllowances,
       temporaryItems,
       savingsGoals: goals,
       savers: accounts,

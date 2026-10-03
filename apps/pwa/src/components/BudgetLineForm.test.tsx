@@ -37,6 +37,7 @@ describe('BudgetLineForm', () => {
         gift_recipient_member_id: null,
         is_gift_line: false,
         management_url: null,
+        allowance_member_id: null,
       }),
     )
   })
@@ -91,6 +92,7 @@ describe('BudgetLineForm', () => {
         gift_recipient_member_id: null,
         is_gift_line: false,
         management_url: null,
+        allowance_member_id: null,
       }),
     )
   })
@@ -119,6 +121,7 @@ describe('BudgetLineForm', () => {
         gift_recipient_member_id: null,
         is_gift_line: false,
         management_url: null,
+        allowance_member_id: null,
       }),
     )
   })
@@ -147,6 +150,7 @@ describe('BudgetLineForm', () => {
         gift_recipient_member_id: null,
         is_gift_line: false,
         management_url: null,
+        allowance_member_id: null,
       }),
     )
   })
@@ -462,5 +466,74 @@ describe('BudgetLineForm', () => {
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ management_url: null })),
     )
+  })
+
+  describe('drawing from an allowance', () => {
+    const allowances = [{ memberId: 'm1', name: 'Ada’s allowance' }]
+
+    it('offers the allowance on a Discretionary item and submits it, dropping the funding account', async () => {
+      const user = userEvent.setup()
+      const onSubmit = vi.fn()
+      render(
+        <BudgetLineForm
+          defaultGroup="discretionary"
+          accounts={[{ id: 'a1', name: 'Everyday' }]}
+          allowances={allowances}
+          onSubmit={onSubmit}
+        />,
+      )
+
+      await user.type(screen.getByLabelText(/name/i), 'Gym')
+      await user.type(screen.getByLabelText(/amount/i), '40')
+      await selectOption(user, /funded from/i, 'Everyday')
+      await selectOption(user, /draw from allowance/i, 'Ada’s allowance')
+
+      expect(screen.queryByRole('combobox', { name: /funded from/i })).not.toBeInTheDocument()
+      expect(screen.getByText(/paid from ada’s allowance/i)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /add item/i }))
+      await waitFor(() =>
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            allowance_member_id: 'm1',
+            destination_account_id: null,
+            line_group: 'discretionary',
+          }),
+        ),
+      )
+    })
+
+    it('does not offer the allowance outside Discretionary', () => {
+      render(<BudgetLineForm defaultGroup="wants" allowances={allowances} onSubmit={vi.fn()} />)
+      expect(screen.queryByLabelText(/draw from allowance/i)).not.toBeInTheDocument()
+    })
+
+    it('does not offer it when nobody has an allowance', () => {
+      render(<BudgetLineForm defaultGroup="discretionary" onSubmit={vi.fn()} />)
+      expect(screen.queryByLabelText(/draw from allowance/i)).not.toBeInTheDocument()
+    })
+
+    it('releases the allowance when the item moves out of Discretionary', async () => {
+      const user = userEvent.setup()
+      const onSubmit = vi.fn()
+      const line = makeBudgetLine({
+        line_group: 'discretionary',
+        name: 'Gym',
+        allowance_member_id: 'm1',
+      })
+      render(<BudgetLineForm initial={line} allowances={allowances} onSubmit={onSubmit} />)
+
+      expect(screen.getByRole('combobox', { name: /draw from allowance/i })).toHaveValue(
+        'Ada’s allowance',
+      )
+      await selectOption(user, /group/i, 'Wants')
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() =>
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({ line_group: 'wants', allowance_member_id: null }),
+        ),
+      )
+    })
   })
 })

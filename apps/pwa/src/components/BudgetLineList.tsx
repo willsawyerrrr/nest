@@ -12,13 +12,19 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import { IconChevronRight, IconExternalLink } from '@tabler/icons-react'
-import { fortnightlyCents } from '@nest/plan'
+import { IconChevronRight, IconExternalLink, IconWallet } from '@tabler/icons-react'
+import {
+  fortnightlyCents,
+  isDrawnFromAllowance,
+  summariseAllowances,
+  type MemberAllowance,
+} from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useIsWide } from '../hooks/useIsWide'
 import { useSortPreference } from '../hooks/useSortPreference'
+import { toPlanDrawableLine } from '../lib/allowances'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { resolveRoute, type LineRoute } from '../lib/budgetLineRoute'
 import type { BudgetGroup } from '../lib/domain'
@@ -42,6 +48,12 @@ interface BudgetLineListProps {
   goals: { id: string; name: string; linkedAccountId?: string | null }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
+  /**
+   * The members who have a spending allowance, with its plan shape: offered as a
+   * source on Discretionary lines, and counted into the Discretionary subtotal in
+   * place of the lines drawn from them.
+   */
+  allowances?: { name: string; allowance: MemberAllowance }[]
   /** The household's generic breakdowns; a line sourced from one links through to it and seeds its editor. */
   breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
@@ -156,7 +168,9 @@ function RouteBadge({ route }: { route: LineRoute }) {
       variant="light"
       color="gray"
       ml="auto"
-      leftSection={<AccountIcon name={route.iconName} size={10} />}
+      leftSection={
+        route.drawn ? <IconWallet size={10} /> : <AccountIcon name={route.iconName} size={10} />
+      }
       title={route.title}
       style={{ maxWidth: '12rem' }}
     >
@@ -310,6 +324,7 @@ export function BudgetLineList({
   lines,
   goals,
   accounts = [],
+  allowances = [],
   breakdowns = [],
   onCreate,
   onUpdate,
@@ -318,6 +333,18 @@ export function BudgetLineList({
 }: BudgetLineListProps) {
   // Account name lookup for each line's route badge and its icon.
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
+  const allowanceNames = new Map(
+    allowances.map(({ name, allowance }) => [allowance.memberId, name]),
+  )
+  const planAllowances = allowances.map(({ allowance }) => allowance)
+  const allowanceChoices = allowances.map(({ name, allowance }) => ({
+    memberId: allowance.memberId,
+    name,
+  }))
+  const allowanceOutgoingCents = summariseAllowances(
+    lines.map(toPlanDrawableLine),
+    planAllowances,
+  ).reduce((total, summary) => total + summary.outgoing.fortnightlyCents, 0)
   const breakdownsById = new Map(breakdowns.map((breakdown) => [breakdown.id, breakdown]))
   const {
     editingId,
@@ -385,6 +412,7 @@ export function BudgetLineList({
         <BudgetLineForm
           goals={goals}
           accounts={accounts}
+          allowances={allowanceChoices}
           onSubmit={async (input) => {
             await onCreate(input)
             closeForms()
@@ -395,12 +423,21 @@ export function BudgetLineList({
 
       {BUDGET_GROUPS.map(({ value: group, label }) => {
         const groupLines = lines.filter((line) => line.line_group === group)
-        const subtotal = groupLines.reduce(
-          (total, line) =>
-            total +
-            fortnightlyCents(line.amount_cents, line.frequency, line.interval_count ?? undefined),
-          0,
-        )
+        // A line drawn from an allowance counts inside the allowance, which joins
+        // Discretionary in full, so the subtotal agrees with the Summary.
+        const subtotal =
+          groupLines.reduce(
+            (total, line) =>
+              isDrawnFromAllowance({ allowanceMemberId: line.allowance_member_id }, planAllowances)
+                ? total
+                : total +
+                  fortnightlyCents(
+                    line.amount_cents,
+                    line.frequency,
+                    line.interval_count ?? undefined,
+                  ),
+            0,
+          ) + (group === 'discretionary' ? allowanceOutgoingCents : 0)
         const visibleLines = sortLines(
           searching
             ? groupLines.filter((line) => line.name.toLowerCase().includes(search))
@@ -464,7 +501,7 @@ export function BudgetLineList({
                   <BudgetLineItem
                     key={line.id}
                     line={line}
-                    route={resolveRoute(line, goals, accountNames)}
+                    route={resolveRoute(line, goals, accountNames, allowanceNames)}
                     source={source}
                     onEdit={onUpdateDerivedLine ? () => startEditing(line.id) : undefined}
                   />
@@ -476,6 +513,7 @@ export function BudgetLineList({
                   initial={line}
                   goals={goals}
                   accounts={accounts}
+                  allowances={allowanceChoices}
                   onSubmit={async (input) => {
                     await onUpdate(line.id, input)
                     closeForms()
@@ -486,7 +524,7 @@ export function BudgetLineList({
                 <BudgetLineItem
                   key={line.id}
                   line={line}
-                  route={resolveRoute(line, goals, accountNames)}
+                  route={resolveRoute(line, goals, accountNames, allowanceNames)}
                   onEdit={() => startEditing(line.id)}
                   onDelete={() =>
                     confirm({
@@ -505,6 +543,7 @@ export function BudgetLineList({
                   defaultGroup={group}
                   goals={goals}
                   accounts={accounts}
+                  allowances={allowanceChoices}
                   onSubmit={async (input) => {
                     await onCreate(input)
                     closeForms()

@@ -8,11 +8,13 @@ import { useGifts } from '../hooks/useGifts'
 import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
+import { useMemberAllowances } from '../hooks/useMemberAllowances'
 import { useMembers } from '../hooks/useMembers'
 import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
+import { toAssignableAllowances } from '../lib/allowances'
 import { derivedAmountContext } from '../lib/breakdowns'
 import { cashFlowLines } from '../lib/cashFlow'
 import { summariseHousehold } from '../lib/summary'
@@ -24,6 +26,7 @@ export function SummarySection() {
   const taxProfiles = useTaxProfiles()
   const budgetLines = useBudgetLines()
   const temporaryItems = useTemporaryItems()
+  const memberAllowances = useMemberAllowances()
   const contributions = useSuperContributions()
   const gifts = useGifts()
   const breakdowns = useBreakdowns()
@@ -38,6 +41,7 @@ export function SummarySection() {
     taxProfiles.loading ||
     budgetLines.loading ||
     temporaryItems.loading ||
+    memberAllowances.loading ||
     contributions.loading ||
     gifts.loading ||
     breakdowns.loading ||
@@ -65,6 +69,7 @@ export function SummarySection() {
     summariseHousehold({
       inflows: inflowRows,
       budgetLines: budgetLineRows,
+      memberAllowances: memberAllowances.allowances ?? [],
       taxProfiles: taxProfiles.profiles ?? [],
       contributions: contributions.contributions ?? [],
       helpDebts: helpDebts.helpDebts ?? [],
@@ -90,6 +95,7 @@ export function SummarySection() {
     temporaryItems.items ?? [],
     context,
     new Date(),
+    toAssignableAllowances(memberAllowances.allowances ?? [], members),
   )
 
   return <SummaryView summary={summary} lines={lines} {...(baseline && { baseline })} />

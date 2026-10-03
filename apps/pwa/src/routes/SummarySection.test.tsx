@@ -4,6 +4,7 @@ import {
   makeGiftDiscretionaryBudget,
   makeGoal,
   makeInflow,
+  makeMemberAllowance,
   makeSaver,
   makeTaxProfile,
 } from '../test/fixtures'
@@ -25,6 +26,7 @@ const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
   useGoals: vi.fn(),
   useSavers: vi.fn(),
+  useMemberAllowances: vi.fn(),
   planningActive: false,
   screenProps: null as Record<string, unknown> | null,
 }))
@@ -49,6 +51,9 @@ vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions })
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
 vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
+vi.mock('../hooks/useMemberAllowances', () => ({
+  useMemberAllowances: hooks.useMemberAllowances,
+}))
 vi.mock('../components/SummaryView', () => ({
   SummaryView: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -60,6 +65,7 @@ describe('SummarySection', () => {
   beforeEach(() => {
     hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
     hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
+    hooks.useMemberAllowances.mockReturnValue({ loading: false, allowances: [] })
   })
 
   it('shows the loading screen until data loads', () => {
@@ -248,5 +254,41 @@ describe('SummarySection', () => {
     hooks.planningActive = false
 
     expect(hooks.screenProps).toHaveProperty('baseline')
+  })
+
+  it('counts a member allowance once, with its drawn lines inside it, and drills into it', () => {
+    hooks.useInflows.mockReturnValue({ loading: false, inflows: [] })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useBudgetLines.mockReturnValue({
+      loading: false,
+      lines: [
+        makeBudgetLine({
+          name: 'Gym',
+          line_group: 'discretionary',
+          amount_cents: 60_00,
+          allowance_member_id: 'm1',
+        }),
+      ],
+    })
+    hooks.useMemberAllowances.mockReturnValue({
+      loading: false,
+      allowances: [makeMemberAllowance()],
+    })
+    hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
+    hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Ada' }] })
+    render(<SummarySection />)
+
+    const summary = hooks.screenProps?.summary as {
+      groups: { discretionary: { fortnightlyCents: number } }
+    }
+    expect(summary.groups.discretionary.fortnightlyCents).toBe(200_00)
+    expect(hooks.screenProps?.lines).toEqual([
+      { group: 'discretionary', name: 'Ada’s allowance', fortnightlyCents: 200_00 },
+    ])
   })
 })

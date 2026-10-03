@@ -3,6 +3,12 @@
  * aside, leaving a buffer. Mirrors the household's spreadsheet Summary.
  */
 
+import {
+  isDrawnFromAllowance,
+  summariseAllowances,
+  type AllowanceSummary,
+  type MemberAllowance,
+} from './allowance.ts'
 import type { BudgetGroup, BudgetLine, Money, NonTaxableInflow, TemporaryItem } from './index.ts'
 import { annualCents, fortnightlyCents, FORTNIGHTS_PER_YEAR } from './normalize.ts'
 
@@ -23,6 +29,12 @@ export interface SummaryInput {
   readonly nonTaxableInflows: readonly NonTaxableInflow[]
   readonly budgetLines: readonly BudgetLine[]
   readonly temporaryItems: readonly TemporaryItem[]
+  /**
+   * Members' spending allowances. Each is the Discretionary outgoing for its
+   * member, and budget lines drawn from it count against it rather than adding to
+   * the group. Absent ⇒ none.
+   */
+  readonly memberAllowances?: readonly MemberAllowance[]
   /**
    * The annual income tax and levies (including the 15% super contributions
    * tax) that separate gross income from take-home, for the gross-basis view.
@@ -48,6 +60,9 @@ export interface SummaryInput {
  * temporary items only); `outgoings` is Needs + Wants + Discretionary +
  * Temporary; `savingsBlock` is Savings + Investments; `afterOutgoing` and
  * `afterSaving` are the running remainders, the latter being the buffer.
+ * `allowances` reconciles each member's spending allowance against the lines
+ * drawn from it; the Discretionary group holds the undrawn lines plus each
+ * allowance's `outgoing`, so a drawn line is never counted twice.
  * `tax` and `salarySacrifice` are the gross-basis-only slices — income tax and
  * levies, and the household's total salary sacrifice (pre-tax amounts sacrificed
  * from pay) — that with `available` sum to the gross income basis
@@ -67,6 +82,7 @@ export interface BudgetSummary {
   readonly oneOffCents: Money
   readonly available: Amounts
   readonly groups: Readonly<Record<BudgetGroup | 'temporary', GroupSummary>>
+  readonly allowances: readonly AllowanceSummary[]
   readonly outgoings: Amounts
   readonly savingsBlock: Amounts
   readonly afterOutgoing: Amounts
@@ -123,6 +139,10 @@ function addAmounts(a: Amounts, b: Amounts): Amounts {
  * cash is available. `now` is taken as a parameter for deterministic results.
  * One-off money passes straight through to `oneOffCents`, entering no total: it is
  * reported beside the plan rather than spent by it.
+ *
+ * A line drawn from a member's allowance adds nothing to its group: the
+ * allowance's own outgoing — its amount, or the drawn total once that is larger —
+ * joins Discretionary instead.
  */
 export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   // A non-taxable inflow with an effective window counts in full while `now` is
@@ -153,7 +173,15 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
     savings: zero,
     investments: zero,
   }
+  const memberAllowances = input.memberAllowances ?? []
+  const allowances = summariseAllowances(input.budgetLines, memberAllowances)
+  for (const { outgoing } of allowances) {
+    lineTotals.discretionary = addAmounts(lineTotals.discretionary, outgoing)
+  }
   for (const line of input.budgetLines) {
+    if (isDrawnFromAllowance(line, memberAllowances)) {
+      continue
+    }
     lineTotals[line.group] = addAmounts(lineTotals[line.group], {
       fortnightlyCents: fortnightlyCents(line.amountCents, line.frequency, line.interval),
       annualCents: annualCents(line.amountCents, line.frequency, line.interval),
@@ -212,6 +240,7 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
     oneOffCents: input.oneOffCents ?? 0,
     available,
     groups,
+    allowances,
     outgoings,
     savingsBlock,
     afterOutgoing,

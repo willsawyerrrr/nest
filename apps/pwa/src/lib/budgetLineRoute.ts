@@ -15,18 +15,34 @@ export interface LineRoute {
   label: string
   /** The badge's hover text. */
   title: string
+  /** True when the line is drawn from a member's allowance, so the badge shows a wallet rather than an account icon. */
+  drawn?: boolean
 }
 
 /**
  * The route a line displays: a Savings/Investments line names its linked goal,
  * iconed by the goal's linked saver; every other line names its funding account.
- * Undefined when the line is unrouted or the target is not in the supplied data.
+ * A line drawn from a member's allowance names that allowance instead — it is
+ * funded with the allowance, so it has no route of its own. Undefined when the
+ * line is unrouted or the target is not in the supplied data.
  */
 export function resolveRoute(
   line: BudgetLine,
   goals: { id: string; name: string; linkedAccountId?: string | null }[],
   accountNames: Map<string, string>,
+  allowanceNames: Map<string, string> = new Map(),
 ): LineRoute | undefined {
+  const allowanceName = line.allowance_member_id
+    ? allowanceNames.get(line.allowance_member_id)
+    : undefined
+  if (allowanceName) {
+    return {
+      iconName: allowanceName,
+      label: allowanceName,
+      title: `Drawn from ${allowanceName}`,
+      drawn: true,
+    }
+  }
   if (groupLinksGoal(line.line_group)) {
     const goal = line.goal_id ? goals.find((g) => g.id === line.goal_id) : undefined
     if (!goal) {

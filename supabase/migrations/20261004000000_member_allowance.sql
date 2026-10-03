@@ -1,0 +1,287 @@
+-- Per-member spending allowance: an optional discretionary envelope for one
+-- household member, and budget items drawn from it.
+--
+-- A member's allowance is an amount on a frequency (the same cadence model as a
+-- budget line, including `interval_count`) and an optional funding account. It is
+-- the Discretionary outgoing for that person: money stays pooled, and the
+-- allowance is a budgeting envelope, not a permission or a privacy boundary. A
+-- Discretionary budget line may be DRAWN from a member's allowance through
+-- `budget_line.allowance_member_id`; a drawn line is one person's expense paid out
+-- of the allowance, so the plan counts it against the allowance rather than on top
+-- of it (`@nest/plan`'s `summarise`).
+--
+-- Isolation matches the other planning tables: RLS on household membership plus
+-- composite foreign keys on (id, household_id) that keep every reference inside
+-- the household.
+
+create table public.member_allowance (
+  id uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households on delete cascade,
+  member_id uuid not null,
+  amount_cents bigint not null check (amount_cents > 0),
+  frequency public.frequency not null,
+  interval_count integer,
+  destination_account_id uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (member_id, household_id),
+  foreign key (member_id, household_id)
+    references public.members (id, household_id) on delete cascade,
+  foreign key (destination_account_id, household_id)
+    references public.accounts (id, household_id) on delete set null (destination_account_id),
+  constraint member_allowance_interval_count check (
+    case
+      when frequency in ('every_n_weeks', 'every_n_months')
+        then interval_count is not null and interval_count >= 1
+      else interval_count is null
+    end
+  )
+);
+create index on public.member_allowance (household_id);
+create index on public.member_allowance (destination_account_id);
+comment on table public.member_allowance is 'A household member''s optional discretionary spending allowance: an amount on a frequency that is the Discretionary outgoing for that person. Budget lines drawn from it count against it, not on top of it. A budgeting envelope only; money stays pooled.';
+comment on column public.member_allowance.destination_account_id is 'Account that funds the allowance in the pay splits; items drawn from it route here too.';
+comment on column public.member_allowance.interval_count is 'Count of the every_n_weeks/every_n_months interval (weeks or months, read from the frequency); null for every fixed frequency.';
+
+create trigger set_updated_at before update on public.member_allowance
+  for each row execute function public.set_updated_at();
+
+alter table public.member_allowance enable row level security;
+
+create policy "household members manage member allowances" on public.member_allowance
+  for all to authenticated
+  using (household_id in (select public.household_ids_for_current_user()))
+  with check (household_id in (select public.household_ids_for_current_user()));
+
+grant select, insert, update, delete on public.member_allowance to authenticated;
+
+-- The household-buffer loader (`notify-eval`, `intent-summary`) reads the
+-- allowances alongside the budget lines, on a service-role client.
+grant select on public.member_allowance to service_role;
+
+-- ── Drawing a budget line from an allowance ──────────────────────────────────
+--
+-- Only a manual Discretionary line may be drawn: a derived (breakdown or gift)
+-- line takes its amount from its roll-up, and a drawn line is funded by the
+-- allowance's own account, so it carries no destination of its own. Removing the
+-- allowance releases its lines back to ordinary Discretionary items.
+
+alter table public.budget_line
+  add column allowance_member_id uuid,
+  add constraint budget_line_allowance_member_id_household_id_fkey
+    foreign key (allowance_member_id, household_id)
+    references public.member_allowance (member_id, household_id)
+    on delete set null (allowance_member_id),
+  add constraint budget_line_allowance_drawn check (
+    allowance_member_id is null or (
+      line_group = 'discretionary'
+      and destination_account_id is null
+      and breakdown_id is null
+      and not is_gift_line
+    )
+  );
+create index on public.budget_line (allowance_member_id);
+
+comment on column public.budget_line.allowance_member_id is 'The member whose allowance this line is drawn from; only a manual Discretionary line with no destination of its own may set it. The line counts against the allowance rather than on top of it, and routes with the allowance.';
+
+-- `commit_planning_changes` carries the column on budget-line creates and
+-- updates, so a planning commit saves it with the rest of the line.
+
+create or replace function public.commit_planning_changes(
+  p_inflow_creates jsonb default '[]'::jsonb,
+  p_inflow_updates jsonb default '{}'::jsonb,
+  p_inflow_deletes uuid[] default '{}',
+  p_budget_line_creates jsonb default '[]'::jsonb,
+  p_budget_line_updates jsonb default '{}'::jsonb,
+  p_budget_line_deletes uuid[] default '{}',
+  p_savings_goal_creates jsonb default '[]'::jsonb,
+  p_savings_goal_updates jsonb default '{}'::jsonb,
+  p_savings_goal_deletes uuid[] default '{}'
+)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  -- Inflows -------------------------------------------------------------
+
+  insert into public.inflows (
+    id, household_id, member_id, name, type, schedule, amount_cents,
+    hourly_rate_cents, hours_per_period, taxable, interval_count, starts_on,
+    ends_on, attracts_super, pay_schedule, pay_interval_count,
+    arrives_every_pay_period, paid_on, one_off_tax_treatment, years_of_service,
+    is_joint, member_split_percent, pay_anchor_date
+  )
+  select
+    (row_data ->> 'id')::uuid,
+    (row_data ->> 'household_id')::uuid,
+    nullif(row_data ->> 'member_id', '')::uuid,
+    row_data ->> 'name',
+    (row_data ->> 'type')::public.inflow_type,
+    nullif(row_data ->> 'schedule', '')::public.frequency,
+    nullif(row_data ->> 'amount_cents', '')::bigint,
+    nullif(row_data ->> 'hourly_rate_cents', '')::bigint,
+    nullif(row_data ->> 'hours_per_period', '')::numeric,
+    coalesce((row_data ->> 'taxable')::boolean, true),
+    nullif(row_data ->> 'interval_count', '')::integer,
+    nullif(row_data ->> 'starts_on', '')::date,
+    nullif(row_data ->> 'ends_on', '')::date,
+    coalesce((row_data ->> 'attracts_super')::boolean, true),
+    nullif(row_data ->> 'pay_schedule', '')::public.frequency,
+    nullif(row_data ->> 'pay_interval_count', '')::integer,
+    coalesce((row_data ->> 'arrives_every_pay_period')::boolean, true),
+    nullif(row_data ->> 'paid_on', '')::date,
+    nullif(row_data ->> 'one_off_tax_treatment', '')::public.one_off_tax_treatment,
+    nullif(row_data ->> 'years_of_service', '')::integer,
+    coalesce((row_data ->> 'is_joint')::boolean, false),
+    nullif(row_data ->> 'member_split_percent', '')::integer,
+    nullif(row_data ->> 'pay_anchor_date', '')::date
+  from jsonb_array_elements(p_inflow_creates) as row_data;
+
+  update public.inflows i set
+    member_id = case when patch ? 'member_id'
+      then nullif(patch ->> 'member_id', '')::uuid else i.member_id end,
+    name = case when patch ? 'name' then patch ->> 'name' else i.name end,
+    type = case when patch ? 'type'
+      then (patch ->> 'type')::public.inflow_type else i.type end,
+    schedule = case when patch ? 'schedule'
+      then nullif(patch ->> 'schedule', '')::public.frequency else i.schedule end,
+    amount_cents = case when patch ? 'amount_cents'
+      then nullif(patch ->> 'amount_cents', '')::bigint else i.amount_cents end,
+    hourly_rate_cents = case when patch ? 'hourly_rate_cents'
+      then nullif(patch ->> 'hourly_rate_cents', '')::bigint else i.hourly_rate_cents end,
+    hours_per_period = case when patch ? 'hours_per_period'
+      then nullif(patch ->> 'hours_per_period', '')::numeric else i.hours_per_period end,
+    taxable = case when patch ? 'taxable'
+      then (patch ->> 'taxable')::boolean else i.taxable end,
+    interval_count = case when patch ? 'interval_count'
+      then nullif(patch ->> 'interval_count', '')::integer else i.interval_count end,
+    starts_on = case when patch ? 'starts_on'
+      then nullif(patch ->> 'starts_on', '')::date else i.starts_on end,
+    ends_on = case when patch ? 'ends_on'
+      then nullif(patch ->> 'ends_on', '')::date else i.ends_on end,
+    attracts_super = case when patch ? 'attracts_super'
+      then (patch ->> 'attracts_super')::boolean else i.attracts_super end,
+    pay_schedule = case when patch ? 'pay_schedule'
+      then nullif(patch ->> 'pay_schedule', '')::public.frequency else i.pay_schedule end,
+    pay_interval_count = case when patch ? 'pay_interval_count'
+      then nullif(patch ->> 'pay_interval_count', '')::integer else i.pay_interval_count end,
+    arrives_every_pay_period = case when patch ? 'arrives_every_pay_period'
+      then (patch ->> 'arrives_every_pay_period')::boolean else i.arrives_every_pay_period end,
+    paid_on = case when patch ? 'paid_on'
+      then nullif(patch ->> 'paid_on', '')::date else i.paid_on end,
+    one_off_tax_treatment = case when patch ? 'one_off_tax_treatment'
+      then nullif(patch ->> 'one_off_tax_treatment', '')::public.one_off_tax_treatment
+      else i.one_off_tax_treatment end,
+    years_of_service = case when patch ? 'years_of_service'
+      then nullif(patch ->> 'years_of_service', '')::integer else i.years_of_service end,
+    is_joint = case when patch ? 'is_joint'
+      then (patch ->> 'is_joint')::boolean else i.is_joint end,
+    member_split_percent = case when patch ? 'member_split_percent'
+      then nullif(patch ->> 'member_split_percent', '')::integer else i.member_split_percent end,
+    pay_anchor_date = case when patch ? 'pay_anchor_date'
+      then nullif(patch ->> 'pay_anchor_date', '')::date else i.pay_anchor_date end
+  from jsonb_each(p_inflow_updates) as u(row_id, patch)
+  where i.id = u.row_id::uuid;
+
+  delete from public.inflows where id = any(p_inflow_deletes);
+
+  -- Budget lines ----------------------------------------------------------
+  -- Planning mode never sandboxes a derived line (breakdown_id set or
+  -- is_gift_line true) — the client disables editing those while active — but
+  -- nothing here depends on that; a patch or create simply carries whatever
+  -- columns the client sent.
+
+  insert into public.budget_line (
+    id, household_id, line_group, name, amount_cents, frequency, goal_id,
+    interval_count, destination_account_id, breakdown_id,
+    gift_recipient_member_id, is_gift_line, management_url, allowance_member_id
+  )
+  select
+    (row_data ->> 'id')::uuid,
+    (row_data ->> 'household_id')::uuid,
+    (row_data ->> 'line_group')::public.budget_group,
+    row_data ->> 'name',
+    (row_data ->> 'amount_cents')::bigint,
+    (row_data ->> 'frequency')::public.frequency,
+    nullif(row_data ->> 'goal_id', '')::uuid,
+    nullif(row_data ->> 'interval_count', '')::integer,
+    nullif(row_data ->> 'destination_account_id', '')::uuid,
+    nullif(row_data ->> 'breakdown_id', '')::uuid,
+    nullif(row_data ->> 'gift_recipient_member_id', '')::uuid,
+    coalesce((row_data ->> 'is_gift_line')::boolean, false),
+    nullif(row_data ->> 'management_url', ''),
+    nullif(row_data ->> 'allowance_member_id', '')::uuid
+  from jsonb_array_elements(p_budget_line_creates) as row_data;
+
+  update public.budget_line b set
+    line_group = case when patch ? 'line_group'
+      then (patch ->> 'line_group')::public.budget_group else b.line_group end,
+    name = case when patch ? 'name' then patch ->> 'name' else b.name end,
+    amount_cents = case when patch ? 'amount_cents'
+      then nullif(patch ->> 'amount_cents', '')::bigint else b.amount_cents end,
+    frequency = case when patch ? 'frequency'
+      then (patch ->> 'frequency')::public.frequency else b.frequency end,
+    goal_id = case when patch ? 'goal_id'
+      then nullif(patch ->> 'goal_id', '')::uuid else b.goal_id end,
+    interval_count = case when patch ? 'interval_count'
+      then nullif(patch ->> 'interval_count', '')::integer else b.interval_count end,
+    destination_account_id = case when patch ? 'destination_account_id'
+      then nullif(patch ->> 'destination_account_id', '')::uuid else b.destination_account_id end,
+    breakdown_id = case when patch ? 'breakdown_id'
+      then nullif(patch ->> 'breakdown_id', '')::uuid else b.breakdown_id end,
+    gift_recipient_member_id = case when patch ? 'gift_recipient_member_id'
+      then nullif(patch ->> 'gift_recipient_member_id', '')::uuid else b.gift_recipient_member_id end,
+    is_gift_line = case when patch ? 'is_gift_line'
+      then (patch ->> 'is_gift_line')::boolean else b.is_gift_line end,
+    management_url = case when patch ? 'management_url'
+      then nullif(patch ->> 'management_url', '') else b.management_url end,
+    allowance_member_id = case when patch ? 'allowance_member_id'
+      then nullif(patch ->> 'allowance_member_id', '')::uuid else b.allowance_member_id end
+  from jsonb_each(p_budget_line_updates) as u(row_id, patch)
+  where b.id = u.row_id::uuid;
+
+  delete from public.budget_line where id = any(p_budget_line_deletes);
+
+  -- Savings goals -----------------------------------------------------------
+
+  insert into public.savings_goal (
+    id, household_id, name, target_amount_cents, target_date,
+    current_balance_cents, linked_account_id, annual_interest_bps,
+    queue_position, planned_contribution_cents
+  )
+  select
+    (row_data ->> 'id')::uuid,
+    (row_data ->> 'household_id')::uuid,
+    row_data ->> 'name',
+    (row_data ->> 'target_amount_cents')::bigint,
+    nullif(row_data ->> 'target_date', '')::date,
+    coalesce((row_data ->> 'current_balance_cents')::bigint, 0),
+    nullif(row_data ->> 'linked_account_id', '')::uuid,
+    nullif(row_data ->> 'annual_interest_bps', '')::integer,
+    nullif(row_data ->> 'queue_position', '')::integer,
+    nullif(row_data ->> 'planned_contribution_cents', '')::bigint
+  from jsonb_array_elements(p_savings_goal_creates) as row_data;
+
+  update public.savings_goal g set
+    name = case when patch ? 'name' then patch ->> 'name' else g.name end,
+    target_amount_cents = case when patch ? 'target_amount_cents'
+      then nullif(patch ->> 'target_amount_cents', '')::bigint else g.target_amount_cents end,
+    target_date = case when patch ? 'target_date'
+      then nullif(patch ->> 'target_date', '')::date else g.target_date end,
+    current_balance_cents = case when patch ? 'current_balance_cents'
+      then nullif(patch ->> 'current_balance_cents', '')::bigint else g.current_balance_cents end,
+    linked_account_id = case when patch ? 'linked_account_id'
+      then nullif(patch ->> 'linked_account_id', '')::uuid else g.linked_account_id end,
+    annual_interest_bps = case when patch ? 'annual_interest_bps'
+      then nullif(patch ->> 'annual_interest_bps', '')::integer else g.annual_interest_bps end,
+    queue_position = case when patch ? 'queue_position'
+      then nullif(patch ->> 'queue_position', '')::integer else g.queue_position end,
+    planned_contribution_cents = case when patch ? 'planned_contribution_cents'
+      then nullif(patch ->> 'planned_contribution_cents', '')::bigint else g.planned_contribution_cents end
+  from jsonb_each(p_savings_goal_updates) as u(row_id, patch)
+  where g.id = u.row_id::uuid;
+
+  delete from public.savings_goal where id = any(p_savings_goal_deletes);
+end;
+$$;

@@ -1,6 +1,14 @@
-import { fortnightlyCents, isTemporaryActive, type BudgetSummary } from '@nest/plan'
+import {
+  fortnightlyCents,
+  isDrawnFromAllowance,
+  isTemporaryActive,
+  summariseAllowances,
+  type AssignableAllowance,
+  type BudgetSummary,
+} from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import { toPlanDrawableLine } from './allowances'
 import type { DerivedAmountContext } from './breakdowns'
 import { applyBreakdownAmounts } from './derivedBudget'
 import { formatCents } from './money'
@@ -51,23 +59,37 @@ export interface CashFlowGraph {
 /**
  * The fortnightly figure of every budget line and active temporary item,
  * computed exactly as the reconciliation sums them, so each group's lines add up
- * to its `BudgetSummary` total.
+ * to its `BudgetSummary` total. A line drawn from a member's allowance is left
+ * out and the allowance appears in its place as a Discretionary line, for what it
+ * costs the household — its amount, or the drawn total when that is larger.
  */
 export function cashFlowLines(
   budgetLines: BudgetLine[],
   temporaryItems: TemporaryItem[],
   context: DerivedAmountContext,
   now: Date,
+  allowances: readonly AssignableAllowance[] = [],
 ): CashFlowLine[] {
+  const lines = applyBreakdownAmounts(budgetLines, context)
   return [
-    ...applyBreakdownAmounts(budgetLines, context).map((line) => ({
-      group: line.line_group,
-      name: line.name,
-      fortnightlyCents: fortnightlyCents(
-        line.amount_cents,
-        line.frequency as Parameters<typeof fortnightlyCents>[1],
-        line.interval_count ?? undefined,
-      ),
+    ...lines
+      .filter(
+        (line) =>
+          !isDrawnFromAllowance({ allowanceMemberId: line.allowance_member_id }, allowances),
+      )
+      .map((line) => ({
+        group: line.line_group,
+        name: line.name,
+        fortnightlyCents: fortnightlyCents(
+          line.amount_cents,
+          line.frequency as Parameters<typeof fortnightlyCents>[1],
+          line.interval_count ?? undefined,
+        ),
+      })),
+    ...summariseAllowances(lines.map(toPlanDrawableLine), allowances).map((summary) => ({
+      group: 'discretionary' as const,
+      name: allowances.find((allowance) => allowance.memberId === summary.memberId)!.name,
+      fortnightlyCents: summary.outgoing.fortnightlyCents,
     })),
     ...temporaryItems
       .filter((item) =>

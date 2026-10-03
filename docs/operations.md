@@ -247,8 +247,9 @@ net capital gain.
 `notify-eval`, the daily notification
 evaluator, reads the plan tables it reconciles the buffer and goal ETAs from:
 `budget_line`, `savings_goal`, and `temporary_item` gain a `service_role`
-`select`, joining the EOFY set (`members`, `inflows`, `tax_profile`,
-`super_contribution`, `help_debt`, `deduction`) and `account_balance` it already
+`select` (as does `member_allowance`, which the buffer reads for members'
+spending allowances, `20261004000000_member_allowance.sql`), joining the EOFY set
+(`members`, `inflows`, `tax_profile`, `super_contribution`, `help_debt`, `deduction`) and `account_balance` it already
 had (`20260905000000_notification_triggers.sql`). It reads `budget_line`
 straight — the `reconcile_derived_lines` triggers keep the breakdown- and
 gift-derived lines canonical (annual, whole cents), so the loader needs none of

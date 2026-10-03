@@ -60,6 +60,7 @@ export function useDerivedLineEditor({
         gift_recipient_member_id: line.gift_recipient_member_id,
         is_gift_line: line.is_gift_line,
         management_url: line.management_url,
+        allowance_member_id: line.allowance_member_id,
       })
     },
     [lines, updateBreakdown, updateLine],

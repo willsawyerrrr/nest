@@ -335,7 +335,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the details are read for the member to check, and a secondary "Enter details
   manually"); the fields appear when the member chooses to type, or once a receipt
   has been stored and read, or could not be, and stay once shown. A card opened
-  inside a group, and edits, open on their fields. Adding a deduction lets the
+  inside a group starts on the same prompt, taking one receipt; a draft and edits
+  open on their fields. Adding a deduction lets the
   member pick the receipt as the
   FIRST step, before the deduction exists: the add form mints the deduction id
   client-side and the picked file uploads immediately to Storage under it

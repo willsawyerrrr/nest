@@ -1463,11 +1463,22 @@ describe('DeductionForm receipt-first start', () => {
     await screen.findByLabelText(/description/i)
   })
 
-  it('opens a form inside a group, and an edit, on its fields', () => {
-    renderAdd({ groupId: 'g1', groups: [makeGroup()] })
+  it('opens a form inside a group on the receipt prompt, taking one receipt', async () => {
+    const { user } = renderAdd({ groupId: 'g1', groups: [makeGroup()] })
+    expect(fieldsShown()).toBe(false)
+    expect(manualButton()).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Drop files here' })).toBeInTheDocument()
+    expect(filePicker()).not.toHaveAttribute('multiple')
+
+    await user.click(manualButton())
     expect(fieldsShown()).toBe(true)
-    expect(screen.queryByRole('button', { name: /enter details manually/i })).toBeNull()
-    expect(screen.queryByRole('group', { name: 'Drop files here' })).toBeNull()
+  })
+
+  it('reads a receipt dropped inside a group into the form', async () => {
+    renderAdd({ groupId: 'g1', groups: [makeGroup()] })
+    drop(pdf('bill.pdf'))
+    await screen.findByLabelText(/description/i)
+    expect(upload).toHaveBeenCalledTimes(1)
   })
 
   it('opens a draft read by a bulk upload on its fields', () => {

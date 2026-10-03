@@ -260,6 +260,7 @@ describe('DeductionsScreen', () => {
 
     await user.click(screen.getByRole('button', { name: /adobe creative cloud/i }))
     await user.click(screen.getByRole('button', { name: /add payment/i }))
+    await user.click(screen.getByRole('button', { name: /enter details manually/i }))
     await user.type(screen.getByLabelText(/description/i), 'Adobe July')
     await user.type(screen.getByLabelText(/amount/i), '64.99')
     await user.click(screen.getByRole('button', { name: /^add payment$/i }))

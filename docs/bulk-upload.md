@@ -49,7 +49,8 @@ and a secondary **Enter details manually**. The fields appear when the member
 chooses to type, or once a file has been stored and read, prefilled for checking, or
 could not be read or is an unsupported type, with the usual note. Once shown they
 stay, so removing the file never hides what was typed or filled. A deduction form
-opened inside a group, a draft, and every edit form open on their fields.
+opened inside a group starts on the same prompt, taking one receipt; a draft and
+every edit form open on their fields.
 
 - **Statuses**: queued, reading, ready, unsupported type, enter by hand, couldn't be
   read, saved. A file over 25 MB, or that fails to store, is "couldn't be read"

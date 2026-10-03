@@ -77,7 +77,8 @@ interface DeductionFormProps {
    * When adding on its own, hands several receipts picked or dropped at once to
    * a bulk upload, as the chosen kind of deduction, and closes the form; one
    * receipt is read into this form as usual. Omitted — inside a group, where a
-   * payment belongs to that group — the picker takes a single receipt.
+   * payment belongs to that group — the picker takes a single receipt, read
+   * into the form.
    */
   onAddFiles?: ((files: File[], category: DeductionCategory) => void) | undefined
   /** When editing, the deduction's stored receipt, if it has one. */
@@ -171,9 +172,10 @@ function ConditionalDropArea({
  * A top-level add opens on the receipt prompt alone — the kind of deduction, the
  * receipt input, and a secondary "Enter details manually" — and the fields appear
  * when the member chooses to type, or once a receipt has been stored and read (or
- * could not be), staying once shown. A form opened from a group, a draft, and an
- * edit open on their fields. Given `onAddFiles`, the receipt input also takes
- * several files, handing them to a bulk upload and closing the form.
+ * could not be), staying once shown. A form opened from a group starts on the same
+ * prompt; a draft and an edit open on their fields. Given `onAddFiles`, the
+ * receipt input also takes several files, handing them to a bulk upload and
+ * closing the form.
  *
  * A **donation** is grouped automatically: saved with no group of its own, the
  * `file_donation_in_default_group` trigger files it into the member's donations
@@ -318,7 +320,7 @@ export function DeductionForm({
   if (receiptSettled && !revealed) {
     setRevealed(true)
   }
-  const showFields = !adding || draft !== undefined || groupId !== undefined || revealed
+  const showFields = !adding || draft !== undefined || revealed
   // One receipt is read into this form; several go to the bulk upload and the
   // form gives way to their review.
   const handleFiles = (files: File[]) => {

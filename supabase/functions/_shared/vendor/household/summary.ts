@@ -39,7 +39,13 @@ import {
   isDateInFinancialYear,
   type HouseholdTaxEstimate,
 } from '@nest/tax'
-import type { BudgetLineRow, BudgetSummaryBundle, InflowRow, TemporaryItemRow } from './rows.ts'
+import type {
+  BudgetLineRow,
+  BudgetSummaryBundle,
+  InflowRow,
+  MemberAllowanceRow,
+  TemporaryItemRow,
+} from './rows.ts'
 import {
   activeNowTaxableInflows,
   estimateHouseholdTaxFromRows,
@@ -57,6 +63,7 @@ export interface SummarySources {
   financialYear: number
   inflows: readonly InflowRow[]
   budgetLines: readonly BudgetLineRow[]
+  memberAllowances: readonly MemberAllowanceRow[]
   temporaryItems: readonly TemporaryItemRow[]
   /** Annual income tax and levies (including the 15% super contributions tax) for the gross-basis view. */
   taxAnnualCents?: number
@@ -73,7 +80,8 @@ export interface SummarySources {
  * become the available-cash top-up, carrying their effective window so
  * `summarise` can gate each one in or out by whether it is active at `now`; each
  * budget line contributes its normalised amount and each temporary item its
- * dated contribution.
+ * dated contribution. A member's allowance carries through with the lines drawn
+ * from it, which `summarise` counts against the allowance rather than on top.
  *
  * ONE-OFF money — taxable and non-taxable alike — is gathered into `oneOffCents`
  * and kept out of the available-cash top-up. A payment that lands once has no
@@ -88,6 +96,7 @@ export function toSummaryInput({
   financialYear,
   inflows,
   budgetLines,
+  memberAllowances,
   temporaryItems,
   taxAnnualCents = 0,
   salarySacrificeAnnualCents = 0,
@@ -121,6 +130,13 @@ export function toSummaryInput({
       amountCents: line.amount_cents,
       frequency: line.frequency as Frequency,
       ...(line.interval_count != null && { interval: line.interval_count }),
+      ...(line.allowance_member_id != null && { allowanceMemberId: line.allowance_member_id }),
+    })),
+    memberAllowances: memberAllowances.map((allowance) => ({
+      memberId: allowance.member_id,
+      amountCents: allowance.amount_cents,
+      frequency: allowance.frequency as Frequency,
+      ...(allowance.interval_count != null && { interval: allowance.interval_count }),
     })),
     temporaryItems: temporaryItems.map((item) => ({
       contributionCents: item.contribution_cents,
@@ -133,7 +149,7 @@ export function toSummaryInput({
  * Combines two reconciliations of the same plan into the figures the Summary
  * reports: every ANNUAL figure from `wholeYear`, every FORTNIGHTLY figure (and
  * the group portions that divide by fortnightly available cash) from
- * `activeNow`. Budget lines, temporary items, and one-off money are identical in
+ * `activeNow`. Budget lines, allowances, temporary items, and one-off money are identical in
  * both runs and pass straight through.
  *
  * The two bases deliberately disagree for a dated inflow exactly as they already
@@ -158,6 +174,7 @@ function reportedSummary(wholeYear: BudgetSummary, activeNow: BudgetSummary): Bu
     groups: Object.fromEntries(
       groupKeys.map((key) => [key, mergeGroup(wholeYear.groups[key], activeNow.groups[key])]),
     ) as BudgetSummary['groups'],
+    allowances: activeNow.allowances,
     outgoings: merge(wholeYear.outgoings, activeNow.outgoings),
     savingsBlock: merge(wholeYear.savingsBlock, activeNow.savingsBlock),
     afterOutgoing: merge(wholeYear.afterOutgoing, activeNow.afterOutgoing),
@@ -195,6 +212,7 @@ export function summariseHouseholdFromRows(bundle: BudgetSummaryBundle, now: Dat
       financialYear,
       inflows: bundle.inflows,
       budgetLines: bundle.budgetLines,
+      memberAllowances: bundle.memberAllowances,
       temporaryItems: bundle.temporaryItems,
       salarySacrificeAnnualCents: estimate.annualNetConcessionalSuperCents,
       taxAnnualCents:

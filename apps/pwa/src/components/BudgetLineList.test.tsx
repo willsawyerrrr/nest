@@ -851,4 +851,77 @@ describe('BudgetLineList', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     expect(screen.queryByRole('link', { name: 'Manage Plain subscription' })).toBeNull()
   })
+
+  describe('with member allowances', () => {
+    const allowances = [
+      {
+        name: 'Ada’s allowance',
+        allowance: { memberId: 'm1', amountCents: 200_00, frequency: 'fortnightly' as const },
+      },
+    ]
+    const discretionary = [
+      line({ id: 'd1', line_group: 'discretionary', name: 'Books', amount_cents: 20_00 }),
+      line({
+        id: 'd2',
+        line_group: 'discretionary',
+        name: 'Gym',
+        amount_cents: 60_00,
+        allowance_member_id: 'm1',
+      }),
+    ]
+
+    it('counts the allowance in Discretionary, not the lines drawn from it', () => {
+      render(
+        <BudgetLineList
+          lines={discretionary}
+          goals={[]}
+          allowances={allowances}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      // Books $20 + the $200 allowance; the $60 gym is drawn inside it.
+      expect(screen.getByLabelText('Discretionary fortnightly subtotal')).toHaveTextContent(
+        '$220.00 / fn',
+      )
+    })
+
+    it('counts the excess of an overdrawn allowance', () => {
+      render(
+        <BudgetLineList
+          lines={[{ ...discretionary[1]!, amount_cents: 250_00 }]}
+          goals={[]}
+          allowances={allowances}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByLabelText('Discretionary fortnightly subtotal')).toHaveTextContent(
+        '$250.00 / fn',
+      )
+    })
+
+    it('badges a drawn line with its allowance and offers the allowance when adding', async () => {
+      const user = userEvent.setup()
+      render(
+        <BudgetLineList
+          lines={discretionary}
+          goals={[]}
+          allowances={allowances}
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByTitle('Drawn from Ada’s allowance')).toHaveTextContent('Ada’s allowance')
+
+      await user.click(screen.getByRole('button', { name: 'Add Discretionary item' }))
+      expect(screen.getByRole('combobox', { name: /draw from allowance/i })).toBeInTheDocument()
+    })
+  })
 })

@@ -243,6 +243,7 @@ export type Database = {
       }
       budget_line: {
         Row: {
+          allowance_member_id: string | null
           amount_cents: number
           breakdown_id: string | null
           created_at: string
@@ -260,6 +261,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allowance_member_id?: string | null
           amount_cents: number
           breakdown_id?: string | null
           created_at?: string
@@ -277,6 +279,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allowance_member_id?: string | null
           amount_cents?: number
           breakdown_id?: string | null
           created_at?: string
@@ -294,6 +297,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'budget_line_allowance_member_id_household_id_fkey'
+            columns: ['allowance_member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'member_allowance'
+            referencedColumns: ['member_id', 'household_id']
+          },
           {
             foreignKeyName: 'budget_line_breakdown_id_household_id_fkey'
             columns: ['breakdown_id', 'household_id']
@@ -1124,6 +1134,78 @@ export type Database = {
           },
           {
             foreignKeyName: 'inflows_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      member_allowance: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          destination_account_id: string | null
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id: string
+          interval_count: number | null
+          member_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          destination_account_id?: string | null
+          frequency: Database['public']['Enums']['frequency']
+          household_id: string
+          id?: string
+          interval_count?: number | null
+          member_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          destination_account_id?: string | null
+          frequency?: Database['public']['Enums']['frequency']
+          household_id?: string
+          id?: string
+          interval_count?: number | null
+          member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'member_allowance_destination_account_id_household_id_fkey'
+            columns: ['destination_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'account_directory'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'member_allowance_destination_account_id_household_id_fkey'
+            columns: ['destination_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'member_allowance_destination_account_id_household_id_fkey'
+            columns: ['destination_account_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'accounts_with_balance'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'member_allowance_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'member_allowance_member_id_household_id_fkey'
             columns: ['member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'

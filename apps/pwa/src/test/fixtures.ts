@@ -3,6 +3,7 @@ import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { GiftDiscretionaryBudget, GiftPurchase } from '../hooks/useGifts'
 import type { Goal } from '../hooks/useGoals'
 import type { Inflow } from '../hooks/useInflows'
+import type { MemberAllowance } from '../hooks/useMemberAllowances'
 import type { Member } from '../hooks/useMembers'
 import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import type { PayslipRow } from '../hooks/usePayslips'
@@ -212,6 +213,22 @@ export function makeAccountDirectoryEntry(
   }
 }
 
+/** Builds a member-allowance row, defaulting to a $200 fortnightly allowance for member `m1`. */
+export function makeMemberAllowance(overrides: Partial<MemberAllowance> = {}): MemberAllowance {
+  return {
+    id: 'al1',
+    household_id: 'h1',
+    member_id: 'm1',
+    amount_cents: 200_00,
+    frequency: 'fortnightly',
+    interval_count: null,
+    destination_account_id: null,
+    created_at: '',
+    updated_at: '',
+    ...overrides,
+  }
+}
+
 /** Builds a budget-line row, defaulting to a fortnightly savings line. */
 export function makeBudgetLine(overrides: Partial<BudgetLine> = {}): BudgetLine {
   return {
@@ -228,6 +245,7 @@ export function makeBudgetLine(overrides: Partial<BudgetLine> = {}): BudgetLine 
     gift_recipient_member_id: null,
     is_gift_line: false,
     management_url: null,
+    allowance_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

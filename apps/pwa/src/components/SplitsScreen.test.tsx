@@ -440,4 +440,39 @@ describe('SplitsScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Clear pay split' }))
     expect(onClear).toHaveBeenCalledWith('s1')
   })
+
+  it('routes a member’s allowance through its account, with its drawn lines inside it', () => {
+    const everyday = account({
+      id: 'acct',
+      name: 'Ada Everyday',
+      source: 'up',
+      type: 'transaction',
+    })
+    renderScreen({
+      accounts: [everyday],
+      payAccountId: 'other',
+      allowances: [
+        {
+          memberId: 'm1',
+          name: 'Ada’s allowance',
+          amountCents: 200_00,
+          frequency: 'fortnightly',
+          destinationAccountId: 'acct',
+        },
+      ],
+      lines: [
+        line({
+          id: 'g',
+          line_group: 'discretionary',
+          name: 'Gym',
+          amount_cents: 60_00,
+          allowance_member_id: 'm1',
+        }),
+      ],
+    })
+
+    // The account receives the allowance, not the allowance plus the gym line.
+    expect(screen.getByText('$200.00')).toBeInTheDocument()
+    expect(screen.queryByText('$260.00')).not.toBeInTheDocument()
+  })
 })

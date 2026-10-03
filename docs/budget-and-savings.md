@@ -100,6 +100,37 @@ A budget line = `household_id`, `line_group`, `name`, `amount` + `frequency`
 weeks` or `every N months` cadence carries its interval `N` in `interval_count`,
 the unit read from the frequency.
 
+### Member spending allowances
+
+A household member may have an optional **spending allowance**: a discretionary
+envelope for that person, an amount on a frequency (the same cadence model as a
+budget line, including `interval_count`) and an optional funding account. Money
+stays pooled — the allowance is a planning envelope inside the Discretionary
+group, not an account or a permission, and any member sets any allowance. A
+household without allowances is unchanged.
+
+A manual **Discretionary** item can be **drawn from** a member's allowance (the
+item form's "Draw from allowance"). A drawn item is one person's expense paid out
+of the allowance, so it counts against the allowance rather than on top of it:
+
+- **Discretionary total** = undrawn Discretionary items + each allowance's
+  *outgoing*, which is the allowance itself, or the drawn total when that is
+  larger. An overdrawn allowance still leaves the household, so the excess is
+  counted rather than hidden; the buffer never overstates.
+- **Per member** the Summary object reports the allowance, the drawn total, the
+  remaining (negative when overdrawn), and an `overdrawn` flag (drawn over a
+  year exceeds the allowance). The Budget tab shows each with a progress bar, what
+  is left, and an Overdrawn badge with the excess.
+- **Pay splits** route the allowance as a single line for its outgoing through
+  its own funding account. Drawn items have no destination of their own and add
+  nothing to any account: the allowance's line covers them, so the Splits tab
+  lists the allowance, not its items.
+- Only a manual Discretionary item can be drawn; a derived (breakdown or gift)
+  item cannot, and moving a drawn item out of Discretionary releases it. Removing
+  an allowance releases its items back to ordinary Discretionary items.
+- The cash-flow Sankey's drill-down shows the allowance in place of its drawn
+  items.
+
 ### Derived budget lines
 
 A line's amount is normally typed. It can instead be **derived** — rolled up from a
@@ -216,7 +247,7 @@ note as a caption, the amount in an aligned column), with add / edit / delete.
 The two promote actions sit in each row's overflow menu.
 
 The `member_id` tag is a **display and reporting label only** — money stays fully
-pooled, there are no per-person budgets, and the tag feeds nothing downstream. It
+pooled, the tag creates no allowance, and it feeds nothing downstream. It
 clears to null if the member is removed.
 
 A wishlist item carries no cadence, funds nothing, and feeds no projection: it is
@@ -259,7 +290,9 @@ money against outgoings and money set aside, leaving a buffer.
     one-off money: an annual figure is a whole-year truth, a fortnightly one is
     the income the household can count on landing right now. See
     [`tax.md`](tax.md#effective-dated-income).
-- **Outgoings** = Needs + Wants + Discretionary + Temporary.
+- **Outgoings** = Needs + Wants + Discretionary + Temporary, where Discretionary
+  counts a member's allowance once, with the items drawn from it inside it (see
+  [Member spending allowances](#member-spending-allowances)).
 - **Savings block** = Savings + Investments.
 - **Remaining buffer** = Available − Outgoings − Savings block.
 - **One-off money** = the gross one-off inflows landing in the financial year,
@@ -349,7 +382,8 @@ income tables.
     discretionary / savings / investments), `name`, `amount_cents`, `frequency`,
     `interval_count` (int ≥ 1, non-null iff `frequency` is
     `every_n_weeks`/`every_n_months`, else null), `goal_id` (nullable; set on
-    Savings/Investments lines that fund a goal),
+    Savings/Investments lines that fund a goal), `allowance_member_id` (nullable;
+    the member whose allowance a manual Discretionary line is drawn from),
     `breakdown_id` (nullable; a derived line owned by a breakdown — see above),
     `is_gift_line` (bool; true on a gift-derived line rolled up directly from the
     gift tables, with `breakdown_id` null — see above),
@@ -358,6 +392,10 @@ income tables.
     subscription's management page, shown as an icon link on the line's row).
   - Temporary is a Summary group derived from the `temporary_item` table, not a
     `budget_group` value: a budget line is never authored as temporary.
+- **MemberAllowance** — a member's optional discretionary allowance.
+  - `id`, `household_id`, `member_id` (unique), `amount_cents` (> 0), `frequency`,
+    `interval_count`, `destination_account_id` (nullable).
+  - Budget lines drawn from it reference it by `allowance_member_id`.
 - **SavingsGoal** — a persistent target.
   - `id`, `household_id`, `name`, `target_cents`, `target_date` (nullable),
     `current_cents` (manual fallback), `linked_account_id` (nullable → a synced
@@ -405,7 +443,8 @@ reload-safe; keyboard shortcuts jump between them.
 
 - **Budget screen** — grouped-line CRUD with a universal "Add item" button,
   search, and sort (Default / Name / Amount + direction, persisted to
-  localStorage).
+  localStorage), led by each member's spending allowance with what is drawn from
+  it and what is left.
 - **Summary screen** — the reconciliation dashboard, led by an allocation donut and a cash-flow Sankey.
 - **Goals screen** — targets, dates, current balance, modelled interest rate,
   progress + ETA; link Savings lines to a goal.

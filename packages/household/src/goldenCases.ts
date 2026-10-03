@@ -453,6 +453,7 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
     deductions: [],
     members: [{ id: 'm1', date_of_birth: null }],
     budgetLines: [],
+    memberAllowances: [],
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
@@ -463,6 +464,12 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
 const needsLine = {
   line_group: 'needs',
   amount_cents: 2_000_00,
+  frequency: 'fortnightly',
+  interval_count: null,
+}
+const discretionaryLine = {
+  line_group: 'discretionary',
+  amount_cents: 0,
   frequency: 'fortnightly',
   interval_count: null,
 }
@@ -516,6 +523,7 @@ export const summaryParityCases: SummaryParityCase[] = [
           portion: 0,
         },
       },
+      allowances: [],
       outgoings: {
         fortnightlyCents: 0,
         annualCents: 0,
@@ -584,6 +592,7 @@ export const summaryParityCases: SummaryParityCase[] = [
           portion: 0,
         },
       },
+      allowances: [],
       outgoings: {
         fortnightlyCents: 2_000_00,
         annualCents: 52_000_00,
@@ -652,6 +661,7 @@ export const summaryParityCases: SummaryParityCase[] = [
           portion: 0,
         },
       },
+      allowances: [],
       outgoings: {
         fortnightlyCents: 2_000_00,
         annualCents: 52_000_00,
@@ -732,6 +742,7 @@ export const summaryParityCases: SummaryParityCase[] = [
           portion: 0,
         },
       },
+      allowances: [],
       outgoings: {
         fortnightlyCents: 2_000_00,
         annualCents: 52_000_00,
@@ -805,6 +816,7 @@ export const summaryParityCases: SummaryParityCase[] = [
           portion: 0,
         },
       },
+      allowances: [],
       outgoings: {
         fortnightlyCents: 2_000_00,
         annualCents: 52_000_00,
@@ -886,6 +898,7 @@ export const summaryParityCases: SummaryParityCase[] = [
           portion: 0,
         },
       },
+      allowances: [],
       outgoings: {
         fortnightlyCents: 2_000_00,
         annualCents: 52_000_00,
@@ -910,6 +923,53 @@ export const summaryParityCases: SummaryParityCase[] = [
         fortnightlyCents: 0,
         annualCents: 0,
       },
+    },
+  },
+  {
+    label: 'an overdrawn member allowance, its drawn lines counted once as the excess',
+    nowIso: '2026-12-01T00:00:00Z',
+    bundle: bundle({
+      budgetLines: [
+        needsLine,
+        { ...discretionaryLine, amount_cents: 20_00 },
+        { ...discretionaryLine, amount_cents: 60_00, allowance_member_id: 'm1' },
+        { ...discretionaryLine, amount_cents: 180_00, allowance_member_id: 'm1' },
+      ],
+      memberAllowances: [
+        { member_id: 'm1', amount_cents: 200_00, frequency: 'fortnightly', interval_count: null },
+      ],
+    }),
+    expected: {
+      oneOffCents: 0,
+      available: { fortnightlyCents: 3_456_92, annualCents: 89_880_00 },
+      groups: {
+        needs: { fortnightlyCents: 2_000_00, annualCents: 52_000_00, portion: 0.5785496916330144 },
+        wants: { fortnightlyCents: 0, annualCents: 0, portion: 0 },
+        discretionary: {
+          fortnightlyCents: 260_00,
+          annualCents: 6_760_00,
+          portion: 0.07521145991229186,
+        },
+        temporary: { fortnightlyCents: 0, annualCents: 0, portion: 0 },
+        savings: { fortnightlyCents: 0, annualCents: 0, portion: 0 },
+        investments: { fortnightlyCents: 0, annualCents: 0, portion: 0 },
+      },
+      allowances: [
+        {
+          memberId: 'm1',
+          allowance: { fortnightlyCents: 200_00, annualCents: 5_200_00 },
+          drawn: { fortnightlyCents: 240_00, annualCents: 6_240_00 },
+          remaining: { fortnightlyCents: -40_00, annualCents: -1_040_00 },
+          outgoing: { fortnightlyCents: 240_00, annualCents: 6_240_00 },
+          overdrawn: true,
+        },
+      ],
+      outgoings: { fortnightlyCents: 2_260_00, annualCents: 58_760_00 },
+      savingsBlock: { fortnightlyCents: 0, annualCents: 0 },
+      afterOutgoing: { fortnightlyCents: 1_196_92, annualCents: 31_120_00 },
+      afterSaving: { fortnightlyCents: 1_196_92, annualCents: 31_120_00 },
+      tax: { fortnightlyCents: 1_158_46, annualCents: 30_120_00 },
+      salarySacrifice: { fortnightlyCents: 0, annualCents: 0 },
     },
   },
 ]

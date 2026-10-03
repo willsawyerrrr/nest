@@ -20,6 +20,8 @@ interface BudgetLineFormProps {
   goals?: { id: string; name: string }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
+  /** The members who have a spending allowance, offered as a source on Discretionary lines. */
+  allowances?: { memberId: string; name: string }[]
   onSubmit: (input: BudgetLineInput) => void | Promise<void>
   onCancel?: () => void
 }
@@ -36,6 +38,7 @@ export function BudgetLineForm({
   defaultGroup,
   goals = [],
   accounts = [],
+  allowances = [],
   onSubmit,
   onCancel,
 }: BudgetLineFormProps) {
@@ -50,11 +53,21 @@ export function BudgetLineForm({
   const [destinationAccountId, setDestinationAccountId] = useState<string | null>(
     initial?.destination_account_id ?? null,
   )
+  const [allowanceMemberId, setAllowanceMemberId] = useState<string | null>(
+    initial?.allowance_member_id ?? null,
+  )
   const [managementUrl, setManagementUrl] = useState(initial?.management_url ?? '')
   const showGoalPicker = groupLinksGoal(group)
+  // Only a Discretionary item can be drawn from a member's allowance (the DB CHECK
+  // allows only these), and one that is takes its funding from the allowance.
+  const showAllowancePicker = group === 'discretionary' && allowances.length > 0
+  const drawnFrom = showAllowancePicker
+    ? allowances.find((allowance) => allowance.memberId === allowanceMemberId)
+    : undefined
   // Savings/Investments lines route to their goal's account, so they carry no
-  // direct destination; every other group offers a "Funded from" picker.
-  const showAccountPicker = !groupLinksGoal(group)
+  // direct destination; every other group offers a "Funded from" picker, unless
+  // the item is drawn from an allowance, which routes it.
+  const showAccountPicker = !groupLinksGoal(group) && !drawnFrom
   const isEveryN = frequency === 'every_n_weeks' || frequency === 'every_n_months'
   const intervalUnit = frequency === 'every_n_months' ? 'months' : 'weeks'
   const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
@@ -66,6 +79,9 @@ export function BudgetLineForm({
       setDestinationAccountId(null)
     } else {
       setGoalId(null)
+    }
+    if (next !== 'discretionary') {
+      setAllowanceMemberId(null)
     }
   }
 
@@ -89,6 +105,7 @@ export function BudgetLineForm({
       goal_id: showGoalPicker ? goalId : null,
       breakdown_id: null,
       destination_account_id: showAccountPicker ? destinationAccountId : null,
+      allowance_member_id: drawnFrom ? drawnFrom.memberId : null,
       gift_recipient_member_id: null,
       is_gift_line: false,
       management_url: normaliseManagementUrl(managementUrl),
@@ -170,6 +187,29 @@ export function BudgetLineForm({
           <Text size="xs" c="dimmed">
             This line's pay split is routed to its goal's linked synced saver.
           </Text>
+        </>
+      )}
+
+      {showAllowancePicker && (
+        <>
+          <Select
+            label="Draw from allowance"
+            size="sm"
+            description="Optional. Counts this item against someone's allowance instead of adding to the budget on top of it."
+            placeholder="Not drawn from an allowance"
+            data={allowances.map((allowance) => ({
+              value: allowance.memberId,
+              label: allowance.name,
+            }))}
+            value={allowanceMemberId}
+            onChange={setAllowanceMemberId}
+            clearable
+          />
+          {drawnFrom && (
+            <Text size="xs" c="dimmed">
+              Paid from {drawnFrom.name}, so it is funded with the allowance.
+            </Text>
+          )}
         </>
       )}
 

@@ -8,6 +8,8 @@ import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useDerivedLineEditor } from '../hooks/useDerivedLineEditor'
 import { useGifts } from '../hooks/useGifts'
 import { useGoals } from '../hooks/useGoals'
+import { useMemberAllowances } from '../hooks/useMemberAllowances'
+import { useMembers } from '../hooks/useMembers'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
 import { derivedAmountContext } from '../lib/breakdowns'
@@ -23,6 +25,8 @@ export function BudgetSection() {
   const breakdowns = useBreakdowns()
   const accounts = useAccountDirectory()
   const superProfiles = useSuperProfiles()
+  const members = useMembers()
+  const memberAllowances = useMemberAllowances()
   // A wishlist item promoted from the Wishlist tab, picked up once on mount.
   const [promoteDraft, setPromoteDraft] = useState(takeBudgetDraft)
 
@@ -61,7 +65,9 @@ export function BudgetSection() {
     gifts.loading ||
     breakdowns.loading ||
     accounts.loading ||
-    superProfiles.loading
+    superProfiles.loading ||
+    members.loading ||
+    memberAllowances.loading
   ) {
     return <LoadingScreen />
   }
@@ -85,6 +91,11 @@ export function BudgetSection() {
         line_group: breakdown.line_group,
       }))}
       temporaryItems={temporaryItems.items ?? []}
+      members={members.members ?? []}
+      allowances={memberAllowances.allowances ?? []}
+      onCreateAllowance={memberAllowances.create}
+      onUpdateAllowance={memberAllowances.update}
+      onDeleteAllowance={memberAllowances.remove}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
       onUpdateDerivedLine={planning ? undefined : handleUpdateDerivedLine}

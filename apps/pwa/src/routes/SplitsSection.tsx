@@ -3,9 +3,12 @@ import { SplitsScreen } from '../components/SplitsScreen'
 import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBudgetLines } from '../hooks/useBudgetLines'
 import { useGoals } from '../hooks/useGoals'
+import { useMemberAllowances } from '../hooks/useMemberAllowances'
+import { useMembers } from '../hooks/useMembers'
 import { usePayAccount } from '../hooks/usePayAccount'
 import { usePaySplits } from '../hooks/usePaySplits'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
+import { toAssignableAllowances } from '../lib/allowances'
 import { superAccountIds } from '../lib/super'
 
 export function SplitsSection() {
@@ -15,6 +18,8 @@ export function SplitsSection() {
   const superProfiles = useSuperProfiles()
   const paySplits = usePaySplits()
   const payAccount = usePayAccount()
+  const members = useMembers()
+  const memberAllowances = useMemberAllowances()
 
   if (
     budgetLines.loading ||
@@ -22,7 +27,9 @@ export function SplitsSection() {
     accounts.loading ||
     superProfiles.loading ||
     paySplits.loading ||
-    payAccount.loading
+    payAccount.loading ||
+    members.loading ||
+    memberAllowances.loading
   ) {
     return <LoadingScreen />
   }
@@ -33,6 +40,7 @@ export function SplitsSection() {
     <SplitsScreen
       accounts={(accounts.accounts ?? []).filter((account) => !superIds.has(account.id))}
       lines={budgetLines.lines ?? []}
+      allowances={toAssignableAllowances(memberAllowances.allowances ?? [], members.members ?? [])}
       goals={goals.goals ?? []}
       configuredByAccount={paySplits.configuredByAccount}
       payAccountId={payAccount.payAccountId}

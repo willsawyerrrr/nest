@@ -1,11 +1,14 @@
 import { Stack, Text } from '@mantine/core'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
+import type { MemberAllowance, MemberAllowanceInput } from '../hooks/useMemberAllowances'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
+import { allowanceName, toPlanAllowance } from '../lib/allowances'
 import type { BudgetGroup } from '../lib/domain'
 import type { PromoteDraft } from '../lib/promoteDraft'
 import { BudgetLineForm } from './BudgetLineForm'
 import { BudgetLineList } from './BudgetLineList'
 import type { DerivedLineValues } from './DerivedBudgetLineForm'
+import { MemberAllowanceList } from './MemberAllowanceList'
 import { PageSection } from './PageSection'
 import { TemporaryItemList } from './TemporaryItemList'
 
@@ -16,6 +19,12 @@ interface BudgetScreenProps {
   /** The household's generic breakdowns, naming the tap-through link on each derived line and seeding its editor. */
   breakdowns: { id: string; name: string; line_group: BudgetGroup }[]
   temporaryItems: TemporaryItem[]
+  /** The household's members, each of whom can have a spending allowance. */
+  members: { id: string; name: string }[]
+  allowances: MemberAllowance[]
+  onCreateAllowance: (input: MemberAllowanceInput) => Promise<void>
+  onUpdateAllowance: (id: string, input: MemberAllowanceInput) => Promise<void>
+  onDeleteAllowance: (id: string) => Promise<void>
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
   /**
@@ -41,6 +50,11 @@ export function BudgetScreen({
   accounts,
   breakdowns,
   temporaryItems,
+  members,
+  allowances,
+  onCreateAllowance,
+  onUpdateAllowance,
+  onDeleteAllowance,
   onCreateLine,
   onUpdateLine,
   onUpdateDerivedLine,
@@ -51,6 +65,13 @@ export function BudgetScreen({
   promoteDraft,
   onPromoteConsumed,
 }: BudgetScreenProps) {
+  const drawable = allowances.flatMap((allowance) => {
+    const member = members.find((candidate) => candidate.id === allowance.member_id)
+    return member
+      ? [{ name: allowanceName(member.name), allowance: toPlanAllowance(allowance) }]
+      : []
+  })
+  const choices = drawable.map(({ name, allowance }) => ({ memberId: allowance.memberId, name }))
   return (
     <PageSection title="Budget">
       {promoteDraft && (
@@ -64,6 +85,7 @@ export function BudgetScreen({
             defaultGroup="discretionary"
             goals={goals}
             accounts={accounts}
+            allowances={choices}
             onSubmit={async (input) => {
               await onCreateLine(input)
               onPromoteConsumed?.()
@@ -72,10 +94,20 @@ export function BudgetScreen({
           />
         </Stack>
       )}
+      <MemberAllowanceList
+        members={members}
+        allowances={allowances}
+        lines={lines}
+        accounts={accounts}
+        onCreate={onCreateAllowance}
+        onUpdate={onUpdateAllowance}
+        onDelete={(id) => void onDeleteAllowance(id)}
+      />
       <BudgetLineList
         lines={lines}
         goals={goals}
         accounts={accounts}
+        allowances={drawable}
         breakdowns={breakdowns}
         onCreate={onCreateLine}
         onUpdate={onUpdateLine}

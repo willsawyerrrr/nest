@@ -633,7 +633,9 @@ config alongside the tax parameters, not a table.
 ## Planning & goals
 
 Budgeting is plan-only and fortnightly. There is no period-versioned budget and
-no per-member scoping; each line stands alone under the household.
+no per-member scoping of the pooled budget; each line stands alone under the
+household, apart from the optional per-member `member_allowance` envelope
+Discretionary lines may be drawn from.
 
 - **budget_line** — a planned recurring allocation within one fixed group.
   - `id`, `household_id`, `line_group`
@@ -643,7 +645,8 @@ no per-member scoping; each line stands alone under the household.
     on inflows),
     `goal_id` (nullable), `breakdown_id` (nullable), `is_gift_line` (bool),
     `gift_recipient_member_id` (nullable), `destination_account_id`
-    (nullable), `management_url` (nullable), `created_at`, `updated_at`.
+    (nullable), `management_url` (nullable), `allowance_member_id` (nullable),
+    `created_at`, `updated_at`.
   - `goal_id` links to a savings goal; only `savings`/`investments` lines may
     set it. Many lines may fund one goal.
   - `breakdown_id` marks a **derived line** whose amount is rolled up from a
@@ -670,6 +673,31 @@ no per-member scoping; each line stands alone under the household.
     `https://` and rejects any other scheme; a line that has one shows a "Manage
     <name> subscription" icon link opening it in a new tab. `commit_planning_changes`
     carries it on budget-line creates and updates.
+  - `allowance_member_id` draws the line from a member's spending allowance — see
+    [`member_allowance`](#planning--goals). Nullable composite FK
+    `(allowance_member_id, household_id)` → `member_allowance (member_id,
+    household_id)`, `on delete set null`, so removing an allowance releases its
+    lines to ordinary Discretionary items. A CHECK (`budget_line_allowance_drawn`)
+    allows it only on a `discretionary` line with no `destination_account_id`,
+    no `breakdown_id`, and `is_gift_line` false. `commit_planning_changes` carries
+    it on budget-line creates and updates.
+- **member_allowance** — a member's optional discretionary spending allowance.
+  - `id`, `household_id`, `member_id`, `amount_cents` (`> 0`), `frequency` (the
+    shared enum), `interval_count` (the same non-null-iff-every-N rule as
+    `budget_line_interval_count`), `destination_account_id` (nullable),
+    `created_at`, `updated_at`.
+  - Unique on `(member_id, household_id)` — one allowance per member, and the
+    target of `budget_line.allowance_member_id`. Composite FK
+    `(member_id, household_id)` → `members` `on delete cascade`; nullable
+    composite FK `(destination_account_id, household_id)` → `accounts`,
+    `on delete set null`.
+  - A budgeting envelope inside the pooled Discretionary spend, not an account or
+    a privacy boundary: household-wide RLS (`household_ids_for_current_user()`),
+    so any member manages any allowance. `service_role` holds `select` for the
+    household-buffer loader.
+  - `@nest/plan`'s `summarise` counts the allowance once as Discretionary with the
+    lines drawn from it inside it, and pay splits route it as one line — see
+    [budget-and-savings.md](budget-and-savings.md#member-spending-allowances).
 - **savings_goal** — a persistent savings target.
   - `id`, `household_id`, `name`, `target_amount_cents`, `target_date`
     (nullable), `current_balance_cents` (default 0), `linked_account_id`
@@ -701,7 +729,7 @@ no per-member scoping; each line stands alone under the household.
     (nullable), `note` (nullable), `created_at`, `updated_at`.
   - `member_id` is a single-column FK to `members (id)`, `on delete set null` —
     a display and reporting tag naming whose wish it is, not a privacy boundary
-    and not a per-person budget.
+    and not an allowance.
   - Feeds no projection, no pay split, and no tax figure. The Wishlist tab
     promotes an item to a `savings_goal` or a Discretionary `budget_line`,
     prefilling the target form; the wishlist row stays until deleted.

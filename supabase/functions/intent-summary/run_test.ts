@@ -43,6 +43,7 @@ function fakeBundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummary
       frequency: 'fortnightly',
       interval_count: null,
     }],
+    memberAllowances: [],
     temporaryItems: [],
     savingsGoals: [],
     savers: [],

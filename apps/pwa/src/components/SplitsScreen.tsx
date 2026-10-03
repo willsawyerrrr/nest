@@ -16,6 +16,7 @@ import {
   isRecommendedSplitAccount,
   paySplitNeedsUpdate,
   roundCentsUpToStep,
+  type AssignableAllowance,
   type AssignmentLine,
 } from '@nest/plan'
 import type { AccountDirectoryEntry } from '../hooks/useAccountDirectory'
@@ -72,6 +73,8 @@ interface SplitsScreenProps {
   accounts: AccountDirectoryEntry[]
   lines: BudgetLine[]
   goals: Goal[]
+  /** Members' spending allowances; each routes as one line for what it covers, with the lines drawn from it. */
+  allowances?: AssignableAllowance[]
   /**
    * The split currently configured for each account, keyed by account id — a
    * source-agnostic concept. Today it arrives from the household's app-side
@@ -409,6 +412,7 @@ export function SplitsScreen({
   accounts,
   lines,
   goals,
+  allowances = [],
   configuredByAccount,
   payAccountId,
   onSetPayAccount,
@@ -425,8 +429,10 @@ export function SplitsScreen({
       ...(line.interval_count != null && { interval: line.interval_count }),
       goalId: line.goal_id,
       destinationAccountId: line.destination_account_id,
+      allowanceMemberId: line.allowance_member_id,
     })),
     goals.map((goal) => ({ id: goal.id, linkedAccountId: goal.linked_account_id })),
+    allowances,
   )
 
   const {

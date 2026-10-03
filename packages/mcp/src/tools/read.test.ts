@@ -16,6 +16,7 @@ const line = (overrides: Record<string, unknown>) => ({
   breakdown_id: null,
   goal_id: null,
   destination_account_id: null,
+  allowance_member_id: null,
   ...overrides,
 })
 
@@ -62,6 +63,22 @@ describe('listBudgetLines', () => {
       derived: true,
     })
     expect(lines.find((l) => l.name === 'Gifts')?.derived).toBe(true)
+  })
+
+  it('reports the allowance a line is drawn from', async () => {
+    const { ctx } = fakeContext({
+      tables: {
+        budget_line: [
+          line({ name: 'Gym', line_group: 'discretionary', allowance_member_id: 'm1' }),
+          line({ name: 'Rent' }),
+        ],
+      },
+    })
+    const { lines } = await listBudgetLines(ctx, {})
+    expect(lines.map((l) => [l.name, l.allowance_member_id])).toEqual([
+      ['Gym', 'm1'],
+      ['Rent', null],
+    ])
   })
 
   it('filters by a case-insensitive part of the name', async () => {
@@ -247,6 +264,7 @@ describe('getFortnightlyBuffer', () => {
         deductions: [],
         members: rows.members,
         budgetLines: rows.budget_line,
+        memberAllowances: [],
         temporaryItems: [],
         savingsGoals: rows.savings_goal,
         savers: [{ id: 's1', owner_member_id: 'm1', balance_cents: 10_000_00 }],
@@ -260,6 +278,38 @@ describe('getFortnightlyBuffer', () => {
     expect(result.outgoings_fortnightly_cents).toBe(500_00)
     expect(result.groups_fortnightly_cents.needs).toBe(500_00)
     expect(Number.isInteger(result.fortnightly_buffer_cents)).toBe(true)
+  })
+
+  it('counts a member allowance once and reports it with what is drawn', async () => {
+    const { ctx } = fakeContext({
+      tables: {
+        ...rows,
+        budget_line: [
+          line({
+            line_group: 'discretionary',
+            amount_cents: 60_00,
+            frequency: 'fortnightly',
+            allowance_member_id: 'm1',
+          }),
+        ],
+        member_allowance: [
+          { member_id: 'm1', amount_cents: 200_00, frequency: 'fortnightly', interval_count: null },
+        ],
+      },
+    })
+    const result = await getFortnightlyBuffer(ctx)
+    expect(result.groups_fortnightly_cents.discretionary).toBe(200_00)
+    expect(result.outgoings_fortnightly_cents).toBe(200_00)
+    expect(result.allowances).toEqual([
+      {
+        member: 'Alex',
+        member_id: 'm1',
+        allowance_fortnightly_cents: 200_00,
+        drawn_fortnightly_cents: 60_00,
+        remaining_fortnightly_cents: 140_00,
+        overdrawn: false,
+      },
+    ])
   })
 
   it('treats a saver with no visible balance as zero', async () => {

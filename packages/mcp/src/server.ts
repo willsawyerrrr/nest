@@ -42,7 +42,7 @@ export function createServer(ctx: NestContext): McpServer {
     'list_budget_lines',
     {
       description:
-        'List the household budget lines with amounts normalised to fortnightly and annual cents. Optionally filter by a case-insensitive part of the name.',
+        'List the household budget lines with amounts normalised to fortnightly and annual cents, including any member allowance a line is drawn from. Optionally filter by a case-insensitive part of the name.',
       inputSchema: { name: z.string().trim().min(1).optional() },
       annotations: { readOnlyHint: true },
     },
@@ -53,7 +53,7 @@ export function createServer(ctx: NestContext): McpServer {
     'get_fortnightly_buffer',
     {
       description:
-        'The household fortnightly buffer in cents: after-tax income less budget outgoings and savings, as shown on the Summary.',
+        'The household fortnightly buffer in cents: after-tax income less budget outgoings and savings, as shown on the Summary, with each spending allowance, what is drawn from it, and what remains.',
       annotations: { readOnlyHint: true },
     },
     () => respond(() => getFortnightlyBuffer(ctx)),

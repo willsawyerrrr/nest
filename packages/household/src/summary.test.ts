@@ -39,6 +39,7 @@ function bundle(overrides: Partial<BudgetSummaryBundle> = {}): BudgetSummaryBund
     deductions: [],
     members: [{ id: 'm1', date_of_birth: null }],
     budgetLines: [],
+    memberAllowances: [],
     temporaryItems: [],
     savingsGoals: [],
     savers: [],
@@ -61,6 +62,7 @@ const summaryInputArgs = {
   financialYear: 2027,
   inflows: [] as InflowRow[],
   budgetLines: [] as BudgetLineRow[],
+  memberAllowances: [],
   temporaryItems: [],
 }
 
@@ -172,6 +174,22 @@ describe('toSummaryInput', () => {
     ])
   })
 
+  it('maps a drawn line’s allowance and a member’s allowance with its cadence interval', () => {
+    const result = toSummaryInput({
+      ...summaryInputArgs,
+      budgetLines: [line({ line_group: 'discretionary', allowance_member_id: 'm1' }), line()],
+      memberAllowances: [
+        { member_id: 'm1', amount_cents: 300_00, frequency: 'every_n_weeks', interval_count: 3 },
+        { member_id: 'm2', amount_cents: 80_00, frequency: 'weekly', interval_count: null },
+      ],
+    })
+    expect(result.budgetLines.map((l) => l.allowanceMemberId)).toEqual(['m1', undefined])
+    expect(result.memberAllowances).toEqual([
+      { memberId: 'm1', amountCents: 300_00, frequency: 'every_n_weeks', interval: 3 },
+      { memberId: 'm2', amountCents: 80_00, frequency: 'weekly' },
+    ])
+  })
+
   it('reports one-off money landing in the year and keeps it out of the inflow top-up', () => {
     const result = toSummaryInput({
       ...summaryInputArgs,
@@ -254,6 +272,28 @@ describe('summariseHouseholdFromRows', () => {
     const taxed = summariseHouseholdFromRows(withInterest, NOW)
     assert(taxed.tax.annualCents > plain.tax.annualCents)
     assert(taxed.available.annualCents > plain.available.annualCents)
+  })
+
+  it('counts an allowance once, with its drawn lines inside it, in both bases', () => {
+    const rows = bundle({
+      budgetLines: [
+        line({ line_group: 'discretionary', amount_cents: 60_00, allowance_member_id: 'm1' }),
+        line({ line_group: 'discretionary', amount_cents: 20_00 }),
+      ],
+      memberAllowances: [
+        { member_id: 'm1', amount_cents: 200_00, frequency: 'fortnightly', interval_count: null },
+      ],
+    })
+    const result = summariseHouseholdFromRows(rows, NOW)
+    // $20 undrawn + the $200 allowance; the $60 drawn line is inside the allowance.
+    expect(result.groups.discretionary.fortnightlyCents).toBe(220_00)
+    expect(result.groups.discretionary.annualCents).toBe(5_720_00)
+    expect(result.allowances).toHaveLength(1)
+    expect(result.allowances[0]).toMatchObject({
+      memberId: 'm1',
+      overdrawn: false,
+      remaining: { fortnightlyCents: 140_00, annualCents: 3_640_00 },
+    })
   })
 
   it('reads a derived line at its canonical annual amount, not re-rolled', () => {

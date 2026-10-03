@@ -18,6 +18,7 @@ import { useGifts } from '../hooks/useGifts'
 import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
+import { useMemberAllowances } from '../hooks/useMemberAllowances'
 import { useMembers } from '../hooks/useMembers'
 import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
@@ -174,6 +175,7 @@ export function PlanningSection() {
   const equityGrants = useEquityGrants()
   const trades = useTrades()
   const temporaryItems = useTemporaryItems()
+  const memberAllowances = useMemberAllowances()
   const gifts = useGifts()
   const breakdowns = useBreakdowns()
 
@@ -196,6 +198,7 @@ export function PlanningSection() {
     equityGrants.loading ||
     trades.loading ||
     temporaryItems.loading ||
+    memberAllowances.loading ||
     gifts.loading ||
     breakdowns.loading ||
     !members
@@ -247,6 +250,7 @@ export function PlanningSection() {
     summariseHousehold({
       inflows: inf,
       budgetLines: lines,
+      memberAllowances: memberAllowances.allowances ?? [],
       taxProfiles: profileRows,
       contributions: contributionRows,
       helpDebts: helpDebtRows,

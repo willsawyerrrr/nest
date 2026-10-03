@@ -4,8 +4,14 @@
  * linked account; every other line routes through its own destination. Summed
  * per account, the totals are the fixed-dollar pay splits the household mirrors
  * into Up by hand — the plan is the source of truth, Up holds the real splits.
+ *
+ * A member's spending allowance routes as one line through its own account, and
+ * the lines drawn from it route with it rather than through a destination of
+ * their own: the allowance is what is sent to the account, so a drawn line is
+ * covered by it and never added on top.
  */
 
+import { isDrawnFromAllowance, summariseAllowances, type MemberAllowance } from './allowance.ts'
 import type { BudgetGroup, BudgetLine, Money } from './index.ts'
 import { fortnightlyCents } from './normalize.ts'
 
@@ -26,6 +32,14 @@ export interface AssignmentLine {
   readonly id: string
   readonly name: string
   readonly fortnightlyCents: Money
+}
+
+/** A member's allowance with its display name and the account that funds it. */
+export interface AssignableAllowance extends MemberAllowance {
+  /** The allowance's name in an account's breakdown, e.g. `Ada's allowance`. */
+  readonly name: string
+  /** Account the allowance is funded from; null leaves it unrouted. */
+  readonly destinationAccountId?: string | null
 }
 
 /** A goal and the account (a synced Up saver) it draws its balance from, if any. */
@@ -74,27 +88,49 @@ export function resolveDestinationAccountId(
  * fortnightly amount and keeping the contributing lines behind it. Lines that
  * resolve to no account fall into `unassignedFortnightlyCents`. Routing is
  * date-independent, so no `now` is needed.
+ *
+ * Each of `allowances` contributes one line, `allowance:<memberId>`, for its
+ * outgoing — the allowance, or the drawn total when that is larger — to its own
+ * account; lines drawn from an allowance contribute nothing themselves.
  */
 export function assignmentsByAccount(
   lines: readonly AssignableLine[],
   goals: readonly RoutableGoal[],
+  allowances: readonly AssignableAllowance[] = [],
 ): AccountAssignments {
   const byAccount: Record<string, Money> = {}
   const linesByAccount: Record<string, AssignmentLine[]> = {}
   let unassignedFortnightlyCents = 0
-  for (const line of lines) {
-    const fortnightly = fortnightlyCents(line.amountCents, line.frequency, line.interval)
-    const accountId = resolveDestinationAccountId(line, goals)
+  const assign = (line: AssignmentLine, accountId: string | null): void => {
     if (accountId === null) {
-      unassignedFortnightlyCents += fortnightly
+      unassignedFortnightlyCents += line.fortnightlyCents
     } else {
-      byAccount[accountId] = (byAccount[accountId] ?? 0) + fortnightly
-      ;(linesByAccount[accountId] ??= []).push({
-        id: line.id,
-        name: line.name,
-        fortnightlyCents: fortnightly,
-      })
+      byAccount[accountId] = (byAccount[accountId] ?? 0) + line.fortnightlyCents
+      ;(linesByAccount[accountId] ??= []).push(line)
     }
+  }
+  for (const line of lines) {
+    if (!isDrawnFromAllowance(line, allowances)) {
+      assign(
+        {
+          id: line.id,
+          name: line.name,
+          fortnightlyCents: fortnightlyCents(line.amountCents, line.frequency, line.interval),
+        },
+        resolveDestinationAccountId(line, goals),
+      )
+    }
+  }
+  for (const summary of summariseAllowances(lines, allowances)) {
+    const allowance = allowances.find((candidate) => candidate.memberId === summary.memberId)!
+    assign(
+      {
+        id: `allowance:${summary.memberId}`,
+        name: allowance.name,
+        fortnightlyCents: summary.outgoing.fortnightlyCents,
+      },
+      allowance.destinationAccountId ?? null,
+    )
   }
   return { byAccount, linesByAccount, unassignedFortnightlyCents }
 }

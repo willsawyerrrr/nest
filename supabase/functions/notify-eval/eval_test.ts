@@ -50,6 +50,7 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     deductions: [],
     members: [{ id: 'm-1', date_of_birth: null }],
     budgetLines: [],
+    memberAllowances: [],
     savingsGoals: [],
     temporaryItems: [],
     accountBalances: [],

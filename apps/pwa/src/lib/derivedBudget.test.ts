@@ -19,6 +19,7 @@ function line(overrides: Partial<BudgetLine> = {}): BudgetLine {
     gift_recipient_member_id: null,
     is_gift_line: false,
     management_url: null,
+    allowance_member_id: null,
     created_at: '',
     updated_at: '',
     ...overrides,

@@ -16,7 +16,7 @@ import {
 } from '@mantine/core'
 import { useDisclosure, useHotkeys, type HotkeyItem } from '@mantine/hooks'
 import { IconChevronDown, IconChevronRight, IconSpeakerphone } from '@tabler/icons-react'
-import { useReleaseSeen } from '../hooks/useReleaseSeen'
+import { useUpdateAvailable } from '../hooks/useUpdateAvailable'
 import { ColorSchemeToggle } from './ColorSchemeToggle'
 import { Logo } from './Logo'
 
@@ -132,17 +132,17 @@ const DRAWER_ID = 'primary-nav-drawer'
  * sibling toggle: `subtle` and tinted in the brand colour, against the
  * toggle's neutral bordered square, so the two don't blur into one control
  * cluster despite sharing a size and a spot. Carries a lime dot — the same
- * fill as the active nav item's leading bar — while the newest release is one
- * the member has not opened, announced to screen readers as "New release".
+ * fill as the active nav item's leading bar — while an update carrying a new
+ * feature is available (the screen it opens offers the reload), announced to screen readers as "Update available".
  */
 function WhatsNewButton() {
   const navigate = useNavigate()
-  const { unseen } = useReleaseSeen()
+  const updateAvailable = useUpdateAvailable()
   return (
     <Indicator
-      disabled={!unseen}
+      disabled={!updateAvailable}
       size={8}
-      label={<VisuallyHidden>New release</VisuallyHidden>}
+      label={<VisuallyHidden>Update available</VisuallyHidden>}
       classNames={{ indicator: 'whats-new-button__dot' }}
     >
       <ActionIcon

@@ -11,10 +11,10 @@ import {
   TabBar,
 } from './TabBar'
 
-const hooks = vi.hoisted(() => ({ unseen: vi.fn() }))
+const hooks = vi.hoisted(() => ({ updateAvailable: vi.fn() }))
 
-vi.mock('../hooks/useReleaseSeen', () => ({
-  useReleaseSeen: () => ({ unseen: hooks.unseen(), markSeen: vi.fn() }),
+vi.mock('../hooks/useUpdateAvailable', () => ({
+  useUpdateAvailable: () => hooks.updateAvailable(),
 }))
 
 /** Resizes happy-dom's viewport so responsive (`hiddenFrom`/`visibleFrom`) rules resolve. */
@@ -59,7 +59,7 @@ function groupItems(label: string) {
   return list
 }
 
-beforeEach(() => hooks.unseen.mockReturnValue(false))
+beforeEach(() => hooks.updateAvailable.mockReturnValue(false))
 
 describe('TabBar', () => {
   it('renders a link per nav item with its route as href', () => {
@@ -266,7 +266,7 @@ describe('TabBar what’s new button', () => {
     expect(pathname()).toBe('/whats-new')
   })
 
-  it('shows no dot on any placement while no release is unseen', () => {
+  it('shows no dot on any placement while no update is available', () => {
     renderTabBar('/summary')
 
     for (const whatsNew of screen.getAllByRole('button', { name: "What's new" })) {
@@ -276,14 +276,14 @@ describe('TabBar what’s new button', () => {
     }
   })
 
-  it('shows a dot on every placement when a release is unseen', () => {
-    hooks.unseen.mockReturnValue(true)
+  it('shows a dot on every placement when an update is available', () => {
+    hooks.updateAvailable.mockReturnValue(true)
     renderTabBar('/summary')
 
     for (const whatsNew of screen.getAllByRole('button', { name: "What's new" })) {
       const dot = whatsNew.parentElement?.querySelector('.whats-new-button__dot')
       expect(dot).toBeInTheDocument()
-      expect(dot).toHaveTextContent('New release')
+      expect(dot).toHaveTextContent('Update available')
     }
   })
 })

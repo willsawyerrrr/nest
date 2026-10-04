@@ -1,0 +1,23 @@
+name: Deploy iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/ios/**']
+  workflow_dispatch:
+
+concurrency: deploy-ios
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    uses: willsawyerrrr/platform/.github/workflows/ios-testflight.yml@main
+    with:
+      project-dir: apps/ios
+      scheme: Nest
+      env: |
+        SUPABASE_URL=${{ vars.SUPABASE_URL }}
+        SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+    secrets: inherit

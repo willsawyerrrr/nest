@@ -250,3 +250,7 @@ Both are **required** — the `changes` job (`dorny/paths-filter`) gates them on
 `apps/ios/` untouched gets `skipped` on both, which `ci-status` treats the same
 as a pass rather than waiting forever on a check that never ran. See
 [`architecture.md`](architecture.md#ci).
+
+## Deployment
+
+`.github/workflows/deploy-ios.yml` archives the `Nest` scheme and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. See [`operations.md`](operations.md#deployment).

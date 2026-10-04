@@ -186,6 +186,11 @@
  */
 .whats-new-button__dot {
   background-color: var(--mantine-primary-color-filled);
+  width: 8px;
+  min-width: 0;
+  height: 8px;
+  padding: 0;
+  border-radius: 50%;
 }
 
 /*

@@ -887,20 +887,17 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   PWA never shows entries newer than the build it is running), and the commits
   newer than it are returned as an "Update available" list with a Reload-to-update
   button that force-updates the PWA to the latest deployed version. A lime dot
-  (labelled "New release") sits on the nav's "What's new" icon while the newest
-  `feat` entry's commit SHA (`available` ahead of `implemented`; fixes and other
-  types raise no dot) differs from the one
-  last opened; opening the screen records it. "Seen" is per device in
-  `localStorage` (in-memory fallback when storage is unavailable), initialised to
-  the newest release on first load so releases predating the member raise no dot.
-  A failed or empty changelog raises none; the query is cached for ten minutes.
+  (labelled "Update available") sits on the nav's "What's new" icon while the
+  `available` list holds a `feat` change; fixes, other types, implemented and
+  in-progress entries raise none, and the dot clears once the app reloads into the
+  update. The screen it opens leads with the Reload-to-update prompt. A failed or empty changelog raises none; the query is cached for ten
+  minutes.
   Entries are compact list rows (type emoji, description clamped to two lines,
   date; in progress rows have none). Status comes from the section heading, not
   a per-row pill. A row expands
   only to show a clamped description in full; one that already fits has no
   chevron and does not toggle. Commit SHAs and pull-request links are never
-  shown (members have no use for them); the SHA stays in the data for the
-  unseen-release dot.
+  shown (members have no use for them).
 - Push notifications: alerts reach the installed PWA over Web Push (RFC 8291
   payload encryption, RFC 8292 VAPID auth) — no push vendor and no native app. A
   member opts in **per device**: the subscription (endpoint plus its two keys)

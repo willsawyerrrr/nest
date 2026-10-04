@@ -5,7 +5,6 @@ import { ChangelogSection } from './ChangelogSection'
 
 const hooks = vi.hoisted(() => ({
   useChangelog: vi.fn(),
-  markSeen: vi.fn(),
   screenProps: null as unknown,
 }))
 
@@ -13,9 +12,6 @@ vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
 }))
 vi.mock('../hooks/useChangelog', () => ({ useChangelog: hooks.useChangelog }))
-vi.mock('../hooks/useReleaseSeen', () => ({
-  useReleaseSeen: () => ({ unseen: false, markSeen: hooks.markSeen }),
-}))
 // The pwa module runs `registerSW` (a Vite virtual module) at import time, so it
 // is mocked to keep the route unit-testable outside a build.
 vi.mock('../pwa', () => ({ applyLatestVersion: vi.fn() }))
@@ -66,12 +62,6 @@ describe('ChangelogSection', () => {
       configured: true,
       error: null,
     })
-  })
-
-  it('marks the newest release seen on opening the screen', () => {
-    hooks.useChangelog.mockReturnValue({ loading: false })
-    render(<ChangelogSection />)
-    expect(hooks.markSeen).toHaveBeenCalled()
   })
 
   it('forces the app to the latest version when the screen requests an update', async () => {

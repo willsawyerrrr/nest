@@ -42,6 +42,8 @@ function getSnapshot() {
   return seen
 }
 
+const isFeature = ({ type }: { type: string }) => type === 'feat'
+
 export interface UseReleaseSeenResult {
   /** Whether the newest release is one this device has not yet opened. */
   unseen: boolean
@@ -52,14 +54,14 @@ export interface UseReleaseSeenResult {
 /**
  * Tracks the newest release the member has seen, per device in `localStorage`
  * (with an in-memory fallback when storage is unavailable). A release is
- * identified by the commit SHA of the newest changelog entry, `available` ahead
- * of `implemented`. The first load on a device records the newest release as
+ * identified by the commit SHA of the newest `feat` changelog entry, `available`
+ * ahead of `implemented`; other change types raise no dot. The first load on a device records the newest release as
  * seen, so releases that predate the member raise no chip. A changelog that is
- * loading, failed, or empty has no newest release, so nothing is unseen.
+ * loading, failed, or without a feature has no newest release, so nothing is unseen.
  */
 export function useReleaseSeen(): UseReleaseSeenResult {
   const { available, implemented } = useChangelog()
-  const latest = available[0]?.sha ?? implemented[0]?.sha ?? null
+  const latest = available.find(isFeature)?.sha ?? implemented.find(isFeature)?.sha ?? null
   const stored = useSyncExternalStore(subscribe, getSnapshot)
 
   useEffect(() => {

@@ -888,7 +888,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   newer than it are returned as an "Update available" list with a Reload-to-update
   button that force-updates the PWA to the latest deployed version. A lime dot
   (labelled "New release") sits on the nav's "What's new" icon while the newest
-  entry's commit SHA (`available` ahead of `implemented`) differs from the one
+  `feat` entry's commit SHA (`available` ahead of `implemented`; fixes and other
+  types raise no dot) differs from the one
   last opened; opening the screen records it. "Seen" is per device in
   `localStorage` (in-memory fallback when storage is unavailable), initialised to
   the newest release on first load so releases predating the member raise no dot.

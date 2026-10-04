@@ -9,13 +9,14 @@ vi.mock('./useChangelog', () => ({ useChangelog: changelog.useChangelog }))
 const KEY = 'whats-new-seen-sha'
 
 function entries(...shas: string[]) {
-  return shas.map((sha) => ({ sha }))
+  return shas.map((sha) => ({ sha, type: sha.startsWith('fix') ? 'fix' : 'feat' }))
 }
 
 function loaded(available: string[], implemented: string[]) {
   changelog.useChangelog.mockReturnValue({
     available: entries(...available),
     implemented: entries(...implemented),
+    inProgress: [{ type: 'feat', number: 1 }],
   })
 }
 
@@ -45,6 +46,13 @@ describe('useReleaseSeen', () => {
     loaded(['c'], ['b'])
     const { result } = renderHook(() => useReleaseSeen())
     expect(result.current.unseen).toBe(true)
+  })
+
+  it('ignores in-progress work and releases that are not new features', () => {
+    localStorage.setItem(KEY, 'a')
+    loaded([], ['fix-b', 'a'])
+    const { result } = renderHook(() => useReleaseSeen())
+    expect(result.current.unseen).toBe(false)
   })
 
   it('clears once the release is marked seen, across every subscriber', () => {

@@ -53,7 +53,7 @@ targets:
         SupabaseAnonKey: ${SUPABASE_ANON_KEY}
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest
         PRODUCT_NAME: Nest
         ENABLE_PREVIEWS: true
         # Without this, Keychain writes — the PKCE code verifier included —
@@ -75,7 +75,7 @@ targets:
       - target: Nest
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.ios.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.tests
         GENERATE_INFOPLIST_FILE: true
 
 schemes:

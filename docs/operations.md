@@ -201,6 +201,12 @@ off in its settings.
     check out with `fetch-depth: 0`; a function with no commit behind it gets no
     grace. The post-deploy step passes no grace window at all: the deploy has just
     returned, so anything behind there is behind for good.
+- **iOS app** deploys to TestFlight on merge to `main` touching `apps/ios/**`
+  via `.github/workflows/deploy-ios.yml`, which calls the platform repo's
+  reusable `ios-testflight.yml`. It needs the `ASC_KEY_ID`, `ASC_ISSUER_ID` and
+  `ASC_KEY_P8` repository secrets (an App Store Connect API key with the App
+  Manager role) and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables. Run it
+  manually with `gh workflow run "Deploy iOS"`.
 - **Frontend** — Vercel deploys the PWA on merge to `main`; each PR gets a
   preview deployment (see [Hosting](#hosting)). Live prod may briefly trail
   `main` until the next merge triggers a deploy.

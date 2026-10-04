@@ -68,10 +68,10 @@ targets:
         # fail silently with errSecMissingEntitlement (-34018) on Mac
         # Catalyst, which macOS enforces far more strictly here than iOS.
         CODE_SIGN_ENTITLEMENTS: Nest/Nest.entitlements
-        # The household's free personal Apple team — resolving
+        # The household's Apple Developer team — resolving
         # `$(AppIdentifierPrefix)` in Nest.entitlements needs one. CI builds
         # with `CODE_SIGNING_ALLOWED=NO` and never reaches this.
-        DEVELOPMENT_TEAM: ZN7THSGX7H
+        DEVELOPMENT_TEAM: 8558CXPT9G
 
   NestTests:
     type: bundle.unit-test

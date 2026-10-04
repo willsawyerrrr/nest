@@ -34,7 +34,7 @@ and Spotlight still work on both platforms.
   - `Supabase.swift` — project URL + anon key, read from `Info.plist` (see
     `.env.example`), and the shared `AuthClient` (default
     `KeychainLocalStorage`).
-  - `Auth.swift` — `@Observable` `AuthModel`: session state, Google OAuth, and
+  - `Auth.swift` — `@Observable` `AuthModel`: session state, native Google sign-in, and
     the `authStateChanges` observation behind the gate.
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
   - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
@@ -107,23 +107,22 @@ A free personal Apple team is enough to build, run on the Simulator, a device,
 or as a local Mac app, and to use the App Shortcut. There is no App Store
 Connect setup, on either platform.
 
-## Running the OAuth flow in the Simulator
+## Running the sign-in flow in the Simulator
 
-1. Add `dev.willsawyerrrr.nest.ios://auth-callback` to the Supabase project's
-   **Auth → URL Configuration → Redirect URLs**.
+1. Add the iOS Google client ID to the Supabase project's **Auth → Providers →
+   Google → Client IDs**, after the web client ID.
 2. Run the app. On the sign-in screen, tap **Continue with Google**.
-3. `ASWebAuthenticationSession` opens Google sign-in; complete it. The redirect
-   to `dev.willsawyerrrr.nest.ios://auth-callback` returns to the app and the
-   session persists to the Keychain — it survives relaunch, is read in process
-   by the Intents, and is mirrored into the web view, which loads already
-   signed in.
+3. Google Sign-In presents its sheet; complete it. The ID token is exchanged
+   for a Supabase session, which persists to the Keychain — it survives
+   relaunch, is read in process by the Intents, and is mirrored into the web
+   view, which loads already signed in.
 4. Test the intents from the Shortcuts app (search "Check Fortnightly Buffer" /
    "Check Savings Goals") or Spotlight — **on a real device**. The Simulator
    fails to invoke an App Shortcut ("Unable to run App Shortcut") whatever the
-   code; it is fine for the OAuth flow, the web shell, and `xcodebuild test`.
+   code; it is fine for the sign-in flow, the web shell, and `xcodebuild test`.
 
 A Mac Catalyst build has no simulator equivalent — running it from Xcode (or a
-built `.app`) is already the "real device" case above: the OAuth flow, the App
+built `.app`) is already the "real device" case above: the sign-in flow, the App
 Shortcuts, and Spotlight all work the same way they do on an iPhone, except
 Siri voice invocation, which macOS does not support at all (see
 [`docs/ios.md`](../../docs/ios.md#apple-developer-program)).

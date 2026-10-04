@@ -1,10 +1,11 @@
-import AuthenticationServices
+import CryptoKit
 import Foundation
+import GoogleSignIn
 import Observation
 import UIKit
 
 /// Observable wrapper around `supabaseAuth` for the SwiftUI layer: a coarse
-/// session state plus the Google OAuth entry point.
+/// session state plus the native Google sign-in entry point.
 ///
 /// The native app owns the one Supabase session for the whole product — the
 /// embedded web app included — so this drives a blocking sign-in gate, and the
@@ -31,7 +32,6 @@ final class AuthModel {
     private(set) var isSigningIn = false
 
     private var observation: Task<Void, Never>?
-    private var authenticator: OAuthAuthenticator?
 
     /// Mirrors `supabaseAuth`'s session into `state` for the lifetime of the
     /// app. `authStateChanges` emits an initial value immediately (the restore
@@ -46,132 +46,77 @@ final class AuthModel {
         }
     }
 
-    /// Starts Google OAuth in an `ASWebAuthenticationSession`.
+    /// Signs in with Google Sign-In's native flow and exchanges the resulting ID
+    /// token for a Supabase session.
     ///
-    /// Deliberately not `async`, and deliberately never resumes a
-    /// pre-existing suspended `Task`/`CheckedContinuation` from
-    /// `ASWebAuthenticationSession`'s completion handler — see
-    /// `OAuthAuthenticator`'s comment for the four things that were tried and
-    /// failed before landing on this shape. `OAuthAuthenticator.start`'s
-    /// completion closure spawns a *fresh* `Task` instead, which sidesteps
-    /// the problem entirely: creating a new task from an arbitrary thread is
-    /// an ordinary, well-supported operation, unlike resuming one that
-    /// already exists.
-    func signIn() {
+    /// A fresh random nonce guards the exchange: Google embeds its SHA-256 in
+    /// the ID token and Supabase checks the raw value against it.
+    func signIn() async {
         lastError = nil
         isSigningIn = true
-        guard let scheme = SupabaseConfig.authCallback.scheme else {
-            lastError = "The OAuth callback URL has no scheme."
-            isSigningIn = false
-            return
-        }
-        let authURL: URL
+        defer { isSigningIn = false }
         do {
-            authURL = try supabaseAuth.getOAuthSignInURL(
-                provider: .google,
-                redirectTo: SupabaseConfig.authCallback
+            guard let presenter = Self.presentingViewController() else {
+                throw AuthError.noPresenter
+            }
+            let nonce = Self.randomNonce()
+            let result = try await GIDSignIn.sharedInstance.signIn(
+                withPresenting: presenter,
+                hint: nil,
+                additionalScopes: nil,
+                nonce: Self.sha256(nonce)
             )
+            guard let idToken = result.user.idToken?.tokenString else {
+                throw AuthError.noIdToken
+            }
+            _ = try await supabaseAuth.signInWithIdToken(
+                credentials: .init(
+                    provider: .google,
+                    idToken: idToken,
+                    accessToken: result.user.accessToken.tokenString,
+                    nonce: nonce
+                )
+            )
+            state = .signedIn
+        } catch let error as NSError
+            where error.domain == kGIDSignInErrorDomain && error.code == GIDSignInError.canceled.rawValue
+        {
+            // The member dismissed the sign-in sheet.
         } catch {
             lastError = error.localizedDescription
-            isSigningIn = false
-            return
         }
+    }
 
-        let authenticator = OAuthAuthenticator()
-        self.authenticator = authenticator
-        authenticator.start(url: authURL, callbackURLScheme: scheme) { [weak self] result in
-            Task { @MainActor in
-                self?.completeSignIn(with: result)
+    private enum AuthError: LocalizedError {
+        case noPresenter
+        case noIdToken
+
+        var errorDescription: String? {
+            switch self {
+            case .noPresenter: "There is no window to present Google sign-in from."
+            case .noIdToken: "Google did not return an ID token."
             }
         }
     }
 
-    /// Runs on a freshly spawned `Task`, on the main actor, once
-    /// `OAuthAuthenticator` has already safely crossed back from
-    /// `ASWebAuthenticationSession`'s XPC callback thread. Persists the
-    /// resulting session to the Keychain via `session(from:)`.
-    private func completeSignIn(with result: Result<URL, Error>) {
-        authenticator = nil
-        Task {
-            defer { isSigningIn = false }
-            do {
-                let callbackURL = try result.get()
-                _ = try await supabaseAuth.session(from: callbackURL)
-                state = .signedIn
-            } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
-                // The member dismissed the sign-in sheet.
-            } catch {
-                lastError = error.localizedDescription
-            }
+    private static func presentingViewController() -> UIViewController? {
+        let root = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.rootViewController
+        var top = root
+        while let presented = top?.presentedViewController {
+            top = presented
         }
-    }
-}
-
-/// Runs one OAuth round trip in `ASWebAuthenticationSession` and reports the
-/// resulting callback URL via a plain completion handler — never `async`,
-/// never a `CheckedContinuation`.
-///
-/// Four different fixes were tried and each one crashed identically
-/// (`dispatch_assert_queue_fail`, Mac Catalyst only) when
-/// `ASWebAuthenticationSession`'s completion handler — delivered on an XPC
-/// reply thread — tried to resume a `CheckedContinuation` back into the
-/// `Task` that was suspended awaiting it: `nonisolated` on the resuming
-/// function, hopping to `DispatchQueue.main.async` before the resume, running
-/// `session.start()` on the main queue, and routing the resume through a
-/// genuinely separate `nonisolated` function (a fix confirmed working for
-/// someone else's build, per Apple Developer Forums thread 783897) all made
-/// no difference. The common thread across every failure: something about
-/// `continuation.resume` itself — not the isolation of whatever calls it —
-/// keeps checking whether the calling thread matches the executor the
-/// original `withCheckedContinuation` call was made under, and that check is
-/// what traps on Mac Catalyst when the calling thread is the XPC one.
-///
-/// So this type never creates a `CheckedContinuation` that crosses the XPC
-/// boundary at all. `start`'s completion parameter is a plain, ordinary
-/// closure with no Swift Concurrency machinery of its own; `AuthModel` is
-/// responsible for spawning a *fresh* `Task` from it once control is safely
-/// back in ordinary code, rather than resuming one that already exists.
-private final class OAuthAuthenticator: NSObject, ASWebAuthenticationPresentationContextProviding {
-    private var completion: ((Result<URL, Error>) -> Void)?
-    private var session: ASWebAuthenticationSession?
-
-    /// Call on the main thread. `completion` fires exactly once, from
-    /// whichever thread `ASWebAuthenticationSession` happens to deliver its
-    /// completion handler on — never assume main there.
-    func start(url: URL, callbackURLScheme: String, completion: @escaping (Result<URL, Error>) -> Void) {
-        self.completion = completion
-        // A bound method reference, not a closure literal written inline —
-        // deliberately, though unlike the fixes in this type's own doc
-        // comment this one is unverified in isolation; the fix that matters
-        // is `completeSignIn` never resuming a pre-existing continuation.
-        let session = ASWebAuthenticationSession(
-            url: url,
-            callbackURLScheme: callbackURLScheme,
-            completionHandler: handleCompletion
-        )
-        self.session = session
-        session.presentationContextProvider = self
-        session.start()
+        return top
     }
 
-    private func handleCompletion(callbackURL: URL?, error: Error?) {
-        let completion = self.completion
-        self.completion = nil
-        self.session = nil
-        if let error {
-            completion?(.failure(error))
-        } else if let callbackURL {
-            completion?(.success(callbackURL))
-        } else {
-            completion?(.failure(URLError(.badServerResponse)))
-        }
+    private static func randomNonce() -> String {
+        Data((0..<32).map { _ in UInt8.random(in: .min ... .max) })
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        MainActor.assumeIsolated {
-            UIApplication.shared.connectedScenes
-                .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-                .first ?? ASPresentationAnchor()
-        }
+    private static func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }

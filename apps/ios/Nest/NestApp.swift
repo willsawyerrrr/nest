@@ -1,3 +1,4 @@
+import GoogleSignIn
 import SwiftUI
 
 @main
@@ -10,7 +11,7 @@ struct NestApp: App {
                 .environment(auth)
                 .task { auth.start() }
                 .onOpenURL { url in
-                    Task { _ = try? await supabaseAuth.session(from: url) }
+                    _ = GIDSignIn.sharedInstance.handle(url)
                 }
         }
     }

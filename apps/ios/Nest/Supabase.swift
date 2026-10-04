@@ -11,9 +11,6 @@ enum SupabaseConfig {
     static let url = URL(string: infoPlistValue("SupabaseURL"))!
     static let anonKey = infoPlistValue("SupabaseAnonKey")
 
-    /// Custom URL scheme registered in `Info.plist`; the OAuth redirect target.
-    static let authCallback = URL(string: "dev.willsawyerrrr.nest.ios://auth-callback")!
-
     /// Reads a key `xcodegen generate` substituted into `Info.plist`, failing
     /// loudly rather than silently building against no project: unset in the
     /// environment, XcodeGen leaves its literal `${VAR}` placeholder behind
@@ -40,6 +37,5 @@ let supabaseAuth = AuthClient(
         "apikey": SupabaseConfig.anonKey,
         "Authorization": "Bearer \(SupabaseConfig.anonKey)",
     ],
-    redirectToURL: SupabaseConfig.authCallback,
     localStorage: AuthClient.Configuration.defaultLocalStorage
 )

@@ -39,6 +39,9 @@ targets:
         CFBundleDisplayName: Nest
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Only the encryption built into Apple's operating system (HTTPS), so
+        # App Store Connect skips the export-compliance questions per build.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:

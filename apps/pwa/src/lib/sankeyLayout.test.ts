@@ -198,3 +198,19 @@ describe('ribbonPath', () => {
     expect(path).toBe('M0,10 C50,10 50,50 100,50 L100,70 C50,70 50,30 0,30 Z')
   })
 })
+
+describe('sankeyLayout order', () => {
+  it('lists each column largest value first with order amount', () => {
+    const { nodes } = sankeyLayout(5, shortfall, { ...options, order: 'amount' })
+    expect(nodes[2]!.y).toBeLessThan(nodes[3]!.y)
+    expect(nodes[3]!.y).toBeLessThan(nodes[4]!.y)
+    const flipped: SankeyLinkInput[] = [
+      { source: 0, target: 1, value: 100 },
+      { source: 0, target: 2, value: 900 },
+    ]
+    const byAmount = sankeyLayout(3, flipped, { ...options, order: 'amount' })
+    expect(byAmount.nodes[2]!.y).toBeLessThan(byAmount.nodes[1]!.y)
+    const byInput = sankeyLayout(3, flipped, options)
+    expect(byInput.nodes[1]!.y).toBeLessThan(byInput.nodes[2]!.y)
+  })
+})

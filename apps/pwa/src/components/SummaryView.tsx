@@ -284,7 +284,7 @@ function AllocationDonut({
  * A Sankey of how fortnightly income flows to the groups and the leftover buffer,
  * on the donut's take-home or gross basis. A negative buffer shows as a
  * Shortfall source. Where `lines` are supplied, a switch drills each group down to
- * its budget lines. The chart is decorative for assistive tech; a hidden list
+ * its budget lines, and a control orders nodes by amount. The chart is decorative for assistive tech; a hidden list
  * states every flow instead.
  */
 function CashFlowSankey({
@@ -297,6 +297,7 @@ function CashFlowSankey({
   lines: CashFlowLine[]
 }) {
   const [drilled, setDrilled] = useState(false)
+  const [order, setOrder] = useState<'input' | 'amount'>('input')
   const graph = cashFlowGraph(summary, mode, drilled ? lines : [])
   if (graph.links.length === 0) {
     return null
@@ -319,9 +320,19 @@ function CashFlowSankey({
             onChange={(event) => setDrilled(event.currentTarget.checked)}
           />
         )}
+        <SegmentedControl
+          size="xs"
+          aria-label="Order nodes by"
+          value={order}
+          onChange={(value) => setOrder(value as 'input' | 'amount')}
+          data={[
+            { value: 'input', label: 'Default order' },
+            { value: 'amount', label: 'By amount' },
+          ]}
+        />
         <div aria-hidden="true">
           <Suspense fallback={<Skeleton height={SANKEY_MIN_HEIGHT} animate={false} />}>
-            <CashFlowSankeyChart graph={graph} />
+            <CashFlowSankeyChart graph={graph} order={order} />
           </Suspense>
         </div>
         <VisuallyHidden>

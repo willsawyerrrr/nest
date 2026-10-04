@@ -30,7 +30,7 @@ A single-screen SwiftUI app:
 The App Shortcut needs a Supabase access token to call the backend with the app
 closed, and the web view's own session lives in `WKWebView` storage the native
 code cannot read. So the **native app is the single session owner** — one Google
-OAuth, at launch — and the web view runs on the session the native layer injects
+sign-in, at launch — and the web view runs on the session the native layer injects
 into it. A member signs in once.
 
 The native side must own token refresh (a Siri intent refreshes with the web
@@ -80,26 +80,17 @@ view's session.
   iterates `supabaseAuth.authStateChanges` for the life of the app so the gate
   reflects the launch restore, every token refresh, and the sign-out the web
   view asks for.
-- **Google OAuth** — `AuthModel.signIn()` drives the flow by hand rather than
-  `supabaseAuth`'s own `signInWithOAuth(provider:redirectTo:…)` convenience:
-  `getOAuthSignInURL` for the authorize URL, a standalone `OAuthAuthenticator`
-  (not `@MainActor`, not nested inside any actor-isolated closure) that opens
-  an `ASWebAuthenticationSession` and resolves with the callback URL, then
-  `supabaseAuth.session(from:)` to complete the PKCE exchange and persist the
-  session. The convenience method nests its `ASWebAuthenticationSession`
-  completion handler inside a `@MainActor` closure, and the compiler infers
-  that handler `@MainActor`-isolated; `ASWebAuthenticationSession` delivers it
-  on an XPC queue rather than the main queue, so resuming the isolated
-  continuation there traps with `dispatch_assert_queue_fail` on Mac Catalyst.
-  `OAuthAuthenticator`'s plain, non-isolated closures sidestep the inference
-  entirely. It reuses the PWA's existing Google/Supabase OAuth setup unchanged
-  — nothing changes in the Google Cloud console.
-- **Custom URL scheme** `dev.willsawyerrrr.nest.ios`, declared as
-  `CFBundleURLTypes` in `project.yml`. The OAuth redirect target is
-  `dev.willsawyerrrr.nest.ios://auth-callback`; `NestApp.swift` also forwards
-  `onOpenURL` to `supabaseAuth.session(from:)` for a redirect the OS opens
-  directly rather than through `ASWebAuthenticationSession` — a magic-link
-  email, for instance.
+- **Google sign-in** — `AuthModel.signIn()` runs Google Sign-In's native flow
+  (`GIDSignIn`, from the `GoogleSignIn-iOS` package) and exchanges the ID token
+  with `supabaseAuth.signInWithIdToken`, which persists the session. A fresh
+  random nonce guards the exchange: its SHA-256 goes to Google, which embeds it
+  in the ID token, and the raw value goes to Supabase to check against it. It
+  uses an iOS-type Google OAuth client, whose public client ID is `GIDClientID`
+  in `project.yml`; no client secret is involved.
+- **Custom URL scheme** — the iOS client's reversed ID
+  (`com.googleusercontent.apps.<id>`), declared as `CFBundleURLTypes` in
+  `project.yml`. Google Sign-In returns through it, and `NestApp.swift` forwards
+  `onOpenURL` to `GIDSignIn.sharedInstance.handle`.
 - **Session storage** is `supabase-swift`'s default `KeychainLocalStorage` — no
   Keychain access group, no App Group. The Intent runs in the app's own process
   (see below), so it reads the stored session directly. The session is
@@ -108,10 +99,10 @@ view's session.
 
 ### Supabase dashboard
 
-The household must add `dev.willsawyerrrr.nest.ios://auth-callback` to the
-Supabase project's **Auth → URL Configuration → Redirect URLs**. The PWA's
-existing entry stays. This is the only backend configuration the native session
-needs.
+The household must add the iOS client ID to the Supabase project's **Auth →
+Providers → Google → Client IDs**, comma-separated after the PWA's web client ID
+(which stays first). The iOS client needs no secret, and nothing else changes in
+the backend.
 
 ### Sign-in gate
 
@@ -214,7 +205,7 @@ The App Shortcuts have been run from Spotlight and the Shortcuts app **on a
 real iOS device**; both queries answer. **The iOS Simulator cannot reliably
 invoke an App Shortcut** — it fails with "Unable to run App Shortcut" regardless
 of the code — so test the intents on iOS hardware. The Simulator is still fine
-for the OAuth flow, the web shell, and `xcodebuild test`. A Mac Catalyst build
+for the sign-in flow, the web shell, and `xcodebuild test`. A Mac Catalyst build
 has no simulator: running it is already the "real device" case, and
 `Metadata.appintents` is produced and validated in its build product exactly as
 it is for iOS.
@@ -234,7 +225,7 @@ it is for iOS.
   phrasing, its request shape, and the signed-out / HTTP-failure sentence
   mapping) and for `SessionBridge`'s injected JavaScript and string escaping.
 
-See [`apps/ios/README.md`](../apps/ios/README.md) for build and OAuth-flow
+See [`apps/ios/README.md`](../apps/ios/README.md) for build and sign-in-flow
 instructions.
 
 ## CI

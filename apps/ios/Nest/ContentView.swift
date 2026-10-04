@@ -83,7 +83,7 @@ private struct SignInView: View {
             }
 
             Button {
-                auth.signIn()
+                Task { await auth.signIn() }
             } label: {
                 Group {
                     if auth.isSigningIn {

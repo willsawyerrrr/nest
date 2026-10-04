@@ -9,6 +9,9 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: 2.55.0
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: 9.0.0
 
 settings:
   base:
@@ -28,6 +31,8 @@ targets:
     dependencies:
       - package: Supabase
         product: Auth
+      - package: GoogleSignIn
+        product: GoogleSignIn
     info:
       path: Nest/Info.plist
       properties:
@@ -40,11 +45,14 @@ targets:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
+        # The iOS-type Google OAuth client (public, like the Supabase anon key).
+        # Its reversed form is the URL scheme Google Sign-In returns to.
+        GIDClientID: 878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq.apps.googleusercontent.com
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
             CFBundleURLName: dev.willsawyerrrr.nest.ios
             CFBundleURLSchemes:
-              - dev.willsawyerrrr.nest.ios
+              - com.googleusercontent.apps.878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq
         # Substituted by `xcodegen generate` from the process environment (see
         # `apps/ios/.env.example`); read at runtime in `Supabase.swift`. Left
         # as XcodeGen's literal `${VAR}` placeholder when unset — `Supabase.swift`

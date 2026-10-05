@@ -54,9 +54,10 @@ export interface SankeyLayout {
  *   largest that fits the most crowded column in `height` once its padding is
  *   taken out (a column's padding shrinks if it would take more than half the
  *   height); no thickness is ever enlarged, so a tiny flow is a hairline.
- * - Each column is spread to span the full height, so all columns share top and
- *   bottom edges and only the gaps between nodes differ by column; a lone node is
- *   centred.
+ * - A column of several nodes is spread to span the full height, so such columns
+ *   share top and bottom edges and only the gaps between nodes differ. A lone node
+ *   top-aligns with the highest node it feeds (clamped within the height), or is
+ *   centred when it feeds nothing.
  * - With `order: 'amount'`, each column lists its nodes largest value first (ties
  *   keep input order).
  * - Ribbons stack from their node's top, so a ribbon always starts and ends on
@@ -120,16 +121,24 @@ export function sankeyLayout(
     column: 0,
   }))
   const stride = (width - nodeWidth) / Math.max(1, last)
-  members.forEach((ids, c) => {
+  const place = (ids: number[], c: number) => {
     const heights = ids.map((i) => nodeValues[i]! * scale)
     const total = heights.reduce((sum, h) => sum + h, 0)
     const gap = ids.length > 1 ? (height - total) / (ids.length - 1) : 0
-    let y = ids.length > 1 ? 0 : (height - total) / 2
+    let y = (height - total) / 2
+    if (ids.length > 1) y = 0
+    else if (outgoing[ids[0]!]!.length > 0) {
+      const top = Math.min(...outgoing[ids[0]!]!.map((l) => nodes[links[l]!.target]!.y))
+      y = Math.min(top, height - total)
+    }
     ids.forEach((i, k) => {
       nodes[i] = { x: c * stride, y, width: nodeWidth, height: heights[k]!, column: c }
       y += heights[k]! + gap
     })
-  })
+  }
+  // Lone nodes follow the nodes they feed, so place the later columns first.
+  for (let c = last; c >= 0; c--) if (members[c]!.length > 1) place(members[c]!, c)
+  for (let c = last; c >= 0; c--) if (members[c]!.length <= 1) place(members[c]!, c)
 
   const centre = (i: number) => nodes[i]!.y + nodes[i]!.height / 2
   const stack = (side: 'source' | 'target', far: 'target' | 'source'): number[] => {

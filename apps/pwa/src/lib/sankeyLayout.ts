@@ -5,6 +5,9 @@ export interface SankeyLinkInput {
   value: number
 }
 
+/** How the last column's nodes are ordered within each group. */
+export type SankeyOrder = 'input' | 'largest' | 'smallest'
+
 export interface SankeyLayoutOptions {
   width: number
   height: number
@@ -12,10 +15,11 @@ export interface SankeyLayoutOptions {
   /** The least vertical gap between neighbouring nodes in a column. */
   nodePadding: number
   /**
-   * Order of the last column's nodes: as supplied (`input`) or largest value first
-   * within each group of nodes sharing a source (`amount`). Other columns keep input order.
+   * Order of the last column's nodes: as supplied (`input`), or largest (`largest`) or
+   * smallest (`smallest`) value first within each group of nodes sharing a source. Other
+   * columns keep input order.
    */
-  order?: 'input' | 'amount'
+  order?: SankeyOrder
 }
 
 /** A node's bar, in pixels. `column` 0 is the sources' column. */
@@ -61,9 +65,9 @@ export interface SankeyLayout {
  *   share top and bottom edges and only the gaps between nodes differ. A lone node
  *   top-aligns with the highest node it feeds (clamped within the height), or is
  *   centred when it feeds nothing.
- * - With `order: 'amount'`, the last column's nodes are grouped by the source of their
- *   incoming link and each group lists its nodes largest value first (ties keep input
- *   order). Groups keep their input order and stay contiguous; every other column
+ * - With `order: 'largest'` or `'smallest'`, the last column's nodes are grouped by the source
+ *   of their incoming link and each group lists its nodes largest or smallest value first
+ *   (ties keep input order). Groups keep their input order and stay contiguous; every other column
  *   keeps input order.
  * - Ribbons stack from their node's top, so a ribbon always starts and ends on
  *   its node's bar.
@@ -106,7 +110,8 @@ export function sankeyLayout(
     inflow[target]! += value
   }
   const nodeValues = inflow.map((inValue, i) => Math.max(inValue, outflow[i]!))
-  if (order === 'amount') {
+  if (order !== 'input') {
+    const sign = order === 'largest' ? -1 : 1
     const group = (i: number) => links.find(({ target }) => target === i)?.source ?? i
     const firstSeen = new Map<number, number>()
     members[last]!.forEach((i, k) => {
@@ -114,7 +119,8 @@ export function sankeyLayout(
     })
     members[last]!.sort(
       (a, b) =>
-        firstSeen.get(group(a))! - firstSeen.get(group(b))! || nodeValues[b]! - nodeValues[a]!,
+        firstSeen.get(group(a))! - firstSeen.get(group(b))! ||
+        sign * (nodeValues[a]! - nodeValues[b]!),
     )
   }
   const padding = (ids: number[]) =>

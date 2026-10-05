@@ -407,13 +407,18 @@ describe('SummaryView', () => {
           lines={[{ group: 'needs', name: 'Rent', fortnightlyCents: 200_000 }]}
         />,
       )
-      expect(screen.queryByRole('radio', { name: 'By amount' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: 'Order budget lines' })).not.toBeInTheDocument()
       await userEvent.click(screen.getByRole('switch', { name: 'Show budget lines' }))
-      expect(screen.getByRole('radio', { name: 'Default order' })).toBeChecked()
-      await userEvent.click(screen.getByRole('radio', { name: 'By amount' }))
-      expect(screen.getByRole('radio', { name: 'By amount' })).toBeChecked()
+      const order = screen.getByRole('combobox', { name: 'Order budget lines' })
+      expect(order).toHaveValue('Default order')
+      await userEvent.click(order)
+      await userEvent.click(screen.getByRole('option', { name: 'Smallest first' }))
+      expect(order).toHaveValue('Smallest first')
+      await userEvent.click(order)
+      await userEvent.click(screen.getByRole('option', { name: 'Largest first' }))
+      expect(order).toHaveValue('Largest first')
       await userEvent.click(screen.getByRole('switch', { name: 'Show budget lines' }))
-      expect(screen.queryByRole('radio', { name: 'By amount' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: 'Order budget lines' })).not.toBeInTheDocument()
     })
 
     it('omits the lines switch without lines', () => {

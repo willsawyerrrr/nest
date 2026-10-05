@@ -12,7 +12,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   product and the whole app UI. Alongside it, a thin native app (`apps/ios`, one
   codebase built for two destinations — iOS and Mac Catalyst, via `project.yml`'s
   `supportedDestinations: [iOS, macCatalyst]`) embeds the PWA in a `WKWebView`
-  and adds Siri / App Intents access to key figures (WSD-95, WSD-193) — the
+  and adds Siri / App Intents access to key figures — the
   fortnightly buffer, savings-goal progress, and a named budget line's planned
   amount so far. The native app is the single session owner: one Google OAuth at
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can

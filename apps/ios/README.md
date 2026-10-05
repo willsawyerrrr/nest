@@ -2,13 +2,13 @@
 
 A thin native app that embeds the production PWA
 (`https://nest.willsawyerrrr.dev`) in a `WKWebView` and adds Siri / App Intents
-access to key figures (Linear WSD-95). One native Google sign-in covers both the
+access to key figures. One native Google sign-in covers both the
 shell and the embedded web app: the native app owns the Supabase session and
 mirrors it into the web view. See [`docs/ios.md`](../../docs/ios.md) for the full
 design.
 
 The `Nest` target is a single iOS codebase built for two destinations — iOS and
-Mac Catalyst (Linear WSD-193) — with no source changes between them: the same
+Mac Catalyst — with no source changes between them: the same
 `WKWebView` shell, the same `AuthModel`/Keychain session, and the same three
 App Intents run on both. The one behavioural difference is Siri voice
 invocation, which macOS does not support for App Intents at all (see

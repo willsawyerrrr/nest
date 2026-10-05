@@ -329,9 +329,18 @@ downward is identical in both modes.
 
 Beneath the donut, a **cash-flow Sankey** (`cashFlowGraph` in
 `apps/pwa/src/lib/cashFlow.ts`, a pure function) draws the path from income to
-the groups, following the donut's basis toggle. Take-home starts at Available;
-gross starts at Gross income, which splits into Tax, Salary sacrifice, and
-Available. Available then flows to each non-empty group and to the leftover
+the groups, following the donut's basis toggle. Each recurring inflow landing
+now (`inflowSources`; a one-off and an inflow outside its effective window are
+left out) is its own source node, feeding Gross income on the gross basis or
+Available on take-home. A non-taxable inflow carries its own fortnightly amount
+and bears no tax. The rest of the basis is divided across the taxable inflows in
+proportion to their gross fortnightly amounts, to the cent, so the estimated tax
+and salary sacrifice fall on each pro rata; this is a flat attribution, not a
+per-inflow tax calculation, since the household's tax is assessed per member on
+combined income. Any basis left once no taxable inflow remains, such as projected
+savings interest, flows from an **Other income** node. Take-home
+starts at Available; gross starts at Gross income, which splits into Tax, Salary
+sacrifice, and Available. Available then flows to each non-empty group and to the leftover
 Buffer, every node valued from the same `BudgetSummary` the ledger reads, so
 the figures reconcile to the cent. A Sankey cannot draw a negative flow, so when
 the buffer is negative a **Shortfall** source feeds the groups for the part

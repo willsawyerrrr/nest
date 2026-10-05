@@ -22,6 +22,7 @@ import {
   GROUP_ORDER,
   type CashFlowLine,
   type IncomeBasis,
+  type InflowSource,
 } from '../lib/cashFlow'
 import { formatCents } from '../lib/money'
 import { chartColors } from '../lib/tokens'
@@ -61,6 +62,11 @@ interface SummaryViewProps {
    * a group down to its lines. Absent ⇒ the Sankey stays at group level.
    */
   lines?: CashFlowLine[]
+  /**
+   * The inflows landing now, so the cash-flow Sankey can start from each one.
+   * Absent ⇒ the Sankey starts from a single Gross income or Available node.
+   */
+  sources?: InflowSource[]
 }
 
 const percent = new Intl.NumberFormat('en-AU', {
@@ -291,14 +297,11 @@ function CashFlowSankey({
   summary,
   mode,
   lines,
-}: {
-  summary: BudgetSummary
-  mode: IncomeBasis
-  lines: CashFlowLine[]
-}) {
+  sources,
+}: Required<Pick<SummaryViewProps, 'summary' | 'lines' | 'sources'>> & { mode: IncomeBasis }) {
   const [drilled, setDrilled] = useState(false)
   const [order, setOrder] = useState<'input' | 'amount'>('input')
-  const graph = cashFlowGraph(summary, mode, drilled ? lines : [])
+  const graph = cashFlowGraph(summary, mode, drilled ? lines : [], sources)
   if (graph.links.length === 0) {
     return null
   }
@@ -525,7 +528,7 @@ function OneOffNote({ oneOffCents }: { oneOffCents: number }) {
  * ledger of rows shows on narrow screens; a table appears at wider breakpoints.
  * Any one-off money the year carries is reported under the ledger, outside it.
  */
-export function SummaryView({ summary, baseline, lines = [] }: SummaryViewProps) {
+export function SummaryView({ summary, baseline, lines = [], sources = [] }: SummaryViewProps) {
   const wide = useIsWide()
   const [mode, setMode] = useLocalStorage<IncomeBasis>({
     key: INCOME_BASIS_STORAGE_KEY,
@@ -560,7 +563,7 @@ export function SummaryView({ summary, baseline, lines = [] }: SummaryViewProps)
       ) : (
         <>
           <AllocationDonut summary={summary} mode={mode} setMode={setMode} />
-          <CashFlowSankey summary={summary} mode={mode} lines={lines} />
+          <CashFlowSankey summary={summary} mode={mode} lines={lines} sources={sources} />
           {wide ? (
             <DataTable label="Reconciliation">
               <Table.Thead>

@@ -161,6 +161,28 @@ describe('SummarySection', () => {
     expect(summary.available.fortnightlyCents).toBe(0)
     // ...while the annual figure keeps the whole-year estimate's part-year income.
     expect(summary.available.annualCents).toBeGreaterThan(0)
+    // The ended salary is no source either.
+    expect(hooks.screenProps!.sources).toEqual([])
+  })
+
+  it('passes the inflows landing now to the Summary as sources', () => {
+    hooks.useInflows.mockReturnValue({
+      loading: false,
+      inflows: [makeInflow({ schedule: 'fortnightly', amount_cents: 4_000_00 })],
+    })
+    hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
+    hooks.useBudgetLines.mockReturnValue({ loading: false, lines: [] })
+    hooks.useTemporaryItems.mockReturnValue({ loading: false, items: [] })
+    hooks.useSuperContributions.mockReturnValue({ loading: false, contributions: [] })
+    hooks.useGifts.mockReturnValue({ loading: false, budgets: [] })
+    hooks.useBreakdowns.mockReturnValue({ loading: false, breakdowns: [], items: [] })
+    hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Alex' }] })
+    render(<SummarySection />)
+    expect(hooks.screenProps!.sources).toEqual([
+      { id: 'i1', name: 'Day job', taxable: true, fortnightlyCents: 4_000_00 },
+    ])
   })
 
   it('counts a goal’s projected savings interest in the after-tax income', () => {

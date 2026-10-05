@@ -1,12 +1,16 @@
+import { toIncomeInput } from '@nest/household'
 import {
   fortnightlyCents,
+  isActiveOn,
   isDrawnFromAllowance,
   isTemporaryActive,
   summariseAllowances,
   type AssignableAllowance,
   type BudgetSummary,
 } from '@nest/plan'
+import { annualGrossCents } from '@nest/tax'
 import type { BudgetLine } from '../hooks/useBudgetLines'
+import type { Inflow } from '../hooks/useInflows'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
 import { toPlanDrawableLine } from './allowances'
 import type { DerivedAmountContext } from './breakdowns'
@@ -35,6 +39,55 @@ export interface CashFlowLine {
   group: GroupKey
   name: string
   fortnightlyCents: number
+}
+
+/** One recurring inflow landing now, at its gross fortnightly amount, for the Sankey's source nodes. */
+export interface InflowSource {
+  id: string
+  name: string
+  taxable: boolean
+  fortnightlyCents: number
+}
+
+/**
+ * The recurring inflows landing at `now`, each at its full gross fortnightly
+ * amount — the same active-now reading the Summary's fortnightly figures use. A
+ * one-off is left out, as it is of `available`.
+ */
+export function inflowSources(inflows: readonly Inflow[], now: Date): InflowSource[] {
+  return inflows
+    .filter(
+      (inflow) =>
+        inflow.paid_on == null &&
+        isActiveOn({ startsOn: inflow.starts_on, endsOn: inflow.ends_on }, now),
+    )
+    .map((inflow) => ({
+      id: inflow.id,
+      name: inflow.name,
+      taxable: inflow.taxable,
+      fortnightlyCents: fortnightlyCents(annualGrossCents(toIncomeInput(inflow)), 'annual'),
+    }))
+}
+
+/**
+ * Splits `total` cents across `weights` in proportion, the largest fractional
+ * remainders taking the leftover cents so the parts sum to `total` exactly.
+ */
+function apportion(total: number, weights: readonly number[]): number[] {
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0)
+  const exact = weights.map((weight) => (total * weight) / weightSum)
+  const parts = exact.map(Math.floor)
+  let leftover = total - parts.reduce((sum, part) => sum + part, 0)
+  exact
+    .map((value, i) => ({ i, fraction: value - parts[i]! }))
+    .sort((a, b) => b.fraction - a.fraction || a.i - b.i)
+    .forEach(({ i }) => {
+      if (leftover > 0) {
+        parts[i]! += 1
+        leftover -= 1
+      }
+    })
+  return parts
 }
 
 /** A Sankey node: its label, colour token, and the cents flowing through it. */
@@ -115,6 +168,12 @@ export function cashFlowLines(
  *   Available; `take-home` starts at Available.
  * - A negative buffer cannot flow, so a Shortfall source feeds the groups for the
  *   part Available cannot cover, filling groups in reconciliation order.
+ * - With `sources`, each inflow is its own source node feeding Gross income
+ *   (`gross`) or Available (`take-home`). A non-taxable inflow carries its own
+ *   amount; the rest of the basis is divided across the taxable inflows in
+ *   proportion to their gross fortnightly amounts, so tax and salary sacrifice
+ *   fall on them pro rata. Basis left over once no taxable inflow remains, such
+ *   as projected savings interest, flows from an Other income node.
  * - With `lines`, each group fans out to its lines; any part of the group they do
  *   not name flows to an Other node.
  *
@@ -124,6 +183,7 @@ export function cashFlowGraph(
   summary: BudgetSummary,
   mode: IncomeBasis,
   lines: readonly CashFlowLine[] = [],
+  sources: readonly InflowSource[] = [],
 ): CashFlowGraph {
   const nodes: CashFlowNode[] = []
   const links: CashFlowLink[] = []
@@ -147,8 +207,36 @@ export function cashFlowGraph(
   const { tax, salarySacrifice } = summary
   const availableNode = (): number => node('available', 'Available', chartColors.buffer)
 
+  const incomeNode = (): number =>
+    mode === 'gross' ? node('gross', 'Gross income', chartColors.buffer) : availableNode()
+  if (sources.length > 0) {
+    const nonTaxable = sources.filter((source) => !source.taxable)
+    const taxable = sources.filter((source) => source.taxable && source.fortnightlyCents > 0)
+    const basis =
+      available + (mode === 'gross' ? tax.fortnightlyCents + salarySacrifice.fortnightlyCents : 0)
+    const pool = Math.max(basis - nonTaxable.reduce((sum, s) => sum + s.fortnightlyCents, 0), 0)
+    for (const source of nonTaxable) {
+      link(
+        node(`inflow:${source.id}`, source.name, chartColors.buffer),
+        incomeNode(),
+        source.fortnightlyCents,
+      )
+    }
+    if (taxable.length === 0) {
+      link(node('other-income', 'Other income', chartColors.buffer), incomeNode(), pool)
+    } else {
+      apportion(
+        pool,
+        taxable.map((source) => source.fortnightlyCents),
+      ).forEach((share, i) => {
+        const source = taxable[i]!
+        link(node(`inflow:${source.id}`, source.name, chartColors.buffer), incomeNode(), share)
+      })
+    }
+  }
+
   if (mode === 'gross') {
-    const gross = node('gross', 'Gross income', chartColors.buffer)
+    const gross = incomeNode()
     link(gross, node('tax', 'Tax', chartColors.tax), tax.fortnightlyCents)
     link(
       gross,

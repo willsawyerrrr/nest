@@ -669,7 +669,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer, shown on the
   Summary as a ledger, an allocation donut, and a lazy-loaded SVG cash-flow Sankey
-  (`cashFlowGraph`) that follows the donut's take-home/gross basis, draws a
+  (`cashFlowGraph`) that follows the donut's take-home/gross basis, starts from
+  each active recurring inflow (taxes and salary sacrifice attributed across
+  taxable inflows pro rata to gross; non-taxable bear none), draws a
   negative buffer as a Shortfall source, scales every node and ribbon
   by one value-to-pixel factor, and can drill into budget lines; actual-spend
   reconciliation via Up ingestion is a later enhancement. Each line carries an

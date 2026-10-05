@@ -359,8 +359,9 @@ is the largest that fits the most crowded column; a column of several nodes
 is spread over the full height, so only the gaps between nodes differ and such
 columns share top and bottom edges, while a lone node (Available, when it is
 the only node in its column) top-aligns with the highest node it feeds, so
-Available sits level with Needs. A control orders each column's nodes in their default order or
-largest amount first. Ribbons stack inside their node
+Available sits level with Needs. While budget lines are shown, a control orders the budget-line column in its default
+order or largest amount first; sources and groups always keep their default order, and
+the control is hidden while budget lines are. Ribbons stack inside their node
 bars, ordered by their far end's position so flows don't cross. Nothing is
 thickened to a minimum, so a tiny flow is a hairline, kept visible by a
 sub-pixel stroke. First-column labels sit left of their bars

@@ -355,9 +355,11 @@ outflow (Available fills Needs first, Shortfall tops Needs up and funds the
 rest). Sources sit in the first column and leaves in the last; every node in
 between sits one column before its nearest target, so Needs, Wants and
 Discretionary line up whichever of Available or Shortfall feeds them. The scale
-is the largest that fits the most crowded column; each column
-is spread over the full height, so only the gaps between nodes differ by column
-and every column shares top and bottom edges. A control orders each column's nodes in their default order or
+is the largest that fits the most crowded column; a column of several nodes
+is spread over the full height, so only the gaps between nodes differ and such
+columns share top and bottom edges, while a lone node (Available, when it is
+the only node in its column) top-aligns with the highest node it feeds, so
+Available sits level with Needs. A control orders each column's nodes in their default order or
 largest amount first. Ribbons stack inside their node
 bars, ordered by their far end's position so flows don't cross. Nothing is
 thickened to a minimum, so a tiny flow is a hairline, kept visible by a

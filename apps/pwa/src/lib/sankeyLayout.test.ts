@@ -68,7 +68,7 @@ describe('sankeyLayout', () => {
     expect(end.y + end.height).toBeLessThanOrEqual(options.height + EPS)
   })
 
-  it('centres a lone node and places flow-through nodes in the middle column', () => {
+  it('top-aligns a lone node with its targets and places flow-through nodes in the middle column', () => {
     const { nodes, columns } = sankeyLayout(
       4,
       [
@@ -80,7 +80,40 @@ describe('sankeyLayout', () => {
     )
     expect(columns).toBe(3)
     expect(nodes.map((node) => node.column)).toEqual([0, 1, 2, 2])
-    expect(nodes[0]!.y + nodes[0]!.height / 2).toBeCloseTo(options.height / 2)
+    expect(nodes[0]!.y).toBeCloseTo(nodes[1]!.y)
+    expect(nodes[1]!.y).toBeCloseTo(nodes[2]!.y)
+  })
+
+  it('aligns a lone Available node with Needs, and centres a lone node feeding nothing', () => {
+    const { nodes } = sankeyLayout(
+      6,
+      [
+        { source: 0, target: 3, value: 100 },
+        { source: 1, target: 3, value: 50 },
+        { source: 1, target: 4, value: 40 },
+        { source: 1, target: 5, value: 30 },
+        { source: 2, target: 3, value: 20 },
+      ],
+      options,
+    )
+    expect(nodes[0]!.y).toBeCloseTo(nodes[3]!.y)
+    expect(nodes[0]!.y).toBeCloseTo(0)
+    expect(nodes[2]!.y + nodes[2]!.height).toBeLessThanOrEqual(options.height + EPS)
+    const leaf = sankeyLayout(2, [{ source: 0, target: 1, value: 5 }], options).nodes[1]!
+    expect(leaf.y + leaf.height / 2).toBeCloseTo(options.height / 2)
+  })
+
+  it('clamps a lone node within the height when its targets sit low', () => {
+    const { nodes } = sankeyLayout(
+      4,
+      [
+        { source: 0, target: 3, value: 100 },
+        { source: 1, target: 2, value: 1 },
+        { source: 1, target: 3, value: 1 },
+      ],
+      options,
+    )
+    expect(nodes[0]!.y + nodes[0]!.height).toBeLessThanOrEqual(options.height + EPS)
   })
 
   it('right-justifies fed nodes so category nodes share a column', () => {

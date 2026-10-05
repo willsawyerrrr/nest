@@ -53,7 +53,7 @@ targets:
         GIDClientID: 878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq.apps.googleusercontent.com
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: dev.willsawyerrrr.nest.ios
+            CFBundleURLName: dev.willsawyerrrr.nest
             CFBundleURLSchemes:
               - com.googleusercontent.apps.878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq
         # Substituted by `xcodegen generate` from the process environment (see

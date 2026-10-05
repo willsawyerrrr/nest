@@ -80,7 +80,7 @@ A pitch-level summary; the full locked list is canonical in
 - [`docs/calendar-feed.md`](docs/calendar-feed.md) — the read-only iCalendar
   (`.ics`) feed of the household's money dates.
 - [`docs/ios.md`](docs/ios.md) — the native iOS app (`apps/ios`): the embedded
-  PWA plus Siri / App Intents access to key figures (WSD-95).
+  PWA plus Siri / App Intents access to key figures.
 - [`docs/mcp.md`](docs/mcp.md) — the MCP server (`packages/mcp`) that gives an
   agent member-scoped access to budget, goals, wishlist, and deductions.
 

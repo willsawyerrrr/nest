@@ -43,7 +43,7 @@ function genericTotal(items: BreakdownItem[], breakdownId: string): number {
  * tab) passes empty lists and a `null` buffer explicitly, so adding a future
  * roll-up input is a compile error at every call site rather than a silent
  * default — the omission that had Summary and Planning under-reporting the ad hoc
- * gift buffer (WSD-136).
+ * gift buffer.
  */
 export function derivedAmountContext(
   breakdowns: Breakdown[],

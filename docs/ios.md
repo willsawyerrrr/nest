@@ -1,7 +1,7 @@
 # iOS and macOS app
 
 `apps/ios` is a thin native app, built from one codebase for two destinations —
-iOS and Mac Catalyst (Linear WSD-95, WSD-193). The PWA
+iOS and Mac Catalyst. The PWA
 (`https://nest.willsawyerrrr.dev`) is the entire product UI; the native app
 embeds it in a `WKWebView` and adds Siri / App Intents access to key figures.
 Three read-only queries so far: the household's fortnightly buffer after

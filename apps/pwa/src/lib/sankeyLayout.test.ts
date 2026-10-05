@@ -83,6 +83,41 @@ describe('sankeyLayout', () => {
     expect(nodes[0]!.y + nodes[0]!.height / 2).toBeCloseTo(options.height / 2)
   })
 
+  it('right-justifies fed nodes so category nodes share a column', () => {
+    // Income 8 feeds Available 0; Shortfall 1; Needs 2, Wants 3, Discretionary 4; leaves 5-7.
+    const { nodes, columns } = sankeyLayout(
+      9,
+      [
+        { source: 8, target: 0, value: 10 },
+        { source: 0, target: 2, value: 10 },
+        { source: 1, target: 2, value: 4 },
+        { source: 1, target: 3, value: 5 },
+        { source: 1, target: 4, value: 6 },
+        { source: 2, target: 5, value: 14 },
+        { source: 3, target: 6, value: 5 },
+        { source: 4, target: 7, value: 6 },
+      ],
+      options,
+    )
+    expect(columns).toBe(4)
+    expect(nodes.map((node) => node.column)).toEqual([1, 0, 2, 2, 2, 3, 3, 3, 0])
+  })
+
+  it('places a mid-chain node one column before its nearest target', () => {
+    const { nodes } = sankeyLayout(
+      6,
+      [
+        { source: 0, target: 1, value: 10 },
+        { source: 1, target: 2, value: 10 },
+        { source: 2, target: 3, value: 6 },
+        { source: 2, target: 4, value: 4 },
+        { source: 5, target: 4, value: 3 },
+      ],
+      options,
+    )
+    expect(nodes.map((node) => node.column)).toEqual([0, 1, 2, 3, 3, 0])
+  })
+
   it('orders ribbons by the vertical position of their far end to avoid crossings', () => {
     const { links } = sankeyLayout(
       4,

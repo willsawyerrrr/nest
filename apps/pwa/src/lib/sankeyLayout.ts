@@ -45,8 +45,9 @@ export interface SankeyLayout {
 /**
  * Lays a flow graph out in columns of node bars joined by ribbons.
  *
- * - A node's column is its longest distance from a source; nodes with no outflow
- *   sit in the last column.
+ * - Sources (no inflow) sit in column 0 and nodes with no outflow in the last
+ *   column. Every other node sits one column before its nearest target, so nodes
+ *   feeding the same column line up whatever feeds them.
  * - One scale converts values to pixels for the whole diagram: a ribbon is
  *   `value * scale` thick at both ends, and a node is `scale` times the larger of
  *   its inflow and outflow, so balanced flows fill a bar exactly. The scale is the
@@ -78,7 +79,16 @@ export function sankeyLayout(
     }
   }
   const last = Math.max(0, ...depth)
-  const column = depth.map((d, i) => (outgoing[i]!.length === 0 ? last : d))
+  const hasInflow = Array<boolean>(nodeCount).fill(false)
+  for (const { target } of links) hasInflow[target] = true
+  const column = depth.map((d, i) =>
+    outgoing[i]!.length === 0 ? last : hasInflow[i] ? last - 1 : d,
+  )
+  for (let pass = 0; pass < nodeCount; pass++) {
+    for (const { source, target } of links) {
+      if (hasInflow[source]) column[source] = Math.min(column[source]!, column[target]! - 1)
+    }
+  }
   const members = Array.from({ length: last + 1 }, (_, c) =>
     column.flatMap((nodeColumn, i) => (nodeColumn === c ? [i] : [])),
   )

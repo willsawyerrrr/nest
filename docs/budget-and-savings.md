@@ -352,7 +352,10 @@ out by the pure `sankeyLayout` (`apps/pwa/src/lib/sankeyLayout.ts`): one value
 scale for the whole diagram, so a ribbon is as thick at both ends as the value
 it carries and each node bar is exactly filled by its inflow and drained by its
 outflow (Available fills Needs first, Shortfall tops Needs up and funds the
-rest). The scale is the largest that fits the most crowded column; each column
+rest). Sources sit in the first column and leaves in the last; every node in
+between sits one column before its nearest target, so Needs, Wants and
+Discretionary line up whichever of Available or Shortfall feeds them. The scale
+is the largest that fits the most crowded column; each column
 is spread over the full height, so only the gaps between nodes differ by column
 and every column shares top and bottom edges. A control orders each column's nodes in their default order or
 largest amount first. Ribbons stack inside their node

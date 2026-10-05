@@ -298,12 +298,7 @@ function CashFlowSankey({
   mode,
   lines,
   sources,
-}: {
-  summary: BudgetSummary
-  mode: IncomeBasis
-  lines: CashFlowLine[]
-  sources: InflowSource[]
-}) {
+}: Required<Pick<SummaryViewProps, 'summary' | 'lines' | 'sources'>> & { mode: IncomeBasis }) {
   const [drilled, setDrilled] = useState(false)
   const [order, setOrder] = useState<'input' | 'amount'>('input')
   const graph = cashFlowGraph(summary, mode, drilled ? lines : [], sources)

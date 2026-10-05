@@ -878,7 +878,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `account_balance` tables Up populates — a Redbark-synced account is a
   selectable budget-line funding destination, pay account, and goal-linked
   saver identically to an Up one. See
-  [`docs/redbark-ingestion.md`](docs/redbark-ingestion.md).
+  [`docs/redbark-ingestion.md`](docs/redbark-ingestion.md) and
+  [`docs/cdr-pay-splitting-goals.md`](docs/cdr-pay-splitting-goals.md).
 - Changelog: an in-app "What's new" tab reads recent user-facing changes from
   GitHub via the `changelog` edge function (a server-held `GITHUB_CHANGELOG_TOKEN`
   fine-grained PAT), showing open PR titles as in-progress and merged-commit

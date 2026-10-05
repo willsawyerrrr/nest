@@ -383,6 +383,13 @@ describe('SummaryView', () => {
       expect(flows().getByText('Needs to Rent: $2,000.00')).toBeInTheDocument()
     })
 
+    it('switches the node ordering', async () => {
+      render(<SummaryView summary={summary} />)
+      expect(screen.getByRole('radio', { name: 'Default order' })).toBeChecked()
+      await userEvent.click(screen.getByRole('radio', { name: 'By amount' }))
+      expect(screen.getByRole('radio', { name: 'By amount' })).toBeChecked()
+    })
+
     it('omits the lines switch without lines', () => {
       render(<SummaryView summary={summary} />)
       expect(screen.queryByRole('switch', { name: 'Show budget lines' })).not.toBeInTheDocument()

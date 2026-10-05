@@ -5,6 +5,8 @@ import { ribbonPath, sankeyLayout } from '../lib/sankeyLayout'
 
 interface CashFlowSankeyChartProps {
   graph: CashFlowGraph
+  /** Node order within each column. */
+  order?: 'input' | 'amount'
 }
 
 const NODE_WIDTH = 8
@@ -38,7 +40,7 @@ function clip(text: string, maxChars: number): string {
  * width; the height grows with the tallest column so labels stay clear of each
  * other.
  */
-export default function CashFlowSankeyChart({ graph }: CashFlowSankeyChartProps) {
+export default function CashFlowSankeyChart({ graph, order = 'input' }: CashFlowSankeyChartProps) {
   const { ref, width } = useElementSize()
   const rows = graph.nodes.filter(
     (_, index) => !graph.links.some((link) => link.source === index),
@@ -50,6 +52,7 @@ export default function CashFlowSankeyChart({ graph }: CashFlowSankeyChartProps)
     height: height - 2 * VERTICAL_MARGIN,
     nodeWidth: NODE_WIDTH,
     nodePadding: NODE_PADDING,
+    order,
   })
   const maxChars = Math.floor((margin - LABEL_GAP) / CHAR_WIDTH)
 

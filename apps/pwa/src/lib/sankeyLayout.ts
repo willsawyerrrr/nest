@@ -11,6 +11,8 @@ export interface SankeyLayoutOptions {
   nodeWidth: number
   /** The least vertical gap between neighbouring nodes in a column. */
   nodePadding: number
+  /** Node order within a column: as supplied (`input`) or largest value first (`amount`). */
+  order?: 'input' | 'amount'
 }
 
 /** A node's bar, in pixels. `column` 0 is the sources' column. */
@@ -54,6 +56,8 @@ export interface SankeyLayout {
  * - Each column is spread to span the full height, so all columns share top and
  *   bottom edges and only the gaps between nodes differ by column; a lone node is
  *   centred.
+ * - With `order: 'amount'`, each column lists its nodes largest value first (ties
+ *   keep input order).
  * - Ribbons stack from their node's top, so a ribbon always starts and ends on
  *   its node's bar.
  * - Ribbons within a node are ordered by the vertical position of their far end,
@@ -62,7 +66,7 @@ export interface SankeyLayout {
 export function sankeyLayout(
   nodeCount: number,
   links: readonly SankeyLinkInput[],
-  { width, height, nodeWidth, nodePadding }: SankeyLayoutOptions,
+  { width, height, nodeWidth, nodePadding, order = 'input' }: SankeyLayoutOptions,
 ): SankeyLayout {
   const outgoing = Array.from({ length: nodeCount }, () => [] as number[])
   links.forEach(({ source }, i) => outgoing[source]!.push(i))
@@ -86,6 +90,9 @@ export function sankeyLayout(
     inflow[target]! += value
   }
   const nodeValues = inflow.map((inValue, i) => Math.max(inValue, outflow[i]!))
+  if (order === 'amount') {
+    members.forEach((ids) => ids.sort((a, b) => nodeValues[b]! - nodeValues[a]!))
+  }
   const padding = (ids: number[]) =>
     ids.length > 1 ? Math.min(nodePadding, height / 2 / (ids.length - 1)) : 0
   const scale = Math.min(

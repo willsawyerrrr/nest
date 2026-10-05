@@ -352,6 +352,23 @@ describe('SummaryView', () => {
   describe('cash flow', () => {
     const flows = () => within(screen.getByRole('list', { name: 'Cash flow amounts' }))
 
+    it('starts the flow from each inflow when sources are supplied', async () => {
+      render(
+        <SummaryView
+          summary={summary}
+          sources={[
+            { id: 'a', name: 'Salary', taxable: true, fortnightlyCents: 600_000 },
+            { id: 'b', name: 'Rent', taxable: false, fortnightlyCents: 50_000 },
+          ]}
+        />,
+      )
+      expect(flows().getByText('Salary to Available: $4,500.00')).toBeInTheDocument()
+      expect(flows().getByText('Rent to Available: $500.00')).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('radio', { name: 'Gross' }))
+      expect(flows().getByText('Salary to Gross income: $6,500.00')).toBeInTheDocument()
+      expect(flows().getByText('Rent to Gross income: $500.00')).toBeInTheDocument()
+    })
+
     it('lists take-home flows from Available, following the basis toggle', async () => {
       render(<SummaryView summary={summary} />)
       expect(flows().getByText('Available to Needs: $2,000.00')).toBeInTheDocument()

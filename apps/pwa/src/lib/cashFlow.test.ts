@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { BudgetSummary, GroupSummary } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { TemporaryItem } from '../hooks/useTemporaryItems'
+import { makeInflow, makeOneOffInflow } from '../test/fixtures'
 import {
   cashFlowGraph,
   cashFlowLines,
   describeCashFlow,
+  inflowSources,
   type CashFlowGraph,
   type CashFlowLine,
+  type InflowSource,
 } from './cashFlow'
 
 const group = (fortnightlyCents: number): GroupSummary => ({
@@ -250,5 +253,108 @@ describe('cashFlowLines', () => {
     expect(lines).toEqual([
       { group: 'discretionary', name: 'Ada’s allowance', fortnightlyCents: 80_00 },
     ])
+  })
+})
+
+describe('inflowSources', () => {
+  const now = new Date('2026-06-01')
+
+  it('reads each recurring inflow at its gross fortnightly amount, whatever its cadence', () => {
+    expect(
+      inflowSources(
+        [
+          makeInflow({ id: 'a', name: 'Salary', schedule: 'annual', amount_cents: 130_000_00 }),
+          makeInflow({
+            id: 'b',
+            name: 'Rent',
+            taxable: false,
+            type: 'other',
+            schedule: 'monthly',
+            amount_cents: 2_600_00,
+          }),
+          makeInflow({
+            id: 'c',
+            name: 'Shifts',
+            type: 'wage',
+            schedule: 'weekly',
+            amount_cents: null,
+            hourly_rate_cents: 50_00,
+            hours_per_period: 20,
+          }),
+        ],
+        now,
+      ),
+    ).toEqual([
+      { id: 'a', name: 'Salary', taxable: true, fortnightlyCents: 5_000_00 },
+      { id: 'b', name: 'Rent', taxable: false, fortnightlyCents: 1_200_00 },
+      { id: 'c', name: 'Shifts', taxable: true, fortnightlyCents: 2_000_00 },
+    ])
+  })
+
+  it('leaves out one-offs and inflows outside their window', () => {
+    expect(
+      inflowSources(
+        [
+          makeOneOffInflow(),
+          makeInflow({ id: 'old', ends_on: '2026-01-31' }),
+          makeInflow({ id: 'future', starts_on: '2026-09-01' }),
+          makeInflow({ id: 'now', starts_on: '2026-01-01', ends_on: '2026-12-31' }),
+        ],
+        now,
+      ).map((source) => source.id),
+    ).toEqual(['now'])
+  })
+})
+
+describe('cashFlowGraph with inflow sources', () => {
+  const src = (id: string, taxable: boolean, fortnightlyCents: number): InflowSource => ({
+    id,
+    name: id,
+    taxable,
+    fortnightlyCents,
+  })
+  // Gross 700_000 = 500_000 available + 150_000 tax + 50_000 sacrifice.
+  const sources = [src('A', true, 300_000), src('B', true, 100_000), src('Rent', false, 50_000)]
+
+  it('feeds Gross income from each inflow, tax falling on taxable inflows pro rata', () => {
+    const graph = cashFlowGraph(summary, 'gross', [], sources)
+    expect(flow(graph, 'Rent', 'Gross income')).toBe(50_000)
+    expect(flow(graph, 'A', 'Gross income')).toBe(487_500)
+    expect(flow(graph, 'B', 'Gross income')).toBe(162_500)
+    expect(graph.nodes.find((n) => n.name === 'Gross income')!.valueCents).toBe(700_000)
+  })
+
+  it('feeds Available from each inflow, splitting take-home pro rata', () => {
+    const graph = cashFlowGraph(summary, 'take-home', [], sources)
+    expect(flow(graph, 'Rent', 'Available')).toBe(50_000)
+    expect(flow(graph, 'A', 'Available')).toBe(337_500)
+    expect(flow(graph, 'B', 'Available')).toBe(112_500)
+    expect(graph.nodes.find((n) => n.name === 'Gross income')).toBeUndefined()
+  })
+
+  it('conserves every cent when the split does not divide evenly', () => {
+    const graph = cashFlowGraph(
+      summary,
+      'take-home',
+      [],
+      [src('A', true, 1), src('B', true, 1), src('C', true, 1)],
+    )
+    const into = graph.links
+      .filter((l) => graph.nodes[l.target]!.name === 'Available' && l.source !== l.target)
+      .map((l) => l.value)
+    expect(into.reduce((a, b) => a + b, 0)).toBe(500_000)
+    expect(into.sort()).toEqual([166_666, 166_667, 166_667])
+  })
+
+  it('draws the whole basis from Other income when no taxable inflow lands', () => {
+    const graph = cashFlowGraph(summary, 'take-home', [], [src('Rent', false, 50_000)])
+    expect(flow(graph, 'Other income', 'Available')).toBe(450_000)
+    expect(flow(graph, 'Rent', 'Available')).toBe(50_000)
+  })
+
+  it('ignores a taxable inflow with no gross amount', () => {
+    const graph = cashFlowGraph(summary, 'take-home', [], [src('Zero', true, 0)])
+    expect(flow(graph, 'Zero', 'Available')).toBeUndefined()
+    expect(flow(graph, 'Other income', 'Available')).toBe(500_000)
   })
 })

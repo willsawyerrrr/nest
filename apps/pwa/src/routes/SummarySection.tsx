@@ -16,7 +16,7 @@ import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
 import { toAssignableAllowances } from '../lib/allowances'
 import { derivedAmountContext } from '../lib/breakdowns'
-import { cashFlowLines } from '../lib/cashFlow'
+import { cashFlowLines, inflowSources } from '../lib/cashFlow'
 import { summariseHousehold } from '../lib/summary'
 
 export function SummarySection() {
@@ -98,5 +98,14 @@ export function SummarySection() {
     toAssignableAllowances(memberAllowances.allowances ?? [], members),
   )
 
-  return <SummaryView summary={summary} lines={lines} {...(baseline && { baseline })} />
+  const sources = inflowSources(inflows.inflows ?? [], new Date())
+
+  return (
+    <SummaryView
+      summary={summary}
+      lines={lines}
+      sources={sources}
+      {...(baseline && { baseline })}
+    />
+  )
 }

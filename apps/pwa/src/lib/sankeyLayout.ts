@@ -11,7 +11,10 @@ export interface SankeyLayoutOptions {
   nodeWidth: number
   /** The least vertical gap between neighbouring nodes in a column. */
   nodePadding: number
-  /** Order of the last column's nodes: as supplied (`input`) or largest value first (`amount`). Other columns keep input order. */
+  /**
+   * Order of the last column's nodes: as supplied (`input`) or largest value first
+   * within each group of nodes sharing a source (`amount`). Other columns keep input order.
+   */
   order?: 'input' | 'amount'
 }
 
@@ -58,8 +61,10 @@ export interface SankeyLayout {
  *   share top and bottom edges and only the gaps between nodes differ. A lone node
  *   top-aligns with the highest node it feeds (clamped within the height), or is
  *   centred when it feeds nothing.
- * - With `order: 'amount'`, the last column lists its nodes largest value first (ties
- *   keep input order); every other column keeps input order.
+ * - With `order: 'amount'`, the last column's nodes are grouped by the source of their
+ *   incoming link and each group lists its nodes largest value first (ties keep input
+ *   order). Groups keep their input order and stay contiguous; every other column
+ *   keeps input order.
  * - Ribbons stack from their node's top, so a ribbon always starts and ends on
  *   its node's bar.
  * - Ribbons within a node are ordered by the vertical position of their far end,
@@ -102,7 +107,15 @@ export function sankeyLayout(
   }
   const nodeValues = inflow.map((inValue, i) => Math.max(inValue, outflow[i]!))
   if (order === 'amount') {
-    members[last]!.sort((a, b) => nodeValues[b]! - nodeValues[a]!)
+    const group = (i: number) => links.find(({ target }) => target === i)?.source ?? i
+    const firstSeen = new Map<number, number>()
+    members[last]!.forEach((i, k) => {
+      if (!firstSeen.has(group(i))) firstSeen.set(group(i), k)
+    })
+    members[last]!.sort(
+      (a, b) =>
+        firstSeen.get(group(a))! - firstSeen.get(group(b))! || nodeValues[b]! - nodeValues[a]!,
+    )
   }
   const padding = (ids: number[]) =>
     ids.length > 1 ? Math.min(nodePadding, height / 2 / (ids.length - 1)) : 0

@@ -25,12 +25,14 @@ import {
   type InflowSource,
 } from '../lib/cashFlow'
 import { formatCents } from '../lib/money'
+import type { SankeyOrder } from '../lib/sankeyLayout'
 import { chartColors } from '../lib/tokens'
 import { ComparedAmount } from './ComparedAmount'
 import { DataTable } from './DataTable'
 import { EmptyState } from './EmptyState'
 import { MoneyText } from './MoneyText'
 import { PageSection } from './PageSection'
+import { SankeyOrderSelect } from './SankeyOrderSelect'
 
 // The donut's recharts graphic is loaded on demand so the charting library
 // stays out of the default `/summary` route's bundle; the fallback reserves the
@@ -290,8 +292,9 @@ function AllocationDonut({
  * A Sankey of how fortnightly income flows to the groups and the leftover buffer,
  * on the donut's take-home or gross basis. A negative buffer shows as a
  * Shortfall source. Where `lines` are supplied, a switch drills each group down to
- * its budget lines, and, once drilled, a control orders those lines by amount. The chart is decorative for assistive tech; a hidden list
- * states every flow instead.
+ * its budget lines, and, once drilled, a dropdown orders those lines by default order, largest first or
+ * smallest first. The chart is decorative for assistive tech; a hidden list states
+ * every flow instead.
  */
 function CashFlowSankey({
   summary,
@@ -300,7 +303,7 @@ function CashFlowSankey({
   sources,
 }: Required<Pick<SummaryViewProps, 'summary' | 'lines' | 'sources'>> & { mode: IncomeBasis }) {
   const [drilled, setDrilled] = useState(false)
-  const [order, setOrder] = useState<'input' | 'amount'>('input')
+  const [order, setOrder] = useState<SankeyOrder>('input')
   const graph = cashFlowGraph(summary, mode, drilled ? lines : [], sources)
   if (graph.links.length === 0) {
     return null
@@ -323,18 +326,7 @@ function CashFlowSankey({
             onChange={(event) => setDrilled(event.currentTarget.checked)}
           />
         )}
-        {drilled && (
-          <SegmentedControl
-            size="xs"
-            aria-label="Order budget lines by"
-            value={order}
-            onChange={(value) => setOrder(value as 'input' | 'amount')}
-            data={[
-              { value: 'input', label: 'Default order' },
-              { value: 'amount', label: 'By amount' },
-            ]}
-          />
-        )}
+        {drilled && <SankeyOrderSelect value={order} onChange={setOrder} />}
         <div aria-hidden="true">
           <Suspense fallback={<Skeleton height={SANKEY_MIN_HEIGHT} animate={false} />}>
             <CashFlowSankeyChart graph={graph} order={drilled ? order : 'input'} />

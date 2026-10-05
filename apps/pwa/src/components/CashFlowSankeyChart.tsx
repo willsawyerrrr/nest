@@ -1,12 +1,12 @@
 import { useElementSize } from '@mantine/hooks'
 import type { CashFlowGraph } from '../lib/cashFlow'
 import { formatCents } from '../lib/money'
-import { ribbonPath, sankeyLayout } from '../lib/sankeyLayout'
+import { ribbonPath, sankeyLayout, type SankeyOrder } from '../lib/sankeyLayout'
 
 interface CashFlowSankeyChartProps {
   graph: CashFlowGraph
   /** Node order within each column. */
-  order?: 'input' | 'amount'
+  order?: SankeyOrder
 }
 
 const NODE_WIDTH = 8

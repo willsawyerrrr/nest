@@ -268,30 +268,30 @@ describe('ribbonPath', () => {
 })
 
 describe('sankeyLayout order', () => {
-  it('keeps every column but the last in input order with order amount', () => {
+  it('keeps every column but the last in input order with order largest', () => {
     const chain: SankeyLinkInput[] = [
       { source: 0, target: 2, value: 100 },
       { source: 1, target: 2, value: 900 },
       { source: 2, target: 3, value: 200 },
       { source: 2, target: 4, value: 800 },
     ]
-    const { nodes } = sankeyLayout(5, chain, { ...options, order: 'amount' })
+    const { nodes } = sankeyLayout(5, chain, { ...options, order: 'largest' })
     expect(nodes[0]!.y).toBeLessThan(nodes[1]!.y)
     expect(nodes[4]!.y).toBeLessThan(nodes[3]!.y)
   })
 
-  it('lists the last column largest value first with order amount', () => {
+  it('lists the last column largest value first with order largest', () => {
     const flipped: SankeyLinkInput[] = [
       { source: 0, target: 1, value: 100 },
       { source: 0, target: 2, value: 900 },
     ]
-    const byAmount = sankeyLayout(3, flipped, { ...options, order: 'amount' })
+    const byAmount = sankeyLayout(3, flipped, { ...options, order: 'largest' })
     expect(byAmount.nodes[2]!.y).toBeLessThan(byAmount.nodes[1]!.y)
     const byInput = sankeyLayout(3, flipped, options)
     expect(byInput.nodes[1]!.y).toBeLessThan(byInput.nodes[2]!.y)
   })
 
-  it('sorts last-column nodes only within their source group with order amount', () => {
+  it('sorts last-column nodes only within their source group with order largest', () => {
     const grouped: SankeyLinkInput[] = [
       { source: 0, target: 1, value: 1000 },
       { source: 0, target: 2, value: 1000 },
@@ -301,9 +301,24 @@ describe('sankeyLayout order', () => {
       { source: 2, target: 6, value: 900 },
       { source: 2, target: 7, value: 100 },
     ]
-    const { nodes } = sankeyLayout(8, grouped, { ...options, order: 'amount' })
+    const { nodes } = sankeyLayout(8, grouped, { ...options, order: 'largest' })
     const top = (ids: number[]) => ids.sort((a, b) => nodes[a]!.y - nodes[b]!.y)
     expect(top([3, 4, 5, 6, 7])).toEqual([4, 5, 3, 6, 7])
+  })
+
+  it('lists the last column smallest value first within each source group with order smallest', () => {
+    const grouped: SankeyLinkInput[] = [
+      { source: 0, target: 1, value: 1000 },
+      { source: 0, target: 2, value: 1000 },
+      { source: 1, target: 3, value: 100 },
+      { source: 1, target: 4, value: 300 },
+      { source: 1, target: 5, value: 300 },
+      { source: 2, target: 6, value: 900 },
+      { source: 2, target: 7, value: 100 },
+    ]
+    const { nodes } = sankeyLayout(8, grouped, { ...options, order: 'smallest' })
+    const top = (ids: number[]) => ids.sort((a, b) => nodes[a]!.y - nodes[b]!.y)
+    expect(top([3, 4, 5, 6, 7])).toEqual([3, 4, 5, 7, 6])
   })
 
   it('keeps a last-column node without an incoming link as its own group', () => {
@@ -312,7 +327,7 @@ describe('sankeyLayout order', () => {
       { source: 0, target: 2, value: 900 },
       { source: 3, target: 4, value: 10 },
     ]
-    const { nodes } = sankeyLayout(6, lone, { ...options, order: 'amount' })
+    const { nodes } = sankeyLayout(6, lone, { ...options, order: 'largest' })
     expect(nodes[2]!.y).toBeLessThan(nodes[1]!.y)
     expect(nodes[1]!.y).toBeLessThan(nodes[4]!.y)
     expect(nodes[4]!.y).toBeLessThan(nodes[5]!.y)

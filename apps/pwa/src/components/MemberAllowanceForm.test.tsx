@@ -5,17 +5,20 @@ import { render, screen, waitFor } from '../test/render'
 import { MemberAllowanceForm } from './MemberAllowanceForm'
 
 describe('MemberAllowanceForm', () => {
-  it('submits a new allowance with dollars converted to cents', async () => {
+  it('submits an edited allowance with dollars converted to cents', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<MemberAllowanceForm memberId="m1" memberName="Ada" onSubmit={onSubmit} />)
+    render(
+      <MemberAllowanceForm memberName="Ada" initial={makeMemberAllowance()} onSubmit={onSubmit} />,
+    )
 
-    await user.type(screen.getByLabelText(/ada’s allowance/i), '150.50')
-    await user.click(screen.getByRole('button', { name: /set allowance/i }))
+    const amount = screen.getByLabelText(/ada’s allowance/i)
+    await user.clear(amount)
+    await user.type(amount, '150.50')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
-        member_id: 'm1',
         amount_cents: 150_50,
         frequency: 'fortnightly',
         interval_count: null,
@@ -28,12 +31,7 @@ describe('MemberAllowanceForm', () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(
-      <MemberAllowanceForm
-        memberId="m1"
-        memberName="Ada"
-        initial={makeMemberAllowance()}
-        onSubmit={onSubmit}
-      />,
+      <MemberAllowanceForm memberName="Ada" initial={makeMemberAllowance()} onSubmit={onSubmit} />,
     )
 
     await user.click(screen.getByRole('combobox', { name: /frequency/i }))
@@ -47,13 +45,22 @@ describe('MemberAllowanceForm', () => {
     )
   })
 
-  it('needs a positive amount', async () => {
+  it('allows an amount of zero but needs an amount', async () => {
     const user = userEvent.setup()
-    render(<MemberAllowanceForm memberId="m1" memberName="Ada" onSubmit={vi.fn()} />)
+    const onSubmit = vi.fn()
+    render(
+      <MemberAllowanceForm memberName="Ada" initial={makeMemberAllowance()} onSubmit={onSubmit} />,
+    )
 
-    expect(screen.getByRole('button', { name: /set allowance/i })).toBeDisabled()
-    await user.type(screen.getByLabelText(/ada’s allowance/i), '0')
-    expect(screen.getByRole('button', { name: /set allowance/i })).toBeDisabled()
+    const amount = screen.getByLabelText(/ada’s allowance/i)
+    await user.clear(amount)
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
+    await user.type(amount, '0')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount_cents: 0 })),
+    )
   })
 
   it('asks for the interval on an every-N-weeks cadence', async () => {
@@ -61,7 +68,6 @@ describe('MemberAllowanceForm', () => {
     const onSubmit = vi.fn()
     render(
       <MemberAllowanceForm
-        memberId="m1"
         memberName="Ada"
         initial={makeMemberAllowance({ frequency: 'every_n_weeks', interval_count: 3 })}
         onSubmit={onSubmit}
@@ -87,7 +93,6 @@ describe('MemberAllowanceForm', () => {
     const onSubmit = vi.fn()
     render(
       <MemberAllowanceForm
-        memberId="m1"
         memberName="Ada"
         initial={makeMemberAllowance()}
         accounts={[{ id: 'a1', name: 'Everyday' }]}
@@ -110,7 +115,6 @@ describe('MemberAllowanceForm', () => {
     const user = userEvent.setup()
     render(
       <MemberAllowanceForm
-        memberId="m1"
         memberName="Ada"
         initial={makeMemberAllowance()}
         onSubmit={vi.fn().mockRejectedValue(new Error('nope'))}

@@ -145,21 +145,19 @@ describe('BudgetSection', () => {
     expect(hooks.screenProps?.onUpdateDerivedLine).toBeUndefined()
   })
 
-  it('hands the screen the members and their allowances with the allowance writes', () => {
+  it('hands the screen the members and their allowances with the allowance edit', () => {
     loadedHooks()
-    const create = vi.fn()
+    const update = vi.fn()
     hooks.useMembers.mockReturnValue({ loading: false, members: [{ id: 'm1', name: 'Ada' }] })
     hooks.useMemberAllowances.mockReturnValue({
       loading: false,
       allowances: [{ id: 'al1', member_id: 'm1' }],
-      create,
-      update: vi.fn(),
-      remove: vi.fn(),
+      update,
     })
     render(<BudgetSection />)
 
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Ada' }])
     expect(hooks.screenProps?.allowances).toEqual([{ id: 'al1', member_id: 'm1' }])
-    expect(hooks.screenProps?.onCreateAllowance).toBe(create)
+    expect(hooks.screenProps?.onUpdateAllowance).toBe(update)
   })
 })

@@ -22,9 +22,7 @@ interface BudgetScreenProps {
   /** The household's members, each of whom can have a spending allowance. */
   members: { id: string; name: string }[]
   allowances: MemberAllowance[]
-  onCreateAllowance: (input: MemberAllowanceInput) => Promise<void>
   onUpdateAllowance: (id: string, input: MemberAllowanceInput) => Promise<void>
-  onDeleteAllowance: (id: string) => Promise<void>
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
   /**
@@ -52,9 +50,7 @@ export function BudgetScreen({
   temporaryItems,
   members,
   allowances,
-  onCreateAllowance,
   onUpdateAllowance,
-  onDeleteAllowance,
   onCreateLine,
   onUpdateLine,
   onUpdateDerivedLine,
@@ -99,9 +95,7 @@ export function BudgetScreen({
         allowances={allowances}
         lines={lines}
         accounts={accounts}
-        onCreate={onCreateAllowance}
         onUpdate={onUpdateAllowance}
-        onDelete={(id) => void onDeleteAllowance(id)}
       />
       <BudgetLineList
         lines={lines}

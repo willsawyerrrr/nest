@@ -102,12 +102,18 @@ the unit read from the frequency.
 
 ### Member spending allowances
 
-A household member may have an optional **spending allowance**: a discretionary
+Every household member has exactly one **spending allowance**: a discretionary
 envelope for that person, an amount on a frequency (the same cadence model as a
 budget line, including `interval_count`) and an optional funding account. Money
 stays pooled — the allowance is a planning envelope inside the Discretionary
-group, not an account or a permission, and any member sets any allowance. A
-household without allowances is unchanged.
+group, not an account or a permission, and any member sets any allowance.
+
+An allowance is permanent. It is created with its member, at zero until set, and
+goes only when the member does. It can never be deleted: the Budget tab offers
+only an edit, and the database refuses a delete, an insert, or a change to the
+member it belongs to. Its amount, cadence, and funding account can be changed;
+those are the only editable fields. Anything drawn from a zero allowance reads as
+overdrawn.
 
 A manual **Discretionary** item can be **drawn from** a member's allowance (the
 item form's "Draw from allowance"). A drawn item is one person's expense paid out
@@ -127,7 +133,8 @@ of the allowance, so it counts against the allowance rather than on top of it:
   lists the allowance, not its items.
 - Only a manual Discretionary item can be drawn; a derived (breakdown or gift)
   item cannot, and moving a drawn item out of Discretionary releases it. Removing
-  an allowance releases its items back to ordinary Discretionary items.
+  a member releases the items drawn from their allowance back to ordinary
+  Discretionary items.
 - The cash-flow Sankey's drill-down shows the allowance in place of its drawn
   items.
 
@@ -409,8 +416,9 @@ income tables.
     subscription's management page, shown as an icon link on the line's row).
   - Temporary is a Summary group derived from the `temporary_item` table, not a
     `budget_group` value: a budget line is never authored as temporary.
-- **MemberAllowance** — a member's optional discretionary allowance.
-  - `id`, `household_id`, `member_id` (unique), `amount_cents` (> 0), `frequency`,
+- **MemberAllowance** — a member's permanent discretionary allowance, one per
+  member and never deleted.
+  - `id`, `household_id`, `member_id` (unique), `amount_cents` (>= 0), `frequency`,
     `interval_count`, `destination_account_id` (nullable).
   - Budget lines drawn from it reference it by `allowance_member_id`.
 - **SavingsGoal** — a persistent target.

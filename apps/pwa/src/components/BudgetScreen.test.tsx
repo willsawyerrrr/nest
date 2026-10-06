@@ -14,9 +14,7 @@ function renderScreen(overrides: Partial<Parameters<typeof BudgetScreen>[0]> = {
     temporaryItems: [makeTemporaryItem({ id: 't1', name: 'Holiday' })],
     members: [],
     allowances: [],
-    onCreateAllowance: vi.fn(),
     onUpdateAllowance: vi.fn(),
-    onDeleteAllowance: vi.fn(),
     onCreateLine: vi.fn(),
     onUpdateLine: vi.fn(),
     onUpdateDerivedLine: vi.fn(),
@@ -118,18 +116,27 @@ describe('BudgetScreen', () => {
     expect(await screen.findByRole('option', { name: 'Ada’s allowance' })).toBeInTheDocument()
   })
 
-  it('routes allowance changes through the allowance callbacks', async () => {
+  it('routes an allowance edit through onUpdateAllowance', async () => {
     const user = userEvent.setup()
-    const onCreateAllowance = vi.fn().mockResolvedValue(undefined)
-    renderScreen({ members: [{ id: 'm1', name: 'Ada' }], onCreateAllowance })
+    const onUpdateAllowance = vi.fn().mockResolvedValue(undefined)
+    renderScreen({
+      members: [{ id: 'm1', name: 'Ada' }],
+      allowances: [makeMemberAllowance()],
+      onUpdateAllowance,
+    })
 
-    await user.click(screen.getByRole('button', { name: 'Set Ada’s allowance' }))
-    await user.type(screen.getByLabelText(/ada’s allowance/i), '100')
-    await user.click(screen.getByRole('button', { name: 'Set allowance' }))
+    const card = screen.getByText('Ada’s allowance').closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).queryByRole('button', { name: 'Delete' })).toBeNull()
+    await user.click(within(card).getByRole('button', { name: 'Edit' }))
+    const amount = screen.getByLabelText(/ada’s allowance/i)
+    await user.clear(amount)
+    await user.type(amount, '100')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() =>
-      expect(onCreateAllowance).toHaveBeenCalledWith(
-        expect.objectContaining({ member_id: 'm1', amount_cents: 100_00 }),
+      expect(onUpdateAllowance).toHaveBeenCalledWith(
+        'al1',
+        expect.objectContaining({ amount_cents: 100_00 }),
       ),
     )
   })
@@ -145,23 +152,5 @@ describe('BudgetScreen', () => {
     const form = screen.getByText(/new budget item from your wishlist item/i).closest('div')!
     await user.click(within(form).getByRole('combobox', { name: /draw from allowance/i }))
     expect(await screen.findByRole('option', { name: 'Ada’s allowance' })).toBeInTheDocument()
-  })
-
-  it('routes an allowance removal through onDeleteAllowance', async () => {
-    const user = userEvent.setup()
-    const onDeleteAllowance = vi.fn().mockResolvedValue(undefined)
-    renderScreen({
-      members: [{ id: 'm1', name: 'Ada' }],
-      allowances: [makeMemberAllowance()],
-      onDeleteAllowance,
-    })
-
-    const card = screen.getByText('Ada’s allowance').closest('.mantine-Card-root') as HTMLElement
-    await user.click(within(card).getByRole('button', { name: 'Delete' }))
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: /remove|delete/i }),
-    )
-
-    await waitFor(() => expect(onDeleteAllowance).toHaveBeenCalledWith('al1'))
   })
 })

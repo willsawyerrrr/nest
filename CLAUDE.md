@@ -760,15 +760,20 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   outside the occasion/person grouping, with its own editable budgeted amount
   and purchase list, each purchase's optional recipient picker sourced from the
   household's existing recipients (members and external) rather than free text.
-  A household member may have an optional **spending allowance**
-  (`member_allowance`, one row per member: an amount on a frequency including
-  `interval_count`, and an optional `destination_account_id`) — a discretionary
-  envelope for that person. Money stays pooled: the allowance is a budgeting
+  Every household member has one permanent **spending allowance**
+  (`member_allowance`, exactly one row per member: an amount on a frequency
+  including `interval_count`, and an optional `destination_account_id`) — a
+  discretionary envelope for that person, zero until set. It is created with the
+  member (an `after insert` trigger on `members`; a migration backfills existing
+  members) and removed only with them: `authenticated` cannot insert or delete
+  and may update only the amount, cadence, and funding account, a `before delete`
+  trigger refuses a delete while the member exists, and the member and household
+  are immutable. The Budget tab offers edit only. Money stays pooled: the allowance is a budgeting
   envelope in the Discretionary group, not an account, a permission, or a privacy
   boundary, and any member manages any allowance. A manual Discretionary line may
   be **drawn from** a member's allowance (`budget_line.allowance_member_id`, a
   composite FK to `member_allowance (member_id, household_id)`, `on delete set
-  null` so removing the allowance releases its lines to ordinary Discretionary
+  null` so removing a member releases their allowance's lines to ordinary Discretionary
   items; `budget_line_allowance_drawn` bars any other group, a derived line, and a
   line with a destination of its own). A drawn line is one person's expense paid
   out of the allowance, so `@nest/plan`'s `summarise` counts it AGAINST the

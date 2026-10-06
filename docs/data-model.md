@@ -634,7 +634,7 @@ config alongside the tax parameters, not a table.
 
 Budgeting is plan-only and fortnightly. There is no period-versioned budget and
 no per-member scoping of the pooled budget; each line stands alone under the
-household, apart from the optional per-member `member_allowance` envelope
+household, apart from the permanent per-member `member_allowance` envelope
 Discretionary lines may be drawn from.
 
 - **budget_line** — a planned recurring allocation within one fixed group.
@@ -676,17 +676,17 @@ Discretionary lines may be drawn from.
   - `allowance_member_id` draws the line from a member's spending allowance — see
     [`member_allowance`](#planning--goals). Nullable composite FK
     `(allowance_member_id, household_id)` → `member_allowance (member_id,
-    household_id)`, `on delete set null`, so removing an allowance releases its
+    household_id)`, `on delete set null`, so removing a member releases their allowance's
     lines to ordinary Discretionary items. A CHECK (`budget_line_allowance_drawn`)
     allows it only on a `discretionary` line with no `destination_account_id`,
     no `breakdown_id`, and `is_gift_line` false. `commit_planning_changes` carries
     it on budget-line creates and updates.
-- **member_allowance** — a member's optional discretionary spending allowance.
-  - `id`, `household_id`, `member_id`, `amount_cents` (`> 0`), `frequency` (the
+- **member_allowance** — a member's permanent discretionary spending allowance.
+  - `id`, `household_id`, `member_id`, `amount_cents` (`>= 0`; zero until set), `frequency` (the
     shared enum), `interval_count` (the same non-null-iff-every-N rule as
     `budget_line_interval_count`), `destination_account_id` (nullable),
     `created_at`, `updated_at`.
-  - Unique on `(member_id, household_id)` — one allowance per member, and the
+  - Unique on `(member_id, household_id)` — exactly one allowance per member, and the
     target of `budget_line.allowance_member_id`. Composite FK
     `(member_id, household_id)` → `members` `on delete cascade`; nullable
     composite FK `(destination_account_id, household_id)` → `accounts`,
@@ -695,6 +695,15 @@ Discretionary lines may be drawn from.
     a privacy boundary: household-wide RLS (`household_ids_for_current_user()`),
     so any member manages any allowance. `service_role` holds `select` for the
     household-buffer loader.
+  - Permanent (`20261005000000_permanent_member_allowances.sql`): an `after insert`
+    trigger on `members` creates the zero allowance, and the migration backfills
+    one for every existing member. `authenticated` holds `select` and `update`
+    on `amount_cents`, `frequency`, `interval_count`, and
+    `destination_account_id` only, with `select` and `update` policies and no
+    insert or delete grant. A `before delete` trigger refuses deleting an allowance
+    while its member and household exist (the foreign-key cascades still remove it
+    with them), and a `before update` trigger refuses changing `member_id` or
+    `household_id`, so the guards hold for every role.
   - `@nest/plan`'s `summarise` counts the allowance once as Discretionary with the
     lines drawn from it inside it, and pay splits route it as one line — see
     [budget-and-savings.md](budget-and-savings.md#member-spending-allowances).

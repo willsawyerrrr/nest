@@ -10,44 +10,40 @@ import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
 
 interface MemberAllowanceFormProps {
-  /** The member the allowance is for. */
-  memberId: string
   /** The member's name, naming the form. */
   memberName: string
-  /** The member's existing allowance, when editing. */
-  initial?: MemberAllowance | undefined
+  /** The member's allowance being edited. */
+  initial: MemberAllowance
   /** The household's accounts, offered as the allowance's funding account. */
   accounts?: { id: string; name: string }[]
   onSubmit: (input: MemberAllowanceInput) => void | Promise<void>
   onCancel?: () => void
 }
 
-/** Presentational set/edit form for one member's spending allowance. Persistence lives in the caller. */
+/** Presentational edit form for one member's spending allowance. Persistence lives in the caller. */
 export function MemberAllowanceForm({
-  memberId,
   memberName,
   initial,
   accounts = [],
   onSubmit,
   onCancel,
 }: MemberAllowanceFormProps) {
-  const [amount, setAmount] = useState<number | string>(centsToDollars(initial?.amount_cents))
-  const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'fortnightly')
-  const [interval, setInterval] = useState<number | string>(initial?.interval_count ?? '')
-  const [accountId, setAccountId] = useState<string | null>(initial?.destination_account_id ?? null)
+  const [amount, setAmount] = useState<number | string>(centsToDollars(initial.amount_cents))
+  const [frequency, setFrequency] = useState<Frequency>(initial.frequency)
+  const [interval, setInterval] = useState<number | string>(initial.interval_count ?? '')
+  const [accountId, setAccountId] = useState<string | null>(initial.destination_account_id)
   const isEveryN = frequency === 'every_n_weeks' || frequency === 'every_n_months'
   const intervalUnit = frequency === 'every_n_months' ? 'months' : 'weeks'
   const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
   const cents = dollarsToCents(amount)
 
-  const canSubmit = cents !== null && cents > 0 && (!isEveryN || (interval !== '' && intervalValid))
+  const canSubmit = cents !== null && (!isEveryN || (interval !== '' && intervalValid))
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
     errorMessage: 'Could not save this allowance. Please try again.',
     onSubmit,
     buildInput: (): MemberAllowanceInput => ({
-      member_id: memberId,
       amount_cents: cents ?? 0,
       frequency,
       interval_count: isEveryN ? Number(interval) : null,
@@ -61,7 +57,7 @@ export function MemberAllowanceForm({
       error={error}
       submitting={submitting}
       canSubmit={canSubmit}
-      submitLabel={initial ? 'Save changes' : 'Set allowance'}
+      submitLabel="Save changes"
       onCancel={onCancel}
     >
       <MoneyInput

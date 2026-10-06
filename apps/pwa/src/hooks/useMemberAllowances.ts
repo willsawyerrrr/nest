@@ -4,9 +4,8 @@ import { useHouseholdCollection } from './useCollection'
 
 export type MemberAllowance = Tables<'member_allowance'>
 
-/** The allowance fields a form supplies; identifiers and household are set by the hook. */
+/** The editable allowance fields; the member and household an allowance belongs to are fixed. */
 export interface MemberAllowanceInput {
-  member_id: string
   amount_cents: number
   frequency: Frequency
   /** Interval count for the `every_n_weeks`/`every_n_months` frequency; null for every fixed frequency. */
@@ -19,20 +18,18 @@ export interface UseMemberAllowancesResult {
   allowances: MemberAllowance[] | null
   loading: boolean
   reload: () => Promise<void>
-  create: (input: MemberAllowanceInput) => Promise<void>
   update: (id: string, input: MemberAllowanceInput) => Promise<void>
-  remove: (id: string) => Promise<void>
 }
 
 /**
- * Loads and mutates the household's member spending allowances. RLS scopes reads
- * to the household. Removing an allowance releases the budget lines drawn from
- * it, so those are refetched too.
+ * Loads and edits the household's member spending allowances. RLS scopes reads
+ * to the household. Every member has exactly one allowance, created with the
+ * member and never deleted, so there is no create or remove.
  */
 export function useMemberAllowances(): UseMemberAllowancesResult {
-  const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
+  const { rows, loading, reload, update } = useHouseholdCollection<
     'member_allowance',
     MemberAllowanceInput
-  >({ table: 'member_allowance', orderBy: 'created_at', alsoInvalidate: ['budget_line'] })
-  return { allowances: rows, loading, reload, create, update, remove }
+  >({ table: 'member_allowance', orderBy: 'created_at' })
+  return { allowances: rows, loading, reload, update }
 }

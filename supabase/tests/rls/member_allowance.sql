@@ -1,8 +1,9 @@
 -- Assertions for the per-member spending allowance and budget lines drawn from it.
 --
--- `member_allowance` carries the household-wide policy of the other planning
--- tables and is held to one row per member, a positive amount, and the budget
--- line cadence rule. `budget_line.allowance_member_id` draws a manual
+-- `member_allowance` is permanent: created with its member, never deleted, and
+-- editable only in amount, cadence, and funding account. It carries the
+-- household-wide read/edit policy of the other planning tables and is held to one
+-- row per member, a non-negative amount, and the budget line cadence rule. `budget_line.allowance_member_id` draws a manual
 -- Discretionary line from a member's allowance through a composite foreign key;
 -- deleting the allowance releases its lines, and `commit_planning_changes` carries
 -- the column.
@@ -27,16 +28,31 @@ select set_config('allow.hid', :'hid', false);
 select id as mid from public.members where household_id = current_setting('allow.hid')::uuid \gset
 select set_config('allow.mid', :'mid', false);
 
-insert into public.member_allowance (household_id, member_id, amount_cents, frequency)
-  values (current_setting('allow.hid')::uuid, current_setting('allow.mid')::uuid, 200_00, 'fortnightly');
-
+-- A member's allowance is created with the member, at zero.
 do $$ begin
   assert (select count(*) from public.member_allowance) = 1, 'Alice should see her allowance';
+  assert (select amount_cents from public.member_allowance) = 0, 'a new allowance starts at zero';
+end $$;
+
+-- It cannot be created by hand, even for the member who has none.
+do $$ begin
+  insert into public.member_allowance (household_id, member_id, amount_cents, frequency)
+    values (current_setting('allow.hid')::uuid, current_setting('allow.mid')::uuid, 50_00, 'weekly');
+  raise exception 'FAIL: an authenticated user inserted an allowance';
+exception when insufficient_privilege then
+  raise notice 'PASS: an allowance cannot be inserted by hand';
+end $$;
+
+-- Amount, cadence, and funding account are editable.
+update public.member_allowance set amount_cents = 200_00, frequency = 'fortnightly';
+
+do $$ begin
   assert (select interval_count from public.member_allowance) is null,
     'a fixed frequency carries no interval count';
 end $$;
 
--- One allowance per member.
+-- One allowance per member, even against the owner role.
+reset role;
 do $$ begin
   insert into public.member_allowance (household_id, member_id, amount_cents, frequency)
     values (current_setting('allow.hid')::uuid, current_setting('allow.mid')::uuid, 50_00, 'weekly');
@@ -44,14 +60,57 @@ do $$ begin
 exception when unique_violation then
   raise notice 'PASS: one allowance per member';
 end $$;
+set local role authenticated;
 
--- The amount must be positive.
+-- The amount cannot be negative, but zero is an unset allowance.
 do $$ begin
-  update public.member_allowance set amount_cents = 0;
-  raise exception 'FAIL: a non-positive allowance was accepted';
+  update public.member_allowance set amount_cents = -1;
+  raise exception 'FAIL: a negative allowance was accepted';
 exception when check_violation then
-  raise notice 'PASS: an allowance amount must be positive';
+  raise notice 'PASS: an allowance amount cannot be negative';
 end $$;
+update public.member_allowance set amount_cents = 0;
+update public.member_allowance set amount_cents = 200_00;
+
+-- Its member and household are fixed.
+do $$ begin
+  update public.member_allowance set member_id = gen_random_uuid();
+  raise exception 'FAIL: an allowance was reassigned to another member';
+exception when insufficient_privilege then
+  raise notice 'PASS: an allowance''s member cannot be updated';
+end $$;
+do $$ begin
+  update public.member_allowance set household_id = gen_random_uuid();
+  raise exception 'FAIL: an allowance was moved to another household';
+exception when insufficient_privilege then
+  raise notice 'PASS: an allowance''s household cannot be updated';
+end $$;
+reset role;
+do $$ begin
+  update public.member_allowance set member_id = gen_random_uuid();
+  raise exception 'FAIL: the owner reassigned an allowance';
+exception when check_violation then
+  raise notice 'PASS: even the owner cannot reassign an allowance';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"32000000-0000-0000-0000-000000000001","email":"allow-alice@example.com"}', true);
+
+-- It cannot be deleted, by a member or by the owner role.
+do $$ begin
+  delete from public.member_allowance;
+  raise exception 'FAIL: a member deleted an allowance';
+exception when insufficient_privilege then
+  raise notice 'PASS: a member cannot delete an allowance';
+end $$;
+reset role;
+do $$ begin
+  delete from public.member_allowance;
+  raise exception 'FAIL: the owner deleted an allowance';
+exception when check_violation then
+  raise notice 'PASS: even the owner cannot delete an allowance';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"32000000-0000-0000-0000-000000000001","email":"allow-alice@example.com"}', true);
 
 -- The interval count follows the frequency, as on a budget line.
 do $$ begin
@@ -164,25 +223,22 @@ select id as bmid from public.members where household_id = current_setting('allo
 select set_config('allow.bmid', :'bmid', false);
 
 do $$ begin
-  assert (select count(*) from public.member_allowance) = 0, 'Bob must not see Alice''s allowance';
+  assert (select count(*) from public.member_allowance) = 1
+    and (select household_id from public.member_allowance) = current_setting('allow.hid2')::uuid,
+    'Bob must see only his own household''s allowance';
 end $$;
 
+-- Bob's edit of Alice's allowance matches nothing.
+update public.member_allowance set amount_cents = 1_00 where member_id = current_setting('allow.mid')::uuid;
+reset role;
 do $$ begin
-  insert into public.member_allowance (household_id, member_id, amount_cents, frequency)
-    values (current_setting('allow.hid')::uuid, current_setting('allow.bmid')::uuid, 1_00, 'weekly');
-  raise exception 'FAIL: Bob inserted an allowance into Alice''s household';
-exception when insufficient_privilege then
-  raise notice 'PASS: Bob blocked from inserting into Alice''s household';
+  assert (select amount_cents from public.member_allowance where member_id = current_setting('allow.mid')::uuid) = 200_00,
+    'Bob must not edit Alice''s allowance';
+  assert (select count(*) from public.member_allowance where household_id = current_setting('allow.hid2')::uuid) = 1,
+    'Bob''s own member has an allowance';
 end $$;
-
--- A household cannot reference another household's member.
-do $$ begin
-  insert into public.member_allowance (household_id, member_id, amount_cents, frequency)
-    values (current_setting('allow.hid2')::uuid, current_setting('allow.mid')::uuid, 1_00, 'weekly');
-  raise exception 'FAIL: Bob set an allowance for Alice''s member';
-exception when foreign_key_violation then
-  raise notice 'PASS: an allowance cannot reference another household''s member';
-end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"32000000-0000-0000-0000-000000000002","email":"allow-bob@example.com"}', true);
 
 -- ── Carol joins Alice's household and manages the shared allowance ───────────
 
@@ -194,23 +250,45 @@ select set_config('request.jwt.claims', '{"sub":"32000000-0000-0000-0000-0000000
 select public.join_household(current_setting('allow.code'), 'Carol');
 
 do $$ begin
-  assert (select count(*) from public.member_allowance) = 1,
+  assert exists (select 1 from public.member_allowance where member_id = current_setting('allow.mid')::uuid),
     'Carol should see Alice''s allowance — it is a shared envelope, not a privacy boundary';
 end $$;
-update public.member_allowance set amount_cents = 250_00;
+update public.member_allowance set amount_cents = 250_00 where member_id = current_setting('allow.mid')::uuid;
 do $$ begin
-  assert (select amount_cents from public.member_allowance) = 250_00,
+  assert (select amount_cents from public.member_allowance where member_id = current_setting('allow.mid')::uuid) = 250_00,
     'any household member may edit an allowance';
 end $$;
 
--- Deleting the allowance releases its lines to ordinary Discretionary items.
-delete from public.member_allowance;
+-- Joining creates the joiner's allowance, so every member has exactly one.
 do $$ begin
-  assert (select allowance_member_id from public.budget_line where name = 'Gym') is null,
-    'deleting an allowance should release the lines drawn from it';
-  assert (select line_group from public.budget_line where name = 'Gym') = 'discretionary',
+  assert (select count(*) from public.member_allowance) = 2,
+    'a member who joins gets an allowance';
+end $$;
+
+-- Deleting the member removes their allowance and releases its lines.
+reset role;
+insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, allowance_member_id)
+  select household_id, 'discretionary', 'Carol coffee', 5_00, 'weekly', member_id
+  from public.member_allowance
+  where household_id = current_setting('allow.hid')::uuid and member_id <> current_setting('allow.mid')::uuid;
+delete from public.members where id <> current_setting('allow.mid')::uuid and household_id = current_setting('allow.hid')::uuid;
+do $$ begin
+  assert (select count(*) from public.member_allowance where household_id = current_setting('allow.hid')::uuid) = 1,
+    'deleting a member should remove their allowance';
+  assert (select allowance_member_id from public.budget_line where name = 'Carol coffee') is null,
+    'removing an allowance should release the lines drawn from it';
+  assert (select line_group from public.budget_line where name = 'Carol coffee') = 'discretionary',
     'a released line stays a Discretionary item';
 end $$;
+
+-- Deleting the household removes its allowances despite the delete guard.
+delete from public.households where id = current_setting('allow.hid2')::uuid;
+do $$ begin
+  assert (select count(*) from public.member_allowance where household_id = current_setting('allow.hid2')::uuid) = 0,
+    'deleting a household should remove its allowances';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"32000000-0000-0000-0000-000000000001","email":"allow-alice@example.com"}', true);
 
 -- ── service_role reads allowances for the household buffer, and cannot write ──
 

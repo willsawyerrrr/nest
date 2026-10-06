@@ -10,6 +10,7 @@ import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
 import { useMemberAllowances } from '../hooks/useMemberAllowances'
 import { useMembers } from '../hooks/useMembers'
+import { useNow } from '../hooks/useNow'
 import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -20,6 +21,7 @@ import { cashFlowLines, inflowSources } from '../lib/cashFlow'
 import { summariseHousehold } from '../lib/summary'
 
 export function SummarySection() {
+  const now = useNow()
   const { active: planning } = usePlanningMode()
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows()
@@ -94,11 +96,11 @@ export function SummarySection() {
     budgetLines.lines ?? [],
     temporaryItems.items ?? [],
     context,
-    new Date(),
+    now,
     toAssignableAllowances(memberAllowances.allowances ?? [], members),
   )
 
-  const sources = inflowSources(inflows.inflows ?? [], new Date())
+  const sources = inflowSources(inflows.inflows ?? [], now)
 
   return (
     <SummaryView

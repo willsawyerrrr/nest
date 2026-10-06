@@ -1,6 +1,6 @@
-import { financialYearForDate } from '@nest/tax'
 import type { Enums, Tables } from '../lib/database.types'
 import { useHouseholdUpsertCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 
 export type TaxProfile = Tables<'tax_profile'>
 export type TaxResidency = Enums<'tax_residency'>
@@ -34,9 +34,9 @@ export interface UseTaxProfilesResult {
  * Loads and upserts tax profiles for `financialYear` (defaulting to the current
  * financial year), keyed by member. RLS scopes reads to the household.
  */
-export function useTaxProfiles(
-  financialYear: number = financialYearForDate(new Date()),
-): UseTaxProfilesResult {
+export function useTaxProfiles(financialYearArg?: number): UseTaxProfilesResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'tax_profile',
     TaxProfileInput

@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { financialYearForDate } from '@nest/tax'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
@@ -11,6 +10,7 @@ import {
 } from '../lib/tradeExtraction'
 import { signedUrlOptions, storageKeyName, storedContentType } from '../lib/uploadFile'
 import { useHouseholdCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 import type { TradeInput } from './useTrades'
 
 export type TradeDocumentRow = Tables<'trade_document'>
@@ -63,9 +63,9 @@ export interface UseTradeDocumentsResult {
  * so the first path segment gates access to the owning household, exactly as
  * deduction receipts are.
  */
-export function useTradeDocuments(
-  financialYear: number = financialYearForDate(new Date()),
-): UseTradeDocumentsResult {
+export function useTradeDocuments(financialYearArg?: number): UseTradeDocumentsResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const householdId = useHouseholdId()
   const { rows, reload } = useHouseholdCollection<'trade_document', never>({
     table: 'trade_document',

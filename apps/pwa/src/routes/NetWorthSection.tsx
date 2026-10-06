@@ -11,6 +11,7 @@ import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
+import { useNow } from '../hooks/useNow'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
@@ -34,6 +35,7 @@ import { superAccountIds, type EquityHolding, type Liability } from '../lib/supe
 import { heldEquityHoldings } from '../lib/trades'
 
 export function NetWorthSection() {
+  const today = useNow()
   const { active: planning } = usePlanningMode()
   const accounts = useAccounts()
   const superProfiles = useSuperProfiles()
@@ -79,7 +81,6 @@ export function NetWorthSection() {
       balanceCents: debt.balance_cents,
     }))
 
-  const today = new Date()
   const planGrants = grantRows.map(equityGrantToPlan)
   const heldEquity = heldEquityHoldings(trades.trades ?? [], members)
   const heldEquityCents = heldEquity.reduce((total, holding) => total + holding.valueCents, 0)

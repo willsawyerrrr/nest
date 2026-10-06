@@ -20,6 +20,7 @@ import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
 import { useMemberAllowances } from '../hooks/useMemberAllowances'
 import { useMembers } from '../hooks/useMembers'
+import { useNow } from '../hooks/useNow'
 import { useSavers } from '../hooks/useSavers'
 import { useSuperContributions } from '../hooks/useSuperContributions'
 import { useSuperProfiles } from '../hooks/useSuperProfiles'
@@ -158,6 +159,7 @@ function overridesForTable(
 }
 
 export function PlanningSection() {
+  const today = useNow()
   const planning = usePlanningMode()
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -243,7 +245,6 @@ export function PlanningSection() {
   const helpDebtRows = helpDebts.helpDebts ?? []
   const deductionRows = deductions.deductions ?? []
   const grantRows = equityGrants.grants ?? []
-  const today = new Date()
 
   const saverRows = savers.savers ?? []
   const summaryFor = (inf: Inflow[], lines: BudgetLine[], gls: Goal[]) =>

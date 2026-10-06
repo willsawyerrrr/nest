@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
-import { financialYearForDate } from '@nest/tax'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
 import { useHouseholdCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 
 export type DeductionRow = Tables<'deduction'>
 
@@ -97,9 +97,9 @@ export interface UseDeductionsResult {
  * (defaulting to the current financial year), ordered by date. RLS scopes reads
  * to the household.
  */
-export function useDeductions(
-  financialYear: number = financialYearForDate(new Date()),
-): UseDeductionsResult {
+export function useDeductions(financialYearArg?: number): UseDeductionsResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const householdId = useHouseholdId()
   const { rows, loading, reload, update, remove } = useHouseholdCollection<
     'deduction',

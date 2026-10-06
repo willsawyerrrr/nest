@@ -1,7 +1,7 @@
-import { financialYearForDate } from '@nest/tax'
 import type { Enums, Tables } from '../lib/database.types'
 import type { Frequency } from '../lib/domain'
 import { useHouseholdCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 
 export type SuperContribution = Tables<'super_contribution'>
 export type SuperContributionKind = Enums<'super_contribution_kind'>
@@ -39,9 +39,9 @@ export interface UseSuperContributionsResult {
  * (defaulting to the current financial year). RLS scopes reads to the
  * household.
  */
-export function useSuperContributions(
-  financialYear: number = financialYearForDate(new Date()),
-): UseSuperContributionsResult {
+export function useSuperContributions(financialYearArg?: number): UseSuperContributionsResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'super_contribution',
     SuperContributionInput

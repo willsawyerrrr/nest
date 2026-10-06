@@ -1,6 +1,7 @@
 import { Badge, Group, Stack, Text } from '@mantine/core'
 import { isTemporaryActive } from '@nest/plan'
 import { useIsWide } from '../hooks/useIsWide'
+import { useNow } from '../hooks/useNow'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
 import { formatIsoDate } from '../lib/dates'
 import { AppCard } from './AppCard'
@@ -98,11 +99,13 @@ function TemporaryItemItem(props: TemporaryItemItemProps) {
 /** The household's temporary items with an add affordance and inline add/edit forms. */
 export function TemporaryItemList({
   items,
-  now = new Date(),
+  now: nowProp,
   onCreate,
   onUpdate,
   onDelete,
 }: TemporaryItemListProps) {
+  const currentNow = useNow()
+  const now = nowProp ?? currentNow
   const activeSubtotal = items.reduce(
     (total, item) =>
       isTemporaryActive({ contributionCents: 0, targetDate: item.target_date }, now)

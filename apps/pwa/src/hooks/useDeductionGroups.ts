@@ -1,6 +1,6 @@
-import { financialYearForDate } from '@nest/tax'
 import type { Tables } from '../lib/database.types'
 import { useHouseholdCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 
 export type DeductionGroupRow = Tables<'deduction_group'>
 
@@ -36,9 +36,9 @@ export interface UseDeductionGroupsResult {
  * under it; it holds no amount of its own, because each payment is a deduction
  * in its own right and the total is their sum.
  */
-export function useDeductionGroups(
-  financialYear: number = financialYearForDate(new Date()),
-): UseDeductionGroupsResult {
+export function useDeductionGroups(financialYearArg?: number): UseDeductionGroupsResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_group',
     DeductionGroupInput

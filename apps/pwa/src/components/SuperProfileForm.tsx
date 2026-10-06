@@ -3,6 +3,7 @@ import { Text, TextInput } from '@mantine/core'
 import { accruedBalanceCents } from '@nest/plan'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Member } from '../hooks/useMembers'
+import { useNow } from '../hooks/useNow'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { FormShell } from './FormShell'
 import { MoneyInput } from './MoneyInput'
@@ -41,10 +42,12 @@ export function SuperProfileForm({
   initialBalanceCents,
   balanceAsOf = null,
   netAnnualContributionCents = 0,
-  today = new Date(),
+  today: todayProp,
   onSubmit,
   onCancel,
 }: SuperProfileFormProps) {
+  const currentNow = useNow()
+  const today = todayProp ?? currentNow
   const baselineCents = initialBalanceCents ?? 0
   const effectiveCents = accruedBalanceCents(
     baselineCents,

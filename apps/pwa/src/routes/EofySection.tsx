@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Stack } from '@mantine/core'
-import { configsByYear, financialYearForDate } from '@nest/tax'
+import { configsByYear } from '@nest/tax'
 import { EofyScreen, type EofyPayslipDocument } from '../components/EofyScreen'
 import { EofyShareControl } from '../components/EofyShareControl'
 import { HouseholdYearSummary } from '../components/HouseholdYearSummary'
@@ -12,6 +12,7 @@ import { useGoals } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
 import { useMembers } from '../hooks/useMembers'
+import { useCurrentFinancialYear } from '../hooks/useNow'
 import { usePayslips } from '../hooks/usePayslips'
 import { useSavers } from '../hooks/useSavers'
 import { useShareGrant } from '../hooks/useShareGrant'
@@ -30,7 +31,8 @@ import {
 } from '../lib/tax'
 
 export function EofySection() {
-  const [financialYear, setFinancialYear] = useState(financialYearForDate(new Date()))
+  const currentFinancialYear = useCurrentFinancialYear()
+  const [financialYear, setFinancialYear] = useState(currentFinancialYear)
 
   const { members, loading: membersLoading } = useMembers()
   const inflows = useInflows()

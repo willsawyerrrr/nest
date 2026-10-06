@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeBudgetLine, makeMemberAllowance } from '../test/fixtures'
-import { render, screen, waitFor, within } from '../test/render'
+import { render, screen, waitFor } from '../test/render'
 import { MemberAllowanceList } from './MemberAllowanceList'
 
 const members = [
@@ -12,11 +12,9 @@ const members = [
 function renderList(overrides: Partial<Parameters<typeof MemberAllowanceList>[0]> = {}) {
   const props = {
     members,
-    allowances: [],
+    allowances: [makeMemberAllowance()],
     lines: [],
-    onCreate: vi.fn().mockResolvedValue(undefined),
     onUpdate: vi.fn().mockResolvedValue(undefined),
-    onDelete: vi.fn(),
     ...overrides,
   }
   render(<MemberAllowanceList {...props} />)
@@ -24,27 +22,53 @@ function renderList(overrides: Partial<Parameters<typeof MemberAllowanceList>[0]
 }
 
 describe('MemberAllowanceList', () => {
-  it('offers to set an allowance for each member without one', () => {
-    renderList()
-    expect(screen.getByRole('button', { name: 'Set Ada’s allowance' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Set Bob’s allowance' })).toBeInTheDocument()
+  it('lists each member’s allowance with no way to delete it', () => {
+    renderList({
+      allowances: [makeMemberAllowance(), makeMemberAllowance({ id: 'al2', member_id: 'm2' })],
+    })
+    expect(screen.getByText('Ada’s allowance')).toBeInTheDocument()
+    expect(screen.getByText('Bob’s allowance')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /set .*allowance/i })).toBeNull()
   })
 
-  it('creates an allowance from the inline form', async () => {
-    const user = userEvent.setup()
-    const { onCreate } = renderList()
+  it('shows nothing for a member whose allowance has not loaded', () => {
+    renderList({ allowances: [] })
+    expect(screen.queryByText(/allowance$/i)).toBeNull()
+  })
 
-    await user.click(screen.getByRole('button', { name: 'Set Ada’s allowance' }))
-    await user.type(screen.getByLabelText(/ada’s allowance/i), '200')
-    await user.click(screen.getByRole('button', { name: 'Set allowance' }))
-
-    await waitFor(() =>
-      expect(onCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ member_id: 'm1', amount_cents: 200_00 }),
-      ),
+  it('shows an unset allowance as an empty bar, and as full once anything is drawn', () => {
+    const { unmount } = render(
+      <MemberAllowanceList
+        members={members}
+        allowances={[makeMemberAllowance({ amount_cents: 0 })]}
+        lines={[]}
+        onUpdate={vi.fn()}
+      />,
     )
-    // The form closes once saved.
-    await waitFor(() => expect(screen.queryByLabelText(/ada’s allowance$/i)).toBeNull())
+    expect(screen.getByRole('progressbar', { name: 'Ada’s allowance drawn' })).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+    unmount()
+    render(
+      <MemberAllowanceList
+        members={members}
+        allowances={[makeMemberAllowance({ amount_cents: 0 })]}
+        lines={[
+          makeBudgetLine({
+            line_group: 'discretionary',
+            amount_cents: 10_00,
+            allowance_member_id: 'm1',
+          }),
+        ]}
+        onUpdate={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('progressbar', { name: 'Ada’s allowance drawn' })).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    )
   })
 
   it('shows what is drawn and what is left', () => {
@@ -65,7 +89,6 @@ describe('MemberAllowanceList', () => {
     expect(screen.getByText('Left')).toBeInTheDocument()
     expect(screen.getByText('$140.00')).toBeInTheDocument()
     expect(screen.queryByText('Overdrawn')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Set Bob’s allowance' })).toBeInTheDocument()
   })
 
   it('flags an overdrawn allowance and says by how much', () => {
@@ -98,29 +121,17 @@ describe('MemberAllowanceList', () => {
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith(
         'al1',
-        expect.objectContaining({ member_id: 'm1', amount_cents: 250_00 }),
+        expect.objectContaining({ amount_cents: 250_00 }),
       ),
     )
-  })
-
-  it('removes an allowance after confirming', async () => {
-    const user = userEvent.setup()
-    const { onDelete } = renderList({ allowances: [makeMemberAllowance()] })
-
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText(/ada’s allowance/i)).toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: /delete|remove/i }))
-
-    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('al1'))
   })
 
   it('cancels an open form', async () => {
     const user = userEvent.setup()
     renderList()
 
-    await user.click(screen.getByRole('button', { name: 'Set Ada’s allowance' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('button', { name: 'Set Ada’s allowance' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 })

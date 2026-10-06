@@ -93,9 +93,7 @@ export function BudgetSection() {
       temporaryItems={temporaryItems.items ?? []}
       members={members.members ?? []}
       allowances={memberAllowances.allowances ?? []}
-      onCreateAllowance={memberAllowances.create}
       onUpdateAllowance={memberAllowances.update}
-      onDeleteAllowance={memberAllowances.remove}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}
       onUpdateDerivedLine={planning ? undefined : handleUpdateDerivedLine}

@@ -260,4 +260,4 @@ as a pass rather than waiting forever on a check that never ran. See
 
 ## Deployment
 
-`.github/workflows/deploy-ios.yml` archives the `Nest` scheme and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. See [`operations.md`](operations.md#deployment).
+`.github/workflows/deploy-ios.yml` archives the `Nest` scheme unsigned, signs it at export with the team's cloud-managed distribution certificate, and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. See [`operations.md`](operations.md#deployment).

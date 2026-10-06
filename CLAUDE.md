@@ -18,8 +18,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can
   answer with the app closed, and it mirrors that session into the `WKWebView`
   (a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on
-  every `authStateChanges`, sign-out via a `nestAuth` message handler, signed document URLs opened in the
-  system browser via `nestOpen`) so the
+  every `authStateChanges`, sign-out via a `nestAuth` message handler) so the
   member signs in once. Every shell branch in the PWA is gated on the marker, so
   a browser or Safari-PWA user is byte-identical. A free personal Apple team
   covers build, install, Shortcuts, and Spotlight on both platforms; on iOS only

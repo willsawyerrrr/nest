@@ -173,7 +173,6 @@ describe('TradesScreen', () => {
     setWideViewport()
     const user = userEvent.setup()
     const onDelete = vi.fn().mockResolvedValue(undefined)
-    vi.spyOn(window, 'open').mockReturnValue(null)
     const signedUrl = vi.fn().mockResolvedValue(null)
     renderScreen({
       members: [will],
@@ -245,8 +244,7 @@ describe('TradesScreen', () => {
 
   it('links a trade read from a document to the stored file', async () => {
     const user = userEvent.setup()
-    const tab = { location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window
-    vi.spyOn(window, 'open').mockReturnValue(tab)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const signedUrl = vi.fn().mockResolvedValue('https://x/doc')
     renderScreen({
       members: [will],
@@ -258,14 +256,14 @@ describe('TradesScreen', () => {
     expect(screen.getAllByRole('button', { name: /^document$/i })).toHaveLength(1)
     await user.click(screen.getByRole('button', { name: /^document$/i }))
 
-    await waitFor(() => expect(tab.location.href).toBe('https://x/doc'))
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://x/doc', '_blank', 'noopener'))
     expect(signedUrl).toHaveBeenCalledWith('h1/d1/note.pdf')
+    open.mockRestore()
   })
 
   it('opens nothing when the document cannot be found or signed', async () => {
     const user = userEvent.setup()
-    const tab = { location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window
-    vi.spyOn(window, 'open').mockReturnValue(tab)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const signedUrl = vi.fn().mockResolvedValue(null)
     renderScreen({
       members: [will],
@@ -279,8 +277,8 @@ describe('TradesScreen', () => {
     }
 
     await waitFor(() => expect(signedUrl).toHaveBeenCalledTimes(1))
-    expect(tab.location.href).toBe('')
-    expect(tab.close).toHaveBeenCalledTimes(2)
+    expect(open).not.toHaveBeenCalled()
+    open.mockRestore()
   })
 
   it('opens the Add trade card with a contract note picker and closes it once a document-backed trade is saved', async () => {

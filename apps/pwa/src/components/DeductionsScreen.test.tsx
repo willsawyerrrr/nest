@@ -76,10 +76,6 @@ function makeGroup(overrides: Partial<DeductionGroupRow> = {}): DeductionGroupRo
   }
 }
 
-function fakeTab() {
-  return { location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window
-}
-
 function makeReceipt(overrides: Partial<DeductionReceiptRow> = {}): DeductionReceiptRow {
   return {
     id: 'r1',
@@ -519,27 +515,25 @@ describe('DeductionsScreen', () => {
 
   it('opens a stored receipt in a new tab via its signed URL', async () => {
     const user = userEvent.setup()
-    const tab = fakeTab()
-    const open = vi.spyOn(window, 'open').mockReturnValue(tab)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const { signedUrl } = renderScreen({ receipts: [makeReceipt()] })
 
     await user.click(screen.getByRole('button', { name: 'Receipt' }))
 
-    expect(open).toHaveBeenCalledWith('', '_blank')
     await waitFor(() => expect(signedUrl).toHaveBeenCalledWith('h1/d1/abc-receipt.pdf'))
-    await waitFor(() => expect(tab.location.href).toBe('https://signed/url'))
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith('https://signed/url', '_blank', 'noopener'),
+    )
   })
 
   it('does not open a tab when the signed URL cannot be created', async () => {
     const user = userEvent.setup()
-    const tab = fakeTab()
-    vi.spyOn(window, 'open').mockReturnValue(tab)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     renderScreen({ receipts: [makeReceipt()], signedUrl: vi.fn().mockResolvedValue(null) })
 
     await user.click(screen.getByRole('button', { name: 'Receipt' }))
 
-    await waitFor(() => expect(tab.close).toHaveBeenCalled())
-    expect(tab.location.href).toBe('')
+    await waitFor(() => expect(open).not.toHaveBeenCalled())
   })
 
   it('confirms before deleting a receipt from the edit form', async () => {

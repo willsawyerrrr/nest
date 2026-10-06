@@ -56,9 +56,7 @@ describe('signOut', () => {
   it('asks the native shell to sign out', () => {
     const postMessage = vi.fn()
     window.__NEST_NATIVE_SHELL__ = true
-    window.webkit = {
-      messageHandlers: { nestAuth: { postMessage }, nestOpen: { postMessage: vi.fn() } },
-    }
+    window.webkit = { messageHandlers: { nestAuth: { postMessage } } }
 
     signOut()
 

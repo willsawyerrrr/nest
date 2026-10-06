@@ -563,8 +563,7 @@ describe('PayslipsScreen', () => {
 
   it('opens a stored document in a new tab via its signed URL', async () => {
     const user = userEvent.setup()
-    const tab = { location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window
-    vi.spyOn(window, 'open').mockReturnValue(tab)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const { signedUrl } = renderScreen({
       payslips: [makePayslip({ file_path: 'h1/ps1/slip.pdf' })],
     })
@@ -573,13 +572,14 @@ describe('PayslipsScreen', () => {
     await user.click(screen.getByRole('button', { name: /view payslip document/i }))
 
     expect(signedUrl).toHaveBeenCalledWith('h1/ps1/slip.pdf')
-    await waitFor(() => expect(tab.location.href).toBe('https://signed/url'))
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith('https://signed/url', '_blank', 'noopener'),
+    )
   })
 
   it('leaves the tab closed when the document cannot be signed', async () => {
     const user = userEvent.setup()
-    const tab = { location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window
-    vi.spyOn(window, 'open').mockReturnValue(tab)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     renderScreen({
       payslips: [makePayslip({ file_path: 'h1/ps1/slip.pdf' })],
       signedUrl: vi.fn().mockResolvedValue(null),
@@ -588,8 +588,7 @@ describe('PayslipsScreen', () => {
 
     await user.click(screen.getByRole('button', { name: /view payslip document/i }))
 
-    await waitFor(() => expect(tab.close).toHaveBeenCalled())
-    expect(tab.location.href).toBe('')
+    await waitFor(() => expect(open).not.toHaveBeenCalled())
   })
 
   it('adds a payslip for the member, passing the attachment alongside', async () => {

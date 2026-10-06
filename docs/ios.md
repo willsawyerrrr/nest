@@ -45,20 +45,21 @@ rotating one refresh token evict each other.
   pushes the current session (refreshed if expired) on every `didFinish`, and
   keeps a task iterating `supabaseAuth.authStateChanges` to re-push on every
   token refresh and sign-out. A `nestAuth` `WKScriptMessageHandler` takes the
-  page's sign-out request and calls `supabaseAuth.signOut()`. A `nestOpen`
-  handler opens an `https` URL (`SessionBridge.openableURL`) in the system
-  browser, because a `WKWebView` ignores `window.open`; the page uses it to open
-  receipts, payslips, and trade documents behind a signed URL.
+  page's sign-out request and calls `supabaseAuth.signOut()`.
+- **Documents open in the system browser.** The PWA opens a receipt, payslip, or
+  trade document with `window.open` once its signed URL is fetched, which by then
+  has lost the tap's user activation. `WebView.swift` sets
+  `javaScriptCanOpenWindowsAutomatically` so the call is allowed, and its
+  `WKUIDelegate.createWebViewWith` passes the request's `https` URL
+  (`SessionBridge.externalURL`) to `UIApplication.open` and creates no web view;
+  without a delegate a `WKWebView` drops new-window requests silently.
 - **PWA side** (gated entirely on `window.__NEST_NATIVE_SHELL__`, set only by the
   user script — a browser or Safari-PWA member is byte-identical to today):
   `lib/supabase.ts` creates the client with `persistSession: false,
   autoRefreshToken: false` in the shell; `lib/nativeShell.ts` is the flag check;
   `lib/nativeAuthBridge.ts` installs `window.__nestApplySession` /
   `window.__nestClearSession` and routes the in-app sign-out through the
-  `nestAuth` handler; `lib/openSignedUrl.ts` opens a signed document URL — in a
-  browser, a blank tab opened inside the tap and pointed at the URL once fetched
-  (a `window.open` after the fetch is blocked on iOS), and in the shell, the
-  `nestOpen` handler; `AuthGate` shows the loading screen (never the web
+  `nestAuth` handler; `AuthGate` shows the loading screen (never the web
   sign-in screen) in the shell until the injected session lands.
 
 The native session is still Keychain-stored and still read in process by the

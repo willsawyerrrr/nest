@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { financialYearForDate } from '@nest/tax'
 import { DeductionsScreen } from '../components/DeductionsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
@@ -7,10 +6,12 @@ import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
 import { useMembers } from '../hooks/useMembers'
+import { useCurrentFinancialYear } from '../hooks/useNow'
 import { availableFinancialYears } from '../lib/tax'
 
 export function DeductionsSection() {
-  const [financialYear, setFinancialYear] = useState(financialYearForDate(new Date()))
+  const currentFinancialYear = useCurrentFinancialYear()
+  const [financialYear, setFinancialYear] = useState(currentFinancialYear)
 
   const { members, loading: membersLoading } = useMembers()
   const deductions = useDeductions(financialYear)

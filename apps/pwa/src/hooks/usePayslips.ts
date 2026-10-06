@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react'
-import { financialYearForDate } from '@nest/tax'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import {
@@ -11,6 +10,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { signedUrlOptions, storageKeyName, storedContentType } from '../lib/uploadFile'
 import { useHouseholdCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 import type { PayslipLineInput } from './usePayslipLines'
 
 export type PayslipRow = Tables<'payslip'>
@@ -127,9 +127,9 @@ export interface UsePayslipsResult {
  * out as `<household_id>/<payslip_id>/<uuid>-<file>` so the first path segment
  * gates access to the owning household.
  */
-export function usePayslips(
-  financialYear: number = financialYearForDate(new Date()),
-): UsePayslipsResult {
+export function usePayslips(financialYearArg?: number): UsePayslipsResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const householdId = useHouseholdId()
   const { rows, loading, reload, remove } = useHouseholdCollection<'payslip', never>({
     table: 'payslip',

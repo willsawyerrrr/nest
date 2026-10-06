@@ -21,6 +21,7 @@ import { IconGripVertical } from '@tabler/icons-react'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import type { Goal, GoalInput } from '../hooks/useGoals'
 import { useIsWide } from '../hooks/useIsWide'
+import { useNow } from '../hooks/useNow'
 import type { Saver } from '../hooks/useSavers'
 import {
   contributionForGoal,
@@ -300,7 +301,7 @@ export function GoalList({
   onDelete,
   onReorderQueue,
 }: GoalListProps) {
-  const now = new Date()
+  const now = useNow()
   const { active, queued } = partitionGoals(goals, lines)
   const queuedProjections = queuedProjectionsById(goals, lines, savers, now)
   const baselineQueuedProjections = queuedProjectionsById(baselineGoals, baselineLines, savers, now)

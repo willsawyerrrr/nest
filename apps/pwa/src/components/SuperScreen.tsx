@@ -3,6 +3,7 @@ import { Badge, Group, Stack, Text, Title } from '@mantine/core'
 import { accruedBalanceCents } from '@nest/plan'
 import type { Account } from '../hooks/useAccounts'
 import type { Member } from '../hooks/useMembers'
+import { useNow } from '../hooks/useNow'
 import type { SuperContribution, SuperContributionInput } from '../hooks/useSuperContributions'
 import type { SuperProfile } from '../hooks/useSuperProfiles'
 import { formatIsoDate } from '../lib/dates'
@@ -113,6 +114,7 @@ export function SuperScreen({
   onUpdateContribution,
   onDeleteContribution,
 }: SuperScreenProps) {
+  const now = useNow()
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   return (
     <PageSection
@@ -133,7 +135,7 @@ export function SuperScreen({
           baselineCents,
           balanceAsOf,
           netAnnualContributionCents,
-          new Date(),
+          now,
         )
         return (
           <Stack key={member.id} gap="xs">
@@ -188,7 +190,7 @@ export function SuperScreen({
               account?.balance_cents ?? 0,
               profile?.balance_as_of ?? null,
               netAnnualContributionCents,
-              new Date(),
+              now,
             ),
             netAnnualContributionCents,
           }

@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { financialYearForDate } from '@nest/tax'
 import { useHouseholdId } from '../components/HouseholdProvider'
 import type { Tables } from '../lib/database.types'
 import {
@@ -12,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { signedUrlOptions, storageKeyName, storedContentType } from '../lib/uploadFile'
 import { useHouseholdCollection } from './useCollection'
 import type { DeductionCategory } from './useDeductions'
+import { useCurrentFinancialYear } from './useNow'
 
 export type DeductionReceiptRow = Tables<'deduction_receipt'>
 
@@ -85,9 +85,9 @@ const SIGNED_URL_TTL_SECONDS = 3600
  * `financialYear` (defaulting to the current one) is passed to
  * `deduction-extract` so a receipt printing a yearless date resolves within it.
  */
-export function useDeductionReceipts(
-  financialYear: number = financialYearForDate(new Date()),
-): UseDeductionReceiptsResult {
+export function useDeductionReceipts(financialYearArg?: number): UseDeductionReceiptsResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const householdId = useHouseholdId()
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'deduction_receipt',

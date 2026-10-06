@@ -1,6 +1,6 @@
-import { financialYearForDate } from '@nest/tax'
 import type { Tables } from '../lib/database.types'
 import { useHouseholdUpsertCollection } from './useCollection'
+import { useCurrentFinancialYear } from './useNow'
 
 export type SuperProfile = Tables<'super_profile'>
 
@@ -26,9 +26,9 @@ export interface UseSuperProfilesResult {
  * current financial year), keyed by member. RLS scopes reads to the household.
  * The balance itself lives on the linked account, not here.
  */
-export function useSuperProfiles(
-  financialYear: number = financialYearForDate(new Date()),
-): UseSuperProfilesResult {
+export function useSuperProfiles(financialYearArg?: number): UseSuperProfilesResult {
+  const currentFinancialYear = useCurrentFinancialYear()
+  const financialYear = financialYearArg ?? currentFinancialYear
   const { rows, loading, reload, upsert } = useHouseholdUpsertCollection<
     'super_profile',
     SuperProfileInput

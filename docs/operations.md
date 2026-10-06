@@ -207,6 +207,13 @@ off in its settings.
   `ASC_KEY_P8` repository secrets (an App Store Connect API key with the Admin
   role, which cloud signing requires) and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables. Run it
   manually with `gh workflow run "Deploy iOS"`.
+  - The archive is unsigned and only `xcodebuild -exportArchive` signs, using
+    the team's one cloud-managed Apple Distribution certificate. Archiving under
+    automatic signing needs an Apple Development certificate, which each
+    ephemeral runner mints anew until the team reaches Apple's certificate limit
+    and the run fails with `Choose a certificate to revoke`.
+  - If that error appears, revoke the surplus Apple Development certificates in
+    the Apple Developer portal (Certificates, Identifiers & Profiles).
 - **Frontend** — Vercel deploys the PWA on merge to `main`; each PR gets a
   preview deployment (see [Hosting](#hosting)). Live prod may briefly trail
   `main` until the next merge triggers a deploy.

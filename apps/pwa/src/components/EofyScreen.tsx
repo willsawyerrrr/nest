@@ -15,6 +15,7 @@ import type { Member } from '../hooks/useMembers'
 import { formatIsoDate } from '../lib/dates'
 import { groupDeductions } from '../lib/deductionGroups'
 import { formatCents, formatCentsRate } from '../lib/money'
+import { openSignedUrl } from '../lib/openSignedUrl'
 import { helpPayoffSummary, type SuperCapSummary } from '../lib/tax'
 import { EmptyState } from './EmptyState'
 import { FinancialYearSelect } from './FinancialYearSelect'
@@ -199,12 +200,7 @@ function EofyDeductionItem({
   receipt: DeductionReceiptRow | undefined
   signedUrl: (path: string) => Promise<string | null>
 }) {
-  const viewReceipt = async (path: string) => {
-    const url = await signedUrl(path)
-    if (url) {
-      window.open(url, '_blank', 'noopener')
-    }
-  }
+  const viewReceipt = (path: string) => openSignedUrl(() => signedUrl(path))
 
   const workings = claimWorkings(deduction)
 
@@ -346,12 +342,7 @@ function EofyPayslipDocumentsSummary({
   if (documents.length === 0) {
     return <EmptyState>No payslip documents attached.</EmptyState>
   }
-  const openDocument = async (path: string) => {
-    const url = await signedUrl(path)
-    if (url) {
-      window.open(url, '_blank', 'noopener')
-    }
-  }
+  const openDocument = (path: string) => openSignedUrl(() => signedUrl(path))
   return (
     <Group gap="xs" wrap="wrap">
       {documents.map((document) => (

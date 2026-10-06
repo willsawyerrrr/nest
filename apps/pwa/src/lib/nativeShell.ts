@@ -5,7 +5,9 @@
  * user script, before any of the PWA's own code runs. It owns the one Supabase
  * session for the whole product and pushes it into the page through
  * `window.__nestApplySession` / `window.__nestClearSession`; the page asks it to
- * sign out through the `nestAuth` message handler.
+ * sign out through the `nestAuth` message handler and to open a signed document
+ * URL in the system browser through the `nestOpen` one (`WKWebView` ignores
+ * `window.open`).
  *
  * A browser or an installed Safari PWA never has the flag, so every branch
  * gated on {@link isNativeShell} is inert there and web behaviour is unchanged.
@@ -18,6 +20,7 @@ declare global {
     webkit?: {
       messageHandlers: {
         nestAuth: { postMessage: (message: unknown) => void }
+        nestOpen: { postMessage: (message: { url: string }) => void }
       }
     }
   }

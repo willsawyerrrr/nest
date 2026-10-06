@@ -12,7 +12,9 @@ import WebKit
 /// mirrors it into the page. A `.atDocumentStart` user script marks the page as
 /// running in the shell, the current session is pushed on every load and on
 /// every `authStateChanges` emission, and the `nestAuth` message handler takes
-/// the page's sign-out request back to the native client.
+/// the page's sign-out request back to the native client. The `nestOpen`
+/// message handler opens a document URL the page cannot open itself (a
+/// `WKWebView` ignores `window.open`) in the system browser.
 struct WebView: UIViewRepresentable {
     let url: URL
     @Binding var isLoading: Bool
@@ -33,6 +35,7 @@ struct WebView: UIViewRepresentable {
             )
         )
         configuration.userContentController.add(context.coordinator, name: "nestAuth")
+        configuration.userContentController.add(context.coordinator, name: "nestOpen")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -46,6 +49,7 @@ struct WebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestAuth")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestOpen")
         coordinator.stop()
     }
 
@@ -92,14 +96,22 @@ struct WebView: UIViewRepresentable {
             reportFailure(error)
         }
 
-        /// Handles the page's sign-out request: clear the native session, which
-        /// emits `.signedOut` and swaps the web view for the sign-in gate.
+        /// Handles the page's requests. `nestAuth` signs out: clear the native
+        /// session, which emits `.signedOut` and swaps the web view for the
+        /// sign-in gate. `nestOpen` opens an `https` URL in the system browser.
         func userContentController(
             _ controller: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard message.name == "nestAuth" else { return }
-            Task { try? await supabaseAuth.signOut() }
+            switch message.name {
+            case "nestAuth":
+                Task { try? await supabaseAuth.signOut() }
+            case "nestOpen":
+                guard let url = SessionBridge.openableURL(from: message.body) else { return }
+                UIApplication.shared.open(url)
+            default:
+                break
+            }
         }
 
         /// Reads the current session — refreshing it if it has expired, so the

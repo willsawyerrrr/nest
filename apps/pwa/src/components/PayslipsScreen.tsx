@@ -8,6 +8,7 @@ import type { PayslipLineRow } from '../hooks/usePayslipLines'
 import { usePayslipQueue } from '../hooks/usePayslipQueue'
 import type { PayslipAttachments, PayslipRow, PayslipSubmission } from '../hooks/usePayslips'
 import { formatIsoDate } from '../lib/dates'
+import { openSignedUrl } from '../lib/openSignedUrl'
 import {
   payslipReconciliation,
   payslipTotalsFromRows,
@@ -249,12 +250,7 @@ function MemberPayslips({
   // of this, and both year-to-date readings sum the very same ones.
   const variances = payslipVariancesById(payslips, reconciliation, memberEstimate, config)
 
-  const viewDocument = async (path: string) => {
-    const url = await signedUrl(path)
-    if (url) {
-      window.open(url, '_blank', 'noopener')
-    }
-  }
+  const viewDocument = (path: string) => openSignedUrl(() => signedUrl(path))
 
   return (
     <Stack gap="xs">

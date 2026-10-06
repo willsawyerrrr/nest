@@ -335,7 +335,9 @@ describe('EofyScreen', () => {
 
   it("lists a member's claimed deductions with their total and receipt", async () => {
     const signedUrl = vi.fn().mockResolvedValue('https://example.com/receipt.pdf')
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue({ location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window)
     const user = userEvent.setup()
 
     renderScreen({
@@ -362,7 +364,9 @@ describe('EofyScreen', () => {
 
   it('lists each group with its summed total and payments, then the ungrouped deductions as top-level rows', async () => {
     const signedUrl = vi.fn().mockResolvedValue('https://example.com/receipt.pdf')
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue({ location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window)
     const user = userEvent.setup()
 
     renderScreen({
@@ -628,7 +632,9 @@ describe('EofyScreen', () => {
 
   it("lists a member's payslip documents and opens a signed URL on click", async () => {
     const payslipSignedUrl = vi.fn().mockResolvedValue('https://example.com/payslip.pdf')
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue({ location: { href: '' }, close: vi.fn(), opener: {} } as unknown as Window)
     const user = userEvent.setup()
 
     renderScreen({

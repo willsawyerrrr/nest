@@ -7,6 +7,7 @@ import type { TradeDocumentRow, UseTradeDocumentsResult } from '../hooks/useTrad
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatUnitPrice } from '../lib/money'
+import { openSignedUrl } from '../lib/openSignedUrl'
 import { memberPortfolio, type HoldingView } from '../lib/trades'
 import { AppCard } from './AppCard'
 import { EditableList } from './EditableList'
@@ -286,13 +287,11 @@ function MemberTrades({
   documents: TradeDocumentRow[]
   documentActions: TradesScreenProps['documentActions']
 }) {
-  const viewDocument = async (documentId: string) => {
-    const path = documents.find((document) => document.id === documentId)?.storage_path
-    const url = path ? await documentActions.signedUrl(path) : null
-    if (url) {
-      window.open(url, '_blank', 'noopener')
-    }
-  }
+  const viewDocument = (documentId: string) =>
+    openSignedUrl(async () => {
+      const path = documents.find((document) => document.id === documentId)?.storage_path
+      return path ? documentActions.signedUrl(path) : null
+    })
 
   const { holdings, gainsByYear, unmatchedSales } = memberPortfolio(trades, member.id)
   const memberTrades = trades

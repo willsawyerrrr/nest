@@ -5,6 +5,7 @@ import { IconGripVertical } from '@tabler/icons-react'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
 import { useIsWide } from '../hooks/useIsWide'
+import { openSignedUrl } from '../lib/openSignedUrl'
 import { AppCard } from './AppCard'
 import { EditDeleteActions } from './EditDeleteActions'
 import { ListRow } from './ListRow'
@@ -91,12 +92,8 @@ function DeductionTitle({
   receipt,
   signedUrl,
 }: Pick<DeductionItemProps, 'deduction' | 'receipt' | 'signedUrl'>) {
-  const viewReceipt = async (current: DeductionReceiptRow) => {
-    const url = await signedUrl(current.storage_path)
-    if (url) {
-      window.open(url, '_blank', 'noopener')
-    }
-  }
+  const viewReceipt = (current: DeductionReceiptRow) =>
+    openSignedUrl(() => signedUrl(current.storage_path))
 
   return (
     <Text fw={600} size="sm" style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>

@@ -32,4 +32,19 @@ enum SessionBridge {
         }
         return literal
     }
+
+    /// The `https` URL in a `nestOpen` message body (`{ url: "…" }`), or nil
+    /// when the body is anything else, so the page can only ever ask for a web
+    /// address to be opened.
+    static func openableURL(from body: Any) -> URL? {
+        guard
+            let fields = body as? [String: Any],
+            let string = fields["url"] as? String,
+            let url = URL(string: string),
+            url.scheme?.lowercased() == "https"
+        else {
+            return nil
+        }
+        return url
+    }
 }

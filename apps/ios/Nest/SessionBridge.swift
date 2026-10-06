@@ -32,4 +32,13 @@ enum SessionBridge {
         }
         return literal
     }
+
+    /// The URL of a new-window request when it is an `https` address, so the
+    /// page can only ever ask for a web address to be opened externally.
+    static func externalURL(for request: URLRequest) -> URL? {
+        guard let url = request.url, url.scheme?.lowercased() == "https" else {
+            return nil
+        }
+        return url
+    }
 }

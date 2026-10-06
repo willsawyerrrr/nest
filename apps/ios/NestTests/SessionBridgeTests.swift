@@ -34,4 +34,15 @@ import Testing
     @Test func jsStringWrapsAPlainValueInQuotes() {
         #expect(SessionBridge.jsString("plain") == #""plain""#)
     }
+
+    @Test func externalURLAcceptsAnHTTPSRequest() {
+        let url = URL(string: "https://example.com/r.pdf?token=a")!
+        #expect(SessionBridge.externalURL(for: URLRequest(url: url)) == url)
+    }
+
+    @Test func externalURLRejectsOtherSchemesAndEmptyRequests() {
+        #expect(SessionBridge.externalURL(for: URLRequest(url: URL(string: "http://example.com")!)) == nil)
+        #expect(SessionBridge.externalURL(for: URLRequest(url: URL(string: "javascript:alert(1)")!)) == nil)
+        #expect(SessionBridge.externalURL(for: URLRequest(url: URL(string: "about:blank")!)) == nil)
+    }
 }

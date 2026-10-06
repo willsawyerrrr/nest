@@ -297,7 +297,7 @@ jobs:
       # matches what the migrations produce (`check-migration-drift.yml` compares
       # migrations to prod, not the generated types).
       - name: Assert database.types.ts matches the migrations
-        run: node scripts/gen-db-types.js --check --db-url "postgresql://postgres:postgres@localhost:5432/postgres"
+        run: node scripts/gen-db-types.js --check --db-url "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 
   ci-status:
     name: CI Status

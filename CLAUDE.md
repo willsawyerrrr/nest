@@ -14,7 +14,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `supportedDestinations: [iOS, macCatalyst]`) embeds the PWA in a `WKWebView`
   and adds Siri / App Intents access to key figures — the
   fortnightly buffer, savings-goal progress, a named budget line's planned
-  amount so far, and the recommended pay split. The native app is the single session owner: one Google OAuth at
+  amount so far, and how much of the pay goes to a named account. The native app is the single session owner: one Google OAuth at
   launch (`supabase-swift`, Keychain-stored), so an in-process App Shortcut can
   answer with the app closed, and it mirrors that session into the `WKWebView`
   (a `.atDocumentStart` `window.__NEST_NATIVE_SHELL__` marker, `setSession` on

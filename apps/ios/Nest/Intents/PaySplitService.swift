@@ -47,77 +47,83 @@ struct PaySplitService: Sendable {
     }
 }
 
-/// Turns a pay-split summary into one spoken sentence.
-enum PaySplitPhrasing {
-    static func spokenSummary(_ summary: PaySplitSummary) -> String {
-        let unassigned = summary.unassignedFortnightlyCents > 0
-            ? " \(BufferPhrasing.currency(summary.unassignedFortnightlyCents)) more isn't routed to an account yet."
-            : ""
-
-        if summary.splits.isEmpty {
-            if summary.stays.isEmpty && !unassigned.isEmpty {
-                return "None of your budget is routed to an account yet, so there's no pay split. "
-                    + "Set a funding account on your budget items in Nest."
-            }
-            if summary.stays.isEmpty {
-                return "You haven't set up a pay split yet. Route your budget items to accounts in Nest."
-            }
-            if !summary.hasPayAccount {
-                return "Choose the account your pay lands in, in Nest, to see your pay split."
-                    + unassigned
-            }
-            return "Everything stays in your pay account, so there's nothing to transfer." + unassigned
-        }
-
-        let parts = summary.splits.map {
-            "\(BufferPhrasing.currency($0.fortnightlyCents)) to \($0.name)"
-        }
-        let list: String
-        if parts.count == 1 {
-            list = parts[0]
-        } else {
-            list = parts.dropLast().joined(separator: ", ") + " and " + parts[parts.count - 1]
-        }
-        let total = parts.count > 1
-            ? ", \(BufferPhrasing.currency(summary.totalCents)) in total"
-            : ""
-        return "Each fortnight, send \(list)\(total)." + unassigned
-    }
+/// What loading the pay split yielded.
+enum PaySplitLoad: Sendable {
+    case summary(PaySplitSummary)
+    case signedOut
+    case unreachable
 }
 
-/// What the pay-split query yields: the sentence to speak and the splits behind it.
-struct PaySplitOutcome: Sendable {
-    let sentence: String
-    let splits: [PaySplitAccount]
-}
-
-/// Full response for the pay-split query, resolving the access token and mapping
-/// every failure to a useful sentence. Both dependencies are injected so
-/// `perform()` stays a thin shell over testable code.
-func paySplitResponse(
+/// Resolves the access token and loads the summary, folding every failure into a
+/// case. Both dependencies are injected so callers stay thin shells over
+/// testable code.
+func paySplitLoad(
     accessToken: @Sendable () async throws -> String,
     service: PaySplitService
-) async -> PaySplitOutcome {
-    let signIn = PaySplitOutcome(
-        sentence: "Open Nest and sign in to check your pay split.", splits: []
-    )
+) async -> PaySplitLoad {
     let token: String
     do {
         token = try await accessToken()
     } catch {
-        return signIn
+        return .signedOut
     }
 
     do {
-        let summary = try await service.summary(accessToken: token)
-        return PaySplitOutcome(
-            sentence: PaySplitPhrasing.spokenSummary(summary), splits: summary.splits
-        )
+        return .summary(try await service.summary(accessToken: token))
     } catch PaySplitServiceError.http(status: 401) {
-        return signIn
+        return .signedOut
     } catch {
+        return .unreachable
+    }
+}
+
+/// Turns one account's place in the pay split into a spoken sentence.
+enum PaySplitPhrasing {
+    static func spokenAnswer(_ summary: PaySplitSummary, accountId: String, name: String) -> String {
+        if let split = summary.splits.first(where: { $0.accountId == accountId }) {
+            return "\(BufferPhrasing.currency(split.fortnightlyCents)) goes to \(split.name) each fortnight."
+        }
+        if !summary.hasPayAccount && !summary.stays.isEmpty {
+            return "Choose the account your pay lands in, in Nest, to see your pay split."
+        }
+        if summary.stays.contains(where: { $0.accountId == accountId }) {
+            return "\(name) is your pay account, so nothing is transferred to it."
+        }
+        if summary.splits.isEmpty && summary.stays.isEmpty {
+            return "You haven't set up a pay split yet. Route your budget items to accounts in Nest."
+        }
+        return "Nothing is routed to \(name) yet. Set it as a budget item's funding account in Nest."
+    }
+}
+
+/// What the pay-split query yields: the sentence to speak and the account's split,
+/// when it has one.
+struct PaySplitOutcome: Sendable {
+    let sentence: String
+    let split: PaySplitAccount?
+}
+
+/// Full response for one account's pay split, mapping every failure to a useful
+/// sentence.
+func paySplitResponse(
+    accountId: String,
+    name: String,
+    accessToken: @Sendable () async throws -> String,
+    service: PaySplitService
+) async -> PaySplitOutcome {
+    switch await paySplitLoad(accessToken: accessToken, service: service) {
+    case .signedOut:
         return PaySplitOutcome(
-            sentence: "Couldn't reach Nest just now. Try again in a moment.", splits: []
+            sentence: "Open Nest and sign in to check your pay split.", split: nil
+        )
+    case .unreachable:
+        return PaySplitOutcome(
+            sentence: "Couldn't reach Nest just now. Try again in a moment.", split: nil
+        )
+    case .summary(let summary):
+        return PaySplitOutcome(
+            sentence: PaySplitPhrasing.spokenAnswer(summary, accountId: accountId, name: name),
+            split: summary.splits.first { $0.accountId == accountId }
         )
     }
 }

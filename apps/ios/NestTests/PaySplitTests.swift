@@ -23,70 +23,50 @@ private func summary(
 }
 
 @Suite struct PaySplitPhrasingTests {
-    @Test func speaksASingleSplitWithoutATotal() {
-        let sentence = PaySplitPhrasing.spokenSummary(summary(splits: [("Japan", 400_00)]))
+    @Test func speaksTheAccountsFortnightlyAmount() {
+        let sentence = PaySplitPhrasing.spokenAnswer(
+            summary(splits: [("japan", 400_00), ("bills", 150_00)]), accountId: "japan", name: "Japan"
+        )
 
-        #expect(sentence == "Each fortnight, send $400.00 to Japan.")
+        #expect(sentence == "$400.00 goes to japan each fortnight.")
     }
 
-    @Test func listsSeveralSplitsWithTheirTotal() {
-        let sentence = PaySplitPhrasing.spokenSummary(
-            summary(splits: [("Japan", 400_00), ("Bills", 150_00), ("Holiday", 50_00)])
+    @Test func saysNothingIsRoutedToAnAccountWithNoSplit() {
+        let sentence = PaySplitPhrasing.spokenAnswer(
+            summary(splits: [("bills", 150_00)]), accountId: "japan", name: "Japan"
         )
 
         #expect(
             sentence
-                == "Each fortnight, send $400.00 to Japan, $150.00 to Bills and $50.00 to Holiday, "
-                + "$600.00 in total."
+                == "Nothing is routed to Japan yet. Set it as a budget item's funding account in Nest."
         )
     }
 
-    @Test func namesTwoSplitsWithAnd() {
-        let sentence = PaySplitPhrasing.spokenSummary(
-            summary(splits: [("Japan", 400_00), ("Bills", 150_00)])
+    @Test func saysThePayAccountReceivesNoTransfer() {
+        let sentence = PaySplitPhrasing.spokenAnswer(
+            summary(splits: [("bills", 150_00)], stays: [("pay", 200_00)]),
+            accountId: "pay", name: "Spending"
         )
 
-        #expect(
-            sentence
-                == "Each fortnight, send $400.00 to Japan and $150.00 to Bills, $550.00 in total."
-        )
+        #expect(sentence == "Spending is your pay account, so nothing is transferred to it.")
     }
 
-    @Test func mentionsUnroutedBudget() {
-        let sentence = PaySplitPhrasing.spokenSummary(
-            summary(splits: [("Japan", 400_00)], unassigned: 50_00)
-        )
-
-        #expect(
-            sentence
-                == "Each fortnight, send $400.00 to Japan. $50.00 more isn't routed to an account yet."
-        )
-    }
-
-    @Test func promptsSetupWhenNothingIsRouted() {
-        #expect(
-            PaySplitPhrasing.spokenSummary(summary())
-                == "You haven't set up a pay split yet. Route your budget items to accounts in Nest."
-        )
-        #expect(
-            PaySplitPhrasing.spokenSummary(summary(unassigned: 50_00)).hasPrefix(
-                "None of your budget is routed to an account yet"
-            )
-        )
-    }
-
-    @Test func promptsForAPayAccountWhenOnlySpendingAccountsAreRouted() {
-        let sentence = PaySplitPhrasing.spokenSummary(
-            summary(hasPayAccount: false, stays: [("Bills", 200_00)])
+    @Test func promptsForAPayAccountWhenNoneIsChosen() {
+        let sentence = PaySplitPhrasing.spokenAnswer(
+            summary(hasPayAccount: false, stays: [("bills", 200_00)]),
+            accountId: "japan", name: "Japan"
         )
 
         #expect(sentence == "Choose the account your pay lands in, in Nest, to see your pay split.")
     }
 
-    @Test func saysNothingNeedsTransferringWhenEverythingStays() {
-        let sentence = PaySplitPhrasing.spokenSummary(summary(stays: [("Spending", 200_00)]))
+    @Test func promptsSetupWhenNothingIsRouted() {
+        let sentence = PaySplitPhrasing.spokenAnswer(summary(), accountId: "japan", name: "Japan")
 
-        #expect(sentence == "Everything stays in your pay account, so there's nothing to transfer.")
+        #expect(
+            sentence
+                == "You haven't set up a pay split yet. Route your budget items to accounts in Nest."
+        )
     }
 }
 
@@ -140,6 +120,11 @@ private func summary(
 }
 
 @Suite struct PaySplitResponseTests {
+    private let json = """
+        {"hasPayAccount":true,"splits":[{"accountId":"a1","name":"Japan","fortnightlyCents":40000}],\
+        "totalCents":40000,"stays":[],"unassignedFortnightlyCents":0}
+        """
+
     private func service(returning json: String) -> PaySplitService {
         PaySplitService { request in
             (
@@ -151,50 +136,67 @@ private func summary(
         }
     }
 
+    private func respond(
+        accountId: String = "a1",
+        accessToken: @escaping @Sendable () async throws -> String = { "token" },
+        service: PaySplitService
+    ) async -> PaySplitOutcome {
+        await paySplitResponse(
+            accountId: accountId, name: "Japan", accessToken: accessToken, service: service
+        )
+    }
+
     @Test func asksTheMemberToSignInWhenThereIsNoSession() async {
         struct NoSession: Error {}
 
-        let outcome = await paySplitResponse(
-            accessToken: { throw NoSession() },
-            service: service(returning: "{}")
-        )
+        let outcome = await respond(accessToken: { throw NoSession() }, service: service(returning: "{}"))
 
         #expect(outcome.sentence == "Open Nest and sign in to check your pay split.")
-        #expect(outcome.splits.isEmpty)
+        #expect(outcome.split == nil)
     }
 
     @Test func asksTheMemberToSignInOnA401() async {
-        let outcome = await paySplitResponse(
-            accessToken: { "expired" },
+        let outcome = await respond(
             service: PaySplitService { _ in throw PaySplitServiceError.http(status: 401) }
         )
 
         #expect(outcome.sentence == "Open Nest and sign in to check your pay split.")
     }
 
-    @Test func returnsTheSentenceAndSplitsWhenTheServiceAnswers() async {
-        let outcome = await paySplitResponse(
-            accessToken: { "token" },
-            service: service(
-                returning: """
-                    {"hasPayAccount":true,"splits":[{"accountId":"a1","name":"Japan","fortnightlyCents":40000}],\
-                    "totalCents":40000,"stays":[],"unassignedFortnightlyCents":0}
-                    """
-            )
-        )
+    @Test func returnsTheAccountsSentenceAndSplit() async {
+        let outcome = await respond(service: service(returning: json))
 
-        #expect(outcome.sentence == "Each fortnight, send $400.00 to Japan.")
-        #expect(outcome.splits.map(\.accountId) == ["a1"])
+        #expect(outcome.sentence == "$400.00 goes to Japan each fortnight.")
+        #expect(outcome.split?.accountId == "a1")
+    }
+
+    @Test func returnsNoSplitForAnAccountWithNothingRouted() async {
+        let outcome = await respond(accountId: "other", service: service(returning: json))
+
+        #expect(outcome.sentence.hasPrefix("Nothing is routed to Japan yet."))
+        #expect(outcome.split == nil)
     }
 
     @Test func fallsBackToTryAgainOnAnyOtherFailure() async {
-        let outcome = await paySplitResponse(
-            accessToken: { "token" },
+        let outcome = await respond(
             service: PaySplitService { _ in throw PaySplitServiceError.http(status: 503) }
         )
 
         #expect(outcome.sentence == "Couldn't reach Nest just now. Try again in a moment.")
-        #expect(outcome.splits.isEmpty)
+        #expect(outcome.split == nil)
+    }
+}
+
+@Suite struct PaySplitLoadTests {
+    @Test func foldsAMissingSessionAndAnUnreachableServiceIntoCases() async {
+        struct NoSession: Error {}
+        let service = PaySplitService { _ in throw PaySplitServiceError.http(status: 500) }
+
+        let signedOut = await paySplitLoad(accessToken: { throw NoSession() }, service: service)
+        let unreachable = await paySplitLoad(accessToken: { "t" }, service: service)
+
+        guard case .signedOut = signedOut else { Issue.record("expected signedOut"); return }
+        guard case .unreachable = unreachable else { Issue.record("expected unreachable"); return }
     }
 }
 

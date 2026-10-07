@@ -22,6 +22,7 @@ import type {
   DeductionSubmission,
 } from '../hooks/useDeductions'
 import type { Member } from '../hooks/useMembers'
+import { useSharedFiles } from '../hooks/useSharedFiles'
 import { droppedGroupId, groupDropId, UNGROUPED_DROP_ID } from '../lib/deductionDrop'
 import { formatCents } from '../lib/money'
 import { AppCard } from './AppCard'
@@ -47,6 +48,11 @@ interface DeductionsScreenProps {
   onFinancialYearChange: (financialYear: number) => void
   /** Storing, discarding, and reading receipts picked before a new deduction exists. */
   attachments: DeductionAttachments
+  /**
+   * The signed-in member. Receipts shared into the native app from other apps
+   * are queued as work expenses on this member's list.
+   */
+  currentMemberId?: string | null
   onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -87,6 +93,7 @@ function MemberDeductions({
   receipts,
   attachments,
   financialYear,
+  receivesSharedFiles,
   onCreate,
   onUpdate,
   onDelete,
@@ -103,6 +110,7 @@ function MemberDeductions({
   receipts: DeductionReceiptRow[]
   attachments: DeductionAttachments
   financialYear: number
+  receivesSharedFiles: boolean
   onCreate: (submission: DeductionSubmission) => Promise<void>
   onUpdate: (id: string, input: DeductionInput) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -121,6 +129,9 @@ function MemberDeductions({
   // delete is owned by the EditableList. Only one is ever open at a time.
   const { confirm, modal } = useConfirmDelete()
   const queue = useDeductionReceiptQueue(attachments)
+  // A receipt shared from another app is a work expense to start with, as the
+  // Add card's kind defaults to; each draft's category stays editable.
+  useSharedFiles(receivesSharedFiles, (files) => queue.add(files, 'work_expense'))
 
   // The member's total counts every deduction, grouped or not — a group is a
   // reading of rows that are each claimed in their own right.
@@ -377,6 +388,7 @@ export function DeductionsScreen({
   availableFinancialYears,
   onFinancialYearChange,
   attachments,
+  currentMemberId,
   onCreate,
   onUpdate,
   onDelete,
@@ -407,6 +419,7 @@ export function DeductionsScreen({
           receipts={receipts}
           attachments={attachments}
           financialYear={financialYear}
+          receivesSharedFiles={member.id === currentMemberId}
           onCreate={onCreate}
           onUpdate={onUpdate}
           onDelete={onDelete}

@@ -34,6 +34,7 @@ coverage/
 # project.yml via xcodegen
 *.xcodeproj/
 apps/ios/Nest/Info.plist
+apps/ios/ShareExtension/Info.plist
 xcuserdata/
 DerivedData/
 

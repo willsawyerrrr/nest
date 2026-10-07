@@ -99,7 +99,7 @@ view's session.
   `project.yml`. Google Sign-In returns through it, and `NestApp.swift` forwards
   `onOpenURL` to `GIDSignIn.sharedInstance.handle`.
 - **Session storage** is `supabase-swift`'s default `KeychainLocalStorage` — no
-  Keychain access group, no App Group. The Intent runs in the app's own process
+  Keychain access group, and the App Group carries only shared files. The Intent runs in the app's own process
   (see below), so it reads the stored session directly. The session is
   `kSecAttrAccessibleAfterFirstUnlock`, so a background-launched Intent can read
   it any time after the first unlock following a reboot.
@@ -166,7 +166,7 @@ cents → dollars with an `en_AU` currency `NumberFormatter`.
 
 The intents live **in the app target — there is no `AppIntentsExtension`** — so
 `perform()` runs in the app's process and reads the Keychain session in
-process, with no access group and no App Group.
+process, with no access group.
 
 ### Request contracts
 
@@ -203,6 +203,51 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
   each rounded up to the nearest $5 and ordered by name; `stays` are the routed
   accounts that need no transfer; `name` has any leading emoji stripped.
 
+## Share extension
+
+A PDF or image shared from another app (Mail, Files, Photos, Safari) can be
+added to Nest from the share sheet's **Nest** destination, and each file becomes
+a draft deduction to review.
+
+- **Extension.** `ShareExtension/` is a share extension
+  (`dev.willsawyerrrr.nest.share-extension`), embedded in `Nest` and built for
+  both destinations. Its `NSExtensionActivationRule` is a predicate that offers
+  Nest when at least one attachment conforms to `com.adobe.pdf` or
+  `public.image`. `ShareViewController` loads each attachment with
+  `loadFileRepresentation`, which hands over a file on disk, and copies it into
+  the App Group inbox; no file is read into the extension's memory, so size never
+  threatens its memory limit. It then says "Saved to Nest. Open Nest to review.",
+  with a line for each file left out (not a PDF or image, over 25 MB, or not
+  saved). An extension cannot open its containing app, and the responder-chain
+  workaround is not dependable on current iOS, so the member opens Nest
+  themselves.
+- **App Group.** `group.dev.willsawyerrrr.nest`, in `Nest.entitlements` and
+  `ShareExtension.entitlements`. `Shared/ShareInbox.swift` (compiled into both
+  targets) owns the `SharedReceipts/` folder in the group container: one
+  `<uuid>/` directory per file holding `file` and `meta.json` (name, media type,
+  size, time), written under a `.tmp-` name and renamed into place so the app
+  never reads a half-copied file. Types are decided by extension as in the PWA
+  (PDF, JPEG, PNG, GIF, WebP, HEIC/HEIF); a name without one takes the
+  extension its type identifier implies.
+- **Hand-off.** `WebView.swift`'s coordinator sends pending files to the page after
+  each load and whenever the app becomes active, after purging files older than
+  seven days. The web view exists only while signed in, so a file shared while
+  signed out stays in the inbox until the member signs in. Each file crosses as
+  `window.__nestShare.begin(id, name, type)`, base64 `chunk`s of 384 KiB (each
+  encoded separately), and `finish(id)` (`ShareBridge.swift`). The PWA queues the
+  file and posts `{ type: 'queued', ids }` to the `nestShare` message handler;
+  only then does the app delete its copy. A page that has no bridge (an older
+  build) or reloads before queuing leaves the file in the inbox for the next
+  attempt. The app sends each id once per page load, and the PWA ignores an id it
+  has already received, so a file never becomes two drafts.
+- **PWA side** (`lib/nativeShare.ts`, `hooks/useSharedFiles.ts`,
+  `components/SharedFilesRedirect.tsx`; gated on `window.__NEST_NATIVE_SHELL__`):
+  arriving files wait in memory. `SharedFilesRedirect` takes the member to
+  `/deductions`, where the signed-in member's receipt queue
+  (`useDeductionReceiptQueue`, see [`bulk-upload.md`](bulk-upload.md)) adds them
+  as work expenses, each a draft whose category stays editable. A co-member's
+  list never takes them.
+
 ## Apple Developer Program
 
 A paid Apple Developer Program membership is **not** required to build, run, or
@@ -210,7 +255,9 @@ use this app on either platform. Per Apple's App Intents documentation, an
 `AppShortcutsProvider` needs no entitlement: a free personal team covers
 compile, Simulator, on-device install (7-day provisioning), a local Mac
 Catalyst build, and the App Shortcut reaching the Shortcuts app and Spotlight
-on both platforms. `com.apple.developer.siri` is the legacy SiriKit /
+on both platforms. (The share extension is the exception: its App Group
+needs the paid team to register, so sharing into Nest runs on TestFlight builds.)
+`com.apple.developer.siri` is the legacy SiriKit /
 Apple-Intelligence-schema entitlement, which this app uses neither of.
 
 On iOS, the one thing to confirm on-device is **Siri voice invocation** (as
@@ -246,10 +293,16 @@ it is for iOS.
   Catalyst outright. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
-  `SessionBridge.swift`, `Supabase.swift`, `Auth.swift`, and `Intents/`.
+  `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`, and
+  `Intents/`.
+- `ShareExtension/` — the share extension (`ShareViewController.swift`, its
+  entitlements; `Info.plist` is generated).
+- `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both
+  `Nest` and `ShareExtension`.
 - `NestTests/` — Swift Testing unit tests for the Intent logic (each service's
   phrasing, its request shape, and the signed-out / HTTP-failure sentence
-  mapping) and for `SessionBridge`'s injected JavaScript and string escaping.
+  mapping), for `SessionBridge`'s injected JavaScript and string escaping, and
+  for the share inbox (storing, limits, ordering, cleanup, hand-off scripts).
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and sign-in-flow
 instructions.
@@ -279,4 +332,4 @@ as a pass rather than waiting forever on a check that never ran. See
 
 ## Deployment
 
-`.github/workflows/deploy-ios.yml` archives the `Nest` scheme unsigned, signs it at export with the team's cloud-managed distribution certificate, and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. See [`operations.md`](operations.md#deployment).
+`.github/workflows/deploy-ios.yml` archives the `Nest` scheme unsigned, signs it at export with the team's cloud-managed distribution certificate, and uploads it to TestFlight on every merge to `main` that touches `apps/ios/**`. The archive embeds the share extension, so the export's automatic signing (`-allowProvisioningUpdates`, with the App Store Connect API key) also registers the extension's App ID, the `group.dev.willsawyerrrr.nest` App Group, and their profiles. See [`operations.md`](operations.md#deployment).

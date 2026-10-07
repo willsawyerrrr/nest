@@ -36,6 +36,8 @@ and Spotlight still work on both platforms.
     `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, native Google sign-in, and
     the `authStateChanges` observation behind the gate.
+  - `ShareBridge.swift` — builds the JavaScript that hands a shared file to the
+    page in chunks, and reads the page's acknowledgement.
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
   - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
     and spoken-sentence formatting.
@@ -52,11 +54,17 @@ and Spotlight still work on both platforms.
     its spoken-sentence formatting.
   - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider` (one shortcut
     per intent).
+- `ShareExtension/` — the share extension: `ShareViewController.swift` copies
+  shared PDFs and images into the App Group inbox
+  (`group.dev.willsawyerrrr.nest`); the app hands them to the PWA's deduction
+  receipt queue. See [`docs/ios.md`](../../docs/ios.md#share-extension).
+- `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both the
+  app and the extension.
 - `NestTests/` — Swift Testing unit tests over the pieces each `perform()`
   delegates to: the phrasing (cents → spoken sentence), the service request
   shape and status handling, and the signed-out / failure-to-sentence mapping —
   plus `SessionBridge` (the injected sign-in JavaScript and its string
-  escaping).
+  escaping) and the share inbox.
 
 ## Building
 
@@ -100,7 +108,7 @@ xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
 Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
 
 `xcodebuild test` (with a concrete simulator `-destination`, or the same
-Catalyst `-destination` above) runs the `NestTests` suite — 58 tests, and they
+Catalyst `-destination` above) runs the `NestTests` suite — 73 tests, and they
 pass identically on both destinations with no source changes between them.
 `.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` jobs do the
 generate + build + test for both destinations on every PR/push that touches
@@ -108,8 +116,11 @@ generate + build + test for both destinations on every PR/push that touches
 [`docs/ios.md`](../../docs/ios.md#ci)).
 
 A free personal Apple team is enough to build, run on the Simulator, a device,
-or as a local Mac app, and to use the App Shortcut. There is no App Store
-Connect setup, on either platform.
+or as a local Mac app, and to use the App Shortcut. The share extension needs the
+`group.dev.willsawyerrrr.nest` App Group, which a free team cannot register, so
+sharing into Nest on a device needs the paid team (TestFlight builds get it from
+the export's automatic signing). There is no other App Store Connect setup, on
+either platform.
 
 ## Running the sign-in flow in the Simulator
 

@@ -6,6 +6,7 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { PlanningModeBanner } from './components/PlanningModeBanner'
 import { PlanningModeProvider, usePlanningMode } from './components/PlanningModeProvider'
+import { SharedFilesRedirect } from './components/SharedFilesRedirect'
 import { SignInScreen } from './components/SignInScreen'
 import { navSections, TabBar } from './components/TabBar'
 import { useHousehold, type Household } from './hooks/useHousehold'
@@ -231,6 +232,7 @@ function HouseholdShell({
   return (
     <div className="app-shell">
       <main className="page">
+        <SharedFilesRedirect />
         <PlanningModeBanner />
         <Suspense fallback={<LoadingScreen />}>
           <Routes>

@@ -4,6 +4,7 @@ import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import type { DeductionGroupRow } from '../hooks/useDeductionGroups'
 import type { DeductionReceiptRow } from '../hooks/useDeductionReceipts'
 import type { DeductionRow } from '../hooks/useDeductions'
+import { installNativeShareBridge, resetNativeShare } from '../lib/nativeShare'
 import { makeMember } from '../test/fixtures'
 import { act, render, screen, setWideViewport, waitFor, within } from '../test/render'
 import { DeductionsScreen } from './DeductionsScreen'
@@ -124,6 +125,10 @@ function groupPicker() {
 }
 
 afterEach(() => {
+  resetNativeShare()
+  delete window.__NEST_NATIVE_SHELL__
+  delete window.__nestShare
+  delete window.webkit
   vi.restoreAllMocks()
   dnd.onDragStart = undefined
   dnd.onDragEnd = undefined
@@ -717,5 +722,49 @@ describe('DeductionsScreen', () => {
     expect(screen.getByLabelText('b.pdf')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /enter details manually/i })).toBeNull()
     expect(screen.queryByLabelText("Add Will's deductions from receipts")).toBeNull()
+  })
+})
+
+describe('DeductionsScreen shared files', () => {
+  function shareFile(id: string, name: string) {
+    act(() => {
+      window.__nestShare!.begin(id, name, 'application/pdf')
+      window.__nestShare!.chunk(id, btoa('pdf'))
+      window.__nestShare!.finish(id)
+    })
+  }
+
+  function enableShell() {
+    const postMessage = vi.fn()
+    window.__NEST_NATIVE_SHELL__ = true
+    window.webkit = {
+      messageHandlers: { nestAuth: { postMessage: vi.fn() }, nestShare: { postMessage } },
+    }
+    installNativeShareBridge()
+    return postMessage
+  }
+
+  it("queues a shared file into the signed-in member's receipts as a work expense", async () => {
+    const postMessage = enableShell()
+    const upload = vi.fn().mockResolvedValue('h1/new/uuid-shared.pdf')
+    renderScreen({ currentMemberId: 'm1', attachments: { ...attachments, upload } })
+
+    shareFile('s1', 'shared.pdf')
+
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1))
+    expect(upload.mock.calls[0]![1].name).toBe('shared.pdf')
+    expect(attachments.read).toHaveBeenCalledWith('h1/new/uuid-shared.pdf', 'work_expense')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'queued', ids: ['s1'] })
+  })
+
+  it('leaves a shared file waiting when the signed-in member is not on the list', () => {
+    const postMessage = enableShell()
+    const upload = vi.fn().mockResolvedValue('h1/new/uuid-shared.pdf')
+    renderScreen({ currentMemberId: null, attachments: { ...attachments, upload } })
+
+    shareFile('s1', 'shared.pdf')
+
+    expect(upload).not.toHaveBeenCalled()
+    expect(postMessage).not.toHaveBeenCalled()
   })
 })

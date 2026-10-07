@@ -11,12 +11,16 @@ import '@mantine/charts/styles.css'
 import './index.css'
 import App from './App.tsx'
 import { installNativeAuthBridge } from './lib/nativeAuthBridge'
+import { installNativeShareBridge } from './lib/nativeShare'
 import { theme } from './theme'
 import './pwa'
 
 // In the native iOS shell, expose the hooks the native layer calls to hand the
 // page its session. A no-op in a browser.
 installNativeAuthBridge()
+
+// Likewise for files shared into the native app from other apps.
+installNativeShareBridge()
 
 // Collections are cached household-scoped so switching tabs reads cached data
 // and revalidates in the background rather than cold-fetching. A short stale

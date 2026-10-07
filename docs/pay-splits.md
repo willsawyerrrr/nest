@@ -183,6 +183,15 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
   primitives live in `SplitBreakdown.tsx`; the Confirm / drift / clear controls sit
   outside it and keep working while a row is open.
 
+## Siri and Shortcuts
+
+The native app's `PaySplitIntent` ("How does my pay split in Nest") speaks the
+recommended splits — what to send to each account each fortnight, and the total
+— from the `pay-split` edge function, which runs the same `@nest/plan` routing
+(`assignmentsByAccount`, `isRecommendedSplitAccount`, `roundCentsUpToStep`) over
+the household's budget lines, goals, allowances and pay account. Confirmed
+splits and drift are not part of the answer. See [`ios.md`](ios.md).
+
 ## Out of scope / future
 
 - **Reading the configured split from Up's API.** The "configured split" is a

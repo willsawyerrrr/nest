@@ -37,5 +37,16 @@ struct NestShortcuts: AppShortcutsProvider {
             shortTitle: "Budget line",
             systemImageName: "chart.pie"
         )
+        AppShortcut(
+            intent: PaySplitIntent(),
+            phrases: [
+                "How does my pay split in \(.applicationName)",
+                "Check my \(.applicationName) pay split",
+                "What's my \(.applicationName) pay split",
+                "Ask \(.applicationName) how to split my pay",
+            ],
+            shortTitle: "Pay split",
+            systemImageName: "arrow.triangle.branch"
+        )
     }
 }

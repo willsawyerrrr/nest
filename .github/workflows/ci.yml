@@ -302,7 +302,7 @@ jobs:
   ci-status:
     name: CI Status
     if: ${{ always() }}
-    needs: [check, test, functions, rls, changes, build-ios, build-catalyst]
+    needs: [check, test-shard, test, functions, rls, changes, build-ios, build-catalyst]
     runs-on: ubuntu-latest
     steps:
       # `build-ios` / `build-catalyst` are gated on `changes.outputs.ios`
@@ -323,6 +323,7 @@ jobs:
             fi
           }
           require_success check "${{ needs.check.result }}"
+          require_success test-shard "${{ needs.test-shard.result }}"
           require_success test "${{ needs.test.result }}"
           require_success functions "${{ needs.functions.result }}"
           require_success rls "${{ needs.rls.result }}"

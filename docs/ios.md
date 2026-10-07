@@ -4,9 +4,9 @@
 iOS and Mac Catalyst. The PWA
 (`https://nest.willsawyerrrr.dev`) is the entire product UI; the native app
 embeds it in a `WKWebView` and adds Siri / App Intents access to key figures.
-Three read-only queries so far: the household's fortnightly buffer after
-saving, its savings-goal progress, and how much a named budget line is planned
-at.
+Four read-only queries so far: the household's fortnightly buffer after
+saving, its savings-goal progress, how much a named budget line is planned
+at, and its recommended pay split.
 
 Nothing about how the PWA is built, deployed, or served changes because this
 app exists. Nothing in the Swift source differs between the two destinations
@@ -142,6 +142,18 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   App Shortcut phrase can't carry a free-text parameter, so the shortcut phrase
   is parameterless and Siri asks which line; a spoken-inline `AppEntity` for
   line names is a follow-up, the same as for a per-goal parameter.
+- **`Intents/PaySplitIntent.swift`** + **`Intents/PaySplitService.swift`** —
+  "how does my pay split": calls `pay-split` and speaks the recommended
+  fortnightly transfer to each account and their total ("Each fortnight, send
+  $400.00 to Japan and $150.00 to Bills, $550.00 in total."), plus any
+  fortnightly amount not yet routed to an account. No pay account chosen → asks
+  the member to choose one in Nest; nothing routed → prompts to set up routing.
+  It takes no parameter: the split is household-wide (see
+  [`pay-splits.md`](pay-splits.md)) and the figure is always the current
+  recommendation. It also returns a `[PaySplitEntity]` — one per recommended
+  account, with its name and fortnightly dollar amount — for use in other
+  shortcuts; `PaySplitEntityQuery` re-resolves an entity by account id from the
+  live response.
 - **`Intents/NestShortcuts.swift`** — an `AppShortcutsProvider` with one
   `AppShortcut` per intent (each a `shortTitle`, an SF Symbol, and phrases all
   containing `\(.applicationName)`), so the phrases reach Siri, Spotlight, and
@@ -166,7 +178,7 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
 | `apikey` | the project anon key |
 | `Content-Type` | `application/json` |
 
-`intent-summary` and `goal-progress` take a `{}` body; `budget-line` takes
+`intent-summary`, `goal-progress` and `pay-split` take a `{}` body; `budget-line` takes
 `{ "query": string }`.
 
 - `intent-summary` → `{ "fortnightlyAfterSavingCents": number }` (integer minor
@@ -183,6 +195,13 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
   `names` is every budget line name, sorted. `amountCents` is the planned amount
   at its own `frequency`; `fortnightlyCents` / `annualCents` are the `@nest/plan`
   normalisations.
+
+- `pay-split` →
+  `{ "hasPayAccount": boolean, "splits": { "accountId": string, "name": string, "fortnightlyCents": number }[], "totalCents": number, "stays": { ...same shape }[], "unassignedFortnightlyCents": number }`.
+  The same recommendation the PWA Splits tab shows: `splits` are the other
+  routed accounts (every one when a pay account is chosen, else only savers),
+  each rounded up to the nearest $5 and ordered by name; `stays` are the routed
+  accounts that need no transfer; `name` has any leading emoji stripped.
 
 ## Apple Developer Program
 
@@ -209,7 +228,7 @@ Shortcuts app and Spotlight are unaffected. This is a platform limitation, not
 something the paid program unlocks.
 
 The App Shortcuts have been run from Spotlight and the Shortcuts app **on a
-real iOS device**; both queries answer. **The iOS Simulator cannot reliably
+real iOS device**; the queries answer. **The iOS Simulator cannot reliably
 invoke an App Shortcut** — it fails with "Unable to run App Shortcut" regardless
 of the code — so test the intents on iOS hardware. The Simulator is still fine
 for the sign-in flow, the web shell, and `xcodebuild test`. A Mac Catalyst build

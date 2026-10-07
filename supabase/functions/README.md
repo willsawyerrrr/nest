@@ -122,7 +122,7 @@ directory.
 The per-function JWT posture lives in `config.toml`, so the "deploy all" is safe:
 `up-connect`, `up-disconnect`, `up-sync`, `changelog`, `push-key`, `push-test`,
 `payslip-extract`, `deduction-extract`, `trade-extract`, `share-create`, `intent-summary`,
-`goal-progress`, `notify-eval`, `redbark-connect`, `redbark-connect-complete`,
+`goal-progress`, `pay-split`, `notify-eval`, `redbark-connect`, `redbark-connect-complete`,
 `redbark-disconnect`, and `redbark-sync` are JWT-verified (the default, so they
 carry no `config.toml` entry) — the caller is resolved from their JWT, so a
 member can only touch their own token, their own devices, files in their own household,
@@ -159,6 +159,7 @@ supabase functions serve push-test
 supabase functions serve notify-eval
 supabase functions serve intent-summary
 supabase functions serve goal-progress
+supabase functions serve pay-split
 supabase functions serve redbark-connect
 supabase functions serve redbark-connect-complete
 supabase functions serve redbark-disconnect
@@ -643,3 +644,13 @@ step.
   with `goals` ordered dated-first. The pure shaping and flow are
   `goal-progress/run.ts` (`shapeGoalProgress` / `runGoalProgress`), DI-tested.
   Serves the iOS App Intent behind "how are my Nest savings goals".
+- **`pay-split`** — POST, no body, `Bearer` Supabase access token. JWT-verified,
+  the same caller → household resolution as `intent-summary`. Loads
+  `budget_line`, `savings_goal`, `member_allowance`, `members`, `accounts` and
+  the household's `pay_account_id` on a service-role client and derives the
+  Splits tab's recommendation with the vendored `@nest/plan` routing, answering
+  `{ hasPayAccount, splits, totalCents, stays, unassignedFortnightlyCents }`
+  (each entry `{ accountId, name, fortnightlyCents }`, rounded up to $5, by
+  name). The pure shaping and flow are `pay-split/run.ts` (`shapePaySplit` /
+  `runPaySplit`), DI-tested. Serves the iOS App Intent behind "how does my pay
+  split in Nest".

@@ -288,13 +288,14 @@ shared `_shared/householdBuffer.ts` loader `notify-eval` also uses (the buffer
 reads across the whole household, past the per-account balance-privacy boundary),
 so it reads the same plan tables that path does.
 
-`goal-progress` and `budget-line`, the other two iOS Siri queries, are the same
+`goal-progress`, `budget-line` and `pay-split`, the other iOS Siri queries, are the same
 shape: JWT-verified, no secret, household resolved from the caller's JWT, then a
 service-role read across the whole household. `goal-progress` reads
 `savings_goal` plus `accounts` / `account_balance` for a linked saver's balance;
 `budget-line` reads `budget_line` and matches one line by the name in the request
-body. All three tables already carry the `service_role` `select` grant from the
-notification-evaluator path.
+body. `pay-split` reads `budget_line`, `savings_goal`, `member_allowance`, `members`,
+`accounts` and `households.pay_account_id`. Every table already carries a
+`service_role` `select` grant, so no migration is needed.
 
 ## Storage buckets
 

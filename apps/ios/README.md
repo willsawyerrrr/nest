@@ -9,7 +9,7 @@ design.
 
 The `Nest` target is a single iOS codebase built for two destinations — iOS and
 Mac Catalyst — with no source changes between them: the same
-`WKWebView` shell, the same `AuthModel`/Keychain session, and the same three
+`WKWebView` shell, the same `AuthModel`/Keychain session, and the same four
 App Intents run on both. The one behavioural difference is Siri voice
 invocation, which macOS does not support for App Intents at all (see
 [`docs/ios.md`](../../docs/ios.md#apple-developer-program)) — the Shortcuts app
@@ -46,6 +46,10 @@ and Spotlight still work on both platforms.
     `query` parameter).
   - `Intents/BudgetLineService.swift` — injectable HTTP call to `budget-line`
     and its per-cadence spoken-sentence formatting.
+  - `Intents/PaySplitIntent.swift` — the pay-split `AppIntent` and its
+    `PaySplitEntity` result.
+  - `Intents/PaySplitService.swift` — injectable HTTP call to `pay-split` and
+    its spoken-sentence formatting.
   - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider` (one shortcut
     per intent).
 - `NestTests/` — Swift Testing unit tests over the pieces each `perform()`
@@ -96,7 +100,7 @@ xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
 Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
 
 `xcodebuild test` (with a concrete simulator `-destination`, or the same
-Catalyst `-destination` above) runs the `NestTests` suite — 42 tests, and they
+Catalyst `-destination` above) runs the `NestTests` suite — 58 tests, and they
 pass identically on both destinations with no source changes between them.
 `.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` jobs do the
 generate + build + test for both destinations on every PR/push that touches
@@ -117,7 +121,7 @@ Connect setup, on either platform.
    relaunch, is read in process by the Intents, and is mirrored into the web
    view, which loads already signed in.
 4. Test the intents from the Shortcuts app (search "Check Fortnightly Buffer" /
-   "Check Savings Goals") or Spotlight — **on a real device**. The Simulator
+   "Check Savings Goals" / "Check Pay Split") or Spotlight — **on a real device**. The Simulator
    fails to invoke an App Shortcut ("Unable to run App Shortcut") whatever the
    code; it is fine for the sign-in flow, the web shell, and `xcodebuild test`.
 
@@ -141,3 +145,6 @@ return a figure.
 - `BudgetLineIntent` → `budget-line`
   (`supabase/functions/budget-line`), `{ "query": string }` body →
   `{ "match": { name, amountCents, frequency, intervalCount, fortnightlyCents, annualCents } | null, "names": string[] }`.
+- `PaySplitIntent` → `pay-split`
+  (`supabase/functions/pay-split`), `{}` body →
+  `{ "hasPayAccount", "splits": { accountId, name, fortnightlyCents }[], "totalCents", "stays": { accountId, name, fortnightlyCents }[], "unassignedFortnightlyCents" }`.

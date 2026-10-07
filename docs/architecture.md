@@ -541,9 +541,11 @@ the workflow token is scoped `contents: read`:
   `skipped` as a pass for these two jobs only. See
   [`ios.md`](ios.md#ci).
 
-A `ci-status` job `needs` all six of the above plus `changes` and is the single
-required `CI Status` check (squash-only, no bypass); it fails on any non-`skip`
-result from `check` / `test` / `functions` / `rls` / `changes`, and on any
+A `ci-status` job `needs` every other job (`check`, `test-shard`, `test`,
+`functions`, `rls`, `changes`, `build-ios`, `build-catalyst`) and is the single
+check the `Protect main` ruleset requires (squash-only; force pushes and
+deletion blocked; admins bypass); it fails on any non-`success` result from
+`check` / `test-shard` / `test` / `functions` / `rls` / `changes`, and on any
 result from `build-ios` / `build-catalyst` other than `success` or `skipped`.
 Unlike the four Linux jobs, `build-ios` and `build-catalyst` run on macOS
 runners several minutes slower than the rest of the pipeline; there is no fixed

@@ -143,20 +143,25 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   is parameterless and Siri asks which line; a spoken-inline `AppEntity` for
   line names is a follow-up, the same as for a per-goal parameter.
 - **`Intents/PaySplitIntent.swift`** + **`Intents/PaySplitService.swift`** —
-  "how does my pay split": calls `pay-split` and speaks the recommended
-  fortnightly transfer to each account and their total ("Each fortnight, send
-  $400.00 to Japan and $150.00 to Bills, $550.00 in total."), plus any
-  fortnightly amount not yet routed to an account. No pay account chosen → asks
-  the member to choose one in Nest; nothing routed → prompts to set up routing.
-  It takes no parameter: the split is household-wide (see
-  [`pay-splits.md`](pay-splits.md)) and the figure is always the current
-  recommendation. It also returns a `[PaySplitEntity]` — one per recommended
-  account, with its name and fortnightly dollar amount — for use in other
-  shortcuts; `PaySplitEntityQuery` re-resolves an entity by account id from the
-  live response.
+  "how much goes to Japan in Nest": takes a required `account` parameter, calls
+  `pay-split`, and speaks that account's recommended fortnightly transfer ("$400.00
+  goes to Japan each fortnight."). Omitted or unresolved, Siri asks "Which
+  account?" and offers the options. The parameter is a `PaySplitEntity`
+  (`AppEntity`); `PaySplitEntityQuery` offers (`suggestedEntities`) and resolves
+  (`entities(for:)`) the household's recommended-split accounts from the live
+  response, and offers none when signed out or unreachable. The intent also
+  returns the refreshed `PaySplitEntity` (name and fortnightly dollar amount, or
+  nothing when the account has no split) for use in other shortcuts. Other
+  answers: the pay account itself → nothing is transferred to it; no pay account
+  chosen → asks the member to choose one in Nest; an account nothing is routed
+  to → says so; nothing routed at all → prompts to set up routing. `NestApp`
+  calls `NestShortcuts.updateAppShortcutParameters()` once a session exists so
+  the phrases pick up the household's accounts. The answer is one account's
+  figure; the household-wide breakdown stays in the PWA (see
+  [`pay-splits.md`](pay-splits.md)).
 - **`Intents/NestShortcuts.swift`** — an `AppShortcutsProvider` with one
   `AppShortcut` per intent (each a `shortTitle`, an SF Symbol, and phrases all
-  containing `\(.applicationName)`), so the phrases reach Siri, Spotlight, and
+  containing `\(.applicationName)`; the pay-split phrases also carry the `account` parameter, e.g. "How much goes to \(\.$account) in Nest"), so the phrases reach Siri, Spotlight, and
   the Shortcuts app on install with no further setup.
 
 In every service the HTTP call and the spoken-sentence formatting are plain
@@ -196,7 +201,7 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
   at its own `frequency`; `fortnightlyCents` / `annualCents` are the `@nest/plan`
   normalisations.
 
-- `pay-split` →
+- `pay-split` → (the intent reads one account's entry from `splits`)
   `{ "hasPayAccount": boolean, "splits": { "accountId": string, "name": string, "fortnightlyCents": number }[], "totalCents": number, "stays": { ...same shape }[], "unassignedFortnightlyCents": number }`.
   The same recommendation the PWA Splits tab shows: `splits` are the other
   routed accounts (every one when a pay account is chosen, else only savers),

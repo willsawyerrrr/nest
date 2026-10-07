@@ -40,10 +40,11 @@ struct NestShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: PaySplitIntent(),
             phrases: [
+                "How much goes to \(\.$account) in \(.applicationName)",
+                "How much of my pay goes to \(\.$account) in \(.applicationName)",
+                "What's my \(.applicationName) pay split for \(\.$account)",
                 "How does my pay split in \(.applicationName)",
                 "Check my \(.applicationName) pay split",
-                "What's my \(.applicationName) pay split",
-                "Ask \(.applicationName) how to split my pay",
             ],
             shortTitle: "Pay split",
             systemImageName: "arrow.triangle.branch"

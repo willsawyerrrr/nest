@@ -185,9 +185,9 @@ All pure, no I/O, unit-tested — consistent with the rest of `@nest/plan`.
 
 ## Siri and Shortcuts
 
-The native app's `PaySplitIntent` ("How does my pay split in Nest") speaks the
-recommended splits — what to send to each account each fortnight, and the total
-— from the `pay-split` edge function, which runs the same `@nest/plan` routing
+The native app's `PaySplitIntent` ("How much goes to Japan in Nest") speaks one
+account's recommended fortnightly split — Siri asks "Which account?" when none
+is named — from the `pay-split` edge function, which runs the same `@nest/plan` routing
 (`assignmentsByAccount`, `isRecommendedSplitAccount`, `roundCentsUpToStep`) over
 the household's budget lines, goals, allowances and pay account. Confirmed
 splits and drift are not part of the answer. See [`ios.md`](ios.md).

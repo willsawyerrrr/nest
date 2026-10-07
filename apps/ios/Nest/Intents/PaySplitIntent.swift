@@ -1,9 +1,10 @@
 import AppIntents
 
-/// One account's recommended fortnightly pay split, as a result other shortcuts
-/// can use. Looked up again by id through `PaySplitEntityQuery`.
+/// One account's recommended fortnightly pay split, as the intent's account
+/// parameter and as a result other shortcuts can use. Resolved by id from the
+/// live `pay-split` response through `PaySplitEntityQuery`.
 struct PaySplitEntity: AppEntity {
-    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Pay split")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Account")
     static let defaultQuery = PaySplitEntityQuery()
 
     let id: String
@@ -28,35 +29,53 @@ struct PaySplitEntity: AppEntity {
     }
 }
 
-/// Resolves pay-split entities by account id from the live `pay-split` response,
-/// so a shortcut holding one gets the current figure rather than a stale copy.
+/// Offers and resolves the household's accounts that pay is split into, from the
+/// live `pay-split` response. Signed out or unreachable, it offers none.
 struct PaySplitEntityQuery: EntityQuery {
-    func entities(for identifiers: [String]) async throws -> [PaySplitEntity] {
-        let outcome = await paySplitResponse(
+    private func splits() async -> [PaySplitAccount] {
+        let load = await paySplitLoad(
             accessToken: { try await supabaseAuth.session.accessToken },
             service: .live
         )
-        return outcome.splits.filter { identifiers.contains($0.accountId) }.map(PaySplitEntity.init)
+        guard case .summary(let summary) = load else { return [] }
+        return summary.splits
+    }
+
+    func entities(for identifiers: [String]) async throws -> [PaySplitEntity] {
+        await splits().filter { identifiers.contains($0.accountId) }.map(PaySplitEntity.init)
+    }
+
+    func suggestedEntities() async throws -> [PaySplitEntity] {
+        await splits().map(PaySplitEntity.init)
     }
 }
 
-/// Speaks the household's recommended fortnightly pay split — what to send to
-/// each account — from the `pay-split` edge function, and returns each account's
-/// amount for use in other shortcuts. Runs in-process and reads the Keychain
-/// session, so it works with the app closed and never opens the app.
+/// Speaks how much of the household's fortnightly pay goes to one account, from
+/// the `pay-split` edge function, and returns that account's split for use in
+/// other shortcuts. Runs in-process and reads the Keychain session, so it works
+/// with the app closed and never opens the app.
 struct PaySplitIntent: AppIntent {
     static let title: LocalizedStringResource = "Check Pay Split"
     static let description = IntentDescription(
-        "Ask how much to send to each account from your pay each fortnight."
+        "Ask how much of your pay goes to one account each fortnight."
     )
 
-    func perform() async throws -> some IntentResult & ReturnsValue<[PaySplitEntity]> & ProvidesDialog {
+    @Parameter(title: "Account", requestValueDialog: "Which account?")
+    var account: PaySplitEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Check the pay split for \(\.$account)")
+    }
+
+    func perform() async throws -> some IntentResult & ReturnsValue<PaySplitEntity?> & ProvidesDialog {
         let outcome = await paySplitResponse(
+            accountId: account.id,
+            name: account.name,
             accessToken: { try await supabaseAuth.session.accessToken },
             service: .live
         )
         return .result(
-            value: outcome.splits.map(PaySplitEntity.init),
+            value: outcome.split.map(PaySplitEntity.init),
             dialog: IntentDialog(stringLiteral: outcome.sentence)
         )
     }

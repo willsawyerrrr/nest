@@ -48,8 +48,8 @@ and Spotlight still work on both platforms.
     `query` parameter).
   - `Intents/BudgetLineService.swift` — injectable HTTP call to `budget-line`
     and its per-cadence spoken-sentence formatting.
-  - `Intents/PaySplitIntent.swift` — the pay-split `AppIntent` and its
-    `PaySplitEntity` result.
+  - `Intents/PaySplitIntent.swift` — the pay-split `AppIntent` (a required
+    account parameter), its `PaySplitEntity` and `PaySplitEntityQuery`.
   - `Intents/PaySplitService.swift` — injectable HTTP call to `pay-split` and
     its spoken-sentence formatting.
   - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider` (one shortcut

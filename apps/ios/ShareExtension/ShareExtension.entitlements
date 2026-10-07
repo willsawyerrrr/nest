@@ -6,9 +6,5 @@
 	<array>
 		<string>group.dev.willsawyerrrr.nest</string>
 	</array>
-	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)dev.willsawyerrrr.nest</string>
-	</array>
 </dict>
 </plist>

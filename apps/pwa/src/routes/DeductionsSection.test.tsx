@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '../test/render'
 import { DeductionsSection } from './DeductionsSection'
 
 const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
+  useCurrentMember: vi.fn(),
   useDeductions: vi.fn(),
   useDeductionGroups: vi.fn(),
   useDeductionReceipts: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('../components/LoadingScreen', () => ({
   LoadingScreen: () => <div data-testid="loading" />,
 }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
+vi.mock('../hooks/useCurrentMember', () => ({ useCurrentMember: hooks.useCurrentMember }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../hooks/useDeductionGroups', () => ({ useDeductionGroups: hooks.useDeductionGroups }))
 vi.mock('../hooks/useDeductionReceipts', () => ({
@@ -27,6 +29,10 @@ vi.mock('../components/DeductionsScreen', () => ({
 }))
 
 describe('DeductionsSection', () => {
+  beforeEach(() => {
+    hooks.useCurrentMember.mockReturnValue({ member: { id: 'm1' }, loading: false })
+  })
+
   it('shows the loading screen until data loads', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useDeductions.mockReturnValue({ loading: false })
@@ -73,6 +79,7 @@ describe('DeductionsSection', () => {
     expect(screen.getByTestId('deductions-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Alex' }])
     expect(hooks.screenProps?.financialYear).toBe(2027)
+    expect(hooks.screenProps?.currentMemberId).toBe('m1')
     expect(hooks.screenProps?.onCreate).toBe(create)
     expect(hooks.screenProps?.onUpdate).toBe(update)
     expect(hooks.screenProps?.onDelete).toBe(remove)
@@ -83,5 +90,15 @@ describe('DeductionsSection', () => {
     expect(hooks.screenProps?.onUploadReceipt).toBe(upload)
     expect(hooks.screenProps?.onRemoveReceipt).toBe(removeReceipt)
     expect(hooks.screenProps?.signedUrl).toBe(signedUrl)
+  })
+
+  it('passes no current member until one resolves', () => {
+    hooks.useCurrentMember.mockReturnValue({ member: null, loading: true })
+    hooks.useMembers.mockReturnValue({ members: [], loading: false })
+    hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
+    hooks.useDeductionGroups.mockReturnValue({ loading: false, groups: [] })
+    hooks.useDeductionReceipts.mockReturnValue({ loading: false, receipts: [] })
+    render(<DeductionsSection />)
+    expect(hooks.screenProps?.currentMemberId).toBeNull()
   })
 })

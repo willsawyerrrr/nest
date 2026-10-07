@@ -28,11 +28,13 @@ targets:
       iOS: '17.0'
     sources:
       - path: Nest
+      - path: Shared
     dependencies:
       - package: Supabase
         product: Auth
       - package: GoogleSignIn
         product: GoogleSignIn
+      - target: ShareExtension
     info:
       path: Nest/Info.plist
       properties:
@@ -75,6 +77,37 @@ targets:
         # `$(AppIdentifierPrefix)` in Nest.entitlements needs one. CI builds
         # with `CODE_SIGNING_ALLOWED=NO` and never reaches this.
         DEVELOPMENT_TEAM: 8558CXPT9G
+
+  # The share sheet's "Nest" destination: copies shared PDFs and images into the
+  # App Group inbox the app reads on its next foreground.
+  ShareExtension:
+    type: app-extension
+    supportedDestinations: [iOS, macCatalyst]
+    deploymentTarget:
+      iOS: '17.0'
+    sources:
+      - path: ShareExtension
+      - path: Shared
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Nest
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            # Offered when at least one attachment is a PDF or an image.
+            NSExtensionActivationRule: 'SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image").@count >= 1).@count >= 1'
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.share-extension
+        PRODUCT_NAME: ShareExtension
+        CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements
+        DEVELOPMENT_TEAM: 8558CXPT9G
+        # Extensions must not use app-only APIs.
+        APPLICATION_EXTENSION_API_ONLY: true
 
   NestTests:
     type: bundle.unit-test

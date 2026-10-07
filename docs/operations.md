@@ -207,6 +207,9 @@ off in its settings.
   `ASC_KEY_P8` repository secrets (an App Store Connect API key with the Admin
   role, which cloud signing requires) and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables. Run it
   manually with `gh workflow run "Deploy iOS"`.
+  - The build embeds the share extension (`dev.willsawyerrrr.nest.share-extension`,
+    App Group `group.dev.willsawyerrrr.nest`); the export's automatic signing
+    registers both with the same API key, so nothing is set up by hand.
   - The archive is unsigned and only `xcodebuild -exportArchive` signs, using
     the team's one cloud-managed Apple Distribution certificate. Archiving under
     automatic signing needs an Apple Development certificate, which each

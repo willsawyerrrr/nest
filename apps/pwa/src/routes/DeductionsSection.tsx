@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DeductionsScreen } from '../components/DeductionsScreen'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { useCurrentMember } from '../hooks/useCurrentMember'
 import type { DeductionAttachments } from '../hooks/useDeductionAttachment'
 import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
@@ -14,6 +15,7 @@ export function DeductionsSection() {
   const [financialYear, setFinancialYear] = useState(currentFinancialYear)
 
   const { members, loading: membersLoading } = useMembers()
+  const { member: currentMember } = useCurrentMember()
   const deductions = useDeductions(financialYear)
   const groups = useDeductionGroups(financialYear)
   const receipts = useDeductionReceipts(financialYear)
@@ -44,6 +46,7 @@ export function DeductionsSection() {
       availableFinancialYears={availableFinancialYears}
       onFinancialYearChange={setFinancialYear}
       attachments={attachments}
+      currentMemberId={currentMember?.id ?? null}
       onCreate={deductions.create}
       onUpdate={deductions.update}
       onDelete={deductions.remove}

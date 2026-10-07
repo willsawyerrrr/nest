@@ -24,8 +24,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   covers build, install, Shortcuts, and Spotlight on both platforms; on iOS only
   Siri voice invocation is unverified on the free tier, while on macOS Siri
   voice invocation of an App Shortcut is unavailable outright, confirmed by
-  Apple DTS — a platform limitation, not an entitlement question. See
-  [`docs/ios.md`](docs/ios.md).
+  Apple DTS — a platform limitation, not an entitlement question. A share
+  extension (`apps/ios/ShareExtension`, App Group `group.dev.willsawyerrrr.nest`)
+  lets a PDF or image shared from Mail, Files, Photos, or Safari reach the member's
+  deduction receipt queue as a work-expense draft: the extension copies files
+  into the group inbox, and the app hands them to the PWA over the `nestShare`
+  bridge on its next foreground, deleting each only once the page acknowledges it.
+  See [`docs/ios.md`](docs/ios.md#share-extension).
 - Agent access: `packages/mcp` (`@nest/mcp`) is a stdio MCP server that lets an
   agent act as a household member. It signs in with that member's Supabase
   session (anon key plus a refresh or access token from the environment, the
@@ -664,7 +669,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   together with Save selected, under ids minted when the file is added, so a retry
   cannot duplicate; a draft discarded, or a panel closed, deletes the stored files
   no saved record references. Replacing a single deduction's receipt stays a
-  single-file control. See [`docs/bulk-upload.md`](docs/bulk-upload.md).
+  single-file control. In the native iOS app, files shared in from other apps join
+  the signed-in member's deduction queue as work expenses. See
+  [`docs/bulk-upload.md`](docs/bulk-upload.md).
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /
   Temporary / Savings / Investments) with a live remaining buffer, shown on the

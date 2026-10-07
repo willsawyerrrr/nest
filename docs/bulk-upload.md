@@ -32,6 +32,19 @@ A deduction batch is read for one kind at a time (work expense, donation receipt
 tax agent invoice), the kind chosen on the Add deduction card before the files are
 picked; it primes `deduction-extract` and is each draft's starting category, still editable per draft.
 
+## Receipts shared from other iOS apps
+
+In the native iOS app, a PDF or image shared to Nest from another app (see
+[`ios.md`](ios.md#share-extension)) joins the signed-in member's deduction queue
+as though picked on the Add card: the member lands on Tax deductions and sees a
+draft per file above the list. The kind is work expense, the Add card's default,
+and each draft's category stays editable. Shared files never go to a co-member's
+list, a form inside a group, or the payslip and trade queues. Files over 25 MB, or
+that are neither PDF nor image, are turned away by the share sheet; files past the
+20-open limit are left out with the usual message. A shared file is acknowledged
+to the app once queued, so a file shared twice, or handed over twice, makes one
+draft.
+
 ## The queue
 
 `useUploadQueue` holds every file in a batch and drives it; `BulkUploadPanel` renders

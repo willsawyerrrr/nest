@@ -10,7 +10,7 @@
     "start": "node src/index.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "build:vercel": "esbuild src/vercel.ts --bundle --platform=node --format=esm --target=node24 --outfile=api/index.js"
+    "build:vercel": "esbuild src/vercel.ts --bundle --platform=node --format=esm --target=node24 --outfile=api/index.ts --allow-overwrite"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

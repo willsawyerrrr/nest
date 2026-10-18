@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { ToolError } from '../errors.ts'
 import { fakeContext, members } from '../test/fakeContext.ts'
-import { MAX_UPLOAD_BYTES } from '../upload.ts'
-import { addWishlistItem, createDeductionFromDocument, createDeductionInput } from './write.ts'
+import { MAX_REMOTE_UPLOAD_BYTES, MAX_UPLOAD_BYTES } from '../upload.ts'
+import {
+  addWishlistItem,
+  createDeductionFromContent,
+  createDeductionFromDocument,
+  createDeductionInput,
+  createDeductionRemoteInput,
+} from './write.ts'
 
 const tables = { members }
 const pdf = new Uint8Array([1, 2, 3])
@@ -300,5 +306,49 @@ describe('input schemas', () => {
     expect(
       createDeductionInput.safeParse({ file_path: 'a', deduction_date: '26-1-1' }).success,
     ).toBe(false)
+  })
+})
+
+describe('createDeductionFromContent', () => {
+  const full = {
+    filename: 'dir/Receipt 1.pdf',
+    description: 'Laptop',
+    amount_cents: 999_99,
+    deduction_date: '2026-08-14',
+  }
+  const input = (content: string, extra = {}) =>
+    createDeductionRemoteInput.parse({ ...full, content, ...extra })
+
+  it('decodes base64 and stores it under the file name alone', async () => {
+    const { ctx, state } = fakeContext({ tables })
+    const result = await createDeductionFromContent(ctx, input('AQID'))
+    expect(state.uploads).toEqual([
+      { path: 'h-1/uuid-1/uuid-2-Receipt_1.pdf', contentType: 'application/pdf', bytes: 3 },
+    ])
+    expect(result).toMatchObject({ id: 'uuid-1', description: 'Laptop' })
+  })
+
+  it('accepts wrapped base64', async () => {
+    const { ctx, state } = fakeContext({ tables })
+    await createDeductionFromContent(ctx, input('AQ\nID'))
+    expect(state.uploads[0]?.bytes).toBe(3)
+  })
+
+  it.each(['not base64!', 'A'])('refuses invalid content %j', async (content) => {
+    const { ctx, state } = fakeContext({ tables })
+    expect((await failure(createDeductionFromContent(ctx, input(content)))).code).toBe(
+      'invalid_content',
+    )
+    expect(state.uploads).toEqual([])
+  })
+
+  it('refuses a file over the remote limit', async () => {
+    const { ctx } = fakeContext({ tables })
+    const content = Buffer.alloc(MAX_REMOTE_UPLOAD_BYTES + 1).toString('base64')
+    expect(content.length).toBeGreaterThan(createDeductionRemoteInput.shape.content.maxLength!)
+    expect(() => input(content)).toThrow()
+    expect(
+      (await failure(createDeductionFromContent(ctx, { ...input('AQID'), content }))).code,
+    ).toBe('file_too_large')
   })
 })

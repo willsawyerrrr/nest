@@ -57,6 +57,13 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
           }),
         }
       },
+      maybeSingle: async () => ({
+        data:
+          (state.tables[table] ?? []).find((row) =>
+            filters.every(([column, value]) => row[column] === value),
+          ) ?? null,
+        error: null,
+      }),
       then: (resolve: (value: unknown) => unknown) =>
         resolve({
           data: (state.tables[table] ?? []).filter((row) =>

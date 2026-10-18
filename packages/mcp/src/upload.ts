@@ -9,6 +9,12 @@
 /** The largest file stored, matching the PWA and the Storage buckets. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
+/** The largest file accepted over HTTP, which Vercel caps at a 4.5 MB request body once base64-encoded. */
+export const MAX_REMOTE_UPLOAD_BYTES = 3 * 1024 * 1024
+
+/** The longest base64 string that decodes to `MAX_REMOTE_UPLOAD_BYTES`. */
+export const MAX_REMOTE_CONTENT_LENGTH = Math.ceil(MAX_REMOTE_UPLOAD_BYTES / 3) * 4
+
 const READABLE_MEDIA_TYPES: Readonly<Record<string, string>> = {
   pdf: 'application/pdf',
   jpg: 'image/jpeg',

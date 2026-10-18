@@ -31,8 +31,14 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   into the group inbox, and the app hands them to the PWA over the `nestShare`
   bridge on its next foreground, deleting each only once the page acknowledges it.
   See [`docs/ios.md`](docs/ios.md#share-extension).
-- Agent access: `packages/mcp` (`@nest/mcp`) is a stdio MCP server that lets an
-  agent act as a household member. It signs in with that member's Supabase
+- Agent access: `packages/mcp` (`@nest/mcp`) is an MCP server that lets an
+  agent act as a household member, over stdio or, hosted on Vercel at
+  `mcp.nest.willsawyerrrr.dev`, over stateless Streamable HTTP as a Claude custom
+  connector. Remotely, Supabase Auth is the OAuth 2.1 authorization server
+  (dynamic client registration; consent at the PWA's `/oauth/consent`) and the
+  server only verifies each request's bearer token and acts as that member; the
+  deduction tool takes base64 `content` and `filename` there instead of
+  `file_path`. Over stdio it signs in with that member's Supabase
   session (anon key plus a refresh or access token from the environment, the
   rotating session kept in a `0600` file) and reaches data only through
   PostgREST, RPC, Storage, and edge functions under RLS — never a service-role

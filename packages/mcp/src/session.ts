@@ -57,6 +57,34 @@ async function signIn(supabase: SupabaseClient, config: Config): Promise<void> {
 }
 
 /**
+ * Resolves the household member behind `userId` into the context the tools run
+ * with. `supabase` must already act as that user, so row-level security gates
+ * the lookup and every later call.
+ */
+export async function memberContext(
+  supabase: SupabaseClient,
+  userId: string | undefined,
+  readFileBytes: NestContext['readFile'],
+): Promise<NestContext> {
+  if (!userId) throw new Error('The session does not identify a user.')
+  const { data: member, error } = await supabase
+    .from('members')
+    .select('id, household_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error || !member) throw new Error('The signed-in user is not a household member.')
+
+  return {
+    supabase,
+    householdId: member.household_id as string,
+    memberId: member.id as string,
+    now: () => new Date(),
+    readFile: readFileBytes,
+    randomUUID: () => crypto.randomUUID(),
+  }
+}
+
+/**
  * Builds the context the tools run with: an anon-key client signed in as a
  * household member (never a service role), and that member's household.
  */
@@ -82,21 +110,5 @@ export async function createContext(
   })
   await persist((await supabase.auth.getSession()).data.session)
 
-  const { data: user } = await supabase.auth.getUser()
-  if (!user.user) throw new Error('The session does not identify a user.')
-  const { data: member, error } = await supabase
-    .from('members')
-    .select('id, household_id')
-    .eq('user_id', user.user.id)
-    .maybeSingle()
-  if (error || !member) throw new Error('The signed-in user is not a household member.')
-
-  return {
-    supabase,
-    householdId: member.household_id as string,
-    memberId: member.id as string,
-    now: () => new Date(),
-    readFile: readFileBytes,
-    randomUUID: () => crypto.randomUUID(),
-  }
+  return memberContext(supabase, (await supabase.auth.getUser()).data.user?.id, readFileBytes)
 }

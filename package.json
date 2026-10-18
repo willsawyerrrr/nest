@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.14.0",
   "engines": {
-    "node": ">=22"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "node scripts/dev-app.js",

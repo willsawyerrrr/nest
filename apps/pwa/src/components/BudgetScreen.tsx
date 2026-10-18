@@ -90,18 +90,20 @@ export function BudgetScreen({
           />
         </Stack>
       )}
-      <MemberAllowanceList
-        members={members}
-        allowances={allowances}
-        lines={lines}
-        accounts={accounts}
-        onUpdate={onUpdateAllowance}
-      />
       <BudgetLineList
         lines={lines}
         goals={goals}
         accounts={accounts}
         allowances={drawable}
+        discretionaryHeader={
+          <MemberAllowanceList
+            members={members}
+            allowances={allowances}
+            lines={lines}
+            accounts={accounts}
+            onUpdate={onUpdateAllowance}
+          />
+        }
         breakdowns={breakdowns}
         onCreate={onCreateLine}
         onUpdate={onUpdateLine}

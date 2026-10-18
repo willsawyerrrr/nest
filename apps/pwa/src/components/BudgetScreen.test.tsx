@@ -116,6 +116,18 @@ describe('BudgetScreen', () => {
     expect(await screen.findByRole('option', { name: 'Ada’s allowance' })).toBeInTheDocument()
   })
 
+  it('lists the allowances inside the Discretionary group', () => {
+    renderScreen({
+      members: [{ id: 'm1', name: 'Ada' }],
+      allowances: [makeMemberAllowance()],
+    })
+
+    const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
+    const allowances = headings.indexOf('Spending allowances')
+    expect(allowances).toBeGreaterThan(headings.indexOf('Discretionary'))
+    expect(allowances).toBeLessThan(headings.indexOf('Savings'))
+  })
+
   it('routes an allowance edit through onUpdateAllowance', async () => {
     const user = userEvent.setup()
     const onUpdateAllowance = vi.fn().mockResolvedValue(undefined)

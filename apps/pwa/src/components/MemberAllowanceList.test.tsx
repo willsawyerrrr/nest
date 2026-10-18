@@ -38,8 +38,8 @@ describe('MemberAllowanceList', () => {
     expect(screen.queryByText(/allowance$/i)).toBeNull()
   })
 
-  it('shows an unset allowance as an empty bar, and as full once anything is drawn', () => {
-    const { unmount } = render(
+  it('shows an unset allowance as an empty bar', () => {
+    render(
       <MemberAllowanceList
         members={members}
         allowances={[makeMemberAllowance({ amount_cents: 0 })]}
@@ -51,26 +51,6 @@ describe('MemberAllowanceList', () => {
     expect(screen.getByRole('progressbar', { name: 'Ada’s allowance drawn' })).toHaveAttribute(
       'aria-valuenow',
       '0',
-    )
-    unmount()
-    render(
-      <MemberAllowanceList
-        members={members}
-        allowances={[makeMemberAllowance({ amount_cents: 0 })]}
-        currentMemberId="m1"
-        lines={[
-          makeBudgetLine({
-            line_group: 'discretionary',
-            amount_cents: 10_00,
-            allowance_member_id: 'm1',
-          }),
-        ]}
-        onUpdate={vi.fn()}
-      />,
-    )
-    expect(screen.getByRole('progressbar', { name: 'Ada’s allowance drawn' })).toHaveAttribute(
-      'aria-valuenow',
-      '100',
     )
   })
 
@@ -91,15 +71,12 @@ describe('MemberAllowanceList', () => {
     expect(screen.getByText(/drawn \$60\.00 \/ fn/i)).toBeInTheDocument()
     expect(screen.getByText('Left')).toBeInTheDocument()
     expect(screen.getByText('$140.00')).toBeInTheDocument()
-    expect(screen.queryByText('Overdrawn')).toBeNull()
   })
 
   it('shows a co-member’s allowance as its amount and cadence only', () => {
     renderList({
       currentMemberId: 'm2',
-      allowances: [
-        makeMemberAllowance({ drawn_fortnightly_cents: 250_00, drawn_annual_cents: 6_500_00 }),
-      ],
+      allowances: [makeMemberAllowance()],
     })
 
     expect(screen.getByText('Ada’s allowance')).toBeInTheDocument()
@@ -107,25 +84,7 @@ describe('MemberAllowanceList', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.queryByText(/^drawn /i)).toBeNull()
     expect(screen.queryByText('Left')).toBeNull()
-    expect(screen.queryByText('Overdrawn')).toBeNull()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
-  })
-
-  it('flags an overdrawn allowance and says by how much', () => {
-    renderList({
-      allowances: [makeMemberAllowance()],
-      lines: [
-        makeBudgetLine({
-          line_group: 'discretionary',
-          amount_cents: 250_00,
-          allowance_member_id: 'm1',
-        }),
-      ],
-    })
-
-    expect(screen.getByText('Overdrawn')).toBeInTheDocument()
-    expect(screen.getByText('Overdrawn by')).toBeInTheDocument()
-    expect(screen.getByText('$50.00')).toBeInTheDocument()
   })
 
   it('edits an allowance in place', async () => {

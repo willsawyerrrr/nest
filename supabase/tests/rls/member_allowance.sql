@@ -271,6 +271,8 @@ end $$;
 
 -- Deleting the member removes their allowance and releases its lines.
 reset role;
+update public.member_allowance set amount_cents = 5_00, frequency = 'weekly'
+  where household_id = current_setting('allow.hid')::uuid and member_id <> current_setting('allow.mid')::uuid;
 insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, allowance_member_id)
   select household_id, 'discretionary', 'Carol coffee', 5_00, 'weekly', member_id
   from public.member_allowance

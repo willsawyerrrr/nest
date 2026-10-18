@@ -16,7 +16,7 @@ export interface FakeOptions {
   tables?: Record<string, Row[]>
   insertError?: boolean
   rpcError?: boolean
-  /** What a named RPC answers; any other answers `'ok'` (and `hidden_allowance_drawn` an empty list). */
+  /** What a named RPC answers; any other answers `'ok'`. */
   rpcResults?: Record<string, unknown>
   uploadError?: boolean
   /** What `functions.invoke` answers: a body, or an `error` carrying a Response. */
@@ -82,7 +82,7 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
       return options.rpcError
         ? { data: null, error: { message: 'upstream detail' } }
         : {
-            data: options.rpcResults?.[fn] ?? (fn === 'hidden_allowance_drawn' ? [] : 'ok'),
+            data: options.rpcResults?.[fn] ?? 'ok',
             error: null,
           }
     },

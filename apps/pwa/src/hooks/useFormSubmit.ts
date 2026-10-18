@@ -17,8 +17,8 @@ interface UseFormSubmitOptions<T> {
   buildInput: () => T
   /** Persists the built input; the caller closes or refreshes on success. */
   onSubmit: (input: T) => void | Promise<void>
-  /** The message shown when `onSubmit` throws. */
-  errorMessage: string
+  /** The message shown when `onSubmit` throws, or a function choosing it from the thrown error. */
+  errorMessage: string | ((error: unknown) => string)
   /** Runs when a submit starts, after the guard passes (e.g. to clear a saved flag). */
   onStart?: () => void
   /** Runs after `onSubmit` resolves (e.g. to set a saved flag). */
@@ -61,8 +61,8 @@ export function useFormSubmit<T>({
       if (resetOnSuccess) {
         setSubmitting(false)
       }
-    } catch {
-      setError(errorMessage)
+    } catch (thrown) {
+      setError(typeof errorMessage === 'function' ? errorMessage(thrown) : errorMessage)
       setSubmitting(false)
     }
   }

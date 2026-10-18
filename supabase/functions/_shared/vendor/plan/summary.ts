@@ -66,7 +66,7 @@ export interface SummaryInput {
  * `afterSaving` are the running remainders, the latter being the buffer.
  * `allowances` reconciles each member's spending allowance against the lines
  * drawn from it; the Discretionary group holds the undrawn lines plus each
- * allowance's `outgoing`, so a drawn line is never counted twice.
+ * allowance, so a drawn line is never counted twice.
  * `tax` and `salarySacrifice` are the gross-basis-only slices — income tax and
  * levies, and the household's total salary sacrifice (pre-tax amounts sacrificed
  * from pay) — that with `available` sum to the gross income basis
@@ -145,8 +145,7 @@ function addAmounts(a: Amounts, b: Amounts): Amounts {
  * reported beside the plan rather than spent by it.
  *
  * A line drawn from a member's allowance adds nothing to its group: the
- * allowance's own outgoing — its amount, or the drawn total once that is larger —
- * joins Discretionary instead.
+ * allowance's own amount joins Discretionary instead.
  */
 export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   // A non-taxable inflow with an effective window counts in full while `now` is
@@ -179,8 +178,8 @@ export function summarise(input: SummaryInput, now: Date): BudgetSummary {
   }
   const memberAllowances = input.memberAllowances ?? []
   const allowances = summariseAllowances(input.budgetLines, memberAllowances)
-  for (const { outgoing } of allowances) {
-    lineTotals.discretionary = addAmounts(lineTotals.discretionary, outgoing)
+  for (const { allowance } of allowances) {
+    lineTotals.discretionary = addAmounts(lineTotals.discretionary, allowance)
   }
   for (const line of input.budgetLines) {
     if (isDrawnFromAllowance(line, memberAllowances)) {

@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { NumberInput, Select, Text, TextInput } from '@mantine/core'
+import { annualCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useFormSubmit } from '../hooks/useFormSubmit'
+import {
+  isAllowanceOverdrawn,
+  ITEM_OVERDRAWS_ALLOWANCE,
+  type AllowanceChoice,
+} from '../lib/allowances'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import type { BudgetGroup, Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
@@ -23,7 +29,7 @@ interface BudgetLineFormProps {
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
   accounts?: { id: string; name: string }[]
   /** The members who have a spending allowance, offered as a source on Discretionary lines. */
-  allowances?: { memberId: string; name: string }[]
+  allowances?: AllowanceChoice[]
   onSubmit: (input: BudgetLineInput) => void | Promise<void>
   onCancel?: () => void
 }
@@ -89,20 +95,38 @@ export function BudgetLineForm({
   }
 
   const managementUrlValid = isManagementUrlValid(managementUrl)
+  // An item cannot draw more over a year than its allowance has left, counting
+  // back what this item already draws when editing; the database enforces the same.
+  const amountCents = dollarsToCents(amount) ?? 0
+  const itemAnnualCents = annualCents(
+    amountCents,
+    frequency,
+    isEveryN && intervalValid ? Number(interval) : undefined,
+  )
+  const alreadyDrawnCents =
+    initial?.allowance_member_id && initial.allowance_member_id === drawnFrom?.memberId
+      ? annualCents(initial.amount_cents, initial.frequency, initial.interval_count ?? undefined)
+      : 0
+  const overdraws =
+    drawnFrom !== undefined && itemAnnualCents > drawnFrom.remainingAnnualCents + alreadyDrawnCents
   const canSubmit =
     name.trim() !== '' &&
     amount !== '' &&
     (isEveryN ? interval !== '' && intervalValid : true) &&
-    managementUrlValid
+    managementUrlValid &&
+    !overdraws
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
-    errorMessage: 'Could not save this budget item. Please try again.',
+    errorMessage: (thrown) =>
+      isAllowanceOverdrawn(thrown)
+        ? ITEM_OVERDRAWS_ALLOWANCE
+        : 'Could not save this budget item. Please try again.',
     onSubmit,
     buildInput: (): BudgetLineInput => ({
       line_group: group,
       name: name.trim(),
-      amount_cents: dollarsToCents(amount) ?? 0,
+      amount_cents: amountCents,
       frequency,
       interval_count: isEveryN ? Number(interval) : null,
       goal_id: showGoalPicker ? goalId : null,
@@ -172,6 +196,7 @@ export function BudgetLineForm({
         hideControls
         value={amount}
         onChange={setAmount}
+        error={overdraws ? ITEM_OVERDRAWS_ALLOWANCE : undefined}
       />
 
       {showGoalPicker && (

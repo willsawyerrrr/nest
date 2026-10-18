@@ -6,7 +6,6 @@ import {
 import { annualCents, fortnightlyCents, type Frequency } from '@nest/plan'
 import { financialYearForDate } from '@nest/tax'
 import { listMembers, selectAll, type NestContext } from '../context.ts'
-import { fixedError } from '../errors.ts'
 
 interface BudgetLineRecord {
   id: string
@@ -162,32 +161,13 @@ export async function listWishlist(ctx: NestContext) {
   }
 }
 
-interface HiddenDrawnRecord {
-  member_id: string
-  drawn_fortnightly_cents: number
-  drawn_annual_cents: number
-}
-
-/**
- * The totals drawn from the co-members' allowances, whose lines are private to
- * them and so absent from `budget_line` for this member. The member's own
- * allowance is not among them.
- */
-async function hiddenAllowanceDrawn(ctx: NestContext): Promise<HiddenDrawnRecord[]> {
-  const { data, error } = await ctx.supabase.rpc('hidden_allowance_drawn')
-  if (error) {
-    throw fixedError('query_failed')
-  }
-  return (data ?? []) as HiddenDrawnRecord[]
-}
-
 /**
  * The household's fortnightly buffer, computed with the same
  * `summariseHouseholdFromRows` the PWA Summary and the Siri figure use, over
  * rows read under the member's own row-level security. A co-member's saver
  * balances are hidden from the member, so interest projected on a goal linked
  * to one is left out of the estimate. The lines drawn from a co-member's
- * allowance are hidden too: the buffer counts their drawn total, but only the
+ * allowance are hidden too: the buffer counts the allowance itself, but only the
  * member's own allowance reports what is drawn and what remains.
  */
 export async function getFortnightlyBuffer(ctx: NestContext) {
@@ -206,7 +186,6 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     temporaryItems,
     savingsGoals,
     accounts,
-    hiddenDrawn,
   ] = await Promise.all([
     selectAll<BudgetSummaryBundle['inflows'][number]>(ctx, 'inflows'),
     selectAll<BudgetSummaryBundle['taxProfiles'][number]>(ctx, 'tax_profile', scoped),
@@ -219,9 +198,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
     selectAll<BudgetSummaryBundle['temporaryItems'][number]>(ctx, 'temporary_item'),
     selectAll<BudgetSummaryBundle['savingsGoals'][number]>(ctx, 'savings_goal'),
     selectAll<AccountRecord>(ctx, 'accounts_with_balance'),
-    hiddenAllowanceDrawn(ctx),
   ])
-  const drawnByMember = new Map(hiddenDrawn.map((total) => [total.member_id, total]))
   const savers: SaverRow[] = accounts
     .filter((account) => account.source === 'up' && account.type === 'savings')
     .map((account) => ({
@@ -239,10 +216,7 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
       deductions,
       members,
       budgetLines,
-      memberAllowances: memberAllowances.map((allowance) => ({
-        ...allowance,
-        ...drawnByMember.get(allowance.member_id),
-      })),
+      memberAllowances,
       temporaryItems,
       savingsGoals,
       savers,
@@ -261,14 +235,13 @@ export async function getFortnightlyBuffer(ctx: NestContext) {
       Object.entries(summary.groups).map(([group, amounts]) => [group, amounts.fortnightlyCents]),
     ),
     allowances: summary.allowances.map((allowance) => {
-      const own = !drawnByMember.has(allowance.memberId)
+      const own = allowance.memberId === ctx.memberId
       return {
         member: members.find((member) => member.id === allowance.memberId)?.name ?? null,
         member_id: allowance.memberId,
         allowance_fortnightly_cents: allowance.allowance.fortnightlyCents,
         drawn_fortnightly_cents: own ? allowance.drawn.fortnightlyCents : null,
         remaining_fortnightly_cents: own ? allowance.remaining.fortnightlyCents : null,
-        overdrawn: own ? allowance.overdrawn : null,
       }
     }),
   }

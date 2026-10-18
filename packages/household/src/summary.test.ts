@@ -190,32 +190,6 @@ describe('toSummaryInput', () => {
     ])
   })
 
-  it('carries a supplied drawn total for an allowance whose lines are not readable', () => {
-    const result = toSummaryInput({
-      ...summaryInputArgs,
-      memberAllowances: [
-        {
-          member_id: 'm1',
-          amount_cents: 100_00,
-          frequency: 'fortnightly',
-          interval_count: null,
-          drawn_fortnightly_cents: 150_00,
-          drawn_annual_cents: 3_900_00,
-        },
-        { member_id: 'm2', amount_cents: 80_00, frequency: 'weekly', interval_count: null },
-      ],
-    })
-    expect(result.memberAllowances).toEqual([
-      {
-        memberId: 'm1',
-        amountCents: 100_00,
-        frequency: 'fortnightly',
-        drawn: { fortnightlyCents: 150_00, annualCents: 3_900_00 },
-      },
-      { memberId: 'm2', amountCents: 80_00, frequency: 'weekly' },
-    ])
-  })
-
   it('reports one-off money landing in the year and keeps it out of the inflow top-up', () => {
     const result = toSummaryInput({
       ...summaryInputArgs,
@@ -317,7 +291,6 @@ describe('summariseHouseholdFromRows', () => {
     expect(result.allowances).toHaveLength(1)
     expect(result.allowances[0]).toMatchObject({
       memberId: 'm1',
-      overdrawn: false,
       remaining: { fortnightlyCents: 140_00, annualCents: 3_640_00 },
     })
   })

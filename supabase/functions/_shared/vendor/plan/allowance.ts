@@ -6,7 +6,8 @@
  * Per-member spending allowance: a discretionary envelope for one household
  * member, and the budget lines drawn from it. Money stays pooled — the allowance
  * is a budgeting envelope — so a drawn line is one person's expense paid out of
- * their allowance and counts AGAINST it, never on top of it.
+ * their allowance and counts AGAINST it, never on top of it. The database refuses
+ * to draw more than the allowance provides, so a member never overdraws.
  */
 
 import type { BudgetLine, Frequency, Money } from './index.ts'
@@ -20,29 +21,20 @@ export interface MemberAllowance {
   readonly frequency: Frequency
   /** The interval N for the `every_n_weeks`/`every_n_months` cadences. */
   readonly interval?: number
-  /**
-   * The total drawn from this allowance, when the lines drawn from it are not
-   * readable to the caller (a co-member's allowance, whose lines are private to
-   * them). Used in place of summing `lines`; absent when the lines are readable.
-   */
-  readonly drawn?: Amounts
 }
 
 /**
- * One member's allowance reconciled against the lines drawn from it. `outgoing`
- * is what the household actually spends on the person's behalf: the allowance
- * itself, or the drawn total when that exceeds it — an overdrawn allowance still
- * leaves the household, so the plan counts the excess rather than hiding it.
+ * One member's allowance reconciled against the lines drawn from it. The
+ * allowance is the Discretionary outgoing for the person: drawn lines count
+ * against it, never beyond it.
  */
 export interface AllowanceSummary {
   readonly memberId: string
   readonly allowance: Amounts
+  /** The total drawn from the allowance; zero where the drawn lines are not readable to the caller. */
   readonly drawn: Amounts
-  /** The allowance less what is drawn; negative when overdrawn. */
+  /** The allowance less what is drawn. */
   readonly remaining: Amounts
-  readonly outgoing: Amounts
-  /** Whether the lines drawn from the allowance cost more over a year than it provides. */
-  readonly overdrawn: boolean
 }
 
 /** A budget line that may be drawn from a member's allowance. */
@@ -71,7 +63,6 @@ function amountsOf(line: Pick<DrawableLine, 'amountCents' | 'frequency' | 'inter
 
 /**
  * Reconciles each allowance against the lines drawn from it, in allowance order.
- * An allowance carrying its own `drawn` total is reconciled against that instead.
  */
 export function summariseAllowances(
   lines: readonly DrawableLine[],
@@ -79,18 +70,16 @@ export function summariseAllowances(
 ): AllowanceSummary[] {
   return allowances.map((member) => {
     const allowance = amountsOf(member)
-    const drawn =
-      member.drawn ??
-      lines
-        .filter((line) => line.allowanceMemberId === member.memberId)
-        .map(amountsOf)
-        .reduce(
-          (total, amounts) => ({
-            fortnightlyCents: total.fortnightlyCents + amounts.fortnightlyCents,
-            annualCents: total.annualCents + amounts.annualCents,
-          }),
-          { fortnightlyCents: 0, annualCents: 0 },
-        )
+    const drawn = lines
+      .filter((line) => line.allowanceMemberId === member.memberId)
+      .map(amountsOf)
+      .reduce(
+        (total, amounts) => ({
+          fortnightlyCents: total.fortnightlyCents + amounts.fortnightlyCents,
+          annualCents: total.annualCents + amounts.annualCents,
+        }),
+        { fortnightlyCents: 0, annualCents: 0 },
+      )
     return {
       memberId: member.memberId,
       allowance,
@@ -99,11 +88,6 @@ export function summariseAllowances(
         fortnightlyCents: allowance.fortnightlyCents - drawn.fortnightlyCents,
         annualCents: allowance.annualCents - drawn.annualCents,
       },
-      outgoing: {
-        fortnightlyCents: Math.max(allowance.fortnightlyCents, drawn.fortnightlyCents),
-        annualCents: Math.max(allowance.annualCents, drawn.annualCents),
-      },
-      overdrawn: drawn.annualCents > allowance.annualCents,
     }
   })
 }

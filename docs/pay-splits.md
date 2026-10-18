@@ -57,7 +57,7 @@ drift, offering a Confirm to record the new amount and clear the alert.
   destination column applies only to the other groups. A line has exactly one
   source of destination.
 - **Member allowances.** A member's spending allowance routes as a single line
-  for its outgoing (the allowance, or the drawn total once that is larger)
+  for its amount
   through its own funding account (`member_allowance.destination_account_id`).
   The lines drawn from it carry no destination and contribute nothing themselves,
   so the allowance's line covers them and nothing is added on top; the account's

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { NumberInput, Select } from '@mantine/core'
+import { annualCents } from '@nest/plan'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { MemberAllowance, MemberAllowanceInput } from '../hooks/useMemberAllowances'
+import { ALLOWANCE_BELOW_DRAWN, isAllowanceOverdrawn } from '../lib/allowances'
 import type { Frequency } from '../lib/domain'
 import { FREQUENCY_OPTIONS } from '../lib/frequency'
 import { centsToDollars, dollarsToCents } from '../lib/money'
@@ -16,6 +18,8 @@ interface MemberAllowanceFormProps {
   initial: MemberAllowance
   /** The household's accounts, offered as the allowance's funding account. */
   accounts?: { id: string; name: string }[]
+  /** The annual cents already drawn from the allowance, when readable to the editor; the allowance cannot go below it. */
+  drawnAnnualCents?: number
   onSubmit: (input: MemberAllowanceInput) => void | Promise<void>
   onCancel?: () => void
 }
@@ -25,6 +29,7 @@ export function MemberAllowanceForm({
   memberName,
   initial,
   accounts = [],
+  drawnAnnualCents = 0,
   onSubmit,
   onCancel,
 }: MemberAllowanceFormProps) {
@@ -37,11 +42,20 @@ export function MemberAllowanceForm({
   const intervalValid = Number.isInteger(Number(interval)) && Number(interval) >= 1
   const cents = dollarsToCents(amount)
 
-  const canSubmit = cents !== null && (!isEveryN || (interval !== '' && intervalValid))
+  const belowDrawn =
+    cents !== null &&
+    (!isEveryN || intervalValid) &&
+    annualCents(cents, frequency, isEveryN ? Number(interval) : undefined) < drawnAnnualCents
+
+  const canSubmit =
+    cents !== null && (!isEveryN || (interval !== '' && intervalValid)) && !belowDrawn
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
-    errorMessage: 'Could not save this allowance. Please try again.',
+    errorMessage: (thrown) =>
+      isAllowanceOverdrawn(thrown)
+        ? ALLOWANCE_BELOW_DRAWN
+        : 'Could not save this allowance. Please try again.',
     onSubmit,
     buildInput: (): MemberAllowanceInput => ({
       amount_cents: cents ?? 0,
@@ -68,6 +82,7 @@ export function MemberAllowanceForm({
         hideControls
         value={amount}
         onChange={setAmount}
+        error={belowDrawn ? ALLOWANCE_BELOW_DRAWN : undefined}
       />
 
       <EnumSelect

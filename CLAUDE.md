@@ -792,26 +792,29 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   line with a destination of its own). A drawn line is one person's expense paid
   out of the allowance, so `@nest/plan`'s `summarise` counts it AGAINST the
   allowance and not on top: the Discretionary group holds the undrawn lines plus
-  each allowance's `outgoing` — the allowance itself, or the drawn total once that
-  is larger, because an overdrawn allowance still leaves the household and hiding
-  the excess would overstate the buffer. `BudgetSummary.allowances` reports each
-  member's allowance, drawn, remaining (negative when overdrawn), and `overdrawn`
-  (drawn over a year exceeds the allowance), and the Budget tab shows the signed-in
-  member's own allowance with a progress bar and an Overdrawn badge, and their
+  each allowance. **An allowance can never be overdrawn**: the
+  `prevent_allowance_overdraw` triggers refuse, with the fixed `allowance_overdrawn`
+  check violation, saving a drawn line (insert, update, or via
+  `commit_planning_changes`) or lowering an allowance (amount, frequency, or
+  interval) when the annualised drawn total (`reconcile_annual_cents`) would exceed
+  the allowance's annual amount; a zero allowance admits nothing, and a change that
+  keeps a line on its allowance without raising its annual amount is always
+  allowed. The guards are SECURITY DEFINER so a co-member lowering an allowance is
+  held to lines they cannot read, and the refusal names no amount. The PWA
+  pre-validates against what is left and shows fixed copy on a refusal.
+  `BudgetSummary.allowances` reports each member's allowance, drawn, and remaining,
+  and the Budget tab shows the signed-in
+  member's own allowance with a progress bar, and their
   drawn items in a "Your allowance" section. **The drawn items are private to the
   member whose allowance they are drawn from**: the `budget_line` RLS policy gates
   a line with `allowance_member_id` to `current_member_ids()` on read and write
   alike, so a co-member sees only the allowance's amount and cadence — not its
-  items, drawn total, remaining, or overdrawn state — and cannot draw a line from
-  another's allowance. Household totals still count each allowance's `outgoing`:
-  `hidden_allowance_drawn()` (SECURITY DEFINER) returns each co-member allowance's
-  summed drawn total with no item detail, which the PWA's `useMemberAllowances`,
-  the MCP buffer, and the `@nest/household` row (`drawn_fortnightly_cents` /
-  `drawn_annual_cents`) feed to `summarise` as `MemberAllowance.drawn`, used in
-  place of summing lines. `service_role` edge functions read every line and need
-  no override, except `budget-line`, which filters out a co-member's allowance
-  lines. Pay splits route the allowance as one line
-  (`allowance:<member id>`) for its outgoing through its own funding account;
+  items, drawn total, or remaining — and cannot draw a line from
+  another's allowance. Household totals count each allowance at its own amount,
+  which its drawn lines never exceed, so nothing about the drawn lines is shared.
+  `service_role` edge functions read every line, except `budget-line`, which filters
+  out a co-member's allowance lines. Pay splits route the allowance as one line
+  (`allowance:<member id>`) for its amount through its own funding account;
   drawn lines contribute nothing themselves, so they are covered by the
   allowance's line and never added on top, and the Splits tab lists the
   allowance, not its items. The Summary's cash-flow drill-down likewise shows the

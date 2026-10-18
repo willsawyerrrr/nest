@@ -142,7 +142,7 @@ export function cashFlowLines(
     ...summariseAllowances(lines.map(toPlanDrawableLine), allowances).map((summary) => ({
       group: 'discretionary' as const,
       name: allowances.find((allowance) => allowance.memberId === summary.memberId)!.name,
-      fortnightlyCents: summary.outgoing.fortnightlyCents,
+      fortnightlyCents: summary.allowance.fortnightlyCents,
     })),
     ...temporaryItems
       .filter((item) =>

@@ -43,8 +43,6 @@ describe('summariseAllowances', () => {
       allowance: { fortnightlyCents: 200_00, annualCents: 5_200_00 },
       drawn: { fortnightlyCents: 100_00, annualCents: 2_600_00 },
       remaining: { fortnightlyCents: 100_00, annualCents: 2_600_00 },
-      outgoing: { fortnightlyCents: 200_00, annualCents: 5_200_00 },
-      overdrawn: false,
     })
   })
 
@@ -63,25 +61,9 @@ describe('summariseAllowances', () => {
     expect(ada!.allowance.annualCents).toBe(5_200_00)
   })
 
-  it('flags an overdrawn allowance and counts the excess as outgoing', () => {
-    const [ada] = summariseAllowances([drawn(150_00), drawn(100_00)], [ADA])
-    expect(ada!.overdrawn).toBe(true)
-    expect(ada!.remaining.fortnightlyCents).toBe(-50_00)
-    expect(ada!.outgoing.fortnightlyCents).toBe(250_00)
-  })
-
-  it('is not overdrawn when drawn exactly equals the allowance', () => {
+  it('leaves nothing remaining when drawn exactly equals the allowance', () => {
     const [ada] = summariseAllowances([drawn(200_00)], [ADA])
-    expect(ada!.overdrawn).toBe(false)
     expect(ada!.remaining.fortnightlyCents).toBe(0)
-  })
-
-  it('reconciles against a supplied drawn total instead of the lines', () => {
-    const drawnTotal = { fortnightlyCents: 250_00, annualCents: 6_500_00 }
-    const [ada] = summariseAllowances([drawn(10_00)], [{ ...ADA, drawn: drawnTotal }])
-    expect(ada!.drawn).toEqual(drawnTotal)
-    expect(ada!.overdrawn).toBe(true)
-    expect(ada!.outgoing.fortnightlyCents).toBe(250_00)
   })
 
   it('ignores lines drawn from another member', () => {
@@ -115,31 +97,9 @@ describe('summarise with allowances', () => {
     expect(summary.allowances[0]!.remaining.fortnightlyCents).toBe(100_00)
   })
 
-  it('counts a supplied drawn total against the allowance with no lines visible', () => {
-    const summary = summarise(
-      {
-        ...base,
-        memberAllowances: [{ ...ADA, drawn: { fortnightlyCents: 250_00, annualCents: 6_500_00 } }],
-      },
-      NOW,
-    )
-    // $50 undrawn + the $250 drawn, which exceeds the $200 allowance.
-    expect(summary.groups.discretionary.fortnightlyCents).toBe(300_00)
-    expect(summary.outgoings.fortnightlyCents).toBe(300_00)
-  })
-
   it('counts an allowance with nothing drawn in full', () => {
     const summary = summarise({ ...base, memberAllowances: [ADA] }, NOW)
     expect(summary.groups.discretionary.fortnightlyCents).toBe(250_00)
-  })
-
-  it('counts the excess of an overdrawn allowance so the buffer stays honest', () => {
-    const summary = summarise(
-      { ...base, budgetLines: [drawn(260_00)], memberAllowances: [ADA] },
-      NOW,
-    )
-    expect(summary.groups.discretionary.fortnightlyCents).toBe(260_00)
-    expect(summary.allowances[0]!.overdrawn).toBe(true)
   })
 
   it('treats a line drawn from a member with no allowance as an ordinary line', () => {
@@ -188,15 +148,6 @@ describe('assignmentsByAccount with allowances', () => {
       { id: 'allowance:ada', name: 'Ada’s allowance', fortnightlyCents: 200_00 },
     ])
     expect(result.unassignedFortnightlyCents).toBe(0)
-  })
-
-  it('routes an overdrawn allowance for what is drawn', () => {
-    const result = assignmentsByAccount(
-      [line({ id: 'gym', amountCents: 260_00, allowanceMemberId: 'ada' })],
-      [],
-      [allowance],
-    )
-    expect(result.byAccount).toEqual({ 'ada-spending': 260_00 })
   })
 
   it('leaves an unrouted allowance unassigned', () => {

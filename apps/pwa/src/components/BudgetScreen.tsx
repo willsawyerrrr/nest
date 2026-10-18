@@ -2,7 +2,7 @@ import { Stack, Text } from '@mantine/core'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import type { MemberAllowance, MemberAllowanceInput } from '../hooks/useMemberAllowances'
 import type { TemporaryItem, TemporaryItemInput } from '../hooks/useTemporaryItems'
-import { allowanceName, toPlanAllowance } from '../lib/allowances'
+import { allowanceChoices, allowanceName, toPlanAllowance } from '../lib/allowances'
 import type { BudgetGroup } from '../lib/domain'
 import type { PromoteDraft } from '../lib/promoteDraft'
 import { BudgetLineForm } from './BudgetLineForm'
@@ -70,9 +70,7 @@ export function BudgetScreen({
       ? [{ name: allowanceName(member.name), allowance: toPlanAllowance(allowance) }]
       : []
   })
-  const choices = drawable
-    .filter(({ allowance }) => allowance.memberId === currentMemberId)
-    .map(({ name, allowance }) => ({ memberId: allowance.memberId, name }))
+  const choices = allowanceChoices(drawable, lines, currentMemberId)
   return (
     <PageSection title="Budget">
       {promoteDraft && (

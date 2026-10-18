@@ -234,26 +234,6 @@ describe('cashFlowLines', () => {
       { group: 'discretionary', name: 'Ada’s allowance', fortnightlyCents: 50_00 },
     ])
   })
-
-  it('counts an overdrawn allowance for what is drawn', () => {
-    const lines = cashFlowLines(
-      [
-        {
-          ...budgetLine,
-          line_group: 'discretionary',
-          amount_cents: 80_00,
-          allowance_member_id: 'ada',
-        },
-      ],
-      [],
-      { genericTotalsByBreakdownId: new Map(), giftTotalsByMember: new Map() },
-      new Date('2026-06-01'),
-      [{ memberId: 'ada', amountCents: 50_00, frequency: 'fortnightly', name: 'Ada’s allowance' }],
-    )
-    expect(lines).toEqual([
-      { group: 'discretionary', name: 'Ada’s allowance', fortnightlyCents: 80_00 },
-    ])
-  })
 })
 
 describe('inflowSources', () => {

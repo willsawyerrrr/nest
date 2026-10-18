@@ -14,5 +14,6 @@
       "destination": "/api"
     }
   ],
-  "buildCommand": "pnpm run build:vercel"
+  "buildCommand": "pnpm run build:vercel",
+  "outputDirectory": "public"
 }

@@ -63,4 +63,12 @@ describe('useMemberAllowances', () => {
       drawn_annual_cents: 1_560_00,
     })
   })
+
+  it('still lists the allowances when the drawn totals cannot be read', async () => {
+    rpc.mockResolvedValue({ data: null, error: new Error('rpc failed') })
+    const { result } = renderHook(() => useMemberAllowances(), { wrapper: makeWrapper() })
+    await waitFor(() => expect(rpc).toHaveBeenCalled())
+
+    await waitFor(() => expect(result.current.allowances).toEqual([makeMemberAllowance()]))
+  })
 })

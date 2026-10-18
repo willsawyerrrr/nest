@@ -1,9 +1,9 @@
-# The toolchain every workflow job shares: Node 24, the corepack-pinned pnpm, a
+# The toolchain every workflow job shares: Node (from `.nvmrc`), the corepack-pinned pnpm, a
 # warm binary and store cache, and (by default) a frozen install. The calling
 # job runs `actions/checkout` first — a local composite action is only readable
 # once the repo is on disk — and this picks up from there.
 name: Set up pnpm toolchain
-description: Node 24, corepack-pinned pnpm@11.14.0, warm caches, and a frozen install.
+description: Node from `.nvmrc`, corepack-pinned pnpm@11.14.0, warm caches, and a frozen install.
 
 inputs:
   install:
@@ -17,7 +17,7 @@ runs:
   steps:
     - uses: actions/setup-node@v7
       with:
-        node-version: 24
+        node-version-file: .nvmrc
     # Keep corepack's downloaded package-manager binaries in the workspace so
     # `actions/cache` can carry them between runs. Written to $GITHUB_ENV so every
     # later step of the calling job — not just this action's — resolves the same

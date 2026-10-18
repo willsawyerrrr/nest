@@ -98,7 +98,9 @@ export function shapeBudgetLine(lines: readonly BudgetLineRow[], query: string):
 
 export interface BudgetLineDeps {
   /** Resolves the caller's household and member from their JWT, or the error to return. */
-  resolveHousehold: () => Promise<{ householdId: string; memberId: string } | { error: CallerError }>
+  resolveHousehold: () => Promise<
+    { householdId: string; memberId: string } | { error: CallerError }
+  >
   /** Loads the household's budget lines. */
   loadBudgetLines: (householdId: string) => Promise<readonly BudgetLineRow[]>
   /** The spoken name to match, as sent in the request body. */

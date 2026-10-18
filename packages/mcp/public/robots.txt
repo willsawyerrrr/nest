@@ -1,2 +1,6 @@
 User-agent: *
+Allow: /favicon.ico
+Allow: /favicon.svg
+Allow: /icon-
+Allow: /apple-touch-icon.png
 Disallow: /

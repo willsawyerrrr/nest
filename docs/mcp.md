@@ -52,6 +52,11 @@ registration); the MCP server is only a resource server.
   `mcp.nest.willsawyerrrr.dev`. Env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
   optionally `MCP_ORIGIN` (defaults to the custom domain; set it on previews).
   No service-role key is ever set.
+- Static files in `packages/mcp/public/` are served before the rewrites with no
+  auth: `index.html` (a short blurb), `favicon.ico`, `favicon.svg`,
+  `icon-192.png`, `icon-512.png`, and `apple-touch-icon.png` (the Nest logo,
+  copied from `apps/pwa/public/`). Claude reads the connector icon from the
+  host's `/favicon.ico`; `robots.txt` allows the icon paths.
 
 ### Connecting from Claude
 

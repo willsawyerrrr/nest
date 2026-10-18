@@ -48,7 +48,7 @@ registration); the MCP server is only a resource server.
   (`apps/pwa/src/routes/OAuthConsentSection.tsx`) to approve or deny the app;
   signing in to Nest first returns there.
 - Deploy: Vercel project with Root Directory `packages/mcp`, entry
-  `src/vercel.ts` bundled to `api/index.js` by `pnpm run build:vercel`, rewrites in `vercel.json`, custom domain
+  `src/vercel.ts` bundled over the `api/index.ts` stub by `pnpm run build:vercel`, rewrites in `vercel.json`, custom domain
   `mcp.nest.willsawyerrrr.dev`. Env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
   optionally `MCP_ORIGIN` (defaults to the custom domain; set it on previews).
   No service-role key is ever set.
@@ -149,7 +149,7 @@ relayed.
 
 `src/server.ts` registers the tools (the deduction tool's input differs by
 transport), `src/http.ts` is the Streamable HTTP handler, `src/auth.ts`
-verifies bearer tokens, `src/vercel.ts` is the Vercel entry (bundled to `api/index.js` by `build:vercel`), `src/tools/` holds the handlers (pure over
+verifies bearer tokens, `src/vercel.ts` is the Vercel entry (bundled over the `api/index.ts` stub by `build:vercel`), `src/tools/` holds the handlers (pure over
 a `NestContext`), `src/session.ts` signs in, and `src/test/fakeContext.ts` is
 the in-memory client the tests use. The package is a `pnpm -r typecheck`
 member and a Vitest project, so it rides the existing `check` and sharded

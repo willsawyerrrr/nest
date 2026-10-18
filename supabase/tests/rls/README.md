@@ -134,9 +134,16 @@ instance and can also be run locally.
   allowance is readable and writable only by that member: a co-member sees,
   edits, and deletes none of them, cannot draw a line (or repoint one) at another's
   allowance, and `commit_planning_changes` is held to the same policy;
-  `hidden_allowance_drawn` gives a co-member the summed drawn totals with no
-  item detail and omits the caller's own allowance; a released line is an
-  ordinary shared line; and the owner role still reads every line.
+  no function exposes the drawn totals; a released line is an ordinary shared
+  line; and the owner role still reads every line.
+- `allowance_overdraw.sql` — the assertions that an allowance is never overdrawn:
+  a zero allowance admits no line; creating, raising, or repointing a drawn line
+  (and `commit_planning_changes` creates and updates) past the allowance is
+  refused with `allowance_overdrawn`, one cent over included, comparing annual
+  cents across cadences; lowering an allowance by amount, frequency, or interval
+  below the drawn total is refused, for a co-member too; trimming a line,
+  unrelated edits, releasing a line, and lowering an allowance to exactly the
+  drawn total are allowed.
 - `inflow_joint_split.sql` — the assertions that a joint inflow's `is_joint` and
   `member_split_percent` are held to the `inflows_joint_split` check constraint:
   a plain inflow defaults to not-joint with no percent, a recurring taxable

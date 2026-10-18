@@ -888,23 +888,6 @@ describe('BudgetLineList', () => {
       )
     })
 
-    it('counts the excess of an overdrawn allowance', () => {
-      render(
-        <BudgetLineList
-          lines={[{ ...discretionary[1]!, amount_cents: 250_00 }]}
-          goals={[]}
-          allowances={allowances}
-          onCreate={vi.fn()}
-          onUpdate={vi.fn()}
-          onDelete={vi.fn()}
-        />,
-      )
-
-      expect(screen.getByLabelText('Discretionary fortnightly subtotal')).toHaveTextContent(
-        '$250.00 / fn',
-      )
-    })
-
     it('badges a drawn line with its allowance and offers the allowance when adding', async () => {
       const user = userEvent.setup()
       render(
@@ -978,21 +961,13 @@ describe('BudgetLineList', () => {
       )
     })
 
-    it('shows no section and no picker for a co-member’s allowance, but counts its drawn total', async () => {
+    it('shows no section and no picker for a co-member’s allowance, but counts its amount', async () => {
       const user = userEvent.setup()
       render(
         <BudgetLineList
           lines={[]}
           goals={[]}
-          allowances={[
-            {
-              ...allowances[0]!,
-              allowance: {
-                ...allowances[0]!.allowance,
-                drawn: { fortnightlyCents: 250_00, annualCents: 6_500_00 },
-              },
-            },
-          ]}
+          allowances={allowances}
           ownAllowanceMemberId="m2"
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
@@ -1002,7 +977,7 @@ describe('BudgetLineList', () => {
 
       expect(screen.queryByRole('heading', { name: 'Your allowance' })).toBeNull()
       expect(screen.getByLabelText('Discretionary fortnightly subtotal')).toHaveTextContent(
-        '$250.00 / fn',
+        '$200.00 / fn',
       )
       await user.click(screen.getByRole('button', { name: 'Add Discretionary item' }))
       expect(screen.queryByRole('combobox', { name: /draw from allowance/i })).toBeNull()

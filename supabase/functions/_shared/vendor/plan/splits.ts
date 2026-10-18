@@ -94,8 +94,7 @@ export function resolveDestinationAccountId(
  * date-independent, so no `now` is needed.
  *
  * Each of `allowances` contributes one line, `allowance:<memberId>`, for its
- * outgoing — the allowance, or the drawn total when that is larger — to its own
- * account; lines drawn from an allowance contribute nothing themselves.
+ * amount to its own account; lines drawn from an allowance contribute nothing themselves.
  */
 export function assignmentsByAccount(
   lines: readonly AssignableLine[],
@@ -131,7 +130,7 @@ export function assignmentsByAccount(
       {
         id: `allowance:${summary.memberId}`,
         name: allowance.name,
-        fortnightlyCents: summary.outgoing.fortnightlyCents,
+        fortnightlyCents: summary.allowance.fortnightlyCents,
       },
       allowance.destinationAccountId ?? null,
     )

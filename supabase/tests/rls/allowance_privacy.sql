@@ -1,7 +1,7 @@
 -- Assertions that budget lines drawn from a member's allowance are private to
--- that member: a co-member cannot read, write, move, or delete them, can read
--- only their drawn totals through `hidden_allowance_drawn`, and
--- `commit_planning_changes` (an invoker function) is held to the same policy.
+-- that member: a co-member cannot read, write, move, or delete them, learns no
+-- drawn total, and `commit_planning_changes` (an invoker function) is held to the
+-- same policy.
 -- `service_role` still sees every line.
 --
 -- Any failed assertion aborts the script (psql ON_ERROR_STOP). Wrapped in a
@@ -39,8 +39,6 @@ insert into public.budget_line (household_id, line_group, name, amount_cents, fr
 
 do $$ begin
   assert (select count(*) from public.budget_line) = 3, 'Alice should read her own allowance lines and the ordinary line';
-  assert not exists (select 1 from public.hidden_allowance_drawn() where member_id = current_setting('priv.amid')::uuid),
-    'the caller''s own allowance is absent from the hidden drawn totals';
 end $$;
 
 -- Bob sees the ordinary line only.
@@ -50,17 +48,6 @@ do $$ begin
     'Bob must see only the ordinary line';
   assert exists (select 1 from public.member_allowance where member_id = current_setting('priv.amid')::uuid),
     'Bob still sees Alice''s allowance amount and cadence';
-end $$;
-
--- Bob reads Alice's drawn totals, summed: 40.00 fortnightly + 10.00 weekly (20.00 fortnightly).
-do $$
-declare v record;
-begin
-  select * into v from public.hidden_allowance_drawn();
-  assert v.member_id = current_setting('priv.amid')::uuid, 'the hidden totals are for Alice''s allowance';
-  assert v.drawn_fortnightly_cents = 60_00, 'drawn fortnightly should be the sum of the lines';
-  assert v.drawn_annual_cents = 40_00 * 26 + 10_00 * 52, 'drawn annual should be the sum of the lines';
-  assert (select count(*) from public.hidden_allowance_drawn()) = 1, 'only co-members'' allowances are listed';
 end $$;
 
 -- Bob cannot edit, move, or delete Alice's lines: they match nothing.
@@ -120,7 +107,6 @@ update public.budget_line set allowance_member_id = null where name = 'Books';
 select set_config('request.jwt.claims', '{"sub":"33000000-0000-0000-0000-000000000002","email":"priv-bob@example.com"}', true);
 do $$ begin
   assert exists (select 1 from public.budget_line where name = 'Books'), 'a released line is an ordinary shared line';
-  assert (select drawn_fortnightly_cents from public.hidden_allowance_drawn()) = 40_00, 'the released line leaves the drawn total';
 end $$;
 
 -- service_role-style roles that bypass RLS read every line.
@@ -129,9 +115,9 @@ do $$ begin
   assert (select count(*) from public.budget_line where allowance_member_id is not null) = 1, 'the owner role sees the allowance line';
 end $$;
 
--- The helpers are not callable anonymously.
+-- No function exposes the drawn totals.
 do $$ begin
-  assert not has_function_privilege('anon', 'public.hidden_allowance_drawn()', 'execute'), 'anon must not read drawn totals';
+  assert not exists (select 1 from pg_proc where proname = 'hidden_allowance_drawn'), 'drawn totals must not be exposed';
 end $$;
 
 rollback;

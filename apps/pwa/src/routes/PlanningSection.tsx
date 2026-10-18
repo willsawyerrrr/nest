@@ -27,6 +27,7 @@ import { useSuperProfiles } from '../hooks/useSuperProfiles'
 import { useTaxProfiles } from '../hooks/useTaxProfiles'
 import { useTemporaryItems } from '../hooks/useTemporaryItems'
 import { useTrades } from '../hooks/useTrades'
+import { isAllowanceOverdrawn, PLAN_OVERDRAWS_ALLOWANCE } from '../lib/allowances'
 import { derivedAmountContext } from '../lib/breakdowns'
 import { equityGrantToPlan } from '../lib/equity'
 import { memberName } from '../lib/members'
@@ -391,8 +392,12 @@ export function PlanningSection() {
     setSaveError(null)
     try {
       await planning.save()
-    } catch {
-      setSaveError('Could not save your changes. Nothing was lost — try again.')
+    } catch (thrown) {
+      setSaveError(
+        isAllowanceOverdrawn(thrown)
+          ? PLAN_OVERDRAWS_ALLOWANCE
+          : 'Could not save your changes. Nothing was lost — try again.',
+      )
     } finally {
       setSaving(false)
     }

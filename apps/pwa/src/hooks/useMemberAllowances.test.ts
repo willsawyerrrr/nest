@@ -9,9 +9,7 @@ const { builder } = await vi.hoisted(async () => {
   return { builder: makeSupabaseBuilder(['select', 'insert', 'update', 'delete', 'eq', 'order']) }
 })
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
-
-vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder), rpc } }))
+vi.mock('../lib/supabase', () => ({ supabase: { from: vi.fn(() => builder) } }))
 
 const input: MemberAllowanceInput = {
   amount_cents: 200_00,
@@ -23,7 +21,6 @@ const input: MemberAllowanceInput = {
 beforeEach(() => {
   vi.clearAllMocks()
   builder.result = { data: [makeMemberAllowance()], error: null }
-  rpc.mockResolvedValue({ data: [], error: null })
 })
 
 describe('useMemberAllowances', () => {
@@ -41,34 +38,5 @@ describe('useMemberAllowances', () => {
     expect(builder.insert).not.toHaveBeenCalled()
     expect(builder.delete).not.toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'al1')
-  })
-
-  it('attaches the drawn total of a co-member’s allowance, and leaves one with none readable alone', async () => {
-    builder.result = {
-      data: [makeMemberAllowance(), makeMemberAllowance({ id: 'al2', member_id: 'm2' })],
-      error: null,
-    }
-    rpc.mockResolvedValue({
-      data: [{ member_id: 'm2', drawn_fortnightly_cents: 60_00, drawn_annual_cents: 1_560_00 }],
-      error: null,
-    })
-    const { result } = renderHook(() => useMemberAllowances(), { wrapper: makeWrapper() })
-    await waitFor(() => expect(result.current.allowances).toHaveLength(2))
-
-    expect(rpc).toHaveBeenCalledWith('hidden_allowance_drawn')
-    expect(result.current.allowances![0]).toEqual(makeMemberAllowance())
-    expect(result.current.allowances![1]).toMatchObject({
-      member_id: 'm2',
-      drawn_fortnightly_cents: 60_00,
-      drawn_annual_cents: 1_560_00,
-    })
-  })
-
-  it('still lists the allowances when the drawn totals cannot be read', async () => {
-    rpc.mockResolvedValue({ data: null, error: new Error('rpc failed') })
-    const { result } = renderHook(() => useMemberAllowances(), { wrapper: makeWrapper() })
-    await waitFor(() => expect(rpc).toHaveBeenCalled())
-
-    await waitFor(() => expect(result.current.allowances).toEqual([makeMemberAllowance()]))
   })
 })

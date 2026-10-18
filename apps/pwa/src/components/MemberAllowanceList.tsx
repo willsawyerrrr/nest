@@ -5,7 +5,7 @@ import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { MemberAllowance, MemberAllowanceInput } from '../hooks/useMemberAllowances'
 import { allowanceName, toPlanAllowance, toPlanDrawableLine } from '../lib/allowances'
 import { formatFrequency } from '../lib/frequency'
-import { formatPerFortnight, signMoneyColor } from '../lib/money'
+import { formatPerFortnight } from '../lib/money'
 import { AppCard } from './AppCard'
 import { EditAction } from './EditAction'
 import { MemberAllowanceForm } from './MemberAllowanceForm'
@@ -41,29 +41,17 @@ function AllowanceCard({
   own: boolean
   onEdit: () => void
 }) {
-  const { overdrawn, drawn, remaining } = summary
+  const { drawn, remaining } = summary
   const share = summary.allowance.fortnightlyCents
-  const used =
-    share === 0
-      ? drawn.fortnightlyCents > 0
-        ? 100
-        : 0
-      : Math.min(100, (drawn.fortnightlyCents / share) * 100)
+  const used = share === 0 ? 0 : Math.min(100, (drawn.fortnightlyCents / share) * 100)
   return (
     <AppCard withBorder padding="xs">
       <Stack gap={6}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Stack gap={2} style={{ minWidth: 0 }}>
-            <Group gap={6} wrap="nowrap">
-              <Text fw={600} size="sm" truncate>
-                {allowanceName(memberName)}
-              </Text>
-              {own && overdrawn && (
-                <Badge size="xs" color="negative">
-                  Overdrawn
-                </Badge>
-              )}
-            </Group>
+            <Text fw={600} size="sm" truncate>
+              {allowanceName(memberName)}
+            </Text>
             <Group gap={6} wrap="nowrap">
               <MoneyText cents={allowance.amount_cents} size="xs" c="dimmed" />
               <Badge size="xs" variant="default">
@@ -82,7 +70,7 @@ function AllowanceCard({
           <>
             <Progress
               value={used}
-              color={overdrawn ? 'negative' : 'positive'}
+              color="positive"
               size="sm"
               aria-label={`${allowanceName(memberName)} drawn`}
             />
@@ -92,14 +80,9 @@ function AllowanceCard({
               </Text>
               <Group gap={4}>
                 <Text size="xs" c="dimmed">
-                  {overdrawn ? 'Overdrawn by' : 'Left'}
+                  Left
                 </Text>
-                <MoneyText
-                  cents={Math.abs(remaining.fortnightlyCents)}
-                  size="xs"
-                  fw={600}
-                  {...(overdrawn && { c: signMoneyColor(-1) })}
-                />
+                <MoneyText cents={Math.max(0, remaining.fortnightlyCents)} size="xs" fw={600} />
               </Group>
             </Group>
           </>
@@ -112,7 +95,7 @@ function AllowanceCard({
 /**
  * Each household member's permanent spending allowance: an amount a person can
  * spend on themselves, edited but never deleted. The owner sees the budget items drawn from it counted against it and
- * what is left (or how far it is overdrawn) alongside; to everyone else it is just the amount and cadence. Money stays pooled — the
+ * what is left alongside; to everyone else it is just the amount and cadence. Money stays pooled — the
  * allowance is a budgeting envelope, not a separate account.
  */
 export function MemberAllowanceList({
@@ -150,6 +133,7 @@ export function MemberAllowanceList({
               memberName={member.name}
               initial={allowance}
               accounts={accounts}
+              drawnAnnualCents={summary.drawn.annualCents}
               onSubmit={async (input) => {
                 await onUpdate(allowance.id, input)
                 close()

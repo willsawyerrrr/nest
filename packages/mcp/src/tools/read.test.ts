@@ -297,7 +297,7 @@ describe('getFortnightlyBuffer', () => {
         ],
       },
     })
-    const result = await getFortnightlyBuffer(ctx)
+    const result = await getFortnightlyBuffer({ ...ctx, memberId: 'm1' })
     expect(result.groups_fortnightly_cents.discretionary).toBe(200_00)
     expect(result.outgoings_fortnightly_cents).toBe(200_00)
     expect(result.allowances).toEqual([
@@ -307,12 +307,11 @@ describe('getFortnightlyBuffer', () => {
         allowance_fortnightly_cents: 200_00,
         drawn_fortnightly_cents: 60_00,
         remaining_fortnightly_cents: 140_00,
-        overdrawn: false,
       },
     ])
   })
 
-  it('counts a co-member’s hidden drawn total but reports only their allowance', async () => {
+  it('counts a co-member’s allowance but reports only its amount', async () => {
     const { ctx } = fakeContext({
       tables: {
         ...rows,
@@ -329,15 +328,10 @@ describe('getFortnightlyBuffer', () => {
           }),
         ],
       },
-      rpcResults: {
-        hidden_allowance_drawn: [
-          { member_id: 'm2', drawn_fortnightly_cents: 150_00, drawn_annual_cents: 3_900_00 },
-        ],
-      },
     })
-    const result = await getFortnightlyBuffer(ctx)
-    // The $200 allowance, plus the $100 allowance overdrawn to $150.
-    expect(result.groups_fortnightly_cents.discretionary).toBe(350_00)
+    const result = await getFortnightlyBuffer({ ...ctx, memberId: 'm1' })
+    // The $200 allowance plus the $100 allowance.
+    expect(result.groups_fortnightly_cents.discretionary).toBe(300_00)
     expect(result.allowances).toEqual([
       {
         member: 'Alex',
@@ -345,7 +339,6 @@ describe('getFortnightlyBuffer', () => {
         allowance_fortnightly_cents: 200_00,
         drawn_fortnightly_cents: 60_00,
         remaining_fortnightly_cents: 140_00,
-        overdrawn: false,
       },
       {
         member: null,
@@ -353,7 +346,6 @@ describe('getFortnightlyBuffer', () => {
         allowance_fortnightly_cents: 100_00,
         drawn_fortnightly_cents: null,
         remaining_fortnightly_cents: null,
-        overdrawn: null,
       },
     ])
   })

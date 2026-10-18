@@ -687,12 +687,14 @@ Discretionary lines may be drawn from.
     so a co-member can neither read, edit, or delete the line nor draw one from
     another's allowance. `commit_planning_changes` is an invoker function, so the
     same policy applies to it. `service_role` bypasses RLS and reads every line.
-  - `hidden_allowance_drawn()` (SECURITY DEFINER, `authenticated` only) returns
-    `(member_id, drawn_fortnightly_cents, drawn_annual_cents)` for each allowance
-    in the caller's households that is not the caller's own — the lines'
-    annualised amounts (`reconcile_annual_cents`) summed, and their rounded
-    fortnightly shares summed — with no item detail
-    (`20261018000000_private_allowance_items.sql`).
+  - An allowance is never overdrawn: the `prevent_allowance_overdraw` trigger
+    (`before insert or update of amount_cents, frequency, interval_count,
+    allowance_member_id`, SECURITY DEFINER, locking the allowance row) raises a
+    `check_violation` with the fixed message `allowance_overdrawn` when the
+    annualised amounts (`reconcile_annual_cents`) of the allowance's lines would
+    exceed the allowance's annual amount. An update that keeps the same allowance
+    without raising the line's annual amount is allowed
+    (`20261018010000_prevent_allowance_overdraw.sql`).
 - **member_allowance** — a member's permanent discretionary spending allowance.
   - `id`, `household_id`, `member_id`, `amount_cents` (`>= 0`; zero until set), `frequency` (the
     shared enum), `interval_count` (the same non-null-iff-every-N rule as
@@ -706,7 +708,11 @@ Discretionary lines may be drawn from.
   - A budgeting envelope inside the pooled Discretionary spend, not an account:
     household-wide RLS (`household_ids_for_current_user()`), so every member reads
     any allowance and edits its amount, cadence, and funding account. The lines
-    drawn from it are the private part (see `budget_line`). `service_role` holds `select` for the
+    drawn from it are the private part (see `budget_line`). A same-named trigger on
+    `member_allowance` (`before update of amount_cents, frequency, interval_count`,
+    SECURITY DEFINER) raises the same `allowance_overdrawn` when the annual amount
+    would fall below the annualised lines drawn from it, whoever the editor is.
+    `service_role` holds `select` for the
     household-buffer loader.
   - Permanent (`20261005000000_permanent_member_allowances.sql`): an `after insert`
     trigger on `members` creates the zero allowance, and the migration backfills

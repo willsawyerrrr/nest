@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { ITEM_OVERDRAWS_ALLOWANCE } from '../lib/allowances'
 import { makeBudgetLine } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { BudgetLineForm } from './BudgetLineForm'
@@ -469,7 +470,7 @@ describe('BudgetLineForm', () => {
   })
 
   describe('drawing from an allowance', () => {
-    const allowances = [{ memberId: 'm1', name: 'Ada’s allowance' }]
+    const allowances = [{ memberId: 'm1', name: 'Ada’s allowance', remainingAnnualCents: 2_600_00 }]
 
     it('offers the allowance on a Discretionary item and submits it, dropping the funding account', async () => {
       const user = userEvent.setup()
@@ -501,6 +502,81 @@ describe('BudgetLineForm', () => {
           }),
         ),
       )
+    })
+
+    it('refuses an amount over what is left in the allowance, over a year', async () => {
+      const user = userEvent.setup()
+      render(
+        <BudgetLineForm defaultGroup="discretionary" allowances={allowances} onSubmit={vi.fn()} />,
+      )
+
+      await user.type(screen.getByLabelText(/name/i), 'Gym')
+      await selectOption(user, /draw from allowance/i, 'Ada’s allowance')
+      // $100 fortnightly is $2,600 a year: exactly what is left.
+      await user.type(screen.getByLabelText(/amount/i), '100')
+      expect(screen.queryByText(/more than is left/i)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add item/i })).toBeEnabled()
+
+      await user.clear(screen.getByLabelText(/amount/i))
+      await user.type(screen.getByLabelText(/amount/i), '100.01')
+      expect(screen.getByText(/more than is left in the allowance/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add item/i })).toBeDisabled()
+    })
+
+    it('counts back what an edited item already draws', async () => {
+      const user = userEvent.setup()
+      const onSubmit = vi.fn()
+      const line = makeBudgetLine({
+        line_group: 'discretionary',
+        amount_cents: 2_600_00,
+        frequency: 'annual',
+        allowance_member_id: 'm1',
+      })
+      render(
+        <BudgetLineForm
+          initial={line}
+          allowances={[{ ...allowances[0]!, remainingAnnualCents: 0 }]}
+          onSubmit={onSubmit}
+        />,
+      )
+
+      expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
+      await user.clear(screen.getByLabelText(/amount/i))
+      await user.type(screen.getByLabelText(/amount/i), '2600.01')
+      expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
+    })
+
+    it('counts an undrawn item in full when it moves onto an allowance', () => {
+      const line = makeBudgetLine({
+        line_group: 'discretionary',
+        amount_cents: 2_600_00,
+        frequency: 'annual',
+        allowance_member_id: null,
+      })
+      render(
+        <BudgetLineForm
+          initial={line}
+          allowances={[{ ...allowances[0]!, remainingAnnualCents: 0 }]}
+          defaultAllowanceMemberId="m1"
+          onSubmit={vi.fn()}
+        />,
+      )
+      expect(screen.getByText(/more than is left/i)).toBeInTheDocument()
+    })
+
+    it('says so when the database refuses an item that overdraws the allowance', async () => {
+      const user = userEvent.setup()
+      const onSubmit = vi.fn().mockRejectedValue({ message: 'allowance_overdrawn' })
+      render(
+        <BudgetLineForm defaultGroup="discretionary" allowances={allowances} onSubmit={onSubmit} />,
+      )
+
+      await user.type(screen.getByLabelText(/name/i), 'Gym')
+      await selectOption(user, /draw from allowance/i, 'Ada’s allowance')
+      await user.type(screen.getByLabelText(/amount/i), '10')
+      await user.click(screen.getByRole('button', { name: /add item/i }))
+
+      expect(await screen.findByText(ITEM_OVERDRAWS_ALLOWANCE)).toBeInTheDocument()
     })
 
     it('does not offer the allowance outside Discretionary', () => {

@@ -114,34 +114,34 @@ An allowance is permanent. It is created with its member, at zero until set, and
 goes only when the member does. It can never be deleted: the Budget tab offers
 only an edit, and the database refuses a delete, an insert, or a change to the
 member it belongs to. Its amount, cadence, and funding account can be changed;
-those are the only editable fields. Anything drawn from a zero allowance reads as
-overdrawn.
+those are the only editable fields. Nothing can be drawn from a zero allowance.
 
 A manual **Discretionary** item can be **drawn from** a member's allowance (the
 item form's "Draw from allowance"). A drawn item is one person's expense paid out
 of the allowance, so it counts against the allowance rather than on top of it:
 
-- **Discretionary total** = undrawn Discretionary items + each allowance's
-  *outgoing*, which is the allowance itself, or the drawn total when that is
-  larger. An overdrawn allowance still leaves the household, so the excess is
-  counted rather than hidden; the buffer never overstates.
-- **Per member** the Summary object reports the allowance, the drawn total, the
-  remaining (negative when overdrawn), and an `overdrawn` flag (drawn over a
-  year exceeds the allowance). The Budget tab lists every member's allowance at
+- **Discretionary total** = undrawn Discretionary items + each allowance, whole.
+- **An allowance cannot be overdrawn.** The database refuses saving a drawn
+  item (creating or editing it, including through a planning save) or lowering an
+  allowance (its amount, frequency, or interval) when the drawn items, annualised,
+  would exceed the allowance annualised, so cadences compare like for like. The
+  item form checks the amount against what is left and refuses it inline, and
+  the allowance form refuses an amount below what is drawn; a refusal from the
+  database shows fixed copy and names no amount. Trimming a drawn item is always
+  allowed. A co-member can lower an allowance too, and is held to the same limit
+  without seeing the items.
+- **Per member** the Summary object reports the allowance, the drawn total, and
+  the remaining. The Budget tab lists every member's allowance at
   the top of the Discretionary group with its amount and cadence; the signed-in
-  member's own also shows a progress bar, what is left, and an Overdrawn badge
-  with the excess.
+  member's own also shows a progress bar and what is left.
 - **Private items.** The items drawn from an allowance are readable and editable
   only by that member, enforced by row-level security on `budget_line`. They
   appear in the member's own "Your allowance" section of the Budget tab, which is
   where they are added (with the allowance preselected); everyone else sees
-  neither the items nor the drawn total, remaining, or overdrawn state. The
-  household's figures still count each allowance as its amount or its drawn total,
-  whichever is larger: a server-side aggregate (`hidden_allowance_drawn`) gives
-  each co-member's summed drawn total, with no item detail, to the Summary, pay
-  splits, cash flow, and MCP, and the edge functions read every line directly.
+  neither the items nor the drawn total or remaining. The household's figures
+  count each allowance as its amount, so nothing about the drawn items is shared.
   The `budget-line` Siri query leaves a co-member's allowance items out.
-- **Pay splits** route the allowance as a single line for its outgoing through
+- **Pay splits** route the allowance as a single line for its amount through
   its own funding account. Drawn items have no destination of their own and add
   nothing to any account: the allowance's line covers them, so the Splits tab
   lists the allowance, not its items.

@@ -10,7 +10,7 @@ import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useSortPreference } from '../hooks/useSortPreference'
-import { toPlanDrawableLine } from '../lib/allowances'
+import { allowanceChoices, toPlanDrawableLine } from '../lib/allowances'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { resolveRoute } from '../lib/budgetLineRoute'
 import type { BudgetGroup } from '../lib/domain'
@@ -116,16 +116,14 @@ export function BudgetLineList({
     allowances.map(({ name, allowance }) => [allowance.memberId, name]),
   )
   const planAllowances = allowances.map(({ allowance }) => allowance)
-  const allowanceChoices = allowances
-    .filter(({ allowance }) => allowance.memberId === ownAllowanceMemberId)
-    .map(({ name, allowance }) => ({ memberId: allowance.memberId, name }))
+  const drawChoices = allowanceChoices(allowances, lines, ownAllowanceMemberId)
   const ownAllowance = allowances.find(
     ({ allowance }) => allowance.memberId === ownAllowanceMemberId,
   )
   const allowanceOutgoingCents = summariseAllowances(
     lines.map(toPlanDrawableLine),
     planAllowances,
-  ).reduce((total, summary) => total + summary.outgoing.fortnightlyCents, 0)
+  ).reduce((total, summary) => total + summary.allowance.fortnightlyCents, 0)
   const allowanceDrawnCents =
     summariseAllowances(lines.map(toPlanDrawableLine), planAllowances).find(
       (summary) => summary.memberId === ownAllowanceMemberId,
@@ -221,7 +219,7 @@ export function BudgetLineList({
         initial={line}
         goals={goals}
         accounts={accounts}
-        allowances={allowanceChoices}
+        allowances={drawChoices}
         onSubmit={async (input) => {
           await onUpdate(line.id, input)
           closeForms()
@@ -287,7 +285,7 @@ export function BudgetLineList({
         <BudgetLineForm
           goals={goals}
           accounts={accounts}
-          allowances={allowanceChoices}
+          allowances={drawChoices}
           onSubmit={async (input) => {
             await onCreate(input)
             closeForms()
@@ -340,7 +338,7 @@ export function BudgetLineList({
                   defaultGroup={group}
                   goals={goals}
                   accounts={accounts}
-                  allowances={allowanceChoices}
+                  allowances={drawChoices}
                   onSubmit={async (input) => {
                     await onCreate(input)
                     closeForms()
@@ -370,7 +368,7 @@ export function BudgetLineList({
                     defaultAllowanceMemberId={ownAllowance.allowance.memberId}
                     goals={goals}
                     accounts={accounts}
-                    allowances={allowanceChoices}
+                    allowances={drawChoices}
                     onSubmit={async (input) => {
                       await onCreate(input)
                       closeForms()

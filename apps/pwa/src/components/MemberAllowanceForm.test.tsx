@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { ALLOWANCE_BELOW_DRAWN } from '../lib/allowances'
 import { makeMemberAllowance } from '../test/fixtures'
 import { render, screen, waitFor } from '../test/render'
 import { MemberAllowanceForm } from './MemberAllowanceForm'
@@ -118,6 +119,77 @@ describe('MemberAllowanceForm', () => {
         memberName="Ada"
         initial={makeMemberAllowance()}
         onSubmit={vi.fn().mockRejectedValue(new Error('nope'))}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    expect(await screen.findByText(/could not save this allowance/i)).toBeInTheDocument()
+  })
+
+  it('refuses an allowance below what is already drawn, over a year', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemberAllowanceForm
+        memberName="Ada"
+        initial={makeMemberAllowance()}
+        drawnAnnualCents={2_600_00}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    const amount = screen.getByLabelText(/ada’s allowance/i)
+    await user.clear(amount)
+    await user.type(amount, '99.99')
+    expect(screen.getByText(ALLOWANCE_BELOW_DRAWN)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
+
+    await user.clear(amount)
+    await user.type(amount, '100')
+    expect(screen.queryByText(ALLOWANCE_BELOW_DRAWN)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
+  })
+
+  it('reads an every-N cadence by its interval when checking against what is drawn', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemberAllowanceForm
+        memberName="Ada"
+        initial={makeMemberAllowance({ frequency: 'every_n_weeks', interval_count: 2 })}
+        drawnAnnualCents={2_600_00}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    // $200 every 2 weeks is $5,200 a year; every 4 weeks it is $2,600, still enough.
+    const weeks = screen.getByLabelText(/weeks between allowances/i)
+    await user.clear(weeks)
+    await user.type(weeks, '4')
+    expect(screen.queryByText(ALLOWANCE_BELOW_DRAWN)).not.toBeInTheDocument()
+    await user.clear(weeks)
+    await user.type(weeks, '5')
+    expect(screen.getByText(ALLOWANCE_BELOW_DRAWN)).toBeInTheDocument()
+    await user.clear(weeks)
+    expect(screen.queryByText(ALLOWANCE_BELOW_DRAWN)).not.toBeInTheDocument()
+  })
+
+  it('says so when the database refuses an allowance below what is drawn', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockRejectedValue({ message: 'allowance_overdrawn' })
+    render(
+      <MemberAllowanceForm memberName="Ada" initial={makeMemberAllowance()} onSubmit={onSubmit} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    expect(await screen.findByText(ALLOWANCE_BELOW_DRAWN)).toBeInTheDocument()
+  })
+
+  it('keeps the generic message for any other failure', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemberAllowanceForm
+        memberName="Ada"
+        initial={makeMemberAllowance()}
+        onSubmit={vi.fn().mockRejectedValue(new Error('down'))}
       />,
     )
 

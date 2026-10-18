@@ -1,6 +1,7 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PlanningGoalEta, PlanningOverride } from '../components/PlanningScreen'
+import { PLAN_OVERDRAWS_ALLOWANCE } from '../lib/allowances'
 import {
   makeBudgetLine,
   makeGiftDiscretionaryBudget,
@@ -393,6 +394,19 @@ describe('PlanningSection', () => {
 
     await waitFor(() => expect(hooks.screenProps?.saveError).toMatch(/could not save/i))
     expect(hooks.screenProps?.saving).toBe(false)
+  })
+
+  it('says an allowance would be overdrawn when the database refuses the save', async () => {
+    mockLoaded()
+    hooks.planning.save.mockRejectedValue({ message: 'allowance_overdrawn' })
+    renderSection()
+
+    await act(async () => {
+      const onSave = hooks.screenProps?.onSave as () => Promise<void>
+      await onSave()
+    })
+
+    await waitFor(() => expect(hooks.screenProps?.saveError).toBe(PLAN_OVERDRAWS_ALLOWANCE))
   })
 
   it('formats non-money fields, folds a re-edited new row, and reads the accrual inputs', () => {

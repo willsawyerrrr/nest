@@ -543,8 +543,9 @@ the workflow token is scoped `contents: read`:
 
 A `ci-status` job `needs` every other job (`check`, `test-shard`, `test`,
 `functions`, `rls`, `changes`, `build-ios`, `build-catalyst`) and is the single
-check the `Protect main` ruleset requires (squash-only; force pushes and
-deletion blocked; admins bypass); it fails on any non-`success` result from
+check the `Protect main` ruleset requires (the ruleset also requires a pull
+request, squash merges only, and blocks force pushes and deletion; admins
+bypass); it fails on any non-`success` result from
 `check` / `test-shard` / `test` / `functions` / `rls` / `changes`, and on any
 result from `build-ios` / `build-catalyst` other than `success` or `skipped`.
 Unlike the four Linux jobs, `build-ios` and `build-catalyst` run on macOS

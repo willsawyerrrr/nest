@@ -1,4 +1,4 @@
-import { createHandler } from '../src/http.ts'
+import { createHandler } from './http.ts'
 
 function required(name: string): string {
   const value = process.env[name]?.trim()

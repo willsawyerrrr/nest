@@ -689,9 +689,16 @@ Connections card links to Redbark's billing page.
 
 Supabase Google OAuth (consent screen published). The site URL and redirect
 allow-list cover `nest.willsawyerrrr.dev`, `nest.vercel.app`,
-`nest-*-willsawyerrrr.vercel.app` previews, and `localhost:5173`.
+`nest-*-willsawyerrrr.vercel.app` previews, and `localhost:5173`. Supabase's
+OAuth server is also on (dynamic registration, consent at `/oauth/consent`) so
+the remote MCP server can authenticate agents; see [`mcp.md`](mcp.md#remote-server).
 
 ## Hosting
+
+The remote MCP server is a second Vercel project, `nest-mcp`, Root Directory
+`packages/mcp`, custom domain `mcp.nest.willsawyerrrr.dev`, env `SUPABASE_URL`
+and `SUPABASE_ANON_KEY` (see [`mcp.md`](mcp.md#remote-server)). The PWA project
+below is unaffected.
 
 Vercel project `nest` on the Pro plan, Root Directory `apps/pwa` (Vite preset).
 Prod deploys via the GitHub integration on merge to `main`; each PR gets a

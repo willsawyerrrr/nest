@@ -3,7 +3,14 @@ import { z } from 'zod'
 import { financialYearForDate } from '@nest/tax'
 import { resolveMember, type NestContext } from '../context.ts'
 import { fixedError, ToolError } from '../errors.ts'
-import { canExtract, MAX_UPLOAD_BYTES, storageKeyName, storedContentType } from '../upload.ts'
+import {
+  canExtract,
+  MAX_REMOTE_CONTENT_LENGTH,
+  MAX_REMOTE_UPLOAD_BYTES,
+  MAX_UPLOAD_BYTES,
+  storageKeyName,
+  storedContentType,
+} from '../upload.ts'
 
 const RECEIPTS_BUCKET = 'receipts'
 
@@ -59,14 +66,24 @@ export async function addWishlistItem(
   }
 }
 
-export const createDeductionInput = z.object({
-  file_path: z.string().trim().min(1),
+const deductionDetails = z.object({
   category: z.enum(DEDUCTION_CATEGORIES).default('work_expense'),
   member: z.string().trim().min(1).optional(),
   description: z.string().trim().min(1).optional(),
   amount_cents: centsSchema.optional(),
   deduction_date: isoDateSchema.optional(),
   financial_year: z.number().int().min(2000).max(2100).optional(),
+})
+
+/** Over stdio the document is a local file. */
+export const createDeductionInput = deductionDetails.extend({
+  file_path: z.string().trim().min(1),
+})
+
+/** Over HTTP there is no shared disk, so the document travels as base64. */
+export const createDeductionRemoteInput = deductionDetails.extend({
+  filename: z.string().trim().min(1).max(255),
+  content: z.string().min(1).max(MAX_REMOTE_CONTENT_LENGTH),
 })
 
 const extractionBody = z.object({
@@ -141,20 +158,11 @@ async function discardUpload(ctx: NestContext, path: string): Promise<void> {
   }
 }
 
-/**
- * Creates a deduction from a local document. The file is uploaded to the
- * `receipts` bucket under `<household_id>/<deduction_id>/…` with a client-minted
- * id, read through `deduction-extract` to fill the details the caller did not
- * state, and written with its receipt in one transaction by
- * `create_deduction_with_receipt`. Caller-supplied values always win over
- * extracted ones. A failure after the upload deletes the stored file.
- */
+/** Creates a deduction from a local document, read from `file_path`. */
 export async function createDeductionFromDocument(
   ctx: NestContext,
   input: z.infer<typeof createDeductionInput>,
 ) {
-  const member = await resolveMember(ctx, input.member)
-
   let bytes: Uint8Array
   try {
     bytes = await ctx.readFile(input.file_path)
@@ -164,8 +172,41 @@ export async function createDeductionFromDocument(
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
     throw fixedError('file_too_large')
   }
+  return createDeductionFromBytes(ctx, input, basename(input.file_path), bytes)
+}
 
-  const fileName = basename(input.file_path)
+/** Creates a deduction from a document sent as base64 `content` named `filename`. */
+export async function createDeductionFromContent(
+  ctx: NestContext,
+  input: z.infer<typeof createDeductionRemoteInput>,
+) {
+  const content = input.content.replace(/\s+/g, '')
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(content) || content.length % 4 === 1) {
+    throw fixedError('invalid_content')
+  }
+  const bytes = Buffer.from(content, 'base64')
+  if (bytes.byteLength > MAX_REMOTE_UPLOAD_BYTES) {
+    throw fixedError('file_too_large')
+  }
+  return createDeductionFromBytes(ctx, input, basename(input.filename), bytes)
+}
+
+/**
+ * Creates a deduction from a document's bytes. The file is uploaded to the
+ * `receipts` bucket under `<household_id>/<deduction_id>/…` with a client-minted
+ * id, read through `deduction-extract` to fill the details the caller did not
+ * state, and written with its receipt in one transaction by
+ * `create_deduction_with_receipt`. Caller-supplied values always win over
+ * extracted ones. A failure after the upload deletes the stored file.
+ */
+async function createDeductionFromBytes(
+  ctx: NestContext,
+  input: z.infer<typeof deductionDetails>,
+  fileName: string,
+  bytes: Uint8Array,
+) {
+  const member = await resolveMember(ctx, input.member)
+
   const deductionId = ctx.randomUUID()
   const objectPath = `${ctx.householdId}/${deductionId}/${ctx.randomUUID()}-${storageKeyName(fileName)}`
   const { error: uploadError } = await ctx.supabase.storage

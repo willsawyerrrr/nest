@@ -56,6 +56,9 @@ vi.mock('./components/OnboardingScreen', () => ({
 }))
 
 // The routed sections are mocked so the shell renders without their data hooks.
+vi.mock('./routes/OAuthConsentSection', () => ({
+  OAuthConsentSection: () => <div>OAuthConsentSection</div>,
+}))
 vi.mock('./routes/SummarySection', () => ({ SummarySection: () => <div>SummarySection</div> }))
 vi.mock('./routes/NetWorthSection', () => ({ NetWorthSection: () => <div>NetWorthSection</div> }))
 vi.mock('./routes/InflowsSection', () => ({ InflowsSection: () => <div>InflowsSection</div> }))
@@ -159,6 +162,22 @@ describe('App', () => {
       provider: 'google',
       options: { redirectTo: window.location.origin },
     })
+  })
+
+  it('keeps the consent page as the sign-in return target', async () => {
+    renderApp(['/oauth/consent?authorization_id=a1'])
+    await userEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+    expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: { redirectTo: window.location.href },
+    })
+  })
+
+  it('shows the OAuth consent page to a signed-in member without needing a household', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp(['/oauth/consent?authorization_id=a1'])
+    expect(await screen.findByText('OAuthConsentSection')).toBeInTheDocument()
+    expect(mocks.useHousehold).not.toHaveBeenCalled()
   })
 
   it('reacts to an auth-state change and unsubscribes on unmount', async () => {

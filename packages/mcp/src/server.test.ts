@@ -5,9 +5,12 @@ import { ToolError } from './errors.ts'
 import { createServer, respond } from './server.ts'
 import { fakeContext, members } from './test/fakeContext.ts'
 
-async function connect(options: Parameters<typeof fakeContext>[0]) {
+async function connect(
+  options: Parameters<typeof fakeContext>[0],
+  transport: 'stdio' | 'http' = 'stdio',
+) {
   const { ctx, state } = fakeContext(options)
-  const server = createServer(ctx)
+  const server = createServer(ctx, transport)
   const client = new Client({ name: 'test', version: '0' })
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
   await Promise.all([server.connect(serverSide), client.connect(clientSide)])
@@ -53,6 +56,36 @@ describe('the server', () => {
       'list_savings_goals',
       'list_wishlist',
     ])
+  })
+
+  it('takes the document as a path over stdio and as base64 content over http', async () => {
+    const schemaKeys = async (transport: 'stdio' | 'http') => {
+      const { client } = await connect({}, transport)
+      const { tools } = await client.listTools()
+      const tool = tools.find((t) => t.name === 'create_deduction_from_document')!
+      return Object.keys(tool.inputSchema.properties ?? {})
+    }
+    expect(await schemaKeys('stdio')).toContain('file_path')
+    expect(await schemaKeys('stdio')).not.toContain('content')
+    const http = await schemaKeys('http')
+    expect(http).toEqual(expect.arrayContaining(['content', 'filename']))
+    expect(http).not.toContain('file_path')
+  })
+
+  it('creates a deduction from base64 content over http', async () => {
+    const { client, state } = await connect({ tables: { members } }, 'http')
+    const result = await client.callTool({
+      name: 'create_deduction_from_document',
+      arguments: {
+        filename: 'r.pdf',
+        content: 'AQID',
+        description: 'Laptop',
+        amount_cents: 100,
+        deduction_date: '2026-08-14',
+      },
+    })
+    expect(result.isError).toBeFalsy()
+    expect(state.uploads).toHaveLength(1)
   })
 
   it('answers a read tool', async () => {

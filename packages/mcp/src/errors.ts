@@ -9,6 +9,7 @@ export const ERROR_CODES = [
   'not_found',
   'file_unreadable',
   'file_too_large',
+  'invalid_content',
   'upload_failed',
   'extraction_unavailable',
   'extraction_not_receipt',
@@ -35,7 +36,8 @@ export class ToolError extends Error {
 /** The fixed copy for each code that reads the same in every context. */
 export const FIXED_MESSAGES = {
   file_unreadable: 'The file could not be read from the given path.',
-  file_too_large: 'That file is too large. The limit is 25 MB.',
+  file_too_large: 'That file is too large.',
+  invalid_content: 'The content is not valid base64.',
   upload_failed: 'The file could not be stored.',
   query_failed: 'The data could not be read.',
   save_failed: 'The record could not be saved.',

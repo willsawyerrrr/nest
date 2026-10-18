@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { HouseholdProvider } from './components/HouseholdProvider'
 import { LoadingScreen } from './components/LoadingScreen'
@@ -72,6 +72,9 @@ const NetWorthSection = lazy(() =>
 const NotificationsSection = lazy(() =>
   import('./routes/NotificationsSection').then((m) => ({ default: m.NotificationsSection })),
 )
+const OAuthConsentSection = lazy(() =>
+  import('./routes/OAuthConsentSection').then((m) => ({ default: m.OAuthConsentSection })),
+)
 const PayslipsSection = lazy(() =>
   import('./routes/PayslipsSection').then((m) => ({ default: m.PayslipsSection })),
 )
@@ -123,6 +126,8 @@ export default function App() {
 function AuthGate() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const { pathname } = useLocation()
+  const consenting = pathname === '/oauth/consent'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -152,10 +157,18 @@ function AuthGate() {
         onSignIn={() => {
           void supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: window.location.origin },
+            options: { redirectTo: consenting ? window.location.href : window.location.origin },
           })
         }}
       />
+    )
+  }
+
+  if (consenting) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <OAuthConsentSection />
+      </Suspense>
     )
   }
 

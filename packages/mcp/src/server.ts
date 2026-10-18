@@ -12,8 +12,10 @@ import {
 import {
   addWishlistItem,
   addWishlistItemInput,
+  createDeductionFromContent,
   createDeductionFromDocument,
   createDeductionInput,
+  createDeductionRemoteInput,
 } from './tools/write.ts'
 
 /** Wraps a tool's result, or its failure as `{ code, message }`, as MCP content. */
@@ -33,9 +35,11 @@ export async function respond(run: () => Promise<unknown>): Promise<CallToolResu
 
 /**
  * Builds the Nest MCP server. Money in and out is integer cents. Every tool
- * runs as the signed-in household member, under row-level security.
+ * runs as the signed-in household member, under row-level security. Over
+ * `stdio` a deduction's document is a local `file_path`; over `http` it is
+ * base64 `content` with a `filename`.
  */
-export function createServer(ctx: NestContext): McpServer {
+export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'stdio'): McpServer {
   const server = new McpServer({ name: 'nest', version: '0.0.0' })
 
   server.registerTool(
@@ -88,15 +92,27 @@ export function createServer(ctx: NestContext): McpServer {
     (input) => respond(() => addWishlistItem(ctx, input)),
   )
 
-  server.registerTool(
-    'create_deduction_from_document',
-    {
-      description:
-        'Create a tax deduction from a local receipt, invoice, or donation receipt. The file (any type, up to 25 MB) is stored as the deduction receipt and, if readable (PDF, JPEG, PNG, GIF, WebP), read by AI to fill any of description, amount_cents (integer cents) and deduction_date (YYYY-MM-DD) that are not given. Given values override read ones; read values should be checked against the document.',
-      inputSchema: createDeductionInput.shape,
-    },
-    (input) => respond(() => createDeductionFromDocument(ctx, input)),
-  )
+  const readingNote =
+    'is stored as the deduction receipt and, if readable (PDF, JPEG, PNG, GIF, WebP), read by AI to fill any of description, amount_cents (integer cents) and deduction_date (YYYY-MM-DD) that are not given. Given values override read ones; read values should be checked against the document.'
+  if (transport === 'stdio') {
+    server.registerTool(
+      'create_deduction_from_document',
+      {
+        description: `Create a tax deduction from a local receipt, invoice, or donation receipt. The file at file_path (any type, up to 25 MB) ${readingNote}`,
+        inputSchema: createDeductionInput.shape,
+      },
+      (input) => respond(() => createDeductionFromDocument(ctx, input)),
+    )
+  } else {
+    server.registerTool(
+      'create_deduction_from_document',
+      {
+        description: `Create a tax deduction from a receipt, invoice, or donation receipt sent as base64 content with its filename (any type, up to 3 MB decoded). The file ${readingNote}`,
+        inputSchema: createDeductionRemoteInput.shape,
+      },
+      (input) => respond(() => createDeductionFromContent(ctx, input)),
+    )
+  }
 
   return server
 }

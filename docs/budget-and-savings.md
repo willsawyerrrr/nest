@@ -125,7 +125,8 @@ of the allowance, so it counts against the allowance rather than on top of it:
   counted rather than hidden; the buffer never overstates.
 - **Per member** the Summary object reports the allowance, the drawn total, the
   remaining (negative when overdrawn), and an `overdrawn` flag (drawn over a
-  year exceeds the allowance). The Budget tab shows each with a progress bar, what
+  year exceeds the allowance). The Budget tab lists the allowances at the top of the
+  Discretionary group, each with a progress bar, what
   is left, and an Overdrawn badge with the excess.
 - **Pay splits** route the allowance as a single line for its outgoing through
   its own funding account. Drawn items have no destination of their own and add
@@ -468,8 +469,8 @@ reload-safe; keyboard shortcuts jump between them.
 
 - **Budget screen** — grouped-line CRUD with a universal "Add item" button,
   search, and sort (Default / Name / Amount + direction, persisted to
-  localStorage), led by each member's spending allowance with what is drawn from
-  it and what is left.
+  localStorage), listing each member's spending allowance, what is drawn from it,
+  and what is left at the top of the Discretionary group.
 - **Summary screen** — the reconciliation dashboard, led by an allocation donut and a cash-flow Sankey.
 - **Goals screen** — targets, dates, current balance, modelled interest rate,
   progress + ETA; link Savings lines to a goal.

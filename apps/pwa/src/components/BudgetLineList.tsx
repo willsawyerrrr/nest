@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ActionIcon,
@@ -54,6 +54,8 @@ interface BudgetLineListProps {
    * place of the lines drawn from them.
    */
   allowances?: { name: string; allowance: MemberAllowance }[]
+  /** Rendered at the top of the Discretionary group, above its lines. */
+  discretionaryHeader?: ReactNode
   /** The household's generic breakdowns; a line sourced from one links through to it and seeds its editor. */
   breakdowns?: { id: string; name: string; line_group: BudgetGroup }[]
   onCreate: (input: BudgetLineInput) => Promise<void>
@@ -325,6 +327,7 @@ export function BudgetLineList({
   goals,
   accounts = [],
   allowances = [],
+  discretionaryHeader,
   breakdowns = [],
   onCreate,
   onUpdate,
@@ -450,6 +453,7 @@ export function BudgetLineList({
         }
         return (
           <GroupSection key={group} title={label} subtotalCents={subtotal}>
+            {group === 'discretionary' && !searching && discretionaryHeader}
             {!searching && groupLines.length === 0 && addingGroup !== group && (
               <EmptyState>No {label.toLowerCase()} items yet.</EmptyState>
             )}

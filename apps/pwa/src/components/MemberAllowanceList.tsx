@@ -14,23 +14,31 @@ import { MoneyText } from './MoneyText'
 interface MemberAllowanceListProps {
   members: { id: string; name: string }[]
   allowances: MemberAllowance[]
-  /** Every budget line, so each allowance can total what is drawn from it. */
+  /** The signed-in member; only their allowance shows what is drawn from it. */
+  currentMemberId: string | null
+  /** The signed-in member's budget lines, so their allowance can total what is drawn from it. */
   lines: BudgetLine[]
   /** The household's accounts, offered as an allowance's funding account. */
   accounts?: { id: string; name: string }[]
   onUpdate: (id: string, input: MemberAllowanceInput) => Promise<void>
 }
 
-/** One member's allowance: its amount and cadence, what is drawn from it, and what is left. */
+/**
+ * One member's allowance: its amount and cadence for everyone, and for its owner
+ * alone what is drawn from it and what is left.
+ */
 function AllowanceCard({
   allowance,
   memberName,
   summary,
+  own,
   onEdit,
 }: {
   allowance: MemberAllowance
   memberName: string
   summary: AllowanceSummary
+  /** Whether the allowance is the signed-in member's; a co-member's drawn lines are private. */
+  own: boolean
   onEdit: () => void
 }) {
   const { overdrawn, drawn, remaining } = summary
@@ -50,7 +58,7 @@ function AllowanceCard({
               <Text fw={600} size="sm" truncate>
                 {allowanceName(memberName)}
               </Text>
-              {overdrawn && (
+              {own && overdrawn && (
                 <Badge size="xs" color="negative">
                   Overdrawn
                 </Badge>
@@ -70,28 +78,32 @@ function AllowanceCard({
             <EditAction onClick={onEdit} />
           </Group>
         </Group>
-        <Progress
-          value={used}
-          color={overdrawn ? 'negative' : 'positive'}
-          size="sm"
-          aria-label={`${allowanceName(memberName)} drawn`}
-        />
-        <Group justify="space-between" gap="sm">
-          <Text size="xs" c="dimmed">
-            Drawn {formatPerFortnight(drawn.fortnightlyCents)}
-          </Text>
-          <Group gap={4}>
-            <Text size="xs" c="dimmed">
-              {overdrawn ? 'Overdrawn by' : 'Left'}
-            </Text>
-            <MoneyText
-              cents={Math.abs(remaining.fortnightlyCents)}
-              size="xs"
-              fw={600}
-              {...(overdrawn && { c: signMoneyColor(-1) })}
+        {own && (
+          <>
+            <Progress
+              value={used}
+              color={overdrawn ? 'negative' : 'positive'}
+              size="sm"
+              aria-label={`${allowanceName(memberName)} drawn`}
             />
-          </Group>
-        </Group>
+            <Group justify="space-between" gap="sm">
+              <Text size="xs" c="dimmed">
+                Drawn {formatPerFortnight(drawn.fortnightlyCents)}
+              </Text>
+              <Group gap={4}>
+                <Text size="xs" c="dimmed">
+                  {overdrawn ? 'Overdrawn by' : 'Left'}
+                </Text>
+                <MoneyText
+                  cents={Math.abs(remaining.fortnightlyCents)}
+                  size="xs"
+                  fw={600}
+                  {...(overdrawn && { c: signMoneyColor(-1) })}
+                />
+              </Group>
+            </Group>
+          </>
+        )}
       </Stack>
     </AppCard>
   )
@@ -99,13 +111,14 @@ function AllowanceCard({
 
 /**
  * Each household member's permanent spending allowance: an amount a person can
- * spend on themselves, edited but never deleted, with the budget items drawn from it counted against it and
- * what is left (or how far it is overdrawn) alongside. Money stays pooled — the
+ * spend on themselves, edited but never deleted. The owner sees the budget items drawn from it counted against it and
+ * what is left (or how far it is overdrawn) alongside; to everyone else it is just the amount and cadence. Money stays pooled — the
  * allowance is a budgeting envelope, not a separate account.
  */
 export function MemberAllowanceList({
   members,
   allowances,
+  currentMemberId,
   lines,
   accounts = [],
   onUpdate,
@@ -151,6 +164,7 @@ export function MemberAllowanceList({
             allowance={allowance}
             memberName={member.name}
             summary={summary}
+            own={member.id === currentMemberId}
             onEdit={() => startEditing(allowance.id)}
           />
         )

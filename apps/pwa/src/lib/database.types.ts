@@ -2390,6 +2390,14 @@ export type Database = {
         Returns: number
       }
       current_member_ids: { Args: never; Returns: string[] }
+      hidden_allowance_drawn: {
+        Args: never
+        Returns: {
+          drawn_annual_cents: number
+          drawn_fortnightly_cents: number
+          member_id: string
+        }[]
+      }
       hidden_gift_budget_ids_for_current_member: {
         Args: never
         Returns: string[]

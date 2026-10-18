@@ -16,6 +16,12 @@ export interface MemberAllowance {
   readonly frequency: Frequency
   /** The interval N for the `every_n_weeks`/`every_n_months` cadences. */
   readonly interval?: number
+  /**
+   * The total drawn from this allowance, when the lines drawn from it are not
+   * readable to the caller (a co-member's allowance, whose lines are private to
+   * them). Used in place of summing `lines`; absent when the lines are readable.
+   */
+  readonly drawn?: Amounts
 }
 
 /**
@@ -59,23 +65,28 @@ function amountsOf(line: Pick<DrawableLine, 'amountCents' | 'frequency' | 'inter
   }
 }
 
-/** Reconciles each allowance against the lines drawn from it, in allowance order. */
+/**
+ * Reconciles each allowance against the lines drawn from it, in allowance order.
+ * An allowance carrying its own `drawn` total is reconciled against that instead.
+ */
 export function summariseAllowances(
   lines: readonly DrawableLine[],
   allowances: readonly MemberAllowance[],
 ): AllowanceSummary[] {
   return allowances.map((member) => {
     const allowance = amountsOf(member)
-    const drawn = lines
-      .filter((line) => line.allowanceMemberId === member.memberId)
-      .map(amountsOf)
-      .reduce(
-        (total, amounts) => ({
-          fortnightlyCents: total.fortnightlyCents + amounts.fortnightlyCents,
-          annualCents: total.annualCents + amounts.annualCents,
-        }),
-        { fortnightlyCents: 0, annualCents: 0 },
-      )
+    const drawn =
+      member.drawn ??
+      lines
+        .filter((line) => line.allowanceMemberId === member.memberId)
+        .map(amountsOf)
+        .reduce(
+          (total, amounts) => ({
+            fortnightlyCents: total.fortnightlyCents + amounts.fortnightlyCents,
+            annualCents: total.annualCents + amounts.annualCents,
+          }),
+          { fortnightlyCents: 0, annualCents: 0 },
+        )
     return {
       memberId: member.memberId,
       allowance,

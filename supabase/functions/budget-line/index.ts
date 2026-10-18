@@ -58,7 +58,7 @@ Deno.serve(async (request) => {
       if (!data) {
         return { error: { status: 404, message: 'No household membership for this user' } }
       }
-      return { householdId: data.household_id as string }
+      return { householdId: data.household_id as string, memberId: resolved.caller.memberId }
     },
     loadBudgetLines: async (householdId) =>
       (await readHouseholdTable(admin!, householdId, 'budget_line')) as BudgetLineRow[],

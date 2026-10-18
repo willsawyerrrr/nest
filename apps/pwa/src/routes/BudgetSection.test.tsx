@@ -13,6 +13,10 @@ const hooks = vi.hoisted(() => ({
   useSuperProfiles: vi.fn(),
   useMembers: vi.fn(() => ({ loading: false, members: [] as unknown[] })),
   useMemberAllowances: vi.fn((): Record<string, unknown> => ({ loading: false, allowances: [] })),
+  useCurrentMember: vi.fn(() => ({
+    loading: false,
+    member: { id: 'm1' } as { id: string } | null,
+  })),
   usePlanningMode: vi.fn(() => ({ active: false })),
   derivedEditor: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
@@ -31,6 +35,7 @@ vi.mock('../hooks/useAccountDirectory', () => ({
 }))
 vi.mock('../hooks/useSuperProfiles', () => ({ useSuperProfiles: hooks.useSuperProfiles }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
+vi.mock('../hooks/useCurrentMember', () => ({ useCurrentMember: hooks.useCurrentMember }))
 vi.mock('../hooks/useMemberAllowances', () => ({
   useMemberAllowances: hooks.useMemberAllowances,
 }))
@@ -158,6 +163,7 @@ describe('BudgetSection', () => {
 
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Ada' }])
     expect(hooks.screenProps?.allowances).toEqual([{ id: 'al1', member_id: 'm1' }])
+    expect(hooks.screenProps?.currentMemberId).toBe('m1')
     expect(hooks.screenProps?.onUpdateAllowance).toBe(update)
   })
 })

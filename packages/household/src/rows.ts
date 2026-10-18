@@ -117,6 +117,13 @@ export interface MemberAllowanceRow {
   amount_cents: number
   frequency: string
   interval_count: number | null
+  /**
+   * The total drawn from the allowance, set only when the lines drawn from it are
+   * not readable to the reader (a co-member's allowance); used in place of the
+   * lines. Both figures are given together.
+   */
+  drawn_fortnightly_cents?: number | null
+  drawn_annual_cents?: number | null
 }
 
 /** A `temporary_item` row: a fortnightly contribution running through a target date. */

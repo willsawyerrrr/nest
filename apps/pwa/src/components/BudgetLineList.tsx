@@ -1,18 +1,5 @@
-import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  CloseButton,
-  Flex,
-  Group,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core'
-import { IconChevronRight, IconExternalLink, IconWallet } from '@tabler/icons-react'
+import { Fragment, useState, type ReactNode } from 'react'
+import { ActionIcon, CloseButton, Flex, Group, Select, Stack, TextInput } from '@mantine/core'
 import {
   fortnightlyCents,
   isDrawnFromAllowance,
@@ -22,26 +9,18 @@ import {
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
-import { useIsWide } from '../hooks/useIsWide'
 import { useSortPreference } from '../hooks/useSortPreference'
 import { toPlanDrawableLine } from '../lib/allowances'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
-import { resolveRoute, type LineRoute } from '../lib/budgetLineRoute'
+import { resolveRoute } from '../lib/budgetLineRoute'
 import type { BudgetGroup } from '../lib/domain'
-import { formatFrequency } from '../lib/frequency'
 import { sortBy, type SortDirection, type SortPreference } from '../lib/sort'
-import { AccountIcon } from './AccountIcon'
 import { AddButton } from './AddButton'
-import { AppCard } from './AppCard'
 import { BudgetLineForm } from './BudgetLineForm'
+import { BudgetLineItem, type DerivedSource } from './BudgetLineItem'
 import { DerivedBudgetLineForm, type DerivedLineValues } from './DerivedBudgetLineForm'
-import { EditAction } from './EditAction'
-import { EditDeleteActions } from './EditDeleteActions'
 import { EmptyState } from './EmptyState'
-import { FortnightlyAmount } from './FortnightlyAmount'
 import { GroupSection } from './GroupSection'
-import { ListRow } from './ListRow'
-import { MoneyText } from './MoneyText'
 
 interface BudgetLineListProps {
   lines: BudgetLine[]
@@ -54,6 +33,12 @@ interface BudgetLineListProps {
    * place of the lines drawn from them.
    */
   allowances?: { name: string; allowance: MemberAllowance }[]
+  /**
+   * The signed-in member, whose allowance items are listed apart in their own
+   * section and who alone may draw an item from an allowance (theirs). Items drawn
+   * from a co-member's allowance are private to them and never reach this list.
+   */
+  ownAllowanceMemberId?: string | null
   /** Rendered at the top of the Discretionary group, above its lines. */
   discretionaryHeader?: ReactNode
   /** The household's generic breakdowns; a line sourced from one links through to it and seeds its editor. */
@@ -69,8 +54,8 @@ interface BudgetLineListProps {
   onDelete: (id: string) => void
 }
 
-/** Which add form is open: the top-level item form, or a per-group line form. */
-type AddContext = { kind: 'item' } | { kind: 'group'; group: BudgetGroup }
+/** Which add form is open: the top-level item form, a per-group line form, or the member's allowance item form. */
+type AddContext = { kind: 'item' } | { kind: 'group'; group: BudgetGroup } | { kind: 'allowance' }
 
 /** How the lines within each group are ordered. */
 type SortKey = 'default' | 'name' | 'amount'
@@ -103,216 +88,6 @@ function sortLines(lines: BudgetLine[], key: SortKey, direction: SortDirection):
   )
 }
 
-/** What a derived line links through to: a gift line to the Gifts tab, a generic line to its breakdown. */
-type DerivedSource = { isGift: true } | { isGift: false; breakdownId: string }
-
-/**
- * A chevron control linking a derived line through to its source. A gift line goes
- * straight to the Gifts tab, where gifts are managed; a generic line goes to its
- * breakdown's editor.
- */
-function DerivedLink({ source }: { source: DerivedSource }) {
-  return (
-    <ActionIcon
-      component={Link}
-      to={source.isGift ? '/gifts' : `/breakdowns/${source.breakdownId}`}
-      state={{ from: '/budget' }}
-      variant="subtle"
-      aria-label={source.isGift ? 'Open gifts' : 'Open breakdown'}
-    >
-      <IconChevronRight size={16} />
-    </ActionIcon>
-  )
-}
-
-/** A derived line's controls: an inline edit pencil beside the chevron to its source. */
-function DerivedLineControls({
-  source,
-  onEdit,
-}: {
-  source: DerivedSource
-  onEdit?: (() => void) | undefined
-}) {
-  return (
-    <>
-      {onEdit && <EditAction onClick={onEdit} />}
-      <DerivedLink source={source} />
-    </>
-  )
-}
-
-/** A small icon link opening a line's subscription management page in a new tab. */
-function ManagementLink({ line }: { line: BudgetLine }) {
-  if (!line.management_url) {
-    return null
-  }
-  return (
-    <ActionIcon
-      component="a"
-      href={line.management_url}
-      target="_blank"
-      rel="noopener noreferrer"
-      variant="subtle"
-      size="sm"
-      aria-label={`Manage ${line.name} subscription`}
-      style={{ flexShrink: 0 }}
-    >
-      <IconExternalLink size={14} />
-    </ActionIcon>
-  )
-}
-
-/** A subtle badge naming where a line routes: its linked goal or its funding account. */
-function RouteBadge({ route }: { route: LineRoute }) {
-  return (
-    <Badge
-      size="xs"
-      variant="light"
-      color="gray"
-      ml="auto"
-      leftSection={
-        route.drawn ? <IconWallet size={10} /> : <AccountIcon name={route.iconName} size={10} />
-      }
-      title={route.title}
-      style={{ maxWidth: '12rem' }}
-    >
-      {route.label}
-    </Badge>
-  )
-}
-
-/**
- * One budget line as a single dense table-like row for desktop: the name grows
- * to fill, with the amount, frequency, and fortnightly figure right-aligned in
- * fixed columns and the controls at the end, separated by a light rule rather
- * than a bordered card so many lines fit and scan as a table. A derived line
- * shows an edit pencil and its breakdown chevron in place of the edit/delete controls.
- */
-function BudgetLineRow({
-  line,
-  route,
-  source,
-  onEdit,
-  onDelete,
-}: {
-  line: BudgetLine
-  route?: LineRoute | undefined
-  source?: DerivedSource | undefined
-  onEdit?: (() => void) | undefined
-  onDelete?: () => void
-}) {
-  const fortnightly = fortnightlyCents(
-    line.amount_cents,
-    line.frequency,
-    line.interval_count ?? undefined,
-  )
-  return (
-    <ListRow>
-      <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-        <Text fw={600} size="sm" truncate>
-          {line.name}
-        </Text>
-        <ManagementLink line={line} />
-        {route && <RouteBadge route={route} />}
-      </Group>
-      <MoneyText
-        cents={line.amount_cents}
-        size="sm"
-        c="dimmed"
-        ta="right"
-        style={{ width: '6rem', flexShrink: 0 }}
-      />
-      <Box style={{ width: '8rem', flexShrink: 0, textAlign: 'right' }}>
-        <Badge size="xs" variant="default">
-          {formatFrequency(line.frequency, line.interval_count)}
-        </Badge>
-      </Box>
-      <FortnightlyAmount
-        cents={fortnightly}
-        justify="flex-end"
-        style={{ width: '7rem', flexShrink: 0 }}
-      />
-      <Group gap="xxs" wrap="nowrap" justify="flex-end" style={{ width: '3.75rem', flexShrink: 0 }}>
-        {source ? (
-          <DerivedLineControls source={source} onEdit={onEdit} />
-        ) : (
-          onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-        )}
-      </Group>
-    </ListRow>
-  )
-}
-
-/**
- * One budget line as a compact bordered card for mobile: name (with its route
- * badge alongside) stacked over amount, frequency, and controls. A derived line
- * shows an edit pencil and its breakdown chevron in place of the edit/delete
- * controls.
- */
-function BudgetLineCard({
-  line,
-  route,
-  source,
-  onEdit,
-  onDelete,
-}: {
-  line: BudgetLine
-  route?: LineRoute | undefined
-  source?: DerivedSource | undefined
-  onEdit?: (() => void) | undefined
-  onDelete?: () => void
-}) {
-  const fortnightly = fortnightlyCents(
-    line.amount_cents,
-    line.frequency,
-    line.interval_count ?? undefined,
-  )
-  return (
-    <AppCard withBorder padding="xs">
-      <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Stack gap={2} style={{ minWidth: 0 }}>
-          <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-            <Text fw={600} size="sm" truncate>
-              {line.name}
-            </Text>
-            <ManagementLink line={line} />
-            {route && <RouteBadge route={route} />}
-          </Group>
-          <Group gap={6} wrap="nowrap">
-            <MoneyText cents={line.amount_cents} size="xs" c="dimmed" />
-            <Badge size="xs" variant="default">
-              {formatFrequency(line.frequency, line.interval_count)}
-            </Badge>
-          </Group>
-        </Stack>
-        <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
-          <FortnightlyAmount cents={fortnightly} />
-          {source ? (
-            <DerivedLineControls source={source} onEdit={onEdit} />
-          ) : (
-            onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
-          )}
-        </Group>
-      </Group>
-    </AppCard>
-  )
-}
-
-/**
- * A single budget line, rendered as a dense table-like row from the `sm`
- * breakpoint up and as a compact bordered card below it.
- */
-function BudgetLineItem(props: {
-  line: BudgetLine
-  route?: LineRoute | undefined
-  source?: DerivedSource | undefined
-  onEdit?: (() => void) | undefined
-  onDelete?: () => void
-}) {
-  const wide = useIsWide()
-  return wide ? <BudgetLineRow {...props} /> : <BudgetLineCard {...props} />
-}
-
 /**
  * The household's budget lines grouped by the five groups, each group showing a
  * fortnightly subtotal, a per-group add affordance, and inline add/edit forms.
@@ -327,6 +102,7 @@ export function BudgetLineList({
   goals,
   accounts = [],
   allowances = [],
+  ownAllowanceMemberId = null,
   discretionaryHeader,
   breakdowns = [],
   onCreate,
@@ -340,14 +116,20 @@ export function BudgetLineList({
     allowances.map(({ name, allowance }) => [allowance.memberId, name]),
   )
   const planAllowances = allowances.map(({ allowance }) => allowance)
-  const allowanceChoices = allowances.map(({ name, allowance }) => ({
-    memberId: allowance.memberId,
-    name,
-  }))
+  const allowanceChoices = allowances
+    .filter(({ allowance }) => allowance.memberId === ownAllowanceMemberId)
+    .map(({ name, allowance }) => ({ memberId: allowance.memberId, name }))
+  const ownAllowance = allowances.find(
+    ({ allowance }) => allowance.memberId === ownAllowanceMemberId,
+  )
   const allowanceOutgoingCents = summariseAllowances(
     lines.map(toPlanDrawableLine),
     planAllowances,
   ).reduce((total, summary) => total + summary.outgoing.fortnightlyCents, 0)
+  const allowanceDrawnCents =
+    summariseAllowances(lines.map(toPlanDrawableLine), planAllowances).find(
+      (summary) => summary.memberId === ownAllowanceMemberId,
+    )?.drawn.fortnightlyCents ?? 0
   const breakdownsById = new Map(breakdowns.map((breakdown) => [breakdown.id, breakdown]))
   const {
     editingId,
@@ -359,6 +141,7 @@ export function BudgetLineList({
   const { confirm, modal } = useConfirmDelete()
   const addingItem = adding?.kind === 'item'
   const addingGroup = adding?.kind === 'group' ? adding.group : null
+  const addingAllowanceItem = adding?.kind === 'allowance'
   const [query, setQuery] = useState('')
   const {
     key: sortKey,
@@ -372,6 +155,95 @@ export function BudgetLineList({
 
   const search = query.trim().toLowerCase()
   const searching = search !== ''
+  const isOwnAllowanceLine = (line: BudgetLine) =>
+    ownAllowance != null && line.allowance_member_id === ownAllowanceMemberId
+  const ownLines = sortLines(
+    lines.filter(
+      (line) =>
+        isOwnAllowanceLine(line) && (!searching || line.name.toLowerCase().includes(search)),
+    ),
+    sortKey,
+    sortDirection,
+  )
+
+  const renderLine = (line: BudgetLine) => {
+    const breakdown = line.breakdown_id ? breakdownsById.get(line.breakdown_id) : undefined
+    // A gift line is derived off `is_gift_line` (no breakdown); a generic
+    // line is derived off its owning breakdown. Either edits inline: a
+    // generic line's name and group flow to the breakdown and its funding
+    // account to the line, while a gift line owns its own group and its
+    // partition-derived name; the amount stays roll-up-owned in both.
+    const isGift = line.is_gift_line
+    const source: DerivedSource | undefined = isGift
+      ? { isGift: true }
+      : breakdown
+        ? { isGift: false, breakdownId: breakdown.id }
+        : undefined
+    if (source) {
+      return editingId === line.id && onUpdateDerivedLine ? (
+        <DerivedBudgetLineForm
+          key={line.id}
+          initial={{
+            id: line.id,
+            breakdown_id: breakdown?.id ?? null,
+            // A gift line's name is partition-derived, owned by the line;
+            // a generic line's name is the breakdown's own name.
+            name: isGift ? line.name : (breakdown?.name ?? line.name),
+            // A gift line owns its own group; a generic line's group is the breakdown's.
+            line_group: isGift ? line.line_group : (breakdown?.line_group ?? line.line_group),
+            destination_account_id: line.destination_account_id,
+            amount_cents: line.amount_cents,
+            frequency: line.frequency,
+            interval_count: line.interval_count,
+            gift_recipient_member_id: line.gift_recipient_member_id,
+          }}
+          accounts={accounts}
+          nameEditable={!isGift}
+          onSave={async (values) => {
+            await onUpdateDerivedLine(line.id, values)
+            closeForms()
+          }}
+          onCancel={closeForms}
+        />
+      ) : (
+        <BudgetLineItem
+          key={line.id}
+          line={line}
+          route={resolveRoute(line, goals, accountNames, allowanceNames)}
+          source={source}
+          onEdit={onUpdateDerivedLine ? () => startEditing(line.id) : undefined}
+        />
+      )
+    }
+    return editingId === line.id ? (
+      <BudgetLineForm
+        key={line.id}
+        initial={line}
+        goals={goals}
+        accounts={accounts}
+        allowances={allowanceChoices}
+        onSubmit={async (input) => {
+          await onUpdate(line.id, input)
+          closeForms()
+        }}
+        onCancel={closeForms}
+      />
+    ) : (
+      <BudgetLineItem
+        key={line.id}
+        line={line}
+        route={resolveRoute(line, goals, accountNames, allowanceNames)}
+        onEdit={() => startEditing(line.id)}
+        onDelete={() =>
+          confirm({
+            title: 'Delete budget item?',
+            itemLabel: line.name,
+            onConfirm: () => onDelete(line.id),
+          })
+        }
+      />
+    )
+  }
 
   return (
     <Stack gap="lg">
@@ -425,7 +297,9 @@ export function BudgetLineList({
       )}
 
       {BUDGET_GROUPS.map(({ value: group, label }) => {
-        const groupLines = lines.filter((line) => line.line_group === group)
+        const groupLines = lines.filter(
+          (line) => line.line_group === group && !isOwnAllowanceLine(line),
+        )
         // A line drawn from an allowance counts inside the allowance, which joins
         // Discretionary in full, so the subtotal agrees with the Summary.
         const subtotal =
@@ -451,95 +325,14 @@ export function BudgetLineList({
         if (searching && visibleLines.length === 0) {
           return null
         }
-        return (
-          <GroupSection key={group} title={label} subtotalCents={subtotal}>
+        const section = (
+          <GroupSection title={label} subtotalCents={subtotal}>
             {group === 'discretionary' && !searching && discretionaryHeader}
             {!searching && groupLines.length === 0 && addingGroup !== group && (
               <EmptyState>No {label.toLowerCase()} items yet.</EmptyState>
             )}
 
-            {visibleLines.map((line) => {
-              const breakdown = line.breakdown_id
-                ? breakdownsById.get(line.breakdown_id)
-                : undefined
-              // A gift line is derived off `is_gift_line` (no breakdown); a generic
-              // line is derived off its owning breakdown. Either edits inline: a
-              // generic line's name and group flow to the breakdown and its funding
-              // account to the line, while a gift line owns its own group and its
-              // partition-derived name; the amount stays roll-up-owned in both.
-              const isGift = line.is_gift_line
-              const source: DerivedSource | undefined = isGift
-                ? { isGift: true }
-                : breakdown
-                  ? { isGift: false, breakdownId: breakdown.id }
-                  : undefined
-              if (source) {
-                return editingId === line.id && onUpdateDerivedLine ? (
-                  <DerivedBudgetLineForm
-                    key={line.id}
-                    initial={{
-                      id: line.id,
-                      breakdown_id: breakdown?.id ?? null,
-                      // A gift line's name is partition-derived, owned by the line;
-                      // a generic line's name is the breakdown's own name.
-                      name: isGift ? line.name : (breakdown?.name ?? line.name),
-                      // A gift line owns its own group; a generic line's group is the breakdown's.
-                      line_group: isGift
-                        ? line.line_group
-                        : (breakdown?.line_group ?? line.line_group),
-                      destination_account_id: line.destination_account_id,
-                      amount_cents: line.amount_cents,
-                      frequency: line.frequency,
-                      interval_count: line.interval_count,
-                      gift_recipient_member_id: line.gift_recipient_member_id,
-                    }}
-                    accounts={accounts}
-                    nameEditable={!isGift}
-                    onSave={async (values) => {
-                      await onUpdateDerivedLine(line.id, values)
-                      closeForms()
-                    }}
-                    onCancel={closeForms}
-                  />
-                ) : (
-                  <BudgetLineItem
-                    key={line.id}
-                    line={line}
-                    route={resolveRoute(line, goals, accountNames, allowanceNames)}
-                    source={source}
-                    onEdit={onUpdateDerivedLine ? () => startEditing(line.id) : undefined}
-                  />
-                )
-              }
-              return editingId === line.id ? (
-                <BudgetLineForm
-                  key={line.id}
-                  initial={line}
-                  goals={goals}
-                  accounts={accounts}
-                  allowances={allowanceChoices}
-                  onSubmit={async (input) => {
-                    await onUpdate(line.id, input)
-                    closeForms()
-                  }}
-                  onCancel={closeForms}
-                />
-              ) : (
-                <BudgetLineItem
-                  key={line.id}
-                  line={line}
-                  route={resolveRoute(line, goals, accountNames, allowanceNames)}
-                  onEdit={() => startEditing(line.id)}
-                  onDelete={() =>
-                    confirm({
-                      title: 'Delete budget item?',
-                      itemLabel: line.name,
-                      onConfirm: () => onDelete(line.id),
-                    })
-                  }
-                />
-              )
-            })}
+            {visibleLines.map(renderLine)}
 
             {!searching &&
               (addingGroup === group ? (
@@ -558,6 +351,40 @@ export function BudgetLineList({
                 <AddButton label={`Add ${label} item`} onClick={() => startAdding(group)} />
               ))}
           </GroupSection>
+        )
+        if (group !== 'discretionary' || !ownAllowance || (searching && ownLines.length === 0)) {
+          return <Fragment key={group}>{section}</Fragment>
+        }
+        return (
+          <Fragment key={group}>
+            {section}
+            <GroupSection title="Your allowance" subtotalCents={allowanceDrawnCents}>
+              {!searching && ownLines.length === 0 && !addingAllowanceItem && (
+                <EmptyState>Nothing drawn from your allowance yet.</EmptyState>
+              )}
+              {ownLines.map(renderLine)}
+              {!searching &&
+                (addingAllowanceItem ? (
+                  <BudgetLineForm
+                    defaultGroup="discretionary"
+                    defaultAllowanceMemberId={ownAllowance.allowance.memberId}
+                    goals={goals}
+                    accounts={accounts}
+                    allowances={allowanceChoices}
+                    onSubmit={async (input) => {
+                      await onCreate(input)
+                      closeForms()
+                    }}
+                    onCancel={closeForms}
+                  />
+                ) : (
+                  <AddButton
+                    label="Add allowance item"
+                    onClick={() => startAddingContext({ kind: 'allowance' })}
+                  />
+                ))}
+            </GroupSection>
+          </Fragment>
         )
       })}
 

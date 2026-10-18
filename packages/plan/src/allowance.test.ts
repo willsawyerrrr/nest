@@ -76,6 +76,14 @@ describe('summariseAllowances', () => {
     expect(ada!.remaining.fortnightlyCents).toBe(0)
   })
 
+  it('reconciles against a supplied drawn total instead of the lines', () => {
+    const drawnTotal = { fortnightlyCents: 250_00, annualCents: 6_500_00 }
+    const [ada] = summariseAllowances([drawn(10_00)], [{ ...ADA, drawn: drawnTotal }])
+    expect(ada!.drawn).toEqual(drawnTotal)
+    expect(ada!.overdrawn).toBe(true)
+    expect(ada!.outgoing.fortnightlyCents).toBe(250_00)
+  })
+
   it('ignores lines drawn from another member', () => {
     const [ada] = summariseAllowances([drawn(50_00, { allowanceMemberId: 'bob' })], [ADA])
     expect(ada!.drawn.fortnightlyCents).toBe(0)
@@ -105,6 +113,19 @@ describe('summarise with allowances', () => {
     expect(summary.outgoings.fortnightlyCents).toBe(250_00)
     expect(summary.allowances).toHaveLength(1)
     expect(summary.allowances[0]!.remaining.fortnightlyCents).toBe(100_00)
+  })
+
+  it('counts a supplied drawn total against the allowance with no lines visible', () => {
+    const summary = summarise(
+      {
+        ...base,
+        memberAllowances: [{ ...ADA, drawn: { fortnightlyCents: 250_00, annualCents: 6_500_00 } }],
+      },
+      NOW,
+    )
+    // $50 undrawn + the $250 drawn, which exceeds the $200 allowance.
+    expect(summary.groups.discretionary.fortnightlyCents).toBe(300_00)
+    expect(summary.outgoings.fortnightlyCents).toBe(300_00)
   })
 
   it('counts an allowance with nothing drawn in full', () => {

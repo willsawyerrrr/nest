@@ -178,7 +178,9 @@ exception when check_violation then
   raise notice 'PASS: a drawn line cannot leave Discretionary';
 end $$;
 
--- A line cannot be drawn from a member who has no allowance.
+-- A line cannot be drawn from a member who has no allowance (checked as the
+-- owner role, since the row policy refuses a non-caller's member first).
+reset role;
 do $$ begin
   insert into public.budget_line (household_id, line_group, name, amount_cents, frequency, allowance_member_id)
     values (current_setting('allow.hid')::uuid, 'discretionary', 'Ghost', 20_00, 'monthly', gen_random_uuid());
@@ -186,6 +188,8 @@ do $$ begin
 exception when foreign_key_violation then
   raise notice 'PASS: a line must be drawn from an existing allowance';
 end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"32000000-0000-0000-0000-000000000001","email":"allow-alice@example.com"}', true);
 
 -- commit_planning_changes carries the column on a create and an update.
 do $$

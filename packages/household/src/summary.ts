@@ -133,6 +133,13 @@ export function toSummaryInput({
       amountCents: allowance.amount_cents,
       frequency: allowance.frequency as Frequency,
       ...(allowance.interval_count != null && { interval: allowance.interval_count }),
+      ...(allowance.drawn_fortnightly_cents != null &&
+        allowance.drawn_annual_cents != null && {
+          drawn: {
+            fortnightlyCents: allowance.drawn_fortnightly_cents,
+            annualCents: allowance.drawn_annual_cents,
+          },
+        }),
     })),
     temporaryItems: temporaryItems.map((item) => ({
       contributionCents: item.contribution_cents,

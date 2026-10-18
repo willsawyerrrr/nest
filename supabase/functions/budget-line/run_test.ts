@@ -81,7 +81,7 @@ Deno.test('shapeBudgetLine returns a null match with every sorted name when noth
 function deps(overrides: Partial<BudgetLineDeps> = {}): BudgetLineDeps {
   return {
     query: 'groceries',
-    resolveHousehold: () => Promise.resolve({ householdId: 'h1' }),
+    resolveHousehold: () => Promise.resolve({ householdId: 'h1', memberId: 'm1' }),
     loadBudgetLines: () => Promise.resolve([line({ name: 'Groceries' })]),
     ...overrides,
   }
@@ -103,4 +103,20 @@ Deno.test('runBudgetLine passes a resolve failure straight through', async () =>
   )
 
   assertEquals(result, { status: 401, body: { error: 'Invalid authorization' } })
+})
+
+Deno.test('runBudgetLine hides lines drawn from a co-member’s allowance, matching and naming', async () => {
+  const result = await runBudgetLine(
+    deps({
+      query: 'gym',
+      loadBudgetLines: () =>
+        Promise.resolve([
+          line({ name: 'Gym', allowance_member_id: 'm2' }),
+          line({ name: 'Coffee', allowance_member_id: 'm1' }),
+          line({ name: 'Rent' }),
+        ]),
+    }),
+  )
+
+  assertEquals(result.body, { match: null, names: ['Coffee', 'Rent'] })
 })

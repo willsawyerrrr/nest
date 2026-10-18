@@ -13,6 +13,7 @@ function renderList(overrides: Partial<Parameters<typeof MemberAllowanceList>[0]
   const props = {
     members,
     allowances: [makeMemberAllowance()],
+    currentMemberId: 'm1',
     lines: [],
     onUpdate: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -42,6 +43,7 @@ describe('MemberAllowanceList', () => {
       <MemberAllowanceList
         members={members}
         allowances={[makeMemberAllowance({ amount_cents: 0 })]}
+        currentMemberId="m1"
         lines={[]}
         onUpdate={vi.fn()}
       />,
@@ -55,6 +57,7 @@ describe('MemberAllowanceList', () => {
       <MemberAllowanceList
         members={members}
         allowances={[makeMemberAllowance({ amount_cents: 0 })]}
+        currentMemberId="m1"
         lines={[
           makeBudgetLine({
             line_group: 'discretionary',
@@ -89,6 +92,23 @@ describe('MemberAllowanceList', () => {
     expect(screen.getByText('Left')).toBeInTheDocument()
     expect(screen.getByText('$140.00')).toBeInTheDocument()
     expect(screen.queryByText('Overdrawn')).toBeNull()
+  })
+
+  it('shows a co-member’s allowance as its amount and cadence only', () => {
+    renderList({
+      currentMemberId: 'm2',
+      allowances: [
+        makeMemberAllowance({ drawn_fortnightly_cents: 250_00, drawn_annual_cents: 6_500_00 }),
+      ],
+    })
+
+    expect(screen.getByText('Ada’s allowance')).toBeInTheDocument()
+    expect(screen.getByText('$200.00')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByText(/^drawn /i)).toBeNull()
+    expect(screen.queryByText('Left')).toBeNull()
+    expect(screen.queryByText('Overdrawn')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('flags an overdrawn allowance and says by how much', () => {

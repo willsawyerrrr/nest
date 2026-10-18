@@ -14,6 +14,13 @@ export function toPlanAllowance(row: MemberAllowance): PlanAllowance {
     amountCents: row.amount_cents,
     frequency: row.frequency,
     ...(row.interval_count != null && { interval: row.interval_count }),
+    ...(row.drawn_fortnightly_cents != null &&
+      row.drawn_annual_cents != null && {
+        drawn: {
+          fortnightlyCents: row.drawn_fortnightly_cents,
+          annualCents: row.drawn_annual_cents,
+        },
+      }),
   }
 }
 

@@ -5,6 +5,7 @@ import { usePlanningMode } from '../components/PlanningModeProvider'
 import { useAccountDirectory } from '../hooks/useAccountDirectory'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines } from '../hooks/useBudgetLines'
+import { useCurrentMember } from '../hooks/useCurrentMember'
 import { useDerivedLineEditor } from '../hooks/useDerivedLineEditor'
 import { useGifts } from '../hooks/useGifts'
 import { useGoals } from '../hooks/useGoals'
@@ -26,6 +27,7 @@ export function BudgetSection() {
   const accounts = useAccountDirectory()
   const superProfiles = useSuperProfiles()
   const members = useMembers()
+  const currentMember = useCurrentMember()
   const memberAllowances = useMemberAllowances()
   // A wishlist item promoted from the Wishlist tab, picked up once on mount.
   const [promoteDraft, setPromoteDraft] = useState(takeBudgetDraft)
@@ -67,7 +69,8 @@ export function BudgetSection() {
     accounts.loading ||
     superProfiles.loading ||
     members.loading ||
-    memberAllowances.loading
+    memberAllowances.loading ||
+    currentMember.loading
   ) {
     return <LoadingScreen />
   }
@@ -93,6 +96,7 @@ export function BudgetSection() {
       temporaryItems={temporaryItems.items ?? []}
       members={members.members ?? []}
       allowances={memberAllowances.allowances ?? []}
+      currentMemberId={currentMember.member?.id ?? null}
       onUpdateAllowance={memberAllowances.update}
       onCreateLine={budgetLines.create}
       onUpdateLine={budgetLines.update}

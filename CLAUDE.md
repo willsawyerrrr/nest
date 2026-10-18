@@ -37,8 +37,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   rotating session kept in a `0600` file) and reaches data only through
   PostgREST, RPC, Storage, and edge functions under RLS — never a service-role
   key. Read tools: `list_budget_lines` (including the `allowance_member_id` a line
-  is drawn from), `get_fortnightly_buffer` (the shared
-  `summariseHouseholdFromRows`, reporting each member's allowance, drawn, and
+  is drawn from; a co-member's allowance lines are not readable), `get_fortnightly_buffer` (the shared
+  `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
   remaining), `list_savings_goals`, `list_wishlist`. Write
   tools: `add_wishlist_item` and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
@@ -68,7 +68,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   of money or income. The one per-person budgeting construct is the optional
   per-member spending allowance (see Budgeting): a planning envelope inside the
   pooled Discretionary spend, never a separate pot of money. All household members
-  manage the shared planning data, and record attribution to a member is a
+  manage the shared planning data (a member's allowance items alone are private to
+  them), and record attribution to a member is a
   tax/reporting tag, not a permission. `household_id`
   + RLS isolate the household's data from all other Supabase users; within the
   household, membership gates the shared and own data, with a per-account
@@ -776,8 +777,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   and may update only the amount, cadence, and funding account, a `before delete`
   trigger refuses a delete while the member exists, and the member and household
   are immutable. The Budget tab offers edit only. Money stays pooled: the allowance is a budgeting
-  envelope in the Discretionary group, not an account, a permission, or a privacy
-  boundary, and any member manages any allowance. A manual Discretionary line may
+  envelope in the Discretionary group, not an account or a permission, and any
+  member sets any allowance's amount, cadence, and funding account. A manual Discretionary line may
   be **drawn from** a member's allowance (`budget_line.allowance_member_id`, a
   composite FK to `member_allowance (member_id, household_id)`, `on delete set
   null` so removing a member releases their allowance's lines to ordinary Discretionary
@@ -789,15 +790,30 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   is larger, because an overdrawn allowance still leaves the household and hiding
   the excess would overstate the buffer. `BudgetSummary.allowances` reports each
   member's allowance, drawn, remaining (negative when overdrawn), and `overdrawn`
-  (drawn over a year exceeds the allowance), and the Budget tab shows each with a
-  progress bar and an Overdrawn badge. Pay splits route the allowance as one line
+  (drawn over a year exceeds the allowance), and the Budget tab shows the signed-in
+  member's own allowance with a progress bar and an Overdrawn badge, and their
+  drawn items in a "Your allowance" section. **The drawn items are private to the
+  member whose allowance they are drawn from**: the `budget_line` RLS policy gates
+  a line with `allowance_member_id` to `current_member_ids()` on read and write
+  alike, so a co-member sees only the allowance's amount and cadence — not its
+  items, drawn total, remaining, or overdrawn state — and cannot draw a line from
+  another's allowance. Household totals still count each allowance's `outgoing`:
+  `hidden_allowance_drawn()` (SECURITY DEFINER) returns each co-member allowance's
+  summed drawn total with no item detail, which the PWA's `useMemberAllowances`,
+  the MCP buffer, and the `@nest/household` row (`drawn_fortnightly_cents` /
+  `drawn_annual_cents`) feed to `summarise` as `MemberAllowance.drawn`, used in
+  place of summing lines. `service_role` edge functions read every line and need
+  no override, except `budget-line`, which filters out a co-member's allowance
+  lines. Pay splits route the allowance as one line
   (`allowance:<member id>`) for its outgoing through its own funding account;
   drawn lines contribute nothing themselves, so they are covered by the
   allowance's line and never added on top, and the Splits tab lists the
   allowance, not its items. The Summary's cash-flow drill-down likewise shows the
   allowance in place of its drawn lines. Planning mode does not sandbox
   allowances (only inflows, budget lines, and goals), though a sandboxed line can
-  carry `allowance_member_id`. The household-buffer loader reads `member_allowance`
+  carry `allowance_member_id`; it only ever holds the member's own allowance
+  lines, so `commit_planning_changes` (an invoker function under the same policy)
+  never touches a co-member's hidden ones. The household-buffer loader reads `member_allowance`
   (`service_role` `select`), as do the MCP buffer and the `@nest/household`
   bundle (`memberAllowances`).
   A line can carry an optional `management_url` — the page for managing or

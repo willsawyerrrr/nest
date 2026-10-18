@@ -681,6 +681,18 @@ Discretionary lines may be drawn from.
     allows it only on a `discretionary` line with no `destination_account_id`,
     no `breakdown_id`, and `is_gift_line` false. `commit_planning_changes` carries
     it on budget-line creates and updates.
+  - A line with `allowance_member_id` is private to that member: the single
+    `budget_line` policy requires household membership and, when the column is
+    set, that it is in `current_member_ids()` — on `using` and `with check` alike,
+    so a co-member can neither read, edit, or delete the line nor draw one from
+    another's allowance. `commit_planning_changes` is an invoker function, so the
+    same policy applies to it. `service_role` bypasses RLS and reads every line.
+  - `hidden_allowance_drawn()` (SECURITY DEFINER, `authenticated` only) returns
+    `(member_id, drawn_fortnightly_cents, drawn_annual_cents)` for each allowance
+    in the caller's households that is not the caller's own — the lines'
+    annualised amounts (`reconcile_annual_cents`) summed, and their rounded
+    fortnightly shares summed — with no item detail
+    (`20261018000000_private_allowance_items.sql`).
 - **member_allowance** — a member's permanent discretionary spending allowance.
   - `id`, `household_id`, `member_id`, `amount_cents` (`>= 0`; zero until set), `frequency` (the
     shared enum), `interval_count` (the same non-null-iff-every-N rule as
@@ -691,9 +703,10 @@ Discretionary lines may be drawn from.
     `(member_id, household_id)` → `members` `on delete cascade`; nullable
     composite FK `(destination_account_id, household_id)` → `accounts`,
     `on delete set null`.
-  - A budgeting envelope inside the pooled Discretionary spend, not an account or
-    a privacy boundary: household-wide RLS (`household_ids_for_current_user()`),
-    so any member manages any allowance. `service_role` holds `select` for the
+  - A budgeting envelope inside the pooled Discretionary spend, not an account:
+    household-wide RLS (`household_ids_for_current_user()`), so every member reads
+    any allowance and edits its amount, cadence, and funding account. The lines
+    drawn from it are the private part (see `budget_line`). `service_role` holds `select` for the
     household-buffer loader.
   - Permanent (`20261005000000_permanent_member_allowances.sql`): an `after insert`
     trigger on `members` creates the zero allowance, and the migration backfills

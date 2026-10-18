@@ -18,6 +18,8 @@ export interface BudgetLineRow {
   amount_cents: number
   frequency: Frequency
   interval_count: number | null
+  /** The member whose allowance the line is drawn from; such a line is private to that member. */
+  allowance_member_id?: string | null
 }
 
 /** The matched budget line in the response. */
@@ -95,8 +97,8 @@ export function shapeBudgetLine(lines: readonly BudgetLineRow[], query: string):
 }
 
 export interface BudgetLineDeps {
-  /** Resolves the caller's household from their JWT, or the error to return. */
-  resolveHousehold: () => Promise<{ householdId: string } | { error: CallerError }>
+  /** Resolves the caller's household and member from their JWT, or the error to return. */
+  resolveHousehold: () => Promise<{ householdId: string; memberId: string } | { error: CallerError }>
   /** Loads the household's budget lines. */
   loadBudgetLines: (householdId: string) => Promise<readonly BudgetLineRow[]>
   /** The spoken name to match, as sent in the request body. */
@@ -113,6 +115,10 @@ export async function runBudgetLine(deps: BudgetLineDeps): Promise<BudgetLineRes
   if ('error' in resolved) {
     return { status: resolved.error.status, body: { error: resolved.error.message } }
   }
-  const lines = await deps.loadBudgetLines(resolved.householdId)
+  // A line drawn from a member's allowance is private to that member, though the
+  // service-role read returns it for the whole household.
+  const lines = (await deps.loadBudgetLines(resolved.householdId)).filter(
+    (line) => line.allowance_member_id == null || line.allowance_member_id === resolved.memberId,
+  )
   return { status: 200, body: shapeBudgetLine(lines, deps.query) }
 }

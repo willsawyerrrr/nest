@@ -22,6 +22,8 @@ interface BudgetScreenProps {
   /** The household's members, each of whom can have a spending allowance. */
   members: { id: string; name: string }[]
   allowances: MemberAllowance[]
+  /** The signed-in member: the only one who can see or draw items from an allowance (their own). */
+  currentMemberId: string | null
   onUpdateAllowance: (id: string, input: MemberAllowanceInput) => Promise<void>
   onCreateLine: (input: BudgetLineInput) => Promise<void>
   onUpdateLine: (id: string, input: BudgetLineInput) => Promise<void>
@@ -50,6 +52,7 @@ export function BudgetScreen({
   temporaryItems,
   members,
   allowances,
+  currentMemberId,
   onUpdateAllowance,
   onCreateLine,
   onUpdateLine,
@@ -67,7 +70,9 @@ export function BudgetScreen({
       ? [{ name: allowanceName(member.name), allowance: toPlanAllowance(allowance) }]
       : []
   })
-  const choices = drawable.map(({ name, allowance }) => ({ memberId: allowance.memberId, name }))
+  const choices = drawable
+    .filter(({ allowance }) => allowance.memberId === currentMemberId)
+    .map(({ name, allowance }) => ({ memberId: allowance.memberId, name }))
   return (
     <PageSection title="Budget">
       {promoteDraft && (
@@ -95,10 +100,12 @@ export function BudgetScreen({
         goals={goals}
         accounts={accounts}
         allowances={drawable}
+        ownAllowanceMemberId={currentMemberId}
         discretionaryHeader={
           <MemberAllowanceList
             members={members}
             allowances={allowances}
+            currentMemberId={currentMemberId}
             lines={lines}
             accounts={accounts}
             onUpdate={onUpdateAllowance}

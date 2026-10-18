@@ -14,6 +14,7 @@ function renderScreen(overrides: Partial<Parameters<typeof BudgetScreen>[0]> = {
     temporaryItems: [makeTemporaryItem({ id: 't1', name: 'Holiday' })],
     members: [],
     allowances: [],
+    currentMemberId: 'm1',
     onUpdateAllowance: vi.fn(),
     onCreateLine: vi.fn(),
     onUpdateLine: vi.fn(),

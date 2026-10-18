@@ -130,6 +130,13 @@ instance and can also be run locally.
   allowance are refused), `commit_planning_changes` carrying the column, deleting
   a member releasing the lines drawn from their allowance, household isolation and co-member editing, and
   `service_role` holding `select` only.
+- `allowance_privacy.sql` — the assertions that a budget line drawn from a member's
+  allowance is readable and writable only by that member: a co-member sees,
+  edits, and deletes none of them, cannot draw a line (or repoint one) at another's
+  allowance, and `commit_planning_changes` is held to the same policy;
+  `hidden_allowance_drawn` gives a co-member the summed drawn totals with no
+  item detail and omits the caller's own allowance; a released line is an
+  ordinary shared line; and the owner role still reads every line.
 - `inflow_joint_split.sql` — the assertions that a joint inflow's `is_joint` and
   `member_split_percent` are held to the `inflows_joint_split` check constraint:
   a plain inflow defaults to not-joint with no percent, a recurring taxable

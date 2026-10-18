@@ -312,6 +312,52 @@ describe('getFortnightlyBuffer', () => {
     ])
   })
 
+  it('counts a co-member’s hidden drawn total but reports only their allowance', async () => {
+    const { ctx } = fakeContext({
+      tables: {
+        ...rows,
+        member_allowance: [
+          { member_id: 'm1', amount_cents: 200_00, frequency: 'fortnightly', interval_count: null },
+          { member_id: 'm2', amount_cents: 100_00, frequency: 'fortnightly', interval_count: null },
+        ],
+        budget_line: [
+          line({
+            line_group: 'discretionary',
+            amount_cents: 60_00,
+            frequency: 'fortnightly',
+            allowance_member_id: 'm1',
+          }),
+        ],
+      },
+      rpcResults: {
+        hidden_allowance_drawn: [
+          { member_id: 'm2', drawn_fortnightly_cents: 150_00, drawn_annual_cents: 3_900_00 },
+        ],
+      },
+    })
+    const result = await getFortnightlyBuffer(ctx)
+    // The $200 allowance, plus the $100 allowance overdrawn to $150.
+    expect(result.groups_fortnightly_cents.discretionary).toBe(350_00)
+    expect(result.allowances).toEqual([
+      {
+        member: 'Alex',
+        member_id: 'm1',
+        allowance_fortnightly_cents: 200_00,
+        drawn_fortnightly_cents: 60_00,
+        remaining_fortnightly_cents: 140_00,
+        overdrawn: false,
+      },
+      {
+        member: null,
+        member_id: 'm2',
+        allowance_fortnightly_cents: 100_00,
+        drawn_fortnightly_cents: null,
+        remaining_fortnightly_cents: null,
+        overdrawn: null,
+      },
+    ])
+  })
+
   it('treats a saver with no visible balance as zero', async () => {
     const { ctx } = fakeContext({
       tables: {

@@ -16,6 +16,8 @@ interface BudgetLineFormProps {
   /** Seeds a new line's name and amount from a wishlist item; ignored when editing. */
   draft?: { name: string; amountCents: number } | undefined
   defaultGroup?: BudgetGroup
+  /** The allowance a new item is drawn from by default; ignored when editing. */
+  defaultAllowanceMemberId?: string
   /** The household's goals, offered as a link target on savings/investments lines. */
   goals?: { id: string; name: string }[]
   /** The household's accounts, offered as the funding destination on non-savings/investments lines. */
@@ -36,6 +38,7 @@ export function BudgetLineForm({
   initial,
   draft,
   defaultGroup,
+  defaultAllowanceMemberId,
   goals = [],
   accounts = [],
   allowances = [],
@@ -54,7 +57,7 @@ export function BudgetLineForm({
     initial?.destination_account_id ?? null,
   )
   const [allowanceMemberId, setAllowanceMemberId] = useState<string | null>(
-    initial?.allowance_member_id ?? null,
+    initial?.allowance_member_id ?? defaultAllowanceMemberId ?? null,
   )
   const [managementUrl, setManagementUrl] = useState(initial?.management_url ?? '')
   const showGoalPicker = groupLinksGoal(group)

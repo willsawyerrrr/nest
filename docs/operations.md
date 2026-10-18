@@ -296,7 +296,7 @@ shape: JWT-verified, no secret, household resolved from the caller's JWT, then a
 service-role read across the whole household. `goal-progress` reads
 `savings_goal` plus `accounts` / `account_balance` for a linked saver's balance;
 `budget-line` reads `budget_line` and matches one line by the name in the request
-body. `pay-split` reads `budget_line`, `savings_goal`, `member_allowance`, `members`,
+body, leaving out the lines drawn from a co-member's allowance (private to that member). `pay-split` reads `budget_line`, `savings_goal`, `member_allowance`, `members`,
 `accounts` and `households.pay_account_id`. Every table already carries a
 `service_role` `select` grant, so no migration is needed.
 

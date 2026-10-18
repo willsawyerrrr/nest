@@ -912,6 +912,7 @@ describe('BudgetLineList', () => {
           lines={discretionary}
           goals={[]}
           allowances={allowances}
+          ownAllowanceMemberId="m1"
           onCreate={vi.fn()}
           onUpdate={vi.fn()}
           onDelete={vi.fn()}
@@ -922,6 +923,89 @@ describe('BudgetLineList', () => {
 
       await user.click(screen.getByRole('button', { name: 'Add Discretionary item' }))
       expect(screen.getByRole('combobox', { name: /draw from allowance/i })).toBeInTheDocument()
+    })
+
+    it('lists the signed-in member’s allowance items in their own section', () => {
+      render(
+        <BudgetLineList
+          lines={discretionary}
+          goals={[]}
+          allowances={allowances}
+          ownAllowanceMemberId="m1"
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      const section = screen.getByRole('heading', { name: 'Your allowance' }).parentElement!
+        .parentElement as HTMLElement
+      expect(within(section).getByText('Gym')).toBeInTheDocument()
+      expect(within(section).queryByText('Books')).toBeNull()
+      expect(screen.getByLabelText('Your allowance fortnightly subtotal')).toHaveTextContent(
+        '$60.00 / fn',
+      )
+      expect(screen.getByLabelText('Discretionary fortnightly subtotal')).toHaveTextContent(
+        '$220.00 / fn',
+      )
+    })
+
+    it('adds an item drawn from the member’s allowance by default', async () => {
+      const user = userEvent.setup()
+      const onCreate = vi.fn().mockResolvedValue(undefined)
+      render(
+        <BudgetLineList
+          lines={[]}
+          goals={[]}
+          allowances={allowances}
+          ownAllowanceMemberId="m1"
+          onCreate={onCreate}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Add allowance item' }))
+      const form = screen.getByRole('textbox', { name: /name/i }).closest('form') as HTMLElement
+      await user.type(within(form).getByLabelText(/name/i), 'Coffee')
+      await user.type(within(form).getByLabelText(/amount/i), '5')
+      await user.click(within(form).getByRole('button', { name: /add item/i }))
+
+      await waitFor(() =>
+        expect(onCreate).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'Coffee', allowance_member_id: 'm1' }),
+        ),
+      )
+    })
+
+    it('shows no section and no picker for a co-member’s allowance, but counts its drawn total', async () => {
+      const user = userEvent.setup()
+      render(
+        <BudgetLineList
+          lines={[]}
+          goals={[]}
+          allowances={[
+            {
+              ...allowances[0]!,
+              allowance: {
+                ...allowances[0]!.allowance,
+                drawn: { fortnightlyCents: 250_00, annualCents: 6_500_00 },
+              },
+            },
+          ]}
+          ownAllowanceMemberId="m2"
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />,
+      )
+
+      expect(screen.queryByRole('heading', { name: 'Your allowance' })).toBeNull()
+      expect(screen.getByLabelText('Discretionary fortnightly subtotal')).toHaveTextContent(
+        '$250.00 / fn',
+      )
+      await user.click(screen.getByRole('button', { name: 'Add Discretionary item' }))
+      expect(screen.queryByRole('combobox', { name: /draw from allowance/i })).toBeNull()
     })
   })
 })

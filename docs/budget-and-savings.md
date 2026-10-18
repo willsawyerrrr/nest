@@ -106,7 +106,9 @@ Every household member has exactly one **spending allowance**: a discretionary
 envelope for that person, an amount on a frequency (the same cadence model as a
 budget line, including `interval_count`) and an optional funding account. Money
 stays pooled — the allowance is a planning envelope inside the Discretionary
-group, not an account or a permission, and any member sets any allowance.
+group, not an account or a permission, and any member sets any allowance's
+amount, cadence, and funding account. The items drawn from an allowance are
+private to its member.
 
 An allowance is permanent. It is created with its member, at zero until set, and
 goes only when the member does. It can never be deleted: the Budget tab offers
@@ -125,9 +127,20 @@ of the allowance, so it counts against the allowance rather than on top of it:
   counted rather than hidden; the buffer never overstates.
 - **Per member** the Summary object reports the allowance, the drawn total, the
   remaining (negative when overdrawn), and an `overdrawn` flag (drawn over a
-  year exceeds the allowance). The Budget tab lists the allowances at the top of the
-  Discretionary group, each with a progress bar, what
-  is left, and an Overdrawn badge with the excess.
+  year exceeds the allowance). The Budget tab lists every member's allowance at
+  the top of the Discretionary group with its amount and cadence; the signed-in
+  member's own also shows a progress bar, what is left, and an Overdrawn badge
+  with the excess.
+- **Private items.** The items drawn from an allowance are readable and editable
+  only by that member, enforced by row-level security on `budget_line`. They
+  appear in the member's own "Your allowance" section of the Budget tab, which is
+  where they are added (with the allowance preselected); everyone else sees
+  neither the items nor the drawn total, remaining, or overdrawn state. The
+  household's figures still count each allowance as its amount or its drawn total,
+  whichever is larger: a server-side aggregate (`hidden_allowance_drawn`) gives
+  each co-member's summed drawn total, with no item detail, to the Summary, pay
+  splits, cash flow, and MCP, and the edge functions read every line directly.
+  The `budget-line` Siri query leaves a co-member's allowance items out.
 - **Pay splits** route the allowance as a single line for its outgoing through
   its own funding account. Drawn items have no destination of their own and add
   nothing to any account: the allowance's line covers them, so the Splits tab
@@ -469,8 +482,9 @@ reload-safe; keyboard shortcuts jump between them.
 
 - **Budget screen** — grouped-line CRUD with a universal "Add item" button,
   search, and sort (Default / Name / Amount + direction, persisted to
-  localStorage), listing each member's spending allowance, what is drawn from it,
-  and what is left at the top of the Discretionary group.
+  localStorage), listing each member's spending allowance at the top of the
+  Discretionary group (with what is drawn and what is left for the signed-in
+  member's own), and the member's allowance items in their own section.
 - **Summary screen** — the reconciliation dashboard, led by an allocation donut and a cash-flow Sankey.
 - **Goals screen** — targets, dates, current balance, modelled interest rate,
   progress + ETA; link Savings lines to a goal.

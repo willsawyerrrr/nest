@@ -20,7 +20,8 @@
 //   node scripts/gen-db-types.js --check [--local | --db-url <url>]
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { stripToGeneratedSchema } from './lib/db-types.js'
 import { REPO_ROOT } from './lib/migration-files.js'
@@ -124,6 +125,18 @@ const committed = readFileSync(TYPES_PATH, 'utf8')
 if (committed === generated) {
   console.log(`${TYPES_REL} is up to date with the migrations.`)
   process.exit(0)
+}
+
+// Print what differs so a failing CI run shows the change to commit.
+const generatedPath = join(mkdtempSync(join(tmpdir(), 'db-types-')), 'database.types.ts')
+writeFileSync(generatedPath, generated)
+try {
+  execFileSync('git', ['diff', '--no-index', '--', TYPES_PATH, generatedPath], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'inherit', 'inherit'],
+  })
+} catch {
+  // `git diff --no-index` exits 1 when the files differ, having printed the diff.
 }
 
 die(

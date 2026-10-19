@@ -10,12 +10,7 @@ export type Database = {
     }
     Functions: {
       graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
+        Args: { extensions?: Json; operationName?: string; query?: string; variables?: Json }
         Returns: Json
       }
     }
@@ -35,6 +30,7 @@ export type Database = {
           household_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           account_id: string
           balance_cents?: number
@@ -107,6 +103,7 @@ export type Database = {
           type: Database['public']['Enums']['account_type']
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           currency?: string
@@ -162,6 +159,7 @@ export type Database = {
           name: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -202,6 +200,7 @@ export type Database = {
           name: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_cents: number
           breakdown_id: string
@@ -260,6 +259,7 @@ export type Database = {
           name: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           allowance_member_id?: string | null
           amount_cents: number
@@ -361,6 +361,7 @@ export type Database = {
           household_id: string
           token_hash: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -392,6 +393,7 @@ export type Database = {
           parent_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -448,6 +450,7 @@ export type Database = {
           work_from_home_hours: number | null
           work_use_percent: number
         }
+        ComputedFields: never
         Insert: {
           amount_cents: number
           basis?: Database['public']['Enums']['deduction_basis']
@@ -519,6 +522,7 @@ export type Database = {
           name: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           financial_year: number
@@ -564,6 +568,7 @@ export type Database = {
           id: string
           storage_path: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           deduction_id: string
@@ -613,6 +618,7 @@ export type Database = {
           vesting_frequency: Database['public']['Enums']['equity_vesting_frequency']
           vesting_period_months: number
         }
+        ComputedFields: never
         Insert: {
           cliff_months?: number
           created_at?: string
@@ -675,6 +681,7 @@ export type Database = {
           recipient_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           budgeted_amount_cents?: number
           created_at?: string
@@ -727,6 +734,7 @@ export type Database = {
           id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           budgeted_amount_cents?: number
           created_at?: string
@@ -760,6 +768,7 @@ export type Database = {
           occasion_date: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -800,6 +809,7 @@ export type Database = {
           transaction_id: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_cents: number
           created_at?: string
@@ -873,6 +883,7 @@ export type Database = {
           name: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -914,6 +925,7 @@ export type Database = {
           transaction_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -954,6 +966,7 @@ export type Database = {
           member_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           balance_cents?: number
           created_at?: string
@@ -998,6 +1011,7 @@ export type Database = {
           timezone: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
@@ -1070,6 +1084,7 @@ export type Database = {
           updated_at: string
           years_of_service: number | null
         }
+        ComputedFields: never
         Insert: {
           amount_cents?: number | null
           arrives_every_pay_period?: boolean
@@ -1153,6 +1168,7 @@ export type Database = {
           member_id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_cents: number
           created_at?: string
@@ -1225,6 +1241,7 @@ export type Database = {
           updated_at: string
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           date_of_birth?: string | null
@@ -1266,6 +1283,7 @@ export type Database = {
           sent_at: string
           trigger: Database['public']['Enums']['notification_trigger']
         }
+        ComputedFields: never
         Insert: {
           dedupe_key: string
           household_id: string
@@ -1309,6 +1327,7 @@ export type Database = {
           trigger: Database['public']['Enums']['notification_trigger']
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           enabled?: boolean
@@ -1354,6 +1373,7 @@ export type Database = {
           id: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           account_id: string
           confirmed_at?: string
@@ -1425,6 +1445,7 @@ export type Database = {
           ytd_super_cents: number | null
           ytd_tax_withheld_cents: number | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           file_path?: string | null
@@ -1498,6 +1519,7 @@ export type Database = {
           tax_component: Database['public']['Enums']['payslip_tax_component'] | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_cents: number
           attracts_super?: boolean | null
@@ -1559,6 +1581,7 @@ export type Database = {
           p256dh: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           auth: string
           created_at?: string
@@ -1606,6 +1629,7 @@ export type Database = {
           status: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -1656,6 +1680,7 @@ export type Database = {
           target_date: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           annual_interest_bps?: number | null
           created_at?: string
@@ -1725,6 +1750,7 @@ export type Database = {
           recipient_email: string
           token_hash: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by_member_id?: string | null
@@ -1777,6 +1803,7 @@ export type Database = {
           percent_bp: number | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_cents?: number | null
           contributor_member_id?: string | null
@@ -1847,6 +1874,7 @@ export type Database = {
           sg_rate_override: number | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           balance_as_of?: string | null
           carry_forward_cap_cents?: number
@@ -1922,6 +1950,7 @@ export type Database = {
           residency: Database['public']['Enums']['tax_residency']
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           financial_year: number
@@ -1969,6 +1998,7 @@ export type Database = {
           target_date: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           contribution_cents: number
           created_at?: string
@@ -2014,6 +2044,7 @@ export type Database = {
           units: number
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           document_id?: string | null
@@ -2077,6 +2108,7 @@ export type Database = {
           id: string
           storage_path: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           household_id: string
@@ -2118,6 +2150,7 @@ export type Database = {
           status: Database['public']['Enums']['transaction_status']
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           account_id: string
           amount_cents: number
@@ -2210,6 +2243,7 @@ export type Database = {
           note: string | null
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           amount_cents: number
           created_at?: string
@@ -2259,6 +2293,7 @@ export type Database = {
           source: Database['public']['Enums']['ledger_source'] | null
           type: Database['public']['Enums']['account_type'] | null
         }
+        ComputedFields: never
         Insert: {
           deleted_from_source_at?: string | null
           household_id?: string | null
@@ -2310,6 +2345,7 @@ export type Database = {
           type: Database['public']['Enums']['account_type'] | null
           updated_at: string | null
         }
+        ComputedFields: never
         Relationships: [
           {
             foreignKeyName: 'accounts_household_id_fkey'
@@ -2329,7 +2365,7 @@ export type Database = {
       }
     }
     Functions: {
-      anthropic_api_key: { Args: never; Returns: string }
+      anthropic_api_key: { Args: Record<PropertyKey, never>; Returns: string }
       budget_line_derived_fields: {
         Args: {
           p_breakdown_id: string
@@ -2357,17 +2393,14 @@ export type Database = {
         }
         Returns: undefined
       }
-      create_calendar_feed_token: { Args: never; Returns: string }
+      create_calendar_feed_token: { Args: Record<PropertyKey, never>; Returns: string }
       create_deduction_with_receipt: {
         Args: { p_deduction: Json; p_receipt_path?: string }
         Returns: string
       }
-      create_household: {
-        Args: { p_member_name: string; p_name: string }
-        Returns: string
-      }
+      create_household: { Args: { p_member_name: string; p_name: string }; Returns: string }
       create_invite_code: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           invite_code: string
           invite_code_expires_at: string
@@ -2389,29 +2422,23 @@ export type Database = {
         }
         Returns: number
       }
-      current_member_ids: { Args: never; Returns: string[] }
+      current_member_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
       hidden_gift_budget_ids_for_current_member: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: string[]
       }
       hidden_gift_recipient_ids_for_current_member: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: string[]
       }
       hidden_gift_transaction_ids_for_current_member: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: string[]
       }
-      household_ids_for_current_user: { Args: never; Returns: string[] }
-      household_super_account_ids: { Args: never; Returns: string[] }
-      join_household: {
-        Args: { p_code: string; p_member_name: string }
-        Returns: string
-      }
-      payslip_financial_year: {
-        Args: { paid_on: string; period_end: string }
-        Returns: number
-      }
+      household_ids_for_current_user: { Args: Record<PropertyKey, never>; Returns: string[] }
+      household_super_account_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      join_household: { Args: { p_code: string; p_member_name: string }; Returns: string }
+      payslip_financial_year: { Args: { paid_on: string; period_end: string }; Returns: number }
       reconcile_annual_cents: {
         Args: {
           p_amount: number
@@ -2424,14 +2451,8 @@ export type Database = {
         Args: { p_household_id: string; p_recipient_member_id: string }
         Returns: string
       }
-      reconcile_derived_lines: {
-        Args: { p_household_id: string }
-        Returns: undefined
-      }
-      reconcile_generic_total: {
-        Args: { p_breakdown_id: string }
-        Returns: number
-      }
+      reconcile_derived_lines: { Args: { p_household_id: string }; Returns: undefined }
+      reconcile_generic_total: { Args: { p_breakdown_id: string }; Returns: number }
       reconcile_gift_total: {
         Args: { p_household_id: string; p_member_id: string }
         Returns: number
@@ -2449,46 +2470,32 @@ export type Database = {
         }
         Returns: undefined
       }
-      resend_api_key: { Args: never; Returns: string }
-      revoke_calendar_feed_token: { Args: never; Returns: undefined }
-      revoke_invite_code: { Args: never; Returns: undefined }
-      revoke_share_grant: { Args: never; Returns: undefined }
-      set_household_pay_account: {
-        Args: { p_account_id: string }
-        Returns: undefined
-      }
+      resend_api_key: { Args: Record<PropertyKey, never>; Returns: string }
+      revoke_calendar_feed_token: { Args: Record<PropertyKey, never>; Returns: undefined }
+      revoke_invite_code: { Args: Record<PropertyKey, never>; Returns: undefined }
+      revoke_share_grant: { Args: Record<PropertyKey, never>; Returns: undefined }
+      set_household_pay_account: { Args: { p_account_id: string }; Returns: undefined }
       set_member_date_of_birth: {
         Args: { p_date_of_birth: string; p_member_id: string }
         Returns: undefined
       }
-      store_up_token: {
-        Args: { p_member_id: string; p_token: string }
-        Returns: undefined
-      }
+      store_up_token: { Args: { p_member_id: string; p_token: string }; Returns: undefined }
       sync_up_gift_transactions: {
-        Args: {
-          p_account_ids: string[]
-          p_household_id: string
-          p_since: string
-          rows: Json
-        }
+        Args: { p_account_ids: string[]; p_household_id: string; p_since: string; rows: Json }
         Returns: undefined
       }
       up_token_for_member: { Args: { p_member_id: string }; Returns: string }
       upsert_accounts: { Args: { rows: Json }; Returns: undefined }
-      upsert_payslip_with_lines: {
-        Args: { p_lines: Json; p_payslip: Json }
-        Returns: string
-      }
+      upsert_payslip_with_lines: { Args: { p_lines: Json; p_payslip: Json }; Returns: string }
       vapid_keys: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           private_key: string
           public_key: string
           subject: string
         }[]
       }
-      visible_balance_account_ids: { Args: never; Returns: string[] }
+      visible_balance_account_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
     }
     Enums: {
       account_type: 'transaction' | 'savings' | 'credit' | 'offset' | 'other' | 'home_loan'
@@ -2544,9 +2551,7 @@ export type Tables<
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
@@ -2569,9 +2574,7 @@ export type TablesInsert<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
@@ -2593,9 +2596,7 @@ export type TablesUpdate<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
@@ -2617,9 +2618,7 @@ export type Enums<
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
     ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
@@ -2633,9 +2632,7 @@ export type CompositeTypes<
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
     ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]

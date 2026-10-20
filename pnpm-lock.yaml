@@ -28,7 +28,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
   apps/pwa:
     dependencies:
@@ -106,8 +106,8 @@ importers:
         specifier: ^14.6.7
         version: 14.6.7(@testing-library/dom@10.4.1)
       '@types/node':
-        specifier: ^24.13.3
-        version: 24.13.3
+        specifier: ^24.19.2
+        version: 24.19.2
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -116,7 +116,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: ^6.1.1
-        version: 6.1.1(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 6.1.1(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
       happy-dom:
         specifier: ^20.14.0
         version: 20.14.0
@@ -134,13 +134,13 @@ importers:
         version: 7.0.2
       vite:
         specifier: ^8.3.2
-        version: 8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
+        version: 8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
       vite-plugin-pwa:
         specifier: ^2.0.0
-        version: 2.0.0(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))(workbox-build@7.4.1)(workbox-window@7.4.1)
+        version: 2.0.0(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))(workbox-build@7.4.1)(workbox-window@7.4.1)
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
       workbox-precaching:
         specifier: 7.4.1
         version: 7.4.1
@@ -165,7 +165,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
   packages/mcp:
     dependencies:
@@ -189,8 +189,8 @@ importers:
         version: 4.6.5
     devDependencies:
       '@types/node':
-        specifier: ^24.13.3
-        version: 24.13.3
+        specifier: ^24.19.2
+        version: 24.19.2
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -199,7 +199,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
   packages/plan:
     devDependencies:
@@ -208,7 +208,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
   packages/tax:
     dependencies:
@@ -221,7 +221,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.0
-        version: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+        version: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
 packages:
 
@@ -1719,6 +1719,9 @@ packages:
 
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
+
+  '@types/node@24.19.2':
+    resolution: {integrity: sha512-93d49wCWJkCyN87MxLpNN6KXPCwFw7bVUg79mGUV1OS40JGWwVCr8n61DXCSqz7CV6/VfPkb7xec7uP2M+QHWQ==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -3446,6 +3449,9 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
+  undici-types@7.24.6:
+    resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
+
   undici@7.28.0:
     resolution: {integrity: sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA==}
     engines: {node: '>=20.18.1'}
@@ -5071,7 +5077,7 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+      vitest: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
@@ -5132,6 +5138,10 @@ snapshots:
   '@types/node@24.13.3':
     dependencies:
       undici-types: 7.18.2
+
+  '@types/node@24.19.2':
+    dependencies:
+      undici-types: 7.24.6
 
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
@@ -5213,10 +5223,10 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitejs/plugin-react@6.1.1(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))':
+  '@vitejs/plugin-react@6.1.1(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
+      vite: 8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
 
   '@vitest/coverage-v8@5.0.0(vitest@5.0.0)':
     dependencies:
@@ -5228,7 +5238,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+      vitest: 5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
 
   '@vitest/istanbul-lib-coverage@1.0.1': {}
 
@@ -5236,14 +5246,14 @@ snapshots:
     dependencies:
       '@vitest/istanbul-lib-coverage': 1.0.1
 
-  '@vitest/mocker@5.0.0(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))':
+  '@vitest/mocker@5.0.0(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.0
       estree-walker: 3.0.3
       magic-string: 1.2.3
     optionalDependencies:
-      vite: 8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
+      vite: 8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
 
   '@vitest/spy@5.0.0': {}
 
@@ -6978,6 +6988,8 @@ snapshots:
 
   undici-types@7.18.2: {}
 
+  undici-types@7.24.6: {}
+
   undici@7.28.0:
     optional: true
 
@@ -7048,18 +7060,18 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite-plugin-pwa@2.0.0(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))(workbox-build@7.4.1)(workbox-window@7.4.1):
+  vite-plugin-pwa@2.0.0(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))(workbox-build@7.4.1)(workbox-window@7.4.1):
     dependencies:
       debug: 4.4.3
       pretty-bytes: 6.1.1
       tinyglobby: 0.2.17
-      vite: 8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
+      vite: 8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
       workbox-build: 7.4.1
       workbox-window: 7.4.1
     transitivePeerDependencies:
       - supports-color
 
-  vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0):
+  vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -7067,16 +7079,16 @@ snapshots:
       rolldown: 1.2.12
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 24.13.3
+      '@types/node': 24.19.2
       esbuild: 0.28.2
       fsevents: 2.3.3
       sugarss: 5.0.1(postcss@8.5.28)
       terser: 5.49.0
 
-  vitest@5.0.0(@types/node@24.13.3)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)):
+  vitest@5.0.0(@types/node@24.19.2)(@vitest/coverage-v8@5.0.0)(happy-dom@20.14.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.0(vite@8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
+      '@vitest/mocker': 5.0.0(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0))
       chai: 6.2.2
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -7087,10 +7099,10 @@ snapshots:
       tinybench: 6.1.4
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
-      vite: 8.3.2(@types/node@24.13.3)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
+      vite: 8.3.2(@types/node@24.19.2)(esbuild@0.28.2)(sugarss@5.0.1(postcss@8.5.28))(terser@5.49.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 24.13.3
+      '@types/node': 24.19.2
       '@vitest/coverage-v8': 5.0.0(vitest@5.0.0)
       happy-dom: 20.14.0
       jsdom: 29.1.1(@noble/hashes@1.8.0)

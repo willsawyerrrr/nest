@@ -14,6 +14,7 @@ import type { CallerError } from '../_shared/caller.ts'
 
 /** The `budget_line` columns this reads. A derived line (breakdown, gift) carries a stored `amount_cents` from the reconcile, so it is read like any other. */
 export interface BudgetLineRow {
+  id: string
   name: string
   amount_cents: number
   frequency: Frequency
@@ -24,6 +25,7 @@ export interface BudgetLineRow {
 
 /** The matched budget line in the response. */
 export interface BudgetLineMatch {
+  id: string
   name: string
   amountCents: number
   frequency: Frequency
@@ -36,6 +38,8 @@ export interface BudgetLineMatch {
 export interface BudgetLineBody {
   /** The best name match, or `null` when nothing matched. */
   match: BudgetLineMatch | null
+  /** Every budget line with its amounts, sorted by name, for the client to offer and index. */
+  lines: BudgetLineMatch[]
   /** Every budget line name, sorted, so a null match can say what exists. */
   names: string[]
 }
@@ -74,26 +78,27 @@ export function matchBudgetLine(
   return overlapping[0] ?? null
 }
 
-/** Shapes the matched line — with its fortnightly and annual normalisations — and the sorted name list. */
-export function shapeBudgetLine(lines: readonly BudgetLineRow[], query: string): BudgetLineBody {
-  const names = lines.map((line) => line.name).sort((a, b) => a.localeCompare(b))
-  const line = matchBudgetLine(lines, query)
-  if (!line) {
-    return { match: null, names }
-  }
-
+/** A budget line with its fortnightly and annual normalisations. */
+function shapeLine(line: BudgetLineRow): BudgetLineMatch {
   const interval = line.interval_count ?? undefined
   return {
-    match: {
-      name: line.name,
-      amountCents: line.amount_cents,
-      frequency: line.frequency,
-      intervalCount: line.interval_count,
-      fortnightlyCents: fortnightlyCents(line.amount_cents, line.frequency, interval),
-      annualCents: annualCents(line.amount_cents, line.frequency, interval),
-    },
-    names,
+    id: line.id,
+    name: line.name,
+    amountCents: line.amount_cents,
+    frequency: line.frequency,
+    intervalCount: line.interval_count,
+    fortnightlyCents: fortnightlyCents(line.amount_cents, line.frequency, interval),
+    annualCents: annualCents(line.amount_cents, line.frequency, interval),
   }
+}
+
+/** Shapes the matched line, every line sorted by name, and the sorted name list. */
+export function shapeBudgetLine(lines: readonly BudgetLineRow[], query: string): BudgetLineBody {
+  const sorted = [...lines].sort((a, b) => a.name.localeCompare(b.name))
+  const names = sorted.map((line) => line.name)
+  const shaped = sorted.map(shapeLine)
+  const line = matchBudgetLine(lines, query)
+  return { match: line ? shapeLine(line) : null, lines: shaped, names }
 }
 
 export interface BudgetLineDeps {

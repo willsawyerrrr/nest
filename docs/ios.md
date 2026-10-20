@@ -135,13 +135,21 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   celebrates when every goal is met, or prompts to set one up when there are
   none).
 - **`Intents/BudgetLineIntent.swift`** + **`Intents/BudgetLineService.swift`** —
-  "how much is budgeted for groceries": takes a free-text `query` (a `String`
-  `@Parameter` Siri prompts for), calls `budget-line`, and speaks the matched
-  line's amount in its own cadence ("$200.00 per week for Groceries"). No match
-  → names the household's budget lines; none at all → prompts to set one up. An
-  App Shortcut phrase can't carry a free-text parameter, so the shortcut phrase
-  is parameterless and Siri asks which line; a spoken-inline `AppEntity` for
-  line names is a follow-up, the same as for a per-goal parameter.
+  "how much do we budget for groceries in Nest": takes a required `line`
+  parameter, calls `budget-line`, and speaks the matched line's amount in its own
+  cadence ("$200.00 per week for Groceries"). The parameter is a
+  `BudgetLineEntity` (`AppEntity`); `BudgetLineEntityQuery` offers, resolves
+  (`entities(for:)`) and name-matches (`entities(matching:)`, case- and
+  spacing-insensitive, exact then shortest) the household's budget lines from the
+  live response, and offers none when signed out or unreachable. No match → names
+  the household's budget lines; none at all → prompts to set one up.
+- **`Intents/SpotlightIndex.swift`** — indexes every budget line and every
+  pay-split account in Spotlight as an `IndexedEntity` (iOS 18+; earlier systems
+  skip it), with the planned amount, a one-line description, and the name's words
+  as keywords so the system matches them semantically. Only planned figures
+  shared by the household are indexed — no balance or transaction. `NestApp`
+  refreshes the index once a session exists and whenever the app becomes active,
+  and empties it on sign-out.
 - **`Intents/PaySplitIntent.swift`** + **`Intents/PaySplitService.swift`** —
   "how much goes to Japan in Nest": takes a required `account` parameter, calls
   `pay-split`, and speaks that account's recommended fortnightly transfer ("$400.00
@@ -155,13 +163,14 @@ sign in…"; network or decode failure → "Couldn't reach Nest just now."
   answers: the pay account itself → nothing is transferred to it; no pay account
   chosen → asks the member to choose one in Nest; an account nothing is routed
   to → says so; nothing routed at all → prompts to set up routing. `NestApp`
-  calls `NestShortcuts.updateAppShortcutParameters()` once a session exists so
-  the phrases pick up the household's accounts. The answer is one account's
+  calls `NestShortcuts.updateAppShortcutParameters()` once a session exists and
+  whenever the app becomes active so the phrases pick up the household's accounts
+  and budget lines. The answer is one account's
   figure; the household-wide breakdown stays in the PWA (see
   [`pay-splits.md`](pay-splits.md)).
 - **`Intents/NestShortcuts.swift`** — an `AppShortcutsProvider` with one
   `AppShortcut` per intent (each a `shortTitle`, an SF Symbol, and phrases all
-  containing `\(.applicationName)`; the pay-split phrases also carry the `account` parameter, e.g. "How much goes to \(\.$account) in Nest"), so the phrases reach Siri, Spotlight, and
+  containing `\(.applicationName)`; the budget-line and pay-split phrases also carry their `line` / `account` parameter, e.g. "How much do we budget for \(\.$line) in Nest"), so the phrases reach Siri, Spotlight, and
   the Shortcuts app on install with no further setup.
 
 In every service the HTTP call and the spoken-sentence formatting are plain
@@ -184,7 +193,7 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
 | `Content-Type` | `application/json` |
 
 `intent-summary`, `goal-progress` and `pay-split` take a `{}` body; `budget-line` takes
-`{ "query": string }`.
+`{ "query": string }` (empty to list every line).
 
 - `intent-summary` → `{ "fortnightlyAfterSavingCents": number }` (integer minor
   units; negative when the fortnightly plan is over budget).
@@ -194,9 +203,11 @@ Each is `POST {SUPABASE_URL}/functions/v1/<name>` with these headers:
   `savedCents` is its linked Up saver's synced balance where it links one, else
   the manually entered figure.
 - `budget-line` →
-  `{ "match": { "name": string, "amountCents": number, "frequency": string, "intervalCount": number | null, "fortnightlyCents": number, "annualCents": number } | null, "names": string[] }`.
+  `{ "match": Line | null, "lines": Line[], "names": string[] }` where `Line` is
+  `{ "id": string, "name": string, "amountCents": number, "frequency": string, "intervalCount": number | null, "fortnightlyCents": number, "annualCents": number }`.
   `match` is the budget line whose name best fits `query` — an exact
   case-insensitive match, else the shortest name overlapping it — or `null`;
+  `lines` is every budget line sorted by name (an empty `query` matches none);
   `names` is every budget line name, sorted. `amountCents` is the planned amount
   at its own `frequency`; `fortnightlyCents` / `annualCents` are the `@nest/plan`
   normalisations.

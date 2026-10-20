@@ -44,8 +44,11 @@ and Spotlight still work on both platforms.
   - `Intents/GoalProgressIntent.swift` — the savings-goal `AppIntent`.
   - `Intents/GoalService.swift` — injectable HTTP call to `goal-progress` and
     its spoken-sentence formatting.
-  - `Intents/BudgetLineIntent.swift` — the budget-line `AppIntent` (a free-text
-    `query` parameter).
+  - `Intents/BudgetLineIntent.swift` — the budget-line `AppIntent` (a required
+    `line` parameter).
+  - `Intents/BudgetLineEntity.swift` — `BudgetLineEntity` and its query.
+  - `Intents/SpotlightIndex.swift` — Spotlight indexing of budget lines and
+    pay-split accounts.
   - `Intents/BudgetLineService.swift` — injectable HTTP call to `budget-line`
     and its per-cadence spoken-sentence formatting.
   - `Intents/PaySplitIntent.swift` — the pay-split `AppIntent` (a required
@@ -155,7 +158,7 @@ return a figure.
   `{ "goals": { name, savedCents, targetCents }[], "totalSavedCents", "totalTargetCents" }`.
 - `BudgetLineIntent` → `budget-line`
   (`supabase/functions/budget-line`), `{ "query": string }` body →
-  `{ "match": { name, amountCents, frequency, intervalCount, fortnightlyCents, annualCents } | null, "names": string[] }`.
+  `{ "match": Line | null, "lines": Line[], "names": string[] }`, `Line` = `{ id, name, amountCents, frequency, intervalCount, fortnightlyCents, annualCents }`.
 - `PaySplitIntent` → `pay-split`
   (`supabase/functions/pay-split`), `{}` body →
   `{ "hasPayAccount", "splits": { accountId, name, fortnightlyCents }[], "totalCents", "stays": { accountId, name, fortnightlyCents }[], "unassignedFortnightlyCents" }`.

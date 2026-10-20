@@ -8,8 +8,10 @@
  * loader the fortnightly-buffer path uses.
  *
  * Request: `POST` with a `Bearer` Supabase access token and `{ query: string }`.
- * Response: `{ match: { name, amountCents, frequency, intervalCount,
- *   fortnightlyCents, annualCents } | null, names: string[] }`.
+ * Response: `{ match: Line | null, lines: Line[], names: string[] }` where
+ *   `Line` is `{ id, name, amountCents, frequency, intervalCount,
+ *   fortnightlyCents, annualCents }`. An empty `query` yields no match and every
+ *   line in `lines`.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'

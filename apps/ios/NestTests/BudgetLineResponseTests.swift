@@ -25,7 +25,7 @@ import Testing
         let sentence = await budgetLineSpokenResponse(
             query: "groceries",
             accessToken: { throw NoSession() },
-            service: service(returning: #"{"match":null,"names":[]}"#)
+            service: service(returning: #"{"match":null,"lines":[],"names":[]}"#)
         )
 
         #expect(sentence == "Open Nest and sign in to check your budget.")
@@ -37,8 +37,8 @@ import Testing
             accessToken: { "token" },
             service: service(
                 returning: #"""
-                {"match":{"name":"Groceries","amountCents":20000,"frequency":"weekly",
-                "intervalCount":null,"fortnightlyCents":40000,"annualCents":1040000},"names":["Groceries"]}
+                {"match":{"id":"l1","name":"Groceries","amountCents":20000,"frequency":"weekly",
+                "intervalCount":null,"fortnightlyCents":40000,"annualCents":1040000},"lines":[],"names":["Groceries"]}
                 """#
             )
         )

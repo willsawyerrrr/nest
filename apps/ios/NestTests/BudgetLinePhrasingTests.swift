@@ -5,7 +5,7 @@ import Testing
 
 @Suite struct BudgetLinePhrasingTests {
     private func response(_ match: BudgetLineMatch?, names: [String] = []) -> BudgetLineResponse {
-        BudgetLineResponse(match: match, names: names)
+        BudgetLineResponse(match: match, lines: match.map { [$0] } ?? [], names: names)
     }
 
     private func match(
@@ -15,6 +15,7 @@ import Testing
         intervalCount: Int? = nil
     ) -> BudgetLineMatch {
         BudgetLineMatch(
+            id: "l1",
             name: name,
             amountCents: amountCents,
             frequency: frequency,

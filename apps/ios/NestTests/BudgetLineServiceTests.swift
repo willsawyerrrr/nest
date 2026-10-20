@@ -20,7 +20,7 @@ import Testing
         let box = RequestBox()
         let service = BudgetLineService { request in
             box.request = request
-            return self.ok(#"{"match":null,"names":[]}"#, url: request.url!)
+            return self.ok(#"{"match":null,"lines":[],"names":[]}"#, url: request.url!)
         }
 
         _ = try await service.lookUp(query: "groceries", accessToken: "the-token")
@@ -44,9 +44,9 @@ import Testing
         let service = BudgetLineService { request in
             self.ok(
                 #"""
-                {"match":{"name":"Groceries","amountCents":20000,"frequency":"weekly",
+                {"match":{"id":"l1","name":"Groceries","amountCents":20000,"frequency":"weekly",
                 "intervalCount":null,"fortnightlyCents":40000,"annualCents":1040000},
-                "names":["Groceries","Rent"]}
+                "lines":[],"names":["Groceries","Rent"]}
                 """#,
                 url: request.url!
             )

@@ -29,10 +29,11 @@ struct NestShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: BudgetLineIntent(),
             phrases: [
+                "How much do we budget for \(\.$line) in \(.applicationName)",
+                "How much is budgeted for \(\.$line) in \(.applicationName)",
+                "What's the \(.applicationName) budget for \(\.$line)",
                 "How much have I budgeted in \(.applicationName)",
                 "Check a \(.applicationName) budget",
-                "Ask \(.applicationName) how much is budgeted",
-                "Look up a \(.applicationName) budget",
             ],
             shortTitle: "Budget line",
             systemImageName: "chart.pie"

@@ -9,6 +9,7 @@ import {
 
 function line(overrides: Partial<BudgetLineRow> = {}): BudgetLineRow {
   return {
+    id: 'l1',
     name: 'Groceries',
     amount_cents: 200_00,
     frequency: 'weekly',
@@ -48,6 +49,7 @@ Deno.test('shapeBudgetLine normalises the matched amount to fortnightly and annu
   ], 'groceries')
 
   assertEquals(body.match, {
+    id: 'l1',
     name: 'Groceries',
     amountCents: 200_00,
     frequency: 'weekly',
@@ -75,7 +77,24 @@ Deno.test('shapeBudgetLine carries an every-N-weeks interval through the normali
 Deno.test('shapeBudgetLine returns a null match with every sorted name when nothing matches', () => {
   const body = shapeBudgetLine([line({ name: 'Rent' }), line({ name: 'Groceries' })], 'holidays')
 
-  assertEquals(body, { match: null, names: ['Groceries', 'Rent'] })
+  assertEquals(body.match, null)
+  assertEquals(body.names, ['Groceries', 'Rent'])
+})
+
+Deno.test('shapeBudgetLine lists every line with its amounts, sorted by name', () => {
+  const body = shapeBudgetLine(
+    [
+      line({ id: 'l2', name: 'Rent', amount_cents: 1_400_00, frequency: 'fortnightly' }),
+      line({ id: 'l1', name: 'Groceries', amount_cents: 200_00, frequency: 'weekly' }),
+    ],
+    '',
+  )
+
+  assertEquals(body.match, null)
+  assertEquals(body.lines.map((l) => [l.id, l.name, l.fortnightlyCents]), [
+    ['l1', 'Groceries', 400_00],
+    ['l2', 'Rent', 1_400_00],
+  ])
 })
 
 function deps(overrides: Partial<BudgetLineDeps> = {}): BudgetLineDeps {

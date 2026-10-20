@@ -1,7 +1,8 @@
 import Foundation
 
 /// The matched budget line in the `budget-line` response.
-struct BudgetLineMatch: Decodable, Sendable {
+struct BudgetLineMatch: Decodable, Sendable, Equatable {
+    let id: String
     let name: String
     let amountCents: Int
     let frequency: String
@@ -11,9 +12,11 @@ struct BudgetLineMatch: Decodable, Sendable {
 }
 
 /// Response body of the `budget-line` edge function: the best name match (or
-/// `nil`), and every budget line name so a miss can say what exists.
+/// `nil`), every budget line with its amounts, and every name so a miss can say
+/// what exists.
 struct BudgetLineResponse: Decodable, Sendable {
     let match: BudgetLineMatch?
+    let lines: [BudgetLineMatch]
     let names: [String]
 }
 
@@ -46,27 +49,58 @@ struct BudgetLineService: Sendable {
     }
 }
 
+/// What loading the household's budget lines yielded.
+enum BudgetLineLoad: Sendable {
+    case lines([BudgetLineMatch])
+    case signedOut
+    case unreachable
+}
+
+/// Resolves the access token and loads every budget line, folding each failure
+/// into a case. Both dependencies are injected so callers stay thin shells over
+/// testable code.
+func budgetLineLoad(
+    accessToken: @Sendable () async throws -> String,
+    service: BudgetLineService
+) async -> BudgetLineLoad {
+    let token: String
+    do {
+        token = try await accessToken()
+    } catch {
+        return .signedOut
+    }
+
+    do {
+        return .lines(try await service.lookUp(query: "", accessToken: token).lines)
+    } catch BudgetLineServiceError.http(status: 401) {
+        return .signedOut
+    } catch {
+        return .unreachable
+    }
+}
+
 /// Turns a `budget-line` response into one spoken sentence.
 enum BudgetLinePhrasing {
     /// A planned amount in its own cadence: "$200.00 per week", "$50.00 per
     /// fortnight", "$300.00 every 26 weeks".
     static func perPeriod(amountCents: Int, frequency: String, intervalCount: Int?) -> String {
-        let amount = BufferPhrasing.currency(amountCents)
+        "\(BufferPhrasing.currency(amountCents)) \(cadence(frequency: frequency, intervalCount: intervalCount))"
+    }
+
+    /// A cadence on its own: "per week", "twice a year", "every 4 weeks". An
+    /// unknown frequency, or an interval one without a count, reads as a fixed
+    /// cadence.
+    static func cadence(frequency: String, intervalCount: Int?) -> String {
         switch frequency {
-        case "weekly": return "\(amount) per week"
-        case "fortnightly": return "\(amount) per fortnight"
-        case "monthly": return "\(amount) per month"
-        case "quarterly": return "\(amount) per quarter"
-        case "biannual": return "\(amount) twice a year"
-        case "annual": return "\(amount) per year"
-        case "every_n_weeks":
-            return everyN(intervalCount, unit: "week").map { "\(amount) \($0)" }
-                ?? "\(amount) per fortnight"
-        case "every_n_months":
-            return everyN(intervalCount, unit: "month").map { "\(amount) \($0)" }
-                ?? "\(amount) per month"
-        default:
-            return "\(amount) per fortnight"
+        case "weekly": return "per week"
+        case "fortnightly": return "per fortnight"
+        case "monthly": return "per month"
+        case "quarterly": return "per quarter"
+        case "biannual": return "twice a year"
+        case "annual": return "per year"
+        case "every_n_weeks": return everyN(intervalCount, unit: "week") ?? "per fortnight"
+        case "every_n_months": return everyN(intervalCount, unit: "month") ?? "per month"
+        default: return "per fortnight"
         }
     }
 

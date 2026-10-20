@@ -8,6 +8,7 @@ struct PaySplitEntity: AppEntity {
     static let defaultQuery = PaySplitEntityQuery()
 
     let id: String
+    let listing: SpotlightListing
 
     @Property(title: "Account")
     var name: String
@@ -17,6 +18,7 @@ struct PaySplitEntity: AppEntity {
 
     init(_ account: PaySplitAccount) {
         id = account.accountId
+        listing = SpotlightListing.paySplit(account)
         name = account.name
         fortnightlyAmount = Double(account.fortnightlyCents) / 100
     }
@@ -24,7 +26,7 @@ struct PaySplitEntity: AppEntity {
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: "\(name)",
-            subtitle: "\(BufferPhrasing.currency(Int((fortnightlyAmount * 100).rounded()))) per fortnight"
+            subtitle: "\(listing.summary)"
         )
     }
 }

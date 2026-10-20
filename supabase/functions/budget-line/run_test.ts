@@ -1,5 +1,6 @@
 import { assertEquals } from '@std/assert'
 import {
+  type BudgetLineBody,
   type BudgetLineDeps,
   type BudgetLineRow,
   matchBudgetLine,
@@ -137,5 +138,8 @@ Deno.test('runBudgetLine hides lines drawn from a co-member’s allowance, match
     }),
   )
 
-  assertEquals(result.body, { match: null, names: ['Coffee', 'Rent'] })
+  const body = result.body as BudgetLineBody
+  assertEquals(body.match, null)
+  assertEquals(body.names, ['Coffee', 'Rent'])
+  assertEquals(body.lines.map((l) => l.name), ['Coffee', 'Rent'])
 })

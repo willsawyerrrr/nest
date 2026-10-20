@@ -319,40 +319,42 @@ function MemberDeductions({
           valid={isValidTarget(UNGROUPED_DROP_ID)}
           dragging={dragging !== undefined}
         >
-          <EditableList<DeductionRow, DeductionSubmission>
-            items={ungrouped}
-            addLabel="Add deduction"
-            emptyMessage="No deductions yet."
-            deleteTarget={(deduction) => ({
-              title: 'Delete deduction?',
-              itemLabel: deduction.description,
-            })}
-            onCreate={onCreate}
-            // Editing goes straight to a plain field update — the RPC that writes
-            // the receipt alongside a new deduction is never reached here, so the
-            // receipt already on this deduction (managed from its edit form) is
-            // never replaced by the empty one an edit form's submission carries.
-            onUpdate={(id, submission) => onUpdate(id, submission.input)}
-            onDelete={onDelete}
-            renderItem={(deduction, controls) => renderPayment(deduction, controls)}
-            renderForm={({ initial, onSubmit, onCancel }) => (
-              <DeductionForm
-                member={member}
-                attachments={attachments}
-                financialYear={financialYear}
-                groups={groups}
-                initial={initial}
-                {...(initial
-                  ? receiptControls(initial)
-                  : {
-                      onAddFiles: (files: File[], category: DeductionCategory) =>
-                        queue.add(files, category),
-                    })}
-                onSubmit={onSubmit}
-                onCancel={onCancel}
-              />
-            )}
-          />
+          <Stack gap={6}>
+            <EditableList<DeductionRow, DeductionSubmission>
+              items={ungrouped}
+              addLabel="Add deduction"
+              emptyMessage="No deductions yet."
+              deleteTarget={(deduction) => ({
+                title: 'Delete deduction?',
+                itemLabel: deduction.description,
+              })}
+              onCreate={onCreate}
+              // Editing goes straight to a plain field update — the RPC that writes
+              // the receipt alongside a new deduction is never reached here, so the
+              // receipt already on this deduction (managed from its edit form) is
+              // never replaced by the empty one an edit form's submission carries.
+              onUpdate={(id, submission) => onUpdate(id, submission.input)}
+              onDelete={onDelete}
+              renderItem={(deduction, controls) => renderPayment(deduction, controls)}
+              renderForm={({ initial, onSubmit, onCancel }) => (
+                <DeductionForm
+                  member={member}
+                  attachments={attachments}
+                  financialYear={financialYear}
+                  groups={groups}
+                  initial={initial}
+                  {...(initial
+                    ? receiptControls(initial)
+                    : {
+                        onAddFiles: (files: File[], category: DeductionCategory) =>
+                          queue.add(files, category),
+                      })}
+                  onSubmit={onSubmit}
+                  onCancel={onCancel}
+                />
+              )}
+            />
+          </Stack>
         </DropTarget>
 
         <DragOverlay>

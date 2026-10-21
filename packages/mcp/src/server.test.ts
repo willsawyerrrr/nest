@@ -45,16 +45,18 @@ describe('respond', () => {
 })
 
 describe('the server', () => {
-  it('lists the six tools', async () => {
+  it('lists the eight tools', async () => {
     const { client } = await connect({})
     const { tools } = await client.listTools()
     expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'add_budget_line',
       'add_wishlist_item',
       'create_deduction_from_document',
       'get_fortnightly_buffer',
       'list_budget_lines',
       'list_savings_goals',
       'list_wishlist',
+      'update_budget_line',
     ])
   })
 

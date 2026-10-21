@@ -103,6 +103,8 @@ Money is always integer cents.
 | `list_savings_goals`             | read  | Goals with saved, target, remaining, progress percent, target date, and `active` or `queued` status.                                                                                         |
 | `list_wishlist`                  | read  | Wishlist items, each tagged with the member's name where set, and the total cost.                                                                                                            |
 | `add_wishlist_item`              | write | `name`, `amount_cents` (positive), optional `member` (name) and `note`.                                                                                                                      |
+| `add_budget_line` | write | `name`, `group` (`needs`, `wants`, `discretionary`, `savings`, `investments`), `amount_cents`, `frequency` (with `interval_count` for `every_n_weeks` / `every_n_months`, and only for those), optional `management_url` (a bare domain gains `https://`; other schemes are rejected). |
+| `update_budget_line` | write | `id` plus any of the same fields; only those given change, and `management_url: null` clears the link. A line derived from a breakdown or gifts is refused (`derived_line`). The database's allowance-overdraw and group constraints apply and surface as `save_failed`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
 
 The buffer is computed over rows the member can see. A goal's projected
@@ -147,6 +149,8 @@ relayed.
 | `extraction_unsupported_type` | The type cannot be read; supply the three details.                |
 | `extraction_failed`           | The read failed for any other reason.                             |
 | `incomplete_details`          | The document did not show every detail; the message names those.  |
+| `invalid_details`             | The details contradict each other (an interval count without, or missing for, an every-N frequency). |
+| `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |
 | `query_failed`                | A read failed.                                                    |
 | `save_failed`                 | A write failed.                                                   |
 

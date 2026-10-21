@@ -4,6 +4,12 @@ import { z } from 'zod'
 import type { NestContext } from './context.ts'
 import { fixedError, ToolError } from './errors.ts'
 import {
+  addBudgetLine,
+  addBudgetLineInput,
+  updateBudgetLine,
+  updateBudgetLineInput,
+} from './tools/budgetLines.ts'
+import {
   getFortnightlyBuffer,
   listBudgetLines,
   listSavingsGoals,
@@ -51,6 +57,26 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => listBudgetLines(ctx, input)),
+  )
+
+  server.registerTool(
+    'add_budget_line',
+    {
+      description:
+        'Add a manual budget line. group is needs, wants, discretionary, savings, or investments; amount_cents is a non-negative integer number of cents per frequency (weekly, fortnightly, monthly, quarterly, biannual, annual, or every_n_weeks / every_n_months with interval_count). management_url optionally links the page for managing the subscription it pays for.',
+      inputSchema: addBudgetLineInput.shape,
+    },
+    (input) => respond(() => addBudgetLine(ctx, input)),
+  )
+
+  server.registerTool(
+    'update_budget_line',
+    {
+      description:
+        'Edit a manual budget line by id (from list_budget_lines); only the fields given change. Pass management_url null to clear it. Lines derived from a breakdown or gifts cannot be edited here. A line drawn from a member allowance cannot be raised past what the allowance has left.',
+      inputSchema: updateBudgetLineInput.shape,
+    },
+    (input) => respond(() => updateBudgetLine(ctx, input)),
   )
 
   server.registerTool(

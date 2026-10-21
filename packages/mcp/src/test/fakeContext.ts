@@ -6,6 +6,7 @@ type Row = Record<string, unknown>
 export interface FakeState {
   tables: Record<string, Row[]>
   inserts: { table: string; row: Row }[]
+  updates: { table: string; row: Row; filters: [string, unknown][] }[]
   rpcCalls: { fn: string; args: Row }[]
   uploads: { path: string; contentType: string | undefined; bytes: number }[]
   removed: string[]
@@ -15,6 +16,7 @@ export interface FakeState {
 export interface FakeOptions {
   tables?: Record<string, Row[]>
   insertError?: boolean
+  updateError?: boolean
   rpcError?: boolean
   /** What a named RPC answers; any other answers `'ok'`. */
   rpcResults?: Record<string, unknown>
@@ -32,6 +34,7 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
   const state: FakeState = {
     tables: options.tables ?? {},
     inserts: [],
+    updates: [],
     rpcCalls: [],
     uploads: [],
     removed: [],
@@ -40,10 +43,15 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
 
   const from = (table: string) => {
     const filters: [string, unknown][] = []
+    let pendingUpdate: Row | null = null
     const builder = {
       select: () => builder,
       eq: (column: string, value: unknown) => {
         filters.push([column, value])
+        return builder
+      },
+      update: (row: Row) => {
+        pendingUpdate = row
         return builder
       },
       insert: (row: Row) => {
@@ -64,13 +72,19 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
           ) ?? null,
         error: null,
       }),
-      then: (resolve: (value: unknown) => unknown) =>
-        resolve({
+      then: (resolve: (value: unknown) => unknown) => {
+        if (pendingUpdate) {
+          state.updates.push({ table, row: pendingUpdate, filters })
+          if (options.updateError)
+            return resolve({ data: null, error: { message: 'upstream detail' } })
+        }
+        return resolve({
           data: (state.tables[table] ?? []).filter((row) =>
             filters.every(([column, value]) => row[column] === value),
           ),
           error: null,
-        }),
+        })
+      },
     }
     return builder
   }

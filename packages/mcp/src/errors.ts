@@ -16,6 +16,8 @@ export const ERROR_CODES = [
   'extraction_unsupported_type',
   'extraction_failed',
   'incomplete_details',
+  'invalid_details',
+  'derived_line',
   'query_failed',
   'save_failed',
 ] as const

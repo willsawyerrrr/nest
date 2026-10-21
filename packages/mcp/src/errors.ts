@@ -22,6 +22,7 @@ export const ERROR_CODES = [
   'private_gift',
   'allowance_overdrawn',
   'invalid_account',
+  'automatic_group',
   'query_failed',
   'save_failed',
   'delete_failed',

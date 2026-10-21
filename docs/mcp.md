@@ -155,6 +155,14 @@ Money is always integer cents.
 | `update_equity_grant` | write | `id` plus any of the same fields; `null` clears `strike_price_cents` and `price_as_of`. |
 | `delete_equity_grant` | write | `id`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
+| `list_deductions` | read | Deductions for `financial_year` (default current) with basis, claimed and full cents, work use, group, and `has_receipt`; optional `member` and `category`. |
+| `add_deduction` | write | `description`, `deduction_date`, `category`, `member`, `group_id`, and a `basis`: `amount` (`amount_cents` is the full cost; `work_use_percent` for work expenses), `distance` (`distance_km`), or `hours` (`work_from_home_hours`). Distance and hours are work expenses priced at the year's published ATO rate, snapshotted into `amount_cents`; a distance past the ATO cap returns a `warning`. A donation is filed automatically in the donations group. |
+| `update_deduction` | write | `id` plus any of `description`, `deduction_date`, the basis's own inputs, and `group_id` (`null` ungroups). Category and basis are fixed; the claim is recomputed. |
+| `delete_deduction` | write | `id`; also removes the stored receipt. |
+| `attach_deduction_receipt` | write | `id` plus `file_path` (stdio) or base64 `content` and `filename` (HTTP); stores the file in `receipts` under the Uploads rules and replaces any earlier receipt. Nothing is read from it. |
+| `remove_deduction_receipt` | write | `id`; clears the receipt row and file. |
+| `list_deduction_groups` | read | Groups for `financial_year` with kind, payment count, and summed total. |
+| `create_deduction_group` / `update_deduction_group` / `delete_deduction_group` | write | Standard groups only: `name`, optional `member` and `financial_year`; deleting ungroups the payments. The donations group is read-only (`automatic_group`). |
 
 Budget-line links: `goal_id` funds a goal (savings and investments lines only),
 `destination_account_id` routes any other line to an account, and
@@ -220,6 +228,7 @@ relayed.
 | `private_gift`                | The purchase is for the member's own gift, which is hidden from them.             |
 | `allowance_overdrawn`         | The write would leave an allowance with less than is drawn from it. |
 | `invalid_account`             | The account is unknown, not a synced saver for a goal, or not a transaction account for the pay account. |
+| `automatic_group`             | The donations group is automatic and cannot be filed into, renamed, or deleted. |
 | `query_failed`                | A read failed.                                                    |
 | `save_failed`                 | A write failed.                                                   |
 | `delete_failed`               | A delete failed.                                                  |

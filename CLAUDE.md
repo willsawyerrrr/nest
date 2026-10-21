@@ -58,7 +58,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   reorder, temporary-item CRUD, `add_wishlist_item` / `update_wishlist_item` /
   `delete_wishlist_item`, `confirm_pay_split` / `clear_pay_split` (read back with
   `list_breakdowns`, `list_member_allowances`, `list_temporary_items`,
-  `list_pay_splits`), and `create_deduction_from_document` (upload to
+  `list_pay_splits`), deduction tools (`list_deductions`, `add_deduction` on the amount, distance, and hours bases with snapshotted rates, `update_deduction`, `delete_deduction`, receipt attach and remove, and deduction-group CRUD with the donations group read-only), and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
   following the Uploads rules), the gift tracker's add / update / delete tools for
   external recipients, occasions, budgets, and purchases (hand-entered, card-linked,

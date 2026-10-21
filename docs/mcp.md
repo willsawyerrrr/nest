@@ -163,6 +163,13 @@ Money is always integer cents.
 | `remove_deduction_receipt` | write | `id`; clears the receipt row and file. |
 | `list_deduction_groups` | read | Groups for `financial_year` with kind, payment count, and summed total. |
 | `create_deduction_group` / `update_deduction_group` / `delete_deduction_group` | write | Standard groups only: `name`, optional `member` and `financial_year`; deleting ungroups the payments. The donations group is read-only (`automatic_group`). |
+| `list_payslips` | read | Payslips with their lines, newest pay period first; optional `financial_year` and `member` filters. |
+| `create_payslip` | write | `period_start`, `period_end`, `gross_cents`, `tax_withheld_cents`, `super_cents`, `net_cents`, optional `paid_on`, `salary_sacrifice_cents`, `ytd_*_cents`, `note`, `member`, and `lines` (an `earning` with an optional `source_inflow_id`, or a `tax` line with `tax_component` `payg` or `stsl`). Written with `upsert_payslip_with_lines`; the financial year is derived from `paid_on`, else `period_end`. |
+| `update_payslip` | write | `id` plus any of the same fields (`null` clears the optional ones); `lines` given replace the set, omitted they stay; the document is kept. |
+| `delete_payslip` | write | `id`; removes the slip, its lines, and its stored document. |
+| `attach_payslip_document` | write | `id` plus `file_path` (stdio) or `content` and `filename` (HTTP); stores it in the `payslips` bucket, replacing any earlier document. |
+| `remove_payslip_document` | write | `id`; clears the document and deletes the object. |
+| `create_payslip_from_document` | write | A payslip file as above, plus any figures to override; the rest are read with `payslip-extract` (AI; check them). Lines read from the document are returned, not saved: pass them as `lines` (or to `update_payslip`) naming each earning's inflow and each tax line's component. A failure after the upload deletes the stored file. |
 
 Budget-line links: `goal_id` funds a goal (savings and investments lines only),
 `destination_account_id` routes any other line to an account, and
@@ -221,6 +228,7 @@ relayed.
 | `extraction_not_receipt`      | The file is not the document the category expects.                |
 | `extraction_unsupported_type` | The type cannot be read; supply the three details.                |
 | `extraction_failed`           | The read failed for any other reason.                             |
+| `extraction_not_payslip`      | The file is not a payslip.                                        |
 | `incomplete_details`          | The document did not show every detail; the message names those.  |
 | `invalid_details`             | The details contradict each other or break a rule the PWA's forms and the database checks enforce (an interval count without, or missing for, an every-N frequency; a one-off with a cadence; a joint inflow that is not a recurring taxable `other`). |
 | `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |

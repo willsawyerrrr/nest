@@ -100,6 +100,13 @@ describe('the server', () => {
         'update_budget_line',
         'update_deduction',
         'update_deduction_group',
+        'list_payslips',
+        'create_payslip',
+        'update_payslip',
+        'delete_payslip',
+        'attach_payslip_document',
+        'remove_payslip_document',
+        'create_payslip_from_document',
       ]),
     )
   })

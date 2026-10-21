@@ -12,6 +12,11 @@ import { supabase } from './supabase'
  * `authStateChanges` emission, and a local sign-out when the native session
  * goes. Clearing is scoped local so it never revokes the refresh token the
  * native app is still rotating.
+ *
+ * Once the hooks exist it posts `ready` to the `nestAuth` handler, so the
+ * native layer pushes the session on request rather than racing the page's
+ * load: a push that lands before the hooks exist is dropped, which would
+ * otherwise leave the loading screen up indefinitely.
  */
 export function installNativeAuthBridge(): void {
   if (!isNativeShell()) {
@@ -25,6 +30,8 @@ export function installNativeAuthBridge(): void {
   window.__nestClearSession = () => {
     void supabase.auth.signOut({ scope: 'local' })
   }
+
+  window.webkit?.messageHandlers.nestAuth.postMessage({ type: 'ready' })
 }
 
 /**

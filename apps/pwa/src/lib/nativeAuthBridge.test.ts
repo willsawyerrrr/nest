@@ -37,6 +37,18 @@ describe('installNativeAuthBridge', () => {
     })
   })
 
+  it('asks the native shell for the session once the hooks are installed', () => {
+    const postMessage = vi.fn()
+    window.__NEST_NATIVE_SHELL__ = true
+    window.webkit = {
+      messageHandlers: { nestAuth: { postMessage }, nestShare: { postMessage: vi.fn() } },
+    }
+
+    installNativeAuthBridge()
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'ready' })
+  })
+
   it('clears the session locally so the native refresh token survives', () => {
     window.__NEST_NATIVE_SHELL__ = true
     installNativeAuthBridge()

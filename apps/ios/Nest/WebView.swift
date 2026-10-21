@@ -132,15 +132,20 @@ struct WebView: UIViewRepresentable {
             return nil
         }
 
-        /// Handles the page's sign-out request: clear the native session, which
-        /// emits `.signedOut` and swaps the web view for the sign-in gate.
+        /// Handles the page's requests. `ready` pushes the session once the page
+        /// can take it. `signOut` clears the native session, which emits
+        /// `.signedOut` and swaps the web view for the sign-in gate.
         func userContentController(
             _ controller: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
             switch message.name {
             case "nestAuth":
-                Task { try? await supabaseAuth.signOut() }
+                switch SessionBridge.pageRequest(from: message.body) {
+                case .ready: Task { await pushCurrentSession() }
+                case .signOut: Task { try? await supabaseAuth.signOut() }
+                case nil: break
+                }
             case "nestShare":
                 // The page has queued these files, so they leave the inbox.
                 for id in ShareBridge.queuedIDs(from: message.body) {
@@ -203,7 +208,7 @@ struct WebView: UIViewRepresentable {
         /// Reads the current session — refreshing it if it has expired, so the
         /// page never receives a stale token — and pushes it into the page.
         private func pushCurrentSession() async {
-            let session = try? await supabaseAuth.session
+            guard let session = try? await supabaseAuth.session else { return }
             apply(session)
         }
 

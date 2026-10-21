@@ -45,7 +45,9 @@ rotating one refresh token evict each other.
   pushes the current session (refreshed if expired) on every `didFinish`, and
   keeps a task iterating `supabaseAuth.authStateChanges` to re-push on every
   token refresh and sign-out. A `nestAuth` `WKScriptMessageHandler` takes the
-  page's sign-out request and calls `supabaseAuth.signOut()`.
+  page's requests: `ready` pushes the session again, and `signOut` calls
+  `supabaseAuth.signOut()`. The page posts `ready` once its hooks exist, because
+  a push that beats them is dropped and would leave the loading screen up.
 - **Documents open in the system browser.** The PWA opens a receipt, payslip, or
   trade document with `window.open` once its signed URL is fetched, which by then
   has lost the tap's user activation. `WebView.swift` sets
@@ -58,7 +60,7 @@ rotating one refresh token evict each other.
   `lib/supabase.ts` creates the client with `persistSession: false,
   autoRefreshToken: false` in the shell; `lib/nativeShell.ts` is the flag check;
   `lib/nativeAuthBridge.ts` installs `window.__nestApplySession` /
-  `window.__nestClearSession` and routes the in-app sign-out through the
+  `window.__nestClearSession`, posts `ready`, and routes the in-app sign-out through the
   `nestAuth` handler; `AuthGate` shows the loading screen (never the web
   sign-in screen) in the shell until the injected session lands.
 

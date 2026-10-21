@@ -13,6 +13,23 @@ enum SessionBridge {
     /// Clears the page's session, run when the native session goes.
     static let clearSessionScript = "window.__nestClearSession && window.__nestClearSession();"
 
+    /// A request the page posts to the `nestAuth` message handler.
+    enum PageRequest: Equatable {
+        /// The page's bridge hooks are installed and it wants the session.
+        case ready
+        case signOut
+    }
+
+    /// The request in a `nestAuth` message body, or nil when it is none the
+    /// page is known to send.
+    static func pageRequest(from body: Any) -> PageRequest? {
+        switch (body as? [String: Any])?["type"] as? String {
+        case "ready": .ready
+        case "signOut": .signOut
+        default: nil
+        }
+    }
+
     /// Pushes a session's tokens into the page.
     static func applySessionScript(accessToken: String, refreshToken: String) -> String {
         "window.__nestApplySession && window.__nestApplySession("

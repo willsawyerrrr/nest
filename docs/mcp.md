@@ -113,6 +113,15 @@ Money is always integer cents.
 | `set_pay_account` | write | `account` (id or name) or null, via `set_household_pay_account`. |
 | `list_categories` | read | Income and expense categories with parent; archived only with `include_archived`. |
 | `list_transactions` | read | Ledger transactions the member's RLS exposes, newest first (`limit` default 50, max 200), signed `amount_cents`; filters `account`, `kind`, `from` / `to`, and `external_category` (e.g. `gifts-and-charity`, the synced gift candidates). |
+| `list_gifts` | read | The gift tracker: recipients (household members are permanent ones, flagged `is_member` / `is_you`), occasions, per-recipient budgets with `spent_cents` and `remaining_cents`, the ad hoc buffer with its spend, unassigned spend, and every purchase the member can see. A budget for the member's own gift reports `private: true` and null spent and remaining, because row-level security hides its purchases. |
+| `list_gift_candidates` | read | The "From your card" inbox: synced Up `gifts-and-charity` transactions no purchase claims and nobody dismissed (amount as a magnitude, local posting date, `pending`), and those dismissed with their `dismissal_id`. A co-member's spending account and a transaction claimed as a gift for the member are withheld by row-level security. |
+| `add_gift_recipient` / `update_gift_recipient` / `delete_gift_recipient` | write | External recipients only: `name`, or `id` to rename or delete (cascading to their budgets and purchases). A household member's recipient is refused (`member_recipient`). |
+| `add_gift_occasion` / `update_gift_occasion` / `delete_gift_occasion` | write | `name` and optional `occasion_date`; update changes only the fields given and `occasion_date: null` clears it; delete cascades to the occasion's budgets and purchases. |
+| `add_gift_budget` / `update_gift_budget` / `delete_gift_budget` | write | `recipient_id`, `occasion_id`, `budgeted_amount_cents`, optional `event_date` (overrides the occasion's date); one budget per recipient and occasion. Update changes only the fields given (`event_date: null` clears it); delete cascades to the budget's purchases. |
+| `set_gift_discretionary_budget` | write | `budgeted_amount_cents` for the household's single ad hoc gifts buffer, created on first use. |
+| `add_gift_purchase` | write | `amount_cents`, `purchased_on`, `description`, and where it counts: `gift_budget_id`, `ad_hoc: true` (against the buffer, with an optional `recipient_id` tag), or neither (unassigned). `transaction_id` from `list_gift_candidates` links a card transaction and takes its amount and date. A purchase for the member's own gift is refused (`private_gift`). |
+| `update_gift_purchase` / `delete_gift_purchase` | write | Update changes only the fields given and moves a purchase with `gift_budget_id`, `ad_hoc: true`, or `unassigned: true`; `recipient_id` (null clears) tags an ad hoc one. A linked purchase keeps its transaction's amount and date. A purchase the member cannot see is `not_found`. |
+| `dismiss_gift_candidate` / `restore_gift_candidate` | write | Set a candidate's `transaction_id` aside as not a gift, or undo it with the `dismissal_id`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
 
 ### Not exposed
@@ -167,6 +176,8 @@ relayed.
 | `incomplete_details`          | The document did not show every detail; the message names those.  |
 | `invalid_details`             | The details contradict each other (an interval count without, or missing for, an every-N frequency). |
 | `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |
+| `member_recipient`            | A household member's gift recipient is permanent and cannot be edited or deleted. |
+| `private_gift`                | The purchase is for the member's own gift, which is hidden from them.             |
 | `query_failed`                | A read failed.                                                    |
 | `save_failed`                 | A write failed.                                                   |
 

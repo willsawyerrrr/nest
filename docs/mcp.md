@@ -163,6 +163,12 @@ Money is always integer cents.
 | `remove_deduction_receipt` | write | `id`; clears the receipt row and file. |
 | `list_deduction_groups` | read | Groups for `financial_year` with kind, payment count, and summed total. |
 | `create_deduction_group` / `update_deduction_group` / `delete_deduction_group` | write | Standard groups only: `name`, optional `member` and `financial_year`; deleting ungroups the payments. The donations group is read-only (`automatic_group`). |
+| `list_trades` | read | Trades newest first (units, `price_per_unit_microdollars`, `fee_cents`, whether a document is attached); optional `member` and `ticker` filters. |
+| `list_holdings` | read | Holdings FIFO-matched from all trades per member and ticker, with units, cost base and value in cents at the last traded price, and any oversold units; optional `member`. |
+| `add_trade` | write | `ticker`, `side`, `traded_on`, `units` (positive, at most six decimals), `price_per_unit_microdollars` (integer; $33.083072 is `33083072`), optional `fee_cents` and `member`. |
+| `update_trade` | write | `id` plus any of ticker, side, date, units, price, fee; only those given change. |
+| `delete_trade` | write | `id`. |
+| `create_trades_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), optional `member` and `financial_year` (a hint). Stores the contract note, confirmation, or statement in `receipts`, reads every trade with `trade-extract`, and writes the document and trades with `create_trades_with_document`. A document that does not fully show every trade (`incomplete_details`) records nothing and the file is deleted. Returns `possible_duplicates` (ids of trades that repeat an existing one); read values are AI-extracted and should be checked. |
 
 Budget-line links: `goal_id` funds a goal (savings and investments lines only),
 `destination_account_id` routes any other line to an account, and
@@ -221,6 +227,7 @@ relayed.
 | `extraction_not_receipt`      | The file is not the document the category expects.                |
 | `extraction_unsupported_type` | The type cannot be read; supply the three details.                |
 | `extraction_failed`           | The read failed for any other reason.                             |
+| `extraction_not_trade_document` | The file shows no trades. |
 | `incomplete_details`          | The document did not show every detail; the message names those.  |
 | `invalid_details`             | The details contradict each other or break a rule the PWA's forms and the database checks enforce (an interval count without, or missing for, an every-N frequency; a one-off with a cadence; a joint inflow that is not a recurring taxable `other`). |
 | `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |

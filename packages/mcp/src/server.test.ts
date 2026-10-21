@@ -100,6 +100,12 @@ describe('the server', () => {
         'update_budget_line',
         'update_deduction',
         'update_deduction_group',
+        'add_trade',
+        'create_trades_from_document',
+        'delete_trade',
+        'list_holdings',
+        'list_trades',
+        'update_trade',
       ]),
     )
   })

@@ -15,6 +15,7 @@ export const ERROR_CODES = [
   'extraction_not_receipt',
   'extraction_unsupported_type',
   'extraction_failed',
+  'extraction_not_trade_document',
   'incomplete_details',
   'invalid_details',
   'derived_line',

@@ -60,6 +60,7 @@ import {
   setPayAccount,
   setPayAccountInput,
 } from './tools/ledger.ts'
+import { registerPlanningTools } from './tools/planningTools.ts'
 import {
   getFortnightlyBuffer,
   listBudgetLines,
@@ -114,7 +115,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'add_budget_line',
     {
       description:
-        'Add a manual budget line. group is needs, wants, discretionary, savings, or investments; amount_cents is a non-negative integer number of cents per frequency (weekly, fortnightly, monthly, quarterly, biannual, annual, or every_n_weeks / every_n_months with interval_count). management_url optionally links the page for managing the subscription it pays for.',
+        'Add a manual budget line. group is needs, wants, discretionary, savings, or investments; amount_cents is a non-negative integer number of cents per frequency (weekly, fortnightly, monthly, quarterly, biannual, annual, or every_n_weeks / every_n_months with interval_count). management_url optionally links the page for managing the subscription it pays for. goal_id (savings or investments lines) funds a savings goal; destination_account_id (other groups) is the account funding the line in the pay splits; allowance_member (discretionary lines, your own name) draws the line from your spending allowance, which it cannot overdraw.',
       inputSchema: addBudgetLineInput.shape,
     },
     (input) => respond(() => addBudgetLine(ctx, input)),
@@ -124,7 +125,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
     'update_budget_line',
     {
       description:
-        'Edit a manual budget line by id (from list_budget_lines); only the fields given change. Pass management_url null to clear it. Lines derived from a breakdown or gifts cannot be edited here. A line drawn from a member allowance cannot be raised past what the allowance has left.',
+        'Edit a manual budget line by id (from list_budget_lines); only the fields given change. Pass management_url null to clear it. Lines derived from a breakdown or gifts cannot be edited here. A line drawn from your allowance cannot be raised past what the allowance has left. Pass null for goal_id, destination_account_id, or allowance_member to clear it; changing the group clears what the new group cannot carry.',
       inputSchema: updateBudgetLineInput.shape,
     },
     (input) => respond(() => updateBudgetLine(ctx, input)),
@@ -437,6 +438,8 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
       (input) => respond(() => createDeductionFromContent(ctx, input)),
     )
   }
+
+  registerPlanningTools(server, ctx, respond)
 
   return server
 }

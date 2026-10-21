@@ -15,6 +15,9 @@ const line = {
   management_url: null,
   breakdown_id: null,
   is_gift_line: false,
+  goal_id: null,
+  destination_account_id: null,
+  allowance_member_id: null,
 }
 
 async function failure(run: Promise<unknown>): Promise<ToolError> {
@@ -47,6 +50,9 @@ describe('addBudgetLine', () => {
           frequency: 'monthly',
           interval_count: null,
           management_url: 'https://netflix.com/account',
+          goal_id: null,
+          destination_account_id: null,
+          allowance_member_id: null,
         },
       },
     ])
@@ -91,6 +97,9 @@ describe('updateBudgetLine', () => {
           frequency: 'monthly',
           interval_count: null,
           management_url: null,
+          goal_id: null,
+          destination_account_id: null,
+          allowance_member_id: null,
         },
         filters: [
           ['id', ID],

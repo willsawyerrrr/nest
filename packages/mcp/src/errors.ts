@@ -20,8 +20,11 @@ export const ERROR_CODES = [
   'derived_line',
   'member_recipient',
   'private_gift',
+  'allowance_overdrawn',
+  'invalid_account',
   'query_failed',
   'save_failed',
+  'delete_failed',
 ] as const
 
 export type ErrorCode = (typeof ERROR_CODES)[number]
@@ -45,9 +48,19 @@ export const FIXED_MESSAGES = {
   upload_failed: 'The file could not be stored.',
   query_failed: 'The data could not be read.',
   save_failed: 'The record could not be saved.',
+  delete_failed: 'The record could not be deleted.',
+  allowance_overdrawn: 'The allowance cannot cover what is drawn from it.',
+  invalid_account: 'That account cannot be used here.',
 } as const satisfies Partial<Record<ErrorCode, string>>
 
 /** A failure with the fixed copy for `code`. */
 export function fixedError(code: keyof typeof FIXED_MESSAGES): ToolError {
   return new ToolError(code, FIXED_MESSAGES[code])
+}
+
+/** The failure for a rejected write: the allowance guard's refusal by name, anything else a plain save failure. */
+export function writeError(error: unknown): ToolError {
+  const message =
+    typeof error === 'object' && error !== null && 'message' in error ? error.message : undefined
+  return fixedError(message === 'allowance_overdrawn' ? 'allowance_overdrawn' : 'save_failed')
 }

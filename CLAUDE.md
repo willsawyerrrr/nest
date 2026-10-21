@@ -52,7 +52,13 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `list_gift_candidates` (a budget for the member's own gift reports no spend, as
   RLS hides its purchases). Write
   tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `add_budget_line` and `update_budget_line` (manual lines only; derived
-  lines are refused), `add_wishlist_item`, and `create_deduction_from_document` (upload to
+  lines are refused; they also set a line's goal, funding account, and own-allowance draw), `delete_budget_line`,
+  breakdown and breakdown-item CRUD (generic only), `update_member_allowance`
+  (an overdraw surfaces as `allowance_overdrawn`), savings-goal CRUD and queue
+  reorder, temporary-item CRUD, `add_wishlist_item` / `update_wishlist_item` /
+  `delete_wishlist_item`, `confirm_pay_split` / `clear_pay_split` (read back with
+  `list_breakdowns`, `list_member_allowances`, `list_temporary_items`,
+  `list_pay_splits`), and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
   following the Uploads rules), and the gift tracker's add / update / delete tools for
   external recipients, occasions, budgets, and purchases (hand-entered, card-linked,

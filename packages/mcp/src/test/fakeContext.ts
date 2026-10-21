@@ -8,6 +8,8 @@ export interface FakeState {
   inserts: { table: string; row: Row }[]
   updates: { table: string; row: Row; filters: [string, unknown][] }[]
   rpcCalls: { fn: string; args: Row }[]
+  deletes: { table: string; filters: [string, unknown][] }[]
+  upserts: { table: string; row: Row; onConflict: string | undefined }[]
   uploads: { path: string; contentType: string | undefined; bytes: number }[]
   removed: string[]
   invocations: { fn: string; body: unknown }[]
@@ -18,6 +20,10 @@ export interface FakeOptions {
   insertError?: boolean
   updateError?: boolean
   rpcError?: boolean
+  deleteError?: boolean
+  upsertError?: boolean
+  /** The message an insert, update, or RPC failure carries; defaults to an upstream detail. */
+  failureMessage?: string
   /** What a named RPC answers; any other answers `'ok'`. */
   rpcResults?: Record<string, unknown>
   uploadError?: boolean
@@ -36,6 +42,8 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
     inserts: [],
     updates: [],
     rpcCalls: [],
+    deletes: [],
+    upserts: [],
     uploads: [],
     removed: [],
     invocations: [],
@@ -44,6 +52,8 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
   const from = (table: string) => {
     const filters: [string, unknown][] = []
     let pendingUpdate: Row | null = null
+    let pendingDelete = false
+    const failure = { message: options.failureMessage ?? 'upstream detail' }
     const builder = {
       select: () => builder,
       eq: (column: string, value: unknown) => {
@@ -54,13 +64,21 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
         pendingUpdate = row
         return builder
       },
+      delete: () => {
+        pendingDelete = true
+        return builder
+      },
+      upsert: async (row: Row, opts?: { onConflict?: string }) => {
+        state.upserts.push({ table, row, onConflict: opts?.onConflict })
+        return options.upsertError ? { error: failure } : { error: null }
+      },
       insert: (row: Row) => {
         state.inserts.push({ table, row })
         return {
           select: () => ({
             single: async () =>
               options.insertError
-                ? { data: null, error: { message: 'upstream detail' } }
+                ? { data: null, error: failure }
                 : { data: { id: 'new-id' }, error: null },
           }),
         }
@@ -73,10 +91,13 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
         error: null,
       }),
       then: (resolve: (value: unknown) => unknown) => {
+        if (pendingDelete) {
+          state.deletes.push({ table, filters })
+          if (options.deleteError) return resolve({ data: null, error: failure })
+        }
         if (pendingUpdate) {
           state.updates.push({ table, row: pendingUpdate, filters })
-          if (options.updateError)
-            return resolve({ data: null, error: { message: 'upstream detail' } })
+          if (options.updateError) return resolve({ data: null, error: failure })
         }
         return resolve({
           data: (state.tables[table] ?? []).filter((row) =>
@@ -94,7 +115,7 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
     rpc: async (fn: string, args: Row) => {
       state.rpcCalls.push({ fn, args })
       return options.rpcError
-        ? { data: null, error: { message: 'upstream detail' } }
+        ? { data: null, error: { message: options.failureMessage ?? 'upstream detail' } }
         : {
             data: options.rpcResults?.[fn] ?? 'ok',
             error: null,

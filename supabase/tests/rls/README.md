@@ -163,6 +163,15 @@ instance and can also be run locally.
   cents, the price cannot be negative, and `create_trades_with_document` saves a
   partial-cent price (`33.083072`) exactly. It rebuilds the whole-cent shape and
   runs the migration over it.
+- `equity_exercise_sale.sql` — the assertions that an equity exercise snapshots
+  the grant's strike when none is given (and a later strike edit leaves it
+  alone), a sale defaults to no fee, quantities are positive and prices and fees
+  non-negative, only an option grant takes an exercise, exercised units cannot
+  exceed the grant and sold units cannot exceed what is held (exercised units
+  for options, the grant's quantity for shares) with fixed error messages —
+  also on every edit or delete of an exercise, sale, or grant — another
+  household sees and writes nothing, a grant's delete cascades to its exercises
+  and sales, and `service_role` reads all three tables for the EOFY share view.
 - `household_tax_profiles.sql` — the assertions that any member reads and writes
   a co-member's `tax_profile` and `help_debt` rows, and sets a co-member's date of
   birth through `set_member_date_of_birth` (the only write path; the direct column
@@ -197,7 +206,8 @@ instance and can also be run locally.
 `notification_preference.sql` → `notification_log.sql` →
 `reconcile_source_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
-`inflow_joint_split.sql` → `trade.sql` → `trade_unit_price.sql`.
+`inflow_joint_split.sql` → `trade.sql` → `trade_unit_price.sql` →
+`equity_exercise_sale.sql`.
 Because the real migrations and policies are applied, the assertions test the
 actual security boundary and trigger behaviour, not a reimplementation.
 
@@ -234,5 +244,6 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/calendar_feed.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/inflow_joint_split.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/trade_unit_price.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/equity_exercise_sale.sql
 docker rm -f pba-rls
 ```

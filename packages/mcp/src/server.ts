@@ -45,6 +45,7 @@ import {
   updateGiftRecipient,
   updateGiftRecipientInput,
 } from './tools/gifts.ts'
+import { registerIncomeTaxTools } from './tools/incomeTax.ts'
 import {
   getHousehold,
   listAccounts,
@@ -440,6 +441,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
   }
 
   registerPlanningTools(server, ctx, respond)
+  registerIncomeTaxTools(server, ctx, respond)
 
   return server
 }

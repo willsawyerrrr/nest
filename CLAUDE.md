@@ -60,13 +60,22 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `list_breakdowns`, `list_member_allowances`, `list_temporary_items`,
   `list_pay_splits`), and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
-  following the Uploads rules), and the gift tracker's add / update / delete tools for
+  following the Uploads rules), the gift tracker's add / update / delete tools for
   external recipients, occasions, budgets, and purchases (hand-entered, card-linked,
   or ad hoc), `set_gift_discretionary_budget`, and `dismiss_gift_candidate` /
   `restore_gift_candidate`; a member's own recipient is not editable and a purchase
   for their own gift is refused (`private_gift`). Credentials and outward-facing surfaces (Up/Redbark
   tokens, push, calendar tokens, share grants, invite codes, household create/join,
-  Vault) are never exposed. Money is integer cents; failures are stable
+  Vault) are never exposed. Income, tax, super, and equity are managed in full:
+  `list_inflows` / `add_inflow` / `update_inflow` / `delete_inflow` (recurring or
+  one-off, joint split, effective dates, pay cadence, `attracts_super`,
+  `arrives_every_pay_period`, one-off tax treatment, held to the PWA form's and the
+  `inflows_*` checks' rules), `list_tax_profiles` / `set_tax_profile`,
+  `list_help_debts` / `set_help_debt`,
+  `get_tax_estimate` (the shared `estimateHouseholdTaxFromRows`),
+  `list_super_profiles` / `set_super_profile`, `list_super_contributions` and
+  `add_` / `update_` / `delete_super_contribution`, and `list_equity_grants` and
+  `add_` / `update_` / `delete_equity_grant`. Money is integer cents; failures are stable
   `code`s with fixed copy, never an upstream body. See
   [`docs/mcp.md`](docs/mcp.md).
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,

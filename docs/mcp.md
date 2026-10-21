@@ -135,6 +135,25 @@ Money is always integer cents.
 | `add_gift_purchase` | write | `amount_cents`, `purchased_on`, `description`, and where it counts: `gift_budget_id`, `ad_hoc: true` (against the buffer, with an optional `recipient_id` tag), or neither (unassigned). `transaction_id` from `list_gift_candidates` links a card transaction and takes its amount and date. A purchase for the member's own gift is refused (`private_gift`). |
 | `update_gift_purchase` / `delete_gift_purchase` | write | Update changes only the fields given and moves a purchase with `gift_budget_id`, `ad_hoc: true`, or `unassigned: true`; `recipient_id` (null clears) tags an ad hoc one. A linked purchase keeps its transaction's amount and date. A purchase the member cannot see is `not_found`. |
 | `dismiss_gift_candidate` / `restore_gift_candidate` | write | Set a candidate's `transaction_id` aside as not a gift, or undo it with the `dismissal_id`. |
+| `list_inflows` | read | Inflows, recurring and one-off, with annualised cents for recurring ones; optional case-insensitive `name` filter. |
+| `add_inflow` | write | `name`, `type`, and either `schedule` (recurring; `interval_count` for `every_n_*`) or `paid_on` (one-off), plus `taxable` (default true), `member` (required when taxable), `amount_cents` (or `hourly_rate_cents` and `hours_per_period` for a recurring taxable `wage`). Recurring only: `pay_schedule` / `pay_interval_count`, `starts_on` / `ends_on`, `pay_anchor_date`, `attracts_super`, `arrives_every_pay_period`, and `is_joint` with `member_split_percent` (a recurring taxable `other` inflow). A taxable one-off takes `one_off_tax_treatment` (`ordinary` default, `genuine_redundancy` with `years_of_service`, `employment_termination`, `unused_leave`). Type must match taxability, and a one-off carries no cadence fields; contradictions are `invalid_details`. |
+| `update_inflow` | write | `id` plus any of the same fields; only those given change. Giving `schedule` or `paid_on` switches between recurring and one-off, dropping the other mode's fields. `null` clears `pay_schedule`, `pay_interval_count`, `starts_on`, `ends_on`, `pay_anchor_date`. |
+| `delete_inflow` | write | `id`. |
+| `list_tax_profiles` | read | Each member's residency, private hospital cover, and date of birth for a `financial_year` (current by default). |
+| `set_tax_profile` | write | `member` (default: the signed-in member), `financial_year`, `residency` (`resident`, `foreign_resident`), `has_private_hospital_cover`; only those given change, a new profile starting as a resident without cover. |
+| `list_help_debts` | read | Each member's standing HELP/HECS balance in cents. |
+| `set_help_debt` | write | `member`, `balance_cents` (not financial-year scoped). |
+| `get_tax_estimate` | read | The household's and each member's gross, taxable income, income tax, Medicare levy and surcharge, HELP repayment, Division 293, after-tax, one-off, and capital-gain cents for a `financial_year`, from the shared `estimateHouseholdTaxFromRows` over inflows, tax profiles, HELP debts, super contributions, deductions, and trades. Payslip withholding and savings-goal interest are not included. A year with no published tax config is `invalid_details`. |
+| `list_super_profiles` | read | Each member's fund name, linked account, balance cents, and `balance_as_of` for a `financial_year`. |
+| `set_super_profile` | write | `member`, `financial_year`, `balance_cents`, optional `fund_name` (kept if omitted, cleared if null or empty). Creates and links a manual savings account when there is none, writes its balance, and records today as the true-up, as the Super tab does. |
+| `list_super_contributions` | read | A `financial_year`'s contributions, optionally for one `member`. |
+| `add_super_contribution` | write | `kind` (`salary_sacrifice`, `personal_deductible`, `personal_non_concessional`, `spouse` with a `contributor`), `mode` (`amount` with `amount_cents`, or `percent` with `percent_bp`), `frequency` (with `interval_count` for `every_n_*`), `fhss_eligible`, `member`, `financial_year`. |
+| `update_super_contribution` | write | `id` plus any of the same fields (not member or year); switching `mode` needs the new mode's figure. |
+| `delete_super_contribution` | write | `id`. |
+| `list_equity_grants` | read | Equity grants with vested quantity and value as of today. |
+| `add_equity_grant` | write | `label`, `instrument_type` (`option`, `share`), `quantity`, `grant_date`, optional `member`, `cliff_months` (12), `vesting_period_months` (48), `vesting_frequency` (`monthly`), `strike_price_cents` (options only), `price_per_share_cents`, `price_as_of`. |
+| `update_equity_grant` | write | `id` plus any of the same fields; `null` clears `strike_price_cents` and `price_as_of`. |
+| `delete_equity_grant` | write | `id`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
 
 Budget-line links: `goal_id` funds a goal (savings and investments lines only),
@@ -185,7 +204,7 @@ relayed.
 
 | Code                          | Meaning                                                           |
 | ----------------------------- | ----------------------------------------------------------------- |
-| `not_found`                   | No household member matches the given name.                       |
+| `not_found`                   | No household member, or no record with the given id, matches.     |
 | `file_unreadable`             | The path could not be read.                                       |
 | `file_too_large`              | Over 25 MiB (stdio) or 3 MiB (HTTP).                              |
 | `invalid_content`             | The HTTP `content` is not valid base64.                           |
@@ -195,7 +214,7 @@ relayed.
 | `extraction_unsupported_type` | The type cannot be read; supply the three details.                |
 | `extraction_failed`           | The read failed for any other reason.                             |
 | `incomplete_details`          | The document did not show every detail; the message names those.  |
-| `invalid_details`             | The details contradict each other (an interval count without, or missing for, an every-N frequency). |
+| `invalid_details`             | The details contradict each other or break a rule the PWA's forms and the database checks enforce (an interval count without, or missing for, an every-N frequency; a one-off with a cadence; a joint inflow that is not a recurring taxable `other`). |
 | `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |
 | `member_recipient`            | A household member's gift recipient is permanent and cannot be edited or deleted. |
 | `private_gift`                | The purchase is for the member's own gift, which is hidden from them.             |

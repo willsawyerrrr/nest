@@ -18,6 +18,8 @@ export const ERROR_CODES = [
   'incomplete_details',
   'invalid_details',
   'derived_line',
+  'member_recipient',
+  'private_gift',
   'query_failed',
   'save_failed',
 ] as const

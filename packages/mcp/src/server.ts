@@ -10,6 +10,42 @@ import {
   updateBudgetLineInput,
 } from './tools/budgetLines.ts'
 import {
+  addGiftPurchase,
+  addGiftPurchaseInput,
+  deleteGiftPurchase,
+  deleteGiftPurchaseInput,
+  dismissGiftCandidate,
+  dismissGiftCandidateInput,
+  listGiftCandidates,
+  restoreGiftCandidate,
+  restoreGiftCandidateInput,
+  updateGiftPurchase,
+  updateGiftPurchaseInput,
+} from './tools/giftPurchases.ts'
+import {
+  addGiftBudget,
+  addGiftBudgetInput,
+  addGiftOccasion,
+  addGiftOccasionInput,
+  addGiftRecipient,
+  addGiftRecipientInput,
+  deleteGiftBudget,
+  deleteGiftBudgetInput,
+  deleteGiftOccasion,
+  deleteGiftOccasionInput,
+  deleteGiftRecipient,
+  deleteGiftRecipientInput,
+  listGifts,
+  setGiftDiscretionaryBudget,
+  setGiftDiscretionaryBudgetInput,
+  updateGiftBudget,
+  updateGiftBudgetInput,
+  updateGiftOccasion,
+  updateGiftOccasionInput,
+  updateGiftRecipient,
+  updateGiftRecipientInput,
+} from './tools/gifts.ts'
+import {
   getHousehold,
   listAccounts,
   listCategories,
@@ -92,6 +128,172 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
       inputSchema: updateBudgetLineInput.shape,
     },
     (input) => respond(() => updateBudgetLine(ctx, input)),
+  )
+
+  server.registerTool(
+    'list_gifts',
+    {
+      description:
+        "The gift tracker: recipients (household members are permanent recipients), occasions, per-recipient budgets with spent and remaining cents, the ad hoc gifts buffer, unassigned spend, and purchases. Purchases against the signed-in member's own gifts are private: those budgets report private true and null spent and remaining.",
+      annotations: { readOnlyHint: true },
+    },
+    () => respond(() => listGifts(ctx)),
+  )
+
+  server.registerTool(
+    'list_gift_candidates',
+    {
+      description:
+        'The "From your card" inbox: synced Up gift-category card transactions not yet logged as a purchase or set aside, plus those set aside as not a gift (with their dismissal_id).',
+      annotations: { readOnlyHint: true },
+    },
+    () => respond(() => listGiftCandidates(ctx)),
+  )
+
+  server.registerTool(
+    'add_gift_recipient',
+    {
+      description:
+        'Add an external person to buy gifts for. Household members are already permanent recipients.',
+      inputSchema: addGiftRecipientInput.shape,
+    },
+    (input) => respond(() => addGiftRecipient(ctx, input)),
+  )
+
+  server.registerTool(
+    'update_gift_recipient',
+    {
+      description:
+        "Rename an external gift recipient by id. A household member's recipient cannot be edited.",
+      inputSchema: updateGiftRecipientInput.shape,
+    },
+    (input) => respond(() => updateGiftRecipient(ctx, input)),
+  )
+
+  server.registerTool(
+    'delete_gift_recipient',
+    {
+      description:
+        "Delete an external gift recipient by id, with their budgets and those budgets' purchases. A household member's recipient cannot be deleted.",
+      inputSchema: deleteGiftRecipientInput.shape,
+    },
+    (input) => respond(() => deleteGiftRecipient(ctx, input)),
+  )
+
+  server.registerTool(
+    'add_gift_occasion',
+    {
+      description:
+        'Add a gifting occasion (Christmas, a birthday) with an optional occasion_date (YYYY-MM-DD).',
+      inputSchema: addGiftOccasionInput.shape,
+    },
+    (input) => respond(() => addGiftOccasion(ctx, input)),
+  )
+
+  server.registerTool(
+    'update_gift_occasion',
+    {
+      description:
+        'Edit a gift occasion by id; only the fields given change. occasion_date null clears the date.',
+      inputSchema: updateGiftOccasionInput.shape,
+    },
+    (input) => respond(() => updateGiftOccasion(ctx, input)),
+  )
+
+  server.registerTool(
+    'delete_gift_occasion',
+    {
+      description: 'Delete a gift occasion by id, with its budgets and their purchases.',
+      inputSchema: deleteGiftOccasionInput.shape,
+    },
+    (input) => respond(() => deleteGiftOccasion(ctx, input)),
+  )
+
+  server.registerTool(
+    'add_gift_budget',
+    {
+      description:
+        "Plan a gift spend (budgeted_amount_cents, non-negative) for a recipient on an occasion, one budget per pair. event_date optionally overrides the occasion's date for this recipient.",
+      inputSchema: addGiftBudgetInput.shape,
+    },
+    (input) => respond(() => addGiftBudget(ctx, input)),
+  )
+
+  server.registerTool(
+    'update_gift_budget',
+    {
+      description:
+        "Edit a gift budget by id; only the fields given change. event_date null falls back to the occasion's date.",
+      inputSchema: updateGiftBudgetInput.shape,
+    },
+    (input) => respond(() => updateGiftBudget(ctx, input)),
+  )
+
+  server.registerTool(
+    'delete_gift_budget',
+    {
+      description: 'Delete a gift budget by id, with its purchases.',
+      inputSchema: deleteGiftBudgetInput.shape,
+    },
+    (input) => respond(() => deleteGiftBudget(ctx, input)),
+  )
+
+  server.registerTool(
+    'set_gift_discretionary_budget',
+    {
+      description:
+        "Set the household's single ad hoc gifts buffer amount in cents, creating it the first time.",
+      inputSchema: setGiftDiscretionaryBudgetInput.shape,
+    },
+    (input) => respond(() => setGiftDiscretionaryBudget(ctx, input)),
+  )
+
+  server.registerTool(
+    'add_gift_purchase',
+    {
+      description:
+        "Log a gift purchase with amount_cents, purchased_on (YYYY-MM-DD), and a description. Give gift_budget_id to count it against that budget, ad_hoc true to count it against the ad hoc buffer (recipient_id optionally tags who it was for), or neither to leave it unassigned. transaction_id (from list_gift_candidates) links a card transaction and takes its amount and date. Purchases for the signed-in member's own gifts are refused (private_gift).",
+      inputSchema: addGiftPurchaseInput.shape,
+    },
+    (input) => respond(() => addGiftPurchase(ctx, input)),
+  )
+
+  server.registerTool(
+    'update_gift_purchase',
+    {
+      description:
+        'Edit a gift purchase by id; only the fields given change. Move it with gift_budget_id, ad_hoc true, or unassigned true; recipient_id (null clears) tags an ad hoc one. A purchase linked to a card transaction keeps its amount and date.',
+      inputSchema: updateGiftPurchaseInput.shape,
+    },
+    (input) => respond(() => updateGiftPurchase(ctx, input)),
+  )
+
+  server.registerTool(
+    'delete_gift_purchase',
+    {
+      description: 'Delete a gift purchase by id.',
+      inputSchema: deleteGiftPurchaseInput.shape,
+    },
+    (input) => respond(() => deleteGiftPurchase(ctx, input)),
+  )
+
+  server.registerTool(
+    'dismiss_gift_candidate',
+    {
+      description:
+        "Set a card transaction from list_gift_candidates aside as not a gift (Up's category also covers charity).",
+      inputSchema: dismissGiftCandidateInput.shape,
+    },
+    (input) => respond(() => dismissGiftCandidate(ctx, input)),
+  )
+
+  server.registerTool(
+    'restore_gift_candidate',
+    {
+      description: 'Undo a dismissal by dismissal_id, returning its transaction to the inbox.',
+      inputSchema: restoreGiftCandidateInput.shape,
+    },
+    (input) => respond(() => restoreGiftCandidate(ctx, input)),
   )
 
   server.registerTool(

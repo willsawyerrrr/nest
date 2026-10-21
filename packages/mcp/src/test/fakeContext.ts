@@ -11,6 +11,8 @@ export interface FakeState {
   deletes: { table: string; filters: [string, unknown][] }[]
   upserts: { table: string; row: Row; onConflict: string | undefined }[]
   uploads: { path: string; contentType: string | undefined; bytes: number }[]
+  /** The bucket of each upload, in order. */
+  uploadBuckets: string[]
   removed: string[]
   invocations: { fn: string; body: unknown }[]
 }
@@ -45,6 +47,7 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
     deletes: [],
     upserts: [],
     uploads: [],
+    uploadBuckets: [],
     removed: [],
     invocations: [],
   }
@@ -53,6 +56,10 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
     const filters: [string, unknown][] = []
     let pendingUpdate: Row | null = null
     let pendingDelete = false
+    const matches = (row: Row) =>
+      filters.every(([column, value]) =>
+        Array.isArray(value) ? value.includes(row[column]) : row[column] === value,
+      )
     const failure = { message: options.failureMessage ?? 'upstream detail' }
     const builder = {
       select: () => builder,
@@ -60,6 +67,11 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
         filters.push([column, value])
         return builder
       },
+      in: (column: string, values: unknown[]) => {
+        filters.push([column, values])
+        return builder
+      },
+      order: () => builder,
       update: (row: Row) => {
         pendingUpdate = row
         return builder
@@ -74,20 +86,16 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
       },
       insert: (row: Row) => {
         state.inserts.push({ table, row })
+        const result = options.insertError
+          ? { data: null, error: failure }
+          : { data: { id: 'new-id' }, error: null }
         return {
-          select: () => ({
-            single: async () =>
-              options.insertError
-                ? { data: null, error: failure }
-                : { data: { id: 'new-id' }, error: null },
-          }),
+          select: () => ({ single: async () => result }),
+          then: (resolve: (value: unknown) => unknown) => resolve(result),
         }
       },
       maybeSingle: async () => ({
-        data:
-          (state.tables[table] ?? []).find((row) =>
-            filters.every(([column, value]) => row[column] === value),
-          ) ?? null,
+        data: (state.tables[table] ?? []).find(matches) ?? null,
         error: null,
       }),
       then: (resolve: (value: unknown) => unknown) => {
@@ -100,9 +108,7 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
           if (options.updateError) return resolve({ data: null, error: failure })
         }
         return resolve({
-          data: (state.tables[table] ?? []).filter((row) =>
-            filters.every(([column, value]) => row[column] === value),
-          ),
+          data: (state.tables[table] ?? []).filter(matches),
           error: null,
         })
       },
@@ -122,8 +128,9 @@ export function fakeContext(options: FakeOptions = {}): { ctx: NestContext; stat
           }
     },
     storage: {
-      from: () => ({
+      from: (bucket: string) => ({
         upload: async (path: string, bytes: Uint8Array, opts: { contentType?: string }) => {
+          state.uploadBuckets.push(bucket)
           state.uploads.push({ path, contentType: opts.contentType, bytes: bytes.byteLength })
           return options.uploadError ? { error: { message: 'upstream detail' } } : { error: null }
         },

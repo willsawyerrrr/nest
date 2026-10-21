@@ -87,6 +87,38 @@ describe('the server', () => {
     )
   })
 
+  it('lists the budget-planning tools', async () => {
+    const { client } = await connect({})
+    const { tools } = await client.listTools()
+    expect(tools.map((tool) => tool.name).sort()).toEqual(
+      expect.arrayContaining([
+        'add_breakdown',
+        'add_breakdown_item',
+        'add_savings_goal',
+        'add_temporary_item',
+        'clear_pay_split',
+        'confirm_pay_split',
+        'delete_breakdown',
+        'delete_breakdown_item',
+        'delete_budget_line',
+        'delete_savings_goal',
+        'delete_temporary_item',
+        'delete_wishlist_item',
+        'list_breakdowns',
+        'list_member_allowances',
+        'list_pay_splits',
+        'list_temporary_items',
+        'reorder_savings_goal_queue',
+        'update_breakdown',
+        'update_breakdown_item',
+        'update_member_allowance',
+        'update_savings_goal',
+        'update_temporary_item',
+        'update_wishlist_item',
+      ]),
+    )
+  })
+
   it('takes the document as a path over stdio and as base64 content over http', async () => {
     const schemaKeys = async (transport: 'stdio' | 'http') => {
       const { client } = await connect({}, transport)

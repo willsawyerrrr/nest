@@ -2,8 +2,8 @@
 
 `packages/mcp` (`@nest/mcp`) is a [Model Context Protocol](https://modelcontextprotocol.io)
 server, over stdio locally and over Streamable HTTP remotely. It lets an agent
-read the household's figures and add wishlist items and deductions, acting as
-one household member.
+read the household's figures, plan its budget, and add wishlist items and
+deductions, acting as one household member.
 
 ## Auth
 
@@ -103,8 +103,21 @@ Money is always integer cents.
 | `list_savings_goals`             | read  | Goals with saved, target, remaining, progress percent, target date, and `active` or `queued` status.                                                                                         |
 | `list_wishlist`                  | read  | Wishlist items, each tagged with the member's name where set, and the total cost.                                                                                                            |
 | `add_wishlist_item`              | write | `name`, `amount_cents` (positive), optional `member` (name) and `note`.                                                                                                                      |
-| `add_budget_line` | write | `name`, `group` (`needs`, `wants`, `discretionary`, `savings`, `investments`), `amount_cents`, `frequency` (with `interval_count` for `every_n_weeks` / `every_n_months`, and only for those), optional `management_url` (a bare domain gains `https://`; other schemes are rejected). |
-| `update_budget_line` | write | `id` plus any of the same fields; only those given change, and `management_url: null` clears the link. A line derived from a breakdown or gifts is refused (`derived_line`). The database's allowance-overdraw and group constraints apply and surface as `save_failed`. |
+| `add_budget_line` | write | `name`, `group` (`needs`, `wants`, `discretionary`, `savings`, `investments`), `amount_cents`, `frequency` (with `interval_count` for `every_n_weeks` / `every_n_months`, and only for those), optional `management_url` (a bare domain gains `https://`; other schemes are rejected), and the links below. |
+| `update_budget_line` | write | `id` plus any of the same fields; only those given change, and `management_url: null` clears the link. A line derived from a breakdown or gifts is refused (`derived_line`). `goal_id`, `destination_account_id`, and `allowance_member` also accept `null` to clear. |
+| `delete_budget_line` | write | `id` of a manual line. A line derived from a breakdown or gifts is refused (`derived_line`). |
+| `list_breakdowns` | read | Breakdowns with their items, fortnightly and annual cents, and the derived `budget_line_id`. |
+| `add_breakdown` / `update_breakdown` / `delete_breakdown` | write | A generic breakdown: `name` and `group`. Deleting also removes its items and derived line. |
+| `add_breakdown_item` / `update_breakdown_item` / `delete_breakdown_item` | write | An item on a breakdown: `name`, `amount_cents`, `frequency` (with `interval_count` for the `every_n_*` frequencies). |
+| `list_member_allowances` | read | Each member's allowance amount, cadence, fortnightly and annual cents, and funding account. |
+| `update_member_allowance` | write | `member` (default: the signed-in member), `amount_cents` (may be 0), `frequency` / `interval_count`, `destination_account_id` (`null` clears). Lowering it below what is drawn is refused (`allowance_overdrawn`). |
+| `add_savings_goal` / `update_savings_goal` / `delete_savings_goal` | write | `name`, `target_amount_cents`, `target_date`, `current_balance_cents`, `linked_account_id` (a synced savings account), `annual_interest_bps` (0 to 10000), `planned_contribution_cents`; `update` takes `null` to clear the optional ones. Deleting leaves the funding lines, unlinked. |
+| `reorder_savings_goal_queue` | write | `goal_ids` first to last; positions become `0..n` and only goals that moved are written. |
+| `list_temporary_items` | read | Temporary items with their fortnightly contribution and target date. |
+| `add_temporary_item` / `update_temporary_item` / `delete_temporary_item` | write | `name`, `contribution_cents`, `target_date`. |
+| `update_wishlist_item` / `delete_wishlist_item` | write | `id` plus any of `name`, `amount_cents` (positive), `member`, `note`; `null` clears `member` or `note`. |
+| `list_pay_splits` | read | The pay account and each account's confirmed fortnightly split. |
+| `confirm_pay_split` / `clear_pay_split` | write | Records (or clears) the fortnightly cents the household has set in Up for `account_id`. |
 | `list_accounts` | read | Accounts from `accounts_with_balance` and `account_directory`: type, source, owner name (null when joint), `balance_cents`, and `exclude_from_net_worth`. A co-member's spending account shows by name only (`balance_visible: false`, null balance); their savers are absent. |
 | `set_account_net_worth_exclusion` | write | `account` (id or name), `excluded`. The household-wide flag leaving an account out of net-worth totals only. |
 | `list_members` | read | Members' id, name, and `date_of_birth` where recorded; never email. |
@@ -123,6 +136,14 @@ Money is always integer cents.
 | `update_gift_purchase` / `delete_gift_purchase` | write | Update changes only the fields given and moves a purchase with `gift_budget_id`, `ad_hoc: true`, or `unassigned: true`; `recipient_id` (null clears) tags an ad hoc one. A linked purchase keeps its transaction's amount and date. A purchase the member cannot see is `not_found`. |
 | `dismiss_gift_candidate` / `restore_gift_candidate` | write | Set a candidate's `transaction_id` aside as not a gift, or undo it with the `dismissal_id`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
+
+Budget-line links: `goal_id` funds a goal (savings and investments lines only),
+`destination_account_id` routes any other line to an account, and
+`allowance_member` (the member's own name, discretionary lines only) draws the
+line from their allowance, which funds it, so it takes no destination of its
+own. A group that cannot carry a link clears it when the line moves there.
+The tools pre-validate these (`invalid_details`, `not_found`, `invalid_account`)
+and the database's constraints back them up.
 
 ### Not exposed
 
@@ -178,13 +199,16 @@ relayed.
 | `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |
 | `member_recipient`            | A household member's gift recipient is permanent and cannot be edited or deleted. |
 | `private_gift`                | The purchase is for the member's own gift, which is hidden from them.             |
+| `allowance_overdrawn`         | The write would leave an allowance with less than is drawn from it. |
+| `invalid_account`             | The account is unknown, not a synced saver for a goal, or not a transaction account for the pay account. |
 | `query_failed`                | A read failed.                                                    |
 | `save_failed`                 | A write failed.                                                   |
+| `delete_failed`               | A delete failed.                                                  |
 
 ## Layout and CI
 
 `src/server.ts` registers the tools (the deduction tool's input differs by
-transport), `src/http.ts` is the Streamable HTTP handler, `src/auth.ts`
+transport; `src/tools/planningTools.ts` registers the budget-planning ones), `src/http.ts` is the Streamable HTTP handler, `src/auth.ts`
 verifies bearer tokens, `src/vercel.ts` is the Vercel entry (bundled over the `api/index.ts` stub by `build:vercel`), `src/tools/` holds the handlers (pure over
 a `NestContext`), `src/session.ts` signs in, and `src/test/fakeContext.ts` is
 the in-memory client the tests use. The package is a `pnpm -r typecheck`

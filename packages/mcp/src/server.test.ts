@@ -106,6 +106,13 @@ describe('the server', () => {
         'list_holdings',
         'list_trades',
         'update_trade',
+        'list_payslips',
+        'create_payslip',
+        'update_payslip',
+        'delete_payslip',
+        'attach_payslip_document',
+        'remove_payslip_document',
+        'create_payslip_from_document',
       ]),
     )
   })

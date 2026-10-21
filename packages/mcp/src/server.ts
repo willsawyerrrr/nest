@@ -69,6 +69,7 @@ import {
   listWishlist,
 } from './tools/read.ts'
 import { registerDeductionTools } from './tools/registerDeductions.ts'
+import { registerPayslipTools } from './tools/registerPayslips.ts'
 import { registerTradeTools } from './tools/registerTrades.ts'
 import {
   addWishlistItem,
@@ -446,6 +447,7 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
   registerIncomeTaxTools(server, ctx, respond)
   registerDeductionTools(server, ctx, transport, respond)
   registerTradeTools(server, ctx, transport, respond)
+  registerPayslipTools(server, ctx, transport, respond)
 
   return server
 }

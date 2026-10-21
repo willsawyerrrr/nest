@@ -68,6 +68,8 @@ import {
   listSavingsGoals,
   listWishlist,
 } from './tools/read.ts'
+import { registerDeductionTools } from './tools/registerDeductions.ts'
+import { registerTradeTools } from './tools/registerTrades.ts'
 import {
   addWishlistItem,
   addWishlistItemInput,
@@ -442,6 +444,8 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
 
   registerPlanningTools(server, ctx, respond)
   registerIncomeTaxTools(server, ctx, respond)
+  registerDeductionTools(server, ctx, transport, respond)
+  registerTradeTools(server, ctx, transport, respond)
 
   return server
 }

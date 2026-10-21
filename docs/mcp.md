@@ -155,6 +155,20 @@ Money is always integer cents.
 | `update_equity_grant` | write | `id` plus any of the same fields; `null` clears `strike_price_cents` and `price_as_of`. |
 | `delete_equity_grant` | write | `id`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
+| `list_deductions` | read | Deductions for `financial_year` (default current) with basis, claimed and full cents, work use, group, and `has_receipt`; optional `member` and `category`. |
+| `add_deduction` | write | `description`, `deduction_date`, `category`, `member`, `group_id`, and a `basis`: `amount` (`amount_cents` is the full cost; `work_use_percent` for work expenses), `distance` (`distance_km`), or `hours` (`work_from_home_hours`). Distance and hours are work expenses priced at the year's published ATO rate, snapshotted into `amount_cents`; a distance past the ATO cap returns a `warning`. A donation is filed automatically in the donations group. |
+| `update_deduction` | write | `id` plus any of `description`, `deduction_date`, the basis's own inputs, and `group_id` (`null` ungroups). Category and basis are fixed; the claim is recomputed. |
+| `delete_deduction` | write | `id`; also removes the stored receipt. |
+| `attach_deduction_receipt` | write | `id` plus `file_path` (stdio) or base64 `content` and `filename` (HTTP); stores the file in `receipts` under the Uploads rules and replaces any earlier receipt. Nothing is read from it. |
+| `remove_deduction_receipt` | write | `id`; clears the receipt row and file. |
+| `list_deduction_groups` | read | Groups for `financial_year` with kind, payment count, and summed total. |
+| `create_deduction_group` / `update_deduction_group` / `delete_deduction_group` | write | Standard groups only: `name`, optional `member` and `financial_year`; deleting ungroups the payments. The donations group is read-only (`automatic_group`). |
+| `list_trades` | read | Trades newest first (units, `price_per_unit_microdollars`, `fee_cents`, whether a document is attached); optional `member` and `ticker` filters. |
+| `list_holdings` | read | Holdings FIFO-matched from all trades per member and ticker, with units, cost base and value in cents at the last traded price, and any oversold units; optional `member`. |
+| `add_trade` | write | `ticker`, `side`, `traded_on`, `units` (positive, at most six decimals), `price_per_unit_microdollars` (integer; $33.083072 is `33083072`), optional `fee_cents` and `member`. |
+| `update_trade` | write | `id` plus any of ticker, side, date, units, price, fee; only those given change. |
+| `delete_trade` | write | `id`. |
+| `create_trades_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), optional `member` and `financial_year` (a hint). Stores the contract note, confirmation, or statement in `receipts`, reads every trade with `trade-extract`, and writes the document and trades with `create_trades_with_document`. A document that does not fully show every trade (`incomplete_details`) records nothing and the file is deleted. Returns `possible_duplicates` (ids of trades that repeat an existing one); read values are AI-extracted and should be checked. |
 
 Budget-line links: `goal_id` funds a goal (savings and investments lines only),
 `destination_account_id` routes any other line to an account, and
@@ -213,6 +227,7 @@ relayed.
 | `extraction_not_receipt`      | The file is not the document the category expects.                |
 | `extraction_unsupported_type` | The type cannot be read; supply the three details.                |
 | `extraction_failed`           | The read failed for any other reason.                             |
+| `extraction_not_trade_document` | The file shows no trades. |
 | `incomplete_details`          | The document did not show every detail; the message names those.  |
 | `invalid_details`             | The details contradict each other or break a rule the PWA's forms and the database checks enforce (an interval count without, or missing for, an every-N frequency; a one-off with a cadence; a joint inflow that is not a recurring taxable `other`). |
 | `derived_line`                | The budget line is derived from a breakdown or gifts and cannot be edited here. |
@@ -220,6 +235,7 @@ relayed.
 | `private_gift`                | The purchase is for the member's own gift, which is hidden from them.             |
 | `allowance_overdrawn`         | The write would leave an allowance with less than is drawn from it. |
 | `invalid_account`             | The account is unknown, not a synced saver for a goal, or not a transaction account for the pay account. |
+| `automatic_group`             | The donations group is automatic and cannot be filed into, renamed, or deleted. |
 | `query_failed`                | A read failed.                                                    |
 | `save_failed`                 | A write failed.                                                   |
 | `delete_failed`               | A delete failed.                                                  |

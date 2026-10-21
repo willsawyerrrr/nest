@@ -47,7 +47,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   is drawn from; a co-member's allowance lines are not readable), `get_fortnightly_buffer` (the shared
   `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
   remaining), `list_savings_goals`, `list_wishlist`. Write
-  tools: `add_wishlist_item` and `create_deduction_from_document` (upload to
+  tools: `add_budget_line` and `update_budget_line` (manual lines only; derived
+  lines are refused), `add_wishlist_item`, and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
   following the Uploads rules). Money is integer cents; failures are stable
   `code`s with fixed copy, never an upstream body. See

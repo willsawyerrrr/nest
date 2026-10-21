@@ -188,7 +188,7 @@ describe('deletePayslip', () => {
 
   it('reports a failed delete and keeps the document', async () => {
     const { ctx, state } = fakeContext({ tables: { payslip: [slip] }, deleteError: true })
-    await expect(deletePayslip(ctx, { id: ID })).rejects.toMatchObject({ code: 'save_failed' })
+    await expect(deletePayslip(ctx, { id: ID })).rejects.toMatchObject({ code: 'delete_failed' })
     expect(state.removed).toEqual([])
   })
 })

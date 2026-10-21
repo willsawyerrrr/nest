@@ -342,7 +342,7 @@ export async function deletePayslip(ctx: NestContext, input: z.infer<typeof dele
     .delete()
     .eq('id', input.id)
     .eq('household_id', ctx.householdId)
-  if (error) throw fixedError('save_failed')
+  if (error) throw fixedError('delete_failed')
   await discardUpload(ctx, row.file_path)
   return { id: input.id, deleted: true }
 }

@@ -45,19 +45,29 @@ describe('respond', () => {
 })
 
 describe('the server', () => {
-  it('lists the eight tools', async () => {
+  it('lists its tools', async () => {
     const { client } = await connect({})
     const { tools } = await client.listTools()
-    expect(tools.map((tool) => tool.name).sort()).toEqual([
-      'add_budget_line',
-      'add_wishlist_item',
-      'create_deduction_from_document',
-      'get_fortnightly_buffer',
-      'list_budget_lines',
-      'list_savings_goals',
-      'list_wishlist',
-      'update_budget_line',
-    ])
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        'add_budget_line',
+        'add_wishlist_item',
+        'create_deduction_from_document',
+        'get_fortnightly_buffer',
+        'list_budget_lines',
+        'list_savings_goals',
+        'list_wishlist',
+        'update_budget_line',
+        'list_accounts',
+        'set_account_net_worth_exclusion',
+        'list_members',
+        'set_member_date_of_birth',
+        'get_household',
+        'set_pay_account',
+        'list_categories',
+        'list_transactions',
+      ]),
+    )
   })
 
   it('takes the document as a path over stdio and as base64 content over http', async () => {

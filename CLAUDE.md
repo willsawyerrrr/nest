@@ -46,11 +46,15 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   key. Read tools: `list_budget_lines` (including the `allowance_member_id` a line
   is drawn from; a co-member's allowance lines are not readable), `get_fortnightly_buffer` (the shared
   `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
-  remaining), `list_savings_goals`, `list_wishlist`. Write
-  tools: `add_budget_line` and `update_budget_line` (manual lines only; derived
+  remaining), `list_savings_goals`, `list_wishlist`, `list_accounts` (balances only for
+  the balance-visible set; a co-member's spending account by name only), `list_members`,
+  `get_household`, `list_categories`, `list_transactions` (what RLS exposes). Write
+  tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `add_budget_line` and `update_budget_line` (manual lines only; derived
   lines are refused), `add_wishlist_item`, and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
-  following the Uploads rules). Money is integer cents; failures are stable
+  following the Uploads rules). Credentials and outward-facing surfaces (Up/Redbark
+  tokens, push, calendar tokens, share grants, invite codes, household create/join,
+  Vault) are never exposed. Money is integer cents; failures are stable
   `code`s with fixed copy, never an upstream body. See
   [`docs/mcp.md`](docs/mcp.md).
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,

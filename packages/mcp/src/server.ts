@@ -10,6 +10,21 @@ import {
   updateBudgetLineInput,
 } from './tools/budgetLines.ts'
 import {
+  getHousehold,
+  listAccounts,
+  listCategories,
+  listCategoriesInput,
+  listMembers,
+  listTransactions,
+  listTransactionsInput,
+  setAccountNetWorthExclusion,
+  setMemberDateOfBirth,
+  setMemberDateOfBirthInput,
+  setNetWorthExclusionInput,
+  setPayAccount,
+  setPayAccountInput,
+} from './tools/ledger.ts'
+import {
   getFortnightlyBuffer,
   listBudgetLines,
   listSavingsGoals,
@@ -116,6 +131,87 @@ export function createServer(ctx: NestContext, transport: 'stdio' | 'http' = 'st
       inputSchema: addWishlistItemInput.shape,
     },
     (input) => respond(() => addWishlistItem(ctx, input)),
+  )
+
+  server.registerTool(
+    'list_accounts',
+    {
+      description:
+        "List the accounts the member can see with balance_cents, type, owner (null for a joint account), and whether each is excluded from net worth. A co-member's spending account shows by name only (balance_visible false, null balance); their savers are not listed.",
+      annotations: { readOnlyHint: true },
+    },
+    () => respond(() => listAccounts(ctx)),
+  )
+
+  server.registerTool(
+    'set_account_net_worth_exclusion',
+    {
+      description:
+        'Include or exclude an account (by id or name) in net-worth totals. The flag is household-wide and leaves retirement projection and budgeting unchanged.',
+      inputSchema: setNetWorthExclusionInput.shape,
+    },
+    (input) => respond(() => setAccountNetWorthExclusion(ctx, input)),
+  )
+
+  server.registerTool(
+    'list_members',
+    {
+      description:
+        'List the household members with their id, name, and date of birth where recorded.',
+      annotations: { readOnlyHint: true },
+    },
+    () => respond(() => listMembers(ctx)),
+  )
+
+  server.registerTool(
+    'set_member_date_of_birth',
+    {
+      description:
+        "Record any household member's date of birth (member by name or id, date as YYYY-MM-DD), or clear it with null. It sets the rate a one-off termination payment is taxed at.",
+      inputSchema: setMemberDateOfBirthInput.shape,
+    },
+    (input) => respond(() => setMemberDateOfBirth(ctx, input)),
+  )
+
+  server.registerTool(
+    'get_household',
+    {
+      description: 'The household name, timezone, and the account its pay lands in.',
+      annotations: { readOnlyHint: true },
+    },
+    () => respond(() => getHousehold(ctx)),
+  )
+
+  server.registerTool(
+    'set_pay_account',
+    {
+      description:
+        'Designate the account (by id or name) the household pay lands in, or clear it with null. Pay splits are recommended for every other routed account.',
+      inputSchema: setPayAccountInput.shape,
+    },
+    (input) => respond(() => setPayAccount(ctx, input)),
+  )
+
+  server.registerTool(
+    'list_categories',
+    {
+      description:
+        'List the household income and expense categories; archived ones only with include_archived.',
+      inputSchema: listCategoriesInput.shape,
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => listCategories(ctx, input)),
+  )
+
+  server.registerTool(
+    'list_transactions',
+    {
+      description:
+        'List ledger transactions visible to the member, newest first (limit default 50, max 200), with signed amount_cents (negative is an outflow). Filter by account (id or name), kind, from / to (YYYY-MM-DD), or external_category (e.g. gifts-and-charity, the synced gift-spend candidates).',
+      inputSchema: listTransactionsInput.shape,
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => listTransactions(ctx, input)),
   )
 
   const readingNote =

@@ -105,7 +105,23 @@ Money is always integer cents.
 | `add_wishlist_item`              | write | `name`, `amount_cents` (positive), optional `member` (name) and `note`.                                                                                                                      |
 | `add_budget_line` | write | `name`, `group` (`needs`, `wants`, `discretionary`, `savings`, `investments`), `amount_cents`, `frequency` (with `interval_count` for `every_n_weeks` / `every_n_months`, and only for those), optional `management_url` (a bare domain gains `https://`; other schemes are rejected). |
 | `update_budget_line` | write | `id` plus any of the same fields; only those given change, and `management_url: null` clears the link. A line derived from a breakdown or gifts is refused (`derived_line`). The database's allowance-overdraw and group constraints apply and surface as `save_failed`. |
+| `list_accounts` | read | Accounts from `accounts_with_balance` and `account_directory`: type, source, owner name (null when joint), `balance_cents`, and `exclude_from_net_worth`. A co-member's spending account shows by name only (`balance_visible: false`, null balance); their savers are absent. |
+| `set_account_net_worth_exclusion` | write | `account` (id or name), `excluded`. The household-wide flag leaving an account out of net-worth totals only. |
+| `list_members` | read | Members' id, name, and `date_of_birth` where recorded; never email. |
+| `set_member_date_of_birth` | write | `member` (name or id) and `date_of_birth` (`YYYY-MM-DD`, not in the future) or null to clear, via `set_member_date_of_birth`. |
+| `get_household` | read | Household name, timezone, and the pay account. |
+| `set_pay_account` | write | `account` (id or name) or null, via `set_household_pay_account`. |
+| `list_categories` | read | Income and expense categories with parent; archived only with `include_archived`. |
+| `list_transactions` | read | Ledger transactions the member's RLS exposes, newest first (`limit` default 50, max 200), signed `amount_cents`; filters `account`, `kind`, `from` / `to`, and `external_category` (e.g. `gifts-and-charity`, the synced gift candidates). |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
+
+### Not exposed
+
+Credentials and outward-facing surfaces are deliberately absent: Up and Redbark
+tokens and connect/disconnect, push subscriptions and VAPID keys, calendar feed
+tokens, EOFY share grants, invite codes, creating or joining a household, Vault
+RPCs, and any service-role-only function. There is no net-worth tool: the total
+is assembled in the PWA from super, equity, and HELP data as well as accounts.
 
 The buffer is computed over rows the member can see. A goal's projected
 interest linked to a co-member's saver is therefore left out of the estimate,

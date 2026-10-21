@@ -48,7 +48,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `summariseHouseholdFromRows`, reporting each member's allowance, and for the member's own, drawn and
   remaining), `list_savings_goals`, `list_wishlist`, `list_accounts` (balances only for
   the balance-visible set; a co-member's spending account by name only), `list_members`,
-  `get_household`, `list_categories`, `list_transactions` (what RLS exposes), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), and the gift tracker's `list_gifts` and
+  `get_household`, `list_categories`, `list_transactions` (what RLS exposes), `list_trades`, `list_holdings` (FIFO, valued at the last traded price), `list_payslips`, and the gift tracker's `list_gifts` and
   `list_gift_candidates` (a budget for the member's own gift reports no spend, as
   RLS hides its purchases). Write
   tools: `set_account_net_worth_exclusion`, `set_member_date_of_birth`, `set_pay_account`, `add_budget_line` and `update_budget_line` (manual lines only; derived
@@ -60,7 +60,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `list_breakdowns`, `list_member_allowances`, `list_temporary_items`,
   `list_pay_splits`), deduction tools (`list_deductions`, `add_deduction` on the amount, distance, and hours bases with snapshotted rates, `update_deduction`, `delete_deduction`, receipt attach and remove, and deduction-group CRUD with the donations group read-only), the trade tools `add_trade`, `update_trade`, `delete_trade` (prices in integer microdollars) and `create_trades_from_document` (upload to `receipts`, `trade-extract`, `create_trades_with_document`), and `create_deduction_from_document` (upload to
   `receipts`, `deduction-extract` prefill, `create_deduction_with_receipt`,
-  following the Uploads rules), the gift tracker's add / update / delete tools for
+  following the Uploads rules), the payslip tools `create_payslip`,
+  `update_payslip`, `delete_payslip`, `attach_payslip_document`,
+  `remove_payslip_document`, and `create_payslip_from_document` (lines through
+  `upsert_payslip_with_lines`, `payslip-extract` prefill, `payslips` bucket), the gift tracker's add / update / delete tools for
   external recipients, occasions, budgets, and purchases (hand-entered, card-linked,
   or ad hoc), `set_gift_discretionary_budget`, and `dismiss_gift_candidate` /
   `restore_gift_candidate`; a member's own recipient is not editable and a purchase

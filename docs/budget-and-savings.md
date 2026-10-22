@@ -132,8 +132,10 @@ of the allowance, so it counts against the allowance rather than on top of it:
   without seeing the items.
 - **Per member** the Summary object reports the allowance, the drawn total, and
   the remaining. The Budget tab lists every member's allowance at
-  the top of the Discretionary group with its amount and cadence; the signed-in
-  member's own also shows a progress bar and what is left.
+  the top of the Discretionary group; a co-member's allowance reads like any
+  budget item, with its amount, cadence, fortnightly figure, and funding account,
+  while the signed-in member's own is a card that also shows a progress bar and
+  what is left.
 - **Private items.** The items drawn from an allowance are readable and editable
   only by that member, enforced by row-level security on `budget_line`. They
   appear on the member's own allowance page (`/allowance`, reached from the

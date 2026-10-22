@@ -19,6 +19,12 @@ export interface LineRoute {
   drawn?: boolean
 }
 
+/** The route naming the account that funds a line. */
+export function fundingRoute(accountName: string): LineRoute {
+  const label = accountLabel(accountName)
+  return { iconName: accountName, label, title: `Funded from ${label}` }
+}
+
 /**
  * The route a line displays: a Savings/Investments line names its linked goal,
  * iconed by the goal's linked saver; every other line names its funding account.
@@ -58,6 +64,5 @@ export function resolveRoute(
   if (!name) {
     return undefined
   }
-  const label = accountLabel(name)
-  return { iconName: name, label, title: `Funded from ${label}` }
+  return fundingRoute(name)
 }

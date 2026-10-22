@@ -17,6 +17,12 @@ import { MoneyText } from './MoneyText'
 /** What a derived line links through to: a gift line to the Gifts tab, a generic line to its breakdown. */
 export type DerivedSource = { isGift: true } | { isGift: false; breakdownId: string }
 
+/** The fields of a budget line a row or card displays. */
+export type DisplayedBudgetLine = Pick<
+  BudgetLine,
+  'name' | 'amount_cents' | 'frequency' | 'interval_count' | 'management_url'
+>
+
 /**
  * A chevron control linking a derived line through to its source. A gift line goes
  * straight to the Gifts tab, where gifts are managed; a generic line goes to its
@@ -53,7 +59,7 @@ function DerivedLineControls({
 }
 
 /** A small icon link opening a line's subscription management page in a new tab. */
-function ManagementLink({ line }: { line: BudgetLine }) {
+function ManagementLink({ line }: { line: DisplayedBudgetLine }) {
   if (!line.management_url) {
     return null
   }
@@ -106,7 +112,7 @@ function BudgetLineRow({
   onEdit,
   onDelete,
 }: {
-  line: BudgetLine
+  line: DisplayedBudgetLine
   route?: LineRoute | undefined
   source?: DerivedSource | undefined
   onEdit?: (() => void) | undefined
@@ -147,7 +153,12 @@ function BudgetLineRow({
         {source ? (
           <DerivedLineControls source={source} onEdit={onEdit} />
         ) : (
-          onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+          onEdit &&
+          (onDelete ? (
+            <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+          ) : (
+            <EditAction onClick={onEdit} />
+          ))
         )}
       </Group>
     </ListRow>
@@ -167,7 +178,7 @@ function BudgetLineCard({
   onEdit,
   onDelete,
 }: {
-  line: BudgetLine
+  line: DisplayedBudgetLine
   route?: LineRoute | undefined
   source?: DerivedSource | undefined
   onEdit?: (() => void) | undefined
@@ -201,7 +212,12 @@ function BudgetLineCard({
           {source ? (
             <DerivedLineControls source={source} onEdit={onEdit} />
           ) : (
-            onEdit && onDelete && <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+            onEdit &&
+            (onDelete ? (
+              <EditDeleteActions onEdit={onEdit} onDelete={onDelete} />
+            ) : (
+              <EditAction onClick={onEdit} />
+            ))
           )}
         </Group>
       </Group>
@@ -214,7 +230,7 @@ function BudgetLineCard({
  * breakpoint up and as a compact bordered card below it.
  */
 export function BudgetLineItem(props: {
-  line: BudgetLine
+  line: DisplayedBudgetLine
   route?: LineRoute | undefined
   source?: DerivedSource | undefined
   onEdit?: (() => void) | undefined

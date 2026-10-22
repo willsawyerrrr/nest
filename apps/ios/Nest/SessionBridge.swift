@@ -15,8 +15,6 @@ enum SessionBridge {
 
     /// A request the page posts to the `nestAuth` message handler.
     enum PageRequest: Equatable {
-        /// The page's bridge hooks are installed and it wants the session.
-        case ready
         case signOut
     }
 
@@ -24,7 +22,6 @@ enum SessionBridge {
     /// page is known to send.
     static func pageRequest(from body: Any) -> PageRequest? {
         switch (body as? [String: Any])?["type"] as? String {
-        case "ready": .ready
         case "signOut": .signOut
         default: nil
         }

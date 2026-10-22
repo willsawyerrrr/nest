@@ -13,10 +13,12 @@ import { supabase } from './supabase'
  * goes. Clearing is scoped local so it never revokes the refresh token the
  * native app is still rotating.
  *
- * Once the hooks exist it posts `ready` to the `nestAuth` handler, so the
+ * Once the hooks exist it posts `ready` to the `nestReady` handler, so the
  * native layer pushes the session on request rather than racing the page's
  * load: a push that lands before the hooks exist is dropped, which would
- * otherwise leave the loading screen up indefinitely.
+ * otherwise leave the loading screen up indefinitely. `nestReady` is its own
+ * handler because an installed native build reads every `nestAuth` message as a
+ * sign-out; a build without `nestReady` simply never receives it.
  */
 export function installNativeAuthBridge(): void {
   if (!isNativeShell()) {
@@ -31,7 +33,7 @@ export function installNativeAuthBridge(): void {
     void supabase.auth.signOut({ scope: 'local' })
   }
 
-  window.webkit?.messageHandlers.nestAuth.postMessage({ type: 'ready' })
+  window.webkit?.messageHandlers.nestReady?.postMessage({ type: 'ready' })
 }
 
 /**

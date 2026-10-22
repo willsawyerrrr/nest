@@ -41,6 +41,7 @@ struct WebView: UIViewRepresentable {
         )
         configuration.userContentController.add(context.coordinator, name: "nestAuth")
         configuration.userContentController.add(context.coordinator, name: "nestShare")
+        configuration.userContentController.add(context.coordinator, name: "nestReady")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -56,6 +57,7 @@ struct WebView: UIViewRepresentable {
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestAuth")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestShare")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestReady")
         coordinator.stop()
     }
 
@@ -132,9 +134,9 @@ struct WebView: UIViewRepresentable {
             return nil
         }
 
-        /// Handles the page's requests. `ready` pushes the session once the page
-        /// can take it. `signOut` clears the native session, which emits
-        /// `.signedOut` and swaps the web view for the sign-in gate.
+        /// Handles the page's requests. `nestReady` pushes the session once the
+        /// page's hooks exist. `nestAuth`'s `signOut` clears the native session,
+        /// which emits `.signedOut` and swaps the web view for the sign-in gate.
         func userContentController(
             _ controller: WKUserContentController,
             didReceive message: WKScriptMessage
@@ -142,10 +144,11 @@ struct WebView: UIViewRepresentable {
             switch message.name {
             case "nestAuth":
                 switch SessionBridge.pageRequest(from: message.body) {
-                case .ready: Task { await pushCurrentSession() }
                 case .signOut: Task { try? await supabaseAuth.signOut() }
                 case nil: break
                 }
+            case "nestReady":
+                Task { await pushCurrentSession() }
             case "nestShare":
                 // The page has queued these files, so they leave the inbox.
                 for id in ShareBridge.queuedIDs(from: message.body) {

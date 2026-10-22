@@ -24,6 +24,7 @@ declare global {
     webkit?: {
       messageHandlers: {
         nestAuth: { postMessage: (message: unknown) => void }
+        nestReady?: { postMessage: (message: unknown) => void }
         nestShare: { postMessage: (message: unknown) => void }
       }
     }

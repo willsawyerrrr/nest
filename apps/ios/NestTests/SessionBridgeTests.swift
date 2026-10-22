@@ -26,11 +26,11 @@ import Testing
     }
 
     @Test func pageRequestReadsTheMessageType() {
-        #expect(SessionBridge.pageRequest(from: ["type": "ready"]) == .ready)
         #expect(SessionBridge.pageRequest(from: ["type": "signOut"]) == .signOut)
     }
 
     @Test func pageRequestIgnoresAnUnknownMessage() {
+        #expect(SessionBridge.pageRequest(from: ["type": "ready"]) == nil)
         #expect(SessionBridge.pageRequest(from: ["type": "other"]) == nil)
         #expect(SessionBridge.pageRequest(from: "signOut") == nil)
     }

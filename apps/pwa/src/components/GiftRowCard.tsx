@@ -15,6 +15,7 @@ import { useIsWide } from '../hooks/useIsWide'
 import { formatIsoDate } from '../lib/dates'
 import type { GiftRow } from '../lib/gifts'
 import { formatCents, moneyColor } from '../lib/money'
+import { AppCard } from './AppCard'
 import { EditAction } from './EditAction'
 import { EmptyState } from './EmptyState'
 import { GiftBudgetForm } from './GiftBudgetForm'
@@ -123,9 +124,15 @@ export function GiftRowCard({
 
   const remainingColor = moneyColor(row.remainingCents)
 
-  return (
+  // On mobile the row, its purchases, and its actions share one card rather than
+  // stacking a bordered card per purchase.
+  const body = (
     <Stack gap="xs">
-      <GiftCompactRow wide={wide} caption={<GiftSpendBar totals={row} label={row.label} />}>
+      <GiftCompactRow
+        wide={wide}
+        flat={!wide}
+        caption={<GiftSpendBar totals={row} label={row.label} />}
+      >
         <UnstyledButton onClick={toggle} aria-expanded={opened} style={{ flex: 1, minWidth: 0 }}>
           <Group justify="space-between" wrap="nowrap" gap="sm">
             <GiftRowLabel row={row} chevron={opened ? 'open' : 'closed'} />
@@ -147,7 +154,7 @@ export function GiftRowCard({
       </GiftCompactRow>
 
       <Collapse expanded={opened}>
-        <Stack gap="xs" pl="sm">
+        <Stack gap="xs" pl={wide ? 'sm' : 0} pt={wide ? 0 : 'xs'}>
           <Text size="xs" c="dimmed">
             Budget {formatCents(row.budgetedCents)} · Spent {formatCents(row.spentCents)}
           </Text>
@@ -170,6 +177,7 @@ export function GiftRowCard({
               <PurchaseRow
                 key={purchase.id}
                 purchase={purchase}
+                flat={!wide}
                 onEdit={() => {
                   setAddingPurchase(false)
                   setEditingPurchaseId(purchase.id)
@@ -241,5 +249,13 @@ export function GiftRowCard({
 
       {modal}
     </Stack>
+  )
+
+  return wide ? (
+    body
+  ) : (
+    <AppCard withBorder padding="xs">
+      {body}
+    </AppCard>
   )
 }

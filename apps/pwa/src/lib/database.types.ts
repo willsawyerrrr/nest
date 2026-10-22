@@ -600,6 +600,68 @@ export type Database = {
           },
         ]
       }
+      equity_exercise: {
+        Row: {
+          created_at: string
+          exercised_on: string
+          grant_id: string
+          household_id: string
+          id: string
+          market_price_per_share_cents: number | null
+          member_id: string
+          quantity: number
+          strike_price_cents: number
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          exercised_on: string
+          grant_id: string
+          household_id: string
+          id?: string
+          market_price_per_share_cents?: number | null
+          member_id: string
+          quantity: number
+          strike_price_cents: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exercised_on?: string
+          grant_id?: string
+          household_id?: string
+          id?: string
+          market_price_per_share_cents?: number | null
+          member_id?: string
+          quantity?: number
+          strike_price_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'equity_exercise_grant_id_household_id_fkey'
+            columns: ['grant_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'equity_grant'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'equity_exercise_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'equity_exercise_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       equity_grant: {
         Row: {
           cliff_months: number
@@ -663,6 +725,68 @@ export type Database = {
           },
           {
             foreignKeyName: 'equity_grant_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
+      equity_sale: {
+        Row: {
+          created_at: string
+          fee_cents: number
+          grant_id: string
+          household_id: string
+          id: string
+          member_id: string
+          price_per_share_cents: number
+          quantity: number
+          sold_on: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          fee_cents?: number
+          grant_id: string
+          household_id: string
+          id?: string
+          member_id: string
+          price_per_share_cents: number
+          quantity: number
+          sold_on: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fee_cents?: number
+          grant_id?: string
+          household_id?: string
+          id?: string
+          member_id?: string
+          price_per_share_cents?: number
+          quantity?: number
+          sold_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'equity_sale_grant_id_household_id_fkey'
+            columns: ['grant_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'equity_grant'
+            referencedColumns: ['id', 'household_id']
+          },
+          {
+            foreignKeyName: 'equity_sale_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'equity_sale_member_id_household_id_fkey'
             columns: ['member_id', 'household_id']
             isOneToOne: false
             referencedRelation: 'members'

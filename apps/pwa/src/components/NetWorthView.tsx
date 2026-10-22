@@ -309,8 +309,9 @@ function EquityGroup({
           ))}
         </Stack>
         <Text size="xs" c="dimmed">
-          Grants are valued if exercised today, net of the strike price (see the Equity tab for the
-          gross vested value); shares and ETFs at their last traded price (see the Investments tab).
+          Unexercised options are valued if exercised today, net of the strike price, and exercised
+          options and granted shares at the price per share less any sold (see the Equity tab);
+          shares and ETFs at their last traded price (see the Investments tab).
         </Text>
       </Stack>
     </Card>

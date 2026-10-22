@@ -377,7 +377,7 @@ export function TaxEstimateView({
           ))}
           <Text size="xs" c="dimmed">
             Capital gains are counted only for the share and ETF trades recorded on the Investments
-            tab.
+            tab and the equity sales recorded on the Equity tab.
           </Text>
         </Stack>
       )}

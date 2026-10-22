@@ -148,7 +148,8 @@ one-off is shown as the separate figure it is.
   owner, split 50/50 across the household's members for a joint saver or a goal
   with no resolvable link. Added in the `@nest/household` adapter
   (`projectedInterestIncomeInputs`); `@nest/tax` is untouched.
-- Net capital gain: from the household's recorded share and ETF trades, after
+- Net capital gain: from the household's recorded share and ETF trades and sales
+  of startup equity (see [`investments.md`](investments.md#equity-sales)), after
   capital losses and the 50% CGT discount (`AssessableIncome.netCapitalGainCents`,
   supplied through `estimateHouseholdTax`'s `capitalGainsByMember`). In the annual
   figures and out of the fortnightly ones. See [`investments.md`](investments.md).
@@ -489,7 +490,8 @@ surcharge line already reflects the combined-income family tier. A member with a
 capital gain also gets an indented "Net capital gain" line beneath gross income
 and a note that the annual figures include it and the fortnightly ones leave it
 out. A footnote states that capital gains are counted only for the share and ETF
-trades recorded on the Investments tab.
+trades recorded on the Investments tab and the equity sales recorded on the
+Equity tab.
 
 The **withholding position** (`WithholdingPosition`) names where the year's actual
 withholding sits against that liability: what the member's payslips withheld, of
@@ -559,7 +561,8 @@ persisted to the database.
 
 ## Out of scope (initially)
 
-- Capital gains on anything but recorded share and ETF trades, franking credits,
+- Capital gains on anything but recorded share and ETF trades and equity sales,
+  franking credits,
   negative gearing schedules, PAYG instalments, and business/GST accounting.
   Model as future extensions. The Tax tab notes that capital gains are counted
-  only for recorded trades so the estimate is not read as complete.
+  only for recorded trades and equity sales so the estimate is not read as complete.

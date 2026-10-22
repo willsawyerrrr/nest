@@ -6,7 +6,9 @@ import { usePlanningMode } from '../components/PlanningModeProvider'
 import { useAccounts } from '../hooks/useAccounts'
 import { useBudgetLines, type BudgetLine } from '../hooks/useBudgetLines'
 import { useDeductions } from '../hooks/useDeductions'
-import { useEquityGrants } from '../hooks/useEquityGrants'
+import { useEquityExercises } from '../hooks/useEquityExercises'
+import { useEquityGrants, type EquityGrantRow } from '../hooks/useEquityGrants'
+import { useEquitySales } from '../hooks/useEquitySales'
 import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows, type Inflow } from '../hooks/useInflows'
@@ -43,6 +45,8 @@ export function NetWorthSection() {
   const inflows = useInflows()
   const helpDebts = useHelpDebts()
   const equityGrants = useEquityGrants()
+  const equityExercises = useEquityExercises()
+  const equitySales = useEquitySales()
   const trades = useTrades()
   const taxProfiles = useTaxProfiles()
   const deductions = useDeductions()
@@ -58,6 +62,8 @@ export function NetWorthSection() {
     inflows.loading ||
     helpDebts.loading ||
     equityGrants.loading ||
+    equityExercises.loading ||
+    equitySales.loading ||
     trades.loading ||
     taxProfiles.loading ||
     deductions.loading ||
@@ -81,14 +87,17 @@ export function NetWorthSection() {
       balanceCents: debt.balance_cents,
     }))
 
-  const planGrants = grantRows.map(equityGrantToPlan)
+  const exerciseRows = equityExercises.exercises ?? []
+  const saleRows = equitySales.sales ?? []
+  const toPlanGrant = (grant: EquityGrantRow) => equityGrantToPlan(grant, exerciseRows, saleRows)
+  const planGrants = grantRows.map(toPlanGrant)
   const heldEquity = heldEquityHoldings(trades.trades ?? [], members)
   const heldEquityCents = heldEquity.reduce((total, holding) => total + holding.valueCents, 0)
   const equity: EquityHolding[] = [
     ...grantRows
       .map((grant) => ({
         label: `${memberName(members, grant.member_id)} — ${grant.label}`,
-        valueCents: grantValueCents(equityGrantToPlan(grant), today),
+        valueCents: grantValueCents(toPlanGrant(grant), today),
       }))
       .filter((holding) => holding.valueCents > 0),
     ...heldEquity,

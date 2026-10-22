@@ -35,6 +35,9 @@ const hooks = vi.hoisted(() => ({
   useGoals: vi.fn(),
   useSavers: vi.fn(),
   useTrades: vi.fn(),
+  useEquityGrants: vi.fn(),
+  useEquityExercises: vi.fn(),
+  useEquitySales: vi.fn(),
   useShareGrant: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
   shareControlProps: null as Record<string, unknown> | null,
@@ -63,6 +66,9 @@ vi.mock('../hooks/usePayslips', () => ({ usePayslips: hooks.usePayslips }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
 vi.mock('../hooks/useSavers', () => ({ useSavers: hooks.useSavers }))
 vi.mock('../hooks/useTrades', () => ({ useTrades: hooks.useTrades }))
+vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
+vi.mock('../hooks/useEquityExercises', () => ({ useEquityExercises: hooks.useEquityExercises }))
+vi.mock('../hooks/useEquitySales', () => ({ useEquitySales: hooks.useEquitySales }))
 vi.mock('../hooks/useShareGrant', () => ({ useShareGrant: hooks.useShareGrant }))
 vi.mock('../components/EofyScreen', () => ({
   EofyScreen: (props: Record<string, unknown>) => {
@@ -101,6 +107,9 @@ function mockLoaded() {
   hooks.useGoals.mockReturnValue({ loading: false, goals: [], baselineGoals: [] })
   hooks.useSavers.mockReturnValue({ loading: false, savers: [] })
   hooks.useTrades.mockReturnValue({ loading: false, trades: [] })
+  hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [] })
+  hooks.useEquityExercises.mockReturnValue({ loading: false, exercises: [] })
+  hooks.useEquitySales.mockReturnValue({ loading: false, sales: [] })
   hooks.useShareGrant.mockReturnValue({
     status: null,
     loading: false,

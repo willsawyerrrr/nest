@@ -65,6 +65,42 @@ export interface TradeRow {
   fee_cents: number
 }
 
+/** The `equity_grant` columns equity sale gains read. */
+export interface EquityGrantRow {
+  id: string
+  member_id: string
+  label: string
+  instrument_type: string
+  quantity: number
+  grant_date: string
+}
+
+/** The `equity_exercise` columns equity sale gains read. */
+export interface EquityExerciseRow {
+  grant_id: string
+  member_id: string
+  exercised_on: string
+  quantity: number
+  strike_price_cents: number
+}
+
+/** The `equity_sale` columns equity sale gains read. */
+export interface EquitySaleRow {
+  grant_id: string
+  member_id: string
+  sold_on: string
+  quantity: number
+  price_per_share_cents: number
+  fee_cents: number
+}
+
+/** A household's equity grants with every exercise and sale recorded against them. */
+export interface EquityRows {
+  grants: readonly EquityGrantRow[]
+  exercises: readonly EquityExerciseRow[]
+  sales: readonly EquitySaleRow[]
+}
+
 /** The `super_contribution` columns the estimate and the cap summary read. */
 export interface SuperContributionRow {
   member_id: string

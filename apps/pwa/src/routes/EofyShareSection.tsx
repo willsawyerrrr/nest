@@ -100,6 +100,11 @@ export function EofyShareSection() {
     data.members,
     projectedInterestIncomeInputs(data.savingsGoals, data.accounts, data.members),
     data.trades,
+    {
+      grants: data.equityGrants,
+      exercises: data.equityExercises,
+      sales: data.equitySales,
+    },
   )
   const capSummaries = superCapSummaryFromRows(
     data.inflows,

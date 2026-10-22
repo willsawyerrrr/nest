@@ -154,6 +154,18 @@ of today; the vesting and valuation math is pure (`vestedQuantity`,
 `grossVestedValueCents`, `exerciseCostCents`, `grantValueCents`,
 `equityTotalCents` in `@nest/plan`).
 
+Members record what they have done with a grant on the same tab. An **exercise**
+(date, options exercised, strike paid, an optional informational market price per
+share) converts options into shares; a **sale** (date, shares, price per share,
+fees) sells shares. Exercised options cannot exceed the grant, and sold shares
+cannot exceed those held, enforced in the form and by the database. Only
+**unexercised** vested options are valued as options (gain over the strike);
+exercised shares still held are valued as shares at the price per share, the strike
+having been paid; sold shares leave the holding (`unexercisedVestedQuantity`,
+`heldShareQuantity` in `@nest/plan`). A share grant's sales reduce its vested
+shares the same way. Sales are capital-gains events in the tax estimate (see
+[`investments.md`](investments.md#equity-sales)).
+
 The Equity tab shows both figures for an option grant — the gross vested value,
 the exercise cost, and the net that counts toward net worth — while a share
 grant, whose gross equals its net, shows the single value. The Net worth tab

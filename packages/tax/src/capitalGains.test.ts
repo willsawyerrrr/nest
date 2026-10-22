@@ -3,8 +3,11 @@ import {
   capitalGainsSummary,
   holdingValueCents,
   lastPriceByTicker,
+  matchEquitySales,
   matchTrades,
   netCapitalGainByMember,
+  type EquityLotInput,
+  type EquitySaleInput,
   type TradeInput,
 } from './capitalGains.ts'
 
@@ -229,6 +232,121 @@ describe('netCapitalGainByMember', () => {
     )
     // m1: $100 gain held > 12 months → $50 after the discount; m2: a loss, absent.
     expect([...result]).toEqual([['m1', 50_00]])
+  })
+})
+
+function lot(
+  acquiredOn: string,
+  units: number,
+  costPerUnitCents: number,
+  overrides: Partial<EquityLotInput> = {},
+): EquityLotInput {
+  return {
+    memberId: 'm1',
+    grantId: 'g1',
+    label: 'Options',
+    grantDate: '2024-01-15',
+    acquiredOn,
+    units,
+    costPerUnitCents,
+    ...overrides,
+  }
+}
+
+function sale(
+  soldOn: string,
+  units: number,
+  pricePerShareCents: number,
+  feeCents = 0,
+  overrides: Partial<EquitySaleInput> = {},
+): EquitySaleInput {
+  return {
+    memberId: 'm1',
+    grantId: 'g1',
+    label: 'Options',
+    soldOn,
+    units,
+    pricePerShareCents,
+    feeCents,
+    ...overrides,
+  }
+}
+
+describe('matchEquitySales', () => {
+  it('takes the strike as cost base and the fee off the proceeds', () => {
+    const { gains, unmatchedSales } = matchEquitySales(
+      [lot('2025-02-01', 100, 50)],
+      [sale('2025-06-01', 40, 3_00, 10_00)],
+    )
+    expect(unmatchedSales).toEqual([])
+    expect(gains).toEqual([
+      {
+        memberId: 'm1',
+        ticker: 'Options',
+        acquiredOn: '2024-01-15',
+        soldOn: '2025-06-01',
+        units: 40,
+        costBaseCents: 40 * 50,
+        proceedsCents: 40 * 3_00 - 10_00,
+        gainCents: 40 * 3_00 - 10_00 - 40 * 50,
+        discountEligible: true,
+        financialYear: 2025,
+      },
+    ])
+  })
+
+  it('runs the discount holding period from the grant date, not the exercise date', () => {
+    const exercisedRecently = lot('2025-05-01', 10, 50)
+    expect(
+      matchEquitySales([exercisedRecently], [sale('2025-06-01', 10, 3_00)]).gains[0]!
+        .discountEligible,
+    ).toBe(true)
+    expect(
+      matchEquitySales([exercisedRecently], [sale('2025-01-15', 10, 3_00)]).gains[0]!
+        .discountEligible,
+    ).toBe(false)
+  })
+
+  it('matches first-in first-out across exercises at their own strikes, splitting proceeds exactly', () => {
+    const { gains } = matchEquitySales(
+      [lot('2025-03-01', 5, 100), lot('2025-02-01', 5, 50)],
+      [sale('2025-06-01', 7, 1_00, 1)],
+    )
+    expect(gains.map((g) => [g.units, g.costBaseCents])).toEqual([
+      [5, 250],
+      [2, 200],
+    ])
+    expect(gains.reduce((total, g) => total + g.proceedsCents, 0)).toBe(7 * 1_00 - 1)
+  })
+
+  it('keeps grants apart and reports units no lot covers', () => {
+    const { gains, unmatchedSales } = matchEquitySales(
+      [lot('2025-02-01', 5, 50)],
+      [sale('2025-06-01', 8, 1_00), sale('2025-06-02', 1, 1_00, 0, { grantId: 'g2' })],
+    )
+    expect(gains).toHaveLength(1)
+    expect(unmatchedSales.map((s) => s.units)).toEqual([3, 1])
+  })
+
+  it('gives a nil-cost lot a gain of its whole proceeds', () => {
+    const { gains } = matchEquitySales([lot('2024-01-15', 10, 0)], [sale('2025-06-01', 10, 2_00)])
+    expect(gains[0]!.gainCents).toBe(20_00)
+  })
+})
+
+describe('netCapitalGainByMember with equity gains', () => {
+  it('pools equity gains with trade gains so losses net across both', () => {
+    const { gains } = matchEquitySales(
+      [lot('2024-02-01', 10, 1_00)],
+      [sale('2026-09-01', 10, 3_00)],
+    )
+    // A $20 equity gain (held > 12 months) against a $5 trade loss: $15 → $7.50 after the discount.
+    const trades = [trade('buy', '2026-01-01', 1, 10), trade('sell', '2026-09-01', 1, 5)]
+    expect([...netCapitalGainByMember(trades, 2027, gains)]).toEqual([['m1', 7_50]])
+  })
+
+  it('reads as nil without equity gains', () => {
+    expect([...netCapitalGainByMember([], 2027)]).toEqual([])
   })
 })
 

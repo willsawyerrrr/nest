@@ -5,9 +5,17 @@ import type { NestContext } from '../context.ts'
 import {
   addEquityGrant,
   addEquityGrantInput,
+  deleteEquityExercise,
+  deleteEquityExerciseInput,
   deleteEquityGrant,
   deleteEquityGrantInput,
+  deleteEquitySale,
+  deleteEquitySaleInput,
   listEquityGrants,
+  recordEquityExercise,
+  recordEquityExerciseInput,
+  recordEquitySale,
+  recordEquitySaleInput,
   updateEquityGrant,
   updateEquityGrantInput,
 } from './equity.ts'
@@ -193,7 +201,7 @@ export function registerIncomeTaxTools(server: McpServer, ctx: NestContext, resp
     'list_equity_grants',
     {
       description:
-        'List startup-equity grants with vested quantity and vested value in cents as of today (options at their gain over the strike, shares at the price per share).',
+        'List startup-equity grants as of today with vested, exercised, sold, unexercised-vested, and held-share quantities, and the value in cents that counts toward net worth (unexercised vested options at their gain over the strike, held shares at the price per share).',
       annotations: { readOnlyHint: true },
     },
     () => respond(() => listEquityGrants(ctx)),
@@ -223,5 +231,41 @@ export function registerIncomeTaxTools(server: McpServer, ctx: NestContext, resp
       annotations: { destructiveHint: true },
     },
     (input) => respond(() => deleteEquityGrant(ctx, input)),
+  )
+  server.registerTool(
+    'record_equity_exercise',
+    {
+      description:
+        'Record an exercise of options from an option grant (grant_id from list_equity_grants): exercised_on, whole-option quantity, and optionally strike_price_cents (the grant strike by default) and market_price_per_share_cents. Refused beyond the options left to exercise.',
+      inputSchema: recordEquityExerciseInput.shape,
+    },
+    (input) => respond(() => recordEquityExercise(ctx, input)),
+  )
+  server.registerTool(
+    'record_equity_sale',
+    {
+      description:
+        'Record a sale of shares from a grant (grant_id from list_equity_grants): sold_on, whole-share quantity, price_per_share_cents, and optionally fee_cents. Sells exercised options, or granted shares for a share grant; refused beyond the shares held. A capital-gains event in the tax estimate.',
+      inputSchema: recordEquitySaleInput.shape,
+    },
+    (input) => respond(() => recordEquitySale(ctx, input)),
+  )
+  server.registerTool(
+    'delete_equity_exercise',
+    {
+      description: 'Delete a recorded equity exercise by id.',
+      inputSchema: deleteEquityExerciseInput.shape,
+      annotations: { destructiveHint: true },
+    },
+    (input) => respond(() => deleteEquityExercise(ctx, input)),
+  )
+  server.registerTool(
+    'delete_equity_sale',
+    {
+      description: 'Delete a recorded equity sale by id.',
+      inputSchema: deleteEquitySaleInput.shape,
+      annotations: { destructiveHint: true },
+    },
+    (input) => respond(() => deleteEquitySale(ctx, input)),
   )
 }

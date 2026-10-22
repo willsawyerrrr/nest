@@ -12,6 +12,12 @@
  * microdollars (`unitPrice.ts`), so nothing here uses floating point. Each
  * trade's consideration (`units × price`) is rounded half-up to whole cents once,
  * as a contract note prints it; every other figure derives from whole cents.
+ *
+ * Sales of startup equity are capital-gains events too (`matchEquitySales`): no
+ * tax arises when options are exercised under the startup concession, so a sale's
+ * cost base is the strike paid, and the CGT discount's holding period runs from
+ * the grant date. Their gains join trade gains in `capitalGainsSummary`, so
+ * losses net across both.
  */
 
 import type { FinancialYear, Money } from './index.ts'
@@ -53,6 +59,34 @@ export interface Holding {
   readonly costBaseCents: Money
   /** `costBaseCents` per unit, in microdollars (rounded half-up). */
   readonly averageCostMicrodollars: Microdollars
+}
+
+/**
+ * Shares a member holds from one equity grant, available to be sold: the units of
+ * one exercise (cost per unit the strike paid), or all of a share grant (nil
+ * cost). `grantDate` starts the CGT discount's holding period; `acquiredOn`
+ * orders the lots for matching.
+ */
+export interface EquityLotInput {
+  readonly memberId: string
+  readonly grantId: string
+  /** The grant's label, reported as the gain's `ticker`. */
+  readonly label: string
+  readonly grantDate: string
+  readonly acquiredOn: string
+  readonly units: number
+  readonly costPerUnitCents: Money
+}
+
+/** One sale of equity shares: whole units at a price per share, less fees. */
+export interface EquitySaleInput {
+  readonly memberId: string
+  readonly grantId: string
+  readonly label: string
+  readonly soldOn: string
+  readonly units: number
+  readonly pricePerShareCents: Money
+  readonly feeCents: Money
 }
 
 /** The portion of one sale matched against one purchase parcel. */
@@ -145,6 +179,67 @@ function inMatchingOrder(trades: readonly TradeInput[]): TradeInput[] {
         a.index - b.index,
     )
     .map(({ trade }) => trade)
+}
+
+/**
+ * Matches each equity sale to the grant's lots first-in first-out, returning each
+ * matched piece's realised gain (the lot's `grantDate` as `acquiredOn`, its label
+ * as `ticker`) and any sold units the lots do not cover. A sale's proceeds are
+ * its units at the price less fees, with rounding remainders landing on the last
+ * piece so they are allocated exactly.
+ */
+export function matchEquitySales(
+  lots: readonly EquityLotInput[],
+  sales: readonly EquitySaleInput[],
+): { gains: RealisedGain[]; unmatchedSales: UnmatchedSale[] } {
+  const remaining = new Map<string, { lot: EquityLotInput; units: number }[]>()
+  for (const lot of [...lots].sort((a, b) => a.acquiredOn.localeCompare(b.acquiredOn))) {
+    remaining.set(lot.grantId, [...(remaining.get(lot.grantId) ?? []), { lot, units: lot.units }])
+  }
+  const gains: RealisedGain[] = []
+  const unmatchedSales: UnmatchedSale[] = []
+  for (const sale of [...sales].sort((a, b) => a.soldOn.localeCompare(b.soldOn))) {
+    const book = remaining.get(sale.grantId) ?? []
+    const proceedsCents = sale.units * sale.pricePerShareCents - sale.feeCents
+    let left = sale.units
+    let allocatedCents = 0
+    while (left > 0 && book.length > 0) {
+      const held = book[0]!
+      const take = Math.min(left, held.units)
+      left -= take
+      const pieceProceedsCents =
+        left === 0
+          ? proceedsCents - allocatedCents
+          : scaleRoundHalfUp(proceedsCents, take, sale.units)
+      allocatedCents += pieceProceedsCents
+      const costBaseCents = take * held.lot.costPerUnitCents
+      gains.push({
+        memberId: sale.memberId,
+        ticker: held.lot.label,
+        acquiredOn: held.lot.grantDate,
+        soldOn: sale.soldOn,
+        units: take,
+        costBaseCents,
+        proceedsCents: pieceProceedsCents,
+        gainCents: pieceProceedsCents - costBaseCents,
+        discountEligible: heldOverTwelveMonths(held.lot.grantDate, sale.soldOn),
+        financialYear: financialYearOfIso(sale.soldOn),
+      })
+      held.units -= take
+      if (held.units === 0) {
+        book.shift()
+      }
+    }
+    if (left > 0) {
+      unmatchedSales.push({
+        memberId: sale.memberId,
+        ticker: sale.label,
+        soldOn: sale.soldOn,
+        units: left,
+      })
+    }
+  }
+  return { gains, unmatchedSales }
 }
 
 /**
@@ -327,15 +422,17 @@ export function capitalGainsSummary(
 /**
  * Each member's net capital gain for `financialYear`, keyed by member id, for
  * members with a positive figure — the map `estimateHouseholdTax` takes as its
- * capital-gains input.
+ * capital-gains input. `equityGains` (from `matchEquitySales`) are pooled with
+ * the trades' gains, so losses net across both.
  */
 export function netCapitalGainByMember(
   trades: readonly TradeInput[],
   financialYear: FinancialYear,
+  equityGains: readonly RealisedGain[] = [],
 ): Map<string, Money> {
   const { gains } = matchTrades(trades)
   const byMember = new Map<string, RealisedGain[]>()
-  for (const gain of gains) {
+  for (const gain of [...gains, ...equityGains]) {
     byMember.set(gain.memberId, [...(byMember.get(gain.memberId) ?? []), gain])
   }
   const result = new Map<string, Money>()

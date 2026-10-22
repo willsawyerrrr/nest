@@ -13,7 +13,9 @@ import { useAccounts } from '../hooks/useAccounts'
 import { useBreakdowns } from '../hooks/useBreakdowns'
 import { useBudgetLines, type BudgetLine } from '../hooks/useBudgetLines'
 import { useDeductions } from '../hooks/useDeductions'
-import { useEquityGrants } from '../hooks/useEquityGrants'
+import { useEquityExercises } from '../hooks/useEquityExercises'
+import { useEquityGrants, type EquityGrantRow } from '../hooks/useEquityGrants'
+import { useEquitySales } from '../hooks/useEquitySales'
 import { useGifts } from '../hooks/useGifts'
 import { useGoals, type Goal } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
@@ -176,6 +178,8 @@ export function PlanningSection() {
   const helpDebts = useHelpDebts()
   const deductions = useDeductions()
   const equityGrants = useEquityGrants()
+  const equityExercises = useEquityExercises()
+  const equitySales = useEquitySales()
   const trades = useTrades()
   const temporaryItems = useTemporaryItems()
   const memberAllowances = useMemberAllowances()
@@ -199,6 +203,8 @@ export function PlanningSection() {
     helpDebts.loading ||
     deductions.loading ||
     equityGrants.loading ||
+    equityExercises.loading ||
+    equitySales.loading ||
     trades.loading ||
     temporaryItems.loading ||
     memberAllowances.loading ||
@@ -283,14 +289,17 @@ export function PlanningSection() {
       label: `${memberName(members, debt.member_id)}'s HELP debt`,
       balanceCents: debt.balance_cents,
     }))
-  const planGrants = grantRows.map(equityGrantToPlan)
+  const exerciseRows = equityExercises.exercises ?? []
+  const saleRows = equitySales.sales ?? []
+  const toPlanGrant = (grant: EquityGrantRow) => equityGrantToPlan(grant, exerciseRows, saleRows)
+  const planGrants = grantRows.map(toPlanGrant)
   const heldEquity = heldEquityHoldings(trades.trades ?? [], members)
   const heldEquityCents = heldEquity.reduce((total, holding) => total + holding.valueCents, 0)
   const equity: EquityHolding[] = [
     ...grantRows
       .map((grant) => ({
         label: `${memberName(members, grant.member_id)} — ${grant.label}`,
-        valueCents: grantValueCents(equityGrantToPlan(grant), today),
+        valueCents: grantValueCents(toPlanGrant(grant), today),
       }))
       .filter((holding) => holding.valueCents > 0),
     ...heldEquity,

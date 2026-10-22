@@ -60,6 +60,15 @@ export interface EofyShareRows {
    */
   trades: Row[]
   /**
+   * Equity grants, exercises, and sales, unfiltered by financial year (matching
+   * `useEquityGrants`, `useEquityExercises`, `useEquitySales`): a sale's cost base
+   * and holding period come from earlier exercises and its grant, so the shared
+   * estimate's net capital gain agrees with the household's own.
+   */
+  equityGrants: Row[]
+  equityExercises: Row[]
+  equitySales: Row[]
+  /**
    * `{ id, owner_member_id, balance_cents }` per household account — the
    * identity joined to its balance, as `accounts_with_balance` gives the
    * household's own tab. Resolves a goal's linked saver balance and its

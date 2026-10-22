@@ -561,7 +561,8 @@ export function EofyScreen({
       )}
 
       <Text size="xs" c="dimmed">
-        Capital gains are counted only for the share and ETF trades recorded on the Investments tab.
+        Capital gains are counted only for the share and ETF trades recorded on the Investments tab
+        and the equity sales recorded on the Equity tab.
       </Text>
       {disclaimerNote && (
         <Text size="xs" c="dimmed">

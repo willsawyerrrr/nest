@@ -9,6 +9,7 @@
 
 export { activeNowTaxableInflows } from './tax/activeNow.ts'
 export { availableFinancialYears, currentTaxConfig } from './tax/config.ts'
+export { equitySaleGains } from './tax/equity.ts'
 export { estimateHouseholdTaxFromRows } from './tax/estimate.ts'
 export {
   HELP_PAYOFF_MAX_YEARS,

@@ -8,6 +8,9 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { useDeductionGroups } from '../hooks/useDeductionGroups'
 import { useDeductionReceipts } from '../hooks/useDeductionReceipts'
 import { useDeductions } from '../hooks/useDeductions'
+import { useEquityExercises } from '../hooks/useEquityExercises'
+import { useEquityGrants } from '../hooks/useEquityGrants'
+import { useEquitySales } from '../hooks/useEquitySales'
 import { useGoals } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
@@ -47,6 +50,9 @@ export function EofySection() {
   const goals = useGoals()
   const savers = useSavers()
   const trades = useTrades()
+  const equityGrants = useEquityGrants()
+  const equityExercises = useEquityExercises()
+  const equitySales = useEquitySales()
   const shareGrant = useShareGrant()
 
   if (
@@ -63,6 +69,9 @@ export function EofySection() {
     goals.loading ||
     savers.loading ||
     trades.loading ||
+    equityGrants.loading ||
+    equityExercises.loading ||
+    equitySales.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -87,6 +96,11 @@ export function EofySection() {
     members,
     projectedInterestIncomeInputs(goals.goals ?? [], savers.savers ?? [], members),
     trades.trades ?? [],
+    {
+      grants: equityGrants.grants ?? [],
+      exercises: equityExercises.exercises ?? [],
+      sales: equitySales.sales ?? [],
+    },
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],

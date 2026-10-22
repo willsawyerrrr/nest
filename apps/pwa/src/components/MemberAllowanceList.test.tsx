@@ -98,6 +98,14 @@ describe('MemberAllowanceList', () => {
     expect(screen.getAllByText(/\/ fn/i).length).toBeGreaterThan(0)
   })
 
+  it('opens a co-member’s allowance for editing from its budget item', async () => {
+    const user = userEvent.setup()
+    renderList({ currentMemberId: 'm2' })
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
+  })
+
   it('edits an allowance in place', async () => {
     const user = userEvent.setup()
     const { onUpdate } = renderList({ allowances: [makeMemberAllowance()] })

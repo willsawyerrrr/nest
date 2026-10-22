@@ -58,4 +58,40 @@ describe('AllowanceScreen', () => {
       ),
     )
   })
+
+  it('edits an item in place', async () => {
+    const user = userEvent.setup()
+    const { onUpdate } = renderScreen({
+      lines: [makeBudgetLine({ id: 'l1', name: 'Gym', allowance_member_id: 'm1' })],
+    })
+    await user.click(screen.getByRole('button', { name: /edit/i }))
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('l1', expect.any(Object)))
+  })
+
+  it('cancels an open add form', async () => {
+    const user = userEvent.setup()
+    renderScreen()
+    await user.click(screen.getByRole('button', { name: 'Add allowance item' }))
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(screen.getByRole('button', { name: 'Add allowance item' })).toBeInTheDocument()
+  })
+
+  it('deletes an item after confirmation', async () => {
+    const user = userEvent.setup()
+    const { onDelete } = renderScreen({
+      lines: [makeBudgetLine({ id: 'l1', name: 'Gym', allowance_member_id: 'm1' })],
+    })
+    await user.click(screen.getByRole('button', { name: /delete/i }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete/i }))
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('l1'))
+  })
+
+  it('shows an empty bar for a zero allowance', () => {
+    renderScreen({ allowance: makeMemberAllowance({ amount_cents: 0 }) })
+    expect(screen.getByRole('progressbar', { name: 'Ada’s allowance drawn' })).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+  })
 })

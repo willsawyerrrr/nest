@@ -1,15 +1,10 @@
 import { Progress, Stack, Text } from '@mantine/core'
-import { fortnightlyCents, summariseAllowances } from '@nest/plan'
+import { fortnightlyCents } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { MemberAllowance } from '../hooks/useMemberAllowances'
-import {
-  allowanceChoices,
-  allowanceName,
-  toPlanAllowance,
-  toPlanDrawableLine,
-} from '../lib/allowances'
+import { allowanceChoices, allowanceName, toPlanAllowance } from '../lib/allowances'
 import { resolveRoute } from '../lib/budgetLineRoute'
 import { formatFrequency } from '../lib/frequency'
 import { formatPerFortnight } from '../lib/money'
@@ -54,13 +49,14 @@ export function AllowanceScreen({
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
   const allowanceNames = new Map([[allowance.member_id, name]])
   const drawnLines = lines.filter((line) => line.allowance_member_id === allowance.member_id)
-  const summary = summariseAllowances(lines.map(toPlanDrawableLine), [planAllowance])[0]
-  const share = summary?.allowance.fortnightlyCents ?? 0
-  const drawn = summary?.drawn.fortnightlyCents ?? 0
-  const left = summary?.remaining.fortnightlyCents ?? 0
+  const share = fortnightlyCents(
+    allowance.amount_cents,
+    allowance.frequency,
+    allowance.interval_count ?? undefined,
+  )
   const { editingId, adding, startAdding, startEditing, close } = useInlineEditing<true>()
   const { confirm, modal } = useConfirmDelete()
-  const subtotal = drawnLines.reduce(
+  const drawn = drawnLines.reduce(
     (total, line) =>
       total + fortnightlyCents(line.amount_cents, line.frequency, line.interval_count ?? undefined),
     0,
@@ -81,11 +77,11 @@ export function AllowanceScreen({
           aria-label={`${name} drawn`}
         />
         <Text size="xs" c="dimmed">
-          Drawn {formatPerFortnight(drawn)} · Left {formatPerFortnight(Math.max(0, left))}
+          Drawn {formatPerFortnight(drawn)} · Left {formatPerFortnight(Math.max(0, share - drawn))}
         </Text>
       </Stack>
 
-      <GroupSection title="Items" subtotalCents={subtotal}>
+      <GroupSection title="Items" subtotalCents={drawn}>
         {drawnLines.length === 0 && !adding && (
           <EmptyState>Nothing drawn from your allowance yet.</EmptyState>
         )}

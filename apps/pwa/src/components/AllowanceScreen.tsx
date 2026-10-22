@@ -46,7 +46,6 @@ export function AllowanceScreen({
   const name = allowanceName(memberName)
   const planAllowance = toPlanAllowance(allowance)
   const choices = allowanceChoices([{ name, allowance: planAllowance }], lines, allowance.member_id)
-  const accountNames = new Map(accounts.map((account) => [account.id, account.name]))
   const allowanceNames = new Map([[allowance.member_id, name]])
   const drawnLines = lines.filter((line) => line.allowance_member_id === allowance.member_id)
   const share = fortnightlyCents(
@@ -103,7 +102,7 @@ export function AllowanceScreen({
             <BudgetLineItem
               key={line.id}
               line={line}
-              route={resolveRoute(line, goals, accountNames, allowanceNames)}
+              route={resolveRoute(line, goals, new Map(), allowanceNames)}
               onEdit={() => startEditing(line.id)}
               onDelete={() =>
                 confirm({

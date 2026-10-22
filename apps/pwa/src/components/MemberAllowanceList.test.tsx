@@ -80,11 +80,22 @@ describe('MemberAllowanceList', () => {
     })
 
     expect(screen.getByText('Ada’s allowance')).toBeInTheDocument()
-    expect(screen.getByText('$200.00')).toBeInTheDocument()
+    expect(screen.getAllByText('$200.00').length).toBeGreaterThan(0)
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.queryByText(/^drawn /i)).toBeNull()
     expect(screen.queryByText('Left')).toBeNull()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+  })
+
+  it('shows a co-member’s allowance like a budget item, with its funding account and fortnightly amount', () => {
+    renderList({
+      currentMemberId: 'm2',
+      accounts: [{ id: 'acc1', name: 'Everyday' }],
+      allowances: [makeMemberAllowance({ destination_account_id: 'acc1' })],
+    })
+
+    expect(screen.getByText('Everyday')).toBeInTheDocument()
+    expect(screen.getAllByText(/\/ fn/i).length).toBeGreaterThan(0)
   })
 
   it('edits an allowance in place', async () => {

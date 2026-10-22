@@ -4,9 +4,11 @@ import type { BudgetLine } from '../hooks/useBudgetLines'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import type { MemberAllowance, MemberAllowanceInput } from '../hooks/useMemberAllowances'
 import { allowanceName, toPlanAllowance, toPlanDrawableLine } from '../lib/allowances'
+import { fundingRoute } from '../lib/budgetLineRoute'
 import { formatFrequency } from '../lib/frequency'
 import { formatPerFortnight } from '../lib/money'
 import { AppCard } from './AppCard'
+import { BudgetLineItem } from './BudgetLineItem'
 import { EditAction } from './EditAction'
 import { MemberAllowanceForm } from './MemberAllowanceForm'
 import { MoneyText } from './MoneyText'
@@ -139,6 +141,25 @@ export function MemberAllowanceList({
                 close()
               }}
               onCancel={close}
+            />
+          )
+        }
+        if (member.id !== currentMemberId) {
+          const account = accounts.find(
+            (candidate) => candidate.id === allowance.destination_account_id,
+          )
+          return (
+            <BudgetLineItem
+              key={member.id}
+              line={{
+                name: allowanceName(member.name),
+                amount_cents: allowance.amount_cents,
+                frequency: allowance.frequency,
+                interval_count: allowance.interval_count,
+                management_url: null,
+              }}
+              route={account && fundingRoute(account.name)}
+              onEdit={() => startEditing(allowance.id)}
             />
           )
         }

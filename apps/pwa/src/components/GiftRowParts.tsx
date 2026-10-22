@@ -95,7 +95,13 @@ export function GiftCompactRow({
         <Group justify="space-between" wrap="nowrap" gap="sm">
           {children}
         </Group>
-        {caption}
+        {typeof caption === 'string' ? (
+          <Text size="xs" c="dimmed">
+            {caption}
+          </Text>
+        ) : (
+          caption
+        )}
       </Stack>
     </AppCard>
   )

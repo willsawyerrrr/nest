@@ -55,7 +55,7 @@ One table, `share_grant` (`supabase/migrations/20260831000000_share_grant.sql`):
 - **`service_role` reads `share_grant` by `token_hash`**, plus the source
   tables `eofy-share` assembles (`members`, `inflows`, `tax_profile`,
   `super_contribution`, `super_profile`, `help_debt`, `deduction`,
-  `deduction_group`, `deduction_receipt`, `payslip`, `savings_goal`, `trade`, `accounts`,
+  `deduction_group`, `deduction_receipt`, `payslip`, `savings_goal`, `trade`, `equity_grant`, `equity_exercise`, `equity_sale`, `accounts`,
   `account_balance`) — surgical per-feature grants, following
   `docs/operations.md`'s `service_role` grants stance. `savings_goal` and the
   account identity/balance pair feed projected savings interest into the
@@ -147,6 +147,8 @@ For the same reason `eofy-share` serves `savingsGoals` and a minimal
 goal's projected savings interest lands in the shared estimate too. It serves
 `trades` likewise, unfiltered by financial year because a sale is matched against
 earlier purchases, so a member's net capital gain lands in the shared estimate.
+`equity_grant`, `equity_exercise`, and `equity_sale` are read the same way, for
+the net capital gain on sales of startup equity.
 
 ### Household section
 

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { ToolError } from '../errors.ts'
 import { fakeContext, members } from '../test/fakeContext.ts'
-import { addEquityGrant, deleteEquityGrant, listEquityGrants, updateEquityGrant } from './equity.ts'
+import {
+  addEquityGrant,
+  deleteEquityGrant,
+  listEquityGrants,
+  recordEquityExercise,
+  recordEquitySale,
+  updateEquityGrant,
+} from './equity.ts'
 
 const ID = '8f14e45f-ceea-4d7a-8f4e-6c1f3f6b2a10'
 
@@ -41,6 +48,103 @@ describe('listEquityGrants', () => {
       vested_value_cents: 2_400 * 4_00,
     })
     expect(result.total_vested_value_cents).toBe(9_600_00)
+  })
+})
+
+describe('exercises and sales', () => {
+  it('values unexercised options as options and exercised shares as shares', async () => {
+    const { ctx } = fakeContext({
+      tables: {
+        equity_grant: [grant],
+        members,
+        equity_exercise: [{ id: 'x1', grant_id: ID, quantity: 1_000 }],
+        equity_sale: [{ id: 's1', grant_id: ID, quantity: 400 }],
+      },
+    })
+    const result = await listEquityGrants(ctx)
+    // 2,400 vested: 1,400 still options at $4 gain; 600 shares held at $5.
+    expect(result.grants[0]).toMatchObject({
+      exercised_quantity: 1_000,
+      sold_quantity: 400,
+      unexercised_vested_quantity: 1_400,
+      held_share_quantity: 600,
+      vested_value_cents: 1_400 * 4_00 + 600 * 5_00,
+    })
+  })
+
+  it('records an exercise at the grant strike for the grant owner', async () => {
+    const { ctx, state } = fakeContext({ tables: { equity_grant: [grant], members } })
+    await recordEquityExercise(ctx, { grant_id: ID, exercised_on: '2026-09-01', quantity: 100 })
+    expect(state.inserts[0]).toEqual({
+      table: 'equity_exercise',
+      row: {
+        household_id: 'h-1',
+        member_id: 'm-self',
+        grant_id: ID,
+        exercised_on: '2026-09-01',
+        quantity: 100,
+        strike_price_cents: 1_00,
+        market_price_per_share_cents: null,
+      },
+    })
+  })
+
+  it('refuses an exercise beyond the grant or on a share grant', async () => {
+    const { ctx } = fakeContext({
+      tables: {
+        equity_grant: [grant, { ...grant, id: 'sh', instrument_type: 'share' }],
+        equity_exercise: [{ id: 'x1', grant_id: ID, quantity: 4_700 }],
+      },
+    })
+    const over = await failure(
+      recordEquityExercise(ctx, { grant_id: ID, exercised_on: '2026-09-01', quantity: 101 }),
+    )
+    expect(over.code).toBe('invalid_details')
+    const shares = await failure(
+      recordEquityExercise(ctx, { grant_id: 'sh', exercised_on: '2026-09-01', quantity: 1 }),
+    )
+    expect(shares.code).toBe('invalid_details')
+  })
+
+  it('records a sale within the shares held and refuses more', async () => {
+    const { ctx, state } = fakeContext({
+      tables: {
+        equity_grant: [grant],
+        equity_exercise: [{ id: 'x1', grant_id: ID, quantity: 500 }],
+        equity_sale: [{ id: 's1', grant_id: ID, quantity: 200 }],
+      },
+    })
+    await recordEquitySale(ctx, {
+      grant_id: ID,
+      sold_on: '2026-09-02',
+      quantity: 300,
+      price_per_share_cents: 5_00,
+      fee_cents: 9_95,
+    })
+    expect(state.inserts[0]?.table).toBe('equity_sale')
+    expect(state.inserts[0]?.row).toMatchObject({ quantity: 300, fee_cents: 9_95 })
+    const error = await failure(
+      recordEquitySale(ctx, {
+        grant_id: ID,
+        sold_on: '2026-09-02',
+        quantity: 301,
+        price_per_share_cents: 5_00,
+      }),
+    )
+    expect(error.code).toBe('invalid_details')
+  })
+
+  it('rejects an unknown grant', async () => {
+    const { ctx } = fakeContext({ tables: { equity_grant: [grant] } })
+    const error = await failure(
+      recordEquitySale(ctx, {
+        grant_id: '00000000-0000-4000-8000-000000000000',
+        sold_on: '2026-09-02',
+        quantity: 1,
+        price_per_share_cents: 1,
+      }),
+    )
+    expect(error.code).toBe('not_found')
   })
 })
 

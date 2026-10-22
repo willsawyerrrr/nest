@@ -5,6 +5,8 @@ import { EquitySection } from './EquitySection'
 const hooks = vi.hoisted(() => ({
   useMembers: vi.fn(),
   useEquityGrants: vi.fn(),
+  useEquityExercises: vi.fn(),
+  useEquitySales: vi.fn(),
   screenProps: null as Record<string, unknown> | null,
 }))
 
@@ -13,6 +15,8 @@ vi.mock('../components/LoadingScreen', () => ({
 }))
 vi.mock('../hooks/useMembers', () => ({ useMembers: hooks.useMembers }))
 vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
+vi.mock('../hooks/useEquityExercises', () => ({ useEquityExercises: hooks.useEquityExercises }))
+vi.mock('../hooks/useEquitySales', () => ({ useEquitySales: hooks.useEquitySales }))
 vi.mock('../components/EquityScreen', () => ({
   EquityScreen: (props: Record<string, unknown>) => {
     hooks.screenProps = props
@@ -24,6 +28,8 @@ describe('EquitySection', () => {
   it('shows the loading screen until data loads', () => {
     hooks.useMembers.mockReturnValue({ members: null, loading: true })
     hooks.useEquityGrants.mockReturnValue({ loading: false })
+    hooks.useEquityExercises.mockReturnValue({ loading: false })
+    hooks.useEquitySales.mockReturnValue({ loading: false })
     render(<EquitySection />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
@@ -34,6 +40,14 @@ describe('EquitySection', () => {
     const remove = vi.fn()
     hooks.useMembers.mockReturnValue({ members: [{ id: 'm1', name: 'Alex' }], loading: false })
     hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [], create, update, remove })
+    hooks.useEquityExercises.mockReturnValue({
+      loading: false,
+      exercises: [],
+      create,
+      update,
+      remove,
+    })
+    hooks.useEquitySales.mockReturnValue({ loading: false, sales: [], create, update, remove })
     render(<EquitySection />)
     expect(screen.getByTestId('equity-screen')).toBeInTheDocument()
     expect(hooks.screenProps?.members).toEqual([{ id: 'm1', name: 'Alex' }])

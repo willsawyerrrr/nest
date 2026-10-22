@@ -15,6 +15,9 @@ function emptyRows(): EofyShareRows {
     payslips: [],
     savingsGoals: [],
     trades: [],
+    equityGrants: [],
+    equityExercises: [],
+    equitySales: [],
     accounts: [],
   }
 }

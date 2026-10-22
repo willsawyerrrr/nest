@@ -150,10 +150,13 @@ Money is always integer cents.
 | `add_super_contribution` | write | `kind` (`salary_sacrifice`, `personal_deductible`, `personal_non_concessional`, `spouse` with a `contributor`), `mode` (`amount` with `amount_cents`, or `percent` with `percent_bp`), `frequency` (with `interval_count` for `every_n_*`), `fhss_eligible`, `member`, `financial_year`. |
 | `update_super_contribution` | write | `id` plus any of the same fields (not member or year); switching `mode` needs the new mode's figure. |
 | `delete_super_contribution` | write | `id`. |
-| `list_equity_grants` | read | Equity grants with vested quantity and value as of today. |
+| `list_equity_grants` | read | Equity grants with vested, exercised, sold, unexercised-vested, and held-share quantities, and the net-worth value as of today (unexercised vested options at their gain over the strike, held shares at the price per share). |
 | `add_equity_grant` | write | `label`, `instrument_type` (`option`, `share`), `quantity`, `grant_date`, optional `member`, `cliff_months` (12), `vesting_period_months` (48), `vesting_frequency` (`monthly`), `strike_price_cents` (options only), `price_per_share_cents`, `price_as_of`. |
 | `update_equity_grant` | write | `id` plus any of the same fields; `null` clears `strike_price_cents` and `price_as_of`. |
 | `delete_equity_grant` | write | `id`. |
+| `record_equity_exercise` | write | `grant_id` (an option grant), `exercised_on`, `quantity` (whole options), optional `strike_price_cents` (the grant's by default) and `market_price_per_share_cents`. Refused beyond the options left to exercise (`invalid_details`). |
+| `record_equity_sale` | write | `grant_id`, `sold_on`, `quantity` (whole shares: exercised options, or granted shares for a share grant), `price_per_share_cents`, optional `fee_cents`. Refused beyond the shares held (`invalid_details`). A capital-gains event in the tax estimate. |
+| `delete_equity_exercise` / `delete_equity_sale` | write | `id`. |
 | `create_deduction_from_document` | write | `file_path` (stdio) or base64 `content` and `filename` (HTTP), `category` (`work_expense` default, `donation`, `tax_agent_fees`), optional `member`, and overrides `description`, `amount_cents`, `deduction_date`, `financial_year` (a hint). |
 | `list_deductions` | read | Deductions for `financial_year` (default current) with basis, claimed and full cents, work use, group, and `has_receipt`; optional `member` and `category`. |
 | `add_deduction` | write | `description`, `deduction_date`, `category`, `member`, `group_id`, and a `basis`: `amount` (`amount_cents` is the full cost; `work_use_percent` for work expenses), `distance` (`distance_km`), or `hours` (`work_from_home_hours`). Distance and hours are work expenses priced at the year's published ATO rate, snapshotted into `amount_cents`; a distance past the ATO cap returns a `warning`. A donation is filed automatically in the donations group. |

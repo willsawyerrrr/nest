@@ -40,6 +40,11 @@ export function useEquityGrants(): UseEquityGrantsResult {
   const { rows, loading, reload, create, update, remove } = useHouseholdCollection<
     'equity_grant',
     EquityGrantInput
-  >({ table: 'equity_grant', orderBy: 'grant_date' })
+  >({
+    table: 'equity_grant',
+    orderBy: 'grant_date',
+    // Deleting a grant cascades to its exercises and sales.
+    alsoInvalidate: ['equity_exercise', 'equity_sale'],
+  })
   return { grants: rows, loading, reload, create, update, remove }
 }

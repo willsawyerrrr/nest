@@ -12,6 +12,8 @@ const hooks = vi.hoisted(() => ({
   useHelpDebts: vi.fn(),
   useEquityGrants: vi.fn(),
   useTrades: vi.fn(),
+  useEquityExercises: vi.fn(),
+  useEquitySales: vi.fn(),
   useTaxProfiles: vi.fn(),
   useDeductions: vi.fn(),
   useGoals: vi.fn(),
@@ -36,6 +38,8 @@ vi.mock('../hooks/useInflows', () => ({ useInflows: hooks.useInflows }))
 vi.mock('../hooks/useHelpDebts', () => ({ useHelpDebts: hooks.useHelpDebts }))
 vi.mock('../hooks/useEquityGrants', () => ({ useEquityGrants: hooks.useEquityGrants }))
 vi.mock('../hooks/useTrades', () => ({ useTrades: hooks.useTrades }))
+vi.mock('../hooks/useEquityExercises', () => ({ useEquityExercises: hooks.useEquityExercises }))
+vi.mock('../hooks/useEquitySales', () => ({ useEquitySales: hooks.useEquitySales }))
 vi.mock('../hooks/useTaxProfiles', () => ({ useTaxProfiles: hooks.useTaxProfiles }))
 vi.mock('../hooks/useDeductions', () => ({ useDeductions: hooks.useDeductions }))
 vi.mock('../hooks/useGoals', () => ({ useGoals: hooks.useGoals }))
@@ -56,6 +60,8 @@ function mockLoaded() {
   hooks.useHelpDebts.mockReturnValue({ loading: false, helpDebts: [] })
   hooks.useEquityGrants.mockReturnValue({ loading: false, grants: [] })
   hooks.useTrades.mockReturnValue({ loading: false, trades: [] })
+  hooks.useEquityExercises.mockReturnValue({ loading: false, exercises: [] })
+  hooks.useEquitySales.mockReturnValue({ loading: false, sales: [] })
   hooks.useTaxProfiles.mockReturnValue({ loading: false, profiles: [], financialYear: 2027 })
   hooks.useDeductions.mockReturnValue({ loading: false, deductions: [] })
   hooks.useGoals.mockReturnValue({ loading: false, goals: [] })

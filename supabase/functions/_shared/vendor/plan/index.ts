@@ -65,6 +65,8 @@ export type {
 
 export {
   equityTotalCents,
+  heldShareQuantity,
+  unexercisedVestedQuantity,
   exerciseCostCents,
   grantValueCents,
   grossVestedValueCents,

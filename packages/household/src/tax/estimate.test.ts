@@ -3,6 +3,7 @@ import { fortnightlyCents } from '@nest/plan'
 import { annualGrossCents } from '@nest/tax'
 import type {
   DeductionRow,
+  EquityRows,
   HelpDebtRow,
   InflowRow,
   SuperContributionRow,
@@ -419,5 +420,106 @@ describe('estimateHouseholdTaxFromRows trades', () => {
 
   it('assesses nothing for unsold holdings', () => {
     expect(estimateWith([tradeRow()]).annualNetCapitalGainCents).toBe(0)
+  })
+})
+
+describe('estimateHouseholdTaxFromRows equity sales', () => {
+  const salaryRows = [inflow({ schedule: 'annual', interval_count: null, amount_cents: 90_000_00 })]
+  const grant = (instrument_type: string) => ({
+    id: 'g1',
+    member_id: 'm1',
+    label: 'Grant',
+    instrument_type,
+    quantity: 1_000,
+    grant_date: '2024-01-15',
+  })
+  const estimateWith = (equity: EquityRows) =>
+    estimateHouseholdTaxFromRows(
+      salaryRows,
+      [profile],
+      [],
+      [],
+      [],
+      undefined,
+      undefined,
+      [member()],
+      [],
+      [],
+      equity,
+    ).members[0]!
+
+  it('assesses the discounted gain of an option sale over the strike', () => {
+    // 100 options at a $1.00 strike sold at $21.00 more than 12 months after the grant: a $2,000 gain, $1,000 assessed.
+    const estimate = estimateWith({
+      grants: [grant('option')],
+      exercises: [
+        {
+          grant_id: 'g1',
+          member_id: 'm1',
+          exercised_on: '2026-08-01',
+          quantity: 100,
+          strike_price_cents: 1_00,
+        },
+      ],
+      sales: [
+        {
+          grant_id: 'g1',
+          member_id: 'm1',
+          sold_on: '2026-09-01',
+          quantity: 100,
+          price_per_share_cents: 21_00,
+          fee_cents: 0,
+        },
+      ],
+    })
+    expect(estimate.annualNetCapitalGainCents).toBe(1_000_00)
+  })
+
+  it('assesses the whole proceeds of a share grant sale, which has no cost base', () => {
+    const estimate = estimateWith({
+      grants: [grant('share')],
+      exercises: [],
+      sales: [
+        {
+          grant_id: 'g1',
+          member_id: 'm1',
+          sold_on: '2026-09-01',
+          quantity: 100,
+          price_per_share_cents: 20_00,
+          fee_cents: 0,
+        },
+      ],
+    })
+    expect(estimate.annualNetCapitalGainCents).toBe(1_000_00)
+  })
+
+  it('assesses nothing for an exercise with no sale, or a sale in another year', () => {
+    const exercise = {
+      grant_id: 'g1',
+      member_id: 'm1',
+      exercised_on: '2026-08-01',
+      quantity: 100,
+      strike_price_cents: 1_00,
+    }
+    expect(
+      estimateWith({ grants: [grant('option')], exercises: [exercise], sales: [] })
+        .annualNetCapitalGainCents,
+    ).toBe(0)
+    expect(
+      estimateWith({
+        grants: [grant('option')],
+        exercises: [exercise],
+        sales: [
+          {
+            grant_id: 'g1',
+            member_id: 'm1',
+            sold_on: '2026-06-01',
+            quantity: 100,
+            price_per_share_cents: 21_00,
+            fee_cents: 0,
+          },
+        ],
+      }).annualNetCapitalGainCents,
+    ).toBe(0)
   })
 })

@@ -4,6 +4,9 @@ import type { Account } from './useAccounts'
 import type { DeductionGroupRow } from './useDeductionGroups'
 import type { DeductionReceiptRow } from './useDeductionReceipts'
 import type { DeductionRow } from './useDeductions'
+import type { EquityExerciseRow } from './useEquityExercises'
+import type { EquityGrantRow } from './useEquityGrants'
+import type { EquitySaleRow } from './useEquitySales'
 import type { Goal } from './useGoals'
 import type { HelpDebt } from './useHelpDebts'
 import type { Inflow } from './useInflows'
@@ -38,6 +41,10 @@ export interface EofyShareData {
   savingsGoals: Goal[]
   /** Every trade, unfiltered by financial year: a sale is matched against earlier purchases. */
   trades: TradeRow[]
+  /** Every equity grant, exercise, and sale, unfiltered by financial year: a sale's cost base and holding period come from earlier rows. */
+  equityGrants: EquityGrantRow[]
+  equityExercises: EquityExerciseRow[]
+  equitySales: EquitySaleRow[]
   /** `{ id, owner_member_id, balance_cents }` per account — enough to attribute projected savings interest. */
   accounts: Pick<Account, 'id' | 'owner_member_id' | 'balance_cents'>[]
 }

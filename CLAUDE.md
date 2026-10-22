@@ -77,8 +77,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `list_help_debts` / `set_help_debt`,
   `get_tax_estimate` (the shared `estimateHouseholdTaxFromRows`),
   `list_super_profiles` / `set_super_profile`, `list_super_contributions` and
-  `add_` / `update_` / `delete_super_contribution`, and `list_equity_grants` and
-  `add_` / `update_` / `delete_equity_grant`. Money is integer cents; failures are stable
+  `add_` / `update_` / `delete_super_contribution`, and `list_equity_grants` (with units
+  exercised, sold, and held) and `add_` / `update_` / `delete_equity_grant`,
+  `record_equity_exercise` / `record_equity_sale`, and
+  `delete_equity_exercise` / `delete_equity_sale`. Money is integer cents; failures are stable
   `code`s with fixed copy, never an upstream body. See
   [`docs/mcp.md`](docs/mcp.md).
 - Backend: Supabase (Sydney, Pro) — Postgres, Auth, PostgREST, Edge Functions,
@@ -649,7 +651,21 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   the current price per share itself. Only the vested portion is valued (options
   at their gain over the strike, shares at the price per share) and that vested
   value counts toward net worth as an asset. The vesting and valuation math is
-  pure, in `@nest/plan`.
+  pure, in `@nest/plan`. A member records what they do with a grant: an
+  **exercise** (`equity_exercise`: date, options exercised, strike paid
+  snapshotted from the grant, an informational market price) and a **sale**
+  (`equity_sale`: date, shares, price per share, fees), both on the Equity tab.
+  Only unexercised vested options are valued as options; exercised shares still
+  held are valued as shares and sold shares leave holdings. Triggers keep
+  exercises on option grants and within the grant, and sales within the shares
+  held (exercised options, or the whole of a share grant). Sales are capital-gains
+  events: options follow the startup concession, so no discount is taxed at
+  exercise, the cost base is the strike paid (nil for shares), and the CGT
+  discount's holding period runs from the grant date. Gains join the trades'
+  gains in the year's net capital gain (`matchEquitySales` in `@nest/tax`,
+  `equitySaleGains` in `@nest/household`), and `eofy-share` serves the three
+  equity tables so the shared view agrees. See
+  [`docs/investments.md`](docs/investments.md#equity-sales).
 - Investments: each member records their share and ETF buys and sells by hand on
   the Investments tab (`/investments`, the `trade` table: ticker, date, units,
   price per unit, brokerage fee), keyed by `source` + `external_id` as

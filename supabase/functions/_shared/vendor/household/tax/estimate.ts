@@ -21,6 +21,7 @@ import {
 } from '@nest/tax'
 import type {
   DeductionRow,
+  EquityRows,
   HelpDebtRow,
   InflowRow,
   MemberRow,
@@ -29,6 +30,7 @@ import type {
   TradeRow,
 } from '../rows.ts'
 import { currentTaxConfig } from './config.ts'
+import { equitySaleGains } from './equity.ts'
 import { inflowIncomeInputs } from './income.ts'
 import { atPreservationAgeOn } from './oneOff.ts'
 import {
@@ -85,7 +87,8 @@ function toTaxProfileInput(profile: TaxProfileRow, helpDebtCents: number): TaxPr
  * `trades`, when supplied, are every recorded share and ETF trade (not just the
  * year's, since a sale is matched against earlier purchases): each member's net
  * capital gain for `config.financialYear` joins their assessable income
- * (`netCapitalGainByMember`).
+ * (`netCapitalGainByMember`). `equity`, when supplied, adds the gains of every
+ * sale of startup equity to the same figure (`equitySaleGains`).
  */
 export function estimateHouseholdTaxFromRows(
   inflows: readonly InflowRow[],
@@ -98,6 +101,7 @@ export function estimateHouseholdTaxFromRows(
   members: readonly MemberRow[] = [],
   extraIncomes: readonly IncomeInput[] = [],
   trades: readonly TradeRow[] = [],
+  equity?: EquityRows,
 ): HouseholdTaxEstimate {
   // Keyed to allow a null member id, which a taxable inflow can carry: it simply
   // matches no member, and an unknown date of birth reads as the higher rate.
@@ -152,6 +156,10 @@ export function estimateHouseholdTaxFromRows(
     concessionalByMember(contributions, grossByMember),
     deductionsByMember(deductions),
     paygWithheld,
-    netCapitalGainByMember(toTradeInputs(trades), config.financialYear),
+    netCapitalGainByMember(
+      toTradeInputs(trades),
+      config.financialYear,
+      equity ? equitySaleGains(equity) : [],
+    ),
   )
 }

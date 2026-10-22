@@ -23,11 +23,14 @@ export {
   capitalGainsSummary,
   holdingValueCents,
   lastPriceByTicker,
+  matchEquitySales,
   matchTrades,
   netCapitalGainByMember,
 } from './capitalGains.ts'
 export type {
   CapitalGainsSummary,
+  EquityLotInput,
+  EquitySaleInput,
   Holding,
   RealisedGain,
   TradeInput,

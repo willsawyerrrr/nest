@@ -4,6 +4,8 @@ import {
   exerciseCostCents,
   grantValueCents,
   grossVestedValueCents,
+  heldShareQuantity,
+  unexercisedVestedQuantity,
   vestedQuantity,
   type EquityGrant,
 } from './equity.ts'
@@ -149,5 +151,57 @@ describe('equityTotalCents', () => {
 
   it('is zero for no grants', () => {
     expect(equityTotalCents([], new Date('2028-01-15'))).toBe(0)
+  })
+})
+
+describe('exercises and sales', () => {
+  const asOf = new Date('2025-01-15') // 12 of 48 units vested.
+  const options = (overrides: Partial<EquityGrant> = {}) =>
+    grant({
+      instrumentType: 'option',
+      strikePriceCents: 40,
+      pricePerShareCents: 1_00,
+      ...overrides,
+    })
+
+  it('leaves vested options unexercised until exercised', () => {
+    expect(unexercisedVestedQuantity(options(), asOf)).toBe(12)
+    expect(unexercisedVestedQuantity(options({ exercisedQuantity: 5 }), asOf)).toBe(7)
+    expect(unexercisedVestedQuantity(options({ exercisedQuantity: 20 }), asOf)).toBe(0)
+    expect(unexercisedVestedQuantity(grant(), asOf)).toBe(0)
+  })
+
+  it('holds exercised options less those sold', () => {
+    expect(heldShareQuantity(options(), asOf)).toBe(0)
+    expect(heldShareQuantity(options({ exercisedQuantity: 5 }), asOf)).toBe(5)
+    expect(heldShareQuantity(options({ exercisedQuantity: 5, soldQuantity: 2 }), asOf)).toBe(3)
+  })
+
+  it('holds vested shares less those sold, never negative', () => {
+    expect(heldShareQuantity(grant({ soldQuantity: 4 }), asOf)).toBe(8)
+    expect(heldShareQuantity(grant({ soldQuantity: 99 }), asOf)).toBe(0)
+  })
+
+  it('values unexercised options at their gain and held shares at the price', () => {
+    const exercised = options({ exercisedQuantity: 5, soldQuantity: 2 })
+    // 7 unexercised × (100 − 40) + 3 held × 100.
+    expect(grantValueCents(exercised, asOf)).toBe(7 * 60 + 3 * 100)
+    expect(grossVestedValueCents(exercised, asOf)).toBe(10 * 100)
+    expect(exerciseCostCents(exercised, asOf)).toBe(7 * 40)
+  })
+
+  it('counts nothing for sold shares', () => {
+    expect(grantValueCents(grant({ soldQuantity: 12 }), asOf)).toBe(0)
+  })
+
+  it('floors the unexercised options at zero when underwater but still values held shares', () => {
+    const underwater = options({ strikePriceCents: 5_00, exercisedQuantity: 5 })
+    expect(grantValueCents(underwater, asOf)).toBe(5 * 100)
+  })
+
+  it('sums exercised-aware values across grants', () => {
+    expect(
+      equityTotalCents([options({ exercisedQuantity: 12 }), grant({ soldQuantity: 2 })], asOf),
+    ).toBe(12 * 100 + 10 * 100)
   })
 })

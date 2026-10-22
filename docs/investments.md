@@ -219,6 +219,22 @@ each member's tax figures when they have one. The `eofy-share` function serves
 the household's trades (unfiltered by financial year, since a sale is matched
 against earlier purchases) so the shared view estimates the same figure.
 
+## Equity sales
+
+A sale of shares recorded against an equity grant on the Equity tab is a capital
+gains event too, and joins the trades' gains in the same year's net capital gain
+(`matchEquitySales` in `@nest/tax`, pooled by `netCapitalGainByMember`, so losses
+net across both). Startup options are modelled under the startup concession: no
+employment share scheme discount is taxed when options are exercised, so a sale's
+cost base is the strike paid at exercise (nil for a share grant) and the gain is
+taxed at sale. The 12-month CGT discount's holding period runs from the grant
+date. An exercise therefore changes the tax estimate only through its cost base
+and net worth only by moving units from options to shares; the optional market
+price at exercise is informational. Sales are matched first-in first-out to the
+grant's exercises; units sold beyond them are left out. `@nest/household`'s
+`equitySaleGains` maps the stored rows, and `eofy-share` serves the household's
+grants, exercises, and sales so the shared view estimates the same figure.
+
 ## Net worth
 
 Each member's holdings count toward net worth in the Equity group, valued at the

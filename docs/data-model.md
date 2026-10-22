@@ -442,6 +442,28 @@ and so without the trigger.
     valuation are computed client-side by `@nest/plan` (`vestedQuantity`,
     `grantValueCents`); the vested value seeds the Net worth tab as an asset.
     Edited on the Equity tab.
+- **equity_exercise** — per member; many rows per option grant. An exercise of
+  options, converting them to shares at the strike.
+  - `id`, `household_id`, `member_id`, `grant_id`, `exercised_on`, `quantity`
+    (bigint whole options, `> 0`), `strike_price_cents` (bigint, `>= 0`, the strike
+    paid, snapshotted from the grant by a `BEFORE INSERT` trigger when a write
+    leaves it null), `market_price_per_share_cents` (nullable, informational only),
+    `created_at`, `updated_at`.
+  - Composite FKs on `(member_id, household_id)` → `members` and
+    `(grant_id, household_id)` → `equity_grant` (which carries a unique
+    `(id, household_id)` for it); deleting a grant cascades.
+- **equity_sale** — per member; many rows per grant. A sale of shares from a grant.
+  - `id`, `household_id`, `member_id`, `grant_id`, `sold_on`, `quantity` (bigint
+    whole shares, `> 0`), `price_per_share_cents` (`>= 0`), `fee_cents` (`>= 0`,
+    default 0), `created_at`, `updated_at`; the same composite FKs.
+  - The `check_equity_quantities` triggers (fixed `check_violation` messages
+    `equity_exercise_not_option`, `equity_exercise_exceeds_grant`,
+    `equity_sale_exceeds_holding`) keep exercises on option grants and within the
+    grant's quantity, and sales within the shares held (exercised options for an
+    option grant, the grant's quantity for a share grant), after every change to a
+    grant, exercise, or sale. Holdings are derived, never stored. RLS is
+    household-wide CRUD on `household_id`; `service_role` has `select` on both and
+    on `equity_grant` for `eofy-share`.
 - **trade** — per member; many rows per member (a collection). A recorded buy or
   sell of a share or ETF; holdings, cost base, and realised capital gains are
   derived from these rows, never stored. See [`investments.md`](investments.md).

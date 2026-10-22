@@ -1,7 +1,8 @@
 /**
  * Startup equity vesting and valuation: how much of a grant has vested by a given
- * date, and the current value of that vested portion. Pure and deterministic —
- * the `asOf` date is passed in, never read from the clock here.
+ * date, what is still held after exercises and sales, and the current value of
+ * those holdings. Pure and deterministic — the `asOf` date is passed in, never
+ * read from the clock here.
  */
 
 import type { Money } from './index.ts'
@@ -23,7 +24,10 @@ const INTERVAL_MONTHS: Record<VestingFrequency, number> = {
  * A single equity grant's vesting shape and current price. `grantDate` is an ISO
  * date (YYYY-MM-DD). `quantity` is whole units. `strikePriceCents` is the
  * per-share exercise price for options and null for shares; `pricePerShareCents`
- * is the user-maintained current fair value per share.
+ * is the user-maintained current fair value per share. `exercisedQuantity` and
+ * `soldQuantity` are the whole units already exercised (options only) and sold,
+ * summed over the grant's recorded exercises and sales; both read as zero when
+ * absent.
  */
 export interface EquityGrant {
   readonly quantity: number
@@ -34,6 +38,8 @@ export interface EquityGrant {
   readonly instrumentType: EquityInstrumentType
   readonly strikePriceCents: Money | null
   readonly pricePerShareCents: Money
+  readonly exercisedQuantity?: number
+  readonly soldQuantity?: number
 }
 
 /**
@@ -75,37 +81,70 @@ export function vestedQuantity(grant: EquityGrant, asOf: Date): number {
 }
 
 /**
- * The gross value of a grant's vested portion, in integer cents: vested units
- * times the price per share, ignoring any strike. For options this is the full
- * value before the exercise cost is paid; for shares it equals the net value.
+ * The vested options not yet exercised as of `asOf`, never negative. Zero for a
+ * share grant, which has nothing to exercise.
  */
-export function grossVestedValueCents(grant: EquityGrant, asOf: Date): number {
-  return vestedQuantity(grant, asOf) * grant.pricePerShareCents
+export function unexercisedVestedQuantity(grant: EquityGrant, asOf: Date): number {
+  if (grant.instrumentType !== 'option') {
+    return 0
+  }
+  return Math.max(0, vestedQuantity(grant, asOf) - (grant.exercisedQuantity ?? 0))
 }
 
 /**
- * The cost to exercise a grant's vested portion, in integer cents: vested units
- * times the strike. Zero for shares (and for an option with a null strike),
- * which carry no exercise cost.
+ * The shares held as of `asOf`, never negative: for an option grant the exercised
+ * options not yet sold, for a share grant the vested shares not yet sold. Sold
+ * units leave the holding.
+ */
+export function heldShareQuantity(grant: EquityGrant, asOf: Date): number {
+  const sold = grant.soldQuantity ?? 0
+  const acquired =
+    grant.instrumentType === 'option' ? (grant.exercisedQuantity ?? 0) : vestedQuantity(grant, asOf)
+  return Math.max(0, acquired - sold)
+}
+
+/**
+ * The gross value of what a grant holds, in integer cents: unexercised vested
+ * options and held shares, each unit at the price per share, ignoring any
+ * strike. For options this is the full value before the exercise cost of the
+ * unexercised ones is paid; for shares it equals the net value.
+ */
+export function grossVestedValueCents(grant: EquityGrant, asOf: Date): number {
+  return (
+    (unexercisedVestedQuantity(grant, asOf) + heldShareQuantity(grant, asOf)) *
+    grant.pricePerShareCents
+  )
+}
+
+/**
+ * The cost to exercise a grant's unexercised vested options, in integer cents:
+ * those options times the strike. Zero for shares (and for an option with a null
+ * strike), which carry no exercise cost.
  */
 export function exerciseCostCents(grant: EquityGrant, asOf: Date): number {
   if (grant.instrumentType !== 'option') {
     return 0
   }
-  return vestedQuantity(grant, asOf) * (grant.strikePriceCents ?? 0)
+  return unexercisedVestedQuantity(grant, asOf) * (grant.strikePriceCents ?? 0)
 }
 
 /**
- * The current value of a grant's vested portion, in integer cents, never
- * negative. This is the net "if exercised today" value — the gross vested value
- * less the exercise cost — so options are worth their intrinsic gain over the
- * strike (a null strike counts as zero) and shares are worth their gross value.
+ * The current value of what a grant holds, in integer cents, never negative.
+ * Unexercised vested options are worth their intrinsic gain over the strike (a
+ * null strike counts as zero) — the net "if exercised today" value; exercised
+ * options and shares still held are worth their gross value, the strike having
+ * been paid at exercise. Units sold are no longer held, so count for nothing.
  */
 export function grantValueCents(grant: EquityGrant, asOf: Date): number {
-  return Math.max(0, grossVestedValueCents(grant, asOf) - exerciseCostCents(grant, asOf))
+  const unexercised = unexercisedVestedQuantity(grant, asOf)
+  const optionGain = Math.max(
+    0,
+    unexercised * (grant.pricePerShareCents - (grant.strikePriceCents ?? 0)),
+  )
+  return optionGain + heldShareQuantity(grant, asOf) * grant.pricePerShareCents
 }
 
-/** The summed vested value of every grant as of `asOf`, in integer cents. */
+/** The summed value of every grant's holdings as of `asOf`, in integer cents. */
 export function equityTotalCents(grants: readonly EquityGrant[], asOf: Date): number {
   return grants.reduce((total, grant) => total + grantValueCents(grant, asOf), 0)
 }

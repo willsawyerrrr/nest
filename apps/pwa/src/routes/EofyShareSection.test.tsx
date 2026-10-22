@@ -47,6 +47,9 @@ const shareData: EofyShareData = {
   payslips: [],
   savingsGoals: [],
   trades: [],
+  equityGrants: [],
+  equityExercises: [],
+  equitySales: [],
   accounts: [],
 }
 

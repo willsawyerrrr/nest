@@ -2,6 +2,9 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { usePlanningMode } from '../components/PlanningModeProvider'
 import { TaxEstimateView } from '../components/TaxEstimateView'
 import { useDeductions } from '../hooks/useDeductions'
+import { useEquityExercises } from '../hooks/useEquityExercises'
+import { useEquityGrants } from '../hooks/useEquityGrants'
+import { useEquitySales } from '../hooks/useEquitySales'
 import { useGoals } from '../hooks/useGoals'
 import { useHelpDebts } from '../hooks/useHelpDebts'
 import { useInflows } from '../hooks/useInflows'
@@ -35,6 +38,9 @@ export function TaxSection() {
   const goals = useGoals()
   const savers = useSavers()
   const trades = useTrades()
+  const equityGrants = useEquityGrants()
+  const equityExercises = useEquityExercises()
+  const equitySales = useEquitySales()
 
   if (
     membersLoading ||
@@ -48,6 +54,9 @@ export function TaxSection() {
     goals.loading ||
     savers.loading ||
     trades.loading ||
+    equityGrants.loading ||
+    equityExercises.loading ||
+    equitySales.loading ||
     !members
   ) {
     return <LoadingScreen />
@@ -55,6 +64,11 @@ export function TaxSection() {
 
   const config = currentTaxConfig()
   const saverRows = savers.savers ?? []
+  const equity = {
+    grants: equityGrants.grants ?? [],
+    exercises: equityExercises.exercises ?? [],
+    sales: equitySales.sales ?? [],
+  }
   // A goal modelling an interest rate adds projected savings interest to the
   // estimate as assessable `other` income, attributed by its linked saver's
   // ownership (else split across the household).
@@ -80,6 +94,7 @@ export function TaxSection() {
     members,
     interestIncomes,
     trades.trades ?? [],
+    equity,
   )
   const capSummaries = superCapSummaryFromRows(
     inflows.inflows ?? [],
@@ -108,6 +123,7 @@ export function TaxSection() {
         members,
         projectedInterestIncomeInputs(goals.baselineGoals ?? [], saverRows, members),
         trades.trades ?? [],
+        equity,
       )
     : undefined
 

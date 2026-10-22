@@ -136,8 +136,10 @@ of the allowance, so it counts against the allowance rather than on top of it:
   member's own also shows a progress bar and what is left.
 - **Private items.** The items drawn from an allowance are readable and editable
   only by that member, enforced by row-level security on `budget_line`. They
-  appear in the member's own "Your allowance" section of the Budget tab, which is
-  where they are added (with the allowance preselected); everyone else sees
+  appear on the member's own allowance page (`/allowance`, reached from the
+  chevron on their allowance's card in the Budget tab), which is where they are
+  added (with the allowance preselected) and kept out of the Budget tab's
+  groups; everyone else sees
   neither the items nor the drawn total or remaining. The household's figures
   count each allowance as its amount, so nothing about the drawn items is shared.
   The `budget-line` Siri query leaves a co-member's allowance items out.
@@ -484,7 +486,8 @@ reload-safe; keyboard shortcuts jump between them.
   search, and sort (Default / Name / Amount + direction, persisted to
   localStorage), listing each member's spending allowance at the top of the
   Discretionary group (with what is drawn and what is left for the signed-in
-  member's own), and the member's allowance items in their own section.
+  member's own, with a chevron through to the allowance page listing the
+  member's allowance items).
 - **Summary screen** — the reconciliation dashboard, led by an allocation donut and a cash-flow Sankey.
 - **Goals screen** — targets, dates, current balance, modelled interest rate,
   progress + ETA; link Savings lines to a goal.

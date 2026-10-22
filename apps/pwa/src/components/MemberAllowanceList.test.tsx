@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { makeBudgetLine, makeMemberAllowance } from '../test/fixtures'
@@ -18,7 +19,11 @@ function renderList(overrides: Partial<Parameters<typeof MemberAllowanceList>[0]
     onUpdate: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
-  render(<MemberAllowanceList {...props} />)
+  render(
+    <MemoryRouter>
+      <MemberAllowanceList {...props} />
+    </MemoryRouter>,
+  )
   return props
 }
 
@@ -33,6 +38,15 @@ describe('MemberAllowanceList', () => {
     expect(screen.queryByRole('button', { name: /set .*allowance/i })).toBeNull()
   })
 
+  it('links only the signed-in member’s allowance through to its items', () => {
+    renderList({
+      allowances: [makeMemberAllowance(), makeMemberAllowance({ id: 'al2', member_id: 'm2' })],
+    })
+    const links = screen.getAllByRole('link', { name: 'Open allowance items' })
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute('href', '/allowance')
+  })
+
   it('shows nothing for a member whose allowance has not loaded', () => {
     renderList({ allowances: [] })
     expect(screen.queryByText(/allowance$/i)).toBeNull()
@@ -40,13 +54,15 @@ describe('MemberAllowanceList', () => {
 
   it('shows an unset allowance as an empty bar', () => {
     render(
-      <MemberAllowanceList
-        members={members}
-        allowances={[makeMemberAllowance({ amount_cents: 0 })]}
-        currentMemberId="m1"
-        lines={[]}
-        onUpdate={vi.fn()}
-      />,
+      <MemoryRouter>
+        <MemberAllowanceList
+          members={members}
+          allowances={[makeMemberAllowance({ amount_cents: 0 })]}
+          currentMemberId="m1"
+          lines={[]}
+          onUpdate={vi.fn()}
+        />
+      </MemoryRouter>,
     )
     expect(screen.getByRole('progressbar', { name: 'Ada’s allowance drawn' })).toHaveAttribute(
       'aria-valuenow',

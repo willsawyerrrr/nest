@@ -80,6 +80,9 @@ vi.mock('./routes/EquitySection', () => ({ EquitySection: () => <div>EquitySecti
 vi.mock('./routes/InvestmentsSection', () => ({
   InvestmentsSection: () => <div>InvestmentsSection</div>,
 }))
+vi.mock('./routes/AllowanceSection', () => ({
+  AllowanceSection: () => <div>AllowanceSection</div>,
+}))
 vi.mock('./routes/GiftsSection', () => ({ GiftsSection: () => <div>GiftsSection</div> }))
 vi.mock('./routes/BreakdownsSection', () => ({
   BreakdownsSection: () => <div>BreakdownsSection</div>,
@@ -240,6 +243,7 @@ describe('App', () => {
     ['/equity', 'EquitySection'],
     ['/investments', 'InvestmentsSection'],
     ['/gifts', 'GiftsSection'],
+    ['/allowance', 'AllowanceSection'],
     ['/breakdowns', 'BreakdownsSection'],
     ['/breakdowns/b1', 'BreakdownDetailSection'],
     ['/whats-new', 'ChangelogSection'],

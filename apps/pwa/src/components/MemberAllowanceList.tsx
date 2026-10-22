@@ -1,4 +1,6 @@
-import { Badge, Group, Progress, Stack, Text, Title } from '@mantine/core'
+import { Link } from 'react-router-dom'
+import { ActionIcon, Badge, Group, Progress, Stack, Text, Title } from '@mantine/core'
+import { IconChevronRight } from '@tabler/icons-react'
 import { summariseAllowances, type AllowanceSummary } from '@nest/plan'
 import type { BudgetLine } from '../hooks/useBudgetLines'
 import { useInlineEditing } from '../hooks/useInlineEditing'
@@ -64,6 +66,16 @@ function AllowanceCard({
           </Stack>
           <Group gap="xxs" wrap="nowrap" style={{ flexShrink: 0 }}>
             <EditAction onClick={onEdit} />
+            {own && (
+              <ActionIcon
+                component={Link}
+                to="/allowance"
+                variant="subtle"
+                aria-label="Open allowance items"
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            )}
           </Group>
         </Group>
         {own && (

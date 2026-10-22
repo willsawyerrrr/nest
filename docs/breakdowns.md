@@ -296,7 +296,8 @@ Owned by a breakdown; every breakdown is generic.
 - **Gift rows** — each pairing is a compact list row (a card on narrow screens)
   showing its label, date, and `Left $X` (red once over budget) over a thin spend
   progress bar; tapping it expands the budget and spent figures, its purchases, an
-  add-purchase form, and edit / delete budget. A gift for the signed-in member shows
+  add-purchase form, and edit / delete budget. On narrow screens the row and its
+  expansion share one card, purchases as dense divided rows rather than a card each. A gift for the signed-in member shows
   its budget alone with an edit pencil.
 - **Gift purchase rows** — every pairing row takes a hand-entered purchase
   (description, amount, date) as well. A purchase is a compact row with the shared

@@ -71,18 +71,22 @@ export function GiftSpendBar({ totals, label }: { totals: GiftTotals; label: str
 
 /**
  * A gift list row: a dense table-like `ListRow` from the `sm` breakpoint up and
- * a compact bordered card below it, with `caption` beneath the columns.
+ * a compact bordered card below it, with `caption` beneath the columns. A
+ * `flat` row keeps the dense row form on narrow screens too, for rows that sit
+ * inside a card of their own.
  */
 export function GiftCompactRow({
   wide,
+  flat = false,
   caption,
   children,
 }: {
   wide: boolean
+  flat?: boolean
   caption?: ReactNode
   children: ReactNode
 }) {
-  if (wide) {
+  if (wide || flat) {
     return <ListRow caption={caption}>{children}</ListRow>
   }
   return (
@@ -104,16 +108,20 @@ export function GiftCompactRow({
  * recipient shows that tag as a badge — record-keeping only, so it reads apart
  * from the transaction-linked badge. An ad hoc purchase also offers an Assign
  * action, moving it out of the buffer and into a specific recipient's gift
- * budget once one is known.
+ * budget once one is known. A `flat` purchase stays a dense row on mobile, for
+ * a list that already sits inside a card.
  */
 export function PurchaseRow({
   purchase,
   recipientLabel,
+  flat = false,
   onAssign,
   onEdit,
   onDelete,
 }: {
   purchase: GiftPurchase
+  /** Renders as a dense row rather than a bordered card on mobile. */
+  flat?: boolean
   /** The tagged recipient's name, for an ad hoc purchase that names one. */
   recipientLabel?: string | undefined
   /** Assigns this ad hoc purchase to a recipient's gift budget; omitted for a budget-linked purchase, or when there is nothing yet to assign it to. */
@@ -166,7 +174,7 @@ export function PurchaseRow({
     </Group>
   )
   return (
-    <GiftCompactRow wide={wide}>
+    <GiftCompactRow wide={wide} flat={flat}>
       {title}
       {wide && (
         <Text size="sm" c="dimmed" style={{ width: '6rem', flexShrink: 0 }}>

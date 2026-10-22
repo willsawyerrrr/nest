@@ -16,6 +16,9 @@ import './App.css'
 
 // Each route section is loaded on demand so its screen and dependencies form
 // their own chunk, keeping the initial download to the auth/onboarding shell.
+const AllowanceSection = lazy(() =>
+  import('./routes/AllowanceSection').then((m) => ({ default: m.AllowanceSection })),
+)
 const BreakdownDetailSection = lazy(() =>
   import('./routes/BreakdownDetailSection').then((m) => ({ default: m.BreakdownDetailSection })),
 )
@@ -254,6 +257,7 @@ function HouseholdShell({
             <Route path="/net-worth" element={<NetWorthSection />} />
             <Route path="/inflows" element={<InflowsSection />} />
             <Route path="/budget" element={<BudgetSection />} />
+            <Route path="/allowance" element={<AllowanceSection />} />
             <Route path="/splits" element={<SplitsSection />} />
             <Route path="/goals" element={<GoalsSection />} />
             <Route path="/wishlist" element={<WishlistSection />} />

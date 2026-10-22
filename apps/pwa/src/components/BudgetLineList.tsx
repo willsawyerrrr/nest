@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ActionIcon, CloseButton, Flex, Group, Select, Stack, TextInput } from '@mantine/core'
 import {
   fortnightlyCents,
@@ -34,9 +34,9 @@ interface BudgetLineListProps {
    */
   allowances?: { name: string; allowance: MemberAllowance }[]
   /**
-   * The signed-in member, whose allowance items are listed apart in their own
-   * section and who alone may draw an item from an allowance (theirs). Items drawn
-   * from a co-member's allowance are private to them and never reach this list.
+   * The signed-in member, who alone may draw an item from an allowance (theirs).
+   * Items drawn from their allowance are listed on the allowance page, not here;
+   * items drawn from a co-member's are private to them and never reach this list.
    */
   ownAllowanceMemberId?: string | null
   /** Rendered at the top of the Discretionary group, above its lines. */
@@ -54,8 +54,8 @@ interface BudgetLineListProps {
   onDelete: (id: string) => void
 }
 
-/** Which add form is open: the top-level item form, a per-group line form, or the member's allowance item form. */
-type AddContext = { kind: 'item' } | { kind: 'group'; group: BudgetGroup } | { kind: 'allowance' }
+/** Which add form is open: the top-level item form or a per-group line form. */
+type AddContext = { kind: 'item' } | { kind: 'group'; group: BudgetGroup }
 
 /** How the lines within each group are ordered. */
 type SortKey = 'default' | 'name' | 'amount'
@@ -124,10 +124,6 @@ export function BudgetLineList({
     lines.map(toPlanDrawableLine),
     planAllowances,
   ).reduce((total, summary) => total + summary.allowance.fortnightlyCents, 0)
-  const allowanceDrawnCents =
-    summariseAllowances(lines.map(toPlanDrawableLine), planAllowances).find(
-      (summary) => summary.memberId === ownAllowanceMemberId,
-    )?.drawn.fortnightlyCents ?? 0
   const breakdownsById = new Map(breakdowns.map((breakdown) => [breakdown.id, breakdown]))
   const {
     editingId,
@@ -139,7 +135,6 @@ export function BudgetLineList({
   const { confirm, modal } = useConfirmDelete()
   const addingItem = adding?.kind === 'item'
   const addingGroup = adding?.kind === 'group' ? adding.group : null
-  const addingAllowanceItem = adding?.kind === 'allowance'
   const [query, setQuery] = useState('')
   const {
     key: sortKey,
@@ -155,14 +150,6 @@ export function BudgetLineList({
   const searching = search !== ''
   const isOwnAllowanceLine = (line: BudgetLine) =>
     ownAllowance != null && line.allowance_member_id === ownAllowanceMemberId
-  const ownLines = sortLines(
-    lines.filter(
-      (line) =>
-        isOwnAllowanceLine(line) && (!searching || line.name.toLowerCase().includes(search)),
-    ),
-    sortKey,
-    sortDirection,
-  )
 
   const renderLine = (line: BudgetLine) => {
     const breakdown = line.breakdown_id ? breakdownsById.get(line.breakdown_id) : undefined
@@ -323,8 +310,8 @@ export function BudgetLineList({
         if (searching && visibleLines.length === 0) {
           return null
         }
-        const section = (
-          <GroupSection title={label} subtotalCents={subtotal}>
+        return (
+          <GroupSection key={group} title={label} subtotalCents={subtotal}>
             {group === 'discretionary' && !searching && discretionaryHeader}
             {!searching && groupLines.length === 0 && addingGroup !== group && (
               <EmptyState>No {label.toLowerCase()} items yet.</EmptyState>
@@ -349,40 +336,6 @@ export function BudgetLineList({
                 <AddButton label={`Add ${label} item`} onClick={() => startAdding(group)} />
               ))}
           </GroupSection>
-        )
-        if (group !== 'discretionary' || !ownAllowance || (searching && ownLines.length === 0)) {
-          return <Fragment key={group}>{section}</Fragment>
-        }
-        return (
-          <Fragment key={group}>
-            {section}
-            <GroupSection title="Your allowance" subtotalCents={allowanceDrawnCents}>
-              {!searching && ownLines.length === 0 && !addingAllowanceItem && (
-                <EmptyState>Nothing drawn from your allowance yet.</EmptyState>
-              )}
-              {ownLines.map(renderLine)}
-              {!searching &&
-                (addingAllowanceItem ? (
-                  <BudgetLineForm
-                    defaultGroup="discretionary"
-                    defaultAllowanceMemberId={ownAllowance.allowance.memberId}
-                    goals={goals}
-                    accounts={accounts}
-                    allowances={drawChoices}
-                    onSubmit={async (input) => {
-                      await onCreate(input)
-                      closeForms()
-                    }}
-                    onCancel={closeForms}
-                  />
-                ) : (
-                  <AddButton
-                    label="Add allowance item"
-                    onClick={() => startAddingContext({ kind: 'allowance' })}
-                  />
-                ))}
-            </GroupSection>
-          </Fragment>
         )
       })}
 

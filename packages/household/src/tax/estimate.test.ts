@@ -522,4 +522,25 @@ describe('estimateHouseholdTaxFromRows equity sales', () => {
       }).annualNetCapitalGainCents,
     ).toBe(0)
   })
+
+  it('ignores exercises and sales whose grant is not in the rows', () => {
+    const orphan = { grant_id: 'missing', member_id: 'm1' }
+    expect(
+      estimateWith({
+        grants: [],
+        exercises: [
+          { ...orphan, exercised_on: '2026-08-01', quantity: 100, strike_price_cents: 1_00 },
+        ],
+        sales: [
+          {
+            ...orphan,
+            sold_on: '2026-09-01',
+            quantity: 100,
+            price_per_share_cents: 21_00,
+            fee_cents: 0,
+          },
+        ],
+      }).annualNetCapitalGainCents,
+    ).toBe(0)
+  })
 })

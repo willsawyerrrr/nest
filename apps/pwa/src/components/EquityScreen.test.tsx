@@ -270,4 +270,85 @@ describe('EquityScreen', () => {
       ),
     )
   })
+
+  it('confirms before deleting an exercise or a sale', async () => {
+    const user = userEvent.setup()
+    const onDeleteExercise = vi.fn().mockResolvedValue(undefined)
+    const onDeleteSale = vi.fn().mockResolvedValue(undefined)
+    renderScreen({
+      members: [will],
+      grants: [
+        makeGrant({ label: '2024 options', instrument_type: 'option', strike_price_cents: 40 }),
+      ],
+      exercises: [
+        {
+          id: 'ex1',
+          household_id: 'h1',
+          member_id: 'm1',
+          grant_id: 'eg1',
+          exercised_on: '2024-12-01',
+          quantity: 5,
+          strike_price_cents: 40,
+          market_price_per_share_cents: null,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+      sales: [
+        {
+          id: 's1',
+          household_id: 'h1',
+          member_id: 'm1',
+          grant_id: 'eg1',
+          sold_on: '2025-01-02',
+          quantity: 2,
+          price_per_share_cents: 1_00,
+          fee_cents: 50,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+      onDeleteExercise,
+      onDeleteSale,
+    })
+    for (const [title, handler, id] of [
+      ['5 × 2024 options', onDeleteExercise, 'ex1'],
+      ['2 × 2024 options', onDeleteSale, 's1'],
+    ] as const) {
+      const card = screen.getByText(title).closest('.mantine-Card-root') as HTMLElement
+      await user.click(within(card).getByRole('button', { name: /delete/i }))
+      const dialog = await screen.findByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: /delete/i }))
+      expect(handler).toHaveBeenCalledWith(id)
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    }
+  })
+
+  it('defaults an exercise to the strike of the grant chosen', async () => {
+    const user = userEvent.setup()
+    const onCreateExercise = vi.fn().mockResolvedValue(undefined)
+    renderScreen({
+      members: [will],
+      grants: [
+        makeGrant({ label: 'Opts A', instrument_type: 'option', strike_price_cents: 40 }),
+        makeGrant({
+          id: 'eg2',
+          label: 'Opts B',
+          instrument_type: 'option',
+          strike_price_cents: 75,
+        }),
+      ],
+      onCreateExercise,
+    })
+    await user.click(screen.getByRole('button', { name: /record exercise/i }))
+    await user.click(screen.getAllByLabelText(/^grant$/i)[0]!)
+    await user.click(await screen.findByRole('option', { name: 'Opts B' }))
+    await user.type(screen.getByLabelText(/options exercised/i), '3')
+    await user.click(screen.getByRole('button', { name: /^add exercise$/i }))
+    await waitFor(() =>
+      expect(onCreateExercise).toHaveBeenCalledWith(
+        expect.objectContaining({ grant_id: 'eg2', quantity: 3, strike_price_cents: 75 }),
+      ),
+    )
+  })
 })

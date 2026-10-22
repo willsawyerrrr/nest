@@ -121,6 +121,11 @@ describe('gross, exercise cost, and net decomposition', () => {
     expect(grossVestedValueCents(shares, asOf)).toBe(grantValueCents(shares, asOf))
   })
 
+  it('treats an option with no strike as costing nothing to exercise', () => {
+    const noStrike = grant({ instrumentType: 'option', strikePriceCents: null })
+    expect(exerciseCostCents(noStrike, new Date('2025-01-15'))).toBe(0)
+  })
+
   it('floors an underwater option net at zero while gross stays positive', () => {
     const underwater = grant({
       instrumentType: 'option',

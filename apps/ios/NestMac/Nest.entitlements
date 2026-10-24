@@ -10,5 +10,9 @@
 	<array>
 		<string>8558CXPT9G.dev.willsawyerrrr.nest</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)dev.willsawyerrrr.nest.macos</string>
+	</array>
 </dict>
 </plist>

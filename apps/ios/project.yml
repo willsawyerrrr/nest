@@ -167,6 +167,9 @@ targets:
         DEVELOPMENT_TEAM: 8558CXPT9G
         ENABLE_APP_SANDBOX: true
         ENABLE_HARDENED_RUNTIME: true
+        # Set only by `scripts/package-mac-app.sh`, which signs with Developer ID
+        # profiles; empty for every other build.
+        PROVISIONING_PROFILE_SPECIFIER: $(NEST_MAC_APP_PROFILE)
 
   # The Mac share menu's "Nest" destination; the iOS `ShareExtension` counterpart.
   ShareExtensionMac:
@@ -198,6 +201,7 @@ targets:
         ENABLE_APP_SANDBOX: true
         ENABLE_HARDENED_RUNTIME: true
         APPLICATION_EXTENSION_API_ONLY: true
+        PROVISIONING_PROFILE_SPECIFIER: $(NEST_MAC_EXTENSION_PROFILE)
 
   NestMacTests:
     type: bundle.unit-test

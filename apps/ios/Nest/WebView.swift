@@ -2,7 +2,16 @@ import Auth
 import SwiftUI
 import WebKit
 
-/// `UIViewRepresentable` wrapper around `WKWebView` that loads a fixed URL and
+#if os(macOS)
+import AppKit
+/// The platform's `UIViewRepresentable` / `NSViewRepresentable`.
+private typealias PlatformViewRepresentable = NSViewRepresentable
+#else
+import UIKit
+private typealias PlatformViewRepresentable = UIViewRepresentable
+#endif
+
+/// Representable wrapper around `WKWebView` that loads a fixed URL and
 /// reports load progress and failures through its bindings.
 ///
 /// Uses the default, persistent `WKWebsiteDataStore` (rather than an ephemeral
@@ -19,7 +28,7 @@ import WebKit
 /// user activation. `javaScriptCanOpenWindowsAutomatically` lets it through, and
 /// the `WKUIDelegate` hands the new-window request's `https` URL to the system
 /// browser (a `WKWebView` otherwise drops new-window requests silently).
-struct WebView: UIViewRepresentable {
+struct WebView: PlatformViewRepresentable {
     let url: URL
     @Binding var isLoading: Bool
     @Binding var loadError: String?
@@ -28,7 +37,23 @@ struct WebView: UIViewRepresentable {
         Coordinator(self)
     }
 
-    func makeUIView(context: Context) -> WKWebView {
+    #if os(macOS)
+    func makeNSView(context: Context) -> WKWebView { makeWebView(context: context) }
+    func updateNSView(_ webView: WKWebView, context: Context) {}
+    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        dismantle(webView, coordinator: coordinator)
+    }
+    #else
+    func makeUIView(context: Context) -> WKWebView { makeWebView(context: context) }
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // The URL is fixed for the lifetime of the view; nothing to update.
+    }
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        dismantle(webView, coordinator: coordinator)
+    }
+    #endif
+
+    private func makeWebView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
@@ -50,11 +75,7 @@ struct WebView: UIViewRepresentable {
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {
-        // The URL is fixed for the lifetime of the view; nothing to update.
-    }
-
-    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+    private static func dismantle(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestAuth")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestShare")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestReady")
@@ -129,7 +150,11 @@ struct WebView: UIViewRepresentable {
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
             if let url = SessionBridge.externalURL(for: navigationAction.request) {
+                #if os(macOS)
+                NSWorkspace.shared.open(url)
+                #else
                 UIApplication.shared.open(url)
+                #endif
             }
             return nil
         }
@@ -159,12 +184,18 @@ struct WebView: UIViewRepresentable {
             }
         }
 
+        #if os(macOS)
+        private static let didBecomeActive = NSApplication.didBecomeActiveNotification
+        #else
+        private static let didBecomeActive = UIApplication.didBecomeActiveNotification
+        #endif
+
         /// Hands files waiting in the share inbox to the page's deduction
         /// receipt queue whenever the app comes back to the foreground.
         private func observeForeground() {
             guard foregroundObservation == nil else { return }
             foregroundObservation = NotificationCenter.default.addObserver(
-                forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+                forName: Self.didBecomeActive, object: nil, queue: .main
             ) { [weak self] _ in
                 Task { @MainActor in await self?.deliverSharedFiles() }
             }

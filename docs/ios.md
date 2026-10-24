@@ -1,7 +1,8 @@
 # iOS and macOS app
 
-`apps/ios` is a thin native app, built from one codebase for two destinations —
-iOS and Mac Catalyst. The PWA
+`apps/ios` is a thin native app with two Xcode targets built from one set of
+sources: `Nest` (iOS and Mac Catalyst destinations) and `NestMac` (a native
+AppKit/SwiftUI macOS app). The PWA
 (`https://nest.willsawyerrrr.dev`) is the entire product UI; the native app
 embeds it in a `WKWebView` and adds Siri / App Intents access to key figures.
 Four read-only queries so far: the household's fortnightly buffer after
@@ -9,15 +10,33 @@ saving, its savings-goal progress, how much a named budget line is planned
 at, and its recommended pay split.
 
 Nothing about how the PWA is built, deployed, or served changes because this
-app exists. Nothing in the Swift source differs between the two destinations
-either — `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` on the
-one `Nest` target is the entire difference; every file below applies to both.
+app exists. `Nest`'s two destinations differ only by
+`project.yml`'s `supportedDestinations: [iOS, macCatalyst]`. `NestMac` compiles
+the same `Nest/` and `Shared/` sources for macOS; the few platform differences
+are `#if os(macOS)` branches (`Auth.swift`'s presenting window, `WebView.swift`'s
+`NSViewRepresentable`, external-link and foreground handling, `ContentView.swift`'s
+dynamic colours). Every file below applies to all three builds unless noted.
+
+### Native macOS target
+
+`NestMac` (`dev.willsawyerrrr.nest.macos`, product name `Nest`, macOS 15 — the
+floor for Spotlight's `indexAppEntities`) is an App Sandbox, hardened-runtime
+app with the `network.client`, `group.dev.willsawyerrrr.nest` App Group, and
+keychain-group entitlements (`NestMac/Nest.entitlements`). It exposes the same four
+App Intents and App Shortcuts and the same Spotlight index as `Nest`, and its
+embedded share extension is `ShareExtensionMac/`. Google Sign-In uses
+`GIDSignIn.signIn(withPresenting: NSWindow…)` with the same public iOS-type OAuth
+client ID as `Nest`; if Google rejects that client for the macOS bundle ID, add an
+iOS-type client for `dev.willsawyerrrr.nest.macos` to the Supabase Google provider's
+Client IDs and set it as `GIDClientID` (and its reversed URL scheme) in
+`project.yml`. `NestMacTests` runs the shared `NestTests` sources against it. Siri
+voice invocation of an App Shortcut is unavailable on macOS (see above).
 
 ## The shell
 
 A single-screen SwiftUI app:
 
-- `WebView.swift` — a `UIViewRepresentable` around `WKWebView` loading the
+- `WebView.swift` — a `UIViewRepresentable` (`NSViewRepresentable` on macOS) around `WKWebView` loading the
   production PWA URL directly (no local build, no bundled assets), on the
   default persistent `WKWebsiteDataStore`. It also mirrors the native session
   into the page (below).
@@ -84,7 +103,7 @@ view's session.
   (`project.yml`'s `info.properties`), and `Supabase.swift` reads them via
   `Bundle.main`, failing loudly (`fatalError`) if either is missing rather than
   building against no project. Local dev sources them from `apps/ios/.env`
-  (see `.env.example`); CI (`ci.yml`'s `build-ios` / `build-catalyst`) from the
+  (see `.env.example`); CI (`ci.yml`'s `build-ios` / `build-catalyst` / `build-macos`) from the
   `SUPABASE_URL` / `SUPABASE_ANON_KEY` repository Variables.
 - **`Auth.swift`** — an `@Observable` `AuthModel` wrapping the client: a coarse
   `unknown / signedOut / signedIn` state, `signIn()`, and `start()`, which
@@ -241,8 +260,14 @@ a draft deduction to review.
   saved), or one line saying the App Group container is unavailable. An extension cannot open its containing app, and the responder-chain
   workaround is not dependable on current iOS, so the member opens Nest
   themselves.
+- **macOS extension.** `ShareExtensionMac/` is the native Mac app's counterpart
+  (`dev.willsawyerrrr.nest.macos.share-extension`): an `NSViewController` with the
+  same activation rule, inbox copy, and result messages, offered in the macOS
+  share menu.
 - **App Group.** `group.dev.willsawyerrrr.nest`, in `Nest.entitlements` and
-  `ShareExtension.entitlements`. `Shared/ShareInbox.swift` (compiled into both
+  `ShareExtension.entitlements` (and `NestMac/Nest.entitlements` and
+  `ShareExtensionMac/ShareExtension.entitlements` for the native Mac app).
+  `Shared/ShareInbox.swift` (compiled into both
   targets) owns the `SharedReceipts/` folder in the group container: one
   `<uuid>/` directory per file holding `file` and `meta.json` (name, media type,
   size, time), written under a `.tmp-` name and renamed into place so the app
@@ -329,9 +354,10 @@ instructions.
 
 ## CI
 
-`.github/workflows/ci.yml` runs `build-ios` and `build-catalyst` on
-`macos-latest` runners: `build-ios` (the iOS Simulator destination) and
-`build-catalyst` (the Mac Catalyst destination). Each runs `xcodegen generate`,
+`.github/workflows/ci.yml` runs `build-ios`, `build-catalyst` and `build-macos` on
+`macos-latest` runners: `build-ios` (the iOS Simulator destination),
+`build-catalyst` (the Mac Catalyst destination) and `build-macos` (the `NestMac`
+scheme). Each runs `xcodegen generate`,
 then `xcodebuild build` (which runs `appintentsmetadataprocessor`, so a
 malformed App Shortcut phrase — a missing `\(.applicationName)`, a duplicate
 identifier, an unresolvable parameter type — fails the build on both
@@ -339,14 +365,14 @@ destinations), then `xcodebuild test`. Neither overrides `SWIFT_EXEC` (that
 drops `--compile-time-extraction` and breaks App Intents metadata extraction
 on Xcode 16+) and both pass `-skipMacroValidation` /
 `-skipPackagePluginValidation` so a fresh runner does not stall on a macro or
-plugin approval prompt. `build-catalyst` additionally passes
+plugin approval prompt. `build-catalyst` and `build-macos` additionally pass
 `CODE_SIGNING_ALLOWED=NO`, since a runner carries no development team and
-Catalyst, unlike the Simulator, always signs.
+Catalyst and macOS builds, unlike the Simulator, always sign.
 
-Both are **required** — the `changes` job (`dorny/paths-filter`) gates them on
+All three are **required** — the `changes` job (`dorny/paths-filter`) gates them on
 `apps/ios/**` (or the workflow file itself) having changed, and `ci-status`
-`needs` both, so a real regression blocks the merge; a PR that leaves
-`apps/ios/` untouched gets `skipped` on both, which `ci-status` treats the same
+`needs` all three, so a real regression blocks the merge; a PR that leaves
+`apps/ios/` untouched gets `skipped` on all three, which `ci-status` treats the same
 as a pass rather than waiting forever on a check that never ran. See
 [`architecture.md`](architecture.md#ci).
 

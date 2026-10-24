@@ -35,6 +35,8 @@ coverage/
 *.xcodeproj/
 apps/ios/Nest/Info.plist
 apps/ios/ShareExtension/Info.plist
+apps/ios/NestMac/Info.plist
+apps/ios/ShareExtensionMac/Info.plist
 xcuserdata/
 DerivedData/
 

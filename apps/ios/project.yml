@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: dev.willsawyerrrr
   deploymentTarget:
     iOS: '17.0'
+    macOS: '15.0'
   createIntermediateGroups: true
 
 packages:
@@ -122,6 +123,98 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.tests
         GENERATE_INFOPLIST_FILE: true
 
+  # The native Mac app: the same shell, sign-in, and App Intents sources as
+  # `Nest`, built for macOS (AppKit) rather than Catalyst.
+  NestMac:
+    type: application
+    platform: macOS
+    deploymentTarget: '15.0'
+    sources:
+      - path: Nest
+        excludes:
+          - Info.plist
+          - Nest.entitlements
+      - path: Shared
+    dependencies:
+      - package: Supabase
+        product: Auth
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - target: ShareExtensionMac
+    info:
+      path: NestMac/Info.plist
+      properties:
+        CFBundleDisplayName: Nest
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.finance
+        GIDClientID: 878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq.apps.googleusercontent.com
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: dev.willsawyerrrr.nest.macos
+            CFBundleURLSchemes:
+              - com.googleusercontent.apps.878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq
+        SupabaseURL: ${SUPABASE_URL}
+        SupabaseAnonKey: ${SUPABASE_ANON_KEY}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.macos
+        PRODUCT_NAME: Nest
+        PRODUCT_MODULE_NAME: Nest
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: NestMac/Nest.entitlements
+        DEVELOPMENT_TEAM: 8558CXPT9G
+        ENABLE_APP_SANDBOX: true
+        ENABLE_HARDENED_RUNTIME: true
+
+  # The Mac share menu's "Nest" destination; the iOS `ShareExtension` counterpart.
+  ShareExtensionMac:
+    type: app-extension
+    platform: macOS
+    deploymentTarget: '15.0'
+    sources:
+      - path: ShareExtensionMac
+        excludes:
+          - ShareExtension.entitlements
+      - path: Shared
+    info:
+      path: ShareExtensionMac/Info.plist
+      properties:
+        CFBundleDisplayName: Nest
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule: 'SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image").@count >= 1).@count >= 1'
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.macos.share-extension
+        PRODUCT_NAME: ShareExtensionMac
+        CODE_SIGN_ENTITLEMENTS: ShareExtensionMac/ShareExtension.entitlements
+        DEVELOPMENT_TEAM: 8558CXPT9G
+        ENABLE_APP_SANDBOX: true
+        ENABLE_HARDENED_RUNTIME: true
+        APPLICATION_EXTENSION_API_ONLY: true
+
+  NestMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: '15.0'
+    sources:
+      - path: NestTests
+    dependencies:
+      - target: NestMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.willsawyerrrr.nest.macos.tests
+        GENERATE_INFOPLIST_FILE: true
+        # The host app's product is `Nest`, not the target's name.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Nest.app/Contents/MacOS/Nest
+        BUNDLE_LOADER: $(TEST_HOST)
+
 schemes:
   Nest:
     build:
@@ -131,5 +224,15 @@ schemes:
     test:
       targets:
         - NestTests
+    run:
+      config: Debug
+  NestMac:
+    build:
+      targets:
+        NestMac: all
+        NestMacTests: [test]
+    test:
+      targets:
+        - NestMacTests
     run:
       config: Debug

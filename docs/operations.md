@@ -201,6 +201,18 @@ off in its settings.
     check out with `fetch-depth: 0`; a function with no commit behind it gets no
     grace. The post-deploy step passes no grace window at all: the deploy has just
     returned, so anything behind there is behind for good.
+- **Mac app** installs with `brew install --cask willsawyerrrr/tap/nest`. A merge
+  to `main` touching `apps/ios/**` runs `.github/workflows/release.yml`, which
+  calls the platform repo's reusable `release.yml`: it tags the next version
+  (a `feat` subject bumps the minor), builds `apps/ios/scripts/package-mac-app.sh`
+  (the `NestMac` scheme in Release, signed with the Developer ID Application
+  identity, notarised, stapled, zipped as `Nest.zip`), publishes the GitHub
+  release, and bumps `version` / `sha256` in the tap's `Casks/nest.rb`. It needs
+  the `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY`,
+  `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID` and `TAP_DEPLOY_KEY` repository secrets
+  and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables; the script fails
+  without a signing identity rather than shipping an unsigned build. Run it
+  manually with `gh workflow run "Release macOS"`.
 - **iOS app** deploys to TestFlight on merge to `main` touching `apps/ios/**`
   via `.github/workflows/deploy-ios.yml`, which calls the platform repo's
   reusable `ios-testflight.yml`. It needs the `ASC_KEY_ID`, `ASC_ISSUER_ID` and

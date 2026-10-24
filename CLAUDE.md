@@ -33,7 +33,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   deduction receipt queue as a work-expense draft: the extension copies files
   into the group inbox, and the app hands them to the PWA over the `nestShare`
   bridge on its next foreground, deleting each only once the page acknowledges it.
-  See [`docs/ios.md`](docs/ios.md#share-extension).
+  See [`docs/ios.md`](docs/ios.md#share-extension). The native Mac app ships
+  through the `willsawyerrrr/tap` Homebrew tap (`brew install --cask
+  willsawyerrrr/tap/nest`) as a Developer ID–signed, notarised `Nest.zip`
+  released on each `apps/ios/**` merge to `main`; see
+  [`docs/operations.md`](docs/operations.md#deployment).
 - Agent access: `packages/mcp` (`@nest/mcp`) is an MCP server that lets an
   agent act as a household member, over stdio or, hosted on Vercel at
   `mcp.nest.willsawyerrrr.dev`, over stateless Streamable HTTP as a Claude custom

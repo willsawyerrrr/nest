@@ -8,7 +8,13 @@ import UniformTypeIdentifiers
 /// `meta.json`. A directory is written under a hidden temporary name and renamed
 /// into place, so the app never sees a half-copied file.
 struct ShareInbox: Sendable {
-    static let appGroupIdentifier = "group.dev.willsawyerrrr.nest"
+    #if os(macOS)
+        /// Team-prefixed, which macOS accepts from a Developer ID–signed app
+        /// without a provisioning profile; a `group.` identifier needs one.
+        static let appGroupIdentifier = "8558CXPT9G.dev.willsawyerrrr.nest"
+    #else
+        static let appGroupIdentifier = "group.dev.willsawyerrrr.nest"
+    #endif
 
     /// Largest file accepted, matching the PWA's upload limit (25 MiB).
     static let maxFileBytes: Int64 = 25 * 1024 * 1024

@@ -54,7 +54,7 @@ final class ShareViewController: UIViewController {
                 summary.record(await store(provider, in: inbox))
             }
         } else {
-            summary.failed = providers.count
+            summary.storageUnavailable = true
         }
 
         spinner.stopAnimating()

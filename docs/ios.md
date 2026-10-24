@@ -238,7 +238,7 @@ a draft deduction to review.
   the App Group inbox; no file is read into the extension's memory, so size never
   threatens its memory limit. It then says "Saved to Nest. Open Nest to review.",
   with a line for each file left out (not a PDF or image, over 25 MB, or not
-  saved). An extension cannot open its containing app, and the responder-chain
+  saved), or one line saying the App Group container is unavailable. An extension cannot open its containing app, and the responder-chain
   workaround is not dependable on current iOS, so the member opens Nest
   themselves.
 - **App Group.** `group.dev.willsawyerrrr.nest`, in `Nest.entitlements` and

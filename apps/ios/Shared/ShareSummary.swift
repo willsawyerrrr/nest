@@ -7,6 +7,7 @@ struct ShareSummary: Equatable {
     var unsupported = 0
     var tooLarge = 0
     var failed = 0
+    var storageUnavailable = false
 
     mutating func record(_ result: ShareInbox.StoreResult) {
         switch result {
@@ -30,7 +31,9 @@ struct ShareSummary: Equatable {
         if tooLarge > 0 {
             lines.append(Self.count(tooLarge, "was", "were") + " over 25 MB.")
         }
-        if failed > 0 {
+        if storageUnavailable {
+            lines.append("Nest's shared storage is unavailable.")
+        } else if failed > 0 {
             lines.append(Self.count(failed, "could", "could") + " not be saved.")
         }
         return lines.isEmpty ? "Nothing to save." : lines.joined(separator: "\n")

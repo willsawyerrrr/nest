@@ -18,6 +18,5 @@ jobs:
       cask: nest
       asset: Nest.zip
       build-command: |
-        SUPABASE_URL='${{ vars.SUPABASE_URL }}' SUPABASE_ANON_KEY='${{ vars.SUPABASE_ANON_KEY }}' \
-          apps/ios/scripts/package-mac-app.sh "$VERSION"
+        apps/ios/scripts/package-mac-app.sh "$VERSION"
     secrets: inherit

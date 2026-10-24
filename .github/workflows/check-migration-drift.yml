@@ -30,6 +30,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: willsawyerrrr/platform/.github/actions/load-op-environment@main
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          environments: ${{ vars.OP_ENVIRONMENT_IDS }}
       - uses: ./.github/actions/setup-pnpm
       # `migration list --linked` reads the project from the linked-project file
       # rather than a `--project-ref` flag, exactly as `db push --linked` does, so
@@ -38,12 +42,8 @@ jobs:
       # access token is the only credential.
       - name: Link the production project
         run: pnpm exec supabase link --project-ref dgfeittjtxjtgbretdkj
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       # A migration that merged in the last half hour is not drift: its deploy is
       # probably still queued or running. Anything older has had every chance to
       # apply, and a genuine miss surfaces on the next tick regardless.
       - name: Compare production against supabase/migrations
         run: pnpm check:migration-drift --grace-minutes=30
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

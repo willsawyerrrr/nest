@@ -28,7 +28,7 @@ off in its settings.
   `supabase/migrations/**` links the production project and runs
   `pnpm exec supabase db push --linked --include-all --yes`. SQL migrations
   under `supabase/migrations/` are authoritative for the schema. It
-  authenticates with the same `SUPABASE_ACCESS_TOKEN` GitHub Actions secret and
+  authenticates with the same `SUPABASE_ACCESS_TOKEN` Environment variable and
   the same lockfile-pinned CLI as the function deploy below.
   - No database password is involved. `db push --linked` mints a temporary login
     role through the Management API, so the access token is the only credential
@@ -113,7 +113,7 @@ off in its settings.
   `config.toml` (`up-webhook`, `eofy-share`, `eofy-share-file`, and
   `calendar-ics` are pinned `false` — each carries its own bearer or signature
   check; the rest default to `true`). It
-  authenticates with the `SUPABASE_ACCESS_TOKEN` GitHub Actions secret.
+  authenticates with the `SUPABASE_ACCESS_TOKEN` Environment variable.
   - The CLI comes from the `supabase` devDependency in the root
     `package.json`, installed by `pnpm install --frozen-lockfile`, so
     `pnpm-lock.yaml` is the single source of truth for the deploying version.
@@ -209,8 +209,8 @@ off in its settings.
   identity, notarised, stapled, zipped as `Nest.zip`), publishes the GitHub
   release, and bumps `version` / `sha256` in the tap's `Casks/nest.rb`. It needs
   the `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY`,
-  `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID` and `TAP_DEPLOY_KEY` repository secrets
-  and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables; the notarisation key
+  `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID` and `TAP_DEPLOY_KEY` variables and
+  `SUPABASE_URL` / `SUPABASE_ANON_KEY` from the [1Password Environments](#1password-environments); the notarisation key
   also fetches the Developer ID provisioning profiles the app and its share
   extension are signed with. The script fails without a signing identity,
   profiles, or notarisation rather than shipping an unsigned build. Run it
@@ -218,8 +218,9 @@ off in its settings.
 - **iOS app** deploys to TestFlight on merge to `main` touching `apps/ios/**`
   via `.github/workflows/deploy-ios.yml`, which calls the platform repo's
   reusable `ios-testflight.yml`. It needs the `ASC_KEY_ID`, `ASC_ISSUER_ID` and
-  `ASC_KEY_P8` repository secrets (an App Store Connect API key with the Admin
-  role, which cloud signing requires) and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables. Run it
+  `ASC_KEY_P8` variables (an App Store Connect API key with the Admin role,
+  which cloud signing requires) and `SUPABASE_URL` / `SUPABASE_ANON_KEY` from
+  the [1Password Environments](#1password-environments). Run it
   manually with `gh workflow run "Deploy iOS"`.
   - The build embeds the share extension (`dev.willsawyerrrr.nest.share-extension`,
     App Group `group.dev.willsawyerrrr.nest`); the export's automatic signing
@@ -340,6 +341,19 @@ policy on `storage.objects` gating the object key's first path segment
   object behind — there is no server-side reaper. Orphans are cheap and invisible;
   clearing them is a manual bucket sweep.
 - Objects count against the project's storage quota, not the database's.
+
+## 1Password Environments
+
+Workflows and local commands read secrets from [1Password Environments](https://developer.1password.com/docs/environments/); no GitHub secret or variable other than the two below holds one. IDs are not secrets.
+
+| Environment       | ID                           | Holds                                                                                                                                                                                                  |
+| ----------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Apple Development | `b5zkkwxuutlttwbrv5xhgojye4` | `DEVELOPMENT_TEAM`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`                                  |
+| General Purpose   | `3i642eynjpsx2uctyqlexobgge` | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PAT`, `GITHUB_TOKEN`, `LINEAR_API_KEY`, `VAPI_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `RECRAFT_API_KEY`, `RESEND_API_KEY`, `DIGITALOCEAN_TOKEN`, `HF_TOKEN`, `TAILSCALE_AUTHKEY`, `TAP_DEPLOY_KEY` |
+| Nest              | `we4tm6dkfoffx42g243qr7ju6m` | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `REDBARK_API_KEY`                                                                                                                                      |
+
+- **CI** loads them with `willsawyerrrr/platform/.github/actions/load-op-environment`, which exports every variable to later steps. It uses the repository secret `OP_SERVICE_ACCOUNT_TOKEN` (a service account scoped to all three Environments) and the repository variable `OP_ENVIRONMENT_IDS` (`b5zkkwxuutlttwbrv5xhgojye4 3i642eynjpsx2uctyqlexobgge we4tm6dkfoffx42g243qr7ju6m`; the last Environment wins on a duplicate name). The reusable `ios-testflight.yml` and `release.yml` workflows load them the same way.
+- **Local** commands run under `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- <command>`; the last Environment wins on a duplicate name.
 
 ## Vault secrets
 
@@ -686,7 +700,7 @@ subscription covers every bank connection the household makes, unlike Up's
 per-member personal access token. It is a plain edge function secret, not
 Vault, set the same way as `GITHUB_CHANGELOG_TOKEN` above:
 
-- **Prod:** `supabase secrets set REDBARK_API_KEY=<key> --project-ref dgfeittjtxjtgbretdkj`.
+- **Prod:** `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- sh -c 'supabase secrets set REDBARK_API_KEY="$REDBARK_API_KEY" --project-ref dgfeittjtxjtgbretdkj'`.
 - **Local dev:** add `REDBARK_API_KEY=<key>` to `supabase/functions/.env`.
 
 Obtaining the key is on the household to action, not automated: signing up for

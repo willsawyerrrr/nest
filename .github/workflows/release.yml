@@ -1,0 +1,23 @@
+name: Release macOS
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/ios/**']
+  workflow_dispatch:
+
+concurrency: release
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: willsawyerrrr/platform/.github/workflows/release.yml@main
+    with:
+      cask: nest
+      asset: Nest.zip
+      build-command: |
+        SUPABASE_URL='${{ vars.SUPABASE_URL }}' SUPABASE_ANON_KEY='${{ vars.SUPABASE_ANON_KEY }}' \
+          apps/ios/scripts/package-mac-app.sh "$VERSION"
+    secrets: inherit

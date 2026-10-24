@@ -131,6 +131,12 @@ generate + build + test for each on every PR/push that touches
 `apps/ios/**`; both are required checks (see
 [`docs/ios.md`](../../docs/ios.md#ci)).
 
+The Mac app ships to Homebrew: `brew install --cask willsawyerrrr/tap/nest`.
+`scripts/package-mac-app.sh <version>` builds the signed, notarised `Nest.zip`
+that `.github/workflows/release.yml` publishes (see
+[`docs/operations.md`](../../docs/operations.md#deployment)); locally it needs
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SIGNING_IDENTITY` set.
+
 A free personal Apple team is enough to build, run on the Simulator, a device,
 or as a local Mac app, and to use the App Shortcut. The share extension needs the
 `group.dev.willsawyerrrr.nest` App Group, which a free team cannot register, so

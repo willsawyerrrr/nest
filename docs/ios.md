@@ -21,8 +21,13 @@ dynamic colours). Every file below applies to all three builds unless noted.
 
 `NestMac` (`dev.willsawyerrrr.nest.macos`, product name `Nest`, macOS 15 — the
 floor for Spotlight's `indexAppEntities`) is an App Sandbox, hardened-runtime
-app with the `network.client`, `group.dev.willsawyerrrr.nest` App Group, and
-keychain-group entitlements (`NestMac/Nest.entitlements`). It exposes the same four
+app with the `network.client` and `8558CXPT9G.dev.willsawyerrrr.nest` App Group
+entitlements (`NestMac/Nest.entitlements`). The group is team-prefixed because
+macOS grants that form to a Developer ID–signed app with no provisioning
+profile, where a `group.` identifier needs one (`ShareInbox.appGroupIdentifier`
+picks it per platform). There is no `keychain-access-groups` entitlement, also
+restricted: `supabase-swift`'s `KeychainLocalStorage` uses the app's own login
+keychain entry here. It exposes the same four
 App Intents and App Shortcuts and the same Spotlight index as `Nest`, and its
 embedded share extension is `ShareExtensionMac/`. Google Sign-In uses
 `GIDSignIn.signIn(withPresenting: NSWindow…)` with the same public iOS-type OAuth
@@ -265,8 +270,9 @@ a draft deduction to review.
   same activation rule, inbox copy, and result messages, offered in the macOS
   share menu.
 - **App Group.** `group.dev.willsawyerrrr.nest`, in `Nest.entitlements` and
-  `ShareExtension.entitlements` (and `NestMac/Nest.entitlements` and
-  `ShareExtensionMac/ShareExtension.entitlements` for the native Mac app).
+  `ShareExtension.entitlements`. The native Mac app uses the team-prefixed
+  `8558CXPT9G.dev.willsawyerrrr.nest` in `NestMac/Nest.entitlements` and
+  `ShareExtensionMac/ShareExtension.entitlements`.
   `Shared/ShareInbox.swift` (compiled into both
   targets) owns the `SharedReceipts/` folder in the group container: one
   `<uuid>/` directory per file holding `file` and `meta.json` (name, media type,

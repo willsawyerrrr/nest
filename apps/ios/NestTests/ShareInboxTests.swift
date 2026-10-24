@@ -161,6 +161,12 @@ import Testing
         )
     }
 
+    @Test func namesAnUnavailableInbox() {
+        var summary = ShareSummary()
+        summary.storageUnavailable = true
+        #expect(summary.message == "Nest's shared storage is unavailable.")
+    }
+
     @Test func saysSoWhenThereWasNothing() {
         #expect(ShareSummary().message == "Nothing to save.")
     }

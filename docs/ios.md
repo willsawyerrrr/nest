@@ -123,9 +123,10 @@ view's session.
   `SUPABASE_ANON_KEY` from the environment into `Info.plist`
   (`project.yml`'s `info.properties`), and `Supabase.swift` reads them via
   `Bundle.main`, failing loudly (`fatalError`) if either is missing rather than
-  building against no project. Local dev sources them from `apps/ios/.env`
-  (see `.env.example`); CI (`ci.yml`'s `build-ios` / `build-catalyst` / `build-macos`) from the
-  `SUPABASE_URL` / `SUPABASE_ANON_KEY` repository Variables.
+  building against no project. Local dev runs `xcodegen generate` under
+  `op run --environment we4tm6dkfoffx42g243qr7ju6m --`; CI (`ci.yml`'s `build-ios` / `build-catalyst` /
+  `build-macos`) loads the Nest Environment (see
+  [`operations.md`](operations.md#1password-environments)).
 - **`Auth.swift`** — an `@Observable` `AuthModel` wrapping the client: a coarse
   `unknown / signedOut / signedIn` state, `signIn()`, and `start()`, which
   iterates `supabaseAuth.authStateChanges` for the life of the app so the gate

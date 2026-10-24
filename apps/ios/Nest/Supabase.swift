@@ -6,7 +6,7 @@ import Foundation
 /// bundle), but external to the build rather than hardcoded, so a fork can
 /// point at its own Supabase project without editing source. `xcodegen
 /// generate` substitutes `SUPABASE_URL` / `SUPABASE_ANON_KEY` from the process
-/// environment into `Info.plist` (`project.yml`); see `apps/ios/.env.example`.
+/// environment into `Info.plist` (`project.yml`).
 enum SupabaseConfig {
     static let url = URL(string: infoPlistValue("SupabaseURL"))!
     static let anonKey = infoPlistValue("SupabaseAnonKey")
@@ -21,7 +21,8 @@ enum SupabaseConfig {
         else {
             fatalError(
                 "Info.plist has no \(key) — set the SUPABASE_URL / SUPABASE_ANON_KEY "
-                    + "environment variables (see apps/ios/.env.example) before `xcodegen generate`."
+                    + "environment variables, e.g. `op run --environment we4tm6dkfoffx42g243qr7ju6m "
+                    + "-- xcodegen generate`."
             )
         }
         return value

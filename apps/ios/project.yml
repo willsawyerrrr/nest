@@ -59,8 +59,8 @@ targets:
             CFBundleURLName: dev.willsawyerrrr.nest
             CFBundleURLSchemes:
               - com.googleusercontent.apps.878376923948-40983m6oavpmvfkn520npd9vv0ujk1aq
-        # Substituted by `xcodegen generate` from the process environment (see
-        # `apps/ios/.env.example`); read at runtime in `Supabase.swift`. Left
+        # Substituted by `xcodegen generate` from the process environment (run it under
+        # `op run --environment we4tm6dkfoffx42g243qr7ju6m --`); read at runtime in `Supabase.swift`. Left
         # as XcodeGen's literal `${VAR}` placeholder when unset — `Supabase.swift`
         # treats that the same as missing.
         SupabaseURL: ${SUPABASE_URL}

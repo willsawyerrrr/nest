@@ -31,8 +31,7 @@ and Spotlight still work on both platforms.
     its sign-out request back.
   - `SessionBridge.swift` — builds the JavaScript the shell injects: the
     `window.__NEST_NATIVE_SHELL__` marker and the apply/clear-session calls.
-  - `Supabase.swift` — project URL + anon key, read from `Info.plist` (see
-    `.env.example`), and the shared `AuthClient` (default
+  - `Supabase.swift` — project URL + anon key, read from `Info.plist`, and the shared `AuthClient` (default
     `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, native Google sign-in, and
     the `authStateChanges` observation behind the gate.
@@ -76,15 +75,13 @@ and Spotlight still work on both platforms.
 ## Building
 
 Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`). Copy `.env.example` to `.env`, fill in real values
-(same ones as `apps/pwa/.env.example`), and export them — there is no dotenv
-loader here, unlike Vite for the PWA:
+(`brew install xcodegen`). `SUPABASE_URL` and `SUPABASE_ANON_KEY` come from the Nest
+[1Password Environment](https://developer.1password.com/docs/environments/)
+(`we4tm6dkfoffx42g243qr7ju6m`); run `xcodegen generate` under `op run`:
 
 ```sh
 cd apps/ios
-cp .env.example .env  # first time only
-set -a && source .env && set +a
-xcodegen generate
+op run --environment we4tm6dkfoffx42g243qr7ju6m -- xcodegen generate
 open Nest.xcodeproj
 ```
 

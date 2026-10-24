@@ -22,6 +22,7 @@ zip="$root/Nest.zip"
 : "${SUPABASE_URL:?}" "${SUPABASE_ANON_KEY:?}" "${SIGNING_IDENTITY:?}"
 
 cd "$ios"
+command -v xcodegen >/dev/null || brew install xcodegen
 xcodegen generate
 
 # Developer ID signs with no provisioning profile, so the entitlements must stay

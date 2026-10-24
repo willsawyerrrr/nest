@@ -1,5 +1,10 @@
 import SwiftUI
+
+#if os(macOS)
+import AppKit
+#else
 import UIKit
+#endif
 
 /// The app shell. The native app owns the one Supabase session, so this is a
 /// blocking sign-in gate: `SignInView` when signed out, the embedded PWA once
@@ -179,7 +184,14 @@ private extension Color {
 
     /// A colour that resolves to `light` or `dark` by the active colour scheme.
     init(light: Color, dark: Color) {
+        #if os(macOS)
+        self.init(
+            nsColor: NSColor(name: nil) {
+                $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(dark) : NSColor(light)
+            })
+        #else
         self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light) })
+        #endif
     }
 }
 

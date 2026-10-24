@@ -20,13 +20,13 @@ and Spotlight still work on both platforms.
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the
   source of truth for the Xcode project, its `Info.plist` properties, and the
   `supabase-swift` SPM dependency (Auth product only). The generated
-  `Nest.xcodeproj` and `Nest/Info.plist` are not committed.
+  `Nest.xcodeproj` and the generated `Info.plist` files are not committed.
 - `Nest/`
   - `NestApp.swift` — SwiftUI entry point; injects `AuthModel`, starts its
     session observation, forwards `onOpenURL` to the Supabase client.
   - `ContentView.swift` — the sign-in gate: `SignInView` while signed out, the
     web view (plus loading and error overlays) once signed in.
-  - `WebView.swift` — `UIViewRepresentable` around `WKWebView` on the default
+  - `WebView.swift` — `UIViewRepresentable` (`NSViewRepresentable` on macOS) around `WKWebView` on the default
     persistent data store; mirrors the native session into the page and takes
     its sign-out request back.
   - `SessionBridge.swift` — builds the JavaScript the shell injects: the
@@ -57,6 +57,10 @@ and Spotlight still work on both platforms.
     its spoken-sentence formatting.
   - `Intents/NestShortcuts.swift` — the `AppShortcutsProvider` (one shortcut
     per intent).
+- `NestMac/` — the native macOS app's entitlements (its `Info.plist` is
+  generated); it compiles `Nest/` and `Shared/`.
+- `ShareExtensionMac/` — the macOS share extension, an `NSViewController`
+  counterpart of `ShareExtension/`.
 - `ShareExtension/` — the share extension: `ShareViewController.swift` copies
   shared PDFs and images into the App Group inbox
   (`group.dev.willsawyerrrr.nest`); the app hands them to the PWA's deduction
@@ -98,6 +102,15 @@ xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
   -skipPackagePluginValidation -skipMacroValidation build
 ```
 
+For the native macOS app, build the `NestMac` scheme (it also needs
+`CODE_SIGNING_ALLOWED=NO` without a development team):
+
+```sh
+xcodebuild -project apps/ios/Nest.xcodeproj -scheme NestMac \
+  -destination 'platform=macOS' \
+  -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO build
+```
+
 For Mac Catalyst, swap the destination; a CI runner (or any Mac with no
 development team configured) also needs `CODE_SIGNING_ALLOWED=NO`, since
 Catalyst — unlike the Simulator — always signs:
@@ -110,11 +123,11 @@ xcodebuild -project apps/ios/Nest.xcodeproj -scheme Nest \
 
 Do not pass `SWIFT_EXEC=` — it breaks App Intents metadata extraction.
 
-`xcodebuild test` (with a concrete simulator `-destination`, or the same
-Catalyst `-destination` above) runs the `NestTests` suite — 73 tests, and they
-pass identically on both destinations with no source changes between them.
-`.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` jobs do the
-generate + build + test for both destinations on every PR/push that touches
+`xcodebuild test` (with a concrete simulator `-destination`, the same
+Catalyst `-destination` above, or the `NestMac` scheme) runs the `NestTests`
+suite, which passes identically on all three.
+`.github/workflows/ci.yml`'s `build-ios` / `build-catalyst` / `build-macos` jobs do the
+generate + build + test for each on every PR/push that touches
 `apps/ios/**`; both are required checks (see
 [`docs/ios.md`](../../docs/ios.md#ci)).
 

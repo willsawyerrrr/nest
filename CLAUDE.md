@@ -9,9 +9,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 ## Fixed scope decisions
 
 - Platform: the PWA (installed via Safari on iOS, or the browser on web) is the
-  product and the whole app UI. Alongside it, a thin native app (`apps/ios`, one
-  codebase built for two destinations — iOS and Mac Catalyst, via `project.yml`'s
-  `supportedDestinations: [iOS, macCatalyst]`) embeds the PWA in a `WKWebView`
+  product and the whole app UI. Alongside it, a thin native app (`apps/ios`: the `Nest`
+  target is one codebase built for two destinations — iOS and Mac Catalyst, via
+  `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
+  a native AppKit/SwiftUI macOS target compiled from the same sources, with its
+  own macOS share extension) embeds the PWA in a `WKWebView`
   and adds Siri / App Intents access to key figures — the
   fortnightly buffer, savings-goal progress, a named budget line's planned
   amount so far, and how much of the pay goes to a named account; budget lines and
@@ -1093,9 +1095,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 - The four Linux jobs (`check`, `test`, `rls`, `functions`) must stay fast —
   each targets well under a minute. If one regresses noticeably, diagnosing and
   reducing its time takes priority over other work. `build-ios` /
-  `build-catalyst` (macOS runners, gated to PRs touching `apps/ios/**`) are the
-  exception: an Xcode build and test run is inherently several minutes, and
-  there is no fixed time budget for them. All six are aggregated by a
+  `build-catalyst` / `build-macos` (macOS runners, gated to PRs touching
+  `apps/ios/**`) are the exception: an Xcode build and test run is inherently
+  several minutes, and there is no fixed time budget for them. All seven are aggregated by a
   `ci-status` job that is the single required `CI Status` check, so overall
   wall-clock is the slowest single job, not the sum; the job/coverage/shard
   specifics are canonical in [`docs/architecture.md`](docs/architecture.md#ci).

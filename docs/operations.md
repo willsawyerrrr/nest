@@ -210,8 +210,10 @@ off in its settings.
   release, and bumps `version` / `sha256` in the tap's `Casks/nest.rb`. It needs
   the `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY`,
   `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID` and `TAP_DEPLOY_KEY` repository secrets
-  and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables; the script fails
-  without a signing identity rather than shipping an unsigned build. Run it
+  and the `SUPABASE_URL` / `SUPABASE_ANON_KEY` Variables; the notarisation key
+  also fetches the Developer ID provisioning profiles the app and its share
+  extension are signed with. The script fails without a signing identity,
+  profiles, or notarisation rather than shipping an unsigned build. Run it
   manually with `gh workflow run "Release macOS"`.
 - **iOS app** deploys to TestFlight on merge to `main` touching `apps/ios/**`
   via `.github/workflows/deploy-ios.yml`, which calls the platform repo's

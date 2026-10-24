@@ -45,3 +45,6 @@ DerivedData/
 
 # Personal, machine-specific Claude notes — never shared via CLAUDE.md
 CLAUDE.local.md
+
+# Mac app release artefact
+/Nest.zip

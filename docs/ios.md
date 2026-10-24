@@ -22,12 +22,28 @@ dynamic colours). Every file below applies to all three builds unless noted.
 `NestMac` (`dev.willsawyerrrr.nest.macos`, product name `Nest`, macOS 15 — the
 floor for Spotlight's `indexAppEntities`) is an App Sandbox, hardened-runtime
 app with the `network.client` and `8558CXPT9G.dev.willsawyerrrr.nest` App Group
-entitlements (`NestMac/Nest.entitlements`). The group is team-prefixed because
-macOS grants that form to a Developer ID–signed app with no provisioning
-profile, where a `group.` identifier needs one (`ShareInbox.appGroupIdentifier`
-picks it per platform). There is no `keychain-access-groups` entitlement, also
-restricted: `supabase-swift`'s `KeychainLocalStorage` uses the app's own login
-keychain entry here. It exposes the same four
+entitlements and a `keychain-access-groups` entry for
+`8558CXPT9G.dev.willsawyerrrr.nest.macos` (`NestMac/Nest.entitlements`). The
+group is team-prefixed because macOS grants that form to a Developer ID–signed
+app, where a `group.` identifier needs the portal to register it
+(`ShareInbox.appGroupIdentifier` picks it per platform). The keychain access
+group is what Google Sign-In and `supabase-swift`'s `KeychainLocalStorage` need
+to persist the session, so the native session persists on macOS exactly as on
+iOS and the App Intents read it in process.
+
+Both the app and the share extension are signed with Developer ID provisioning
+profiles (`Nest macOS Developer ID`, `Nest macOS Share Extension Developer ID`,
+type `MAC_APP_DIRECT`, on the `dev.willsawyerrrr.nest.macos[.share-extension]`
+App IDs with the App Groups capability), which authorise those restricted
+entitlements; without one macOS refuses the keychain save and Google Sign-In
+reports a keychain error. `scripts/package-mac-app.sh` fetches each profile by
+name through the App Store Connect API (the notarisation key,
+`scripts/install-developer-id-profile.mjs`) and hands them to `xcodebuild` as
+`NEST_MAC_APP_PROFILE` / `NEST_MAC_EXTENSION_PROFILE`, which `project.yml` maps
+to each target's `PROVISIONING_PROFILE_SPECIFIER` (empty for every other build).
+Recreate a profile with `POST /v1/profiles` (`profileType: MAC_APP_DIRECT`, the
+`DEVELOPER_ID_APPLICATION_G2` certificate) if one is ever deleted. The app
+exposes the same four
 App Intents and App Shortcuts and the same Spotlight index as `Nest`, and its
 embedded share extension is `ShareExtensionMac/`. Google Sign-In uses
 `GIDSignIn.signIn(withPresenting: NSWindow…)` with the same public iOS-type OAuth
@@ -272,7 +288,8 @@ a draft deduction to review.
 - **App Group.** `group.dev.willsawyerrrr.nest`, in `Nest.entitlements` and
   `ShareExtension.entitlements`. The native Mac app uses the team-prefixed
   `8558CXPT9G.dev.willsawyerrrr.nest` in `NestMac/Nest.entitlements` and
-  `ShareExtensionMac/ShareExtension.entitlements`.
+  `ShareExtensionMac/ShareExtension.entitlements`, authorised by its Developer ID
+  profiles.
   `Shared/ShareInbox.swift` (compiled into both
   targets) owns the `SharedReceipts/` folder in the group container: one
   `<uuid>/` directory per file holding `file` and `meta.json` (name, media type,

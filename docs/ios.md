@@ -124,8 +124,8 @@ view's session.
   (`project.yml`'s `info.properties`), and `Supabase.swift` reads them via
   `Bundle.main`, failing loudly (`fatalError`) if either is missing rather than
   building against no project. Local dev runs `xcodegen generate` under
-  `op run --environment we4tm6dkfoffx42g243qr7ju6m --`; CI (`ci.yml`'s `build-ios` / `build-catalyst` /
-  `build-macos`) loads the Nest Environment (see
+  `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m --`; CI (`ci.yml`'s `build-ios` / `build-catalyst` /
+  `build-macos`) loads the 1Password Environments (see
   [`operations.md`](operations.md#1password-environments)).
 - **`Auth.swift`** — an `@Observable` `AuthModel` wrapping the client: a coarse
   `unknown / signedOut / signedIn` state, `signIn()`, and `start()`, which

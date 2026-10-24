@@ -346,13 +346,14 @@ policy on `storage.objects` gating the object key's first path segment
 
 Workflows and local commands read secrets from [1Password Environments](https://developer.1password.com/docs/environments/); no GitHub secret or variable other than the two below holds one. IDs are not secrets.
 
-| Environment       | ID                           | Holds                                                                                                                                                     |
-| ----------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Nest              | `we4tm6dkfoffx42g243qr7ju6m` | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `REDBARK_API_KEY`, `UP_TOKEN`, `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`, `TAP_DEPLOY_KEY` |
-| Apple Development | `b5zkkwxuutlttwbrv5xhgojye4` | `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `DEVELOPMENT_TEAM`                                                                                          |
+| Environment       | ID                           | Holds                                                                                                                                                                                                  |
+| ----------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Apple Development | `b5zkkwxuutlttwbrv5xhgojye4` | `DEVELOPMENT_TEAM`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `NOTARY_KEY`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`                                  |
+| General Purpose   | `3i642eynjpsx2uctyqlexobgge` | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PAT`, `VERCEL_TOKEN`, `GITHUB_TOKEN`, `LINEAR_API_KEY`, `VAPI_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `RECRAFT_API_KEY`, `RESEND_API_KEY`, `DIGITALOCEAN_TOKEN`, `HF_TOKEN`, `TAILSCALE_AUTHKEY`, `TAP_DEPLOY_KEY` |
+| Nest              | `we4tm6dkfoffx42g243qr7ju6m` | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `REDBARK_API_KEY`, `UP_TOKEN`                                                                                                                                      |
 
-- **CI** loads them with `willsawyerrrr/platform/.github/actions/load-op-environment`, which exports every variable to later steps. It uses the repository secret `OP_SERVICE_ACCOUNT_TOKEN` (a service account scoped to both Environments) and the repository variable `OP_ENVIRONMENT_IDS` (`b5zkkwxuutlttwbrv5xhgojye4 we4tm6dkfoffx42g243qr7ju6m`; the last Environment wins on a duplicate name). The reusable `ios-testflight.yml` and `release.yml` workflows load them the same way.
-- **Local** commands run under `op run --environment we4tm6dkfoffx42g243qr7ju6m -- <command>`, adding `--environment b5zkkwxuutlttwbrv5xhgojye4` first when signing.
+- **CI** loads them with `willsawyerrrr/platform/.github/actions/load-op-environment`, which exports every variable to later steps. It uses the repository secret `OP_SERVICE_ACCOUNT_TOKEN` (a service account scoped to all three Environments) and the repository variable `OP_ENVIRONMENT_IDS` (`b5zkkwxuutlttwbrv5xhgojye4 3i642eynjpsx2uctyqlexobgge we4tm6dkfoffx42g243qr7ju6m`; the last Environment wins on a duplicate name). The reusable `ios-testflight.yml` and `release.yml` workflows load them the same way.
+- **Local** commands run under `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- <command>`; the last Environment wins on a duplicate name.
 
 ## Vault secrets
 
@@ -699,7 +700,7 @@ subscription covers every bank connection the household makes, unlike Up's
 per-member personal access token. It is a plain edge function secret, not
 Vault, set the same way as `GITHUB_CHANGELOG_TOKEN` above:
 
-- **Prod:** `op run --environment we4tm6dkfoffx42g243qr7ju6m -- sh -c 'supabase secrets set REDBARK_API_KEY="$REDBARK_API_KEY" --project-ref dgfeittjtxjtgbretdkj'`.
+- **Prod:** `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- sh -c 'supabase secrets set REDBARK_API_KEY="$REDBARK_API_KEY" --project-ref dgfeittjtxjtgbretdkj'`.
 - **Local dev:** add `REDBARK_API_KEY=<key>` to `supabase/functions/.env`.
 
 Obtaining the key is on the household to action, not automated: signing up for

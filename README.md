@@ -104,7 +104,7 @@ Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
 
 Secrets (Supabase tokens and keys, third-party API keys, Apple signing) live in
 [1Password Environments](docs/operations.md#1password-environments); run commands
-that need them under `op run --environment we4tm6dkfoffx42g243qr7ju6m -- <command>`.
+that need them under `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- <command>`.
 
 ```sh
 pnpm install   # install all workspaces

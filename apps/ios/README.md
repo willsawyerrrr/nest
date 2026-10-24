@@ -81,7 +81,7 @@ Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
 ```sh
 cd apps/ios
-op run --environment we4tm6dkfoffx42g243qr7ju6m -- xcodegen generate
+op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- xcodegen generate
 open Nest.xcodeproj
 ```
 

@@ -8,6 +8,8 @@ struct ShareSummary: Equatable {
     var tooLarge = 0
     var failed = 0
     var storageUnavailable = false
+    /// What the member is told to do next once something is saved.
+    var reviewPrompt = "Open Nest to review."
 
     mutating func record(_ result: ShareInbox.StoreResult) {
         switch result {
@@ -23,7 +25,7 @@ struct ShareSummary: Equatable {
         if saved > 0 {
             lines.append(
                 (saved == 1 ? "Saved to Nest." : "Saved \(saved) files to Nest.")
-                    + " Open Nest to review.")
+                    + " " + reviewPrompt)
         }
         if unsupported > 0 {
             lines.append(Self.count(unsupported, "was", "were") + " not a PDF or image.")

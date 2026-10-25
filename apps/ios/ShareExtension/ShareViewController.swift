@@ -1,10 +1,11 @@
 import UIKit
+import UserNotifications
 import UniformTypeIdentifiers
 
 /// The share sheet's "Nest" destination. It copies each shared PDF or image
 /// into the App Group inbox and says so; the app hands the files to the
 /// deduction review the next time it is opened. An extension cannot open its
-/// containing app, so the member opens Nest themselves.
+/// containing app, so it posts a notification that opens Nest when tapped.
 final class ShareViewController: UIViewController {
     private let label = UILabel()
     private let spinner = UIActivityIndicatorView(style: .large)
@@ -57,10 +58,30 @@ final class ShareViewController: UIViewController {
             summary.storageUnavailable = true
         }
 
+        if summary.saved > 0, await notifyReadyToReview(summary.saved) {
+            summary.reviewPrompt = "Tap the notification to review."
+        }
+
         spinner.stopAnimating()
         spinner.isHidden = true
         label.text = summary.message
         doneButton.isHidden = false
+    }
+
+    /// Posts a notification that opens Nest, and reports whether it was posted.
+    /// It is skipped until the member has allowed notifications in the app.
+    private func notifyReadyToReview(_ count: Int) async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let status = await center.notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional else { return false }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Nest"
+        content.body = count == 1 ? "1 file is ready to review." : "\(count) files are ready to review."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString, content: content, trigger: nil)
+        return (try? await center.add(request)) != nil
     }
 
     /// Copies one attachment into the inbox. `loadFileRepresentation` hands

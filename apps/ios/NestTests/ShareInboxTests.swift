@@ -148,6 +148,13 @@ import Testing
         #expect(summary.message == "Saved 2 files to Nest. Open Nest to review.")
     }
 
+    @Test func promptsForTheNextStepTheShareExtensionTook() {
+        var summary = ShareSummary()
+        summary.record(.stored(id: "1"))
+        summary.reviewPrompt = "Tap the notification to review."
+        #expect(summary.message == "Saved to Nest. Tap the notification to review.")
+    }
+
     @Test func namesEachReasonAFileWasLeftOut() {
         var summary = ShareSummary()
         summary.record(.unsupported)

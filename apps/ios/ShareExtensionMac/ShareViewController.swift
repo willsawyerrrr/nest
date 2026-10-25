@@ -3,8 +3,8 @@ import UniformTypeIdentifiers
 
 /// The macOS share menu's "Nest" destination. It copies each shared PDF or image
 /// into the App Group inbox and says so; the app hands the files to the
-/// deduction review the next time it is opened. An extension cannot open its
-/// containing app, so the member opens Nest themselves.
+/// deduction review. The app is opened once a file is saved, and takes the files
+/// as it becomes active.
 final class ShareViewController: NSViewController {
     private let label = NSTextField(wrappingLabelWithString: "Saving to Nest…")
     private let spinner = NSProgressIndicator()
@@ -60,10 +60,24 @@ final class ShareViewController: NSViewController {
             summary.storageUnavailable = true
         }
 
+        if summary.saved > 0, await openApp() {
+            summary.reviewPrompt = "Opening Nest to review."
+        }
+
         spinner.stopAnimation(nil)
         spinner.isHidden = true
         label.stringValue = summary.message
         doneButton.isHidden = false
+    }
+
+    /// Opens the containing app (`Nest.app/Contents/PlugIns/<this>.appex`) and
+    /// reports whether it launched.
+    private func openApp() async -> Bool {
+        let appURL = Bundle.main.bundleURL
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        return (try? await NSWorkspace.shared.openApplication(at: appURL, configuration: configuration)) != nil
     }
 
     /// Copies one attachment into the inbox. `loadFileRepresentation` hands

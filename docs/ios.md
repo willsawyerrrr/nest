@@ -277,15 +277,20 @@ a draft deduction to review.
   `public.image`. `ShareViewController` loads each attachment with
   `loadFileRepresentation`, which hands over a file on disk, and copies it into
   the App Group inbox; no file is read into the extension's memory, so size never
-  threatens its memory limit. It then says "Saved to Nest. Open Nest to review.",
-  with a line for each file left out (not a PDF or image, over 25 MB, or not
-  saved), or one line saying the App Group container is unavailable. An extension cannot open its containing app, and the responder-chain
-  workaround is not dependable on current iOS, so the member opens Nest
-  themselves.
+  threatens its memory limit. It then says what to do next, with a line for each
+  file left out (not a PDF or image, over 25 MB, or not saved), or one line
+  saying the App Group container is unavailable. An extension cannot open its
+  containing app, and the responder-chain workaround is not dependable on
+  current iOS, so once a file is saved the extension posts a local notification
+  ("N files are ready to review") that opens Nest when tapped, and the sheet
+  says "Tap the notification to review." The app asks for notification
+  permission when it launches; until it is allowed, the sheet says "Open
+  Nest to review." instead.
 - **macOS extension.** `ShareExtensionMac/` is the native Mac app's counterpart
   (`dev.willsawyerrrr.nest.macos.share-extension`): an `NSViewController` with the
   same activation rule, inbox copy, and result messages, offered in the macOS
-  share menu.
+  share menu. Once a file is saved it opens the containing app
+  (`NSWorkspace.openApplication`), which takes the files as it becomes active.
 - **App Group.** `group.dev.willsawyerrrr.nest`, in `Nest.entitlements` and
   `ShareExtension.entitlements`. The native Mac app uses the team-prefixed
   `8558CXPT9G.dev.willsawyerrrr.nest` in `NestMac/Nest.entitlements` and

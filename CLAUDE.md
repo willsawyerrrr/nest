@@ -1007,15 +1007,16 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   caller's own devices, pruning a row only on a `404`/`410` and reporting
   `{ devices, sent, pruned, failed }`. The payload is `{ title, body, url }`, the
   URL being where `notificationclick` navigates. **Deciding when to notify** is
-  the `notify-eval` edge function: a daily `pg_cron` POST evaluates four
+  the `notify-eval` edge function: a daily `pg_cron` POST evaluates
   today's-data triggers per household with the pure `@nest/plan` / `@nest/tax`
   engines — the fortnightly buffer going negative
   (`summarise().afterSaving` < 0), a dated goal's `projectGoal()` ETA past its
-  `target_date`, a `temporary_item` within 14 days of its target date, and
-  within 14 days of 30 June — and pushes to each member with a device who has
+  `target_date`, a `temporary_item` within 14 days of its target date,
+  within 14 days of 30 June, and a `gift_purchase` from the last 7 days that
+  counts against no gift budget or discretionary buffer — and pushes to each member with a device who has
   left that trigger on and has no matching `notification_log` row in the dedupe
   window (`notification_log` being a `service_role`-only ledger: buffer re-sends
-  after 14 days, the rest fire once per goal target / item / financial year).
+  after 14 days, the rest fire once per goal target / item / financial year / purchase).
   A log row is written only once a device took the push, so a transient failure
   retries next day. Each member turns a trigger off with a per-trigger toggle on
   the Notifications settings page, shown once a device is on

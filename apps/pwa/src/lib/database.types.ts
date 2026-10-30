@@ -2642,7 +2642,11 @@ export type Database = {
       inflow_type: 'salary' | 'wage' | 'other' | 'reimbursement' | 'hobby' | 'gift'
       ledger_source: 'up' | 'manual' | 'redbark'
       notification_trigger:
-        'buffer_negative' | 'goal_eta_slipped' | 'temporary_item_expiring' | 'fy_boundary'
+        | 'buffer_negative'
+        | 'goal_eta_slipped'
+        | 'temporary_item_expiring'
+        | 'fy_boundary'
+        | 'gift_purchase_unassigned'
       one_off_tax_treatment:
         'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
@@ -2793,6 +2797,7 @@ export const Constants = {
         'goal_eta_slipped',
         'temporary_item_expiring',
         'fy_boundary',
+        'gift_purchase_unassigned',
       ],
       one_off_tax_treatment: [
         'ordinary',

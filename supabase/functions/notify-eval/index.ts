@@ -7,7 +7,7 @@
  * JWT — starts an evaluation.
  *
  * It reads every household's plan with a service-role client (the cron caller
- * has no `auth.uid()` for the households' own RLS to match), evaluates the four
+ * has no `auth.uid()` for the households' own RLS to match), evaluates the
  * triggers with the pure `@nest/plan` / `@nest/tax` engines, and pushes to each
  * member who has a device, has left the trigger on, and has not already been
  * told. The send path is `_shared/webpush.ts`, shared with `push-test`.
@@ -22,6 +22,7 @@ import { isServiceRoleToken } from '../up-sync/auth.ts'
 import {
   type AccountBalanceRow,
   type BudgetLineRow,
+  type GiftPurchaseRow,
   type HouseholdBundle,
   type LogRow,
   type PreferenceRow,
@@ -74,9 +75,10 @@ Deno.serve(async (request) => {
       return [...new Set((data ?? []).map((row) => row.household_id as string))]
     },
     loadBundle: async (householdId, financialYear): Promise<HouseholdBundle> => {
-      const [base, accountBalances] = await Promise.all([
+      const [base, accountBalances, giftPurchases] = await Promise.all([
         loadBudgetSummaryBundle(admin, householdId, financialYear),
         readHouseholdTable(admin, householdId, 'account_balance'),
+        readHouseholdTable(admin, householdId, 'gift_purchase'),
       ])
       return {
         ...base,
@@ -84,6 +86,7 @@ Deno.serve(async (request) => {
         savingsGoals: base.savingsGoals as SavingsGoalRow[],
         temporaryItems: base.temporaryItems as TemporaryItemRow[],
         accountBalances: accountBalances as AccountBalanceRow[],
+        giftPurchases: giftPurchases as GiftPurchaseRow[],
       }
     },
     loadSubscriptions: async (householdId): Promise<SubscriptionRow[]> => {

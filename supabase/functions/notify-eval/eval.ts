@@ -4,7 +4,7 @@
  * the real service-role reads and the shared Web Push sender.
  *
  * For each household it reconciles the plan with the pure `@nest/plan` /
- * `@nest/tax` engines, checks four conditions against today's data, and — for
+ * `@nest/tax` engines, checks its conditions against today's data, and — for
  * each member who has a device, has left the trigger on, and has not already
  * been told — sends `{ title, body, url }` and records a `notification_log`
  * row. The log row is the dedupe: a `(member, trigger, dedupe_key)` already
@@ -21,15 +21,23 @@ import {
 } from '@nest/household'
 import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
 
-/** The four today's-data conditions, matching the `notification_trigger` enum. */
+/** The today's-data conditions, matching the `notification_trigger` enum. */
 export type Trigger =
   | 'buffer_negative'
   | 'goal_eta_slipped'
   | 'temporary_item_expiring'
   | 'fy_boundary'
+  | 'gift_purchase_unassigned'
 
 /** A day either side of `targetDate` counts as "within 14 days". */
 export const EXPIRY_WINDOW_DAYS = 14
+
+/**
+ * A purchase is announced for this many days after it is created, so a run that
+ * fails transiently is retried, while a long-forgotten backlog is not announced
+ * all at once.
+ */
+export const UNASSIGNED_GIFT_WINDOW_DAYS = 7
 
 /** After this long a still-negative buffer is notified again. */
 export const BUFFER_RENOTIFY_DAYS = 14
@@ -56,6 +64,16 @@ export interface TemporaryItemRow extends BufferTemporaryItemRow {
   name: string
 }
 
+/** The `gift_purchase` columns the unassigned-purchase trigger reads. */
+export interface GiftPurchaseRow {
+  id: string
+  amount_cents: number
+  description: string
+  gift_budget_id: string | null
+  gift_discretionary_budget_id: string | null
+  created_at: string
+}
+
 /** An `account_balance` row: a linked saver's synced balance overrides the goal's own. */
 export interface AccountBalanceRow {
   account_id: string
@@ -68,6 +86,7 @@ export interface HouseholdBundle extends BudgetSummaryBundle {
   savingsGoals: readonly SavingsGoalRow[]
   temporaryItems: readonly TemporaryItemRow[]
   accountBalances: readonly AccountBalanceRow[]
+  giftPurchases: readonly GiftPurchaseRow[]
 }
 
 /** One opted-in device with the member it belongs to. */
@@ -268,7 +287,32 @@ export function evaluateHousehold(bundle: HouseholdBundle, now: Date): Firing[] 
     })
   }
 
+  for (const purchase of bundle.giftPurchases) {
+    if (!isRecentUnassignedGiftPurchase(purchase, now)) continue
+    const label = purchase.description.trim()
+    firings.push({
+      trigger: 'gift_purchase_unassigned',
+      dedupeKey: purchase.id,
+      payload: {
+        title: 'Assign your gift purchase',
+        body: `${label === '' ? 'A gift purchase' : `"${label}"`} (${
+          formatCents(purchase.amount_cents)
+        }) has no recipient or occasion yet.`,
+        url: '/gifts',
+      },
+    })
+  }
+
   return firings
+}
+
+/** A purchase counting against neither a gift budget nor the discretionary buffer, created within the window. */
+function isRecentUnassignedGiftPurchase(purchase: GiftPurchaseRow, now: Date): boolean {
+  if (purchase.gift_budget_id != null || purchase.gift_discretionary_budget_id != null) {
+    return false
+  }
+  const ageMs = now.getTime() - Date.parse(purchase.created_at)
+  return ageMs <= UNASSIGNED_GIFT_WINDOW_DAYS * 86_400_000
 }
 
 /** Whether a `(member, trigger, dedupeKey)` was already sent inside its window. */

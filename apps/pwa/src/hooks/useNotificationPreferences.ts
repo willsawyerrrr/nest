@@ -11,6 +11,7 @@ export const NOTIFICATION_TRIGGERS: readonly NotificationTrigger[] = [
   'goal_eta_slipped',
   'temporary_item_expiring',
   'fy_boundary',
+  'gift_purchase_unassigned',
 ]
 
 interface PreferenceUpsert {

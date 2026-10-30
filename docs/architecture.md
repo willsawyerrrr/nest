@@ -307,7 +307,7 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   `notificationclick`.
 - `notify-eval` decides *when* to notify. A `pg_cron` job POSTs it once a day
   (one fixed UTC hour, ≈ morning AEST) with the service-role key; it reads every
-  household's plan with a service-role client, checks four conditions against
+  household's plan with a service-role client, checks its conditions against
   today's data with the pure `@nest/plan` / `@nest/tax` engines, and pushes to
   each member with a device who has not turned that trigger off — a per-trigger
   toggle on the Notifications settings page, `notification_preference`,
@@ -319,6 +319,15 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   - **temporary_item_expiring** — a `temporary_item.target_date` within 14 days.
     Dedupe: the item id.
   - **fy_boundary** — within 14 days of 30 June. Dedupe: the financial year.
+  - **gift_purchase_unassigned** — a `gift_purchase` created within the last 7
+    days that counts against neither a `gift_budget` nor the discretionary
+    buffer, so it can be assigned and detailed while fresh. Dedupe: the purchase
+    id. It rides the daily run rather than a per-insert database webhook: the
+    run already holds the device, preference, and dedupe machinery, and a
+    morning nudge for the previous day's purchases is soon enough; the 7-day
+    window retries a failed run without announcing a long-forgotten backlog.
+    An unassigned purchase has no recipient tag, so every household member can
+    already read it and every member with a device is notified.
 
   It appends a `notification_log` row only once a device took the push, so a
   transient total failure is retried next day, and prunes `404`/`410` endpoints.

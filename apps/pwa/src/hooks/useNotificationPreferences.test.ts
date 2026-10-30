@@ -19,12 +19,13 @@ beforeEach(() => {
 })
 
 describe('useNotificationPreferences', () => {
-  it('names the four triggers in list order', () => {
+  it('names the triggers in list order', () => {
     expect(NOTIFICATION_TRIGGERS).toEqual([
       'buffer_negative',
       'goal_eta_slipped',
       'temporary_item_expiring',
       'fy_boundary',
+      'gift_purchase_unassigned',
     ])
   })
 

@@ -552,7 +552,7 @@ daily cron that decides when to notify.
   with the service-role key; the default JWT posture verifies that key and the
   handler rejects anything but a `service_role` bearer, so only the cron starts
   a run. With a service-role client it reads every household's plan, checks
-  four conditions against today's data with the pure `@nest/plan` / `@nest/tax`
+  its conditions against today's data with the pure `@nest/plan` / `@nest/tax`
   engines —
 
   - **buffer_negative** — the fortnightly buffer (`summarise().afterSaving`) is
@@ -562,6 +562,9 @@ daily cron that decides when to notify.
   - **temporary_item_expiring** — a `temporary_item.target_date` is within 14
     days. Dedupe key: the item id.
   - **fy_boundary** — within 14 days of 30 June. Dedupe key: the financial year.
+  - **gift_purchase_unassigned** — a `gift_purchase` created in the last 7 days
+    with neither `gift_budget_id` nor `gift_discretionary_budget_id`. Dedupe
+    key: the purchase id.
 
   — and for each member with a device, the trigger left on
   (`notification_preference`), and no matching `notification_log` row in the

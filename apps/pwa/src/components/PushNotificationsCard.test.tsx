@@ -17,6 +17,7 @@ function renderCard(overrides: Partial<Parameters<typeof PushNotificationsCard>[
         { trigger: 'goal_eta_slipped', enabled: false },
         { trigger: 'temporary_item_expiring', enabled: true },
         { trigger: 'fy_boundary', enabled: true },
+        { trigger: 'gift_purchase_unassigned', enabled: true },
       ]}
       onTogglePreference={vi.fn()}
       {...overrides}

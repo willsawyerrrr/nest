@@ -284,7 +284,9 @@ spending allowances, `20261004000000_member_allowance.sql`), joining the EOFY se
 had (`20260905000000_notification_triggers.sql`). It reads `budget_line`
 straight — the `reconcile_derived_lines` triggers keep the breakdown- and
 gift-derived lines canonical (annual, whole cents), so the loader needs none of
-the breakdown or gift tables and `20260917000000` revokes the short-lived grants
+the breakdown tables or the gift tables beyond `gift_purchase` (`select`, for the
+unassigned-purchase trigger, `20261020000000_unassigned_gift_purchase_notification.sql`),
+and `20260917000000` revokes the short-lived grants
 that `20260915000000` had added while it re-derived those amounts. It also holds
 `select` on `notification_preference` and `select`/`insert` on `notification_log`; every
 write to a preference is a member's own.

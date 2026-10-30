@@ -22,6 +22,7 @@ function renderNotifications(overrides: Partial<Parameters<typeof NotificationsS
         { trigger: 'goal_eta_slipped', enabled: true },
         { trigger: 'temporary_item_expiring', enabled: true },
         { trigger: 'fy_boundary', enabled: true },
+        { trigger: 'gift_purchase_unassigned', enabled: true },
       ]}
       onToggleNotificationPreference={vi.fn()}
       {...overrides}

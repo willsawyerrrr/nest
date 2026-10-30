@@ -23,6 +23,7 @@ vi.mock('../hooks/useNotificationPreferences', () => ({
     'goal_eta_slipped',
     'temporary_item_expiring',
     'fy_boundary',
+    'gift_purchase_unassigned',
   ],
   useNotificationPreferences: hooks.useNotificationPreferences,
 }))
@@ -85,6 +86,7 @@ describe('NotificationsSection', () => {
       { trigger: 'goal_eta_slipped', enabled: true },
       { trigger: 'temporary_item_expiring', enabled: true },
       { trigger: 'fy_boundary', enabled: false },
+      { trigger: 'gift_purchase_unassigned', enabled: true },
     ])
     const toggle = hooks.screenProps!.onToggleNotificationPreference as (
       trigger: string,

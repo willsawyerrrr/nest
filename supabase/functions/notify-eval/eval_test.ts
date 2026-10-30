@@ -54,6 +54,7 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     savingsGoals: [],
     temporaryItems: [],
     accountBalances: [],
+    giftPurchases: [],
     savers: [],
     ...overrides,
   }
@@ -268,6 +269,60 @@ Deno.test('fy_boundary fires within 14 days of 30 June', () => {
     ],
   )
   assertEquals(evaluateHousehold(bundle(), new Date('2027-06-10T00:00:00Z')), [])
+})
+
+Deno.test('gift_purchase_unassigned fires for a recent purchase with no budget', () => {
+  const purchase = {
+    id: 'gp-1',
+    amount_cents: 12_50,
+    description: 'Wrapping paper',
+    gift_budget_id: null,
+    gift_discretionary_budget_id: null,
+    created_at: '2027-02-14T00:00:00Z',
+  }
+  const firings = evaluateHousehold(bundle({ giftPurchases: [purchase] }), NOW)
+  assertEquals(firings.map((f) => f.trigger), ['gift_purchase_unassigned'])
+  assertEquals(firings[0].dedupeKey, 'gp-1')
+  assertEquals(firings[0].payload.url, '/gifts')
+  assert(firings[0].payload.body.includes('"Wrapping paper" ($12.50)'))
+})
+
+Deno.test('gift_purchase_unassigned skips assigned, stale, and ad hoc purchases', () => {
+  const base = {
+    amount_cents: 10_00,
+    description: '',
+    gift_budget_id: null,
+    gift_discretionary_budget_id: null,
+    created_at: '2027-02-14T00:00:00Z',
+  }
+  const firings = evaluateHousehold(
+    bundle({
+      giftPurchases: [
+        { ...base, id: 'budgeted', gift_budget_id: 'gb-1' },
+        { ...base, id: 'ad-hoc', gift_discretionary_budget_id: 'gd-1' },
+        { ...base, id: 'stale', created_at: '2027-01-01T00:00:00Z' },
+      ],
+    }),
+    NOW,
+  )
+  assertEquals(firings, [])
+})
+
+Deno.test('gift_purchase_unassigned names a purchase with no description generically', () => {
+  const [firing] = evaluateHousehold(
+    bundle({
+      giftPurchases: [{
+        id: 'gp-2',
+        amount_cents: 5_00,
+        description: '  ',
+        gift_budget_id: null,
+        gift_discretionary_budget_id: null,
+        created_at: '2027-02-15T00:00:00Z',
+      }],
+    }),
+    NOW,
+  )
+  assert(firing.payload.body.startsWith('A gift purchase ($5.00)'))
 })
 
 // ── helpers ────────────────────────────────────────────────────────────────

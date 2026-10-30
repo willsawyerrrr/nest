@@ -1119,7 +1119,8 @@ sets the split in Up by hand and confirms the amount app-side. See
     receives every trigger. Composite FK `(member_id, household_id)` → `members`
     `on delete cascade`.
   - `trigger` is the `notification_trigger` enum: `buffer_negative`,
-    `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`. Each is a
+    `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`,
+    `gift_purchase_unassigned`. Each is a
     per-trigger toggle on the Notifications settings page
     (`useNotificationPreferences`), shown once a device is subscribed.
   - RLS is own-member-only (four per-command policies gated on
@@ -1136,7 +1137,8 @@ sets the split in Up by hand and confirms the amount app-side. See
     indexed on `(household_id)` and `(member_id, trigger, sent_at)`.
   - `dedupe_key` per trigger: the financial year for `buffer_negative`
     (re-notified after 14 days) and `fy_boundary`, `<goal_id>:<target_date>` for
-    `goal_eta_slipped`, the item id for `temporary_item_expiring`.
+    `goal_eta_slipped`, the item id for `temporary_item_expiring`, the purchase id for
+    `gift_purchase_unassigned`.
   - RLS is enabled with **no `authenticated` policy and no `authenticated`
     grant** — a member sees that a notification arrived, never the ledger.
     `service_role` holds `select` and `insert` only.

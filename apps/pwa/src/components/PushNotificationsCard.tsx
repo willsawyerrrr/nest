@@ -27,6 +27,10 @@ const TRIGGER_COPY: Record<NotificationTrigger, { label: string; detail: string 
     label: 'End of the financial year',
     detail: 'About two weeks before 30 June, to review your tax settings.',
   },
+  gift_purchase_unassigned: {
+    label: 'A gift purchase needs assigning',
+    detail: 'When a gift purchase is logged without a recipient or occasion.',
+  },
 }
 
 export interface PushNotificationsCardProps {

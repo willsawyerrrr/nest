@@ -6,13 +6,16 @@ import AppKit
 import UIKit
 #endif
 
+/// Where the embedded web app is served.
+enum WebApp {
+    static let url = URL(string: "https://nest.willsawyerrrr.dev")!
+}
+
 /// The app shell. The native app owns the one Supabase session, so this is a
 /// blocking sign-in gate: `SignInView` when signed out, the embedded PWA once
 /// signed in. The web view is handed the same session (see `WebView.swift`), so
 /// the member signs in exactly once.
 struct ContentView: View {
-    private static let pwaURL = URL(string: "https://nest.willsawyerrrr.dev")!
-
     @Environment(AuthModel.self) private var auth
 
     @State private var isLoading = true
@@ -39,7 +42,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var webView: some View {
-        WebView(url: Self.pwaURL, isLoading: $isLoading, loadError: $loadError)
+        WebView(url: WebApp.url, isLoading: $isLoading, loadError: $loadError)
             .id(reloadToken)
             .ignoresSafeArea()
 

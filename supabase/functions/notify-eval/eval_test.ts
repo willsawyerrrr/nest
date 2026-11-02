@@ -1,6 +1,7 @@
 import { assert, assertEquals } from '@std/assert'
 import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
 import {
+  type ApnsDeviceRow,
   daysUntil,
   evaluateHousehold,
   formatCents,
@@ -351,6 +352,10 @@ function subscription(id: string, memberId: string): SubscriptionRow {
   return { ...device(id), member_id: memberId }
 }
 
+function apnsDevice(id: string, memberId: string): ApnsDeviceRow {
+  return { id, member_id: memberId, token: `tok-${id}`, environment: 'production' }
+}
+
 /** A household whose only firing is the expiring temporary item `t-1`. */
 function tempItemBundle(): HouseholdBundle {
   return bundle({
@@ -365,27 +370,38 @@ function tempItemBundle(): HouseholdBundle {
 
 interface Recorded {
   sent: Array<{ endpoint: string; payload: PushPayload }>
+  sentApns: Array<{ token: string; payload: PushPayload }>
   logged: Array<{ memberId: string; trigger: Trigger; dedupeKey: string }>
   pruned: string[]
+  prunedApns: string[]
 }
 
 function deps(
   overrides: Partial<NotifyEvalDeps> = {},
-  recorded: Recorded = { sent: [], logged: [], pruned: [] },
+  recorded: Recorded = { sent: [], sentApns: [], logged: [], pruned: [], prunedApns: [] },
 ): { deps: NotifyEvalDeps; recorded: Recorded } {
   const base: NotifyEvalDeps = {
     now: () => NOW,
     loadHouseholdIds: () => Promise.resolve(['h-1']),
     loadBundle: () => Promise.resolve(tempItemBundle()),
     loadSubscriptions: () => Promise.resolve([subscription('d-1', 'm-1')]),
+    loadApnsDevices: () => Promise.resolve([]),
     loadPreferences: () => Promise.resolve([]),
     loadRecentLog: () => Promise.resolve([]),
     sendPush: (dev, payload): Promise<DeliveryOutcome> => {
       recorded.sent.push({ endpoint: dev.endpoint, payload })
       return Promise.resolve({ delivered: true })
     },
+    sendApns: (dev, payload): Promise<DeliveryOutcome> => {
+      recorded.sentApns.push({ token: dev.token, payload })
+      return Promise.resolve({ delivered: true })
+    },
     prune: (ids) => {
       recorded.pruned.push(...ids)
+      return Promise.resolve()
+    },
+    pruneApns: (ids) => {
+      recorded.prunedApns.push(...ids)
       return Promise.resolve()
     },
     recordLog: ({ memberId, trigger, dedupeKey }) => {
@@ -546,4 +562,90 @@ Deno.test('runNotifyEval reports a household with no firing and moves on', async
     failed: 0,
   })
   assertEquals(recorded.sent, [])
+})
+
+Deno.test('runNotifyEval notifies a member who has only an APNs device', async () => {
+  const { deps: d, recorded } = deps({
+    loadSubscriptions: () => Promise.resolve([]),
+    loadApnsDevices: () => Promise.resolve([apnsDevice('a-1', 'm-1')]),
+  })
+  const summary = await runNotifyEval(d)
+
+  assertEquals(recorded.sent, [])
+  assertEquals(recorded.sentApns.map((s) => s.token), ['tok-a-1'])
+  assertEquals(recorded.sentApns[0].payload.url, '/budget')
+  assertEquals(recorded.logged.length, 1)
+  assertEquals(summary.notified, 1)
+  assertEquals(summary.sent, 1)
+})
+
+Deno.test("runNotifyEval delivers to a member's web and APNs devices but logs once", async () => {
+  const { deps: d, recorded } = deps({
+    loadApnsDevices: () => Promise.resolve([apnsDevice('a-1', 'm-1')]),
+  })
+  const summary = await runNotifyEval(d)
+
+  assertEquals(recorded.sent.length, 1)
+  assertEquals(recorded.sentApns.length, 1)
+  assertEquals(recorded.logged.length, 1)
+  assertEquals(summary.sent, 2)
+  assertEquals(summary.notified, 1)
+})
+
+Deno.test('runNotifyEval skips APNs devices for a member who turned the trigger off', async () => {
+  const { deps: d, recorded } = deps({
+    loadSubscriptions: () => Promise.resolve([]),
+    loadApnsDevices: () => Promise.resolve([apnsDevice('a-1', 'm-1')]),
+    loadPreferences: () =>
+      Promise.resolve([{ member_id: 'm-1', trigger: 'temporary_item_expiring', enabled: false }]),
+  })
+  const summary = await runNotifyEval(d)
+
+  assertEquals(recorded.sentApns, [])
+  assertEquals(summary.skipped, 1)
+})
+
+Deno.test('runNotifyEval skips an APNs-only member already in the dedupe log', async () => {
+  const { deps: d, recorded } = deps({
+    loadSubscriptions: () => Promise.resolve([]),
+    loadApnsDevices: () => Promise.resolve([apnsDevice('a-1', 'm-1')]),
+    loadRecentLog: () =>
+      Promise.resolve([{
+        member_id: 'm-1',
+        trigger: 'temporary_item_expiring',
+        dedupe_key: 't-1',
+        sent_at: '2020-01-01T00:00:00Z',
+      }]),
+  })
+  await runNotifyEval(d)
+
+  assertEquals(recorded.sentApns, [])
+})
+
+Deno.test('runNotifyEval prunes an APNs device APNs reports dead, from the APNs table', async () => {
+  const { deps: d, recorded } = deps({
+    loadApnsDevices: () => Promise.resolve([apnsDevice('a-1', 'm-1'), apnsDevice('a-2', 'm-1')]),
+    sendApns: (dev) =>
+      Promise.resolve(
+        dev.id === 'a-2' ? { delivered: false, gone: true } : { delivered: true },
+      ),
+  })
+  const summary = await runNotifyEval(d)
+
+  assertEquals(recorded.prunedApns, ['a-2'])
+  assertEquals(recorded.pruned, [])
+  assertEquals(summary.pruned, 1)
+})
+
+Deno.test('runNotifyEval does not log when the only APNs device fails transiently', async () => {
+  const { deps: d, recorded } = deps({
+    loadSubscriptions: () => Promise.resolve([]),
+    loadApnsDevices: () => Promise.resolve([apnsDevice('a-1', 'm-1')]),
+    sendApns: () => Promise.resolve({ delivered: false, gone: false }),
+  })
+  const summary = await runNotifyEval(d)
+
+  assertEquals(recorded.logged, [])
+  assertEquals(summary.failed, 1)
+  assertEquals(summary.notified, 0)
 })

@@ -8,7 +8,7 @@ belong to. Five tables narrow that further: `accounts` limits which account
 identities a member reads, `account_balance` and `transactions` add per-account
 balance privacy (a co-member's balances and spend are not visible),
 `gift_purchase` withholds the spend on gifts meant for the caller, and
-`push_subscription` is own-member-only (see the security model in
+`push_subscription` and `apns_device` are own-member-only (see the security model in
 [`architecture.md`](architecture.md#security)). Cross-household references are
 additionally blocked by composite foreign keys on `(id, household_id)`.
 
@@ -1111,6 +1111,26 @@ sets the split in Up by hand and confirms the amount app-side. See
     send) and `delete` (to prune the endpoints a push service reports gone). It
     never inserts one — only a device's own browser mints a subscription.
 
+- **apns_device** — one APNs device token per native-app install, owned by the
+  member signed in on it.
+  - `id`, `household_id`, `member_id`, `token`, `environment`, `created_at`,
+    `updated_at`.
+  - `token` is the hex APNs device token that identifies the install, `unique` so
+    a re-registering device refreshes its row. `environment` is `sandbox` or
+    `production` (a check constraint): the APNs host the token belongs to, since a
+    development-signed build's token is refused by the production host and the
+    reverse. Composite FK `(member_id, household_id)` → `members`
+    `on delete cascade`; indexed on `(household_id)` and `(member_id, household_id)`.
+  - **RLS is own-member-only**, exactly as for `push_subscription`: four
+    per-command policies gated on `current_member_ids()` on top of household
+    membership. `authenticated` holds all four grants; `service_role` holds
+    `select` (to send) and `delete` (to prune dead tokens), never an insert.
+  - The app registers through `register_apns_device(p_token, p_environment)`
+    (`SECURITY DEFINER`, granted to `authenticated`), which upserts on `token` for
+    the caller's own member and reassigns a token that last belonged to another
+    member, so an install that changes accounts stops notifying the previous
+    one. The app deletes its own row on sign-out.
+
 - **notification_preference** — one member's on/off choice for one notification
   trigger, the same own-member boundary as `push_subscription`.
   - `id`, `household_id`, `member_id`, `trigger`, `enabled` (`not null default
@@ -1122,7 +1142,8 @@ sets the split in Up by hand and confirms the amount app-side. See
     `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`,
     `gift_purchase_unassigned`. Each is a
     per-trigger toggle on the Notifications settings page
-    (`useNotificationPreferences`), shown once a device is subscribed.
+    (`useNotificationPreferences`), shown once a device is subscribed or the page
+    is running in the native app.
   - RLS is own-member-only (four per-command policies gated on
     `current_member_ids()`), like `push_subscription`. `authenticated` holds all
     four grants; `service_role` holds `select` alone — the evaluator reads
@@ -1301,6 +1322,12 @@ that live in Vault:
   subject for its `sub` claim), so this is one round trip and one grant. It has no
   store counterpart — the operator sets and rotates the secrets by hand
   ([`operations.md`](operations.md#web-push-vapid-keypair-setup)).
+- `apns_keys()` — the APNs credential set (key id, team id, bundle id, and the
+  `.p8` private key) as one row, nulls when unset, for the same reason as
+  `vapid_keys()`: the sender needs all of it together (the key to sign the ES256
+  provider token with its `kid` and `iss`, the bundle id for the `apns-topic`). The
+  operator sets and rotates the secrets by hand
+  ([`operations.md`](operations.md#apns-auth-key-setup)).
 - `anthropic_api_key()` — the Anthropic API key from Vault, for the
   `payslip-extract` edge function. Read-only, the same shape as
   `up_token_for_member`: there is no store counterpart because no client ever

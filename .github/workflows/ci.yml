@@ -323,6 +323,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_single_receipt.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/apns_device.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_source_accounts.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql

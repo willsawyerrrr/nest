@@ -57,6 +57,12 @@ const DEVICE_STATES: Record<
   Exclude<PushStatus, 'checking'>,
   { label: string; color: string; detail: string }
 > = {
+  native: {
+    label: 'On',
+    color: 'positive',
+    detail:
+      'The nest app delivers notifications to this device. Change what it may show in your device settings.',
+  },
   unsupported: {
     label: 'Unavailable',
     color: 'gray',
@@ -144,14 +150,14 @@ export function PushNotificationsCard({
             <Button
               variant="default"
               fullWidth
-              disabled={status !== 'subscribed' || pending === 'toggle'}
+              disabled={(status !== 'subscribed' && status !== 'native') || pending === 'toggle'}
               loading={pending === 'test'}
               onClick={onSendTest}
             >
               Send test notification
             </Button>
 
-            {status === 'subscribed' && preferences.length > 0 && (
+            {(status === 'subscribed' || status === 'native') && preferences.length > 0 && (
               <>
                 <Divider mt="xs" label="Notify me about" labelPosition="left" />
                 <Stack gap="sm">

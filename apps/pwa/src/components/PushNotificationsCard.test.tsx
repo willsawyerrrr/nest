@@ -89,6 +89,19 @@ describe('PushNotificationsCard', () => {
     expect(onDisable).toHaveBeenCalledOnce()
   })
 
+  it('shows a native app device as on, with no switch to flip and the preferences', () => {
+    const onSendTest = vi.fn()
+    renderCard({ status: 'native', onSendTest })
+
+    expect(screen.getByText('On')).toBeInTheDocument()
+    expect(screen.getByText(/the nest app delivers notifications/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /turn (on|off)/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Notify me about')).toBeInTheDocument()
+
+    fireEvent.click(testButton())
+    expect(onSendTest).toHaveBeenCalledOnce()
+  })
+
   it('reports what the test send reached', () => {
     renderCard({ status: 'subscribed', testResult: 'Sent to 2 devices.' })
 

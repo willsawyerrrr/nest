@@ -6,6 +6,9 @@ import UserNotifications
 struct NestApp: App {
     @State private var auth = AuthModel()
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    @UIApplicationDelegateAdaptor(NestAppDelegate.self) private var appDelegate
+    #endif
 
     var body: some Scene {
         WindowGroup {
@@ -28,10 +31,21 @@ struct NestApp: App {
     }
 
     /// The share extension posts a notification that opens Nest when tapped,
-    /// which needs the member's permission, asked for when the app launches.
+    /// and Nest's own alerts arrive over APNs, both of which need the member's
+    /// permission, asked for when the app launches. Once it is granted the app
+    /// registers for remote notifications.
     private func requestNotificationAuthorization() {
         #if !os(macOS)
-        Task { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) }
+        Task {
+            let center = UNUserNotificationCenter.current()
+            #if os(iOS) && !targetEnvironment(macCatalyst)
+            if (try? await center.requestAuthorization(options: [.alert, .sound])) == true {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            #else
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+            #endif
+        }
         #endif
     }
 
@@ -42,6 +56,7 @@ struct NestApp: App {
         switch state {
         case .signedIn:
             NestShortcuts.updateAppShortcutParameters()
+            Task { await PushRegistrar.shared.sync() }
             Task { await SpotlightIndexer.shared.refresh() }
         case .signedOut:
             Task { await SpotlightIndexer.shared.clear() }

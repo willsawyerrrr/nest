@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useHouseholdId } from '../components/HouseholdProvider'
+import { isNativeShell } from '../lib/nativeShell'
 import { base64UrlToBytes, bytesToBase64Url } from '../lib/push'
 import { supabase } from '../lib/supabase'
 
@@ -7,6 +8,9 @@ import { supabase } from '../lib/supabase'
  * What Web Push can do on the device the app is running on.
  *
  * - `checking` — the device is still being probed; nothing is offered yet.
+ * - `native` — the native app's web view. The app registers the device for
+ *   APNs itself once the member allows notifications, so there is nothing to
+ *   opt in to here.
  * - `unsupported` — the browser has no Web Push at all.
  * - `needs-install` — iOS, which delivers push only to a PWA installed to the
  *   home screen, running as an ordinary Safari tab.
@@ -15,7 +19,13 @@ import { supabase } from '../lib/supabase'
  * - `not-subscribed` / `subscribed` — this device can be turned on, or is on.
  */
 export type PushStatus =
-  'checking' | 'unsupported' | 'needs-install' | 'denied' | 'not-subscribed' | 'subscribed'
+  | 'checking'
+  | 'native'
+  | 'unsupported'
+  | 'needs-install'
+  | 'denied'
+  | 'not-subscribed'
+  | 'subscribed'
 
 /** What the `push-test` function reports back about a test send. */
 interface PushTestResult {
@@ -79,7 +89,8 @@ function hasPushApis(): boolean {
 
 /**
  * Probes what this device can do, in the order the answers foreclose one
- * another: iOS outside an installed PWA can be fixed by installing, so it is
+ * another: the native app delivers over APNs, so its web view needs no Web Push
+ * and is reported ahead of everything else; iOS outside an installed PWA can be fixed by installing, so it is
  * reported ahead of the bare API check that would otherwise call it unsupported;
  * a blocked permission is terminal, so it is reported ahead of the subscription
  * lookup. Anything unexpected reads as unsupported rather than leaving the UI
@@ -87,6 +98,9 @@ function hasPushApis(): boolean {
  */
 async function probeStatus(): Promise<PushStatus> {
   try {
+    if (isNativeShell()) {
+      return 'native'
+    }
     if (isIos() && !isInstalled()) {
       return 'needs-install'
     }

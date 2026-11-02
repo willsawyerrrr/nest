@@ -35,6 +35,12 @@ and Spotlight still work on both platforms.
     `KeychainLocalStorage`).
   - `Auth.swift` — `@Observable` `AuthModel`: session state, native Google sign-in, and
     the `authStateChanges` observation behind the gate.
+  - `PushNotifications.swift` — APNs token registration (`PushRegistrar`,
+    `PushDeviceService`) and the page a tapped notification opens
+    (`NotificationRoute`, `NotificationRouter`).
+  - `NestAppDelegate.swift` — iOS-only: receives the APNs token and the
+    member's taps on notifications.
+  - `NestiOS.entitlements` — the iOS entitlements, adding `aps-environment`.
   - `ShareBridge.swift` — builds the JavaScript that hands a shared file to the
     page in chunks, and reads the page's acknowledgement.
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.

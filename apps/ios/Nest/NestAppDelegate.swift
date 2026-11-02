@@ -22,21 +22,31 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
     }
 
     /// Shows a notification that arrives while the app is open.
+    ///
+    /// The completion-handler form is used throughout: UserNotifications calls
+    /// these on a background queue, and an `async` method would complete from a
+    /// background executor, which makes UIKit assert off the main thread.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
+    ) {
+        Task { @MainActor in completionHandler([.banner, .sound]) }
     }
 
-    /// Opens the page a tapped notification names in the web view.
+    /// Opens the page a tapped notification names in the web view, then
+    /// completes on the main thread.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
         let userInfo = response.notification.request.content.userInfo
-        guard let url = NotificationRoute.url(from: userInfo, base: WebApp.url) else { return }
-        await NotificationRouter.shared.open(url)
+        let url = NotificationRoute.url(from: userInfo, base: WebApp.url)
+        Task { @MainActor in
+            if let url { NotificationRouter.shared.open(url) }
+            completionHandler()
+        }
     }
 }
 #endif

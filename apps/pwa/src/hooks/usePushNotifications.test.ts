@@ -117,6 +117,18 @@ describe('usePushNotifications status', () => {
     await waitFor(() => expect(result.current.status).toBe('unsupported'))
   })
 
+  it("treats the native app's web view as already on, whatever the web can do", async () => {
+    givenPushCapableBrowser({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)' })
+    window.__NEST_NATIVE_SHELL__ = true
+    try {
+      const { result } = renderPush()
+
+      await waitFor(() => expect(result.current.status).toBe('native'))
+    } finally {
+      delete window.__NEST_NATIVE_SHELL__
+    }
+  })
+
   it('tells an iOS browser tab to install to the home screen first', async () => {
     givenPushCapableBrowser({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)' })
     const { result } = renderPush()

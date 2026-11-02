@@ -283,14 +283,23 @@ token.
 ### Push notifications
 
 The installed PWA is the primary device, so alerts go out over Web Push (RFC 8291
-payload encryption, RFC 8292 VAPID auth) — no third-party push vendor, no native
-app. The infrastructure is a subscription store, a key endpoint, and a send path:
+payload encryption, RFC 8292 VAPID auth); the native iOS app, whose web view
+cannot receive Web Push, is reached over APNs. No third-party push vendor. The
+infrastructure is a device store per channel, a key endpoint, and a send path per
+channel:
 
 - A member opts each device in separately. The service worker's `PushManager`
   mints a subscription; the PWA stores its endpoint and two keys in
   `push_subscription`, upserting on the endpoint so a re-subscribe refreshes the
   row rather than adding one. A subscription is readable and deletable only by
   the member whose device it is (see *Security*).
+- The native app registers for remote notifications once the member allows them
+  and stores its APNs device token in `apns_device` through the
+  `register_apns_device` RPC (keyed on the unique token, with the `sandbox` or
+  `production` environment its build was signed for; a token registered by a
+  different member is reassigned to the caller). It deletes the row before
+  signing out, and a tap opens the payload's `url` in the web view. Like a
+  subscription, a token is readable and deletable only by its member.
 - `push-key` returns the VAPID public key for
   `pushManager.subscribe({ applicationServerKey })`. Serving it beats baking it
   into the build: rotating the keypair is then a Vault change with no rebuild.
@@ -303,13 +312,23 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   rows a push service reports `404`/`410` for, and answers
   `{ devices, sent, pruned, failed }`. Any other failure leaves the row alone —
   a 5xx is transient, not an unsubscribe.
+- `_shared/apns.ts` is the APNs send path: an ES256 provider token (JWT signed
+  with the `.p8` key over WebCrypto, reused for 50 minutes) and an HTTP/2 POST to
+  `api.push.apple.com` or `api.sandbox.push.apple.com` by the device's
+  environment, with the bundle id as `apns-topic`. `410` and `400 BadDeviceToken`
+  mean the token is dead and its row is pruned; any other response (a rejected
+  provider token, `429`, a 5xx) is transient. `push-test` and `notify-eval` send
+  to a member's APNs devices alongside their Web Push ones. A channel whose
+  credentials are unset is skipped, so a deployment with only VAPID keys (or only
+  APNs credentials) still serves its devices.
 - The payload is `{ title, body, url }`; the service worker navigates to `url` on
-  `notificationclick`.
+  `notificationclick`, and the APNs body carries the same fields as
+  `{ aps: { alert: { title, body }, sound }, url }`.
 - `notify-eval` decides *when* to notify. A `pg_cron` job POSTs it once a day
   (one fixed UTC hour, ≈ morning AEST) with the service-role key; it reads every
   household's plan with a service-role client, checks its conditions against
   today's data with the pure `@nest/plan` / `@nest/tax` engines, and pushes to
-  each member with a device who has not turned that trigger off — a per-trigger
+  each member with a device (of either kind) who has not turned that trigger off — a per-trigger
   toggle on the Notifications settings page, `notification_preference`,
   absent ⇒ on — and has no matching `notification_log` row in the dedupe window:
   - **buffer_negative** — `summarise().afterSaving.fortnightlyCents` is below
@@ -335,7 +354,8 @@ app. The infrastructure is a subscription store, a key endpoint, and a send path
   and bill-due triggers need ingestion and are out of scope; per-member,
   per-timezone scheduling is a follow-up.
 - VAPID setup and rotation, and the iOS install/version requirements, are in
-  [`operations.md`](operations.md#web-push-vapid-keypair-setup).
+  [`operations.md`](operations.md#web-push-vapid-keypair-setup); the APNs auth key
+  setup is in [`operations.md`](operations.md#apns-auth-key-setup).
 
 ### Calendar feed
 
@@ -395,15 +415,15 @@ established (see *Security*), applied to a feed rather than a page:
   `accounts_with_balance` are plain invoker views (`security_invoker = on`), so no
   view reads past the caller's RLS. Tested deliberately (pgTAP / integration
   tests), not by inspection.
-- **Push subscriptions and notification choices are per-member, not
-  per-household.** A push endpoint is a bearer capability to make someone's phone
-  buzz, so `push_subscription` is the one table where household membership grants
-  nothing: per-command policies gate select/insert/update/delete on
+- **Push subscriptions, APNs devices, and notification choices are per-member,
+  not per-household.** A push endpoint or device token is a bearer capability to
+  make someone's phone buzz, so `push_subscription` and `apns_device` are the
+  tables where household membership grants nothing: per-command policies gate select/insert/update/delete on
   `current_member_ids()`, and an upsert on a co-member's endpoint is refused
   rather than silently reassigning their device. `notification_preference` — a
   member's on/off choice per trigger — draws the same boundary. `service_role`
-  holds `select` on both plus `delete` on `push_subscription` (to prune dead
-  endpoints). `notification_log`, the evaluator's dedupe ledger, is
+  holds `select` on all three plus `delete` on `push_subscription` and
+  `apns_device` (to prune dead endpoints and tokens). `notification_log`, the evaluator's dedupe ledger, is
   `service_role`-only (`select`/`insert`) with no `authenticated` grant at all —
   a member sees that a notification arrived, never the ledger of which devices
   got what.
@@ -421,7 +441,8 @@ established (see *Security*), applied to a feed rather than a page:
   DEFINER functions, defence in depth for the invoker triggers. The RLS suite
   asserts it across `pg_proc` rather than per function.
 - Up tokens and webhook secrets encrypted at rest (Vault), as are the Web Push
-  VAPID keypair — read only through the service-role-only `vapid_keys()` — and the
+  VAPID keypair — read only through the service-role-only `vapid_keys()` — the
+  APNs auth key, read only through the service-role-only `apns_keys()`, and the
   Anthropic API key, read only through the service-role-only
   `anthropic_api_key()`.
 - **A scoped bearer token is a narrower boundary than RLS, for a caller RLS

@@ -991,34 +991,48 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   chevron and does not toggle. Commit SHAs and pull-request links are never
   shown (members have no use for them).
 - Push notifications: alerts reach the installed PWA over Web Push (RFC 8291
-  payload encryption, RFC 8292 VAPID auth) — no push vendor and no native app. A
-  member opts in **per device**: the subscription (endpoint plus its two keys)
-  lands in `push_subscription`, upserted on the globally unique `endpoint` so a
-  re-subscribe refreshes the row. That table, and `notification_preference` (a
-  member's on/off choice per trigger, absent ⇒ on), are the exceptions to the
-  shared-household rule — an endpoint is a bearer capability to make someone's
-  phone buzz, so RLS scopes all four commands to the owning member
-  (`current_member_ids()`), a co-member can neither read nor delete nor reassign
-  it, and `service_role` holds only `select`/`delete` on `push_subscription` and
-  `select` on `notification_preference`. The VAPID keypair and its `mailto:`
-  subject live in Vault, read only through the service-role-only `vapid_keys()`
-  RPC and set by hand; `push-key` serves the public key so rotating the pair
-  needs no rebuild, and `push-test` sends a verification notification to the
-  caller's own devices, pruning a row only on a `404`/`410` and reporting
-  `{ devices, sent, pruned, failed }`. The payload is `{ title, body, url }`, the
-  URL being where `notificationclick` navigates. **Deciding when to notify** is
+  payload encryption, RFC 8292 VAPID auth) and the native iOS app over APNs — no
+  push vendor. A member opts in **per device**: a PWA's subscription (endpoint
+  plus its two keys) lands in `push_subscription`, upserted on the globally
+  unique `endpoint` so a re-subscribe refreshes the row; the native app, once the
+  member allows notifications, registers its APNs device token in `apns_device`
+  (unique `token`, plus a `sandbox`/`production` `environment`) through
+  `register_apns_device`, which reassigns a token to the caller when the install
+  changes hands, and deletes it on sign-out. Those tables, and
+  `notification_preference` (a member's on/off choice per trigger, absent ⇒ on),
+  are the exceptions to the shared-household rule — an endpoint or token is a
+  bearer capability to make someone's phone buzz, so RLS scopes all four commands
+  to the owning member (`current_member_ids()`), a co-member can neither read nor
+  delete nor reassign it, and `service_role` holds only `select`/`delete` on
+  `push_subscription` and `apns_device` and `select` on `notification_preference`.
+  The VAPID keypair and its `mailto:` subject live in Vault, read only through the
+  service-role-only `vapid_keys()` RPC and set by hand; the APNs auth key (`.p8`),
+  its key id, the team id and the bundle id are likewise read only through
+  `apns_keys()`. `_shared/apns.ts` signs an ES256 provider token (reused for 50
+  minutes) and POSTs `{ aps: { alert, sound }, url }` to the token's own APNs host,
+  pruning only on a `410` or a `400 BadDeviceToken`. Either channel may be
+  unconfigured: its devices are skipped, and only when neither is does
+  `notify-eval` answer `503`. `push-key` serves the public VAPID key so rotating
+  the pair needs no rebuild, and `push-test` sends a verification notification to
+  the caller's own devices of both kinds, pruning a row only on a dead-device
+  response and reporting `{ devices, sent, pruned, failed }`. The payload is
+  `{ title, body, url }`, the URL being where `notificationclick` navigates and
+  where a tapped native notification opens the web view (an in-app path only; the
+  app ignores anything else). The native app's web view reports its device as on
+  in the Notifications settings (status `native`, gated on
+  `__NEST_NATIVE_SHELL__`), with no web opt-in. **Deciding when to notify** is
   the `notify-eval` edge function: a daily `pg_cron` POST evaluates
   today's-data triggers per household with the pure `@nest/plan` / `@nest/tax`
   engines — the fortnightly buffer going negative
   (`summarise().afterSaving` < 0), a dated goal's `projectGoal()` ETA past its
   `target_date`, a `temporary_item` within 14 days of its target date,
   within 14 days of 30 June, and a `gift_purchase` from the last 7 days that
-  counts against no gift budget or discretionary buffer — and pushes to each member with a device who has
+  counts against no gift budget or discretionary buffer — and pushes to each member with a device (Web Push or APNs) who has
   left that trigger on and has no matching `notification_log` row in the dedupe
   window (`notification_log` being a `service_role`-only ledger: buffer re-sends
   after 14 days, the rest fire once per goal target / item / financial year / purchase).
-  A log row is written only once a device took the push, so a transient failure
-  retries next day. Each member turns a trigger off with a per-trigger toggle on
+  A log row is written only once a device took the push (on any channel), so a
+  transient failure retries next day. Each member turns a trigger off with a per-trigger toggle on
   the Notifications settings page, shown once a device is on
   (`useNotificationPreferences`); an absent `notification_preference` row means
   the trigger is on, so a member who never opens the settings gets everything.

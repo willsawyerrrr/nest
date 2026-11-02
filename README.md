@@ -27,7 +27,7 @@ liability, plan spending, and track savings goals.
 - **EOFY summary** — a read-only end-of-financial-year tab gathering each person's
   tax estimate, PAYG withheld, deductions, super, and HELP debt for filing, plus a
   time-limited link that shares it with a tax agent.
-- **Push notifications** — Web Push alerts to the installed PWA when the fortnightly
+- **Push notifications** — Web Push alerts to the installed PWA, and APNs alerts to the native iOS app, when the fortnightly
   buffer goes negative, a dated goal slips, or a deadline nears.
 
 ## Scope decisions
@@ -156,7 +156,7 @@ Gifts tab (a unified recipient × occasion planner whose budgets roll up into de
 budget lines per recipient), pay splits (per-account fortnightly split
 recommendations against routed budget lines), an in-app "What's new" changelog, a
 read-only EOFY summary tab with a shareable tax-agent link, and Web Push
-notifications to the installed PWA (buffer-negative, goal-slip, and deadline
+(PWA) and APNs (native iOS app) notifications (buffer-negative, goal-slip, and deadline
 alerts).
 The Up savers → savings-goals layer is also live: members connect an Up token and
 link a goal to a synced Up saver, so goal progress tracks the real balance (synced

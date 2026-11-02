@@ -375,12 +375,16 @@ Vault holds every secret that must never reach a client:
 | `vapid_public_key`       | the Web Push VAPID public key, base64url (see below)       |
 | `vapid_private_key`      | the Web Push VAPID private key, base64url                  |
 | `vapid_subject`          | the `mailto:` contact URI the VAPID JWT carries            |
+| `apns_key_id`            | the APNs auth key's 10-character key id (see below)        |
+| `apns_team_id`           | the Apple Developer team id (`8558CXPT9G`)                 |
+| `apns_bundle_id`         | the app's bundle id, `dev.willsawyerrrr.nest`              |
+| `apns_private_key`       | the APNs auth key's `.p8` contents (PEM)                   |
 | `resend_api_key`         | the `share-create` function's Resend API key (see below)   |
 | `REDBARK_API_KEY`        | the platform-wide Redbark API key (see below)              |
 
 Up tokens are written/read/cleared only by the service-role-only SECURITY
 DEFINER RPCs (see [`data-model.md`](data-model.md#rpcs)); the VAPID set is read
-by the equally service-role-only `vapid_keys()`, and the Anthropic key by
+by the equally service-role-only `vapid_keys()`, the APNs set by `apns_keys()`, and the Anthropic key by
 `anthropic_api_key()`.
 
 ## Web Push VAPID keypair setup
@@ -431,6 +435,51 @@ against the old key and stops working, so each device must re-subscribe.
 screen**, on **iOS 16.4+**. In a browser tab there is no push manager to
 subscribe with. Permission is also effectively one-shot per install: once denied,
 it is restored only by removing and re-adding the app.
+
+## APNs auth key setup
+
+`push-test` and `notify-eval` deliver to the native iOS app over APNs, signing a
+provider token with an APNs auth key held in Vault. Without it the native app's
+devices are skipped (Web Push is unaffected); `notify-eval` answers `503` only
+when neither the VAPID keys nor these secrets are set. Nothing in the app writes
+the key — the operator creates and rotates it by hand.
+
+1. In the Apple Developer portal, under **Certificates, Identifiers & Profiles →
+   Keys**, create a key with **Apple Push Notifications service (APNs)** enabled
+   (one key covers sandbox and production, and every app on the team). Download
+   the `.p8` — Apple offers it once — and note the 10-character **Key ID**.
+
+2. The app's Push Notifications capability is enabled on its App ID by
+   automatic signing the first time a build carrying the `aps-environment`
+   entitlement is exported (the TestFlight deploy does this); confirm it under
+   **Identifiers → `dev.willsawyerrrr.nest`**.
+
+3. Set the four secrets in prod:
+
+   ```sql
+   select vault.create_secret('<key-id>', 'apns_key_id');
+   select vault.create_secret('8558CXPT9G', 'apns_team_id');
+   select vault.create_secret('dev.willsawyerrrr.nest', 'apns_bundle_id');
+   select vault.create_secret('<contents of AuthKey_<key-id>.p8>', 'apns_private_key');
+   ```
+
+   The private key is the whole PEM, `-----BEGIN PRIVATE KEY-----` lines
+   included. A malformed key is reported as push being unconfigured rather than
+   as a delivery failure.
+
+4. Verify end to end: sign in to a TestFlight build, allow notifications, and run
+   **Send test notification** on the Notifications settings page. `push-test`
+   answers `{ devices, sent, pruned, failed }`, counting the app's device with the
+   member's Web Push ones.
+
+To rotate, create a new key, then `select vault.update_secret(id, '<new-value>',
+name, null)` for `apns_key_id` and `apns_private_key`, and revoke the old key in
+the portal. Tokens are unaffected.
+
+A build signed for development (a Debug run from Xcode) registers a **sandbox**
+token and is reached through `api.sandbox.push.apple.com`; TestFlight and App
+Store builds register **production** tokens. The row records which, so both can be
+registered at once.
 
 ## up-sync hourly cron (prod only)
 
@@ -511,7 +560,9 @@ up the same way:
 The run reports `{ households, firings, notified, sent, pruned, skipped, failed }`
 so a `net.http_post` response row (or a manual `curl` with the service-role
 bearer) says what a day's evaluation did. Push delivery still needs the VAPID
-keypair set (below); without it `notify-eval` answers `503` and sends nothing.
+keypair set (below), the APNs auth key set ([below](#apns-auth-key-setup)), or both;
+a channel left unset is skipped, and with neither set `notify-eval` answers `503`
+and sends nothing.
 
 ## `anthropic_api_key` setup
 

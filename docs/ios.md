@@ -322,6 +322,41 @@ a draft deduction to review.
   as work expenses, each a draft whose category stays editable. A co-member's
   list never takes them.
 
+## Push notifications
+
+The web view is a `WKWebView`, which cannot receive Web Push, so the app is
+reached over APNs instead. The trigger logic, preferences, and dedupe are shared
+with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
+
+- **Entitlement.** `Nest/NestiOS.entitlements` adds `aps-environment` to the
+  iOS entitlements; `project.yml` selects it with
+  `CODE_SIGN_ENTITLEMENTS[sdk=iphone*]`, so Mac Catalyst and `NestMac` keep their
+  own entitlement files. The value is `development`; exporting for TestFlight
+  signs with the distribution profile, which swaps in `production`. The App ID's
+  Push Notifications capability is enabled by automatic signing at export.
+- **Registration.** `NestApp` registers for remote notifications once the
+  member allows notifications at launch. `NestAppDelegate` (iOS only, wired with
+  `@UIApplicationDelegateAdaptor`) receives the token and hands it to
+  `PushRegistrar`, which calls the `register_apns_device` RPC through PostgREST
+  with the session's access token as soon as it has both a token and a session
+  (retrying after a failed call and on each sign-in or foreground). The
+  environment is `sandbox` in Debug builds and `production` otherwise. Before the
+  page's sign-out request signs out, the app deletes its own `apns_device` row, so
+  a signed-out install stops receiving the member's notifications.
+- **Tap.** The payload carries `url`, an in-app path. `NestAppDelegate`
+  resolves it against the web app's origin (`NotificationRoute` ignores anything
+  that is not a same-origin path) and hands it to `NotificationRouter`, which
+  loads it in the web view: directly when one is showing, otherwise it is held
+  and used as the first load once the member is signed in. Notifications that
+  arrive in the foreground are shown as banners.
+- **Settings page.** In the web view the Notifications settings page reports the
+  device as on (`PushStatus` `native`, from `__NEST_NATIVE_SHELL__`) with no web
+  opt-in, shows the per-trigger toggles, and its test button sends to the app.
+  Turning notifications off or back on is done in iOS Settings.
+- **Not covered.** Mac Catalyst and the native Mac app do not register for
+  APNs. Backend credentials are set up in
+  [`operations.md`](operations.md#apns-auth-key-setup).
+
 ## Apple Developer Program
 
 A paid Apple Developer Program membership is **not** required to build, run, or
@@ -367,16 +402,18 @@ it is for iOS.
   Catalyst outright. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
-  `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`, and
-  `Intents/`.
+  `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`,
+  `PushNotifications.swift`, `NestAppDelegate.swift`, and `Intents/`.
 - `ShareExtension/` — the share extension (`ShareViewController.swift`, its
   entitlements; `Info.plist` is generated).
 - `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both
   `Nest` and `ShareExtension`.
 - `NestTests/` — Swift Testing unit tests for the Intent logic (each service's
   phrasing, its request shape, and the signed-out / HTTP-failure sentence
-  mapping), for `SessionBridge`'s injected JavaScript and string escaping, and
-  for the share inbox (storing, limits, ordering, cleanup, hand-off scripts).
+  mapping), for `SessionBridge`'s injected JavaScript and string escaping, for
+  the share inbox (storing, limits, ordering, cleanup, hand-off scripts), and for
+  push registration (token encoding, notification routes, the register/unregister
+  requests, and the registrar's retry behaviour).
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and sign-in-flow
 instructions.

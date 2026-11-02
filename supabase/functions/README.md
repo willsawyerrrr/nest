@@ -41,7 +41,9 @@ injected so the validate-then-store ordering is tested against fakes, and
 `_shared/webpush.ts` — the VAPID-sign + aes128gcm + POST + 404/410 send path
 that `push-test` and `notify-eval` share — is exercised against a stubbed
 `fetch`, so the real VAPID signature and aes128gcm framing are asserted without
-a push service. On the same
+a push service; `_shared/apns.ts` (the ES256 provider token and APNs POST) is
+tested the same way, verifying the signature against the generated key's
+public half. On the same
 pattern, `_shared/money.ts` holds the cents/date conversion shared by both
 document-reading functions, `payslip-extract/{fields,extract}.ts` and
 `deduction-extract/{fields,extract}.ts` (and `trade-extract/{fields,extract}.ts`) hold their own field shaping and
@@ -524,28 +526,36 @@ the function proxies the API.
   `supabase/functions/.env` and in prod with
   `supabase secrets set GITHUB_CHANGELOG_TOKEN=<pat>`.
 
-## Web Push
+## Web Push and APNs
 
 Alerts reach the installed PWA over Web Push — payload encryption per
 [RFC 8291](https://www.rfc-editor.org/rfc/rfc8291) (aes128gcm) and application
 server auth per [RFC 8292](https://www.rfc-editor.org/rfc/rfc8292) (a VAPID JWT,
-ES256). `push-key` and `push-test` are JWT-verified and resolve the caller from
-their JWT, so a member reaches only their own devices; `notify-eval` is the
-daily cron that decides when to notify.
+ES256) — and the native iOS app over APNs (`_shared/apns.ts`: an ES256 provider
+token signed with the `.p8` key from `apns_keys()`, then an HTTP/2 POST of
+`{ aps: { alert: { title, body }, sound }, url }` to `api.push.apple.com` or
+`api.sandbox.push.apple.com` per the device's `environment`, with the bundle id as
+`apns-topic`; `410` and `400 BadDeviceToken` prune the `apns_device` row, anything
+else is transient). Either channel may be unconfigured and is then skipped.
+`push-key` and `push-test` are JWT-verified and resolve the caller from their
+JWT, so a member reaches only their own devices; `notify-eval` is the daily cron
+that decides when to notify.
 
 - **`push-key`** — returns `{ publicKey }`, the VAPID public key the client passes
   to `pushManager.subscribe({ applicationServerKey })`. Served rather than baked
   into the build so rotating the keypair is a Vault change with no rebuild. When
   the secrets are unset it answers `503 { error }`, never a null key a caller
   might subscribe with unchecked.
-- **`push-test`** — POST. Loads the caller's own `push_subscription` rows and
-  sends a test notification to each, answering
+- **`push-test`** — POST. Loads the caller's own `push_subscription` and
+  `apns_device` rows and sends a test notification to each, answering
   `{ devices, sent, pruned, failed }`. Every device is attempted independently, so
   one failing endpoint neither aborts the others nor loses the summary. A `404` or
   `410 Gone` means the device unsubscribed, so that row is deleted; every other
   failure leaves the row alone for the next attempt. The payload is
   `{ title, body, url }`, with `url` (`/household`) the target for the service
-  worker's `notificationclick`.
+  worker's `notificationclick` and the native app's notification tap. Devices
+  of a channel with no credentials count as `failed`; `503` is answered only when
+  no device's channel is configured.
 
 - **`notify-eval`** — the once-daily evaluator that decides _when_ to notify.
   A `pg_cron` schedule (`20260905000000_notification_triggers.sql`) POSTs it
@@ -568,10 +578,12 @@ daily cron that decides when to notify.
 
   — and for each member with a device, the trigger left on
   (`notification_preference`), and no matching `notification_log` row in the
-  dedupe window, sends `{ title, body, url }` via `_shared/webpush.ts` and
-  appends a `notification_log` row. A row is written only once a device took
-  the push, so a run where every endpoint failed transiently is retried the
-  next day. Dead endpoints (`404`/`410`) are pruned. The decision logic is the
+  dedupe window, sends `{ title, body, url }` to each of its devices via
+  `_shared/webpush.ts` and `_shared/apns.ts` and appends a `notification_log`
+  row. A row is written only once a device took the push, so a run where every
+  endpoint failed transiently is retried the next day. Dead endpoints and tokens
+  are pruned from their own tables. A member with only native devices is notified
+  like any other. The decision logic is the
   pure, DI-tested `notify-eval/eval.ts`; its `buffer_negative` figure is the
   shared household buffer (see [Household buffer](#household-buffer)).
 

@@ -149,6 +149,52 @@ export type Database = {
           },
         ]
       }
+      apns_device: {
+        Row: {
+          created_at: string
+          environment: string
+          household_id: string
+          id: string
+          member_id: string
+          token: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          environment: string
+          household_id: string
+          id?: string
+          member_id: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          household_id?: string
+          id?: string
+          member_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'apns_device_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'apns_device_member_id_household_id_fkey'
+            columns: ['member_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'members'
+            referencedColumns: ['id', 'household_id']
+          },
+        ]
+      }
       breakdown: {
         Row: {
           created_at: string
@@ -2490,6 +2536,15 @@ export type Database = {
     }
     Functions: {
       anthropic_api_key: { Args: Record<PropertyKey, never>; Returns: string }
+      apns_keys: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          bundle_id: string
+          key_id: string
+          private_key: string
+          team_id: string
+        }[]
+      }
       budget_line_derived_fields: {
         Args: {
           p_breakdown_id: string
@@ -2594,6 +2649,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      register_apns_device: { Args: { p_environment: string; p_token: string }; Returns: undefined }
       resend_api_key: { Args: Record<PropertyKey, never>; Returns: string }
       revoke_calendar_feed_token: { Args: Record<PropertyKey, never>; Returns: undefined }
       revoke_invite_code: { Args: Record<PropertyKey, never>; Returns: undefined }

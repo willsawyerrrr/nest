@@ -1,12 +1,13 @@
 /**
- * Fires a test Web Push to every device the caller has opted in, so the chain —
- * subscription row, VAPID keys, push service, service worker — can be verified
- * end to end. JWT-verified: the member is resolved from the Authorization JWT
+ * Fires a test notification to every device the caller has opted in — Web Push
+ * subscriptions and native APNs installs — so the chain (device row, credentials,
+ * push service, the device itself) can be verified end to end. JWT-verified: the member is resolved from the Authorization JWT
  * (never the body), so a caller can only ever push to their own devices.
  */
 
 import { handlePreflight, json, requirePost } from '../_shared/http.ts'
 import { resolveMemberWithAdmin } from '../_shared/caller.ts'
+import { type ApnsDevice, createApnsSender, loadApnsKeys } from '../_shared/apns.ts'
 import { loadVapidKeys } from '../_shared/vapid.ts'
 import { createPushSender } from '../_shared/webpush.ts'
 import { type PushDevice, runPushTest } from './send.ts'
@@ -41,6 +42,27 @@ Deno.serve(async (request) => {
     },
     prune: async (ids) => {
       const { error } = await admin().from('push_subscription').delete().in('id', ids)
+      return !error
+    },
+    loadApnsDevices: async (memberId) => {
+      const { data, error } = await admin()
+        .from('apns_device')
+        .select('id, token, environment')
+        .eq('member_id', memberId)
+      return error ? null : (data as ApnsDevice[])
+    },
+    loadApnsSender: async () => {
+      const keys = await loadApnsKeys(admin())
+      if (!keys) return null
+      try {
+        return await createApnsSender(keys)
+      } catch {
+        // A malformed stored key is a misconfiguration, reported as one.
+        return null
+      }
+    },
+    pruneApns: async (ids) => {
+      const { error } = await admin().from('apns_device').delete().in('id', ids)
       return !error
     },
   })

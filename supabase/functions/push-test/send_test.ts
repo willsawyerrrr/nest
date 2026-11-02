@@ -12,6 +12,9 @@ function deps(overrides: Partial<PushTestDeps> = {}): PushTestDeps {
     loadDevices: () => Promise.resolve([device('d-1'), device('d-2')]),
     loadSender: () => Promise.resolve(() => Promise.resolve({ delivered: true })),
     prune: () => Promise.resolve(true),
+    loadApnsDevices: () => Promise.resolve([]),
+    loadApnsSender: () => Promise.resolve(() => Promise.resolve({ delivered: true })),
+    pruneApns: () => Promise.resolve(true),
     ...overrides,
   }
 }
@@ -165,4 +168,79 @@ Deno.test('runPushTest refuses an unauthenticated caller', async () => {
 
 Deno.test('runPushTest targets the household tab for notificationclick', () => {
   assertEquals(TEST_PAYLOAD.url, '/household')
+})
+
+Deno.test('runPushTest sends to APNs devices alongside Web Push ones', async () => {
+  const seen: string[] = []
+  const result = await runPushTest(
+    deps({
+      loadApnsDevices: () =>
+        Promise.resolve([{ id: 'a-1', token: 'tok', environment: 'sandbox' as const }]),
+      loadApnsSender: () =>
+        Promise.resolve((d, payload) => {
+          seen.push(`${d.token}:${payload.title}`)
+          return Promise.resolve({ delivered: true })
+        }),
+    }),
+  )
+
+  assertEquals(result, { status: 200, body: { devices: 3, sent: 3, pruned: 0, failed: 0 } })
+  assertEquals(seen, [`tok:${TEST_PAYLOAD.title}`])
+})
+
+Deno.test('runPushTest reaches a member with only an APNs device without VAPID keys', async () => {
+  let webSenders = 0
+  const result = await runPushTest(
+    deps({
+      loadDevices: () => Promise.resolve([]),
+      loadSender: () => {
+        webSenders += 1
+        return Promise.resolve(null)
+      },
+      loadApnsDevices: () =>
+        Promise.resolve([{ id: 'a-1', token: 'tok', environment: 'production' as const }]),
+    }),
+  )
+
+  assertEquals(result, { status: 200, body: { devices: 1, sent: 1, pruned: 0, failed: 0 } })
+  assertEquals(webSenders, 0)
+})
+
+Deno.test('runPushTest prunes a dead APNs device from the APNs table', async () => {
+  const pruned: { web: string[][]; apns: string[][] } = { web: [], apns: [] }
+  const result = await runPushTest(
+    deps({
+      loadApnsDevices: () =>
+        Promise.resolve([{ id: 'a-1', token: 'tok', environment: 'production' as const }]),
+      loadApnsSender: () =>
+        Promise.resolve(() => Promise.resolve({ delivered: false, gone: true })),
+      prune: (ids) => {
+        pruned.web.push(ids)
+        return Promise.resolve(true)
+      },
+      pruneApns: (ids) => {
+        pruned.apns.push(ids)
+        return Promise.resolve(true)
+      },
+    }),
+  )
+
+  assertEquals(result, { status: 200, body: { devices: 3, sent: 2, pruned: 1, failed: 0 } })
+  assertEquals(pruned, { web: [], apns: [['a-1']] })
+})
+
+Deno.test('runPushTest counts devices of an unconfigured kind as failed, not a 503', async () => {
+  const result = await runPushTest(
+    deps({
+      loadApnsDevices: () =>
+        Promise.resolve([{ id: 'a-1', token: 'tok', environment: 'production' as const }]),
+      loadApnsSender: () => Promise.resolve(null),
+    }),
+  )
+  assertEquals(result, { status: 200, body: { devices: 3, sent: 2, pruned: 0, failed: 1 } })
+})
+
+Deno.test('runPushTest reports an APNs-read failure', async () => {
+  const result = await runPushTest(deps({ loadApnsDevices: () => Promise.resolve(null) }))
+  assertEquals(result, { status: 500, body: { error: 'Could not load your devices.' } })
 })

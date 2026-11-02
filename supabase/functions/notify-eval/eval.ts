@@ -1,11 +1,12 @@
 /**
  * The daily notification evaluator, with its I/O injected so the decision
  * logic is unit-tested without a database or a push service. `index.ts` wires
- * the real service-role reads and the shared Web Push sender.
+ * the real service-role reads and the shared Web Push and APNs senders.
  *
  * For each household it reconciles the plan with the pure `@nest/plan` /
  * `@nest/tax` engines, checks its conditions against today's data, and — for
- * each member who has a device, has left the trigger on, and has not already
+ * each member who has a device (a Web Push subscription or a native APNs
+ * token), has left the trigger on, and has not already
  * been told — sends `{ title, body, url }` and records a `notification_log`
  * row. The log row is the dedupe: a `(member, trigger, dedupe_key)` already
  * present (within the trigger's re-notify window) is skipped.
@@ -19,6 +20,7 @@ import {
   summariseHouseholdFromRows,
   type TemporaryItemRow as BufferTemporaryItemRow,
 } from '@nest/household'
+import type { ApnsDevice } from '../_shared/apns.ts'
 import type { DeliveryOutcome, PushDevice, PushPayload } from '../_shared/webpush.ts'
 
 /** The today's-data conditions, matching the `notification_trigger` enum. */
@@ -94,6 +96,11 @@ export interface SubscriptionRow extends PushDevice {
   member_id: string
 }
 
+/** One native install with the member it belongs to. */
+export interface ApnsDeviceRow extends ApnsDevice {
+  member_id: string
+}
+
 /** A member's on/off choice for one trigger; an absent row means on. */
 export interface PreferenceRow {
   member_id: string
@@ -122,13 +129,18 @@ export interface NotifyEvalDeps {
   loadHouseholdIds: () => Promise<string[]>
   loadBundle: (householdId: string, financialYear: number) => Promise<HouseholdBundle>
   loadSubscriptions: (householdId: string) => Promise<SubscriptionRow[]>
+  loadApnsDevices: (householdId: string) => Promise<ApnsDeviceRow[]>
   loadPreferences: (householdId: string) => Promise<PreferenceRow[]>
   /** Recent `notification_log` rows for the household (the dedupe ledger). */
   loadRecentLog: (householdId: string) => Promise<LogRow[]>
   /** Sends one encrypted push; resolves — never throws — with the outcome. */
   sendPush: (device: PushDevice, payload: PushPayload) => Promise<DeliveryOutcome>
+  /** Sends one APNs notification; resolves — never throws — with the outcome. */
+  sendApns: (device: ApnsDevice, payload: PushPayload) => Promise<DeliveryOutcome>
   /** Deletes the subscription rows a push service reported gone. */
   prune: (deviceIds: string[]) => Promise<void>
+  /** Deletes the APNs device rows APNs reported dead. */
+  pruneApns: (deviceIds: string[]) => Promise<void>
   recordLog: (
     row: { householdId: string; memberId: string; trigger: Trigger; dedupeKey: string },
   ) => Promise<void>
@@ -141,9 +153,9 @@ export interface NotifyEvalSummary {
   firings: number
   /** (member, trigger) notifications recorded this run. */
   notified: number
-  /** Individual device deliveries the push service accepted. */
+  /** Individual device deliveries a push service (Web Push or APNs) accepted. */
   sent: number
-  /** Dead subscriptions removed. */
+  /** Dead subscriptions and APNs devices removed. */
   pruned: number
   /** (member, trigger) pairs skipped: trigger off or already sent. */
   skipped: number
@@ -332,6 +344,13 @@ function alreadySent(log: readonly LogRow[], memberId: string, firing: Firing, n
   return matches.some((row) => Date.parse(row.sent_at) >= cutoff)
 }
 
+/** One device to attempt for a member, whichever service delivers to it. */
+interface Target {
+  kind: 'web' | 'apns'
+  id: string
+  send: (payload: PushPayload) => Promise<DeliveryOutcome>
+}
+
 /** Runs the evaluation across every household. */
 export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSummary> {
   const now = deps.now()
@@ -353,16 +372,33 @@ export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSum
     if (firings.length === 0) continue
     summary.firings += firings.length
 
-    const subscriptions = await deps.loadSubscriptions(householdId)
-    if (subscriptions.length === 0) continue
+    const [subscriptions, apnsDevices] = await Promise.all([
+      deps.loadSubscriptions(householdId),
+      deps.loadApnsDevices(householdId),
+    ])
+    if (subscriptions.length === 0 && apnsDevices.length === 0) continue
     const preferences = await deps.loadPreferences(householdId)
     const log = await deps.loadRecentLog(householdId)
 
-    const devicesByMember = new Map<string, SubscriptionRow[]>()
+    const devicesByMember = new Map<string, Target[]>()
+    const addTarget = (memberId: string, target: Target) => {
+      const list = devicesByMember.get(memberId) ?? []
+      list.push(target)
+      devicesByMember.set(memberId, list)
+    }
     for (const subscription of subscriptions) {
-      const list = devicesByMember.get(subscription.member_id) ?? []
-      list.push(subscription)
-      devicesByMember.set(subscription.member_id, list)
+      addTarget(subscription.member_id, {
+        kind: 'web',
+        id: subscription.id,
+        send: (payload) => deps.sendPush(subscription, payload),
+      })
+    }
+    for (const device of apnsDevices) {
+      addTarget(device.member_id, {
+        kind: 'apns',
+        id: device.id,
+        send: (payload) => deps.sendApns(device, payload),
+      })
     }
     const disabled = new Set(
       preferences.filter((pref) => !pref.enabled).map((pref) =>
@@ -370,7 +406,7 @@ export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSum
       ),
     )
 
-    const goneIds: string[] = []
+    const gone: Record<Target['kind'], string[]> = { web: [], apns: [] }
     for (const firing of firings) {
       for (const [memberId, devices] of devicesByMember) {
         if (disabled.has(`${memberId}:${firing.trigger}`)) {
@@ -384,12 +420,12 @@ export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSum
 
         let delivered = false
         for (const device of devices) {
-          const outcome = await deps.sendPush(device, firing.payload)
+          const outcome = await device.send(firing.payload)
           if (outcome.delivered) {
             summary.sent += 1
             delivered = true
           } else if (outcome.gone) {
-            goneIds.push(device.id)
+            gone[device.kind].push(device.id)
           } else {
             summary.failed += 1
           }
@@ -409,9 +445,13 @@ export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSum
       }
     }
 
-    if (goneIds.length > 0) {
-      await deps.prune(goneIds)
-      summary.pruned += goneIds.length
+    if (gone.web.length > 0) {
+      await deps.prune(gone.web)
+      summary.pruned += gone.web.length
+    }
+    if (gone.apns.length > 0) {
+      await deps.pruneApns(gone.apns)
+      summary.pruned += gone.apns.length
     }
   }
 

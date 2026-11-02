@@ -1,16 +1,17 @@
 /**
  * The test-push flow, with its I/O injected so the decision logic is unit-tested
  * without a network, database, or push service. `index.ts` wires the real member
- * resolution, subscription read, Web Push sender, and prune.
+ * resolution, device reads, Web Push and APNs senders, and prunes.
  *
  * The flow only ever touches the caller's OWN devices: the member comes from the
  * Authorization JWT, never the body, and the subscription read is keyed on it.
  */
 
+import type { ApnsDevice, ApnsSender } from '../_shared/apns.ts'
 import type { FlowResult, MemberOutcome } from '../up-connect/connect.ts'
 import type { DeliveryOutcome, PushDevice, PushPayload, PushSender } from '../_shared/webpush.ts'
 
-export type { DeliveryOutcome, PushDevice, PushPayload, PushSender }
+export type { ApnsDevice, ApnsSender, DeliveryOutcome, PushDevice, PushPayload, PushSender }
 
 export interface PushTestDeps {
   /** Resolves the caller's own member id, or an error outcome. */
@@ -21,6 +22,12 @@ export interface PushTestDeps {
   loadSender: () => Promise<PushSender | null>
   /** Deletes the given subscription rows; true when all were removed. */
   prune: (ids: string[]) => Promise<boolean>
+  /** The member's own native installs, or null when they could not be read. */
+  loadApnsDevices: (memberId: string) => Promise<ApnsDevice[] | null>
+  /** A sender bound to the configured APNs credentials, or null when unconfigured. */
+  loadApnsSender: () => Promise<ApnsSender | null>
+  /** Deletes the given APNs device rows; true when all were removed. */
+  pruneApns: (ids: string[]) => Promise<boolean>
 }
 
 /** The fixed payload of a test send; `/household` is where opt-in lives. */
@@ -32,7 +39,7 @@ export const TEST_PAYLOAD: PushPayload = {
 
 /** What the caller is told: enough to report the send honestly. */
 export type PushTestSummary = {
-  /** Subscriptions the member has opted in. */
+  /** Devices the member has opted in: Web Push subscriptions plus native installs. */
   devices: number
   /** Deliveries the push service accepted. */
   sent: number
@@ -49,21 +56,50 @@ export async function runPushTest(deps: PushTestDeps): Promise<FlowResult> {
     return { status: error.status, body: { error: error.message } }
   }
 
-  const devices = await deps.loadDevices(outcome.memberId)
-  if (!devices) {
+  const [webDevices, apnsDevices] = await Promise.all([
+    deps.loadDevices(outcome.memberId),
+    deps.loadApnsDevices(outcome.memberId),
+  ])
+  if (!webDevices || !apnsDevices) {
     return { status: 500, body: { error: 'Could not load your devices.' } }
   }
+  const total = webDevices.length + apnsDevices.length
   // No devices needs no keys, so answer before asking Vault for them.
-  if (devices.length === 0) {
+  if (total === 0) {
     return { status: 200, body: summary(0, 0, 0) }
   }
 
-  const send = await deps.loadSender()
-  if (!send) {
+  const [sendWeb, sendApns] = await Promise.all([
+    webDevices.length > 0 ? deps.loadSender() : null,
+    apnsDevices.length > 0 ? deps.loadApnsSender() : null,
+  ])
+  // Devices of a kind with no credentials are unreachable (counted as failed),
+  // but the caller is only told push is unconfigured when nothing could be sent.
+  if (!sendWeb && !sendApns) {
     return { status: 503, body: { error: 'Push notifications are not configured.' } }
   }
 
-  // Every device is attempted; one failing endpoint must not deny the others.
+  const [web, apns] = await Promise.all([
+    attempt(webDevices, sendWeb, deps.prune),
+    attempt(apnsDevices, sendApns, deps.pruneApns),
+  ])
+  return {
+    status: 200,
+    body: summary(total, web.sent + apns.sent, web.pruned + apns.pruned),
+  }
+}
+
+/**
+ * Attempt every device of one kind. One failing endpoint must not deny the
+ * others, so a throwing sender counts as a transient failure.
+ */
+async function attempt<D extends { id: string }>(
+  devices: D[],
+  send: ((device: D, payload: PushPayload) => Promise<DeliveryOutcome>) | null,
+  prune: (ids: string[]) => Promise<boolean>,
+): Promise<{ sent: number; pruned: number }> {
+  if (!send || devices.length === 0) return { sent: 0, pruned: 0 }
+
   const outcomes = await Promise.all(
     devices.map(async (device) => {
       try {
@@ -84,9 +120,8 @@ export async function runPushTest(deps: PushTestDeps): Promise<FlowResult> {
 
   // A failed prune leaves the rows in place, so they count as failures rather
   // than as pruned; the next send retries the delete.
-  const pruned = goneIds.length > 0 && (await deps.prune(goneIds)) ? goneIds.length : 0
-
-  return { status: 200, body: summary(devices.length, sent, pruned) }
+  const pruned = goneIds.length > 0 && (await prune(goneIds)) ? goneIds.length : 0
+  return { sent, pruned }
 }
 
 function summary(devices: number, sent: number, pruned: number): PushTestSummary {

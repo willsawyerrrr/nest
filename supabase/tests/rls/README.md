@@ -100,6 +100,13 @@ instance and can also be run locally.
   co-member, a co-member's update/delete of their row matches nothing, the
   `(member, trigger)` pair is unique, a separate household sees none, and
   `service_role` (the evaluator) holds `select` and nothing else.
+- `apns_device.sql` — the assertions that a native install's APNs token is its
+  member's alone, the same boundary `push_subscription` draws: a member reads and
+  deletes only their own devices, cannot register one for a co-member, a separate
+  household sees none, `register_apns_device` refreshes a token in place and
+  reassigns it to the caller when the install changes hands, only `sandbox` and
+  `production` environments are accepted, `service_role` holds `select`/`delete`
+  only, and `apns_keys()` is not executable by a member.
 - `notification_log.sql` — the assertions that the evaluator's dedupe ledger is
   its own: `authenticated` has no grant and no policy (a direct select is
   refused), RLS is enabled, `service_role` holds `select`/`insert` only, and the
@@ -203,7 +210,7 @@ instance and can also be run locally.
 `payslip_financial_year.sql` → `payslip_lines.sql` → `deduction_basis.sql` →
 `deduction_group.sql` → `deduction_work_use.sql` → `deduction_category.sql` →
 `deduction_donation_group.sql` → `share_grant.sql` →
-`notification_preference.sql` → `notification_log.sql` →
+`notification_preference.sql` → `apns_device.sql` → `notification_log.sql` →
 `reconcile_source_accounts.sql` → `reconcile_joint_up_accounts.sql` →
 `redbark_connection.sql` → `wishlist_item.sql` → `calendar_feed.sql` →
 `inflow_joint_split.sql` → `trade.sql` → `trade_unit_price.sql` →
@@ -235,6 +242,7 @@ psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_category.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/deduction_donation_group.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/share_grant.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_preference.sql
+psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/apns_device.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/notification_log.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_source_accounts.sql
 psql -v ON_ERROR_STOP=1 -f supabase/tests/rls/reconcile_joint_up_accounts.sql

@@ -548,7 +548,8 @@ that decides when to notify.
   might subscribe with unchecked.
 - **`push-test`** — POST. Loads the caller's own `push_subscription` and
   `apns_device` rows and sends a test notification to each, answering
-  `{ devices, sent, pruned, failed }`. Every device is attempted independently, so
+  `{ devices, sent, pruned, failed }` (plus `failures: [{ channel, reason }]`
+  naming why a device was unreachable, e.g. an APNs `reason`, when known). Every device is attempted independently, so
   one failing endpoint neither aborts the others nor loses the summary. A `404` or
   `410 Gone` means the device unsubscribed, so that row is deleted; every other
   failure leaves the row alone for the next attempt. The payload is

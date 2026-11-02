@@ -470,7 +470,9 @@ the key — the operator creates and rotates it by hand.
 4. Verify end to end: sign in to a TestFlight build, allow notifications, and run
    **Send test notification** on the Notifications settings page. `push-test`
    answers `{ devices, sent, pruned, failed }`, counting the app's device with the
-   member's Web Push ones.
+   member's Web Push ones, plus `failures: [{ channel, reason }]` for an
+   unreachable device. Failed APNs attempts also log an `apns_failure` or
+   `apns_error` line to the function's logs (status, reason, environment).
 
 To rotate, create a new key, then `select vault.update_secret(id, '<new-value>',
 name, null)` for `apns_key_id` and `apns_private_key`, and revoke the old key in

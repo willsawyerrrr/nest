@@ -93,6 +93,30 @@ Deno.test('runPushTest does not prune on a transient failure', async () => {
   assertEquals(pruned, [])
 })
 
+Deno.test('runPushTest reports the reason an unreachable device failed', async () => {
+  const result = await runPushTest(
+    deps({
+      loadSender: () =>
+        Promise.resolve(() =>
+          Promise.resolve({ delivered: false, gone: false, reason: 'ExpiredProviderToken' })
+        ),
+    }),
+  )
+  assertEquals(result, {
+    status: 200,
+    body: {
+      devices: 2,
+      sent: 0,
+      pruned: 0,
+      failed: 2,
+      failures: [
+        { channel: 'web', reason: 'ExpiredProviderToken' },
+        { channel: 'web', reason: 'ExpiredProviderToken' },
+      ],
+    },
+  })
+})
+
 Deno.test('runPushTest keeps sending after one device throws', async () => {
   const attempted: string[] = []
   const result = await runPushTest(

@@ -190,9 +190,29 @@ export async function createApnsSender(
         await response.body?.cancel()
         return { delivered: true }
       }
-      return { delivered: false, gone: isGone(response.status, await responseReason(response)) }
-    } catch {
-      return { delivered: false, gone: false }
+      const reason = await responseReason(response)
+      console.error(
+        JSON.stringify({
+          event: 'apns_failure',
+          status: response.status,
+          reason,
+          environment: device.environment,
+        }),
+      )
+      return {
+        delivered: false,
+        gone: isGone(response.status, reason),
+        reason: reason ?? `HTTP ${response.status}`,
+      }
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: 'apns_error',
+          environment: device.environment,
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      )
+      return { delivered: false, gone: false, reason: 'RequestFailed' }
     }
   }
 }

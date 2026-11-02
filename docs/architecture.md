@@ -310,14 +310,18 @@ channel:
   aes128gcm payload per device via `@negrel/webpush` (WebCrypto only, pinned in
   `supabase/functions/deno.lock`), attempts every device independently, prunes the
   rows a push service reports `404`/`410` for, and answers
-  `{ devices, sent, pruned, failed }`. Any other failure leaves the row alone —
-  a 5xx is transient, not an unsubscribe.
+  `{ devices, sent, pruned, failed }`, plus `failures: [{ channel, reason }]` when
+  a sender reports why a device was unreachable. Any other failure leaves the row
+  alone — a 5xx is transient, not an unsubscribe.
 - `_shared/apns.ts` is the APNs send path: an ES256 provider token (JWT signed
   with the `.p8` key over WebCrypto, reused for 50 minutes) and an HTTP/2 POST to
   `api.push.apple.com` or `api.sandbox.push.apple.com` by the device's
   environment, with the bundle id as `apns-topic`. `410` and `400 BadDeviceToken`
   mean the token is dead and its row is pruned; any other response (a rejected
-  provider token, `429`, a 5xx) is transient. `push-test` and `notify-eval` send
+  provider token, `429`, a 5xx) is transient. Every non-`200` response logs one
+  `apns_failure` line (status, reason, environment) and every fetch error one
+  `apns_error` line, never a token or key; the reason also reaches `push-test`'s
+  `failures`. `push-test` and `notify-eval` send
   to a member's APNs devices alongside their Web Push ones. A channel whose
   credentials are unset is skipped, so a deployment with only VAPID keys (or only
   APNs credentials) still serves its devices.

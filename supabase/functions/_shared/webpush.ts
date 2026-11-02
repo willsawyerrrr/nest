@@ -44,9 +44,10 @@ export type DeliveryOutcome =
    * `gone` is true only when the push service reported the subscription as
    * absent (404) or expired (410) — the device unsubscribed, so its row is dead.
    * Every other failure (a 5xx, a timeout, a rejected VAPID token) leaves the
-   * row alone: it may well deliver on the next attempt.
+   * row alone: it may well deliver on the next attempt. `reason`, when the
+   * sender knows it, names why the attempt failed (e.g. an APNs reason).
    */
-  | { delivered: false; gone: boolean }
+  | { delivered: false; gone: boolean; reason?: string }
 
 /** Sends one encrypted push. Resolves — never throws — with the outcome. */
 export type PushSender = (device: PushDevice, payload: PushPayload) => Promise<DeliveryOutcome>

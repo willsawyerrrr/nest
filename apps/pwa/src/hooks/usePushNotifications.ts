@@ -36,6 +36,8 @@ interface PushTestResult {
   pruned: number
   /** Devices neither reached nor pruned; the next send retries them. */
   failed: number
+  /** Why unreachable devices failed, when the push service said. */
+  failures?: { channel: string; reason: string }[]
 }
 
 /** What `push-key` serves: the base64url VAPID public key devices subscribe with. */
@@ -166,7 +168,12 @@ function describeTestResult(result: PushTestResult | null): string {
     parts.push(`Removed ${devices(result.pruned)} that had unsubscribed.`)
   }
   if (result.failed > 0) {
-    parts.push(`Could not reach ${devices(result.failed)}.`)
+    const reasons = [...new Set(result.failures?.map((failure) => failure.reason))]
+    parts.push(
+      `Could not reach ${devices(result.failed)}${
+        reasons.length > 0 ? ` (${reasons.join(', ')})` : ''
+      }.`,
+    )
   }
   return parts.join(' ')
 }

@@ -138,18 +138,94 @@ Deno.test('the sender reports gone for 410 and BadDeviceToken, transient otherwi
     return (await createApnsSender(keys, { fetchFn }))(DEVICE, PAYLOAD)
   }
 
-  assertEquals(await outcome(410, 'Unregistered'), { delivered: false, gone: true })
-  assertEquals(await outcome(400, 'BadDeviceToken'), { delivered: false, gone: true })
-  assertEquals(await outcome(400, 'PayloadEmpty'), { delivered: false, gone: false })
-  assertEquals(await outcome(403, 'InvalidProviderToken'), { delivered: false, gone: false })
-  assertEquals(await outcome(500), { delivered: false, gone: false })
+  assertEquals(await outcome(410, 'Unregistered'), {
+    delivered: false,
+    gone: true,
+    reason: 'Unregistered',
+  })
+  assertEquals(await outcome(400, 'BadDeviceToken'), {
+    delivered: false,
+    gone: true,
+    reason: 'BadDeviceToken',
+  })
+  assertEquals(await outcome(400, 'PayloadEmpty'), {
+    delivered: false,
+    gone: false,
+    reason: 'PayloadEmpty',
+  })
+  assertEquals(await outcome(403, 'InvalidProviderToken'), {
+    delivered: false,
+    gone: false,
+    reason: 'InvalidProviderToken',
+  })
+  assertEquals(await outcome(500), { delivered: false, gone: false, reason: 'HTTP 500' })
 })
 
 Deno.test('a network failure resolves as a transient failure', async () => {
   const { keys } = await generatedKeys()
   const fetchFn: typeof fetch = () => Promise.reject(new Error('offline'))
   const send = await createApnsSender(keys, { fetchFn })
-  assertEquals(await send(DEVICE, PAYLOAD), { delivered: false, gone: false })
+  assertEquals(await send(DEVICE, PAYLOAD), {
+    delivered: false,
+    gone: false,
+    reason: 'RequestFailed',
+  })
+})
+
+/** Capture `console.error` lines while `run` executes. */
+async function captureErrors(run: () => Promise<void>): Promise<string[]> {
+  const lines: string[] = []
+  const original = console.error
+  console.error = (line: string) => lines.push(line)
+  try {
+    await run()
+  } finally {
+    console.error = original
+  }
+  return lines
+}
+
+Deno.test('a non-200 response logs its status, reason and environment, never a secret', async () => {
+  const { keys } = await generatedKeys()
+  const { fetchFn, calls } = stubFetch(
+    429,
+    JSON.stringify({ reason: 'TooManyProviderTokenUpdates' }),
+  )
+  const send = await createApnsSender(keys, { fetchFn })
+  const lines = await captureErrors(async () => {
+    await send(DEVICE, PAYLOAD)
+  })
+
+  assertEquals(lines.map((line) => JSON.parse(line)), [
+    {
+      event: 'apns_failure',
+      status: 429,
+      reason: 'TooManyProviderTokenUpdates',
+      environment: 'production',
+    },
+  ])
+  const jwt = calls[0].headers.get('authorization')!.replace('bearer ', '')
+  for (const secret of [jwt, DEVICE.token, keys.privateKey]) {
+    assert(!lines[0].includes(secret))
+  }
+})
+
+Deno.test('a fetch error logs its message', async () => {
+  const { keys } = await generatedKeys()
+  const send = await createApnsSender(keys, { fetchFn: () => Promise.reject(new Error('offline')) })
+  const lines = await captureErrors(async () => {
+    await send(DEVICE, PAYLOAD)
+  })
+  assertEquals(lines.map((line) => JSON.parse(line)), [
+    { event: 'apns_error', environment: 'production', message: 'offline' },
+  ])
+})
+
+Deno.test('a successful delivery logs nothing', async () => {
+  const { keys } = await generatedKeys()
+  const { fetchFn } = stubFetch(200)
+  const send = await createApnsSender(keys, { fetchFn })
+  assertEquals(await captureErrors(async () => void await send(DEVICE, PAYLOAD)), [])
 })
 
 Deno.test('a malformed private key fails when the sender is created', async () => {

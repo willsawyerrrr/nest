@@ -71,7 +71,7 @@ struct WebView: PlatformViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.load(URLRequest(url: url))
+        webView.load(URLRequest(url: NotificationRouter.shared.take() ?? url))
         return webView
     }
 
@@ -102,7 +102,16 @@ struct WebView: PlatformViewRepresentable {
             sessionObservation?.cancel()
         }
 
+        /// Opens the pages tapped notifications name: the one waiting from
+        /// before the page loaded, and any that follow.
+        private func openNotificationURLs(in webView: WKWebView) {
+            let router = NotificationRouter.shared
+            router.handler = { [weak webView] url in webView?.load(URLRequest(url: url)) }
+            if let url = router.take() { webView.load(URLRequest(url: url)) }
+        }
+
         func stop() {
+            NotificationRouter.shared.handler = nil
             sessionObservation?.cancel()
             sessionObservation = nil
             if let foregroundObservation {
@@ -126,6 +135,7 @@ struct WebView: PlatformViewRepresentable {
             }
             observeSessionChanges()
             observeForeground()
+            openNotificationURLs(in: webView)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -169,7 +179,11 @@ struct WebView: PlatformViewRepresentable {
             switch message.name {
             case "nestAuth":
                 switch SessionBridge.pageRequest(from: message.body) {
-                case .signOut: Task { try? await supabaseAuth.signOut() }
+                case .signOut:
+                    Task {
+                        await PushRegistrar.shared.unregister()
+                        try? await supabaseAuth.signOut()
+                    }
                 case nil: break
                 }
             case "nestReady":

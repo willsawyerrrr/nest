@@ -74,6 +74,9 @@ targets:
         # fail silently with errSecMissingEntitlement (-34018) on Mac
         # Catalyst, which macOS enforces far more strictly here than iOS.
         CODE_SIGN_ENTITLEMENTS: Nest/Nest.entitlements
+        # Only iOS carries the push entitlement: Mac Catalyst keys it differently
+        # and does not receive APNs.
+        CODE_SIGN_ENTITLEMENTS[sdk=iphone*]: Nest/NestiOS.entitlements
         # The household's Apple Developer team — resolving
         # `$(AppIdentifierPrefix)` in Nest.entitlements needs one. CI builds
         # with `CODE_SIGNING_ALLOWED=NO` and never reaches this.
@@ -134,6 +137,7 @@ targets:
         excludes:
           - Info.plist
           - Nest.entitlements
+          - NestiOS.entitlements
       - path: Shared
     dependencies:
       - package: Supabase

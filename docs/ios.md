@@ -345,10 +345,14 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   a signed-out install stops receiving the member's notifications.
 - **Tap.** The payload carries `url`, an in-app path. `NestAppDelegate`
   resolves it against the web app's origin (`NotificationRoute` ignores anything
-  that is not a same-origin path) and hands it to `NotificationRouter`, which
-  loads it in the web view: directly when one is showing, otherwise it is held
-  and used as the first load once the member is signed in. Notifications that
-  arrive in the foreground are shown as banners.
+  that is not a same-origin path) and hands it to `NotificationRouter` on the
+  main actor, which loads it in the web view: directly when one is showing,
+  otherwise it is held and used as the first load once the member is signed in.
+  Notifications that arrive in the foreground are shown as banners. The delegate
+  uses the completion-handler forms of `didReceive` and `willPresent` and calls
+  the completion handler on the main thread: UserNotifications calls them on a
+  background queue, and an `async` form would complete from a background
+  executor, which makes UIKit abort.
 - **Settings page.** In the web view the Notifications settings page reports the
   device as on (`PushStatus` `native`, from `__NEST_NATIVE_SHELL__`) with no web
   opt-in, shows the per-trigger toggles, and its test button sends to the app.

@@ -492,6 +492,26 @@ describe('usePushNotifications sendTest', () => {
     expect(result.current.testResult).toBe('Reached no devices. Could not reach 2 devices.')
   })
 
+  it('names why a device could not be reached', async () => {
+    givenPushCapableBrowser({ permission: 'granted' })
+    invoke.mockResolvedValue({
+      data: {
+        ...summary({ devices: 1, failed: 1 }),
+        failures: [{ channel: 'apns', reason: 'ExpiredProviderToken' }],
+      },
+      error: null,
+    })
+    const { result } = renderPush()
+
+    await act(async () => {
+      await result.current.sendTest()
+    })
+
+    expect(result.current.testResult).toBe(
+      'Reached no devices. Could not reach 1 device (ExpiredProviderToken).',
+    )
+  })
+
   it('says so when no device is registered at all', async () => {
     givenPushCapableBrowser({ permission: 'granted' })
     invoke.mockResolvedValue({ data: summary({}), error: null })

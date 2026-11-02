@@ -47,7 +47,11 @@ export type PushTestSummary = {
   pruned: number
   /** Everything neither sent nor pruned — retried on the next send. */
   failed: number
+  /** Why an unreachable device failed, when the push service said; omitted when none did. */
+  failures?: PushTestFailure[]
 }
+
+export type PushTestFailure = { channel: 'web' | 'apns'; reason: string }
 
 export async function runPushTest(deps: PushTestDeps): Promise<FlowResult> {
   const outcome = await deps.resolveMember()
@@ -85,7 +89,10 @@ export async function runPushTest(deps: PushTestDeps): Promise<FlowResult> {
   ])
   return {
     status: 200,
-    body: summary(total, web.sent + apns.sent, web.pruned + apns.pruned),
+    body: summary(total, web.sent + apns.sent, web.pruned + apns.pruned, [
+      ...web.failures.map((reason) => ({ channel: 'web' as const, reason })),
+      ...apns.failures.map((reason) => ({ channel: 'apns' as const, reason })),
+    ]),
   }
 }
 
@@ -97,8 +104,8 @@ async function attempt<D extends { id: string }>(
   devices: D[],
   send: ((device: D, payload: PushPayload) => Promise<DeliveryOutcome>) | null,
   prune: (ids: string[]) => Promise<boolean>,
-): Promise<{ sent: number; pruned: number }> {
-  if (!send || devices.length === 0) return { sent: 0, pruned: 0 }
+): Promise<{ sent: number; pruned: number; failures: string[] }> {
+  if (!send || devices.length === 0) return { sent: 0, pruned: 0, failures: [] }
 
   const outcomes = await Promise.all(
     devices.map(async (device) => {
@@ -121,9 +128,18 @@ async function attempt<D extends { id: string }>(
   // A failed prune leaves the rows in place, so they count as failures rather
   // than as pruned; the next send retries the delete.
   const pruned = goneIds.length > 0 && (await prune(goneIds)) ? goneIds.length : 0
-  return { sent, pruned }
+  const failures = outcomes.flatMap((result) =>
+    !result.delivered && !result.gone && result.reason ? [result.reason] : []
+  )
+  return { sent, pruned, failures }
 }
 
-function summary(devices: number, sent: number, pruned: number): PushTestSummary {
-  return { devices, sent, pruned, failed: devices - sent - pruned }
+function summary(
+  devices: number,
+  sent: number,
+  pruned: number,
+  failures: PushTestFailure[] = [],
+): PushTestSummary {
+  const base = { devices, sent, pruned, failed: devices - sent - pruned }
+  return failures.length > 0 ? { ...base, failures } : base
 }

@@ -152,6 +152,13 @@ grant select on public.budget_line, public.savings_goal, public.temporary_item
 -- (`notify_cron_url` / `notify_cron_key`), so rotating the key is a Vault change
 -- rather than a migration; when either secret is absent the schedule is skipped.
 --
+-- Nothing in the deploy path re-attempts this call once the migration has
+-- applied, so creating the secrets afterwards does not retroactively schedule
+-- the job — this is exactly how `notify-eval-daily` went unscheduled in prod
+-- until the gap was found by hand.
+-- `.github/workflows/check-cron-drift.yml` is what catches it going forward,
+-- asserting every job a migration schedules is registered and active in prod.
+--
 -- 21:00 UTC is ~07:00 AEST / ~08:00 AEDT — a morning alert, before the day is
 -- planned around a buffer that has gone negative. Per-member, per-timezone
 -- scheduling is a follow-up.

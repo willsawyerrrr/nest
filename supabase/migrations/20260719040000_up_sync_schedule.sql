@@ -13,6 +13,11 @@
 -- `up_sync_cron_key`), so rotating the key is a Vault change, not a migration.
 -- When those secrets are absent the schedule is skipped, so an environment
 -- without the deploy-time config stays a no-op.
+--
+-- Nothing in the deploy path re-attempts this call once the migration has
+-- applied, so a secret created after the fact does not retroactively schedule
+-- the job: `.github/workflows/check-cron-drift.yml` is what catches that gap,
+-- asserting every job a migration schedules is registered and active in prod.
 
 do $$
 begin

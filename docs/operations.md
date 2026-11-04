@@ -18,7 +18,8 @@ is deliberately disconnected — with it connected, Supabase's own "deploy to
 production" applied migrations on merge in parallel with
 `deploy-migrations.yml`, a second writer against one migration history that
 surfaced as a failing "Supabase Preview" check when the two disagreed. The
-repo's workflows plus the six-hourly drift checks are the whole of the
+repo's workflows plus the six-hourly drift checks (migrations, functions, and
+`pg_cron` jobs) are the whole of the
 migration and function deploy path; nothing is applied from the Supabase
 dashboard. Reconnecting the integration means turning "deploy to production"
 off in its settings.
@@ -201,6 +202,34 @@ off in its settings.
     check out with `fetch-depth: 0`; a function with no commit behind it gets no
     grace. The post-deploy step passes no grace window at all: the deploy has just
     returned, so anything behind there is behind for good.
+- **Cron drift** is caught by `.github/workflows/check-cron-drift.yml`, which
+  fails when a `pg_cron` job a migration schedules (`up-sync-hourly`,
+  `notify-eval-daily`) is not registered and active in prod. Unlike the two
+  checks above, it runs on no post-deploy trigger — `cron.schedule` is called
+  from inside a migration's one-time `do $$ ... end $$` block, guarded so a
+  missing Vault secret (`up_sync_cron_url`/`up_sync_cron_key`,
+  `notify_cron_url`/`notify_cron_key`) makes it no-op rather than fail, which
+  keeps the migration applying cleanly on plain Postgres (CI, local) and on a
+  fresh prod before ops has created its secrets. Nothing in the deploy path
+  re-attempts that call, and a migration already applied is never re-applied,
+  so a job that no-op'd because its secret was missing at apply time stays
+  silently unscheduled forever — this is exactly how `notify-eval-daily` went
+  unscheduled in prod from the migration meant to create it until this check's
+  absence let the gap run unnoticed.
+  - Every six hours (`cron: '17 1,7,13,19 * * *'`, the same cadence as the other
+    two drift checks, offset a further half hour from both) plus
+    `workflow_dispatch`.
+  - Invokes `pnpm check:cron-drift` (`scripts/check-cron-drift.js`), which scans
+    every file in `supabase/migrations/` for a `cron.schedule('<jobname>', ...)`
+    call to build the expected job set, then reads
+    `supabase db query --linked 'select jobname, active from cron.job'` — the
+    same Management-API path `migration list --linked` uses, so
+    `SUPABASE_ACCESS_TOKEN` is the only credential.
+  - **A job missing from `cron.job`, or present but not active, fails the run,**
+    naming the job, the migration file that schedules it, and that re-running the
+    migration will not fix it — the fix is creating the Vault secret(s) the
+    migration's guard names and registering the job directly with the exact
+    `cron.schedule` call copied out of that file.
 - **Mac app** installs with `brew install --cask willsawyerrrr/tap/nest`. A merge
   to `main` touching `apps/ios/**` runs `.github/workflows/release.yml`, which
   calls the platform repo's reusable `release.yml`: it tags the next version

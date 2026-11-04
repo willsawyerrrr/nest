@@ -56,6 +56,9 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     temporaryItems: [],
     accountBalances: [],
     giftPurchases: [],
+    transactions: [],
+    accounts: [],
+    giftTransactionDismissals: [],
     savers: [],
     ...overrides,
   }
@@ -279,6 +282,7 @@ Deno.test('gift_purchase_unassigned fires for a recent purchase with no budget',
     description: 'Wrapping paper',
     gift_budget_id: null,
     gift_discretionary_budget_id: null,
+    transaction_id: null,
     created_at: '2027-02-14T00:00:00Z',
   }
   const firings = evaluateHousehold(bundle({ giftPurchases: [purchase] }), NOW)
@@ -294,6 +298,7 @@ Deno.test('gift_purchase_unassigned skips assigned, stale, and ad hoc purchases'
     description: '',
     gift_budget_id: null,
     gift_discretionary_budget_id: null,
+    transaction_id: null,
     created_at: '2027-02-14T00:00:00Z',
   }
   const firings = evaluateHousehold(
@@ -318,12 +323,103 @@ Deno.test('gift_purchase_unassigned names a purchase with no description generic
         description: '  ',
         gift_budget_id: null,
         gift_discretionary_budget_id: null,
+        transaction_id: null,
         created_at: '2027-02-15T00:00:00Z',
       }],
     }),
     NOW,
   )
   assert(firing.payload.body.startsWith('A gift purchase ($5.00)'))
+})
+
+Deno.test('gift_candidate_new fires for a recent, unclaimed, undismissed transaction', () => {
+  const firings = evaluateHousehold(
+    bundle({
+      transactions: [{
+        id: 'tx-1',
+        account_id: 'a-1',
+        description: 'Flowers',
+        amount_cents: -45_00,
+        external_category: 'gifts-and-charity',
+        created_at: '2027-02-14T00:00:00Z',
+      }],
+      accounts: [{ id: 'a-1', owner_member_id: null }],
+    }),
+    NOW,
+  )
+  assertEquals(firings.map((f) => f.trigger), ['gift_candidate_new'])
+  assertEquals(firings[0].dedupeKey, 'tx-1')
+  assertEquals(firings[0].visibleToMemberId, undefined)
+  assertEquals(firings[0].payload.url, '/gifts')
+  assert(firings[0].payload.body.includes('"Flowers" ($45.00)'))
+})
+
+Deno.test('gift_candidate_new restricts an individually-owned account to its owner', () => {
+  const [firing] = evaluateHousehold(
+    bundle({
+      transactions: [{
+        id: 'tx-1',
+        account_id: 'a-1',
+        description: 'Flowers',
+        amount_cents: -45_00,
+        external_category: 'gifts-and-charity',
+        created_at: '2027-02-14T00:00:00Z',
+      }],
+      accounts: [{ id: 'a-1', owner_member_id: 'm-1' }],
+    }),
+    NOW,
+  )
+  assertEquals(firing.visibleToMemberId, 'm-1')
+})
+
+Deno.test('gift_candidate_new skips a non-gift category, a claimed transaction, a dismissal, and a stale one', () => {
+  const base = {
+    account_id: 'a-1',
+    description: '',
+    amount_cents: -10_00,
+    external_category: 'gifts-and-charity',
+    created_at: '2027-02-14T00:00:00Z',
+  }
+  const firings = evaluateHousehold(
+    bundle({
+      transactions: [
+        { ...base, id: 'other-category', external_category: 'clothing-and-accessories' },
+        { ...base, id: 'claimed' },
+        { ...base, id: 'dismissed' },
+        { ...base, id: 'stale', created_at: '2027-01-01T00:00:00Z' },
+      ],
+      giftPurchases: [{
+        id: 'gp-1',
+        amount_cents: 10_00,
+        description: '',
+        gift_budget_id: 'gb-1',
+        gift_discretionary_budget_id: null,
+        transaction_id: 'claimed',
+        created_at: '2027-02-14T00:00:00Z',
+      }],
+      giftTransactionDismissals: [{ transaction_id: 'dismissed' }],
+    }),
+    NOW,
+  )
+  assertEquals(firings, [])
+})
+
+Deno.test('gift_candidate_new names a transaction with no description generically', () => {
+  const [firing] = evaluateHousehold(
+    bundle({
+      transactions: [{
+        id: 'tx-2',
+        account_id: 'a-1',
+        description: ' ',
+        amount_cents: -5_00,
+        external_category: 'gifts-and-charity',
+        created_at: '2027-02-15T00:00:00Z',
+      }],
+      accounts: [],
+    }),
+    NOW,
+  )
+  assert(firing.payload.body.startsWith('A transaction ($5.00)'))
 })
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -432,6 +528,34 @@ Deno.test('runNotifyEval sends a firing to every device and logs it once', async
   assertEquals(summary.notified, 1)
   assertEquals(summary.sent, 2)
   assertEquals(summary.firings, 1)
+})
+
+Deno.test('runNotifyEval restricts a visibleToMemberId firing to its owner', async () => {
+  const { deps: d, recorded } = deps({
+    loadBundle: () =>
+      Promise.resolve(bundle({
+        transactions: [{
+          id: 'tx-1',
+          account_id: 'a-1',
+          description: 'Flowers',
+          amount_cents: -45_00,
+          external_category: 'gifts-and-charity',
+          created_at: '2027-02-14T00:00:00Z',
+        }],
+        accounts: [{ id: 'a-1', owner_member_id: 'm-1' }],
+      })),
+    loadSubscriptions: () =>
+      Promise.resolve([subscription('d-1', 'm-1'), subscription('d-2', 'm-2')]),
+  })
+  const summary = await runNotifyEval(d)
+
+  assertEquals(recorded.sent.map((s) => s.endpoint), ['https://push.example/d-1'])
+  assertEquals(recorded.logged, [{
+    memberId: 'm-1',
+    trigger: 'gift_candidate_new',
+    dedupeKey: 'tx-1',
+  }])
+  assertEquals(summary.notified, 1)
 })
 
 Deno.test('runNotifyEval skips a member who turned the trigger off', async () => {

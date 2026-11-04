@@ -384,7 +384,7 @@ Workflows and local commands read secrets from [1Password Environments](https://
 | Nest              | `we4tm6dkfoffx42g243qr7ju6m` | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `REDBARK_API_KEY`                                                                                                                                      |
 
 - **CI** loads them with `willsawyerrrr/platform/.github/actions/load-op-environment`, which exports every variable to later steps. It uses the repository secret `OP_SERVICE_ACCOUNT_TOKEN` (a service account scoped to all three Environments) and the repository variable `OP_ENVIRONMENT_IDS` (`b5zkkwxuutlttwbrv5xhgojye4 3i642eynjpsx2uctyqlexobgge we4tm6dkfoffx42g243qr7ju6m`; the last Environment wins on a duplicate name). The reusable `ios-testflight.yml` and `release.yml` workflows load them the same way.
-- **Local** commands read the Environments' mounted `.env` files (`~/willsawyerrrr.dev/.env` for Shared, `.env.apple` for Apple Development, `nest/.env` for Nest), sourced in that order with `set -a; . "$HOME/willsawyerrrr.dev/.env"; . "$HOME/willsawyerrrr.dev/.env.apple"; . "$HOME/willsawyerrrr.dev/nest/.env"; set +a`; the last file wins on a duplicate name.
+- **Local** commands read the Environments' mounted `.env` files (`~/willsawyerrrr.dev/.env` for Shared, `.env.apple` for Apple Development, `nest/.env` for Nest), loaded in that order with `~/willsawyerrrr.dev/platform/main/scripts/load-env ~/willsawyerrrr.dev/.env ~/willsawyerrrr.dev/.env.apple ~/willsawyerrrr.dev/nest/.env -- <command>`; the last file wins on a duplicate name.
 
 ## Vault secrets
 
@@ -784,7 +784,7 @@ subscription covers every bank connection the household makes, unlike Up's
 per-member personal access token. It is a plain edge function secret, not
 Vault, set the same way as `GITHUB_CHANGELOG_TOKEN` above:
 
-- **Prod:** `(set -a; . "$HOME/willsawyerrrr.dev/.env"; . "$HOME/willsawyerrrr.dev/.env.apple"; . "$HOME/willsawyerrrr.dev/nest/.env"; set +a; supabase secrets set REDBARK_API_KEY="$REDBARK_API_KEY" --project-ref dgfeittjtxjtgbretdkj)`.
+- **Prod:** `~/willsawyerrrr.dev/platform/main/scripts/load-env ~/willsawyerrrr.dev/.env ~/willsawyerrrr.dev/.env.apple ~/willsawyerrrr.dev/nest/.env -- sh -c 'supabase secrets set REDBARK_API_KEY="$REDBARK_API_KEY" --project-ref dgfeittjtxjtgbretdkj'`.
 - **Local dev:** add `REDBARK_API_KEY=<key>` to `supabase/functions/.env`.
 
 Obtaining the key is on the household to action, not automated: signing up for

@@ -59,6 +59,7 @@ function bundle(overrides: Partial<HouseholdBundle> = {}): HouseholdBundle {
     transactions: [],
     accounts: [],
     giftTransactionDismissals: [],
+    memberConnections: [],
     savers: [],
     ...overrides,
   }
@@ -420,6 +421,45 @@ Deno.test('gift_candidate_new names a transaction with no description genericall
     NOW,
   )
   assert(firing.payload.body.startsWith('A transaction ($5.00)'))
+})
+
+Deno.test('up_disconnected fires once for a member whose Up token was rejected', () => {
+  const firings = evaluateHousehold(
+    bundle({
+      memberConnections: [{ id: 'm-1', name: 'Alex', up_sync_failed_at: '2027-02-10T00:00:00Z' }],
+    }),
+    NOW,
+  )
+  assertEquals(firings.map((f) => f.trigger), ['up_disconnected'])
+  assertEquals(firings[0].dedupeKey, 'm-1:2027-02-10T00:00:00Z')
+  assertEquals(firings[0].payload.url, '/settings/connections')
+  assert(firings[0].payload.body.includes("Alex's Up personal access token was rejected"))
+})
+
+Deno.test('up_disconnected does not fire for a member with no failure', () => {
+  const firings = evaluateHousehold(
+    bundle({
+      memberConnections: [{ id: 'm-1', name: 'Alex', up_sync_failed_at: null }],
+    }),
+    NOW,
+  )
+  assertEquals(firings, [])
+})
+
+Deno.test('up_disconnected fires again as a fresh occurrence after a later, distinct failure', () => {
+  const firstFiring = evaluateHousehold(
+    bundle({
+      memberConnections: [{ id: 'm-1', name: 'Alex', up_sync_failed_at: '2027-01-01T00:00:00Z' }],
+    }),
+    NOW,
+  )[0]
+  const secondFiring = evaluateHousehold(
+    bundle({
+      memberConnections: [{ id: 'm-1', name: 'Alex', up_sync_failed_at: '2027-02-10T00:00:00Z' }],
+    }),
+    NOW,
+  )[0]
+  assertEquals(firstFiring.dedupeKey === secondFiring.dedupeKey, false)
 })
 
 // ── helpers ────────────────────────────────────────────────────────────────

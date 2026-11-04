@@ -43,17 +43,22 @@ interface ConnectionsScreenProps {
 }
 
 /** A fixed-width status pill, so statuses align down a list of rows. */
-function StatusBadge({ label, positive }: { label: string; positive: boolean }) {
+function StatusBadge({ label, color }: { label: string; color: 'green' | 'gray' | 'warning' }) {
   return (
-    <Badge
-      size="xs"
-      variant="light"
-      color={positive ? 'green' : 'gray'}
-      style={{ width: '5.5rem', flexShrink: 0 }}
-    >
+    <Badge size="xs" variant="light" color={color} style={{ width: '5.5rem', flexShrink: 0 }}>
       {label}
     </Badge>
   )
+}
+
+/** A member's Up-connection status: connected, needing reconnection, or not connected. */
+function upConnectionStatus(member: Member): {
+  label: string
+  color: 'green' | 'gray' | 'warning'
+} {
+  if (member.up_sync_failed_at != null) return { label: 'Needs reconnecting', color: 'warning' }
+  if (member.up_connected_at != null) return { label: 'Connected', color: 'green' }
+  return { label: 'Not connected', color: 'gray' }
 }
 
 /** The Up-connection card: connect/disconnect for the signed-in member, plus each member's status. */
@@ -70,6 +75,7 @@ function ConnectUpCard({
   const [token, setToken] = useState('')
   const me = members.find((member) => member.user_id === currentUserId)
   const connected = me?.up_connected_at != null
+  const needsReconnecting = me?.up_sync_failed_at != null
 
   return (
     <AppCard>
@@ -77,6 +83,12 @@ function ConnectUpCard({
         <Title order={3} size="h5">
           Connect Up
         </Title>
+
+        {needsReconnecting && (
+          <Alert color="warning" variant="light" title="Your Up connection needs reconnecting">
+            Up rejected your personal access token. Paste a fresh one to resume syncing.
+          </Alert>
+        )}
 
         {connected ? (
           <Group justify="space-between">
@@ -114,23 +126,23 @@ function ConnectUpCard({
                 setToken('')
               }}
             >
-              Connect
+              {needsReconnecting ? 'Reconnect' : 'Connect'}
             </Button>
           </Stack>
         )}
 
         <Stack gap={0}>
-          {members.map((member) => (
-            <ListRow key={member.id} gap="sm">
-              <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
-                {member.name}
-              </Text>
-              <StatusBadge
-                label={member.up_connected_at != null ? 'Connected' : 'Not connected'}
-                positive={member.up_connected_at != null}
-              />
-            </ListRow>
-          ))}
+          {members.map((member) => {
+            const status = upConnectionStatus(member)
+            return (
+              <ListRow key={member.id} gap="sm">
+                <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                  {member.name}
+                </Text>
+                <StatusBadge label={status.label} color={status.color} />
+              </ListRow>
+            )
+          })}
         </Stack>
       </Stack>
     </AppCard>
@@ -273,7 +285,10 @@ function ConnectRedbarkCard({
                 <Text size="xs" c="dimmed" truncate style={{ width: '4.5rem', flexShrink: 0 }}>
                   {memberName(connection.member_id)}
                 </Text>
-                <StatusBadge label={connection.status} positive={connection.status === 'active'} />
+                <StatusBadge
+                  label={connection.status}
+                  color={connection.status === 'active' ? 'green' : 'gray'}
+                />
                 <div style={{ width: 28, flexShrink: 0 }}>
                   {connection.member_id === currentMemberId && (
                     <ActionIcon

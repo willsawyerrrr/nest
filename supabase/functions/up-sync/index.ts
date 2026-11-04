@@ -145,6 +145,12 @@ Deno.serve(async (request) => {
       })
       if (error) throw new Error(`Failed to sync gift transactions: ${error.message}`)
     },
+    // A SECURITY DEFINER RPC: clears the member's connection and stamps the
+    // failure, called only when their token is rejected with 401/403.
+    disconnectMember: async (memberId: string) => {
+      const { error } = await supabase.rpc('fail_up_token', { p_member_id: memberId })
+      if (error) throw new Error(`Failed to disconnect member: ${error.message}`)
+    },
   }, householdId)
 
   return json(result, 200)

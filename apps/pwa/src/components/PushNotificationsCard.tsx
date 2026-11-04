@@ -35,6 +35,10 @@ const TRIGGER_COPY: Record<NotificationTrigger, { label: string; detail: string 
     label: 'A new gift candidate arrives',
     detail: 'When your card syncs a new transaction as Gifts and Charity.',
   },
+  up_disconnected: {
+    label: 'Your Up connection needs reconnecting',
+    detail: 'When Up rejects your personal access token and syncing stops.',
+  },
 }
 
 export interface PushNotificationsCardProps {

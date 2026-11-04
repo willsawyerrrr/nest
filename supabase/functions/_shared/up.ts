@@ -6,6 +6,23 @@
 
 export const UP_API_BASE_URL = 'https://api.up.com.au/api/v1'
 
+/** A non-OK response from the Up API, carrying the HTTP status for callers that branch on it. */
+export class UpApiError extends Error {
+  constructor(readonly status: number, readonly path: string, body: string) {
+    super(`Up API ${status} for ${path}: ${body}`)
+    this.name = 'UpApiError'
+  }
+}
+
+/**
+ * True only for a token Up itself has rejected (401 Unauthorized or 403
+ * Forbidden) — revoked or expired. A transient 5xx or a network failure is not
+ * an auth error: it says nothing about whether the token is still good.
+ */
+export function isUpAuthError(error: unknown): boolean {
+  return error instanceof UpApiError && (error.status === 401 || error.status === 403)
+}
+
 /** A monetary value as returned by Up. `valueInBaseUnits` is integer cents. */
 export interface UpMoney {
   readonly currencyCode: string
@@ -71,7 +88,7 @@ export class UpClient {
       headers: { Authorization: `Bearer ${this.token}` },
     })
     if (!response.ok) {
-      throw new Error(`Up API ${response.status} for ${path}: ${await response.text()}`)
+      throw new UpApiError(response.status, path, await response.text())
     }
     return (await response.json()) as T
   }

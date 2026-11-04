@@ -1,0 +1,46 @@
+name: Check cron drift
+
+on:
+  # Every six hours, matching the migration and function drift checks' cadence
+  # and reasoning, offset a further half hour from both so the three do not
+  # queue for a runner at the same minute. Unlike the other two, no deploy
+  # workflow ever re-attempts a `cron.schedule` call that no-op'd — a migration
+  # applies exactly once, so a job left unscheduled because a Vault secret was
+  # missing at apply time stays unscheduled forever until this check catches it.
+  # Six hours costs four runs a day against an hourly schedule's twenty-four,
+  # for a quarter-day worst case on a repo where a silently-unscheduled push
+  # notification is not an outage.
+  schedule:
+    - cron: '17 1,7,13,19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-cron-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the expected job set is read from the current checkout's
+      # migration files, which a shallow clone already gives in full — unlike the
+      # other two drift checks, nothing here is dated by when a file landed on
+      # `main`.
+      - uses: actions/checkout@v7
+      - uses: willsawyerrrr/platform/.github/actions/load-op-environment@main
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          environments: ${{ vars.OP_ENVIRONMENT_IDS }}
+      - uses: ./.github/actions/setup-pnpm
+      # `db query --linked` reads the project from the linked-project file rather
+      # than a `--project-ref` flag, exactly as `migration list --linked` does, so
+      # `link` writes it first. Neither needs a database password: the linked path
+      # mints a temporary login role through the Management API, for which the
+      # access token is the only credential.
+      - name: Link the production project
+        run: pnpm exec supabase link --project-ref dgfeittjtxjtgbretdkj
+      - name: Compare production's pg_cron jobs against supabase/migrations
+        run: pnpm check:cron-drift

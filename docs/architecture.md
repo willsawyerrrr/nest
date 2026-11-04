@@ -524,6 +524,13 @@ established (see *Security*), applied to a feed rather than a page:
   them. Each deploy workflow runs its own check as a post-push assertion, and the
   function deploy retries a bundle step that failed because Docker could not
   start a container — see [`operations.md`](operations.md#deployment).
+  `.github/workflows/check-cron-drift.yml` runs the same six-hourly schedule
+  alone, with no post-deploy counterpart: it fails if a `pg_cron` job any
+  migration schedules (`up-sync-hourly`, `notify-eval-daily`) is not registered
+  and active in prod, catching the one failure mode the other two checks have no
+  equivalent for — a `cron.schedule` call that no-op'd because a Vault secret was
+  missing when its one-time migration applied, which nothing afterwards ever
+  re-attempts.
 
 ## CI
 

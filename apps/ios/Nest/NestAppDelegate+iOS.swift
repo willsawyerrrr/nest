@@ -1,4 +1,4 @@
-#if os(iOS) && !targetEnvironment(macCatalyst)
+import SwiftUI
 import UIKit
 import UserNotifications
 
@@ -49,4 +49,8 @@ final class NestAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         }
     }
 }
-#endif
+
+/// The platform's `UIApplicationDelegateAdaptor` / `NSApplicationDelegateAdaptor`,
+/// specialised to `NestAppDelegate` so `NestApp` attaches it with no
+/// platform-specific syntax.
+typealias PlatformAppDelegateAdaptor = UIApplicationDelegateAdaptor<NestAppDelegate>

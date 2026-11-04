@@ -1,11 +1,5 @@
 import SwiftUI
 
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
-
 /// Where the embedded web app is served.
 enum WebApp {
     static let url = URL(string: "https://nest.willsawyerrrr.dev")!
@@ -183,18 +177,6 @@ private extension Color {
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
         )
-    }
-
-    /// A colour that resolves to `light` or `dark` by the active colour scheme.
-    init(light: Color, dark: Color) {
-        #if os(macOS)
-        self.init(
-            nsColor: NSColor(name: nil) {
-                $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(dark) : NSColor(light)
-            })
-        #else
-        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light) })
-        #endif
     }
 }
 

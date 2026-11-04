@@ -38,8 +38,19 @@ and Spotlight still work on both platforms.
   - `PushNotifications.swift` — APNs token registration (`PushRegistrar`,
     `PushDeviceService`) and the page a tapped notification opens
     (`NotificationRoute`, `NotificationRouter`).
-  - `NestAppDelegate.swift` — iOS-only: receives the APNs token and the
+  - `NestAppDelegate+iOS.swift` / `NestAppDelegate+macOS.swift` — the
+    `UIApplicationDelegate` / `NSApplicationDelegate` `NestAppDelegate`, and a
+    `PlatformAppDelegateAdaptor` typealias so `NestApp` attaches it with no
+    platform-specific syntax; only the iOS one receives the APNs token and the
     member's taps on notifications.
+  - `NestApp+iOS.swift` / `NestApp+macOS.swift` — the per-platform half of
+    `requestNotificationAuthorization()`: iOS registers for remote
+    notifications once authorised (skipped under Mac Catalyst), macOS does
+    nothing.
+  - `Auth+iOS.swift` / `Auth+macOS.swift` — the `UIViewController` /
+    `NSWindow` Google Sign-In presenter.
+  - `ContentView+iOS.swift` / `ContentView+macOS.swift` — the `Color(light:
+    dark:)` initialiser backing `UIColor` / `NSColor`.
   - `NestiOS.entitlements` — the iOS entitlements, adding `aps-environment`.
   - `ShareBridge.swift` — builds the JavaScript that hands a shared file to the
     page in chunks, and reads the page's acknowledgement.

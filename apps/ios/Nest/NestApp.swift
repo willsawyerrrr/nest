@@ -1,14 +1,11 @@
 import GoogleSignIn
 import SwiftUI
-import UserNotifications
 
 @main
 struct NestApp: App {
     @State private var auth = AuthModel()
     @Environment(\.scenePhase) private var scenePhase
-    #if os(iOS) && !targetEnvironment(macCatalyst)
-    @UIApplicationDelegateAdaptor(NestAppDelegate.self) private var appDelegate
-    #endif
+    @PlatformAppDelegateAdaptor private var appDelegate
 
     var body: some Scene {
         WindowGroup {
@@ -28,25 +25,6 @@ struct NestApp: App {
                     _ = GIDSignIn.sharedInstance.handle(url)
                 }
         }
-    }
-
-    /// The share extension posts a notification that opens Nest when tapped,
-    /// and Nest's own alerts arrive over APNs, both of which need the member's
-    /// permission, asked for when the app launches. Once it is granted the app
-    /// registers for remote notifications.
-    private func requestNotificationAuthorization() {
-        #if !os(macOS)
-        Task {
-            let center = UNUserNotificationCenter.current()
-            #if os(iOS) && !targetEnvironment(macCatalyst)
-            if (try? await center.requestAuthorization(options: [.alert, .sound])) == true {
-                UIApplication.shared.registerForRemoteNotifications()
-            }
-            #else
-            _ = try? await center.requestAuthorization(options: [.alert, .sound])
-            #endif
-        }
-        #endif
     }
 
     /// The App Shortcut phrases and the Spotlight index name the household's

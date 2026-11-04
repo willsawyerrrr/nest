@@ -335,11 +335,14 @@ with Web Push (see [`architecture.md`](architecture.md#push-notifications)).
   signs with the distribution profile, which swaps in `production`. The App ID's
   Push Notifications capability is enabled by automatic signing at export.
 - **Registration.** `NestApp` registers for remote notifications once the
-  member allows notifications at launch. `NestAppDelegate` (iOS only, wired with
-  `@UIApplicationDelegateAdaptor`) receives the token and hands it to
-  `PushRegistrar`, which calls the `register_apns_device` RPC through PostgREST
-  with the session's access token as soon as it has both a token and a session
-  (retrying after a failed call and on each sign-in or foreground). The
+  member allows notifications at launch, except under Mac Catalyst, which
+  keys push differently and does not receive APNs. The iOS `NestAppDelegate`
+  (`NestAppDelegate+iOS.swift`, wired uniformly on every platform through a
+  `PlatformAppDelegateAdaptor` typealias; the macOS one is an empty stand-in)
+  receives the token and hands it to `PushRegistrar`, which calls the
+  `register_apns_device` RPC through PostgREST with the session's access token
+  as soon as it has both a token and a session (retrying after a failed call
+  and on each sign-in or foreground). The
   environment is `sandbox` in Debug builds and `production` otherwise. Before the
   page's sign-out request signs out, the app deletes its own `apns_device` row, so
   a signed-out install stops receiving the member's notifications.
@@ -407,7 +410,12 @@ it is for iOS.
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
   `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`,
-  `PushNotifications.swift`, `NestAppDelegate.swift`, and `Intents/`.
+  `PushNotifications.swift`, `NestAppDelegate+iOS.swift` /
+  `NestAppDelegate+macOS.swift`, and `Intents/`. The iOS/macOS divergence in
+  `Auth.swift`, `ContentView.swift`, `NestAppDelegate+*.swift`, and
+  `NestApp.swift` lives in per-platform `+iOS`/`+macOS` files excluded per
+  target in `project.yml`, the way `WebView.swift`'s `makeNSView`/`makeUIView`
+  already isolates its own.
 - `ShareExtension/` — the share extension (`ShareViewController.swift`, its
   entitlements; `Info.plist` is generated).
 - `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both

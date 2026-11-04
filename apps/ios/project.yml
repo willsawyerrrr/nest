@@ -29,6 +29,11 @@ targets:
       iOS: '17.0'
     sources:
       - path: Nest
+        excludes:
+          - Auth+macOS.swift
+          - ContentView+macOS.swift
+          - NestAppDelegate+macOS.swift
+          - NestApp+macOS.swift
       - path: Shared
     dependencies:
       - package: Supabase
@@ -137,6 +142,10 @@ targets:
           - Info.plist
           - Nest.entitlements
           - NestiOS.entitlements
+          - Auth+iOS.swift
+          - ContentView+iOS.swift
+          - NestAppDelegate+iOS.swift
+          - NestApp+iOS.swift
       - path: Shared
     dependencies:
       - package: Supabase

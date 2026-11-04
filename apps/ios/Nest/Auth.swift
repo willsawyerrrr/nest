@@ -3,12 +3,6 @@ import Foundation
 import GoogleSignIn
 import Observation
 
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
-
 /// Observable wrapper around `supabaseAuth` for the SwiftUI layer: a coarse
 /// session state plus the native Google sign-in entry point.
 ///
@@ -103,23 +97,6 @@ final class AuthModel {
             }
         }
     }
-
-    #if os(macOS)
-    private static func presenter() -> NSWindow? {
-        NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first
-    }
-    #else
-    private static func presenter() -> UIViewController? {
-        let root = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first?.rootViewController
-        var top = root
-        while let presented = top?.presentedViewController {
-            top = presented
-        }
-        return top
-    }
-    #endif
 
     private static func randomNonce() -> String {
         Data((0..<32).map { _ in UInt8.random(in: .min ... .max) })

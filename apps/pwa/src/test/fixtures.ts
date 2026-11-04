@@ -27,6 +27,7 @@ export function makeMember(overrides: Partial<Member> = {}): Member {
     date_of_birth: null,
     user_id: 'u1',
     up_connected_at: null,
+    up_sync_failed_at: null,
     created_at: '',
     updated_at: '',
     ...overrides,

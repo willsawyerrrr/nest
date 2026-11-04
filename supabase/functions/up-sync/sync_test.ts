@@ -14,6 +14,7 @@ import {
   type SyncDeps,
   UP_GIFT_CATEGORY,
 } from './sync.ts'
+import { UpApiError } from '../_shared/up.ts'
 import type { UpAccount, UpTransaction } from '../_shared/up.ts'
 
 function account(overrides: Partial<UpAccount['attributes']> = {}, id = 'acc-1'): UpAccount {
@@ -125,6 +126,7 @@ function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
         owner_member_id: 'm-1',
       }))),
     syncGiftTransactions: () => Promise.resolve(),
+    disconnectMember: () => Promise.resolve(),
     ...overrides,
   }
 }
@@ -257,6 +259,67 @@ Deno.test("runSync keeps going when one member's account listing fails", async (
   assertEquals(reconciles, [
     { memberId: 'm-2', householdId: 'h-1', presentExternalIds: ['tok-m-2-own'] },
   ])
+})
+
+Deno.test('runSync disconnects a member whose token is rejected with 401', async () => {
+  const disconnected: string[] = []
+  await runSync(deps({
+    listAccounts: () => Promise.reject(new UpApiError(401, '/accounts', 'unauthorized')),
+    disconnectMember: (memberId) => {
+      disconnected.push(memberId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(disconnected, ['m-1'])
+})
+
+Deno.test('runSync disconnects a member whose token is rejected with 403', async () => {
+  const disconnected: string[] = []
+  await runSync(deps({
+    listAccounts: () => Promise.reject(new UpApiError(403, '/accounts', 'forbidden')),
+    disconnectMember: (memberId) => {
+      disconnected.push(memberId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(disconnected, ['m-1'])
+})
+
+Deno.test('runSync does not disconnect a member on a transient (5xx) failure', async () => {
+  const disconnected: string[] = []
+  await runSync(deps({
+    listAccounts: () => Promise.reject(new UpApiError(503, '/accounts', 'unavailable')),
+    disconnectMember: (memberId) => {
+      disconnected.push(memberId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(disconnected, [])
+})
+
+Deno.test('runSync does not disconnect a member on a plain (non-Up-API) error', async () => {
+  const disconnected: string[] = []
+  await runSync(deps({
+    listAccounts: () => Promise.reject(new Error('network down')),
+    disconnectMember: (memberId) => {
+      disconnected.push(memberId)
+      return Promise.resolve()
+    },
+  }))
+
+  assertEquals(disconnected, [])
+})
+
+Deno.test("runSync keeps going when a member's disconnectMember call itself fails", async () => {
+  const result = await runSync(deps({
+    listAccounts: () => Promise.reject(new UpApiError(401, '/accounts', 'unauthorized')),
+    disconnectMember: () => Promise.reject(new Error('rpc down')),
+  }))
+
+  assertEquals(result, { members: 1, accounts: 0, transactions: 0 })
 })
 
 Deno.test('runSync does not upsert when a member has no accounts', async () => {

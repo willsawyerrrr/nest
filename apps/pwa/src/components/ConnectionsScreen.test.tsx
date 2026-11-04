@@ -96,6 +96,34 @@ describe('ConnectionsScreen', () => {
     expect(within(card).getAllByText('Connected')).toHaveLength(1)
   })
 
+  it('shows a reconnect prompt when the signed-in member needs reconnecting', () => {
+    const failedMembers = members.map((member) =>
+      member.user_id === 'u1' ? { ...member, up_sync_failed_at: new Date().toISOString() } : member,
+    )
+    renderConnections({ members: failedMembers })
+
+    expect(screen.getByText('Your Up connection needs reconnecting')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^reconnect$/i })).toBeInTheDocument()
+
+    const card = screen
+      .getByRole('heading', { name: /Connect Up/ })
+      .closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText('Needs reconnecting')).toBeInTheDocument()
+  })
+
+  it('lists a co-member needing reconnection distinctly from connected or not connected', () => {
+    const mixedMembers = members.map((member) =>
+      member.user_id === 'u2' ? { ...member, up_sync_failed_at: new Date().toISOString() } : member,
+    )
+    renderConnections({ members: mixedMembers })
+
+    const card = screen
+      .getByRole('heading', { name: /Connect Up/ })
+      .closest('.mantine-Card-root') as HTMLElement
+    expect(within(card).getByText('Not connected')).toBeInTheDocument()
+    expect(within(card).getByText('Needs reconnecting')).toBeInTheDocument()
+  })
+
   it('starts a Redbark connection', async () => {
     const user = userEvent.setup()
     const onConnect = vi.fn()

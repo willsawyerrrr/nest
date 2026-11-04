@@ -15,7 +15,7 @@
  * against the union of the ids those members' tokens returned.
  */
 
-import type { UpAccount, UpTransaction } from '../_shared/up.ts'
+import { isUpAuthError, type UpAccount, type UpTransaction } from '../_shared/up.ts'
 import {
   type AccountUpsert,
   mapAccount,
@@ -140,6 +140,13 @@ export interface SyncDeps {
   listSyncedAccounts: (externalIds: string[]) => Promise<SyncedAccount[]>
   /** Lands one member's gift window and prunes what Up no longer reports in it. */
   syncGiftTransactions: (window: GiftTransactionWindow) => Promise<void>
+  /**
+   * Clears a member's Up connection and stamps the failure, so they are
+   * prompted to reconnect rather than retried forever. Called only when the
+   * token read is rejected with 401/403 — never on a transient failure, so a
+   * network blip or an Up outage never costs the member their connection.
+   */
+  disconnectMember: (memberId: string) => Promise<void>
 }
 
 export interface SyncResult {
@@ -246,7 +253,11 @@ async function syncGiftWindow(
  * duplicates. A member without a readable token is skipped rather than failing
  * the whole run, as is one whose token Up itself rejects when listing accounts
  * (revoked, expired): a failure there costs only that member's accounts,
- * reconcile, and gift window, never another member's or household's.
+ * reconcile, and gift window, never another member's or household's. A
+ * rejection distinguishing itself as the token's own fault (401/403) also
+ * disconnects the member, so they are prompted to reconnect rather than
+ * retried forever; a transient failure (a 5xx, a network error) leaves the
+ * connection alone and is simply retried next run.
  *
  * A joint account surfaces through both partners' tokens under the same Up id;
  * it is processed once, on its first sighting, so its shared ownership stays
@@ -310,6 +321,13 @@ export async function runSync(
       upAccounts = await deps.listAccounts(token)
     } catch (error) {
       console.error(`Account listing failed for member ${member.memberId}:`, error)
+      if (isUpAuthError(error)) {
+        try {
+          await deps.disconnectMember(member.memberId)
+        } catch (disconnectError) {
+          console.error(`Disconnecting member ${member.memberId} failed:`, disconnectError)
+        }
+      }
       continue
     }
 

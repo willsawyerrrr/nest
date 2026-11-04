@@ -1408,6 +1408,7 @@ export type Database = {
           id: string
           name: string
           up_connected_at: string | null
+          up_sync_failed_at: string | null
           updated_at: string
           user_id: string
         }
@@ -1420,6 +1421,7 @@ export type Database = {
           id?: string
           name: string
           up_connected_at?: string | null
+          up_sync_failed_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1431,6 +1433,7 @@ export type Database = {
           id?: string
           name?: string
           up_connected_at?: string | null
+          up_sync_failed_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2602,6 +2605,7 @@ export type Database = {
         Returns: number
       }
       current_member_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      fail_up_token: { Args: { p_member_id: string }; Returns: undefined }
       hidden_gift_budget_ids_for_current_member: {
         Args: Record<PropertyKey, never>
         Returns: string[]
@@ -2704,6 +2708,7 @@ export type Database = {
         | 'fy_boundary'
         | 'gift_purchase_unassigned'
         | 'gift_candidate_new'
+        | 'up_disconnected'
       one_off_tax_treatment:
         'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
@@ -2856,6 +2861,7 @@ export const Constants = {
         'fy_boundary',
         'gift_purchase_unassigned',
         'gift_candidate_new',
+        'up_disconnected',
       ],
       one_off_tax_treatment: [
         'ordinary',

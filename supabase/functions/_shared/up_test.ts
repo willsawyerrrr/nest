@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from '@std/assert'
-import { UpClient } from './up.ts'
+import { isUpAuthError, UpApiError, UpClient } from './up.ts'
 
 /** Builds an OK JSON response like the Up API returns. */
 function jsonResponse(body: unknown): Response {
@@ -115,6 +115,28 @@ Deno.test('a non-OK response throws', async () => {
     Error,
     'Up API 401',
   )
+})
+
+Deno.test('a non-OK response throws an UpApiError carrying the status', async () => {
+  const fetchImpl: typeof fetch = () => Promise.resolve(new Response('nope', { status: 403 }))
+
+  const error = await assertRejects(
+    () => new UpClient('token', 'https://up.test', fetchImpl).listAccounts(),
+    UpApiError,
+  )
+  assertEquals(error.status, 403)
+})
+
+Deno.test('isUpAuthError is true for 401 and 403 UpApiErrors', () => {
+  assertEquals(isUpAuthError(new UpApiError(401, '/accounts', '')), true)
+  assertEquals(isUpAuthError(new UpApiError(403, '/accounts', '')), true)
+})
+
+Deno.test('isUpAuthError is false for a non-auth UpApiError, a plain Error, or anything else', () => {
+  assertEquals(isUpAuthError(new UpApiError(500, '/accounts', '')), false)
+  assertEquals(isUpAuthError(new Error('network down')), false)
+  assertEquals(isUpAuthError('nope'), false)
+  assertEquals(isUpAuthError(null), false)
 })
 
 Deno.test('ping hits /util/ping with the bearer token and is true on 200', async () => {

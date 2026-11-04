@@ -32,6 +32,7 @@ import {
   type GiftTransactionDismissalRow,
   type HouseholdBundle,
   type LogRow,
+  type MemberConnectionRow,
   type PreferenceRow,
   runNotifyEval,
   type SavingsGoalRow,
@@ -127,6 +128,9 @@ Deno.serve(async (request) => {
         transactions: transactions as TransactionRow[],
         accounts: accounts as AccountOwnerRow[],
         giftTransactionDismissals: giftTransactionDismissals as GiftTransactionDismissalRow[],
+        // `base.members` already selected `*`, so up_sync_failed_at and name
+        // are present even though its narrower TS type doesn't declare them.
+        memberConnections: base.members as unknown as MemberConnectionRow[],
       }
     },
     loadSubscriptions: async (householdId): Promise<SubscriptionRow[]> => {

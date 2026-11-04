@@ -1030,16 +1030,18 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   counts against no gift budget or discretionary buffer, and a `transactions`
   row the hourly `up-sync` landed in the last 7 days (`external_category =
   'gifts-and-charity'`) that no `gift_purchase` links and no
-  `gift_transaction_dismissal` sets aside — and pushes to each member with a
-  device (Web Push or APNs) who has left that trigger on and has no matching
-  `notification_log` row in the dedupe window (`notification_log` being a
-  `service_role`-only ledger: buffer re-sends after 14 days, the rest fire
-  once per goal target / item / financial year / purchase / transaction). The
-  gift-candidate trigger alone is member-scoped rather than household-wide: a
-  candidate's account may be individually owned, so it notifies only the
-  member who can see it (`accounts.owner_member_id`; a joint account notifies
-  both), unlike an unassigned gift purchase, which carries no recipient tag
-  and so is visible, and notified, household-wide.
+  `gift_transaction_dismissal` sets aside, and a member whose `up-sync` token
+  read was rejected (`members.up_sync_failed_at` set) — and pushes to each
+  member with a device (Web Push or APNs) who has left that trigger on and
+  has no matching `notification_log` row in the dedupe window
+  (`notification_log` being a `service_role`-only ledger: buffer re-sends
+  after 14 days, the rest fire once per goal target / item / financial year /
+  purchase / transaction / failure). The gift-candidate trigger alone is
+  member-scoped rather than household-wide: a candidate's account may be
+  individually owned, so it notifies only the member who can see it
+  (`accounts.owner_member_id`; a joint account notifies both), unlike an
+  unassigned gift purchase, which carries no recipient tag and so is
+  visible, and notified, household-wide.
   A log row is written only once a device took the push (on any channel), so a
   transient failure retries next day. Each member turns a trigger off with a per-trigger toggle on
   the Notifications settings page, shown once a device is on

@@ -31,6 +31,7 @@ export type Trigger =
   | 'fy_boundary'
   | 'gift_purchase_unassigned'
   | 'gift_candidate_new'
+  | 'up_disconnected'
 
 /** A day either side of `targetDate` counts as "within 14 days". */
 export const EXPIRY_WINDOW_DAYS = 14
@@ -109,6 +110,13 @@ export interface GiftTransactionDismissalRow {
   transaction_id: string
 }
 
+/** The `members` columns the Up-disconnection trigger reads. */
+export interface MemberConnectionRow {
+  id: string
+  name: string
+  up_sync_failed_at: string | null
+}
+
 /** An `account_balance` row: a linked saver's synced balance overrides the goal's own. */
 export interface AccountBalanceRow {
   account_id: string
@@ -125,6 +133,11 @@ export interface HouseholdBundle extends BudgetSummaryBundle {
   transactions: readonly TransactionRow[]
   accounts: readonly AccountOwnerRow[]
   giftTransactionDismissals: readonly GiftTransactionDismissalRow[]
+  /**
+   * The same `members` table's Up-connection columns, distinct from
+   * {@link BudgetSummaryBundle}'s own `members` (id and date of birth only).
+   */
+  memberConnections: readonly MemberConnectionRow[]
 }
 
 /** One opted-in device with the member it belongs to. */
@@ -385,6 +398,23 @@ export function evaluateHousehold(bundle: HouseholdBundle, now: Date): Firing[] 
           formatCents(Math.abs(transaction.amount_cents))
         }) was synced from your card as Gifts and Charity.`,
         url: '/gifts',
+      },
+    })
+  }
+
+  for (const memberRow of bundle.memberConnections) {
+    if (memberRow.up_sync_failed_at == null) continue
+    firings.push({
+      trigger: 'up_disconnected',
+      // Includes the failure timestamp, not just the member id: reconnecting
+      // and failing again later is a fresh occurrence, which a dedupe key
+      // scoped to the member alone would never re-fire for.
+      dedupeKey: `${memberRow.id}:${memberRow.up_sync_failed_at}`,
+      payload: {
+        title: 'Your Up connection needs reconnecting',
+        body:
+          `${memberRow.name}'s Up personal access token was rejected — reconnect it in Connections to keep syncing.`,
+        url: '/settings/connections',
       },
     })
   }

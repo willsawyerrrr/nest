@@ -103,8 +103,9 @@ supabase        Postgres migrations, edge functions, and local config
 Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
 
 Secrets (Supabase tokens and keys, third-party API keys, Apple signing) live in
-[1Password Environments](docs/operations.md#1password-environments); run commands
-that need them under `op run --environment b5zkkwxuutlttwbrv5xhgojye4 --environment 3i642eynjpsx2uctyqlexobgge --environment we4tm6dkfoffx42g243qr7ju6m -- <command>`.
+[1Password Environments](docs/operations.md#1password-environments), mounted
+locally as `.env` files; load them before commands that need them:
+`set -a; . "$HOME/willsawyerrrr.dev/.env"; . "$HOME/willsawyerrrr.dev/.env.apple"; . "$HOME/willsawyerrrr.dev/nest/.env"; set +a`.
 
 ```sh
 pnpm install   # install all workspaces

@@ -351,6 +351,15 @@ channel:
     window retries a failed run without announcing a long-forgotten backlog.
     An unassigned purchase has no recipient tag, so every household member can
     already read it and every member with a device is notified.
+  - **gift_candidate_new** — a `transactions` row the hourly `up-sync` landed
+    (`external_category = 'gifts-and-charity'`), created within the last 7
+    days, that no `gift_purchase` links and no `gift_transaction_dismissal`
+    sets aside — checked at evaluation time, so a candidate claimed or
+    dismissed before the next daily run never fires. Dedupe: the transaction
+    id. Unlike an unassigned purchase, a gift candidate's account may be
+    individually owned, so the firing is restricted to the one member who can
+    see it (`accounts.owner_member_id`); a joint account's candidate notifies
+    both.
 
   It appends a `notification_log` row only once a device took the push, so a
   transient total failure is retried next day, and prunes `404`/`410` endpoints.

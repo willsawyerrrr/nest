@@ -576,10 +576,18 @@ that decides when to notify.
   - **gift_purchase_unassigned** — a `gift_purchase` created in the last 7 days
     with neither `gift_budget_id` nor `gift_discretionary_budget_id`. Dedupe
     key: the purchase id.
+  - **gift_candidate_new** — a `transactions` row (`external_category =
+    'gifts-and-charity'`) the hourly `up-sync` landed in the last 7 days, that
+    no `gift_purchase.transaction_id` links and no `gift_transaction_dismissal`
+    sets aside. Dedupe key: the transaction id. Restricted to the member who
+    can see the transaction's account (`accounts.owner_member_id`; a joint
+    account notifies both) — the one trigger whose firing is member-scoped
+    rather than household-wide.
 
   — and for each member with a device, the trigger left on
-  (`notification_preference`), and no matching `notification_log` row in the
-  dedupe window, sends `{ title, body, url }` to each of its devices via
+  (`notification_preference`), not restricted away by the firing's own member
+  scope, and with no matching `notification_log` row in the dedupe window,
+  sends `{ title, body, url }` to each of its devices via
   `_shared/webpush.ts` and `_shared/apns.ts` and appends a `notification_log`
   row. A row is written only once a device took the push, so a run where every
   endpoint failed transiently is retried the next day. Dead endpoints and tokens

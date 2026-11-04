@@ -2703,6 +2703,7 @@ export type Database = {
         | 'temporary_item_expiring'
         | 'fy_boundary'
         | 'gift_purchase_unassigned'
+        | 'gift_candidate_new'
       one_off_tax_treatment:
         'ordinary' | 'genuine_redundancy' | 'employment_termination' | 'unused_leave'
       payslip_line_kind: 'earning' | 'tax'
@@ -2854,6 +2855,7 @@ export const Constants = {
         'temporary_item_expiring',
         'fy_boundary',
         'gift_purchase_unassigned',
+        'gift_candidate_new',
       ],
       one_off_tax_treatment: [
         'ordinary',

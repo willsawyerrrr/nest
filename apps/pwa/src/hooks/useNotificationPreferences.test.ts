@@ -26,6 +26,7 @@ describe('useNotificationPreferences', () => {
       'temporary_item_expiring',
       'fy_boundary',
       'gift_purchase_unassigned',
+      'gift_candidate_new',
     ])
   })
 

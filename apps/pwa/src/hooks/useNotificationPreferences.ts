@@ -5,13 +5,14 @@ import { useHouseholdUpsertCollection } from './useCollection'
 export type NotificationTrigger = Enums<'notification_trigger'>
 export type NotificationPreference = Tables<'notification_preference'>
 
-/** The four triggers, in the order the settings list shows them. */
+/** The triggers, in the order the settings list shows them. */
 export const NOTIFICATION_TRIGGERS: readonly NotificationTrigger[] = [
   'buffer_negative',
   'goal_eta_slipped',
   'temporary_item_expiring',
   'fy_boundary',
   'gift_purchase_unassigned',
+  'gift_candidate_new',
 ]
 
 interface PreferenceUpsert {

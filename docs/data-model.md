@@ -1140,7 +1140,7 @@ sets the split in Up by hand and confirms the amount app-side. See
     `on delete cascade`.
   - `trigger` is the `notification_trigger` enum: `buffer_negative`,
     `goal_eta_slipped`, `temporary_item_expiring`, `fy_boundary`,
-    `gift_purchase_unassigned`. Each is a
+    `gift_purchase_unassigned`, `gift_candidate_new`. Each is a
     per-trigger toggle on the Notifications settings page
     (`useNotificationPreferences`), shown once a device is subscribed or the page
     is running in the native app.
@@ -1159,7 +1159,7 @@ sets the split in Up by hand and confirms the amount app-side. See
   - `dedupe_key` per trigger: the financial year for `buffer_negative`
     (re-notified after 14 days) and `fy_boundary`, `<goal_id>:<target_date>` for
     `goal_eta_slipped`, the item id for `temporary_item_expiring`, the purchase id for
-    `gift_purchase_unassigned`.
+    `gift_purchase_unassigned`, and the transaction id for `gift_candidate_new`.
   - RLS is enabled with **no `authenticated` policy and no `authenticated`
     grant** — a member sees that a notification arrived, never the ledger.
     `service_role` holds `select` and `insert` only.

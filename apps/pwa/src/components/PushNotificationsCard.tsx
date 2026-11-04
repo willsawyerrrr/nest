@@ -31,6 +31,10 @@ const TRIGGER_COPY: Record<NotificationTrigger, { label: string; detail: string 
     label: 'A gift purchase needs assigning',
     detail: 'When a gift purchase is logged without a recipient or occasion.',
   },
+  gift_candidate_new: {
+    label: 'A new gift candidate arrives',
+    detail: 'When your card syncs a new transaction as Gifts and Charity.',
+  },
 }
 
 export interface PushNotificationsCardProps {

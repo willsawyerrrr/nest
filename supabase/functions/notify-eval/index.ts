@@ -25,9 +25,11 @@ import { createPushSender, type PushSender } from '../_shared/webpush.ts'
 import { isServiceRoleToken } from '../up-sync/auth.ts'
 import {
   type AccountBalanceRow,
+  type AccountOwnerRow,
   type ApnsDeviceRow,
   type BudgetLineRow,
   type GiftPurchaseRow,
+  type GiftTransactionDismissalRow,
   type HouseholdBundle,
   type LogRow,
   type PreferenceRow,
@@ -35,6 +37,7 @@ import {
   type SavingsGoalRow,
   type SubscriptionRow,
   type TemporaryItemRow,
+  type TransactionRow,
 } from './eval.ts'
 
 /** How far back `notification_log` is read for the dedupe check. */
@@ -99,10 +102,20 @@ Deno.serve(async (request) => {
       return [...new Set((data ?? []).map((row) => row.household_id as string))]
     },
     loadBundle: async (householdId, financialYear): Promise<HouseholdBundle> => {
-      const [base, accountBalances, giftPurchases] = await Promise.all([
+      const [
+        base,
+        accountBalances,
+        giftPurchases,
+        transactions,
+        accounts,
+        giftTransactionDismissals,
+      ] = await Promise.all([
         loadBudgetSummaryBundle(admin, householdId, financialYear),
         readHouseholdTable(admin, householdId, 'account_balance'),
         readHouseholdTable(admin, householdId, 'gift_purchase'),
+        readHouseholdTable(admin, householdId, 'transactions'),
+        readHouseholdTable(admin, householdId, 'accounts'),
+        readHouseholdTable(admin, householdId, 'gift_transaction_dismissal'),
       ])
       return {
         ...base,
@@ -111,6 +124,9 @@ Deno.serve(async (request) => {
         temporaryItems: base.temporaryItems as TemporaryItemRow[],
         accountBalances: accountBalances as AccountBalanceRow[],
         giftPurchases: giftPurchases as GiftPurchaseRow[],
+        transactions: transactions as TransactionRow[],
+        accounts: accounts as AccountOwnerRow[],
+        giftTransactionDismissals: giftTransactionDismissals as GiftTransactionDismissalRow[],
       }
     },
     loadSubscriptions: async (householdId): Promise<SubscriptionRow[]> => {

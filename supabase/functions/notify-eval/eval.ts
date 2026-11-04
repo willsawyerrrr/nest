@@ -30,6 +30,7 @@ export type Trigger =
   | 'temporary_item_expiring'
   | 'fy_boundary'
   | 'gift_purchase_unassigned'
+  | 'gift_candidate_new'
 
 /** A day either side of `targetDate` counts as "within 14 days". */
 export const EXPIRY_WINDOW_DAYS = 14
@@ -41,8 +42,18 @@ export const EXPIRY_WINDOW_DAYS = 14
  */
 export const UNASSIGNED_GIFT_WINDOW_DAYS = 7
 
+/**
+ * A gift candidate is announced for this many days after it first lands in
+ * `transactions`, the same retry-without-backlog rationale as
+ * {@link UNASSIGNED_GIFT_WINDOW_DAYS}.
+ */
+export const NEW_GIFT_CANDIDATE_WINDOW_DAYS = 7
+
 /** After this long a still-negative buffer is notified again. */
 export const BUFFER_RENOTIFY_DAYS = 14
+
+/** The Up category `up-sync` ingests as gift candidates. */
+const UP_GIFT_CATEGORY = 'gifts-and-charity'
 
 /** The `savings_goal` columns the goal trigger reads. */
 export interface SavingsGoalRow {
@@ -66,14 +77,36 @@ export interface TemporaryItemRow extends BufferTemporaryItemRow {
   name: string
 }
 
-/** The `gift_purchase` columns the unassigned-purchase trigger reads. */
+/** The `gift_purchase` columns the unassigned-purchase and gift-candidate triggers read. */
 export interface GiftPurchaseRow {
   id: string
   amount_cents: number
   description: string
   gift_budget_id: string | null
   gift_discretionary_budget_id: string | null
+  transaction_id: string | null
   created_at: string
+}
+
+/** The `transactions` columns the new-gift-candidate trigger reads. */
+export interface TransactionRow {
+  id: string
+  account_id: string
+  description: string
+  amount_cents: number
+  external_category: string | null
+  created_at: string
+}
+
+/** The `accounts` columns the new-gift-candidate trigger reads, to resolve who can see a transaction. */
+export interface AccountOwnerRow {
+  id: string
+  owner_member_id: string | null
+}
+
+/** A `gift_transaction_dismissal` row: a candidate the household set aside as "not a gift". */
+export interface GiftTransactionDismissalRow {
+  transaction_id: string
 }
 
 /** An `account_balance` row: a linked saver's synced balance overrides the goal's own. */
@@ -89,6 +122,9 @@ export interface HouseholdBundle extends BudgetSummaryBundle {
   temporaryItems: readonly TemporaryItemRow[]
   accountBalances: readonly AccountBalanceRow[]
   giftPurchases: readonly GiftPurchaseRow[]
+  transactions: readonly TransactionRow[]
+  accounts: readonly AccountOwnerRow[]
+  giftTransactionDismissals: readonly GiftTransactionDismissalRow[]
 }
 
 /** One opted-in device with the member it belongs to. */
@@ -121,6 +157,13 @@ export interface Firing {
   trigger: Trigger
   dedupeKey: string
   payload: PushPayload
+  /**
+   * Restricts the firing to one member — e.g. a gift candidate on an
+   * individually-owned account, which only its owner can see. Undefined means
+   * every member with a device may be told, as the rest of the triggers are:
+   * household-wide facts with no single owner.
+   */
+  visibleToMemberId?: string
 }
 
 export interface NotifyEvalDeps {
@@ -315,6 +358,37 @@ export function evaluateHousehold(bundle: HouseholdBundle, now: Date): Firing[] 
     })
   }
 
+  const linkedTransactionIds = new Set(
+    bundle.giftPurchases
+      .map((purchase) => purchase.transaction_id)
+      .filter((id): id is string => id != null),
+  )
+  const dismissedTransactionIds = new Set(
+    bundle.giftTransactionDismissals.map((dismissal) => dismissal.transaction_id),
+  )
+  const ownerMemberIdByAccount = new Map(
+    bundle.accounts.map((account) => [account.id, account.owner_member_id]),
+  )
+  for (const transaction of bundle.transactions) {
+    if (!isNewGiftCandidate(transaction, linkedTransactionIds, dismissedTransactionIds, now)) {
+      continue
+    }
+    const label = transaction.description.trim()
+    const ownerMemberId = ownerMemberIdByAccount.get(transaction.account_id)
+    firings.push({
+      trigger: 'gift_candidate_new',
+      dedupeKey: transaction.id,
+      visibleToMemberId: ownerMemberId ?? undefined,
+      payload: {
+        title: 'A new gift candidate arrived',
+        body: `${label === '' ? 'A transaction' : `"${label}"`} (${
+          formatCents(Math.abs(transaction.amount_cents))
+        }) was synced from your card as Gifts and Charity.`,
+        url: '/gifts',
+      },
+    })
+  }
+
   return firings
 }
 
@@ -325,6 +399,28 @@ function isRecentUnassignedGiftPurchase(purchase: GiftPurchaseRow, now: Date): b
   }
   const ageMs = now.getTime() - Date.parse(purchase.created_at)
   return ageMs <= UNASSIGNED_GIFT_WINDOW_DAYS * 86_400_000
+}
+
+/**
+ * A synced transaction that is still an unclaimed gift candidate — Up filed it
+ * under the gift category, no purchase has linked it, and the household has
+ * not dismissed it as "not a gift" — created within the window.
+ *
+ * `created_at` is the row's first-insert time: `sync_up_gift_transactions`'s
+ * upsert never touches it on a later rescan, so it marks when the candidate
+ * actually arrived, not when it was last reconfirmed in the category.
+ */
+function isNewGiftCandidate(
+  transaction: TransactionRow,
+  linkedTransactionIds: ReadonlySet<string>,
+  dismissedTransactionIds: ReadonlySet<string>,
+  now: Date,
+): boolean {
+  if (transaction.external_category !== UP_GIFT_CATEGORY) return false
+  if (linkedTransactionIds.has(transaction.id)) return false
+  if (dismissedTransactionIds.has(transaction.id)) return false
+  const ageMs = now.getTime() - Date.parse(transaction.created_at)
+  return ageMs <= NEW_GIFT_CANDIDATE_WINDOW_DAYS * 86_400_000
 }
 
 /** Whether a `(member, trigger, dedupeKey)` was already sent inside its window. */
@@ -409,6 +505,9 @@ export async function runNotifyEval(deps: NotifyEvalDeps): Promise<NotifyEvalSum
     const gone: Record<Target['kind'], string[]> = { web: [], apns: [] }
     for (const firing of firings) {
       for (const [memberId, devices] of devicesByMember) {
+        if (firing.visibleToMemberId != null && firing.visibleToMemberId !== memberId) {
+          continue
+        }
         if (disabled.has(`${memberId}:${firing.trigger}`)) {
           summary.skipped += 1
           continue

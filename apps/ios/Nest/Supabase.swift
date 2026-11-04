@@ -21,8 +21,8 @@ enum SupabaseConfig {
         else {
             fatalError(
                 "Info.plist has no \(key) — set the SUPABASE_URL / SUPABASE_ANON_KEY "
-                    + "environment variables from the local env files "
-                    + "before `xcodegen generate`."
+                    + "environment variables by running `xcodegen generate` "
+                    + "under `load-env`."
             )
         }
         return value

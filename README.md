@@ -104,8 +104,8 @@ Requires Node ≥ 22, pnpm, and Docker (for the local Supabase stack).
 
 Secrets (Supabase tokens and keys, third-party API keys, Apple signing) live in
 [1Password Environments](docs/operations.md#1password-environments), mounted
-locally as `.env` files; load them before commands that need them:
-`set -a; . "$HOME/willsawyerrrr.dev/.env"; . "$HOME/willsawyerrrr.dev/.env.apple"; . "$HOME/willsawyerrrr.dev/nest/.env"; set +a`.
+locally as `.env` files; run commands that need them under
+`~/willsawyerrrr.dev/platform/main/scripts/load-env ~/willsawyerrrr.dev/.env ~/willsawyerrrr.dev/.env.apple ~/willsawyerrrr.dev/nest/.env -- <command>`.
 
 ```sh
 pnpm install   # install all workspaces

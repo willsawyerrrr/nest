@@ -112,3 +112,32 @@ struct BreakdownRollups: Codable, Equatable, Sendable {
     var totals: [Total]
     var items: [ItemFortnightly]
 }
+
+/// The Budget screen's figures at an instant. `lines` and `temporaryActive`
+/// follow the input's order.
+struct BudgetOverview: Codable, Equatable, Sendable {
+    /// Fortnightly subtotals; a line drawn from an allowance counts inside the
+    /// allowance, which joins Discretionary in full.
+    struct Groups: Codable, Equatable, Sendable {
+        var needs: Int64
+        var wants: Int64
+        var discretionary: Int64
+        var savings: Int64
+        var investments: Int64
+
+        subscript(group: BudgetGroup) -> Int64 {
+            switch group {
+            case .needs: needs
+            case .wants: wants
+            case .discretionary: discretionary
+            case .savings: savings
+            case .investments: investments
+            }
+        }
+    }
+
+    var lines: [BudgetSummary.Amounts]
+    var groups: Groups
+    var allowances: [BudgetSummary.Allowance]
+    var temporaryActive: [Bool]
+}

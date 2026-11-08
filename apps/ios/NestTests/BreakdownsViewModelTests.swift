@@ -26,7 +26,10 @@ private enum Rollups {
             "breakdown": Rollups.breakdownJSON, "breakdown_item": Rollups.itemJSON,
         ]
         var failing: Set<String> = []
-        var paths: [String] = []
+        private let lock = NSLock()
+        private var recorded: [String] = []
+        var paths: [String] { lock.withLock { recorded } }
+        func record(_ path: String) { lock.withLock { recorded.append(path) } }
     }
 
     private func makeData(_ server: Server, directory: URL) -> NestData {
@@ -36,7 +39,7 @@ private enum Rollups {
                 accessToken: { "t" },
                 send: { request in
                     let table = request.url!.path.split(separator: "/").last.map(String.init) ?? ""
-                    server.paths.append(table)
+                    server.record(table)
                     let failed = server.failing.contains(table)
                     return (
                         Data((failed ? "{}" : server.bodies[table] ?? "[]").utf8),

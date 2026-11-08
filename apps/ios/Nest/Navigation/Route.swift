@@ -120,6 +120,8 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
         case .breakdowns: .native(AnyView(BreakdownsScreen()))
+        case .budget: .native(AnyView(BudgetScreen()))
+        case .allowance: .native(AnyView(AllowanceScreen()))
         default: .web(path: path)
         }
     }

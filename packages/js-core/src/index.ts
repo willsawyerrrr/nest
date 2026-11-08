@@ -12,7 +12,16 @@ import {
   summariseHouseholdFromRows,
   type BudgetSummaryBundle,
 } from '@nest/household'
-import { projectGoalQueue, type ActiveGoalFunding, type QueuedGoalFunding } from '@nest/plan'
+import {
+  budgetOverview,
+  isTemporaryActive,
+  projectGoalQueue,
+  type ActiveGoalFunding,
+  type BudgetLine,
+  type MemberAllowance,
+  type QueuedGoalFunding,
+  type TemporaryItem,
+} from '@nest/plan'
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
 import { summariseBreakdowns } from './breakdowns.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
@@ -69,6 +78,27 @@ export function projectGoalQueueAt(input: GoalQueueInput) {
   return projectGoalQueue(input.active, input.queued, new Date(input.now))
 }
 
+/** The input of {@link budgetOverviewOf}. */
+export interface BudgetOverviewInput {
+  lines: BudgetLine[]
+  allowances: MemberAllowance[]
+  temporaryItems: TemporaryItem[]
+  /** ISO 8601 instant; it decides which temporary items are still active. */
+  now: string
+}
+
+/**
+ * The Budget screen's figures at `input.now`: each line's amounts, each group's
+ * subtotal, each allowance reconciled, and whether each temporary item is active.
+ */
+export function budgetOverviewOf(input: BudgetOverviewInput) {
+  const now = new Date(input.now)
+  return {
+    ...budgetOverview(input.lines, input.allowances),
+    temporaryActive: input.temporaryItems.map((item) => isTemporaryActive(item, now)),
+  }
+}
+
 /** A bridge entry point: parses its JSON argument, runs an engine, returns JSON. */
 type Entry = (inputJson: string) => string
 
@@ -87,4 +117,5 @@ export const entryPoints = {
   summariseHousehold: entry(summariseHousehold),
   projectGoalQueue: entry(projectGoalQueueAt),
   summariseBreakdowns: entry(summariseBreakdowns),
+  budgetOverview: entry(budgetOverviewOf),
 } satisfies Record<string, Entry>

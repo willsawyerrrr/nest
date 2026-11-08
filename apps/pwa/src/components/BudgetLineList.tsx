@@ -1,16 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { ActionIcon, CloseButton, Flex, Group, Select, Stack, TextInput } from '@mantine/core'
-import {
-  fortnightlyCents,
-  isDrawnFromAllowance,
-  summariseAllowances,
-  type MemberAllowance,
-} from '@nest/plan'
+import { budgetOverview, fortnightlyCents, type MemberAllowance } from '@nest/plan'
 import type { BudgetLine, BudgetLineInput } from '../hooks/useBudgetLines'
 import { useConfirmDelete } from '../hooks/useConfirmDelete'
 import { useInlineEditing } from '../hooks/useInlineEditing'
 import { useSortPreference } from '../hooks/useSortPreference'
-import { allowanceChoices, toPlanDrawableLine } from '../lib/allowances'
+import { allowanceChoices, toPlanBudgetLine } from '../lib/allowances'
 import { BUDGET_GROUPS } from '../lib/budgetGroups'
 import { resolveRoute } from '../lib/budgetLineRoute'
 import type { BudgetGroup } from '../lib/domain'
@@ -120,10 +115,7 @@ export function BudgetLineList({
   const ownAllowance = allowances.find(
     ({ allowance }) => allowance.memberId === ownAllowanceMemberId,
   )
-  const allowanceOutgoingCents = summariseAllowances(
-    lines.map(toPlanDrawableLine),
-    planAllowances,
-  ).reduce((total, summary) => total + summary.allowance.fortnightlyCents, 0)
+  const overview = budgetOverview(lines.map(toPlanBudgetLine), planAllowances)
   const breakdownsById = new Map(breakdowns.map((breakdown) => [breakdown.id, breakdown]))
   const {
     editingId,
@@ -285,21 +277,7 @@ export function BudgetLineList({
         const groupLines = lines.filter(
           (line) => line.line_group === group && !isOwnAllowanceLine(line),
         )
-        // A line drawn from an allowance counts inside the allowance, which joins
-        // Discretionary in full, so the subtotal agrees with the Summary.
-        const subtotal =
-          groupLines.reduce(
-            (total, line) =>
-              isDrawnFromAllowance({ allowanceMemberId: line.allowance_member_id }, planAllowances)
-                ? total
-                : total +
-                  fortnightlyCents(
-                    line.amount_cents,
-                    line.frequency,
-                    line.interval_count ?? undefined,
-                  ),
-            0,
-          ) + (group === 'discretionary' ? allowanceOutgoingCents : 0)
+        const subtotal = overview.groups[group]
         const visibleLines = sortLines(
           searching
             ? groupLines.filter((line) => line.name.toLowerCase().includes(search))

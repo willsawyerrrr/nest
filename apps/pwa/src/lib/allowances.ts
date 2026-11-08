@@ -31,6 +31,11 @@ export function toPlanDrawableLine(line: BudgetLine) {
   }
 }
 
+/** A budget line in the plan's shape, with its group. */
+export function toPlanBudgetLine(line: BudgetLine) {
+  return { ...toPlanDrawableLine(line), group: line.line_group }
+}
+
 /** The allowances with their display name and funding account, ready for pay-split routing. */
 export function toAssignableAllowances(
   rows: readonly MemberAllowance[],

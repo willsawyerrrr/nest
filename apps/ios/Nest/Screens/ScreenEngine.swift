@@ -16,4 +16,10 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func budgetOverview(_ input: BudgetOverviewInput) async throws -> BudgetOverview {
+        do { return try await shared.value.budgetOverview(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

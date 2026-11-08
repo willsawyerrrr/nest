@@ -64,6 +64,13 @@ src/lib/summaryParity.test.ts` rewrites it. `SummaryParityTests` decodes the sam
 rows into the Swift models, assembles the engine input exactly as the screen does
 (`SummaryRows.input`), runs the bundled engine and asserts identical JSON.
 
+`apps/pwa/src/lib/budgetParity.test.ts` does the same for the Budget and
+Allowance screens: it computes `budgetOverview` over the PWA's mapped rows
+(`toPlanBudgetLine`, `toPlanAllowance`, the shapes `BudgetLineList` uses), also
+asserts each group equals the Summary's, and snapshots
+`apps/ios/NestTests/Fixtures/budget-parity.json`. `BudgetParityTests` runs
+`BudgetRows.input` through the bundled engine and asserts identical JSON.
+
 ## Summary
 
 `Route.summary` is native (`SummaryScreen`): the allocation donut (Swift Charts
@@ -106,3 +113,27 @@ bundled engine and asserts identical figures.
 A detail is pushed with `NavigationLink(value:)`, so both shells host the route in a
 `NavigationStack` (the sidebar shell's detail column is wrapped in one, as each tab
 already is).
+
+## Budget and Allowance
+
+`Route.budget` and `Route.allowance` are native (`BudgetScreen`,
+`AllowanceScreen`), sharing one `BudgetViewModel` and `BudgetPresentation`.
+Budget lists the five groups with the engine's fortnightly subtotals (a line
+drawn from an allowance counts inside the allowance, which joins Discretionary
+in full, so the subtotals equal the Summary's), each line's amount, cadence and
+fortnightly figure, where it routes (allowance, goal or account), every
+member's allowance, and temporary items. The signed-in member (the `members` row
+whose `user_id` is the session user) alone sees what is drawn from their
+allowance; their allowance links to Allowance, which lists the items drawn from
+it. Other members' drawn items never reach the device (row-level security), so
+their allowances show only the amount and cadence.
+
+The overdraw guard is fixed copy on Allowance
+(`BudgetPresentation.overdrawGuard`): the database refuses an item that draws
+more than is left, and an allowance lowered below what is drawn.
+
+Editing (adding, changing and deleting items, allowances and temporary items)
+stays in the web app for now: each screen ends in a card opening the web page in
+a sheet (`WebHandoffCard`). `Route.allowance` is outside the nav, so it is
+reached by `NavigationLink(value:)` from Budget; the sidebar's detail pane is a
+`NavigationStack` for the push.

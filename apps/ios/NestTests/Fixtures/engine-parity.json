@@ -1851,5 +1851,110 @@
         }
       ]
     }
+  },
+  {
+    "name": "budget overview: allowance draw",
+    "entry": "budgetOverview",
+    "input": {
+      "lines": [
+        {
+          "group": "needs",
+          "amountCents": 100000,
+          "frequency": "monthly"
+        },
+        {
+          "group": "discretionary",
+          "amountCents": 5000,
+          "frequency": "fortnightly"
+        },
+        {
+          "group": "discretionary",
+          "amountCents": 8000,
+          "frequency": "fortnightly",
+          "allowanceMemberId": "ada"
+        },
+        {
+          "group": "savings",
+          "amountCents": 30000,
+          "frequency": "every_n_weeks",
+          "interval": 3
+        },
+        {
+          "group": "investments",
+          "amountCents": 120000,
+          "frequency": "annual"
+        }
+      ],
+      "allowances": [
+        {
+          "memberId": "ada",
+          "amountCents": 20000,
+          "frequency": "fortnightly"
+        }
+      ],
+      "temporaryItems": [
+        {
+          "contributionCents": 8000,
+          "targetDate": "2027-03-31"
+        },
+        {
+          "contributionCents": 2500,
+          "targetDate": "2026-01-31"
+        }
+      ],
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "lines": [
+        {
+          "fortnightlyCents": 46154,
+          "annualCents": 1200000
+        },
+        {
+          "fortnightlyCents": 5000,
+          "annualCents": 130000
+        },
+        {
+          "fortnightlyCents": 8000,
+          "annualCents": 208000
+        },
+        {
+          "fortnightlyCents": 20000,
+          "annualCents": 520000
+        },
+        {
+          "fortnightlyCents": 4615,
+          "annualCents": 120000
+        }
+      ],
+      "groups": {
+        "needs": 46154,
+        "wants": 0,
+        "discretionary": 25000,
+        "savings": 20000,
+        "investments": 4615
+      },
+      "allowances": [
+        {
+          "memberId": "ada",
+          "allowance": {
+            "fortnightlyCents": 20000,
+            "annualCents": 520000
+          },
+          "drawn": {
+            "fortnightlyCents": 8000,
+            "annualCents": 208000
+          },
+          "remaining": {
+            "fortnightlyCents": 12000,
+            "annualCents": 312000
+          }
+        }
+      ],
+      "temporaryActive": [
+        true,
+        false
+      ]
+    }
   }
 ]

@@ -283,6 +283,26 @@ describe('App', () => {
     localStorage.clear()
   })
 
+  it('renders the page content without its own navigation in the native shell', async () => {
+    window.__NEST_NATIVE_SHELL__ = true
+    try {
+      mocks.getSession.mockResolvedValue({ data: { session } })
+      renderApp()
+      expect(await screen.findByText('SummarySection')).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Summary' })).not.toBeInTheDocument()
+      expect(document.querySelector('.app-shell')).toHaveClass('app-shell--native')
+    } finally {
+      delete window.__NEST_NATIVE_SHELL__
+    }
+  })
+
+  it('keeps its own navigation outside the native shell', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    renderApp()
+    await screen.findByText('SummarySection')
+    expect(document.querySelector('.app-shell')).not.toHaveClass('app-shell--native')
+  })
+
   it('waits on the injected session in the native shell instead of showing sign-in', async () => {
     window.__NEST_NATIVE_SHELL__ = true
     try {

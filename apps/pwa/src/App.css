@@ -221,3 +221,24 @@
     padding-top: calc(56px + env(safe-area-inset-top) + var(--mantine-spacing-md));
   }
 }
+
+/*
+ * Inside the native iOS shell the app's own navigation chrome is not rendered,
+ * so nothing reserves room for the sidebar or the fixed top bar: the page
+ * keeps its base padding and the planning banner sticks to the safe-area inset.
+ */
+@media (min-width: 48em) {
+  .app-shell.app-shell--native {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 48em) {
+  .app-shell--native .page {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .app-shell--native .planning-banner {
+    top: max(8px, env(safe-area-inset-top));
+  }
+}

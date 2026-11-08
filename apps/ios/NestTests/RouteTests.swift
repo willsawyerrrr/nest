@@ -34,7 +34,9 @@ struct RouteTests {
     }
 
     @Test func nativeRoutesAreTheMigratedScreensAndEveryOtherRouteIsTheWebFallback() {
-        let native: Set<Route> = [.summary, .breakdowns, .budget, .allowance]
+        let native: Set<Route> = [
+            .summary, .breakdowns, .budget, .allowance, .planning, .planningMode,
+        ]
         for route in Route.allCases {
             switch route.content {
             case .native:

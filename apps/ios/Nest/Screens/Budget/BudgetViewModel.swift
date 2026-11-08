@@ -20,13 +20,16 @@ final class BudgetViewModel {
     private let data: NestData
     private let overview: @Sendable (BudgetOverviewInput) async throws -> BudgetOverview
     private let now: @Sendable () -> Date
+    private let planning: PlanningStore
 
     init(
         data: NestData = .live,
         overview: @escaping @Sendable (BudgetOverviewInput) async throws -> BudgetOverview =
             ScreenEngine.budgetOverview,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        planning: PlanningStore = .shared
     ) {
+        self.planning = planning
         self.data = data
         self.overview = overview
         self.now = now
@@ -40,10 +43,13 @@ final class BudgetViewModel {
             initial: BudgetRows(), sources: BudgetRows.sources, data: data)
         do {
             for try await snapshot in stream {
-                let figures = try await overview(snapshot.rows.input(now: instant))
+                planning.select(household: snapshot.rows.members.first?.householdId)
+                let rows =
+                    planning.state.active ? snapshot.rows.sandboxed(by: planning.state) : snapshot.rows
+                let figures = try await overview(rows.input(now: instant))
                 let content = BudgetContent(
-                    rows: snapshot.rows, overview: figures,
-                    currentMemberID: snapshot.rows.members.first { $0.userId == userID }?.id,
+                    rows: rows, overview: figures,
+                    currentMemberID: rows.members.first { $0.userId == userID }?.id,
                     now: instant)
                 state = .loaded(content, isRefreshing: snapshot.isCached, refreshError: nil)
             }

@@ -5,6 +5,8 @@ import Observation
 struct SummaryContent: Equatable, Sendable {
     let summary: BudgetSummary
     let members: [Member]
+    /// The Summary of the real rows while planning mode is on, to compare against.
+    var baseline: BudgetSummary?
 }
 
 /// Loads the household's rows through the cache, runs the reconciliation in the
@@ -24,14 +26,17 @@ final class SummaryViewModel {
     private let summarise: @Sendable (SummaryInput) async throws -> BudgetSummary
     private let now: @Sendable () -> Date
     private let defaults: UserDefaults
+    private let planning: PlanningStore
 
     init(
         data: NestData = .live,
         summarise: @escaping @Sendable (SummaryInput) async throws -> BudgetSummary =
             ScreenEngine.summarise,
         now: @escaping @Sendable () -> Date = Date.init,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        planning: PlanningStore = .shared
     ) {
+        self.planning = planning
         self.data = data
         self.summarise = summarise
         self.now = now
@@ -48,9 +53,16 @@ final class SummaryViewModel {
             data: data)
         do {
             for try await snapshot in stream {
-                let summary = try await summarise(snapshot.rows.input(now: instant))
+                planning.select(household: snapshot.rows.members.first?.householdId)
+                let sandbox = planning.state
+                let summary = try await summarise(
+                    (sandbox.active ? snapshot.rows.sandboxed(by: sandbox) : snapshot.rows)
+                        .input(now: instant))
+                let baseline =
+                    sandbox.active ? try await summarise(snapshot.rows.input(now: instant)) : nil
                 state = .loaded(
-                    SummaryContent(summary: summary, members: snapshot.rows.members),
+                    SummaryContent(
+                        summary: summary, members: snapshot.rows.members, baseline: baseline),
                     isRefreshing: snapshot.isCached, refreshError: nil)
             }
         } catch is CancellationError {

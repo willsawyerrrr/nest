@@ -4,6 +4,7 @@ import SwiftUI
 /// subtotals, each member's allowance, and temporary items.
 struct BudgetScreen: View {
     @State private var model: BudgetViewModel
+    private let planning = PlanningStore.shared
 
     init(model: BudgetViewModel = BudgetViewModel()) {
         _model = State(initialValue: model)
@@ -13,7 +14,7 @@ struct BudgetScreen: View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
             BudgetContentView(presentation: BudgetPresentation(content: content))
         }
-        .task { await model.load() }
+        .task(id: planning.revision) { await model.load() }
     }
 }
 
@@ -23,6 +24,7 @@ struct BudgetContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: NestSpacing.md) {
+                PlanningBanner()
                 ForEach(presentation.groups) { section in
                     GroupCard(section: section) {
                         if section.group == .discretionary {

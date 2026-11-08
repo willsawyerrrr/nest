@@ -77,7 +77,9 @@ asserts each group equals the Summary's, and snapshots
 `SectorMark`) with a take-home/gross toggle (persisted in `UserDefaults`), stat
 tiles and legend; allowance progress per member; the reconciliation ledger; and
 the one-off money note. The figures come from the engine's `summariseHousehold`.
-Planning mode is not yet native, so the screen always shows the real rows.
+While planning mode is on, the figures are computed from the sandboxed rows and
+the ledger reads `was → now (±change)` against the real rows' figures (see
+[Planning mode](#planning-mode)).
 
 ### Cash-flow Sankey: web-only for now
 
@@ -137,3 +139,45 @@ stays in the web app for now: each screen ends in a card opening the web page in
 a sheet (`WebHandoffCard`). `Route.allowance` is outside the nav, so it is
 reached by `NavigationLink(value:)` from Budget; the sidebar's detail pane is a
 `NavigationStack` for the push.
+
+## Planning mode
+
+Planning mode is native: `Route.planning` (`PlanningScreen`) and
+`Route.planningMode` (`PlanningModeScreen`, the on/off switch in Settings).
+`PlanningStore` (`Screens/Planning/`) holds the signed-in household's sandbox on
+the device, in `UserDefaults` under `planning-mode:<household id>`, in the same
+shape the web app keeps in `localStorage`: per table (`inflows`, `budget_line`,
+`savings_goal`) a `PlanningLayer` of field patches by row id, created rows and
+deleted ids. It is a separate sandbox from the web app's, which lives in the web
+view's own storage, so a change held in one does not appear in the other.
+
+`PlanningLayer.apply(to:)` lays a layer over a table's rows: hidden rows dropped,
+patches merged by column name, created rows appended. `SummaryRows.sandboxed(by:)`
+and `BudgetRows.sandboxed(by:)` apply all three layers. Screens read
+`PlanningStore.revision` as their `.task(id:)`, so they reload (cached rows, then
+fresh) whenever the sandbox moves.
+
+- **Summary** computes the engine's `summariseHousehold` twice while the sandbox
+  is on, once from the sandboxed rows and once from the real ones; `LedgerCard`
+  shows `ComparedAmount` per row. **Budget** and **Allowance** read the sandboxed
+  lines and goals. Breakdowns are not sandboxed, as in the web app.
+- **Planning** shows the projected impact (buffer, available, outgoings, saving:
+  real vs proposed vs change), the pending changes (an Edited / New / Removed pill,
+  `was → now`, and a Reset per row), a what-if list (an inflow's stated amount, a
+  manual budget line's amount, a goal's target; a line derived from a breakdown or
+  gifts is read-only), and Save, Discard and Exit. `PlanningBanner` tops Summary
+  and Budget while the sandbox is on and links to Planning.
+- **Save** calls `commit_planning_changes` with the same nine arguments as the web
+  app (`CommitPlanningParams`), invalidating the three tables' cached rows. A
+  failed save keeps every pending change and shows the error's fixed message.
+- Creating a new row in the sandbox is not offered natively yet; the layer already
+  holds, applies, lists and saves a created row (as one made in the web app's
+  sandbox shape would be).
+
+`apps/pwa/src/lib/planningParity.test.ts` applies a sandbox (an edited and a hidden
+inflow, edited, hidden and added budget lines, an edited goal) with the PWA's own
+`applyOverrides`, computes `summariseHousehold` for the real and the sandboxed rows,
+and snapshots rows, sandbox and both figures into
+`apps/ios/NestTests/Fixtures/planning-parity.json`. `PlanningParityTests` applies
+the same sandbox with `PlanningLayer.apply(to:)`, runs the bundled engine, and
+asserts both Summaries are identical.

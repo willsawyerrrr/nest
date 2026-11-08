@@ -23,7 +23,8 @@ Once signed in, `ContentView` shows `NavigationShell` (`Nest/Navigation/`): a
 tab bar on iPhone (compact width), a `NavigationSplitView` sidebar on iPad, Mac
 Catalyst and `NestMac`. `Route` (`Route.swift`) enumerates every PWA path; its
 `NavSection` groups (Summary, Plan, Grow, Tax, Settings) mirror the PWA's
-`NAV_SECTIONS`, and `planning`, `allowance` and `whatsNew` sit outside the nav.
+`NAV_SECTIONS`, and `planning`, `allowance` and `whatsNew` sit outside the nav (Planning is reached from
+the planning banner and the Planning mode settings screen).
 Each tab is a section whose routes list and push their screens; Summary is one
 route and shows it directly.
 

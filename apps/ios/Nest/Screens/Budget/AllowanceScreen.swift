@@ -4,6 +4,7 @@ import SwiftUI
 /// is drawn and left, and the items drawn from it. With no allowance it says so.
 struct AllowanceScreen: View {
     @State private var model: BudgetViewModel
+    private let planning = PlanningStore.shared
 
     init(model: BudgetViewModel = BudgetViewModel()) {
         _model = State(initialValue: model)
@@ -13,7 +14,7 @@ struct AllowanceScreen: View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
             AllowanceContentView(presentation: BudgetPresentation(content: content))
         }
-        .task { await model.load() }
+        .task(id: planning.revision) { await model.load() }
     }
 }
 

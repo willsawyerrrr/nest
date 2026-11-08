@@ -58,11 +58,49 @@ private enum Fixtures {
     }
 
     private func model(
-        _ data: NestData, defaults: UserDefaults = UserDefaults(suiteName: UUID().uuidString)!
+        _ data: NestData, defaults: UserDefaults = UserDefaults(suiteName: UUID().uuidString)!,
+        planning: PlanningStore = PlanningStore(
+            defaults: UserDefaults(suiteName: UUID().uuidString)!),
+        summarise: @escaping @Sendable (SummaryInput) async throws -> BudgetSummary = { _ in
+            Fixtures.summary
+        }
     ) -> SummaryViewModel {
         SummaryViewModel(
-            data: data, summarise: { _ in Fixtures.summary },
-            now: { Date(timeIntervalSince1970: 1_796_083_200) }, defaults: defaults)
+            data: data, summarise: summarise,
+            now: { Date(timeIntervalSince1970: 1_796_083_200) }, defaults: defaults,
+            planning: planning)
+    }
+
+    @Test func planningModeComputesTheSandboxAgainstTheRealBaseline() async {
+        let server = Server()
+        server.bodies["inflows"] = #"""
+            [{"id":"i1","household_id":"h","name":"Pay","type":"salary","taxable":true,
+            "attracts_super":true,"arrives_every_pay_period":true,"is_joint":false,
+            "schedule":"annual","amount_cents":100,"created_at":"t","updated_at":"t"}]
+            """#
+        server.bodies["members"] = #"""
+            [{"id":"m","household_id":"h","name":"Ada","user_id":"u","created_at":"t","updated_at":"t"}]
+            """#
+        let store = PlanningStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        store.select(household: "h")
+        store.enter()
+        store.update(.inflows, id: "i1", patch: ["amount_cents": .int(500)])
+        let model = model(
+            makeData(server, directory: directory()), planning: store,
+            summarise: { input in
+                var summary = Fixtures.summary
+                summary.oneOffCents = Int64(input.bundle.inflows.first?.amountCents ?? 0)
+                return summary
+            })
+        await model.load()
+        #expect(model.state.value?.summary.oneOffCents == 500)
+        #expect(model.state.value?.baseline?.oneOffCents == 100)
+    }
+
+    @Test func withoutPlanningModeThereIsNoBaseline() async {
+        let model = model(makeData(Server(), directory: directory()))
+        await model.load()
+        #expect(model.state.value?.baseline == nil)
     }
 
     @Test func loadsEveryTableThenShowsTheSummary() async {

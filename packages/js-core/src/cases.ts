@@ -16,7 +16,11 @@ import type { EstimateInput } from './estimate.ts'
 import type { GoalQueueInput } from './index.ts'
 
 export type ParityEntry =
-  'estimateTax' | 'summariseHousehold' | 'projectGoalQueue' | 'summariseBreakdowns'
+  | 'estimateTax'
+  | 'summariseHousehold'
+  | 'projectGoalQueue'
+  | 'summariseBreakdowns'
+  | 'budgetOverview'
 
 export interface ParityCase {
   name: string
@@ -160,6 +164,27 @@ const breakdownRollupCase: BreakdownsInput = {
   ],
 }
 
+const budgetOverviewCase = {
+  lines: [
+    { group: 'needs', amountCents: 1_000_00, frequency: 'monthly' },
+    { group: 'discretionary', amountCents: 50_00, frequency: 'fortnightly' },
+    {
+      group: 'discretionary',
+      amountCents: 80_00,
+      frequency: 'fortnightly',
+      allowanceMemberId: 'ada',
+    },
+    { group: 'savings', amountCents: 300_00, frequency: 'every_n_weeks', interval: 3 },
+    { group: 'investments', amountCents: 1_200_00, frequency: 'annual' },
+  ],
+  allowances: [{ memberId: 'ada', amountCents: 200_00, frequency: 'fortnightly' }],
+  temporaryItems: [
+    { contributionCents: 80_00, targetDate: '2027-03-31' },
+    { contributionCents: 25_00, targetDate: '2026-01-31' },
+  ],
+  now: '2026-12-01T00:00:00Z',
+}
+
 export const parityCases: ParityCase[] = [
   ...taxParityCases.map((parityCase) => ({
     name: `tax estimate: ${parityCase.label}`,
@@ -186,4 +211,5 @@ export const parityCases: ParityCase[] = [
     entry: 'summariseBreakdowns',
     input: breakdownRollupCase,
   },
+  { name: 'budget overview: allowance draw', entry: 'budgetOverview', input: budgetOverviewCase },
 ]

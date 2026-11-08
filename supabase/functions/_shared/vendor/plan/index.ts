@@ -26,6 +26,9 @@ export { MS_PER_DAY } from './constants.ts'
 export { isDrawnFromAllowance, summariseAllowances } from './allowance.ts'
 export type { AllowanceSummary, MemberAllowance } from './allowance.ts'
 
+export { budgetOverview } from './budgetOverview.ts'
+export type { BudgetOverview } from './budgetOverview.ts'
+
 export { isActiveOn, isTemporaryActive, summarise } from './summary.ts'
 export type {
   Amounts,

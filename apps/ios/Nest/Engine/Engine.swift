@@ -16,6 +16,7 @@ actor Engine {
         case summariseHousehold
         case projectGoalQueue
         case summariseBreakdowns
+        case budgetOverview
     }
 
     enum Failure: Error, Equatable {
@@ -88,5 +89,11 @@ actor Engine {
     /// Each breakdown's rolled-up totals and each item's fortnightly figure.
     func summariseBreakdowns(_ input: some Encodable) throws -> BreakdownRollups {
         try call(.summariseBreakdowns, input)
+    }
+
+    /// The Budget screen's figures: each line's amounts, each group's subtotal,
+    /// each allowance reconciled and which temporary items are active.
+    func budgetOverview(_ input: some Encodable) throws -> BudgetOverview {
+        try call(.budgetOverview, input)
     }
 }

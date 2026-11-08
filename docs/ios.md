@@ -30,7 +30,7 @@ route and shows it directly.
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
 route not yet native is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
 path in `WebView` (with its session mirroring) and shows `ErrorView` with a
-retry on failure. A screen migrates by returning `.native` for its route (the Summary and Breakdowns are native;
+retry on failure. A screen migrates by returning `.native` for its route (Summary, Breakdowns, Budget and Allowance are native;
 see [`native-screens.md`](native-screens.md) for the screen pattern). The
 shell shows one web view at a time, recreated when the route changes.
 
@@ -206,9 +206,12 @@ port). `packages/js-core` (`@nest/js-core`) bundles `@nest/tax`, `@nest/plan` an
 four JSON-in, JSON-out entry points: `estimateTax`
 (`estimateHouseholdTaxFromRows`, projected onto its scalar cents figures),
 `summariseHousehold` (`summariseHouseholdFromRows`, the fortnightly buffer
-included), `projectGoalQueue` (the savings-goal queue) and `summariseBreakdowns`
+included), `projectGoalQueue` (the savings-goal queue), `summariseBreakdowns`
 (each breakdown's annual and fortnightly roll-up and each item's fortnightly
-figure, from `@nest/plan`'s `annualCents` / `fortnightlyCents`). The inputs are the
+figure, from `@nest/plan`'s `annualCents` / `fortnightlyCents`) and `budgetOverview`
+(`@nest/plan`'s `budgetOverview`: each budget line's fortnightly and annual
+amounts, each group's fortnightly subtotal, each allowance reconciled, and which
+temporary items are active). The inputs are the
 rows those functions already take (see `packages/js-core/src/index.ts`).
 
 - **The bundle ships in the app, not fetched.** It is committed, so the Xcode

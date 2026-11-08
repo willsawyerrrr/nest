@@ -76,6 +76,7 @@ private struct SidebarShell: View {
             if let selection {
                 NavigationStack {
                     RouteScreen(route: selection)
+                        .navigationDestination(for: Route.self) { RouteScreen(route: $0) }
                 }
                 .id(selection)
             }

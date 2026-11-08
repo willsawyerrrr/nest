@@ -13,8 +13,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   target is one codebase built for two destinations — iOS and Mac Catalyst, via
   `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
   a native AppKit/SwiftUI macOS target compiled from the same sources, with its
-  own macOS share extension) embeds the PWA in a `WKWebView`
-  and runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
+  own macOS share extension) wraps the PWA in a SwiftUI navigation shell (tab
+  bar on iPhone, sidebar on iPad and Mac) whose per-route `.native` / `.web`
+  switch embeds each not-yet-native screen in a `WKWebView` (design system in
+  `apps/ios/Nest/DesignSystem/`),
+  runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
   bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the
   Swift `Engine` actor) so native screens compute the PWA's figures, and
   adds Siri / App Intents access to key figures — the

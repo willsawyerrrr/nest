@@ -200,6 +200,30 @@ so the rule it enforces holds app-wide.
 - **Money.** Every money figure renders through `MoneyText` (or
   `FortnightlyAmount`) with tabular figures.
 
+## Native (SwiftUI)
+
+The native app ports the same tokens by hand into `apps/ios/Nest/DesignSystem/`;
+the two apps share no token source, so a change to `theme.ts` or `tokens.ts`
+updates both.
+
+- **Colours** (`NestColor`) — dark-first canvas, `surface` / `surfaceRaised`,
+  `border`, text, `dimmedText`, brand lime (black text on it), and
+  `positive` / `negative` / `warning` / `info`. Each resolves per colour scheme
+  through `Color(light:dark:)`; positive and negative use shade 7 on light and 4
+  on dark, as `moneyColor` does.
+- **Chart hues** (`ChartColorKey`) — the categorical palette from `tokens.ts`.
+- **Spacing, radius, type** (`NestSpacing`, `NestRadius`, `NestFont`) — the
+  theme's scales; headings use the rounded system design and money uses tabular
+  digits.
+- **Money** (`MoneyFormat`, `MoneySign`) — integer cents in `en_AU` AUD, compact
+  axis labels, per-fortnight and per-year rates, and the one sign-to-colour
+  rule.
+- **Components** — `NestCard`, `NestListRow`, `MoneyText`, `NestPill`,
+  `NestField` / `NestTextFieldStyle`, `NestPrimaryButtonStyle`, `ErrorView`
+  (strings only, never an upstream body) and `NestBarChart` / `NestLineChart`
+  (Swift Charts with token axes and series colours). The gallery `#Preview` in
+  `DesignSystemGallery.swift` shows each.
+
 ## Logo
 
 The brand mark is the goose-in-nest `apps/pwa/public/icon.svg`, drawn for the

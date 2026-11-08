@@ -14,8 +14,35 @@ app exists. `Nest`'s two destinations differ only by
 `project.yml`'s `supportedDestinations: [iOS, macCatalyst]`. `NestMac` compiles
 the same `Nest/` and `Shared/` sources for macOS; the few platform differences
 are `#if os(macOS)` branches (`Auth.swift`'s presenting window, `WebView.swift`'s
-`NSViewRepresentable`, external-link and foreground handling, `ContentView.swift`'s
+`NSViewRepresentable`, external-link and foreground handling, `ContentView+*.swift`'s
 dynamic colours). Every file below applies to all three builds unless noted.
+
+### Navigation shell
+
+Once signed in, `ContentView` shows `NavigationShell` (`Nest/Navigation/`): a
+tab bar on iPhone (compact width), a `NavigationSplitView` sidebar on iPad, Mac
+Catalyst and `NestMac`. `Route` (`Route.swift`) enumerates every PWA path; its
+`NavSection` groups (Summary, Plan, Grow, Tax, Settings) mirror the PWA's
+`NAV_SECTIONS`, and `planning`, `allowance` and `whatsNew` sit outside the nav.
+Each tab is a section whose routes list and push their screens; Summary is one
+route and shows it directly.
+
+`Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
+route is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
+path in `WebView` (with its session mirroring) and shows `ErrorView` with a
+retry on failure. A screen migrates by returning `.native` for its route. The
+shell shows one web view at a time, recreated when the route changes.
+
+### Native design system
+
+`Nest/DesignSystem/` ports the PWA's tokens and primitives (see
+[`design-system.md`](design-system.md#native-swiftui)): `Tokens.swift`
+(colours, chart hues, spacing, radius, type), `Money.swift` (AU currency
+formatting and sign colour), `Components.swift` (card, list row, money text,
+pill, form field, primary button, `ErrorView`), `NestCharts.swift` (tokenised
+Swift Charts wrappers) and a `#Preview` gallery in `DesignSystemGallery.swift`.
+`ErrorView` takes strings only, so callers pass fixed copy per error code and an
+upstream response body never reaches the screen.
 
 ### Native macOS target
 
@@ -451,7 +478,8 @@ it is for iOS.
   `Info.plist` carries no `LSRequiresIPhoneOS` key, since that key excludes
   Catalyst outright. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
   not committed.
-- `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `WebView.swift`,
+- `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
+  `DesignSystem/`, `WebView.swift`,
   `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`,
   `PushNotifications.swift`, `NestAppDelegate+iOS.swift` /
   `NestAppDelegate+macOS.swift`, and `Intents/`. The iOS/macOS divergence in
@@ -469,7 +497,8 @@ it is for iOS.
   mapping), for `SessionBridge`'s injected JavaScript and string escaping, for
   the share inbox (storing, limits, ordering, cleanup, hand-off scripts), and for
   push registration (token encoding, notification routes, the register/unregister
-  requests, and the registrar's retry behaviour), and for `Engine` (the parity
+  requests, and the registrar's retry behaviour), money formatting and sign
+  colour, the route table and route-to-URL mapping, and for `Engine` (the parity
   fixtures in `NestTests/Fixtures/`).
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and sign-in-flow

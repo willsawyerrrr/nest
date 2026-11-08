@@ -164,6 +164,45 @@ in, it shows the web view. Sign-out from the web app (Household settings) posts
 to the `nestAuth` handler, which clears the native session; the gate then swaps
 back to `SignInView`.
 
+## Engines in JavaScriptCore
+
+The tax, plan and household engines run in the app, so native screens compute
+the figures the PWA and the MCP server do from one implementation (no Swift
+port). `packages/js-core` (`@nest/js-core`) bundles `@nest/tax`, `@nest/plan` and
+`@nest/household` with esbuild into one IIFE script,
+`apps/ios/Nest/Engine/nest-engines.js`, which installs a `NestEngine` global with
+three JSON-in, JSON-out entry points: `estimateTax`
+(`estimateHouseholdTaxFromRows`, projected onto its scalar cents figures),
+`summariseHousehold` (`summariseHouseholdFromRows`, the fortnightly buffer
+included) and `projectGoalQueue` (the savings-goal queue). The inputs are the
+rows those functions already take (see `packages/js-core/src/index.ts`).
+
+- **The bundle ships in the app, not fetched.** It is committed, so the Xcode
+  build needs no Node toolchain, and lives under `Nest/`, so both `Nest` and
+  `NestMac` bundle it as a resource with no `project.yml` entry. `pnpm
+  bundle:js-core` rewrites it; `pnpm check:js-core` (run by CI's `check` job)
+  fails when it has drifted from the engine sources.
+- **`Engine`** (`Nest/Engine/Engine.swift`) is an actor over a `JSContext`, so a
+  call runs off the main actor and the context is never used concurrently. It
+  takes an `Encodable` input and returns a `Decodable` result (`TaxEstimate`,
+  `BudgetSummary`, `GoalQueueProjection` in `EngineTypes.swift`), or raw JSON via
+  `call(_:json:)`. A script or call error surfaces as `Engine.Failure`.
+- **Numbers.** Money is integer cents and decodes as `Int64`; a trade's unit
+  price is an integer count of microdollars, and the engine's `BigInt` products
+  stay inside the engine, with only whole cents returned. The bridge serialises
+  any `bigint` it would return as a decimal string (`serialise`), since
+  `JSON.stringify` throws on one.
+- **Parity.** `packages/js-core`'s vitest suite builds cases from the household
+  golden fixtures (tax estimate, fortnightly buffer) plus goal-queue and
+  microdollar-trade cases, writes the TypeScript output to
+  `NestTests/Fixtures/engine-parity.json` (`pnpm update:js-core-fixtures`
+  regenerates it; the suite fails when it drifts), and runs the committed bundle
+  against it. `EngineParityTests` feeds the same inputs through the Swift `Engine`
+  and asserts identical output.
+
+The App Intents below read their figures from edge functions, not a Swift
+computation, so they do not use `Engine`.
+
 ## The query intents
 
 Each intent is an `AppIntent` with `ProvidesDialog` and no `openAppWhenRun`: it
@@ -415,7 +454,8 @@ it is for iOS.
   `Auth.swift`, `ContentView.swift`, `NestAppDelegate+*.swift`, and
   `NestApp.swift` lives in per-platform `+iOS`/`+macOS` files excluded per
   target in `project.yml`, the way `WebView.swift`'s `makeNSView`/`makeUIView`
-  already isolates its own.
+  already isolates its own. `Engine/` holds the JavaScriptCore `Engine`, its
+  result types, and the bundled `nest-engines.js`.
 - `ShareExtension/` — the share extension (`ShareViewController.swift`, its
   entitlements; `Info.plist` is generated).
 - `Shared/` — `ShareInbox.swift` and `ShareSummary.swift`, compiled into both
@@ -425,7 +465,8 @@ it is for iOS.
   mapping), for `SessionBridge`'s injected JavaScript and string escaping, for
   the share inbox (storing, limits, ordering, cleanup, hand-off scripts), and for
   push registration (token encoding, notification routes, the register/unregister
-  requests, and the registrar's retry behaviour).
+  requests, and the registrar's retry behaviour), and for `Engine` (the parity
+  fixtures in `NestTests/Fixtures/`).
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and sign-in-flow
 instructions.

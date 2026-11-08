@@ -14,7 +14,10 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
   a native AppKit/SwiftUI macOS target compiled from the same sources, with its
   own macOS share extension) embeds the PWA in a `WKWebView`
-  and adds Siri / App Intents access to key figures — the
+  and runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
+  bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the
+  Swift `Engine` actor) so native screens compute the PWA's figures, and
+  adds Siri / App Intents access to key figures — the
   fortnightly buffer, savings-goal progress, a named budget line's planned
   amount so far, and how much of the pay goes to a named account; budget lines and
   pay-split accounts are named inline in the Siri phrase and indexed in Spotlight. The native app is the single session owner: one Google OAuth at

@@ -1,0 +1,1722 @@
+[
+  {
+    "name": "tax estimate: a plain resident salary",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 12000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 12000000,
+      "annualTaxCents": 3012000,
+      "annualAfterTaxCents": 8988000,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 461538,
+      "fortnightlyTaxCents": 115846,
+      "fortnightlyAfterTaxCents": 345692,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 12000000,
+          "annualTaxCents": 3012000,
+          "annualAfterTaxCents": 8988000,
+          "helpRepaymentCents": 0,
+          "balanceCents": 3012000,
+          "medicareLevyCents": 240000,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: the same salary on the FY2026 config",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2026,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 12000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 12000000,
+      "annualTaxCents": 3068800,
+      "annualAfterTaxCents": 8931200,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 461538,
+      "fortnightlyTaxCents": 118031,
+      "fortnightlyAfterTaxCents": 343508,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 12000000,
+          "annualTaxCents": 3068800,
+          "annualAfterTaxCents": 8931200,
+          "helpRepaymentCents": 0,
+          "balanceCents": 3068800,
+          "medicareLevyCents": 240000,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: a joint other inflow split 50/50 across two members",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 9000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 9000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "other",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 2000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": true,
+          "member_split_percent": 50
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        },
+        {
+          "member_id": "m2",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        },
+        {
+          "id": "m2",
+          "date_of_birth": null
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 20000000,
+      "annualTaxCents": 4504000,
+      "annualAfterTaxCents": 15496000,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 769230,
+      "fortnightlyTaxCents": 173230,
+      "fortnightlyAfterTaxCents": 596000,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 10000000,
+          "annualTaxCents": 2252000,
+          "annualAfterTaxCents": 7748000,
+          "helpRepaymentCents": 0,
+          "balanceCents": 2252000,
+          "medicareLevyCents": 200000,
+          "oneOffOffsetCents": 0
+        },
+        {
+          "memberId": "m2",
+          "annualGrossCents": 10000000,
+          "annualTaxCents": 2252000,
+          "annualAfterTaxCents": 7748000,
+          "helpRepaymentCents": 0,
+          "balanceCents": 2252000,
+          "medicareLevyCents": 200000,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: a genuine redundancy one-off beside a top-bracket salary",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 20000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": false,
+          "type": "other",
+          "schedule": null,
+          "interval_count": null,
+          "amount_cents": 12000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2027-02-01",
+          "one_off_tax_treatment": "genuine_redundancy",
+          "years_of_service": 4,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": "1968-01-01"
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 32000000,
+      "annualTaxCents": 8940133,
+      "annualAfterTaxCents": 23059867,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 12000000,
+      "annualOneOffAfterTaxCents": 9465664,
+      "fortnightlyGrossCents": 769231,
+      "fortnightlyTaxCents": 246377,
+      "fortnightlyAfterTaxCents": 522854,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 32000000,
+          "annualTaxCents": 8940133,
+          "annualAfterTaxCents": 23059867,
+          "helpRepaymentCents": 0,
+          "balanceCents": 8940133,
+          "medicareLevyCents": 558396,
+          "oneOffOffsetCents": 1187970
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: a HELP balance for a member with no tax profile",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 10000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [],
+      "helpDebts": [
+        {
+          "member_id": "m1",
+          "balance_cents": 3000000
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 10000000,
+      "annualTaxCents": 2709080,
+      "annualAfterTaxCents": 7290920,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 384615,
+      "fortnightlyTaxCents": 104195,
+      "fortnightlyAfterTaxCents": 280420,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 10000000,
+          "annualTaxCents": 2709080,
+          "annualAfterTaxCents": 7290920,
+          "helpRepaymentCents": 457080,
+          "balanceCents": 2709080,
+          "medicareLevyCents": 200000,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: deductions and a percent-mode salary sacrifice with PAYG withheld",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 13000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "contributions": [
+        {
+          "member_id": "m1",
+          "kind": "salary_sacrifice",
+          "mode": "percent",
+          "amount_cents": null,
+          "percent_bp": 800,
+          "frequency": "annual",
+          "interval_count": null
+        }
+      ],
+      "deductions": [
+        {
+          "member_id": "m1",
+          "amount_cents": 350000
+        }
+      ],
+      "paygWithheld": [
+        [
+          "m1",
+          3000000
+        ]
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 13000000,
+      "annualTaxCents": 2925325,
+      "annualAfterTaxCents": 9034675,
+      "annualConcessionalContributionsCents": 1040000,
+      "annualNetConcessionalSuperCents": 884000,
+      "annualDeductionsCents": 350000,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 500000,
+      "fortnightlyTaxCents": 112513,
+      "fortnightlyAfterTaxCents": 347488,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 13000000,
+          "annualTaxCents": 2925325,
+          "annualAfterTaxCents": 9034675,
+          "helpRepaymentCents": 0,
+          "balanceCents": -74675,
+          "medicareLevyCents": 232200,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: projected savings interest threaded in as other income",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 12000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        }
+      ],
+      "interestGoals": [
+        {
+          "annual_interest_bps": 450,
+          "linked_account_id": "a1",
+          "current_balance_cents": 0
+        }
+      ],
+      "interestSavers": [
+        {
+          "id": "a1",
+          "owner_member_id": "m1",
+          "balance_cents": 8000000
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 12360000,
+      "annualTaxCents": 3161700,
+      "annualAfterTaxCents": 9198300,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 475385,
+      "fortnightlyTaxCents": 121604,
+      "fortnightlyAfterTaxCents": 353781,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 12360000,
+          "annualTaxCents": 3161700,
+          "annualAfterTaxCents": 9198300,
+          "helpRepaymentCents": 0,
+          "balanceCents": 3161700,
+          "medicareLevyCents": 247200,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax estimate: microdollar trades past 2^53",
+    "entry": "estimateTax",
+    "input": {
+      "financialYear": 2027,
+      "inflows": [
+        {
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "amount_cents": 15000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "member_id": "m1",
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "date_of_birth": null
+        }
+      ],
+      "trades": [
+        {
+          "member_id": "m1",
+          "ticker": "BIG",
+          "side": "buy",
+          "traded_on": "2025-01-10",
+          "units": 1000.123457,
+          "price_per_unit_microdollars": 40000000001,
+          "fee_cents": 995
+        },
+        {
+          "member_id": "m1",
+          "ticker": "BIG",
+          "side": "sell",
+          "traded_on": "2026-09-02",
+          "units": 1000.123457,
+          "price_per_unit_microdollars": 50000000007,
+          "fee_cents": 995
+        }
+      ]
+    },
+    "expected": {
+      "annualGrossCents": 515060734,
+      "annualTaxCents": 246391456,
+      "annualAfterTaxCents": 268669278,
+      "annualConcessionalContributionsCents": 0,
+      "annualNetConcessionalSuperCents": 0,
+      "annualDeductionsCents": 0,
+      "annualOneOffGrossCents": 0,
+      "annualOneOffAfterTaxCents": 0,
+      "fortnightlyGrossCents": 576923,
+      "fortnightlyTaxCents": 449343,
+      "fortnightlyAfterTaxCents": 127580,
+      "members": [
+        {
+          "memberId": "m1",
+          "annualGrossCents": 515060734,
+          "annualTaxCents": 246391456,
+          "annualAfterTaxCents": 268669278,
+          "helpRepaymentCents": 0,
+          "balanceCents": 246391456,
+          "medicareLevyCents": 10301215,
+          "oneOffOffsetCents": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "fortnightly buffer: an always-on salary, no plan",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [],
+        "memberAllowances": [],
+        "temporaryItems": [],
+        "savingsGoals": [],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 0,
+      "available": {
+        "fortnightlyCents": 345692,
+        "annualCents": 8988000
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [],
+      "outgoings": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 345692,
+        "annualCents": 8988000
+      },
+      "afterSaving": {
+        "fortnightlyCents": 345692,
+        "annualCents": 8988000
+      },
+      "tax": {
+        "fortnightlyCents": 115846,
+        "annualCents": 3012000
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "fortnightly buffer: a salary with needs and savings lines",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [
+          {
+            "line_group": "needs",
+            "amount_cents": 200000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          },
+          {
+            "line_group": "savings",
+            "amount_cents": 40000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          }
+        ],
+        "memberAllowances": [],
+        "temporaryItems": [],
+        "savingsGoals": [],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 0,
+      "available": {
+        "fortnightlyCents": 345692,
+        "annualCents": 8988000
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 200000,
+          "annualCents": 5200000,
+          "portion": 0.5785496916330144
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 40000,
+          "annualCents": 1040000,
+          "portion": 0.11570993832660287
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [],
+      "outgoings": {
+        "fortnightlyCents": 200000,
+        "annualCents": 5200000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 40000,
+        "annualCents": 1040000
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 145692,
+        "annualCents": 3788000
+      },
+      "afterSaving": {
+        "fortnightlyCents": 105692,
+        "annualCents": 2748000
+      },
+      "tax": {
+        "fortnightlyCents": 115846,
+        "annualCents": 3012000
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "fortnightly buffer: a salary that ended before now, with a needs line",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": "2026-09-30",
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [
+          {
+            "line_group": "needs",
+            "amount_cents": 200000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          }
+        ],
+        "memberAllowances": [],
+        "temporaryItems": [],
+        "savingsGoals": [],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 0,
+      "available": {
+        "fortnightlyCents": 0,
+        "annualCents": 2891603
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 200000,
+          "annualCents": 5200000,
+          "portion": 0
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [],
+      "outgoings": {
+        "fortnightlyCents": 200000,
+        "annualCents": 5200000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": -200000,
+        "annualCents": -2308397
+      },
+      "afterSaving": {
+        "fortnightlyCents": -200000,
+        "annualCents": -2308397
+      },
+      "tax": {
+        "fortnightlyCents": 0,
+        "annualCents": 133055
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "fortnightly buffer: a one-off bonus reported beside the plan",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          },
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": false,
+            "type": "other",
+            "schedule": null,
+            "interval_count": null,
+            "amount_cents": 1200000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": "2026-10-01",
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [
+          {
+            "line_group": "needs",
+            "amount_cents": 200000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          }
+        ],
+        "memberAllowances": [],
+        "temporaryItems": [],
+        "savingsGoals": [],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 1200000,
+      "available": {
+        "fortnightlyCents": 343962,
+        "annualCents": 8943000
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 200000,
+          "annualCents": 5200000,
+          "portion": 0.5814595798373076
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [],
+      "outgoings": {
+        "fortnightlyCents": 200000,
+        "annualCents": 5200000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 143962,
+        "annualCents": 3743000
+      },
+      "afterSaving": {
+        "fortnightlyCents": 143962,
+        "annualCents": 3743000
+      },
+      "tax": {
+        "fortnightlyCents": 117577,
+        "annualCents": 3057000
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "fortnightly buffer: a goal's projected interest lifting tax and available cash",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [
+          {
+            "line_group": "needs",
+            "amount_cents": 200000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          }
+        ],
+        "memberAllowances": [],
+        "temporaryItems": [],
+        "savingsGoals": [
+          {
+            "annual_interest_bps": 500,
+            "linked_account_id": null,
+            "current_balance_cents": 15000000
+          }
+        ],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 0,
+      "available": {
+        "fortnightlyCents": 363793,
+        "annualCents": 9458625
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 200000,
+          "annualCents": 5200000,
+          "portion": 0.5497631895061202
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [],
+      "outgoings": {
+        "fortnightlyCents": 200000,
+        "annualCents": 5200000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 163793,
+        "annualCents": 4258625
+      },
+      "afterSaving": {
+        "fortnightlyCents": 163793,
+        "annualCents": 4258625
+      },
+      "tax": {
+        "fortnightlyCents": 126591,
+        "annualCents": 3291375
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "fortnightly buffer: a recurring non-taxable top-up alongside a non-taxable one-off",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          },
+          {
+            "member_id": "m1",
+            "taxable": false,
+            "attracts_super": true,
+            "type": "other",
+            "schedule": "fortnightly",
+            "interval_count": null,
+            "amount_cents": 30000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          },
+          {
+            "member_id": "m1",
+            "taxable": false,
+            "attracts_super": true,
+            "type": "other",
+            "schedule": null,
+            "interval_count": null,
+            "amount_cents": 500000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": "2026-11-15",
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [
+          {
+            "line_group": "needs",
+            "amount_cents": 200000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          }
+        ],
+        "memberAllowances": [],
+        "temporaryItems": [],
+        "savingsGoals": [],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 500000,
+      "available": {
+        "fortnightlyCents": 375692,
+        "annualCents": 9768000
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 200000,
+          "annualCents": 5200000,
+          "portion": 0.5323509683464114
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [],
+      "outgoings": {
+        "fortnightlyCents": 200000,
+        "annualCents": 5200000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 175692,
+        "annualCents": 4568000
+      },
+      "afterSaving": {
+        "fortnightlyCents": 175692,
+        "annualCents": 4568000
+      },
+      "tax": {
+        "fortnightlyCents": 115846,
+        "annualCents": 3012000
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "fortnightly buffer: a member allowance, its drawn lines counted once inside it",
+    "entry": "summariseHousehold",
+    "input": {
+      "bundle": {
+        "inflows": [
+          {
+            "member_id": "m1",
+            "taxable": true,
+            "attracts_super": true,
+            "type": "salary",
+            "schedule": "annual",
+            "interval_count": null,
+            "amount_cents": 12000000,
+            "hourly_rate_cents": null,
+            "hours_per_period": null,
+            "starts_on": null,
+            "ends_on": null,
+            "paid_on": null,
+            "one_off_tax_treatment": null,
+            "years_of_service": null,
+            "is_joint": false,
+            "member_split_percent": null
+          }
+        ],
+        "taxProfiles": [
+          {
+            "member_id": "m1",
+            "residency": "resident",
+            "has_private_hospital_cover": false
+          }
+        ],
+        "contributions": [],
+        "helpDebts": [],
+        "deductions": [],
+        "members": [
+          {
+            "id": "m1",
+            "date_of_birth": null
+          }
+        ],
+        "budgetLines": [
+          {
+            "line_group": "needs",
+            "amount_cents": 200000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          },
+          {
+            "line_group": "discretionary",
+            "amount_cents": 2000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          },
+          {
+            "line_group": "discretionary",
+            "amount_cents": 6000,
+            "frequency": "fortnightly",
+            "interval_count": null,
+            "allowance_member_id": "m1"
+          },
+          {
+            "line_group": "discretionary",
+            "amount_cents": 10000,
+            "frequency": "fortnightly",
+            "interval_count": null,
+            "allowance_member_id": "m1"
+          }
+        ],
+        "memberAllowances": [
+          {
+            "member_id": "m1",
+            "amount_cents": 20000,
+            "frequency": "fortnightly",
+            "interval_count": null
+          }
+        ],
+        "temporaryItems": [],
+        "savingsGoals": [],
+        "savers": []
+      },
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "oneOffCents": 0,
+      "available": {
+        "fortnightlyCents": 345692,
+        "annualCents": 8988000
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 200000,
+          "annualCents": 5200000,
+          "portion": 0.5785496916330144
+        },
+        "wants": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "discretionary": {
+          "fortnightlyCents": 22000,
+          "annualCents": 572000,
+          "portion": 0.06364046607963159
+        },
+        "temporary": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "savings": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [
+        {
+          "memberId": "m1",
+          "allowance": {
+            "fortnightlyCents": 20000,
+            "annualCents": 520000
+          },
+          "drawn": {
+            "fortnightlyCents": 16000,
+            "annualCents": 416000
+          },
+          "remaining": {
+            "fortnightlyCents": 4000,
+            "annualCents": 104000
+          }
+        }
+      ],
+      "outgoings": {
+        "fortnightlyCents": 222000,
+        "annualCents": 5772000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 123692,
+        "annualCents": 3216000
+      },
+      "afterSaving": {
+        "fortnightlyCents": 123692,
+        "annualCents": 3216000
+      },
+      "tax": {
+        "fortnightlyCents": 115846,
+        "annualCents": 3012000
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 0,
+        "annualCents": 0
+      }
+    }
+  },
+  {
+    "name": "goal queue: case 1",
+    "entry": "projectGoalQueue",
+    "input": {
+      "active": [
+        {
+          "goal": {
+            "targetAmountCents": 500000,
+            "currentBalanceCents": 100000
+          },
+          "fortnightlyContributionCents": 20000
+        },
+        {
+          "goal": {
+            "targetAmountCents": 2000000,
+            "currentBalanceCents": 400000,
+            "targetDate": "2028-06-30",
+            "annualInterestBps": 450
+          },
+          "fortnightlyContributionCents": 35000
+        }
+      ],
+      "queued": [
+        {
+          "goal": {
+            "targetAmountCents": 800000,
+            "currentBalanceCents": 0,
+            "targetDate": "2030-01-01"
+          },
+          "plannedContributionCents": 25000
+        },
+        {
+          "goal": {
+            "targetAmountCents": 300000,
+            "currentBalanceCents": 300000
+          }
+        },
+        {
+          "goal": {
+            "targetAmountCents": 1200000,
+            "currentBalanceCents": 50000,
+            "annualInterestBps": 300
+          }
+        }
+      ],
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "active": [
+        {
+          "remainingCents": 400000,
+          "alreadyMet": false,
+          "fortnightsToTarget": 20,
+          "projectedCompletionDate": "2027-09-07",
+          "requiredFortnightlyContributionCents": null
+        },
+        {
+          "remainingCents": 1600000,
+          "alreadyMet": false,
+          "fortnightsToTarget": 44,
+          "projectedCompletionDate": "2028-08-08",
+          "requiredFortnightlyContributionCents": 36111
+        }
+      ],
+      "queued": [
+        {
+          "remainingCents": 800000,
+          "alreadyMet": false,
+          "fortnightsToTarget": 56,
+          "projectedCompletionDate": "2029-01-23",
+          "projectedStartDate": "2027-09-07",
+          "requiredFortnightlyContributionCents": 13115
+        },
+        {
+          "remainingCents": 0,
+          "alreadyMet": true,
+          "fortnightsToTarget": 0,
+          "projectedCompletionDate": "2026-12-01",
+          "projectedStartDate": "2026-12-01",
+          "requiredFortnightlyContributionCents": null
+        },
+        {
+          "remainingCents": 1150000,
+          "alreadyMet": false,
+          "fortnightsToTarget": 70,
+          "projectedCompletionDate": "2029-08-07",
+          "projectedStartDate": "2028-08-08",
+          "requiredFortnightlyContributionCents": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "goal queue: case 2",
+    "entry": "projectGoalQueue",
+    "input": {
+      "active": [],
+      "queued": [
+        {
+          "goal": {
+            "targetAmountCents": 100000,
+            "currentBalanceCents": 0
+          }
+        }
+      ],
+      "now": "2026-12-01T00:00:00Z"
+    },
+    "expected": {
+      "active": [],
+      "queued": [
+        {
+          "remainingCents": 100000,
+          "alreadyMet": false,
+          "fortnightsToTarget": null,
+          "projectedCompletionDate": null,
+          "projectedStartDate": null,
+          "requiredFortnightlyContributionCents": null
+        }
+      ]
+    }
+  }
+]

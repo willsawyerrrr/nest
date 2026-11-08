@@ -26,6 +26,7 @@ jobs:
       - run: pnpm check:migrations
       - run: pnpm check:vendor-edge
       - run: pnpm install --frozen-lockfile
+      - run: pnpm check:js-core
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck

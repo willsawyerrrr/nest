@@ -6,3 +6,5 @@ supabase/functions
 apps/ios/**/*.xcassets
 *.md
 .corepack/
+apps/ios/Nest/Engine/nest-engines.js
+apps/ios/NestTests/Fixtures

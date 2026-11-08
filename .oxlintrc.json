@@ -24,5 +24,11 @@
       }
     }
   ],
-  "ignorePatterns": ["dist", "node_modules", "supabase/.temp", "supabase/functions"]
+  "ignorePatterns": [
+    "apps/ios/Nest/Engine/nest-engines.js",
+    "dist",
+    "node_modules",
+    "supabase/.temp",
+    "supabase/functions"
+  ]
 }

@@ -134,6 +134,12 @@ RLS.
   import the vendored copy, so the numbers a household files a return on and asks
   Siri about have one implementation, kept honest by a golden-fixture parity
   suite.
+- **JavaScriptCore bridge** — `@nest/js-core` bundles the three engine packages
+  into one script the native app ships and runs in JavaScriptCore behind a typed
+  Swift `Engine` actor, so native screens compute the tax estimate, fortnightly
+  buffer and goal queue with the same code. A committed bundle with a CI drift
+  check, and shared parity fixtures, keep it honest. See
+  [`ios.md`](ios.md#engines-in-javascriptcore).
 - **Import layer** — source-agnostic ingestion boundary; Up (transactions and
   accounts/balances) and Redbark (accounts/balances only) are its two adapters.
 - **Storage** — private buckets for the documents the household attaches:
@@ -542,7 +548,8 @@ the workflow token is scoped `contents: read`:
 - **check** — migration-version uniqueness (`scripts/check-migration-versions.js`)
   and edge-vendor sync (`scripts/vendor-edge-packages.js --check`, asserting
   `supabase/functions/_shared/vendor/` still matches `packages/{plan,tax,household}/src`),
-  both ahead of the install so they fail in milliseconds, then lint / format /
+  both ahead of the install so they fail in milliseconds, then the JavaScriptCore
+  bundle's drift check (`pnpm check:js-core`), lint / format /
   typecheck / build (~49s). Not the binding constraint.
 - **test** — the Vitest workspace, sharded across six parallel runners with V8
   coverage. A `test-shard` matrix job runs

@@ -54,6 +54,10 @@ and Spotlight still work on both platforms.
   - `NestiOS.entitlements` — the iOS entitlements, adding `aps-environment`.
   - `ShareBridge.swift` — builds the JavaScript that hands a shared file to the
     page in chunks, and reads the page's acknowledgement.
+  - `Engine/Engine.swift` / `Engine/EngineTypes.swift` — the actor running the
+    tax, plan and household engines in JavaScriptCore, and its `Codable`
+    results; `Engine/nest-engines.js` is the generated bundle
+    (`pnpm bundle:js-core`).
   - `Intents/BufferQueryIntent.swift` — the fortnightly-buffer `AppIntent`.
   - `Intents/BufferService.swift` — injectable HTTP call to `intent-summary`
     and spoken-sentence formatting.
@@ -87,7 +91,8 @@ and Spotlight still work on both platforms.
   delegates to: the phrasing (cents → spoken sentence), the service request
   shape and status handling, and the signed-out / failure-to-sentence mapping —
   plus `SessionBridge` (the injected sign-in JavaScript and its string
-  escaping) and the share inbox.
+  escaping), the share inbox, and `Engine` (`EngineParityTests` runs the shared
+  fixtures from `NestTests/Fixtures/`).
 
 ## Building
 

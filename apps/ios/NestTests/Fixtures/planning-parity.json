@@ -1,0 +1,572 @@
+[
+  {
+    "name": "a sandboxed two-member household",
+    "now": "2026-12-01T00:00:00Z",
+    "rows": {
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "name": "Ada salary",
+          "type": "salary",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 15000000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "name": "Ben wage",
+          "type": "wage",
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": null,
+          "interval_count": null,
+          "hourly_rate_cents": 5500,
+          "hours_per_period": 76,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i3",
+          "name": "Bonus",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": false,
+          "schedule": null,
+          "amount_cents": 800000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-10-15",
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c1",
+          "member_id": "m1",
+          "contributor_member_id": null,
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "amount",
+          "amount_cents": 20000,
+          "percent_bp": null,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "fhss_eligible": false
+        }
+      ],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "d1",
+          "member_id": "m2",
+          "balance_cents": 1800000
+        }
+      ],
+      "deductions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "x1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "deduction_date": "2026-08-01",
+          "description": "Laptop",
+          "category": "work_expense",
+          "basis": "amount",
+          "amount_cents": 90000,
+          "full_amount_cents": 150000,
+          "work_use_percent": 60,
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": null
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1988-09-20",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Rent",
+          "line_group": "needs",
+          "amount_cents": 240000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "Utilities",
+          "line_group": "needs",
+          "amount_cents": 520000,
+          "frequency": "annual",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": "bd1",
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Streaming",
+          "line_group": "wants",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b4",
+          "name": "Coffee",
+          "line_group": "discretionary",
+          "amount_cents": 4000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": "m1",
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b5",
+          "name": "Holiday",
+          "line_group": "savings",
+          "amount_cents": 30000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b6",
+          "name": "Shares",
+          "line_group": "investments",
+          "amount_cents": 50000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "memberAllowances": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al1",
+          "member_id": "m1",
+          "amount_cents": 15000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "destination_account_id": null
+        }
+      ],
+      "temporaryItems": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tmp1",
+          "name": "Course",
+          "contribution_cents": 8000,
+          "target_date": "2027-03-31"
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1500000,
+          "current_balance_cents": 300000,
+          "annual_interest_bps": 480,
+          "linked_account_id": "a1",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": "2027-12-31"
+        }
+      ],
+      "savers": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "Saver",
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-1",
+          "owner_member_id": "m1",
+          "source": "up",
+          "type": "savings",
+          "balance_cents": 1200000
+        }
+      ]
+    },
+    "state": {
+      "active": true,
+      "overrides": {
+        "inflows": {
+          "updates": {
+            "i1": {
+              "amount_cents": 18000000
+            }
+          },
+          "creates": [],
+          "deletes": [
+            "i3"
+          ]
+        },
+        "budget_line": {
+          "updates": {
+            "b1": {
+              "amount_cents": 260000
+            },
+            "b3": {
+              "line_group": "discretionary"
+            }
+          },
+          "creates": [
+            {
+              "household_id": "h1",
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z",
+              "id": "new1",
+              "name": "Gym",
+              "line_group": "wants",
+              "amount_cents": 6000,
+              "frequency": "fortnightly",
+              "interval_count": null,
+              "allowance_member_id": null,
+              "breakdown_id": null,
+              "destination_account_id": null,
+              "gift_recipient_member_id": null,
+              "goal_id": null,
+              "is_gift_line": false,
+              "management_url": null
+            }
+          ],
+          "deletes": [
+            "b6"
+          ]
+        },
+        "savings_goal": {
+          "updates": {
+            "g1": {
+              "target_amount_cents": 2000000
+            }
+          },
+          "creates": [],
+          "deletes": []
+        }
+      }
+    },
+    "expectedBaseline": {
+      "oneOffCents": 800000,
+      "available": {
+        "fortnightlyCents": 708121,
+        "annualCents": 18411146
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 130769,
+          "annualCents": 3400000,
+          "portion": 0.1846704164966157
+        },
+        "wants": {
+          "fortnightlyCents": 5000,
+          "annualCents": 130000,
+          "portion": 0.0070609401500591005
+        },
+        "discretionary": {
+          "fortnightlyCents": 15000,
+          "annualCents": 390000,
+          "portion": 0.0211828204501773
+        },
+        "temporary": {
+          "fortnightlyCents": 8000,
+          "annualCents": 208000,
+          "portion": 0.01129750424009456
+        },
+        "savings": {
+          "fortnightlyCents": 30000,
+          "annualCents": 780000,
+          "portion": 0.0423656409003546
+        },
+        "investments": {
+          "fortnightlyCents": 23077,
+          "annualCents": 600000,
+          "portion": 0.03258906316858277
+        }
+      },
+      "allowances": [
+        {
+          "memberId": "m1",
+          "allowance": {
+            "fortnightlyCents": 15000,
+            "annualCents": 390000
+          },
+          "drawn": {
+            "fortnightlyCents": 4000,
+            "annualCents": 104000
+          },
+          "remaining": {
+            "fortnightlyCents": 11000,
+            "annualCents": 286000
+          }
+        }
+      ],
+      "outgoings": {
+        "fortnightlyCents": 158769,
+        "annualCents": 4128000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 53077,
+        "annualCents": 1380000
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 549352,
+        "annualCents": 14283146
+      },
+      "afterSaving": {
+        "fortnightlyCents": 496275,
+        "annualCents": 12903146
+      },
+      "tax": {
+        "fortnightlyCents": 272017,
+        "annualCents": 7072454
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 17000,
+        "annualCents": 442000
+      }
+    },
+    "expectedProposed": {
+      "oneOffCents": 0,
+      "available": {
+        "fortnightlyCents": 778506,
+        "annualCents": 20241146
+      },
+      "groups": {
+        "needs": {
+          "fortnightlyCents": 140000,
+          "annualCents": 3640000,
+          "portion": 0.17983162621739587
+        },
+        "wants": {
+          "fortnightlyCents": 6000,
+          "annualCents": 156000,
+          "portion": 0.007707069695031253
+        },
+        "discretionary": {
+          "fortnightlyCents": 20000,
+          "annualCents": 520000,
+          "portion": 0.02569023231677084
+        },
+        "temporary": {
+          "fortnightlyCents": 8000,
+          "annualCents": 208000,
+          "portion": 0.010276092926708336
+        },
+        "savings": {
+          "fortnightlyCents": 30000,
+          "annualCents": 780000,
+          "portion": 0.03853534847515626
+        },
+        "investments": {
+          "fortnightlyCents": 0,
+          "annualCents": 0,
+          "portion": 0
+        }
+      },
+      "allowances": [
+        {
+          "memberId": "m1",
+          "allowance": {
+            "fortnightlyCents": 15000,
+            "annualCents": 390000
+          },
+          "drawn": {
+            "fortnightlyCents": 4000,
+            "annualCents": 104000
+          },
+          "remaining": {
+            "fortnightlyCents": 11000,
+            "annualCents": 286000
+          }
+        }
+      ],
+      "outgoings": {
+        "fortnightlyCents": 174000,
+        "annualCents": 4524000
+      },
+      "savingsBlock": {
+        "fortnightlyCents": 30000,
+        "annualCents": 780000
+      },
+      "afterOutgoing": {
+        "fortnightlyCents": 604506,
+        "annualCents": 15717146
+      },
+      "afterSaving": {
+        "fortnightlyCents": 574506,
+        "annualCents": 14937146
+      },
+      "tax": {
+        "fortnightlyCents": 317017,
+        "annualCents": 8242454
+      },
+      "salarySacrifice": {
+        "fortnightlyCents": 17000,
+        "annualCents": 442000
+      }
+    }
+  }
+]

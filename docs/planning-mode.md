@@ -200,3 +200,11 @@ list, untouched.
    and the `/planning` screen.
 3. **Saving (this).** The `commit_planning_changes` RPC and the `/planning`
    screen's Save action.
+
+## Native app
+
+The iOS and macOS app has its own sandbox with the same layer shape, held in
+`UserDefaults` rather than `localStorage`, so the two are independent. The native
+Summary, Budget, Allowance, Planning and Planning mode screens apply it, compare
+against the real rows' figures, and save through the same `commit_planning_changes`
+RPC. See [`native-screens.md`](native-screens.md#planning-mode).

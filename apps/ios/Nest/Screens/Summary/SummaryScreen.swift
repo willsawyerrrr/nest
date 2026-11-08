@@ -5,6 +5,7 @@ import SwiftUI
 /// allowance progress and one-off money, computed by the shared engine.
 struct SummaryScreen: View {
     @State private var model: SummaryViewModel
+    private let planning = PlanningStore.shared
 
     init(model: SummaryViewModel = SummaryViewModel()) {
         _model = State(initialValue: model)
@@ -14,7 +15,7 @@ struct SummaryScreen: View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
             SummaryContentView(content: content, basis: $model.basis)
         }
-        .task { await model.load() }
+        .task(id: planning.revision) { await model.load() }
     }
 }
 
@@ -28,11 +29,14 @@ struct SummaryContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: NestSpacing.md) {
+                PlanningBanner()
                 if presentation.hasData {
                     AllocationCard(presentation: presentation, basis: $basis)
                     AllowanceCard(summary: content.summary, members: content.members)
                     cashFlowCard
-                    LedgerCard(presentation: presentation, basis: basis)
+                    LedgerCard(
+                        presentation: presentation, baseline: content.baseline.map(SummaryPresentation.init),
+                        basis: basis)
                     if content.summary.oneOffCents != 0 {
                         Text(
                             "\(MoneyFormat.cents(Int(content.summary.oneOffCents))) of one-off money lands this financial year — severance, a bonus, a gift. It is left out of every figure above, because money that arrives once has no fortnightly share to plan against."
@@ -191,7 +195,13 @@ private struct AllowanceCard: View {
 
 private struct LedgerCard: View {
     let presentation: SummaryPresentation
+    /// The real rows' presentation while planning mode is on.
+    let baseline: SummaryPresentation?
     let basis: IncomeBasis
+
+    private func baselineCents(_ row: LedgerRow) -> Int? {
+        baseline?.ledger(basis).first { $0.id == row.id }.map { Int($0.amounts.fortnightlyCents) }
+    }
 
     var body: some View {
         NestCard {
@@ -202,8 +212,11 @@ private struct LedgerCard: View {
                             .font(.system(size: 15, weight: row.running ? .bold : .regular))
                             .foregroundStyle(NestColor.text)
                         Spacer(minLength: NestSpacing.sm)
-                        MoneyText(cents: Int(row.amounts.fortnightlyCents), colouring: row.signed)
-                            .font(.system(size: 15, weight: .bold))
+                        ComparedAmount(
+                            baselineCents: baselineCents(row),
+                            proposedCents: Int(row.amounts.fortnightlyCents), colouring: row.signed
+                        )
+                        .font(.system(size: 15, weight: .bold))
                         Text(
                             SummaryPresentation.percent(
                                 presentation.portion(of: row.amounts.fortnightlyCents, basis: basis))

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { budgetOverview, isTemporaryActive } from '@nest/plan'
 import { toPlanAllowance, toPlanBudgetLine } from './allowances'
+import { derivedAmountContext } from './breakdowns'
 import type { Tables } from './database.types'
 import { summariseHousehold } from './summary'
 
@@ -186,7 +187,7 @@ describe('the native Budget parity fixture', () => {
       members: rows.members,
       goals: rows.savingsGoals,
       accounts: [],
-      derivedAmounts: new Map(),
+      derivedAmounts: derivedAmountContext([], [], [], [], null),
       temporaryItems: [],
       now: new Date(NOW),
     })

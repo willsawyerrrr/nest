@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import summaryFixture from '../../../ios/NestTests/Fixtures/summary-parity.json'
 import { derivedAmountContext } from './breakdowns'
 import type { Tables } from './database.types'
 import { applyOverrides, type PlanningState } from './planningMode'
@@ -16,7 +15,6 @@ import { summariseHousehold } from './summary'
  * run the bundled engine and must return identical figures.
  */
 const FIXTURE = '../../../ios/NestTests/Fixtures/planning-parity.json'
-const SUMMARY_FIXTURE = '../../../ios/NestTests/Fixtures/summary-parity.json'
 
 interface SummaryRows {
   inflows: Tables<'inflows'>[]
@@ -32,9 +30,7 @@ interface SummaryRows {
   savers: Tables<'accounts_with_balance'>[]
 }
 
-const [summary] = JSON.parse(
-  readFileSync(fileURLToPath(new URL(SUMMARY_FIXTURE, import.meta.url)), 'utf8'),
-) as [{ now: string; rows: SummaryRows }]
+const [summary] = summaryFixture as unknown as [{ now: string; rows: SummaryRows }]
 const { now, rows } = summary
 
 const STAMP = '2026-01-01T00:00:00Z'

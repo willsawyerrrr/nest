@@ -1,0 +1,410 @@
+import Foundation
+
+/// A Postgres row the native app reads. `CodingKeys` raw values are the exact
+/// column names, so `NestRowSchemaTests` can compare them with the generated
+/// PWA types and fail when a column is added, removed or renamed.
+protocol NestRow: Codable, Identifiable, Sendable, Equatable {
+    associatedtype CodingKeys: CodingKey & CaseIterable & RawRepresentable<String>
+    static var table: String { get }
+}
+
+/// Postgres enum `frequency`.
+enum Frequency: String, Codable, CaseIterable, Sendable {
+    case weekly
+    case fortnightly
+    case monthly
+    case annual
+    case quarterly
+    case biannual
+    case everyNWeeks = "every_n_weeks"
+    case everyNMonths = "every_n_months"
+}
+
+/// Postgres enum `budget_group`.
+enum BudgetGroup: String, Codable, CaseIterable, Sendable {
+    case needs
+    case wants
+    case discretionary
+    case savings
+    case investments
+}
+
+/// Postgres enum `account_type`.
+enum AccountType: String, Codable, CaseIterable, Sendable {
+    case transaction
+    case savings
+    case credit
+    case offset
+    case other
+    case homeLoan = "home_loan"
+}
+
+/// Postgres enum `ledger_source`.
+enum LedgerSource: String, Codable, CaseIterable, Sendable {
+    case up
+    case manual
+    case redbark
+}
+
+/// Postgres enum `inflow_type`.
+enum InflowType: String, Codable, CaseIterable, Sendable {
+    case salary
+    case wage
+    case other
+    case reimbursement
+    case hobby
+    case gift
+}
+
+/// Postgres enum `one_off_tax_treatment`.
+enum OneOffTaxTreatment: String, Codable, CaseIterable, Sendable {
+    case ordinary
+    case genuineRedundancy = "genuine_redundancy"
+    case employmentTermination = "employment_termination"
+    case unusedLeave = "unused_leave"
+}
+
+/// Postgres enum `deduction_basis`.
+enum DeductionBasis: String, Codable, CaseIterable, Sendable {
+    case amount
+    case distance
+    case hours
+}
+
+/// Postgres enum `deduction_category`.
+enum DeductionCategory: String, Codable, CaseIterable, Sendable {
+    case workExpense = "work_expense"
+    case donation
+    case taxAgentFees = "tax_agent_fees"
+}
+
+/// Row of `households`.
+struct Household: NestRow {
+    static let table = "households"
+
+    let createdAt: String
+    let id: String
+    let inviteCode: String?
+    let inviteCodeExpiresAt: String?
+    let name: String
+    let payAccountId: String?
+    let timezone: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case id
+        case inviteCode = "invite_code"
+        case inviteCodeExpiresAt = "invite_code_expires_at"
+        case name
+        case payAccountId = "pay_account_id"
+        case timezone
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `members`.
+struct Member: NestRow {
+    static let table = "members"
+
+    let createdAt: String
+    let dateOfBirth: String?
+    let email: String?
+    let householdId: String
+    let id: String
+    let name: String
+    let upConnectedAt: String?
+    let upSyncFailedAt: String?
+    let updatedAt: String
+    let userId: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case dateOfBirth = "date_of_birth"
+        case email
+        case householdId = "household_id"
+        case id
+        case name
+        case upConnectedAt = "up_connected_at"
+        case upSyncFailedAt = "up_sync_failed_at"
+        case updatedAt = "updated_at"
+        case userId = "user_id"
+    }
+}
+
+/// Row of `accounts`.
+struct Account: NestRow {
+    static let table = "accounts"
+
+    let createdAt: String
+    let currency: String
+    let deletedFromSourceAt: String?
+    let excludeFromNetWorth: Bool
+    let externalId: String?
+    let householdId: String
+    let id: String
+    let name: String
+    let ownerMemberId: String?
+    let source: LedgerSource
+    let type: AccountType
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case currency
+        case deletedFromSourceAt = "deleted_from_source_at"
+        case excludeFromNetWorth = "exclude_from_net_worth"
+        case externalId = "external_id"
+        case householdId = "household_id"
+        case id
+        case name
+        case ownerMemberId = "owner_member_id"
+        case source
+        case type
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `budget_line`.
+struct BudgetLine: NestRow {
+    static let table = "budget_line"
+
+    let allowanceMemberId: String?
+    let amountCents: Int
+    let breakdownId: String?
+    let createdAt: String
+    let destinationAccountId: String?
+    let frequency: Frequency
+    let giftRecipientMemberId: String?
+    let goalId: String?
+    let householdId: String
+    let id: String
+    let intervalCount: Int?
+    let isGiftLine: Bool
+    let lineGroup: BudgetGroup
+    let managementUrl: String?
+    let name: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case allowanceMemberId = "allowance_member_id"
+        case amountCents = "amount_cents"
+        case breakdownId = "breakdown_id"
+        case createdAt = "created_at"
+        case destinationAccountId = "destination_account_id"
+        case frequency
+        case giftRecipientMemberId = "gift_recipient_member_id"
+        case goalId = "goal_id"
+        case householdId = "household_id"
+        case id
+        case intervalCount = "interval_count"
+        case isGiftLine = "is_gift_line"
+        case lineGroup = "line_group"
+        case managementUrl = "management_url"
+        case name
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `savings_goal`.
+struct SavingsGoal: NestRow {
+    static let table = "savings_goal"
+
+    let annualInterestBps: Int?
+    let createdAt: String
+    let currentBalanceCents: Int
+    let householdId: String
+    let id: String
+    let linkedAccountId: String?
+    let name: String
+    let plannedContributionCents: Int?
+    let queuePosition: Int?
+    let targetAmountCents: Int
+    let targetDate: String?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case annualInterestBps = "annual_interest_bps"
+        case createdAt = "created_at"
+        case currentBalanceCents = "current_balance_cents"
+        case householdId = "household_id"
+        case id
+        case linkedAccountId = "linked_account_id"
+        case name
+        case plannedContributionCents = "planned_contribution_cents"
+        case queuePosition = "queue_position"
+        case targetAmountCents = "target_amount_cents"
+        case targetDate = "target_date"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `inflows`.
+struct Inflow: NestRow {
+    static let table = "inflows"
+
+    let amountCents: Int?
+    let arrivesEveryPayPeriod: Bool
+    let attractsSuper: Bool
+    let createdAt: String
+    let endsOn: String?
+    let hourlyRateCents: Int?
+    let hoursPerPeriod: Double?
+    let householdId: String
+    let id: String
+    let intervalCount: Int?
+    let isJoint: Bool
+    let memberId: String?
+    let memberSplitPercent: Double?
+    let name: String
+    let oneOffTaxTreatment: OneOffTaxTreatment?
+    let paidOn: String?
+    let payAnchorDate: String?
+    let payIntervalCount: Int?
+    let paySchedule: Frequency?
+    let schedule: Frequency?
+    let startsOn: String?
+    let taxable: Bool
+    let type: InflowType
+    let updatedAt: String
+    let yearsOfService: Double?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case arrivesEveryPayPeriod = "arrives_every_pay_period"
+        case attractsSuper = "attracts_super"
+        case createdAt = "created_at"
+        case endsOn = "ends_on"
+        case hourlyRateCents = "hourly_rate_cents"
+        case hoursPerPeriod = "hours_per_period"
+        case householdId = "household_id"
+        case id
+        case intervalCount = "interval_count"
+        case isJoint = "is_joint"
+        case memberId = "member_id"
+        case memberSplitPercent = "member_split_percent"
+        case name
+        case oneOffTaxTreatment = "one_off_tax_treatment"
+        case paidOn = "paid_on"
+        case payAnchorDate = "pay_anchor_date"
+        case payIntervalCount = "pay_interval_count"
+        case paySchedule = "pay_schedule"
+        case schedule
+        case startsOn = "starts_on"
+        case taxable
+        case type
+        case updatedAt = "updated_at"
+        case yearsOfService = "years_of_service"
+    }
+}
+
+/// Row of `payslip`.
+struct Payslip: NestRow {
+    static let table = "payslip"
+
+    let createdAt: String
+    let filePath: String?
+    let financialYear: Int
+    let grossCents: Int
+    let householdId: String
+    let id: String
+    let memberId: String
+    let netCents: Int
+    let note: String?
+    let paidOn: String?
+    let periodEnd: String
+    let periodStart: String
+    let salarySacrificeCents: Int?
+    let superCents: Int
+    let taxWithheldCents: Int
+    let updatedAt: String
+    let ytdGrossCents: Int?
+    let ytdSuperCents: Int?
+    let ytdTaxWithheldCents: Int?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case filePath = "file_path"
+        case financialYear = "financial_year"
+        case grossCents = "gross_cents"
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case netCents = "net_cents"
+        case note
+        case paidOn = "paid_on"
+        case periodEnd = "period_end"
+        case periodStart = "period_start"
+        case salarySacrificeCents = "salary_sacrifice_cents"
+        case superCents = "super_cents"
+        case taxWithheldCents = "tax_withheld_cents"
+        case updatedAt = "updated_at"
+        case ytdGrossCents = "ytd_gross_cents"
+        case ytdSuperCents = "ytd_super_cents"
+        case ytdTaxWithheldCents = "ytd_tax_withheld_cents"
+    }
+}
+
+/// Row of `deduction`.
+struct Deduction: NestRow {
+    static let table = "deduction"
+
+    let amountCents: Int
+    let basis: DeductionBasis
+    let category: DeductionCategory
+    let createdAt: String
+    let deductionDate: String
+    let description: String
+    let distanceKm: Double?
+    let financialYear: Int
+    let fullAmountCents: Int
+    let groupId: String?
+    let householdId: String
+    let id: String
+    let memberId: String
+    let updatedAt: String
+    let workFromHomeHours: Double?
+    let workUsePercent: Double
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case basis
+        case category
+        case createdAt = "created_at"
+        case deductionDate = "deduction_date"
+        case description
+        case distanceKm = "distance_km"
+        case financialYear = "financial_year"
+        case fullAmountCents = "full_amount_cents"
+        case groupId = "group_id"
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case updatedAt = "updated_at"
+        case workFromHomeHours = "work_from_home_hours"
+        case workUsePercent = "work_use_percent"
+    }
+}
+
+/// Row of `pay_split`.
+struct PaySplit: NestRow {
+    static let table = "pay_split"
+
+    let accountId: String
+    let confirmedAt: String
+    let confirmedFortnightlyCents: Int
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case accountId = "account_id"
+        case confirmedAt = "confirmed_at"
+        case confirmedFortnightlyCents = "confirmed_fortnightly_cents"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case updatedAt = "updated_at"
+    }
+}

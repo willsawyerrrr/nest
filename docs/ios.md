@@ -469,6 +469,46 @@ has no simulator: running it is already the "real device" case, and
 `Metadata.appintents` is produced and validated in its build product exactly as
 it is for iOS.
 
+## Native data layer
+
+`Nest/Data/` is the data access the native screens build on, over the same
+Supabase session as the Intents (`supabaseAuth`), with no Functions or PostgREST
+SDK products — plain `URLSession` requests carrying the user's bearer token and
+the anon key.
+
+- **`SupabaseAPI`** — typed PostgREST `select` / `insert` / `update` / `delete`
+  (a delete with no filter is refused), RPC (`rpc` for a result, `call` for a
+  side effect), Storage signed URLs and edge-function `invoke`. The transport and
+  token provider are injected, so tests stub the network with a closure.
+- **Models** (`Models.swift`) — hand-written `Codable` rows for `households`,
+  `members`, `accounts`, `budget_line`, `savings_goal`, `inflows`, `payslip`,
+  `deduction` and `pay_split`, plus the Postgres enums they use. Dates and
+  timestamps stay ISO strings; each model's `CodingKeys` raw values are the exact
+  column names. Types are hand-written rather than generated: the app has no
+  TypeScript or codegen toolchain, a screen needs a handful of tables, and
+  `NestRowSchemaTests` compares every model's columns and every enum's values
+  with `apps/pwa/src/lib/database.types.ts` (generated from the migrations), so a
+  column or enum change fails the iOS build until the model follows. Further
+  tables are added the same way.
+- **`RowCache`** — the last-fetched rows of each query as JSON files under
+  `Caches/NestRows/<user id>/` (`<table>__<digest of the query>.json`), a plain
+  file store that behaves identically on iOS, Catalyst and macOS. The system may
+  purge it; a missing or unreadable file is a cache miss. Entries are scoped per
+  user id, and `NestData.live` clears the whole cache when the session ends.
+- **`NestData`** — `rows(_:filters:order:limit:)` returns a stream that yields the
+  cached rows first (`Snapshot.isCached == true`), then the fetched rows, which
+  replace the cache. A failed fetch ends the stream with a `NestError` after any
+  cached snapshot. Every write (`insert`, `update`, `delete`, `call`) drops the
+  cached queries of its own table plus any `also` / `invalidating` tables it
+  affects — even when the write fails, since the server may have applied it.
+- **`NestError`** — every failure surfaces as a `NestError` with a stable `code`
+  (`unauthenticated`, `forbidden`, `not_found`, `conflict`, `invalid_request`,
+  `rate_limited`, `offline`, `timeout`, `server`, `decoding`, `unknown`) and a
+  fixed `userMessage` per code. The code comes from the HTTP status, refined by
+  the upstream JSON `code` (PostgREST `PGRST301`, Postgres SQLSTATE classes
+  `42501`, `23505`, `22`/`23`); `URLError`s map to `offline` / `timeout`, decode
+  failures to `decoding`. Upstream message text is never read or shown.
+
 ## Project structure
 
 - `project.yml` — [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; the
@@ -481,7 +521,8 @@ it is for iOS.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
   `DesignSystem/`, `WebView.swift`,
   `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`,
-  `PushNotifications.swift`, `NestAppDelegate+iOS.swift` /
+  `PushNotifications.swift`, `Data/` (the [native data layer](#native-data-layer)),
+  `NestAppDelegate+iOS.swift` /
   `NestAppDelegate+macOS.swift`, and `Intents/`. The iOS/macOS divergence in
   `Auth.swift`, `ContentView.swift`, `NestAppDelegate+*.swift`, and
   `NestApp.swift` lives in per-platform `+iOS`/`+macOS` files excluded per
@@ -498,8 +539,9 @@ it is for iOS.
   the share inbox (storing, limits, ordering, cleanup, hand-off scripts), and for
   push registration (token encoding, notification routes, the register/unregister
   requests, and the registrar's retry behaviour), money formatting and sign
-  colour, the route table and route-to-URL mapping, and for `Engine` (the parity
-  fixtures in `NestTests/Fixtures/`).
+  colour, the route table and route-to-URL mapping, for the data layer (request
+  shapes, error mapping, the row cache and its invalidation, and the model-vs-schema
+  drift guard), and for `Engine` (the parity fixtures in `NestTests/Fixtures/`).
 
 See [`apps/ios/README.md`](../apps/ios/README.md) for build and sign-in-flow
 instructions.

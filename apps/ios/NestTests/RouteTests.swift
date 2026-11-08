@@ -33,13 +33,14 @@ struct RouteTests {
         #expect(Route.allCases.filter { $0.section == nil } == [.planning, .allowance, .whatsNew])
     }
 
-    @Test func nativeRoutesAreSummaryAndEveryOtherRouteIsTheWebFallback() {
+    @Test func nativeRoutesAreSummaryAndBreakdownsAndEveryOtherRouteIsTheWebFallback() {
+        let native: Set<Route> = [.summary, .breakdowns]
         for route in Route.allCases {
             switch route.content {
             case .native:
-                #expect(route == .summary)
+                #expect(native.contains(route))
             case .web(let path):
-                #expect(route != .summary)
+                #expect(!native.contains(route))
                 #expect(path == route.path)
             }
         }

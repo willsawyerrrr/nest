@@ -95,3 +95,20 @@ struct GoalQueueProjection: Codable, Equatable, Sendable {
     var active: [GoalProjection]
     var queued: [QueuedGoalProjection]
 }
+
+/// The breakdowns' roll-up: each breakdown's totals and each item's fortnightly figure.
+struct BreakdownRollups: Codable, Equatable, Sendable {
+    struct Total: Codable, Equatable, Sendable {
+        var breakdownId: String
+        var annualCents: Int64
+        var fortnightlyCents: Int64
+    }
+
+    struct ItemFortnightly: Codable, Equatable, Sendable {
+        var itemId: String
+        var fortnightlyCents: Int64
+    }
+
+    var totals: [Total]
+    var items: [ItemFortnightly]
+}

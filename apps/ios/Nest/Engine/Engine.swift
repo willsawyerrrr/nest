@@ -15,6 +15,7 @@ actor Engine {
         case estimateTax
         case summariseHousehold
         case projectGoalQueue
+        case summariseBreakdowns
     }
 
     enum Failure: Error, Equatable {
@@ -82,5 +83,10 @@ actor Engine {
     /// The savings-goal queue's projected start and completion dates.
     func projectGoalQueue(_ input: some Encodable) throws -> GoalQueueProjection {
         try call(.projectGoalQueue, input)
+    }
+
+    /// Each breakdown's rolled-up totals and each item's fortnightly figure.
+    func summariseBreakdowns(_ input: some Encodable) throws -> BreakdownRollups {
+        try call(.summariseBreakdowns, input)
     }
 }

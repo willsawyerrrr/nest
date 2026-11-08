@@ -28,8 +28,10 @@ import SwiftUI
             Button("Save") {}.buttonStyle(NestPrimaryButtonStyle())
             NestCard { NestBarChart(points: points).frame(height: 160) }
             NestCard { NestLineChart(points: points).frame(height: 160) }
-            ErrorView(title: "Couldn't load", message: "Check your connection and try again.", onRetry: {})
-                .frame(height: 240)
+            ErrorView(
+                title: "Couldn't load", message: "Check your connection and try again.", onRetry: {}
+            )
+            .frame(height: 240)
         }
         .padding(NestSpacing.md)
     }

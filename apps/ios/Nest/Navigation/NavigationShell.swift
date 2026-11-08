@@ -3,18 +3,18 @@ import SwiftUI
 /// The signed-in shell: a tab bar on iPhone, a sidebar on iPad and Mac.
 struct NavigationShell: View {
     #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var sizeClass
+        @Environment(\.horizontalSizeClass) private var sizeClass
     #endif
 
     var body: some View {
         #if os(iOS)
-        if sizeClass == .compact {
-            TabShell()
-        } else {
-            SidebarShell()
-        }
+            if sizeClass == .compact {
+                TabShell()
+            } else {
+                SidebarShell()
+            }
         #else
-        SidebarShell()
+            SidebarShell()
         #endif
     }
 }
@@ -96,7 +96,7 @@ struct RouteScreen: View {
         }
         .navigationTitle(route.title)
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
     }
 }

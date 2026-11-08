@@ -8,7 +8,10 @@ struct NestCard<Content: View>: View {
         content
             .padding(NestSpacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(NestColor.surface, in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous))
+            .background(
+                NestColor.surface,
+                in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
                     .strokeBorder(NestColor.border, lineWidth: 1)
@@ -91,7 +94,9 @@ struct NestPill: View {
             .foregroundStyle(tone.color)
             .padding(.horizontal, NestSpacing.xs)
             .padding(.vertical, NestSpacing.xxs)
-            .background(tone.color.opacity(0.16), in: RoundedRectangle(cornerRadius: NestRadius.sm, style: .continuous))
+            .background(
+                tone.color.opacity(0.16),
+                in: RoundedRectangle(cornerRadius: NestRadius.sm, style: .continuous))
     }
 }
 
@@ -102,7 +107,10 @@ struct NestTextFieldStyle: TextFieldStyle {
             .font(NestFont.body)
             .foregroundStyle(NestColor.text)
             .padding(NestSpacing.sm)
-            .background(NestColor.surface, in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous))
+            .background(
+                NestColor.surface,
+                in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
                     .strokeBorder(NestColor.border, lineWidth: 1)
@@ -135,7 +143,10 @@ struct NestPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(NestColor.onBrand)
             .frame(maxWidth: .infinity)
             .padding(.vertical, NestSpacing.sm)
-            .background(NestColor.brand, in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous))
+            .background(
+                NestColor.brand,
+                in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
+            )
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }

@@ -90,7 +90,8 @@ private struct SignInView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 56, height: 56)
-                .background(NestColor.markTile, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(
+                    NestColor.markTile, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             Text("nest")
                 .font(.system(size: 50, weight: .semibold, design: .rounded))
                 .foregroundStyle(NestColor.text)

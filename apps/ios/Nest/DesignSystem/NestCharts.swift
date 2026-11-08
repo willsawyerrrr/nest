@@ -9,9 +9,9 @@ struct ChartPoint: Identifiable, Sendable {
     var id: String { "\(series.rawValue)/\(x)" }
 }
 
-private extension View {
+extension View {
     /// Token-styled axes: hairline grids, dimmed compact-dollar labels.
-    func nestChartAxes() -> some View {
+    fileprivate func nestChartAxes() -> some View {
         chartYAxis {
             AxisMarks { value in
                 AxisGridLine().foregroundStyle(NestColor.border)

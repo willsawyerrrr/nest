@@ -45,7 +45,9 @@ struct RouteTests {
 
     @Test func mapsRoutesToWebURLs() {
         let base = URL(string: "https://example.com")!
-        #expect(Route.url(forPath: "/summary", base: base).absoluteString == "https://example.com/summary")
+        #expect(
+            Route.url(forPath: "/summary", base: base).absoluteString
+                == "https://example.com/summary")
         #expect(
             Route.url(forPath: "/settings/account", base: base).absoluteString
                 == "https://example.com/settings/account")

@@ -105,6 +105,10 @@ rotating one refresh token evict each other.
   `window.__nestClearSession`, posts to `nestReady`, and routes the in-app sign-out through the
   `nestAuth` handler; `AuthGate` shows the loading screen (never the web
   sign-in screen) in the shell until the injected session lands.
+  `App` omits its own `TabBar` (sidebar, mobile top bar and drawer) in the shell,
+  since the native tab bar owns navigation; `.app-shell--native` drops the
+  padding that reserved room for that chrome, leaving page content and each
+  page's own header.
 
 The native session is still Keychain-stored and still read in process by the
 Intents — that part is unchanged; what changed is that it is now also the web

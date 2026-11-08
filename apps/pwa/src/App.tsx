@@ -245,8 +245,9 @@ function HouseholdShell({
   onRevokeInviteCode: () => Promise<void>
 }) {
   const { active: planningActive } = usePlanningMode()
+  const native = isNativeShell()
   return (
-    <div className="app-shell">
+    <div className={native ? 'app-shell app-shell--native' : 'app-shell'}>
       <main className="page">
         <SharedFilesRedirect />
         <PlanningModeBanner />
@@ -301,7 +302,7 @@ function HouseholdShell({
           </Routes>
         </Suspense>
       </main>
-      <TabBar sections={navSections(planningActive)} />
+      {!native && <TabBar sections={navSections(planningActive)} />}
     </div>
   )
 }

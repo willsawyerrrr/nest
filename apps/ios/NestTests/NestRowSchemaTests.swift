@@ -68,6 +68,8 @@ import Testing
         check(TemporaryItem.self)
         check(MemberAllowance.self)
         check(AccountWithBalance.self)
+        check(Breakdown.self)
+        check(BreakdownItem.self)
     }
 
     @Test func enumsMatchThePostgresEnums() {
@@ -82,6 +84,7 @@ import Testing
         #expect(values(OneOffTaxTreatment.self) == enumValues("one_off_tax_treatment"))
         #expect(values(DeductionBasis.self) == enumValues("deduction_basis"))
         #expect(values(DeductionCategory.self) == enumValues("deduction_category"))
+        #expect(values(BreakdownKind.self) == enumValues("breakdown_kind"))
         #expect(values(TaxResidency.self) == enumValues("tax_residency"))
         #expect(values(SuperContributionKind.self) == enumValues("super_contribution_kind"))
         #expect(values(SuperContributionMode.self) == enumValues("super_contribution_mode"))

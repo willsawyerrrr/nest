@@ -11,10 +11,12 @@ import {
   type SummaryParityCase,
   type TaxParityCase,
 } from '../../household/src/goldenCases.ts'
+import type { BreakdownItemInput, BreakdownsInput } from './breakdowns.ts'
 import type { EstimateInput } from './estimate.ts'
 import type { GoalQueueInput } from './index.ts'
 
-export type ParityEntry = 'estimateTax' | 'summariseHousehold' | 'projectGoalQueue'
+export type ParityEntry =
+  'estimateTax' | 'summariseHousehold' | 'projectGoalQueue' | 'summariseBreakdowns'
 
 export interface ParityCase {
   name: string
@@ -134,6 +136,30 @@ const summaryInput = (parityCase: SummaryParityCase) => ({
   now: parityCase.nowIso,
 })
 
+const breakdownItem = (
+  id: string,
+  breakdown_id: string,
+  amount_cents: number,
+  frequency: BreakdownItemInput['frequency'],
+  interval_count: number | null = null,
+): BreakdownItemInput => ({ id, breakdown_id, amount_cents, frequency, interval_count })
+
+/** Every frequency kind, including the interval ones that round, across two breakdowns and an empty one. */
+const breakdownRollupCase: BreakdownsInput = {
+  breakdownIds: ['b1', 'b2', 'b3'],
+  items: [
+    breakdownItem('i1', 'b1', 300_00, 'monthly'),
+    breakdownItem('i2', 'b1', 400_00, 'quarterly'),
+    breakdownItem('i3', 'b1', 25_00, 'weekly'),
+    breakdownItem('i4', 'b2', 1_000_00, 'annual'),
+    breakdownItem('i5', 'b2', 333_33, 'every_n_weeks', 3),
+    breakdownItem('i6', 'b2', 777_77, 'every_n_months', 5),
+    breakdownItem('i7', 'b2', 1_00, 'every_n_weeks'),
+    breakdownItem('i8', 'b2', 90_00, 'biannual'),
+    breakdownItem('i9', 'b2', 40_00, 'fortnightly'),
+  ],
+}
+
 export const parityCases: ParityCase[] = [
   ...taxParityCases.map((parityCase) => ({
     name: `tax estimate: ${parityCase.label}`,
@@ -155,4 +181,9 @@ export const parityCases: ParityCase[] = [
     entry: 'projectGoalQueue' as const,
     input,
   })),
+  {
+    name: 'breakdown roll-up: every frequency',
+    entry: 'summariseBreakdowns',
+    input: breakdownRollupCase,
+  },
 ]

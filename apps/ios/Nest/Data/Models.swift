@@ -78,6 +78,11 @@ enum DeductionCategory: String, Codable, CaseIterable, Sendable {
     case taxAgentFees = "tax_agent_fees"
 }
 
+/// Postgres enum `breakdown_kind`.
+enum BreakdownKind: String, Codable, CaseIterable, Sendable {
+    case generic
+}
+
 /// Postgres enum `tax_residency`.
 enum TaxResidency: String, Codable, CaseIterable, Sendable {
     case resident
@@ -594,6 +599,56 @@ struct AccountWithBalance: NestRow {
         case ownerMemberId = "owner_member_id"
         case source
         case type
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `breakdown`.
+struct Breakdown: NestRow {
+    static let table = "breakdown"
+
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let kind: BreakdownKind
+    let lineGroup: BudgetGroup
+    let name: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case kind
+        case lineGroup = "line_group"
+        case name
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `breakdown_item`.
+struct BreakdownItem: NestRow {
+    static let table = "breakdown_item"
+
+    let amountCents: Int
+    let breakdownId: String
+    let createdAt: String
+    let frequency: Frequency
+    let householdId: String
+    let id: String
+    let intervalCount: Int?
+    let name: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case breakdownId = "breakdown_id"
+        case createdAt = "created_at"
+        case frequency
+        case householdId = "household_id"
+        case id
+        case intervalCount = "interval_count"
+        case name
         case updatedAt = "updated_at"
     }
 }

@@ -78,9 +78,12 @@ import Testing
         #expect(try JSONDecoder().decode(JSONValue.self, from: output) == fixture.expected)
     }
 
-    @Test func coversTheTaxEstimateTheBufferAndTheGoalQueue() {
+    @Test func coversEveryEngineEntry() {
         let entries = Set(Self.fixtures.map(\.entry))
-        #expect(entries == ["estimateTax", "summariseHousehold", "projectGoalQueue"])
+        #expect(
+            entries == [
+                "estimateTax", "summariseHousehold", "projectGoalQueue", "summariseBreakdowns",
+            ])
     }
 
     @Test func decodesTheMicrodollarTradeEstimateToExactCents() async throws {

@@ -242,6 +242,11 @@ Owned by a breakdown; every breakdown is generic.
   with its name, group, and rolled-up fortnightly + annual total, plus a
   **New breakdown** action (a name and a group). Gift lines never appear here. Each
   row taps through to `/breakdowns/:id`.
+  On iOS and macOS the route is native (`BreakdownsScreen`): the list and each
+  breakdown's detail (its items, each item's cadence and fortnightly figure, and the
+  rolled-up totals) are read-only for now — creating, editing and deleting a
+  breakdown or item still happens in the web app. See
+  [`native-screens.md`](native-screens.md#breakdowns).
 - **Gifts tab** (route `/gifts`, in the Plan group of `NAV_SECTIONS`) — the
   unified gift planner and the
   sole place gifts are managed, showing every recipient, occasion, budget, and

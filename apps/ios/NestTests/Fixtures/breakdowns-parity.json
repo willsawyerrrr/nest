@@ -1,0 +1,149 @@
+[
+  {
+    "name": "three breakdowns",
+    "rows": {
+      "breakdowns": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Utilities",
+          "line_group": "needs",
+          "kind": "generic"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "Medications",
+          "line_group": "needs",
+          "kind": "generic"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Holiday extras",
+          "line_group": "wants",
+          "kind": "generic"
+        }
+      ],
+      "items": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "power",
+          "breakdown_id": "b1",
+          "name": "power",
+          "amount_cents": 30000,
+          "frequency": "monthly",
+          "interval_count": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "water",
+          "breakdown_id": "b1",
+          "name": "water",
+          "amount_cents": 40000,
+          "frequency": "quarterly",
+          "interval_count": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "internet",
+          "breakdown_id": "b1",
+          "name": "internet",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "script",
+          "breakdown_id": "b2",
+          "name": "script",
+          "amount_cents": 33333,
+          "frequency": "every_n_weeks",
+          "interval_count": 3
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "vitamins",
+          "breakdown_id": "b2",
+          "name": "vitamins",
+          "amount_cents": 77777,
+          "frequency": "every_n_months",
+          "interval_count": 5
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "checkup",
+          "breakdown_id": "b2",
+          "name": "checkup",
+          "amount_cents": 9000,
+          "frequency": "biannual",
+          "interval_count": null
+        }
+      ]
+    },
+    "expected": {
+      "totals": [
+        {
+          "breakdownId": "b1",
+          "annualCents": 650000,
+          "fortnightlyCents": 25000
+        },
+        {
+          "breakdownId": "b2",
+          "annualCents": 782437,
+          "fortnightlyCents": 30094
+        },
+        {
+          "breakdownId": "b3",
+          "annualCents": 0,
+          "fortnightlyCents": 0
+        }
+      ],
+      "items": [
+        {
+          "itemId": "power",
+          "fortnightlyCents": 13846
+        },
+        {
+          "itemId": "water",
+          "fortnightlyCents": 6154
+        },
+        {
+          "itemId": "internet",
+          "fortnightlyCents": 5000
+        },
+        {
+          "itemId": "script",
+          "fortnightlyCents": 22222
+        },
+        {
+          "itemId": "vitamins",
+          "fortnightlyCents": 7179
+        },
+        {
+          "itemId": "checkup",
+          "fortnightlyCents": 692
+        }
+      ]
+    }
+  }
+]

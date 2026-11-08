@@ -1718,5 +1718,138 @@
         }
       ]
     }
+  },
+  {
+    "name": "breakdown roll-up: every frequency",
+    "entry": "summariseBreakdowns",
+    "input": {
+      "breakdownIds": [
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "items": [
+        {
+          "id": "i1",
+          "breakdown_id": "b1",
+          "amount_cents": 30000,
+          "frequency": "monthly",
+          "interval_count": null
+        },
+        {
+          "id": "i2",
+          "breakdown_id": "b1",
+          "amount_cents": 40000,
+          "frequency": "quarterly",
+          "interval_count": null
+        },
+        {
+          "id": "i3",
+          "breakdown_id": "b1",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null
+        },
+        {
+          "id": "i4",
+          "breakdown_id": "b2",
+          "amount_cents": 100000,
+          "frequency": "annual",
+          "interval_count": null
+        },
+        {
+          "id": "i5",
+          "breakdown_id": "b2",
+          "amount_cents": 33333,
+          "frequency": "every_n_weeks",
+          "interval_count": 3
+        },
+        {
+          "id": "i6",
+          "breakdown_id": "b2",
+          "amount_cents": 77777,
+          "frequency": "every_n_months",
+          "interval_count": 5
+        },
+        {
+          "id": "i7",
+          "breakdown_id": "b2",
+          "amount_cents": 100,
+          "frequency": "every_n_weeks",
+          "interval_count": null
+        },
+        {
+          "id": "i8",
+          "breakdown_id": "b2",
+          "amount_cents": 9000,
+          "frequency": "biannual",
+          "interval_count": null
+        },
+        {
+          "id": "i9",
+          "breakdown_id": "b2",
+          "amount_cents": 4000,
+          "frequency": "fortnightly",
+          "interval_count": null
+        }
+      ]
+    },
+    "expected": {
+      "totals": [
+        {
+          "breakdownId": "b1",
+          "annualCents": 650000,
+          "fortnightlyCents": 25000
+        },
+        {
+          "breakdownId": "b2",
+          "annualCents": 986437,
+          "fortnightlyCents": 37940
+        },
+        {
+          "breakdownId": "b3",
+          "annualCents": 0,
+          "fortnightlyCents": 0
+        }
+      ],
+      "items": [
+        {
+          "itemId": "i1",
+          "fortnightlyCents": 13846
+        },
+        {
+          "itemId": "i2",
+          "fortnightlyCents": 6154
+        },
+        {
+          "itemId": "i3",
+          "fortnightlyCents": 5000
+        },
+        {
+          "itemId": "i4",
+          "fortnightlyCents": 3846
+        },
+        {
+          "itemId": "i5",
+          "fortnightlyCents": 22222
+        },
+        {
+          "itemId": "i6",
+          "fortnightlyCents": 7179
+        },
+        {
+          "itemId": "i7",
+          "fortnightlyCents": 0
+        },
+        {
+          "itemId": "i8",
+          "fortnightlyCents": 692
+        },
+        {
+          "itemId": "i9",
+          "fortnightlyCents": 4000
+        }
+      ]
+    }
   }
 ]

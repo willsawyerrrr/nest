@@ -74,8 +74,10 @@ private struct SidebarShell: View {
             .navigationTitle("Nest")
         } detail: {
             if let selection {
-                RouteScreen(route: selection)
-                    .id(selection)
+                NavigationStack {
+                    RouteScreen(route: selection)
+                }
+                .id(selection)
             }
         }
     }

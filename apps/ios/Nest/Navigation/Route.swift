@@ -119,6 +119,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
     var content: RouteContent {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
+        case .breakdowns: .native(AnyView(BreakdownsScreen()))
         default: .web(path: path)
         }
     }

@@ -10,4 +10,10 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func summariseBreakdowns(_ input: BreakdownsInput) async throws -> BreakdownRollups {
+        do { return try await shared.value.summariseBreakdowns(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

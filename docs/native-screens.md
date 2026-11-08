@@ -81,3 +81,28 @@ accessibility description. That is a self-contained chart with no effect on any
 figure, and the web version already reads the same engine output. The Summary
 shows a card that opens the web Summary page in a sheet. When the chart goes
 native it replaces that card.
+
+## Breakdowns
+
+`Route.breakdowns` is native (`BreakdownsScreen`): the household's breakdowns, each
+with its group and rolled-up fortnightly and annual totals, pushing a detail screen
+with the breakdown's items (amount, cadence, fortnightly figure) and its totals.
+The list and the detail share one `BreakdownsViewModel` (`breakdown` and
+`breakdown_item`, each ordered by name as the PWA reads them), so opening a detail
+loads nothing more and shows the same snapshot, cached then fresh. Both are
+read-only for now; creating, editing and deleting still happen in the web app.
+
+Totals come from the engine's `summariseBreakdowns` (in `packages/js-core`), which
+annualises every item with `@nest/plan`'s `annualCents`, sums per breakdown, and
+draws the fortnightly figure with `fortnightlyCents`, the PWA's own roll-up.
+`BreakdownsPresentation` only looks the figures up and labels them (group and
+cadence labels mirror `groupLabel` and `formatFrequency`). Parity is held by
+`apps/pwa/src/lib/breakdownsParity.test.ts`, which computes the totals with the
+PWA's `derivedAmountContext` and `breakdownTotalsByBreakdownId` and snapshots rows
+and figures into `apps/ios/NestTests/Fixtures/breakdowns-parity.json`;
+`BreakdownsParityTests` runs the same rows through `BreakdownsRows.input` and the
+bundled engine and asserts identical figures.
+
+A detail is pushed with `NavigationLink(value:)`, so both shells host the route in a
+`NavigationStack` (the sidebar shell's detail column is wrapped in one, as each tab
+already is).

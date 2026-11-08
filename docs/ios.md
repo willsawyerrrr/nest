@@ -28,9 +28,10 @@ Each tab is a section whose routes list and push their screens; Summary is one
 route and shows it directly.
 
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
-route is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
+route not yet native is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
 path in `WebView` (with its session mirroring) and shows `ErrorView` with a
-retry on failure. A screen migrates by returning `.native` for its route. The
+retry on failure. A screen migrates by returning `.native` for its route (the Summary is native;
+see [`native-screens.md`](native-screens.md) for the screen pattern). The
 shell shows one web view at a time, recreated when the route changes.
 
 ### Native design system
@@ -519,7 +520,7 @@ the anon key.
   Catalyst outright. The generated `Nest.xcodeproj` and `Nest/Info.plist` are
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
-  `DesignSystem/`, `WebView.swift`,
+  `DesignSystem/`, `Screens/` (the [native screens](native-screens.md)), `WebView.swift`,
   `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`,
   `PushNotifications.swift`, `Data/` (the [native data layer](#native-data-layer)),
   `NestAppDelegate+iOS.swift` /

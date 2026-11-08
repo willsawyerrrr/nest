@@ -62,6 +62,12 @@ import Testing
         check(Payslip.self)
         check(Deduction.self)
         check(PaySplit.self)
+        check(TaxProfile.self)
+        check(SuperContribution.self)
+        check(HelpDebt.self)
+        check(TemporaryItem.self)
+        check(MemberAllowance.self)
+        check(AccountWithBalance.self)
     }
 
     @Test func enumsMatchThePostgresEnums() {
@@ -76,6 +82,9 @@ import Testing
         #expect(values(OneOffTaxTreatment.self) == enumValues("one_off_tax_treatment"))
         #expect(values(DeductionBasis.self) == enumValues("deduction_basis"))
         #expect(values(DeductionCategory.self) == enumValues("deduction_category"))
+        #expect(values(TaxResidency.self) == enumValues("tax_residency"))
+        #expect(values(SuperContributionKind.self) == enumValues("super_contribution_kind"))
+        #expect(values(SuperContributionMode.self) == enumValues("super_contribution_mode"))
     }
 
     @Test func decodesARowWithEveryColumn() throws {

@@ -33,13 +33,15 @@ struct RouteTests {
         #expect(Route.allCases.filter { $0.section == nil } == [.planning, .allowance, .whatsNew])
     }
 
-    @Test func everyRouteStartsAsWebFallback() {
+    @Test func nativeRoutesAreSummaryAndEveryOtherRouteIsTheWebFallback() {
         for route in Route.allCases {
-            guard case .web(let path) = route.content else {
-                Issue.record("\(route) is not a web fallback")
-                continue
+            switch route.content {
+            case .native:
+                #expect(route == .summary)
+            case .web(let path):
+                #expect(route != .summary)
+                #expect(path == route.path)
             }
-            #expect(path == route.path)
         }
     }
 

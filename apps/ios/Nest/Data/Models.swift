@@ -78,6 +78,26 @@ enum DeductionCategory: String, Codable, CaseIterable, Sendable {
     case taxAgentFees = "tax_agent_fees"
 }
 
+/// Postgres enum `tax_residency`.
+enum TaxResidency: String, Codable, CaseIterable, Sendable {
+    case resident
+    case foreignResident = "foreign_resident"
+}
+
+/// Postgres enum `super_contribution_kind`.
+enum SuperContributionKind: String, Codable, CaseIterable, Sendable {
+    case salarySacrifice = "salary_sacrifice"
+    case personalDeductible = "personal_deductible"
+    case personalNonConcessional = "personal_non_concessional"
+    case spouse
+}
+
+/// Postgres enum `super_contribution_mode`.
+enum SuperContributionMode: String, Codable, CaseIterable, Sendable {
+    case amount
+    case percent
+}
+
 /// Row of `households`.
 struct Household: NestRow {
     static let table = "households"
@@ -405,6 +425,175 @@ struct PaySplit: NestRow {
         case createdAt = "created_at"
         case householdId = "household_id"
         case id
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `tax_profile`.
+struct TaxProfile: NestRow {
+    static let table = "tax_profile"
+
+    let createdAt: String
+    let financialYear: Int
+    let hasPrivateHospitalCover: Bool
+    let householdId: String
+    let id: String
+    let memberId: String
+    let residency: TaxResidency
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case financialYear = "financial_year"
+        case hasPrivateHospitalCover = "has_private_hospital_cover"
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case residency
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `super_contribution`.
+struct SuperContribution: NestRow {
+    static let table = "super_contribution"
+
+    let amountCents: Int?
+    let contributorMemberId: String?
+    let createdAt: String
+    let fhssEligible: Bool
+    let financialYear: Int
+    let frequency: Frequency
+    let householdId: String
+    let id: String
+    let intervalCount: Int?
+    let kind: SuperContributionKind
+    let memberId: String
+    let mode: SuperContributionMode
+    let percentBp: Int?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case contributorMemberId = "contributor_member_id"
+        case createdAt = "created_at"
+        case fhssEligible = "fhss_eligible"
+        case financialYear = "financial_year"
+        case frequency
+        case householdId = "household_id"
+        case id
+        case intervalCount = "interval_count"
+        case kind
+        case memberId = "member_id"
+        case mode
+        case percentBp = "percent_bp"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `help_debt`.
+struct HelpDebt: NestRow {
+    static let table = "help_debt"
+
+    let balanceCents: Int
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let memberId: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case balanceCents = "balance_cents"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `temporary_item`.
+struct TemporaryItem: NestRow {
+    static let table = "temporary_item"
+
+    let contributionCents: Int
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let name: String
+    let targetDate: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case contributionCents = "contribution_cents"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case name
+        case targetDate = "target_date"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `member_allowance`.
+struct MemberAllowance: NestRow {
+    static let table = "member_allowance"
+
+    let amountCents: Int
+    let createdAt: String
+    let destinationAccountId: String?
+    let frequency: Frequency
+    let householdId: String
+    let id: String
+    let intervalCount: Int?
+    let memberId: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case createdAt = "created_at"
+        case destinationAccountId = "destination_account_id"
+        case frequency
+        case householdId = "household_id"
+        case id
+        case intervalCount = "interval_count"
+        case memberId = "member_id"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of the `accounts_with_balance` view: an account and its latest balance.
+/// The view's columns are all nullable.
+struct AccountWithBalance: NestRow {
+    static let table = "accounts_with_balance"
+
+    let balanceCents: Int?
+    let createdAt: String?
+    let currency: String?
+    let deletedFromSourceAt: String?
+    let excludeFromNetWorth: Bool?
+    let externalId: String?
+    let householdId: String?
+    let id: String?
+    let name: String?
+    let ownerMemberId: String?
+    let source: LedgerSource?
+    let type: AccountType?
+    let updatedAt: String?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case balanceCents = "balance_cents"
+        case createdAt = "created_at"
+        case currency
+        case deletedFromSourceAt = "deleted_from_source_at"
+        case excludeFromNetWorth = "exclude_from_net_worth"
+        case externalId = "external_id"
+        case householdId = "household_id"
+        case id
+        case name
+        case ownerMemberId = "owner_member_id"
+        case source
+        case type
         case updatedAt = "updated_at"
     }
 }

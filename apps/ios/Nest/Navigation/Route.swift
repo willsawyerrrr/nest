@@ -114,10 +114,13 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// The route's renderer. Every route is the web fallback until its native
-    /// screen lands here.
+    /// The route's renderer: its native screen, or the web fallback for a route
+    /// not yet migrated.
     var content: RouteContent {
-        .web(path: path)
+        switch self {
+        case .summary: .native(AnyView(SummaryScreen()))
+        default: .web(path: path)
+        }
     }
 
     /// The web page for `path` under `base`.

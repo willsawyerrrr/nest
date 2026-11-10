@@ -146,6 +146,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
         case .breakdowns: .native(AnyView(BreakdownsScreen()))
+        case .inflows: .native(AnyView(InflowsScreen()))
         case .budget: .native(AnyView(BudgetScreen()))
         case .goals: .native(AnyView(GoalsScreen()))
         case .allowance: .native(AnyView(AllowanceScreen()))

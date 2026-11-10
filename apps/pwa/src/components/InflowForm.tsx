@@ -10,7 +10,12 @@ import {
   TextInput,
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
-import { annualCents, annualInflowGrossCents, periodsPerYear, perPeriodCents } from '@nest/plan'
+import {
+  annualInflowGrossCents,
+  describePerPayment,
+  PERIOD_NOUN,
+  type PerPayment,
+} from '@nest/plan'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { Inflow, InflowInput, InflowType } from '../hooks/useInflows'
 import type { Member } from '../hooks/useMembers'
@@ -44,22 +49,6 @@ interface InflowFormProps {
 /** The type a form defaults to for each taxability mode. */
 const DEFAULT_TYPE = { taxable: 'salary', nonTaxable: 'reimbursement' } as const
 
-/**
- * The unit of one period of a frequency, for labelling the amount that covers it. The
- * arbitrary cadences have no name of their own, their length being whatever interval
- * is given, so they read as a plain period.
- */
-const PERIOD_NOUN: Record<Frequency, string> = {
-  weekly: 'week',
-  fortnightly: 'fortnight',
-  monthly: 'month',
-  quarterly: 'quarter',
-  biannual: 'half-year',
-  annual: 'year',
-  every_n_weeks: 'period',
-  every_n_months: 'period',
-}
-
 /** The "arrives on the amount's own frequency" choice, the pay-cadence picker's default. */
 const SAME_CADENCE = 'same'
 
@@ -81,51 +70,6 @@ function needsInterval(frequency: Frequency | null): boolean {
 /** Whether `interval` is a usable interval count, as the database's checks require. */
 function isIntervalValid(interval: number | string): boolean {
   return Number.isInteger(Number(interval)) && Number(interval) >= 1
-}
-
-/** What one payment comes to, and how a year of them compares with the amount stated. */
-interface PerPayment {
-  /** The amount landing in one payment — the figure a payslip's period is measured against. */
-  readonly cents: number
-  /** What a year of those payments comes to, rounding included. */
-  readonly annualCents: number
-  /** The annual total the amount itself states. */
-  readonly statedAnnualCents: number
-  /** The unit one payment covers, for labelling. */
-  readonly noun: string
-}
-
-/**
- * What one payment of `annualAmountCents` comes to on the pay cadence, or null when
- * there is nothing to derive: no separate pay cadence, one whose interval is not yet
- * given, or one landing as often as the amount is expressed, where the payment simply
- * is the amount. Nothing here is stored — the row keeps the amount and its own
- * frequency untouched — so this is the very division the payslip expectation makes,
- * shown ahead of it.
- */
-function describePerPayment(
-  annualAmountCents: number | null,
-  amountFrequency: Frequency,
-  amountInterval: number | undefined,
-  payFrequency: Frequency | null,
-  payInterval: number | undefined,
-): PerPayment | null {
-  if (annualAmountCents === null || payFrequency === null) {
-    return null
-  }
-  const payPeriods = periodsPerYear(payFrequency, payInterval)
-  if (payPeriods === 0 || payPeriods === periodsPerYear(amountFrequency, amountInterval)) {
-    return null
-  }
-  const cents = perPeriodCents(annualAmountCents, payFrequency, payInterval)
-  return {
-    cents,
-    annualCents: annualCents(cents, payFrequency, payInterval),
-    statedAnnualCents: annualAmountCents,
-    // On an arbitrary cadence one turn is only ever "a payment"; every fixed cadence
-    // has a name of its own.
-    noun: needsInterval(payFrequency) ? 'payment' : PERIOD_NOUN[payFrequency],
-  }
 }
 
 /**

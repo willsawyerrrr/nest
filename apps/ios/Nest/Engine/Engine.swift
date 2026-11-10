@@ -17,6 +17,8 @@ actor Engine {
         case projectGoalQueue
         case summariseBreakdowns
         case budgetOverview
+        case summariseInflows
+        case previewInflowDraft
         case taxScreen
         case salarySacrifice
         case mlsWhatIf
@@ -119,5 +121,15 @@ actor Engine {
     /// The household's combined year figures and its Medicare levy surcharge test.
     func householdYear(_ input: some Encodable) throws -> HouseholdYearFigures {
         try call(.householdYear, input)
+    }
+
+    /// Each inflow's fortnightly figure; `nil` for a one-off.
+    func summariseInflows(_ input: some Encodable) throws -> InflowFortnightlies {
+        try call(.summariseInflows, input)
+    }
+
+    /// The figures the inflow form shows back from its draft.
+    func previewInflowDraft(_ input: some Encodable) throws -> InflowDraftPreview {
+        try call(.previewInflowDraft, input)
     }
 }

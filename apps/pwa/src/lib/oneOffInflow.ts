@@ -1,6 +1,6 @@
-import { splitOneOffPayment, type OneOffPaymentSplit, type TaxYearConfig } from '@nest/tax'
+import type { OneOffPaymentSplit, TaxYearConfig } from '@nest/tax'
 import type { InflowInput, OneOffTaxTreatment } from '../hooks/useInflows'
-import { atPreservationAgeOn, ENGINE_ONE_OFF_TREATMENTS } from './tax'
+import { previewOneOffPaymentSplit } from './tax'
 
 /** The treatment a taxable one-off starts on: assessable in full, at marginal rates. */
 const DEFAULT_TREATMENT: OneOffTaxTreatment = 'ordinary'
@@ -104,14 +104,14 @@ export function previewOneOffSplit(
   if (!taxable || amountCents === null || draft.paidOn === null) {
     return null
   }
-  return splitOneOffPayment(
+  return previewOneOffPaymentSplit(
     {
-      treatment: ENGINE_ONE_OFF_TREATMENTS[draft.treatment],
+      treatment: draft.treatment,
       amountCents,
       ...(draft.yearsOfService !== '' && { yearsOfService: Number(draft.yearsOfService) }),
-      atPreservationAge: atPreservationAgeOn(dateOfBirth, draft.paidOn, config),
+      dateOfBirth,
+      paidOn: draft.paidOn,
     },
-    0,
     config,
   )
 }

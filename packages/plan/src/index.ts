@@ -93,12 +93,15 @@ export type { PayPeriod } from './payPeriod.ts'
 
 export {
   annualInflowGrossCents,
+  describePerPayment,
   expectedPeriodGrossCents,
   isOneOff,
   isPeriodOnCadence,
+  PERIOD_NOUN,
 } from './payCadence.ts'
 export type {
   ExpectationBasis,
+  PerPayment,
   OneOffInflow,
   PartCycleReason,
   ReconciledInflow,

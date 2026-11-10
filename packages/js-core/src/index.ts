@@ -26,12 +26,20 @@ import { configsByYear, FY2027_CONFIG } from '@nest/tax'
 import { summariseBreakdowns } from './breakdowns.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
 import { serialise } from './serialise.ts'
+import { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
 
 export type { EstimateInput, EstimateProjection } from './estimate.ts'
 export { projectEstimate } from './estimate.ts'
 export { serialise } from './serialise.ts'
 export { summariseBreakdowns } from './breakdowns.ts'
 export type { BreakdownsInput } from './breakdowns.ts'
+export { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
+export type {
+  DependentChildrenInput,
+  PayslipRow,
+  SalarySacrificeInput,
+  TaxScreenInput,
+} from './taxScreen.ts'
 
 /** The whole-year tax estimate for a household's rows, projected onto its scalar cents figures. */
 export function estimateTax(input: EstimateInput) {
@@ -118,4 +126,8 @@ export const entryPoints = {
   projectGoalQueue: entry(projectGoalQueueAt),
   summariseBreakdowns: entry(summariseBreakdowns),
   budgetOverview: entry(budgetOverviewOf),
+  taxScreen: entry(taxScreen),
+  salarySacrifice: entry(salarySacrifice),
+  mlsWhatIf: entry(mlsWhatIf),
+  householdYear: entry(householdYear),
 } satisfies Record<string, Entry>

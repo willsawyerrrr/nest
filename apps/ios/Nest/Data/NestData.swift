@@ -96,6 +96,15 @@ struct NestData: Sendable {
         try await write(invalidating: tables) { try await api.call(name, params: params) }
     }
 
+    /// Calls the edge function `name` with `body` and decodes its response, then
+    /// invalidates `tables` (the tables the function touches).
+    func invoke<R: Decodable & Sendable>(
+        _ name: String, body: some Encodable & Sendable, invalidating tables: Set<String>,
+        as _: R.Type = R.self
+    ) async throws -> R {
+        try await write(invalidating: tables) { try await api.invoke(name, body: body) }
+    }
+
     /// Empties the cache for every user.
     func clearCache() async {
         await cache.clear()

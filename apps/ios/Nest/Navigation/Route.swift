@@ -152,6 +152,8 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .planning: .native(AnyView(PlanningScreen()))
         case .planningMode: .native(AnyView(PlanningModeScreen()))
         case .wishlist: .native(AnyView(WishlistScreen()))
+        case .tax: .native(AnyView(TaxScreen()))
+        case .eofy: .native(AnyView(EofyScreen()))
         default: .web(path: path)
         }
     }

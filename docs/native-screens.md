@@ -181,3 +181,27 @@ and snapshots rows, sandbox and both figures into
 `apps/ios/NestTests/Fixtures/planning-parity.json`. `PlanningParityTests` applies
 the same sandbox with `PlanningLayer.apply(to:)`, runs the bundled engine, and
 asserts both Summaries are identical.
+
+## Wishlist
+
+`Route.wishlist` is native (`WishlistScreen`), laid out as the PWA's: the page title
+and intro, a sort control (title or amount, ascending or descending, persisted in
+`UserDefaults` under `wishlist-sort`), each item as a dense row on iPad and Mac and a
+bordered card on iPhone (name, owner pill, note, amount, a promote menu, edit and
+delete), the inline add and edit form, and a confirm alert before a delete. It reads
+`wishlist_item` and `members`, each ordered by name, through `WishlistViewModel`.
+
+Writes go through `NestData` as the PWA's hook does: an insert carries the household
+(from the members rows), an update sends `name`, `amount_cents`, `member_id` and
+`note` (the last two as `null` when cleared), and a delete filters by id. The form
+requires a name and a positive amount and trims the name and note, as `WishlistForm`.
+
+Promote to a savings goal or a budget line opens the web Goals or Budget page in a
+sheet with `?promoteName=…&promoteAmountCents=…`; the PWA's `takeGoalDraft` and
+`takeBudgetDraft` read those parameters when no draft was stashed, so the add form
+opens prefilled. They move to native when Goals and Budget editing do.
+
+There is no engine figure: parity is the order, owner and amount of each row.
+`apps/pwa/src/lib/wishlistParity.test.ts` snapshots rows and, for all four sorts,
+the rows `WishlistScreen` lists into `apps/ios/NestTests/Fixtures/wishlist-parity.json`;
+`WishlistParityTests` asserts `WishlistPresentation` lists the same.

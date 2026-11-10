@@ -124,6 +124,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .allowance: .native(AnyView(AllowanceScreen()))
         case .planning: .native(AnyView(PlanningScreen()))
         case .planningMode: .native(AnyView(PlanningModeScreen()))
+        case .wishlist: .native(AnyView(WishlistScreen()))
         default: .web(path: path)
         }
     }

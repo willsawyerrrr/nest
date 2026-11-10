@@ -16,7 +16,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   own macOS share extension) wraps the PWA in a SwiftUI navigation shell (tab
   bar on iPhone, sidebar on iPad and Mac) whose per-route `.native` / `.web`
   switch embeds each not-yet-native screen in a `WKWebView` (design system in
-  `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns and Planning mode so far) follow
+  `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Planning mode and Wishlist so far) follow
   the pattern in [`docs/native-screens.md`](docs/native-screens.md)),
   runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
   bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the

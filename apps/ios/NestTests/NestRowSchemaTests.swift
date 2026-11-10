@@ -70,6 +70,7 @@ import Testing
         check(AccountWithBalance.self)
         check(Breakdown.self)
         check(BreakdownItem.self)
+        check(WishlistItem.self)
     }
 
     @Test func enumsMatchThePostgresEnums() {

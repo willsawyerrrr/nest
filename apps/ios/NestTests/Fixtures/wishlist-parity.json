@@ -1,0 +1,232 @@
+{
+  "rows": {
+    "items": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "w1",
+        "name": "espresso machine",
+        "amount_cents": 120000,
+        "member_id": "m1",
+        "note": "The good one"
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "w2",
+        "name": "Bike",
+        "amount_cents": 249999,
+        "member_id": null,
+        "note": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "w3",
+        "name": "Couch",
+        "amount_cents": 350000,
+        "member_id": "m2",
+        "note": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "w4",
+        "name": "Ärmchair",
+        "amount_cents": 89950,
+        "member_id": "gone",
+        "note": "Second-hand"
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "w5",
+        "name": "Lamp",
+        "amount_cents": 120000,
+        "member_id": null,
+        "note": null
+      }
+    ],
+    "members": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m1",
+        "name": "Alex",
+        "user_id": "u-m1",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m2",
+        "name": "Sam",
+        "user_id": "u-m2",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      }
+    ]
+  },
+  "expected": {
+    "titleAsc": [
+      {
+        "id": "w4",
+        "name": "Ärmchair",
+        "ownerName": "Unknown",
+        "note": "Second-hand",
+        "amount": "$899.50"
+      },
+      {
+        "id": "w2",
+        "name": "Bike",
+        "ownerName": null,
+        "note": null,
+        "amount": "$2,499.99"
+      },
+      {
+        "id": "w3",
+        "name": "Couch",
+        "ownerName": "Sam",
+        "note": null,
+        "amount": "$3,500.00"
+      },
+      {
+        "id": "w1",
+        "name": "espresso machine",
+        "ownerName": "Alex",
+        "note": "The good one",
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w5",
+        "name": "Lamp",
+        "ownerName": null,
+        "note": null,
+        "amount": "$1,200.00"
+      }
+    ],
+    "titleDesc": [
+      {
+        "id": "w5",
+        "name": "Lamp",
+        "ownerName": null,
+        "note": null,
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w1",
+        "name": "espresso machine",
+        "ownerName": "Alex",
+        "note": "The good one",
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w3",
+        "name": "Couch",
+        "ownerName": "Sam",
+        "note": null,
+        "amount": "$3,500.00"
+      },
+      {
+        "id": "w2",
+        "name": "Bike",
+        "ownerName": null,
+        "note": null,
+        "amount": "$2,499.99"
+      },
+      {
+        "id": "w4",
+        "name": "Ärmchair",
+        "ownerName": "Unknown",
+        "note": "Second-hand",
+        "amount": "$899.50"
+      }
+    ],
+    "amountAsc": [
+      {
+        "id": "w4",
+        "name": "Ärmchair",
+        "ownerName": "Unknown",
+        "note": "Second-hand",
+        "amount": "$899.50"
+      },
+      {
+        "id": "w1",
+        "name": "espresso machine",
+        "ownerName": "Alex",
+        "note": "The good one",
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w5",
+        "name": "Lamp",
+        "ownerName": null,
+        "note": null,
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w2",
+        "name": "Bike",
+        "ownerName": null,
+        "note": null,
+        "amount": "$2,499.99"
+      },
+      {
+        "id": "w3",
+        "name": "Couch",
+        "ownerName": "Sam",
+        "note": null,
+        "amount": "$3,500.00"
+      }
+    ],
+    "amountDesc": [
+      {
+        "id": "w3",
+        "name": "Couch",
+        "ownerName": "Sam",
+        "note": null,
+        "amount": "$3,500.00"
+      },
+      {
+        "id": "w2",
+        "name": "Bike",
+        "ownerName": null,
+        "note": null,
+        "amount": "$2,499.99"
+      },
+      {
+        "id": "w5",
+        "name": "Lamp",
+        "ownerName": null,
+        "note": null,
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w1",
+        "name": "espresso machine",
+        "ownerName": "Alex",
+        "note": "The good one",
+        "amount": "$1,200.00"
+      },
+      {
+        "id": "w4",
+        "name": "Ärmchair",
+        "ownerName": "Unknown",
+        "note": "Second-hand",
+        "amount": "$899.50"
+      }
+    ]
+  }
+}

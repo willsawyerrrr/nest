@@ -157,6 +157,31 @@ struct Member: NestRow {
     }
 }
 
+/// Row of `wishlist_item`.
+struct WishlistItem: NestRow {
+    static let table = "wishlist_item"
+
+    let amountCents: Int
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let memberId: String?
+    let name: String
+    let note: String?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case name
+        case note
+        case updatedAt = "updated_at"
+    }
+}
+
 /// Row of `accounts`.
 struct Account: NestRow {
     static let table = "accounts"

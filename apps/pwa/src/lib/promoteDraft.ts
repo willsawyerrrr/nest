@@ -4,13 +4,23 @@
  * navigates; the target tab picks it up once on mount and clears it, so a plain
  * revisit of the tab shows no prefilled form. Kept a module singleton rather
  * than router state so the target sections need no router plumbing and the
- * draft clears itself on read.
+ * draft clears itself on read. A draft can also arrive in the page URL
+ * (`promoteName` and `promoteAmountCents`), for a native shell opening the target
+ * page with a wishlist item to promote.
  */
 export interface PromoteDraft {
   /** The wishlist item's name, seeding the target form's name field. */
   name: string
   /** The wishlist item's amount in cents — a goal's target, or a budget line's amount. */
   amountCents: number
+}
+
+/** The draft carried in the page URL's query, or null when it has none. */
+function urlDraft(): PromoteDraft | null {
+  const params = new URLSearchParams(window.location.search)
+  const name = params.get('promoteName')
+  const amountCents = Number(params.get('promoteAmountCents'))
+  return name && Number.isInteger(amountCents) && amountCents > 0 ? { name, amountCents } : null
 }
 
 let goalDraft: PromoteDraft | null = null
@@ -23,7 +33,7 @@ export function setGoalDraft(draft: PromoteDraft): void {
 
 /** Returns the pending Goals draft once, clearing it. */
 export function takeGoalDraft(): PromoteDraft | null {
-  const draft = goalDraft
+  const draft = goalDraft ?? urlDraft()
   goalDraft = null
   return draft
 }
@@ -35,7 +45,7 @@ export function setBudgetDraft(draft: PromoteDraft): void {
 
 /** Returns the pending Budget draft once, clearing it. */
 export function takeBudgetDraft(): PromoteDraft | null {
-  const draft = budgetDraft
+  const draft = budgetDraft ?? urlDraft()
   budgetDraft = null
   return draft
 }

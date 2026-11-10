@@ -21,7 +21,7 @@ import {
  * bundled engine and must produce identical figures.
  */
 const FIXTURE = '../../../ios/NestTests/Fixtures/goals-parity.json'
-const NOW = '2026-12-01T00:00:00Z'
+const NOW = '2026-12-01T12:00:00Z'
 const STAMP = '2026-01-01T00:00:00Z'
 const base = { household_id: 'h1', created_at: STAMP, updated_at: STAMP }
 

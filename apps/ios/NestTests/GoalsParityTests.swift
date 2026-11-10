@@ -43,6 +43,14 @@ import Testing
         return try! JSONDecoder().decode([Fixture].self, from: Data(contentsOf: url))
     }()
 
+    /// Month names cut to three letters, as the fixture holds them (ICU spells some
+    /// out or abbreviates them differently between runtimes).
+    private static func shortMonths(_ text: String) -> String {
+        text.replacingOccurrences(
+            of: #"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b"#, with: "$1",
+            options: .regularExpression)
+    }
+
     private static func color(_ tone: NestPill.Tone) -> String {
         switch tone {
         case .positive: "positive"
@@ -57,7 +65,7 @@ import Testing
     private static func shown(_ row: GoalRow) -> String {
         [
             row.id, "\(row.contributionCents)", "\(row.roundedPercent)", "\(row.balanceCents)",
-            row.status.label, color(row.status.tone), row.eta.text,
+            row.status.label, color(row.status.tone), shortMonths(row.eta.text),
         ].joined(separator: "|")
     }
 

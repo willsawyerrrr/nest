@@ -143,6 +143,14 @@ const rows = {
   ],
 }
 
+/**
+ * Month names cut to three letters: the ICU data behind `Intl` spells some months
+ * out (`June`) or abbreviates them differently (`Sept`) between runtimes, so the
+ * fixture and the native comparison both read the first three letters.
+ */
+const shortMonths = (text: string) =>
+  text.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/g, '$1')
+
 /** An ETA node as the text it renders. */
 function textOf(node: ReactNode): string {
   if (node == null || typeof node === 'boolean') {
@@ -171,7 +179,7 @@ function figures() {
     percent: Math.round(display.percent),
     balanceCents: display.currentBalanceCents,
     status: display.status,
-    eta: textOf(display.eta),
+    eta: shortMonths(textOf(display.eta)),
   })
   return {
     active: active.map((g) =>

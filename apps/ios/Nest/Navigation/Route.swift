@@ -17,18 +17,44 @@ enum NavSection: CaseIterable, Identifiable, Hashable {
         }
     }
 
-    var systemImage: String {
+    /// The section's routes in display order.
+    var routes: [Route] { Route.allCases.filter { $0.section == self } }
+}
+
+/// One entry in the nav: a standalone route, or a collapsible group of them.
+enum NavEntry: Identifiable, Hashable {
+    case item(Route)
+    case group(NavSection)
+
+    var id: String {
         switch self {
-        case .summary: "chart.pie"
-        case .plan: "list.bullet.rectangle"
-        case .grow: "chart.line.uptrend.xyaxis"
-        case .tax: "doc.text"
-        case .settings: "gearshape"
+        case .item(let route): route.id
+        case .group(let section): section.title
         }
     }
 
-    /// The section's routes in display order.
-    var routes: [Route] { Route.allCases.filter { $0.section == self } }
+    /// The nav in display order, as the PWA's `navSections`: Summary stands
+    /// alone, every other section is a group, and Planning sits beside Summary
+    /// while planning mode is on.
+    static func entries(planningActive: Bool) -> [NavEntry] {
+        NavSection.allCases.flatMap { section -> [NavEntry] in
+            guard section.routes.count > 1 else {
+                let items = section.routes.map(NavEntry.item)
+                return section == .summary && planningActive ? items + [.item(.planning)] : items
+            }
+            return [.group(section)]
+        }
+    }
+
+    /// Every route in display order, each group's routes in place.
+    static func flattened(_ entries: [NavEntry]) -> [Route] {
+        entries.flatMap { entry -> [Route] in
+            switch entry {
+            case .item(let route): [route]
+            case .group(let section): section.routes
+            }
+        }
+    }
 }
 
 /// What a route renders: a native screen, or the PWA page at a path.

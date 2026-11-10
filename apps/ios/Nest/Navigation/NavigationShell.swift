@@ -1,86 +1,180 @@
 import SwiftUI
 
-/// The signed-in shell: a tab bar on iPhone, a sidebar on iPad and Mac.
+/// The signed-in shell, as the PWA's `TabBar`: a top bar with a burger that
+/// opens a drawer of the nav on iPhone (compact width), a persistent sidebar
+/// beside the content on iPad and Mac. Both render `NavMenu` over
+/// `NavEntry.entries`, so a route registered in `Route` appears in each at once.
 struct NavigationShell: View {
     #if os(iOS)
         @Environment(\.horizontalSizeClass) private var sizeClass
     #endif
 
-    var body: some View {
+    @State private var selection: Route = .summary
+    @State private var drawerOpen = false
+    private let planning = PlanningStore.shared
+
+    private var isCompact: Bool {
         #if os(iOS)
-            if sizeClass == .compact {
-                TabShell()
-            } else {
-                SidebarShell()
-            }
+            sizeClass == .compact
         #else
-            SidebarShell()
+            false
         #endif
     }
-}
 
-private struct TabShell: View {
+    private var entries: [NavEntry] { NavEntry.entries(planningActive: planning.isActive) }
+
     var body: some View {
-        TabView {
-            ForEach(NavSection.allCases) { section in
-                SectionStack(section: section)
-                    .tabItem { Label(section.title, systemImage: section.systemImage) }
+        Group {
+            if isCompact {
+                content.overlay { drawer }
+            } else {
+                HStack(spacing: 0) {
+                    sidebar
+                    content
+                }
             }
         }
+        .background(NestColor.background)
         .tint(NestColor.brand)
+        .background { shortcuts }
+        .onChange(of: isCompact) { _, _ in drawerOpen = false }
+        .onChange(of: planning.isActive) { _, active in
+            if !active && selection == .planning { selection = .summary }
+        }
     }
-}
 
-/// A section as one tab: its only route directly, or a list of its routes
-/// pushing each screen.
-private struct SectionStack: View {
-    let section: NavSection
+    private func select(_ route: Route) {
+        selection = route
+        drawerOpen = false
+    }
 
-    var body: some View {
+    /// The selected route's screen in its own stack, so pushed details have a
+    /// back button; the stack is recreated when the route changes.
+    private var content: some View {
         NavigationStack {
-            Group {
-                if let only = section.routes.first, section.routes.count == 1 {
-                    RouteScreen(route: only)
-                } else {
-                    List(section.routes) { route in
-                        NavigationLink(route.title, value: route)
-                    }
-                    .scrollContentBackground(.hidden)
-                    .background(NestColor.background)
-                    .navigationTitle(section.title)
-                }
-            }
-            .navigationDestination(for: Route.self) { RouteScreen(route: $0) }
+            RouteScreen(route: selection)
+                .navigationDestination(for: Route.self) { RouteScreen(route: $0) }
+                .toolbar { if isCompact { topBar } }
         }
+        .id(selection)
+    }
+
+    @ToolbarContentBuilder
+    private var topBar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            NestLogo(variant: .mark, size: 28)
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            WhatsNewButton(isActive: selection == .whatsNew) { select(.whatsNew) }
+            Button {
+                drawerOpen = true
+            } label: {
+                Image(systemName: "line.3.horizontal")
+            }
+            .accessibilityLabel("Toggle navigation menu")
+            .accessibilityValue(drawerOpen ? "Expanded" : "Collapsed")
+        }
+    }
+
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            NestLogo(variant: .lockup, size: 32)
+                .padding(.horizontal, NestSpacing.xs)
+                .padding(.bottom, NestSpacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ScrollView {
+                NavMenu(entries: entries, selection: selection, onSelect: select)
+            }
+            Divider().overlay(NestColor.border)
+            HStack {
+                Spacer()
+                WhatsNewButton(isActive: selection == .whatsNew) { select(.whatsNew) }
+            }
+            .padding(.horizontal, NestSpacing.xs)
+            .padding(.top, NestSpacing.sm)
+        }
+        .padding(.leading, NestSpacing.md)
+        .padding(.trailing, NestSpacing.sm)
+        .padding(.vertical, NestSpacing.md)
+        .frame(width: 240)
+        .frame(maxHeight: .infinity)
+        .background(NestColor.background)
+        .overlay(alignment: .trailing) { Rectangle().fill(NestColor.border).frame(width: 1) }
+    }
+
+    /// The left drawer over a dimmed scrim, closing on a scrim tap.
+    private var drawer: some View {
+        ZStack(alignment: .leading) {
+            if drawerOpen {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture { drawerOpen = false }
+                    .transition(.opacity)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        NestLogo(variant: .mark, size: 28)
+                        Spacer()
+                        Button {
+                            drawerOpen = false
+                        } label: {
+                            Image(systemName: "xmark")
+                                .foregroundStyle(NestColor.dimmedText)
+                                .frame(width: 32, height: 32)
+                        }
+                        .accessibilityLabel("Close navigation menu")
+                    }
+                    .padding(.bottom, NestSpacing.md)
+                    ScrollView {
+                        NavMenu(entries: entries, selection: selection, onSelect: select)
+                    }
+                }
+                .padding(NestSpacing.md)
+                .frame(width: 320)
+                .frame(maxHeight: .infinity)
+                .background(NestColor.background.ignoresSafeArea())
+                .transition(.move(edge: .leading))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: drawerOpen)
+    }
+
+    /// `⌘1`…`⌘9` jump to a route by position in the nav and `⇧⌘←` / `⇧⌘→`
+    /// cycle it with wrap-around, as the PWA's hotkeys do.
+    private var shortcuts: some View {
+        let routes = NavEntry.flattened(entries)
+        let index = routes.firstIndex(of: selection) ?? -1
+        return ZStack {
+            ForEach(Array(routes.prefix(9).enumerated()), id: \.offset) { offset, route in
+                Button("") { select(route) }
+                    .keyboardShortcut(
+                        KeyEquivalent(Character("\(offset + 1)")), modifiers: .command)
+            }
+            Button("") { select(routes[(index + 1 + routes.count) % routes.count]) }
+                .keyboardShortcut(.rightArrow, modifiers: [.command, .shift])
+            Button("") { select(routes[(index - 1 + routes.count) % routes.count]) }
+                .keyboardShortcut(.leftArrow, modifiers: [.command, .shift])
+        }
+        .opacity(0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
-private struct SidebarShell: View {
-    @State private var selection: Route? = .summary
+/// The "What's new" button, brand-tinted so it reads as a destination.
+private struct WhatsNewButton: View {
+    let isActive: Bool
+    let action: () -> Void
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                ForEach(NavSection.allCases) { section in
-                    if section.routes.count == 1, let only = section.routes.first {
-                        Label(only.title, systemImage: section.systemImage).tag(only)
-                    } else {
-                        Section(section.title) {
-                            ForEach(section.routes) { Text($0.title).tag($0) }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Nest")
-        } detail: {
-            if let selection {
-                NavigationStack {
-                    RouteScreen(route: selection)
-                        .navigationDestination(for: Route.self) { RouteScreen(route: $0) }
-                }
-                .id(selection)
-            }
+        Button(action: action) {
+            Image(systemName: "megaphone")
+                .font(.system(size: 18))
+                .foregroundStyle(isActive ? NestColor.navActiveText : NestColor.brand)
+                .frame(width: 34, height: 34)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("What's new")
     }
 }
 

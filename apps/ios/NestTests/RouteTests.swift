@@ -58,4 +58,24 @@ struct RouteTests {
                 == "https://example.com/settings/account")
         #expect(Route.budget.url == WebApp.url.appendingPathComponent("budget"))
     }
+
+    @Test func navEntriesStandSummaryAloneAndGroupTheRest() {
+        let entries = NavEntry.entries(planningActive: false)
+        #expect(
+            entries == [
+                .item(.summary), .group(.plan), .group(.grow), .group(.tax), .group(.settings),
+            ])
+    }
+
+    @Test func planningSitsBesideSummaryWhilePlanningModeIsOn() {
+        let entries = NavEntry.entries(planningActive: true)
+        #expect(entries.prefix(2) == [.item(.summary), .item(.planning)])
+        #expect(entries.count == 6)
+    }
+
+    @Test func everyNavRouteIsReachableOnceInDisplayOrder() {
+        let routes = NavEntry.flattened(NavEntry.entries(planningActive: false))
+        #expect(routes == Route.allCases.filter { $0.section != nil })
+        #expect(Set(routes).count == routes.count)
+    }
 }

@@ -256,6 +256,115 @@ struct MlsTestFigures: Codable, Equatable, Sendable {
     struct Next: Codable, Equatable, Sendable {
         var floorCents: Int
         var distanceCents: Int
+
+/// How an expectation is measured, as `@nest/plan` names the bases.
+enum ExpectationBasis: String, Codable, Sendable {
+    case cadence
+    case partCycle = "part_cycle"
+    case calendarDays = "calendar_days"
+    case occasional
+    case oneOff = "one_off"
+}
+
+/// Why an expectation is a share of a pay period.
+enum PartCycleReason: String, Codable, Sendable {
+    case partPeriod = "part_period"
+    case inflowDates = "inflow_dates"
+}
+
+/// One payslip measured against the plan: each expected figure beside its variance
+/// (actual less expected), positive when the slip reported more than the plan.
+struct PayslipVariance: Codable, Equatable, Sendable {
+    /// One inflow's share of an itemised slip.
+    struct LineGroup: Codable, Equatable, Sendable {
+        var sourceInflowId: String?
+        var labels: [String]
+        var actualCents: Int64
+        var expectedCents: Int64?
+        var varianceCents: Int64?
+        var basis: ExpectationBasis
+        var partCycleReason: PartCycleReason?
+    }
+
+    /// One tax component's share of a slip's tax.
+    struct TaxGroup: Codable, Equatable, Sendable {
+        var component: PayslipTaxComponent
+        var labels: [String]
+        var actualCents: Int64
+        var expectedCents: Int64
+        var varianceCents: Int64
+    }
+
+    var basis: ExpectationBasis
+    var partCycleReason: PartCycleReason?
+    var cadenceInflowId: String?
+    var periodDays: Int
+    var cadencePeriodDays: Int?
+    var financialYearDays: Int
+    var expectedGrossCents: Int64?
+    var grossVarianceCents: Int64?
+    var grossPartlyUnmeasured: Bool
+    var unmeasuredGrossCents: Int64
+    var lineGroups: [LineGroup]
+    var unallocatedCents: Int64
+    var expectedTaxWithheldCents: Int64
+    var taxWithheldVarianceCents: Int64
+    var taxGroups: [TaxGroup]
+    var unallocatedTaxCents: Int64
+    var superBaseCents: Int64
+    var expectedSuperGuaranteeCents: Int64
+    var expectedConcessionalCents: Int64
+    var expectedSuperCents: Int64
+    var actualSuperCents: Int64
+    var superVarianceCents: Int64
+}
+
+/// A member's payslips measured against the plan, and their year to date.
+struct PayslipsOverview: Codable, Equatable, Sendable {
+    struct Totals: Codable, Equatable, Sendable {
+        var grossCents: Int64
+        var taxWithheldCents: Int64
+        var superCents: Int64
+        var salarySacrificeCents: Int64
+        var payslipCount: Int
+    }
+
+    /// The running totals printed on the latest slip that carries all three.
+    struct Reported: Codable, Equatable, Sendable {
+        var grossCents: Int64
+        var taxWithheldCents: Int64
+        var superCents: Int64
+    }
+
+    /// One year-to-date figure held against the plan, over the slips whose
+    /// expectation is known.
+    struct Position: Codable, Equatable, Sendable {
+        var actualCents: Int64
+        var expectedCents: Int64?
+        var varianceCents: Int64?
+        var coveredCount: Int
+        var payslipCount: Int
+    }
+
+    struct Positions: Codable, Equatable, Sendable {
+        var gross: Position
+        var taxWithheld: Position
+        var `super`: Position
+    }
+
+    /// An inflow no pay period measures, measured across the year.
+    struct Unmeasured: Codable, Equatable, Sendable {
+        var sourceInflowId: String
+        var actualCents: Int64
+        var expectedCents: Int64
+        var varianceCents: Int64
+        var annualExpectedCents: Int64
+        var asAt: String
+    }
+
+    struct SlipVariance: Codable, Equatable, Sendable {
+        var payslipId: String
+        var variance: PayslipVariance
     }
 
     struct Member: Codable, Equatable, Sendable {
@@ -297,6 +406,15 @@ struct HouseholdYearFigures: Codable, Equatable, Sendable {
     var concessionalSuperCents: Int
     var afterTaxCents: Int
     var mls: MlsTestFigures
+
+        var variances: [SlipVariance]
+        var totals: Totals
+        var reported: Reported?
+        var positions: Positions
+        var unmeasured: [Unmeasured]
+    }
+
+    var members: [Member]
 }
 
 /// The Pay splits routing: accounts in routing order, with their exact fortnightly

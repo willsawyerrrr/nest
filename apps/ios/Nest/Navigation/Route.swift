@@ -157,6 +157,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .wishlist: .native(AnyView(WishlistScreen()))
         case .tax: .native(AnyView(TaxScreen()))
         case .eofy: .native(AnyView(EofyScreen()))
+        case .payslips: .native(AnyView(PayslipsScreen()))
         default: .web(path: path)
         }
     }

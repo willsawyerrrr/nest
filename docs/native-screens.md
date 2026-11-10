@@ -406,3 +406,73 @@ and without a pay account, and snapshots rows and figures into
 `apps/ios/NestTests/Fixtures/splits-parity.json`. `SplitsParityTests` runs the
 same rows through `SplitsRows.input`, the bundled engine and `SplitsPresentation`
 and asserts identical figures.
+
+## Payslips
+
+`Route.payslips` is native (`PayslipsScreen`): one section per member with their
+payslips for the current financial year, most recent pay period first, laid out as the
+PWA's `PayslipsScreen`: the page title and intro, then per member the name and slip
+count, the year-to-date grid (YTD gross, withheld, super, each with its variance and
+coverage note), the reported-year-to-date cross-check, the year's position on pay no
+period measures, the upload review, the slips and an **Add payslip** button. A slip is
+a collapsed card (a dense row on a wide screen) showing the period, pay date, gross
+and one headline variance pill; expanding it shows the gross / tax withheld / super /
+net quartet with variances, the per-inflow earnings groups, the per-component tax
+groups, the part-cycle and unmeasured-gross notes, the note and a link to the stored
+document (a signed URL; a type that is not safe to show inline is saved, not rendered).
+Adding, editing and deleting happen on the screen.
+
+Rows are `members` and `inflows` (by name), `tax_profile`, `super_contribution` and
+`deduction` (scoped to the year), `help_debt`, `payslip` (scoped to the year, `period_end`
+descending) and `payslip_line`. The figures come from the engine's `payslipsOverview`
+(`packages/js-core/src/payslips.ts`): it runs the household tax estimate over the rows,
+measures each slip with `@nest/plan`'s `payslipVariance` against the member's annual
+liability, HELP repayment and concessional contributions, and returns each member's
+variances, year-to-date totals, reported totals, positions and unmeasured positions, the
+measurements `PayslipsScreen` renders. `PayslipsPresentation` only looks them up and
+words them (period and date labels, the headline pill, coverage and reported notes).
+`apps/pwa/src/lib/payslipsParity.test.ts` computes them with the PWA's own
+`lib/payslips.ts` and snapshots rows and figures into
+`apps/ios/NestTests/Fixtures/payslips-parity.json`; `PayslipsParityTests` runs the same
+rows through `PayslipsRows.input` and the bundled engine and asserts identical figures.
+
+### Add and edit form
+
+`PayslipFormView` mirrors the PWA's `PayslipForm`: pay period, paid-on date, the
+gross / tax withheld / super / net quartet, earnings lines (each drawing on one of the
+member's taxable inflows) and tax lines (each naming PAYG or STSL), salary sacrifice,
+year-to-date figures and a note. The financial year is derived from the payment date, or
+the period end where there is none, and shown back. `PayslipDraft` holds the state:
+a read pre-fills only the fields and line kinds the member has not made their own (a
+saved slip's figures are theirs from the start), an earnings line's inflow is matched
+only by an exact name, and an unplaced tax line holds the save. `PayslipAttachmentModel`
+stores a chosen document under the slip's id before reading it through `payslip-extract`
+(the PWA's `usePayslipAttachment`): every failure is a note beside the editable figures,
+and an object no saved row references is deleted when it is cleared, replaced or the
+form is left. A slip and its lines save in one `upsert_payslip_with_lines` call under
+the id the form minted, so a retry rewrites the same slip.
+
+### Uploads
+
+`Screens/Uploads/` holds what every surface that takes files shares:
+
+- `UploadRules` — the PWA's `uploadFile.ts`: the 25 MiB limit and its message, content
+  type and extractability decided by extension, safe storage key names, and HEIC/HEIF
+  converted to JPEG where it decodes.
+- `UploadQueue` — the native `useUploadQueue`: store, then read, then hand back a draft.
+  At most three files are in flight and 20 open per panel (the rest are left out with
+  the usual message); a failed, unreadable or unsupported file never stops the others;
+  only a failure every file would meet (reading off) halts the queue; a retry does not
+  store twice; a discarded, removed or abandoned file is deleted unless a saved record
+  references it. Each file's id is minted when it is added and is the id of the record
+  it becomes. A surface supplies `upload`, `discard`, `read`, `blank` and its
+  unsupported-type message.
+- `BulkUploadPanel` — the review: a card per file with its status, the surface's own
+  form once read, and **Save selected (n)**, which runs each selected card's own
+  validating save in turn with a progress bar and a summary.
+- `FileImport` — copies picked or dropped files onto the app's disk (`PickedFile`) and
+  turns a share-inbox item into one, so a surface can queue shared files.
+
+Shared files from other apps join the deduction queue only (see
+[`bulk-upload.md`](bulk-upload.md#receipts-shared-from-other-ios-apps)); the payslip
+queue takes files picked or dropped on the Add card.

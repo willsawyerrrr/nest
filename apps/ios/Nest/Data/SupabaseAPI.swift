@@ -143,6 +143,19 @@ struct SupabaseAPI: Sendable {
         return url
     }
 
+    /// Stores `data` at `path` in the private `bucket` as `contentType`.
+    func upload(bucket: String, path: String, data: Data, contentType: String) async throws {
+        _ = try await request(
+            "POST", path: "storage/v1/object/\(bucket)/\(path)", body: data,
+            headers: ["Content-Type": contentType])
+    }
+
+    /// Deletes the objects at `paths` in the private `bucket`.
+    func remove(bucket: String, paths: [String]) async throws {
+        _ = try await request(
+            "DELETE", path: "storage/v1/object/\(bucket)", body: encode(["prefixes": paths]))
+    }
+
     // MARK: Edge functions
 
     /// Calls the edge function `name` with `body` and decodes its JSON response.
@@ -151,6 +164,14 @@ struct SupabaseAPI: Sendable {
     ) async throws -> R {
         let data = try await request("POST", path: "functions/v1/\(name)", body: encode(body))
         return try decode(R.self, from: data)
+    }
+
+    /// Calls the edge function `name` with `body`, handing back the status and
+    /// body of any response, so a caller can read a failure's own fields.
+    func invokeRaw(
+        _ name: String, body: some Encodable & Sendable = EmptyBody()
+    ) async throws -> (status: Int, data: Data) {
+        try await perform("POST", path: "functions/v1/\(name)", body: encode(body))
     }
 
     // MARK: Plumbing
@@ -170,6 +191,19 @@ struct SupabaseAPI: Sendable {
         _ method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil,
         headers: [String: String] = [:]
     ) async throws -> Data {
+        let (status, data) = try await perform(
+            method, path: path, query: query, body: body, headers: headers)
+        if !(200..<300).contains(status) {
+            throw NestError.response(status: status, body: data)
+        }
+        return data
+    }
+
+    /// Sends a request and returns whatever response came back, whatever its status.
+    private func perform(
+        _ method: String, path: String, query: [URLQueryItem] = [], body: Data? = nil,
+        headers: [String: String] = [:]
+    ) async throws -> (status: Int, data: Data) {
         let token: String
         do {
             token = try await accessToken()
@@ -198,10 +232,7 @@ struct SupabaseAPI: Sendable {
         } catch {
             throw NestError.from(error)
         }
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw NestError.response(status: http.statusCode, body: data)
-        }
-        return data
+        return ((response as? HTTPURLResponse)?.statusCode ?? 200, data)
     }
 
     private func encode(_ value: some Encodable) throws -> Data {

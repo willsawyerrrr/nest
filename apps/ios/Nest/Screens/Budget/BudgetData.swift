@@ -40,6 +40,17 @@ struct BudgetOverviewInput: Encodable, Sendable {
         let interval: Int?
         let allowanceMemberId: String?
 
+        init(
+            group: BudgetGroup, amountCents: Int, frequency: Frequency, interval: Int?,
+            allowanceMemberId: String?
+        ) {
+            self.group = group
+            self.amountCents = amountCents
+            self.frequency = frequency
+            self.interval = interval
+            self.allowanceMemberId = allowanceMemberId
+        }
+
         init(_ line: BudgetLine) {
             group = line.lineGroup
             amountCents = line.amountCents

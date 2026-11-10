@@ -140,6 +140,45 @@ a sheet (`WebHandoffCard`). `Route.allowance` is outside the nav, so it is
 reached by `NavigationLink(value:)` from Budget; the sidebar's detail pane is a
 `NavigationStack` for the push.
 
+## Goals
+
+`Route.goals` is native (`GoalsScreen`), laid out as the PWA's Goals page: the
+Refresh button (an `up-sync` edge-function call, also on pull-to-refresh), the
+funded goals, the full-width lime "Add goal" button, and an Upcoming section for
+queued goals. A goal is a bordered card below 768pt (name, status badge, `$balance of
+$target`, percent, progress bar, ETA line, synced-saver note, linked contribution)
+and a dense table row from 768pt (name and badge, percent, progress, target,
+fortnightly funding, controls, ETA caption), as `GoalList` renders by width.
+
+Rows are `savings_goal` (ordered by `queue_position`, `name`), `budget_line`,
+`accounts_with_balance` (`source != manual`, `type = savings`, the savers a goal
+links to) and `members`. `GoalsEngine` reads each goal's funding from the engine's
+`budgetOverview` (a line's fortnightly figure without its interval, as the PWA's
+`contributionForGoal` reads it) and projects the whole list with `projectGoalQueue`;
+`GoalsPresentation` partitions funded from queued goals (queued by position then
+name) and builds each status flag and ETA line, mirroring `goalDisplay` and
+`queuedGoalDisplay`. Under planning mode the sandboxed rows are projected and the
+real rows are projected again as the baseline, so a funding or ETA the sandbox moved
+reads `real → proposed (±change)`.
+
+Writes use the PWA's calls: `POST`, `PATCH` and `DELETE` on `savings_goal`, every
+column sent (`null` included) so clearing a field clears it. The form
+(`GoalForm`/`GoalDraft`) has the PWA's fields, validation (name and target required)
+and copy; delete asks for confirmation. Dragging a queued goal's grip onto another
+queued goal moves it there and rewrites `queue_position` for the goals that moved
+(as `reorderQueue` does, and the MCP `reorder_savings_goal_queue`); VoiceOver gets
+Move up and Move down actions. While planning mode is on, create, edit, delete and
+reorder go to the sandbox (`PlanningStore.create`/`update`/`delete`), not the database.
+
+The page title is the shell's navigation title. A wishlist item promoted to a goal
+is not picked up natively yet.
+
+`apps/pwa/src/lib/goalsParity.test.tsx` computes each goal's funding, progress, status
+flag and ETA with the PWA's own `goalProjection` helpers and snapshots rows and
+figures into `apps/ios/NestTests/Fixtures/goals-parity.json`; `GoalsParityTests` runs
+the same rows through `GoalsEngine` and `GoalsPresentation` over the bundled engine
+and asserts identical figures.
+
 ## Planning mode
 
 Planning mode is native: `Route.planning` (`PlanningScreen`) and
@@ -170,9 +209,10 @@ fresh) whenever the sandbox moves.
 - **Save** calls `commit_planning_changes` with the same nine arguments as the web
   app (`CommitPlanningParams`), invalidating the three tables' cached rows. A
   failed save keeps every pending change and shows the error's fixed message.
-- Creating a new row in the sandbox is not offered natively yet; the layer already
-  holds, applies, lists and saves a created row (as one made in the web app's
-  sandbox shape would be).
+- Goals creates, edits, deletes and reorders into the sandbox. Creating a budget line
+  or an inflow in the sandbox is not offered natively yet; the layer already holds,
+  applies, lists and saves a created row (as one made in the web app's sandbox shape
+  would be).
 
 `apps/pwa/src/lib/planningParity.test.ts` applies a sandbox (an edited and a hidden
 inflow, edited, hidden and added budget lines, an edited goal) with the PWA's own

@@ -1,0 +1,255 @@
+[
+  {
+    "name": "active and queued goals",
+    "now": "2026-12-01T12:00:00Z",
+    "rows": {
+      "members": [],
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Holiday",
+          "line_group": "savings",
+          "amount_cents": 30000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "House",
+          "line_group": "investments",
+          "amount_cents": 90000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g2",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Rent",
+          "line_group": "needs",
+          "amount_cents": 240000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "savers": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "s1",
+          "name": "Rainy day",
+          "balance_cents": 125000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "s2",
+          "name": "Old pot",
+          "balance_cents": 4000,
+          "currency": "AUD",
+          "deleted_from_source_at": "2026-01-01T00:00:00Z",
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1500000,
+          "current_balance_cents": 300000,
+          "annual_interest_bps": null,
+          "linked_account_id": null,
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g2",
+          "name": "House deposit",
+          "target_amount_cents": 6000000,
+          "current_balance_cents": 1000000,
+          "annual_interest_bps": 450,
+          "linked_account_id": null,
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": "2029-06-30"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g3",
+          "name": "Emergency fund",
+          "target_amount_cents": 500000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "s1",
+          "planned_contribution_cents": null,
+          "queue_position": 0,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g4",
+          "name": "Car",
+          "target_amount_cents": 2000000,
+          "current_balance_cents": 50000,
+          "annual_interest_bps": null,
+          "linked_account_id": null,
+          "planned_contribution_cents": 15000,
+          "queue_position": 1,
+          "target_date": "2032-01-31"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g5",
+          "name": "Laptop",
+          "target_amount_cents": 200000,
+          "current_balance_cents": 200000,
+          "annual_interest_bps": null,
+          "linked_account_id": null,
+          "planned_contribution_cents": null,
+          "queue_position": 2,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g6",
+          "name": "Bike",
+          "target_amount_cents": 300000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": 300,
+          "linked_account_id": "s2",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        }
+      ]
+    },
+    "expected": {
+      "active": [
+        {
+          "id": "g1",
+          "contributionCents": 30000,
+          "percent": 20,
+          "balanceCents": 300000,
+          "status": {
+            "label": "On track",
+            "color": "positive"
+          },
+          "eta": "40 fortnights — 13 Jun 2028"
+        },
+        {
+          "id": "g2",
+          "contributionCents": 90000,
+          "percent": 17,
+          "balanceCents": 1000000,
+          "status": {
+            "label": "On track",
+            "color": "positive"
+          },
+          "eta": "By 30 Jun 2029 needs $677.43 / fn · 4.50% p.a. assumed"
+        }
+      ],
+      "queued": [
+        {
+          "id": "g3",
+          "contributionCents": 0,
+          "percent": 25,
+          "balanceCents": 125000,
+          "status": {
+            "label": "Upcoming",
+            "color": "info"
+          },
+          "eta": "Starts 13 Jun 2028 · 52 fortnights — 28 Nov 2028"
+        },
+        {
+          "id": "g4",
+          "contributionCents": 0,
+          "percent": 3,
+          "balanceCents": 50000,
+          "status": {
+            "label": "Behind",
+            "color": "warning"
+          },
+          "eta": "Starts 28 Nov 2028 · By 31 Jan 2032 needs $234.94 / fn"
+        },
+        {
+          "id": "g5",
+          "contributionCents": 0,
+          "percent": 100,
+          "balanceCents": 200000,
+          "status": {
+            "label": "Reached",
+            "color": "positive"
+          },
+          "eta": "Goal reached."
+        },
+        {
+          "id": "g6",
+          "contributionCents": 0,
+          "percent": 1,
+          "balanceCents": 4000,
+          "status": {
+            "label": "Upcoming",
+            "color": "info"
+          },
+          "eta": "Starts 12 Dec 2028 · 55 fortnights — 9 Jan 2029 · 3.00% p.a. assumed"
+        }
+      ]
+    }
+  }
+]

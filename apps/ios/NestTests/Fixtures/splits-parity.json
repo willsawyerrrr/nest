@@ -229,7 +229,7 @@
           "updated_at": "2026-01-01T00:00:00Z",
           "id": "ps1",
           "account_id": "a1",
-          "confirmed_fortnightly_cents": 111000,
+          "confirmed_fortnightly_cents": 138500,
           "confirmed_at": "2026-01-01T00:00:00Z"
         },
         {
@@ -377,8 +377,8 @@
           "label": "Bills",
           "exactCents": 138461,
           "roundedCents": 138500,
-          "configuredCents": 111000,
-          "needsUpdate": true,
+          "configuredCents": 138500,
+          "needsUpdate": false,
           "lines": [
             {
               "id": "b1",
@@ -682,7 +682,7 @@
           "updated_at": "2026-01-01T00:00:00Z",
           "id": "ps1",
           "account_id": "a1",
-          "confirmed_fortnightly_cents": 111000,
+          "confirmed_fortnightly_cents": 138500,
           "confirmed_at": "2026-01-01T00:00:00Z"
         },
         {
@@ -867,8 +867,8 @@
           "label": "Bills",
           "exactCents": 138461,
           "roundedCents": 138500,
-          "configuredCents": 111000,
-          "needsUpdate": true,
+          "configuredCents": 138500,
+          "needsUpdate": false,
           "lines": [
             {
               "id": "b1",

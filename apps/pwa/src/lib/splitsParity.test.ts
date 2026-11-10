@@ -166,7 +166,7 @@ const rows = {
       ...base,
       id: 'ps1',
       account_id: 'a1',
-      confirmed_fortnightly_cents: 1_110_00,
+      confirmed_fortnightly_cents: 1_385_00,
       confirmed_at: STAMP,
     },
     {
@@ -282,8 +282,15 @@ const cases = [
   { name: 'a pay account is chosen', payAccountId: 'a2' },
   { name: 'no pay account is chosen', payAccountId: null },
 ].map(({ name, payAccountId }) => {
-  const caseRows = { ...rows, households: [{ ...rows.households[0]!, pay_account_id: payAccountId }] }
-  return { name, rows: caseRows, expected: JSON.parse(JSON.stringify(figures(payAccountId))) as unknown }
+  const caseRows = {
+    ...rows,
+    households: [{ ...rows.households[0]!, pay_account_id: payAccountId }],
+  }
+  return {
+    name,
+    rows: caseRows,
+    expected: JSON.parse(JSON.stringify(figures(payAccountId))) as unknown,
+  }
 })
 
 describe('the native Pay splits parity fixture', () => {

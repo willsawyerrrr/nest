@@ -279,7 +279,10 @@ struct GiftAmountField: View {
                     .strokeBorder(NestColor.border, lineWidth: 1))
         }
     }
+}
 
+/// Typed dollars to cents and back.
+enum GiftMoneyInput {
     /// Integer cents for typed dollars (commas allowed), or nil when not a number.
     static func cents(_ text: String) -> Int? {
         let cleaned = text.replacingOccurrences(of: ",", with: "")

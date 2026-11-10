@@ -31,12 +31,12 @@ struct GiftPurchaseForm: View {
         self.onSubmit = onSubmit
         self.onCancel = onCancel
         _description = State(initialValue: initial?.description ?? "")
-        _amount = State(initialValue: GiftAmountField.text(cents: initial?.amountCents))
+        _amount = State(initialValue: GiftMoneyInput.text(cents: initial?.amountCents))
         _date = State(initialValue: initial.flatMap { Self.parse($0.purchasedOn) } ?? Date())
         _tag = State(initialValue: initial?.recipientId)
     }
 
-    private var cents: Int? { GiftAmountField.cents(amount) }
+    private var cents: Int? { GiftMoneyInput.cents(amount) }
 
     var body: some View {
         GiftFormShell(

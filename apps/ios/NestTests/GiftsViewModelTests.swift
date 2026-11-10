@@ -273,12 +273,12 @@ private enum GiftFixtures {
     }
 
     @Test func parsesTypedDollarsIntoCents() {
-        #expect(GiftAmountField.cents("12.50") == 1250)
-        #expect(GiftAmountField.cents("1,234") == 123_400)
-        #expect(GiftAmountField.cents("") == nil)
-        #expect(GiftAmountField.cents("abc") == nil)
-        #expect(GiftAmountField.cents("-3") == nil)
-        #expect(GiftAmountField.text(cents: 1250) == "12.50")
+        #expect(GiftMoneyInput.cents("12.50") == 1250)
+        #expect(GiftMoneyInput.cents("1,234") == 123_400)
+        #expect(GiftMoneyInput.cents("") == nil)
+        #expect(GiftMoneyInput.cents("abc") == nil)
+        #expect(GiftMoneyInput.cents("-3") == nil)
+        #expect(GiftMoneyInput.text(cents: 1250) == "12.50")
     }
 
     @Test func purchaseValuesEncodeNullsExplicitly() throws {

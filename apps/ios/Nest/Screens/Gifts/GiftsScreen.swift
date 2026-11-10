@@ -464,21 +464,21 @@ struct GiftAdHocCard: View {
                 }
                 HStack(spacing: NestSpacing.xs) {
                     Button("Save") {
-                        guard let cents = GiftAmountField.cents(amount) else { return }
+                        guard let cents = GiftMoneyInput.cents(amount) else { return }
                         Task {
                             failed = !(await model.setDiscretionaryBudget(cents: cents))
                             if !failed { editingBudget = false }
                         }
                     }
                     .buttonStyle(GiftButtonStyle(variant: .filled, small: true))
-                    .fixedSize().disabled(GiftAmountField.cents(amount) == nil)
+                    .fixedSize().disabled(GiftMoneyInput.cents(amount) == nil)
                     Button("Cancel") { editingBudget = false }
                         .buttonStyle(GiftButtonStyle(variant: .outline, small: true))
                 }
             }
         } else {
             Button("Edit budget") {
-                amount = GiftAmountField.text(cents: buffer?.budgetedAmountCents ?? 0)
+                amount = GiftMoneyInput.text(cents: buffer?.budgetedAmountCents ?? 0)
                 failed = false
                 editingBudget = true
             }

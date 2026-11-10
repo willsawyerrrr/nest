@@ -29,8 +29,12 @@ export {
 } from './tax/income.ts'
 export { projectedInterestIncomeInputs } from './tax/interestIncome.ts'
 export { toTradeInputs } from './tax/trades.ts'
-export { atPreservationAgeOn, ENGINE_ONE_OFF_TREATMENTS } from './tax/oneOff.ts'
-export type { StoredOneOffTaxTreatment } from './tax/oneOff.ts'
+export {
+  atPreservationAgeOn,
+  ENGINE_ONE_OFF_TREATMENTS,
+  previewOneOffPaymentSplit,
+} from './tax/oneOff.ts'
+export type { OneOffPreviewInput, StoredOneOffTaxTreatment } from './tax/oneOff.ts'
 export {
   assessableByMemberFromInflows,
   concessionalByMember,

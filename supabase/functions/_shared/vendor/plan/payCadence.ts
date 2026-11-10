@@ -22,7 +22,7 @@
  */
 
 import type { Frequency, Money } from './index.ts'
-import { annualCents, periodsPerYear } from './normalize.ts'
+import { annualCents, periodsPerYear, perPeriodCents } from './normalize.ts'
 import {
   cadenceSpan,
   cadenceTurnDays,
@@ -397,4 +397,67 @@ export function expectedPeriodGrossCents(
     activeDaysInPeriod(inflow, period),
     payCycleUnit(inflow, period) ?? financialYearUnit(financialYear),
   )
+}
+
+/**
+ * The unit of one period of a frequency, for labelling the amount that covers it. The
+ * arbitrary cadences have no name of their own, their length being whatever interval
+ * is given, so they read as a plain period.
+ */
+export const PERIOD_NOUN: Record<Frequency, string> = {
+  weekly: 'week',
+  fortnightly: 'fortnight',
+  monthly: 'month',
+  quarterly: 'quarter',
+  biannual: 'half-year',
+  annual: 'year',
+  every_n_weeks: 'period',
+  every_n_months: 'period',
+}
+
+/** What one payment comes to, and how a year of them compares with the amount stated. */
+export interface PerPayment {
+  /** The amount landing in one payment: the figure a payslip's period is measured against. */
+  readonly cents: Money
+  /** What a year of those payments comes to, rounding included. */
+  readonly annualCents: Money
+  /** The annual total the amount itself states. */
+  readonly statedAnnualCents: Money
+  /** The unit one payment covers, for labelling. */
+  readonly noun: string
+}
+
+/**
+ * What one payment of `annualAmountCents` comes to on the pay cadence, or null when
+ * there is nothing to derive: no separate pay cadence, one whose interval is not yet
+ * given, or one landing as often as the amount is expressed, where the payment simply
+ * is the amount. Nothing here is stored; this is the very division the payslip
+ * expectation makes, shown ahead of it.
+ */
+export function describePerPayment(
+  annualAmountCents: Money | null,
+  amountFrequency: Frequency,
+  amountInterval: number | undefined,
+  payFrequency: Frequency | null,
+  payInterval: number | undefined,
+): PerPayment | null {
+  if (annualAmountCents === null || payFrequency === null) {
+    return null
+  }
+  const payPeriods = periodsPerYear(payFrequency, payInterval)
+  if (payPeriods === 0 || payPeriods === periodsPerYear(amountFrequency, amountInterval)) {
+    return null
+  }
+  const cents = perPeriodCents(annualAmountCents, payFrequency, payInterval)
+  return {
+    cents,
+    annualCents: annualCents(cents, payFrequency, payInterval),
+    statedAnnualCents: annualAmountCents,
+    // On an arbitrary cadence one turn is only ever "a payment"; every fixed cadence
+    // has a name of its own.
+    noun:
+      payFrequency === 'every_n_weeks' || payFrequency === 'every_n_months'
+        ? 'payment'
+        : PERIOD_NOUN[payFrequency],
+  }
 }

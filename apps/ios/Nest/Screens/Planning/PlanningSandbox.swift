@@ -90,6 +90,13 @@ struct PlanningLayer: Codable, Equatable, Sendable {
         return layer
     }
 
+    /// Appends `row`, a whole row created in the sandbox.
+    func creating(_ row: JSONRow) -> PlanningLayer {
+        var layer = self
+        layer.creates.append(row)
+        return layer
+    }
+
     /// Removes `id`: a sandbox-created row is dropped outright, a real row is
     /// hidden. Any field patch for `id` is discarded either way.
     func deleting(_ id: String) -> PlanningLayer {

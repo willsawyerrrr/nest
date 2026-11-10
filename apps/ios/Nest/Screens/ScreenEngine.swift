@@ -22,4 +22,10 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func projectGoalQueue(_ input: GoalQueueInput) async throws -> GoalQueueProjection {
+        do { return try await shared.value.projectGoalQueue(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

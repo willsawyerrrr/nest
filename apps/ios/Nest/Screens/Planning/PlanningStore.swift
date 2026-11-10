@@ -53,6 +53,10 @@ final class PlanningStore {
         mutate(table) { $0.updating(id, patch: patch) }
     }
 
+    func create(_ table: PlanningTable, row: JSONRow) {
+        mutate(table) { $0.creating(row) }
+    }
+
     func delete(_ table: PlanningTable, id: String) {
         mutate(table) { $0.deleting(id) }
     }

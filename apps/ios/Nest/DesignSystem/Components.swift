@@ -2,11 +2,12 @@ import SwiftUI
 
 /// An elevated, bordered surface that steps off the page canvas.
 struct NestCard<Content: View>: View {
+    var padding: CGFloat = NestSpacing.lg
     @ViewBuilder var content: Content
 
     var body: some View {
         content
-            .padding(NestSpacing.lg)
+            .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 NestColor.surface,

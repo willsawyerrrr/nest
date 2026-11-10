@@ -52,19 +52,21 @@ import Testing
         await settle(queue)
         #expect(queue.items[0].status == .ready)
         #expect(queue.items[0].value?.hasPrefix("read path/") == true)
-        #expect(await log.uploaded == [queue.items[0].id])
+        let uploaded = await log.uploaded
+        #expect(uploaded == [queue.items[0].id])
     }
 
     @Test func readsAtMostThreeAtOnce() async {
         let log = Log()
-        let queue = queue(log: log) { _ in
+        let queue = queue(log: log, read: { _ in
             try? await Task.sleep(for: .milliseconds(30))
             return .read("ok")
-        }
+        })
         queue.add(files("1.pdf", "2.pdf", "3.pdf", "4.pdf", "5.pdf", "6.pdf"))
         await settle(queue)
         #expect(queue.items.allSatisfy { $0.status == .ready })
-        #expect(await log.peak <= BulkUpload.readConcurrency)
+        let peak = await log.peak
+        #expect(peak <= BulkUpload.readConcurrency)
     }
 
     @Test func aFileOfAnUnreadableTypeIsStoredWithABlankDraft() async {
@@ -74,7 +76,8 @@ import Testing
         await settle(queue)
         #expect(queue.items[0].status == .unsupported)
         #expect(queue.items[0].value == "blank" && queue.items[0].message == "unsupported")
-        #expect(await log.reads.isEmpty)
+        let reads = await log.reads
+        #expect(reads.isEmpty)
     }
 
     @Test func anOversizedFileFailsWithoutRetryAndTheOthersCarryOn() async {
@@ -95,23 +98,26 @@ import Testing
 
     @Test func aHaltStopsTheQueueAndMarksTheRestFailed() async {
         let log = Log()
-        let queue = queue(log: log) { _ in .halt(message: "off") }
+        let queue = queue(log: log, read: { _ in .halt(message: "off") })
         queue.add(files("1.pdf", "2.pdf", "3.pdf", "4.pdf", "5.pdf"))
         await settle(queue)
         #expect(queue.halted == "off")
         #expect(queue.items.allSatisfy { $0.status == .failed && $0.message == "off" })
-        #expect(await log.reads.count <= BulkUpload.readConcurrency)
+        let reads = await log.reads
+        #expect(reads.count <= BulkUpload.readConcurrency)
     }
 
     @Test func aRetryReadsAgainWithoutStoringAgain() async {
         let log = Log()
-        let queue = queue(log: log) { _ in .failed(message: "no") }
+        let queue = queue(log: log, read: { _ in .failed(message: "no") })
         queue.add(files("1.pdf"))
         await settle(queue)
         #expect(queue.items[0].status == .failed)
         queue.retry(queue.items[0].id)
         await settle(queue)
-        #expect(await log.uploaded.count == 1 && await log.reads.count == 2)
+        let uploaded = await log.uploaded.count
+        let reads = await log.reads.count
+        #expect(uploaded == 1 && reads == 2)
         queue.enterByHand(queue.items[0].id)
         #expect(queue.items[0].status == .manual && queue.items[0].value == "blank")
     }

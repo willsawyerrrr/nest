@@ -23,6 +23,7 @@ actor Engine {
         case salarySacrifice
         case mlsWhatIf
         case householdYear
+        case paySplitRoutes
     }
 
     enum Failure: Error, Equatable {
@@ -131,5 +132,11 @@ actor Engine {
     /// The figures the inflow form shows back from its draft.
     func previewInflowDraft(_ input: some Encodable) throws -> InflowDraftPreview {
         try call(.previewInflowDraft, input)
+    }
+
+    /// The Pay splits screen's routing: each routed account's exact fortnightly
+    /// total with the lines behind it, and what is routed nowhere.
+    func paySplitRoutes(_ input: some Encodable) throws -> PaySplitRoutes {
+        try call(.paySplitRoutes, input)
     }
 }

@@ -85,6 +85,7 @@ import Testing
         check(GiftDiscretionaryBudget.self)
         check(GiftTransactionDismissal.self)
         check(GiftTransaction.self)
+        check(AccountDirectoryEntry.self)
     }
 
     /// The signed-in role reads every `share_grant` column but the credential's hash

@@ -370,3 +370,39 @@ hidden by row-level security (`private_gift`). The device never widens that:
 `GiftsViewModelTests` covers hidden rows never reaching the content or
 presentation, the cache never serving another user's rows, purchases and
 transactions never being cached, and the no-spend budget.
+
+## Pay splits
+
+`Route.splits` is native (`SplitsScreen`), laid out as the PWA's Splits page: the
+"Paid into" chooser (spending accounts from `account_directory`, clearable), the
+"Choose the account you're paid into" callout until one is set, a sort control
+(title or amount, with a direction toggle, persisted in `UserDefaults`), the
+"Stays in your pay account" panel, "Recommended pay splits" with its "N to
+update" badge, and the Unassigned alert. Rows render as bordered cards on
+compact widths and as dense ruled rows on regular widths, each expanding to the
+budget lines behind its total. A drifted or never-confirmed row has the warning
+stripe, an "Update" badge, the change (`was $350.00 → $400.00 / fn` or
+`Not set yet`) and Confirm / Mark as set; a confirmed row has the subdued clear
+control.
+
+Routing comes from the engine's `paySplitRoutes` (in `packages/js-core`), which
+runs `@nest/plan`'s `assignmentsByAccount` over the budget lines, goals and
+allowances and returns accounts in routing order. `SplitsPresentation` mirrors
+the rest of `SplitsScreen` in pure functions: rounding up to $5, drift,
+recommended-versus-stays, sorting, and the PWA's copy. Rows are `budget_line`,
+`savings_goal`, `account_directory`, `super_profile` (current financial year;
+super-linked accounts are not split targets), `pay_split`, `households`
+(`pay_account_id`), `members` and `member_allowance`.
+
+Writes mirror `usePaySplits` and `usePayAccount`: Confirm upserts `pay_split` on
+`household_id,account_id`, clear deletes by `account_id`, and the chooser calls
+`set_household_pay_account` (a cleared account is sent as `null`). Each
+invalidates its table's cache and reloads; a failed write shows a fixed message
+and leaves the screen as it was. Nothing is left on the web.
+
+`apps/pwa/src/lib/splitsParity.test.ts` computes the routing, rounded figures,
+drift flags and grouping with the PWA's own plan functions for a household with
+and without a pay account, and snapshots rows and figures into
+`apps/ios/NestTests/Fixtures/splits-parity.json`. `SplitsParityTests` runs the
+same rows through `SplitsRows.input`, the bundled engine and `SplitsPresentation`
+and asserts identical figures.

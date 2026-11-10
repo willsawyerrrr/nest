@@ -78,6 +78,19 @@ struct SupabaseAPI: Sendable {
         return try decode([T].self, from: data)
     }
 
+    /// Inserts `values`, or updates the row already holding the same `onConflict`
+    /// columns, and returns the stored rows.
+    func upsert<T: NestRow>(
+        _: T.Type, values: some Encodable & Sendable, onConflict: String
+    ) async throws -> [T] {
+        let data = try await request(
+            "POST", path: "rest/v1/\(T.table)",
+            query: [URLQueryItem(name: "on_conflict", value: onConflict)], body: encode(values),
+            headers: ["Prefer": "resolution=merge-duplicates,return=representation"]
+        )
+        return try decode([T].self, from: data)
+    }
+
     /// Applies `values` to every row matching `filters` and returns the updated rows.
     func update<T: NestRow>(
         _: T.Type, values: some Encodable & Sendable, filters: [Filter]

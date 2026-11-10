@@ -71,6 +71,18 @@ struct NestData: Sendable {
         }
     }
 
+    /// Inserts rows, or updates those already holding the same `onConflict`
+    /// columns, then invalidates `T`'s table and `also`.
+    @discardableResult
+    func upsert<T: NestRow>(
+        _ type: T.Type, values: some Encodable & Sendable, onConflict: String,
+        also: Set<String> = []
+    ) async throws -> [T] {
+        try await write(invalidating: also.union([T.table])) {
+            try await api.upsert(T.self, values: values, onConflict: onConflict)
+        }
+    }
+
     /// Updates matching rows, then invalidates `T`'s table and `also`.
     @discardableResult
     func update<T: NestRow>(

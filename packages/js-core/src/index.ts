@@ -13,13 +13,17 @@ import {
   type BudgetSummaryBundle,
 } from '@nest/household'
 import {
+  assignmentsByAccount,
   budgetOverview,
   isTemporaryActive,
   projectGoalQueue,
   type ActiveGoalFunding,
+  type AssignableAllowance,
+  type AssignableLine,
   type BudgetLine,
   type MemberAllowance,
   type QueuedGoalFunding,
+  type RoutableGoal,
   type TemporaryItem,
 } from '@nest/plan'
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
@@ -110,6 +114,34 @@ export function budgetOverviewOf(input: BudgetOverviewInput) {
   }
 }
 
+/** The input of {@link paySplitRoutes}. */
+export interface PaySplitRoutesInput {
+  lines: AssignableLine[]
+  goals: RoutableGoal[]
+  allowances: AssignableAllowance[]
+}
+
+/**
+ * The pay-split routing the Pay splits screen lists: each account the budget
+ * routes money to, in routing order, with its exact fortnightly total and the
+ * lines behind it, and the total of lines routed nowhere.
+ */
+export function paySplitRoutes(input: PaySplitRoutesInput) {
+  const { byAccount, linesByAccount, unassignedFortnightlyCents } = assignmentsByAccount(
+    input.lines,
+    input.goals,
+    input.allowances,
+  )
+  return {
+    accounts: Object.entries(byAccount).map(([accountId, fortnightlyCents]) => ({
+      accountId,
+      fortnightlyCents,
+      lines: linesByAccount[accountId] ?? [],
+    })),
+    unassignedFortnightlyCents,
+  }
+}
+
 /** A bridge entry point: parses its JSON argument, runs an engine, returns JSON. */
 type Entry = (inputJson: string) => string
 
@@ -135,4 +167,5 @@ export const entryPoints = {
   householdYear: entry(householdYear),
   summariseInflows: entry(summariseInflows),
   previewInflowDraft: entry(previewInflowDraft),
+  paySplitRoutes: entry(paySplitRoutes),
 } satisfies Record<string, Entry>

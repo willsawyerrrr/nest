@@ -628,6 +628,62 @@ struct AccountWithBalance: NestRow {
     }
 }
 
+/// Row of the `account_directory` view: an account's identity without its
+/// balance, including every member's spending accounts. The view's columns are
+/// all nullable.
+struct AccountDirectoryEntry: NestRow {
+    static let table = "account_directory"
+
+    let deletedFromSourceAt: String?
+    let householdId: String?
+    let id: String?
+    let name: String?
+    let ownerMemberId: String?
+    let source: LedgerSource?
+    let type: AccountType?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case deletedFromSourceAt = "deleted_from_source_at"
+        case householdId = "household_id"
+        case id
+        case name
+        case ownerMemberId = "owner_member_id"
+        case source
+        case type
+    }
+}
+
+/// Row of `super_profile`.
+struct SuperProfile: NestRow {
+    static let table = "super_profile"
+
+    let balanceAsOf: String?
+    let carryForwardCapCents: Int
+    let createdAt: String
+    let financialYear: Int
+    let fundName: String?
+    let householdId: String
+    let id: String
+    let linkedAccountId: String?
+    let memberId: String
+    let sgRateOverride: Double?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case balanceAsOf = "balance_as_of"
+        case carryForwardCapCents = "carry_forward_cap_cents"
+        case createdAt = "created_at"
+        case financialYear = "financial_year"
+        case fundName = "fund_name"
+        case householdId = "household_id"
+        case id
+        case linkedAccountId = "linked_account_id"
+        case memberId = "member_id"
+        case sgRateOverride = "sg_rate_override"
+        case updatedAt = "updated_at"
+    }
+}
+
 /// Row of `breakdown`.
 struct Breakdown: NestRow {
     static let table = "breakdown"

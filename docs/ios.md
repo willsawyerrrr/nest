@@ -229,7 +229,9 @@ temporary items are active) and, for the Tax estimate and EOFY screens, `taxScre
 (the household and per-member estimate with each member's whole tax breakdown, super
 cap summary, HELP payoff, projected interest and payslip count), `salarySacrifice`,
 `mlsWhatIf` and `householdYear` (the what-if and household year summary the PWA runs
-in its components). The inputs are the
+in its components) and `paySplitRoutes` (`@nest/plan`'s `assignmentsByAccount`: each
+routed account's exact fortnightly total with the lines behind it, and what is routed
+nowhere). The inputs are the
 rows those functions already take (see `packages/js-core/src/index.ts`).
 
 - **The bundle ships in the app, not fetched.** It is committed, so the Xcode

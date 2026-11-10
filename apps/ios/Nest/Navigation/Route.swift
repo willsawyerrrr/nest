@@ -152,6 +152,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .gifts: .native(AnyView(GiftsScreen()))
         case .allowance: .native(AnyView(AllowanceScreen()))
         case .planning: .native(AnyView(PlanningScreen()))
+        case .splits: .native(AnyView(SplitsScreen()))
         case .planningMode: .native(AnyView(PlanningModeScreen()))
         case .wishlist: .native(AnyView(WishlistScreen()))
         case .tax: .native(AnyView(TaxScreen()))

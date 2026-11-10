@@ -29,6 +29,9 @@ enum NestColor {
     /// black text on both schemes.
     static let brand = Color(hex: 0xB6F400)
     static let onBrand = Color.black
+    /// The active nav label: a deep brand shade clearing WCAG AA on the pale
+    /// light wash, the vivid lime on the dark canvas.
+    static let navActiveText = Color(light: Color(hex: 0x587600), dark: brand)
     /// Restores the mark's near-black canvas behind it in light mode only.
     static let markTile = Color(light: Color(hex: 0x141A21), dark: .clear)
 

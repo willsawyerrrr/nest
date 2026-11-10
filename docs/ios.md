@@ -19,14 +19,27 @@ dynamic colours). Every file below applies to all three builds unless noted.
 
 ### Navigation shell
 
-Once signed in, `ContentView` shows `NavigationShell` (`Nest/Navigation/`): a
-tab bar on iPhone (compact width), a `NavigationSplitView` sidebar on iPad, Mac
-Catalyst and `NestMac`. `Route` (`Route.swift`) enumerates every PWA path; its
-`NavSection` groups (Summary, Plan, Grow, Tax, Settings) mirror the PWA's
-`NAV_SECTIONS`, and `planning`, `allowance` and `whatsNew` sit outside the nav (Planning is reached from
-the planning banner and the Planning mode settings screen).
-Each tab is a section whose routes list and push their screens; Summary is one
-route and shows it directly.
+Once signed in, `ContentView` shows `NavigationShell` (`Nest/Navigation/`),
+the PWA's `TabBar` natively: on iPhone (compact width) a top bar (brand mark,
+"What's new", burger) whose burger opens a left drawer over a dimmed scrim; on
+iPad, Mac Catalyst and `NestMac` a persistent 240pt sidebar (wordmark lockup, nav,
+"What's new" in the footer). Both render `NavMenu` (`NavMenu.swift`) over
+`NavEntry.entries(planningActive:)`: Summary stands alone, Plan, Grow, Tax and
+Settings are collapsible groups with uppercase headers and chevrons, the active
+item takes a brand wash with a leading bar, and a folded group holding the
+selected route shows a brand dot. The group holding the selected route opens on
+every selection and the rest fold away; toggling a header in between stands.
+Planning sits beside Summary while planning mode is on. `⌘1`…`⌘9` jump to a
+route and `⇧⌘←` / `⇧⌘→` cycle through them.
+
+`Route` (`Route.swift`) is the single route registry: it enumerates every PWA
+path, its `NavSection` groups (Summary, Plan, Grow, Tax, Settings) mirror the
+PWA's `NAV_SECTIONS`, and `planning`, `allowance` and `whatsNew` sit outside the
+nav (Planning is reached from the planning banner and the Planning mode settings
+screen; What's new from the header button). A screen is registered by adding or
+editing its `Route` case and `content`; the chrome reads the registry and never
+changes. The selected route renders in its own `NavigationStack`, recreated when
+the route changes, so pushed details keep a back button.
 
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
 route not yet native is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
@@ -135,7 +148,7 @@ rotating one refresh token evict each other.
   `nestAuth` handler; `AuthGate` shows the loading screen (never the web
   sign-in screen) in the shell until the injected session lands.
   `App` omits its own `TabBar` (sidebar, mobile top bar and drawer) in the shell,
-  since the native tab bar owns navigation; `.app-shell--native` drops the
+  since the native burger menu and sidebar own navigation; `.app-shell--native` drops the
   padding that reserved room for that chrome, leaving page content and each
   page's own header.
 

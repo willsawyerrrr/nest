@@ -13,8 +13,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   target is one codebase built for two destinations — iOS and Mac Catalyst, via
   `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
   a native AppKit/SwiftUI macOS target compiled from the same sources, with its
-  own macOS share extension) wraps the PWA in a SwiftUI navigation shell (tab
-  bar on iPhone, sidebar on iPad and Mac) whose per-route `.native` / `.web`
+  own macOS share extension) wraps the PWA in a SwiftUI navigation shell (burger
+  menu and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's collapsible nav groups) whose per-route `.native` / `.web`
   switch embeds each not-yet-native screen in a `WKWebView` (design system in
   `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Planning mode and Wishlist so far) follow
   the pattern in [`docs/native-screens.md`](docs/native-screens.md)),

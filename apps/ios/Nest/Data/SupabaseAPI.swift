@@ -144,6 +144,11 @@ struct SupabaseAPI: Sendable {
 
     struct EmptyBody: Codable, Sendable {}
 
+    /// A response whose content is not read.
+    struct Ignored: Decodable, Sendable {
+        init(from decoder: Decoder) throws {}
+    }
+
     private static func items(_ filters: [Filter]) -> [URLQueryItem] {
         filters.map { URLQueryItem(name: $0.column, value: "\($0.op).\($0.value)") }
     }

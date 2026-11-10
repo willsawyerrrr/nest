@@ -321,3 +321,49 @@ mirrors `InflowList`'s labels and captions. Parity is held by
 the form's draft figures with the PWA's own functions and snapshots rows and figures
 into `apps/ios/NestTests/Fixtures/inflows-parity.json`; `InflowsParityTests` runs the
 same rows and drafts through the bundled engine and asserts identical figures.
+
+
+## Gifts
+
+`Route.gifts` is native (`GiftsScreen`), drawn to match the PWA's Gifts tab: the
+display title with Refresh and Manage, the collapsible "From your card" inbox
+(link a candidate to a recipient's occasion, set it aside as "not a gift", undo),
+the Total, "Unassigned purchases" (add, edit, delete, assign to a gift or the ad
+hoc buffer) and "Ad hoc gifts" (edit the buffer amount, add, edit, delete a
+purchase with an optional recipient tag) cards, the By occasion / By person
+control (persisted in `UserDefaults` as `gift-group-by`), and a collapsible card
+per group whose rows expand to their purchases (add, edit, delete). Refresh calls
+the `up-sync` function, as the PWA does, then reloads. Writes are the PWA's own
+PostgREST calls (`gift_purchase`, `gift_transaction_dismissal`,
+`gift_discretionary_budget`) with the same field rules.
+
+Totals, grouping, ordering, the inbox and the link choices are plain arithmetic,
+so `GiftsPresentation` ports `lib/gifts.ts` and `lib/giftCandidates.ts` to Swift
+rather than adding an engine entry point. `apps/pwa/src/lib/giftsParity.test.ts`
+snapshots rows and those figures into `apps/ios/NestTests/Fixtures/gifts-parity.json`;
+`GiftsParityTests` presents the same rows and asserts identical figures.
+
+Still on the web: adding, editing and deleting recipients, occasions and gift
+budgets. Manage opens a `WebHandoffCard` for them.
+
+### Privacy
+
+A member's own gift (a budget for a recipient linked to them) is not editable by
+them, and purchases for it, or ad hoc purchases tagged to that recipient, are
+hidden by row-level security (`private_gift`). The device never widens that:
+
+- `gift_purchase` and `transactions` (the tables RLS withholds) bypass `RowCache`
+  (`cached: false`), so only a fresh read is shown and no stale row can outlive a
+  change to what RLS hides. The cache is otherwise keyed per user and cleared on
+  sign-out.
+- `GiftsRows.visible(to:)` drops those purchases again, with the transactions and
+  dismissals they claim, before the content reaches the view model, so nothing
+  hidden can reach the figures even through a stale response.
+- A budget for the member's own gift reports no spend (as MCP `list_gifts` does):
+  its row shows only the budget, and a group or total made up only of such gifts
+  shows only the budget. Such budgets are left out of the link choices.
+- Gift rows are not exposed to Spotlight or App Intents.
+
+`GiftsViewModelTests` covers hidden rows never reaching the content or
+presentation, the cache never serving another user's rows, purchases and
+transactions never being cached, and the no-spend budget.

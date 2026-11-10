@@ -1,0 +1,739 @@
+[
+  {
+    "name": "a household with own gifts, ad hoc and unassigned purchases",
+    "currentMemberId": "m1",
+    "rows": {
+      "recipients": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "r-mum",
+          "name": "Mum",
+          "member_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "r-sam",
+          "name": "Sam",
+          "member_id": "m2"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "r-will",
+          "name": "Will",
+          "member_id": "m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "r-zed",
+          "name": "Zed",
+          "member_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "r-idle",
+          "name": "Idle",
+          "member_id": null
+        }
+      ],
+      "occasions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "o-xmas",
+          "name": "Christmas",
+          "occasion_date": "2026-12-25"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "o-bday",
+          "name": "Birthday",
+          "occasion_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "o-ann",
+          "name": "Anniversary",
+          "occasion_date": "2026-06-01"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "o-none",
+          "name": "Empty",
+          "occasion_date": null
+        }
+      ],
+      "budgets": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "recipient_id": "r-mum",
+          "occasion_id": "o-xmas",
+          "budgeted_amount_cents": 15000,
+          "event_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "recipient_id": "r-sam",
+          "occasion_id": "o-xmas",
+          "budgeted_amount_cents": 20000,
+          "event_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "recipient_id": "r-will",
+          "occasion_id": "o-xmas",
+          "budgeted_amount_cents": 25000,
+          "event_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b4",
+          "recipient_id": "r-mum",
+          "occasion_id": "o-bday",
+          "budgeted_amount_cents": 10000,
+          "event_date": "2026-09-09"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b5",
+          "recipient_id": "r-zed",
+          "occasion_id": "o-ann",
+          "budgeted_amount_cents": 5000,
+          "event_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b6",
+          "recipient_id": "r-will",
+          "occasion_id": "o-bday",
+          "budgeted_amount_cents": 7000,
+          "event_date": null
+        }
+      ],
+      "purchases": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p1",
+          "amount_cents": 6000,
+          "description": "p1",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": "b1",
+          "gift_discretionary_budget_id": null,
+          "recipient_id": null,
+          "transaction_id": "t1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p2",
+          "amount_cents": 4550,
+          "description": "p2",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": "b1",
+          "gift_discretionary_budget_id": null,
+          "recipient_id": null,
+          "transaction_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p3",
+          "amount_cents": 21000,
+          "description": "p3",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": "b2",
+          "gift_discretionary_budget_id": null,
+          "recipient_id": null,
+          "transaction_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p4",
+          "amount_cents": 3000,
+          "description": "p4",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": null,
+          "gift_discretionary_budget_id": "d1",
+          "recipient_id": "r-zed",
+          "transaction_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p5",
+          "amount_cents": 1234,
+          "description": "p5",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": null,
+          "gift_discretionary_budget_id": "d1",
+          "recipient_id": null,
+          "transaction_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p6",
+          "amount_cents": 999,
+          "description": "p6",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": null,
+          "gift_discretionary_budget_id": null,
+          "recipient_id": null,
+          "transaction_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p7",
+          "amount_cents": 501,
+          "description": "p7",
+          "purchased_on": "2026-02-01",
+          "gift_budget_id": null,
+          "gift_discretionary_budget_id": null,
+          "recipient_id": null,
+          "transaction_id": null
+        }
+      ],
+      "discretionaryBudgets": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "d1",
+          "budgeted_amount_cents": 8000
+        }
+      ],
+      "transactions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "account_id": "a1",
+          "amount_cents": -6000,
+          "category_id": null,
+          "description": "t1",
+          "external_category": "gifts-and-charity",
+          "external_id": "ext-t1",
+          "kind": "expense",
+          "member_id": "m1",
+          "notes": null,
+          "posted_at": "2026-02-01T12:00:00+00:00",
+          "source": "up",
+          "status": "settled"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "account_id": "a1",
+          "amount_cents": -4200,
+          "category_id": null,
+          "description": "Toy shop",
+          "external_category": "gifts-and-charity",
+          "external_id": "ext-t2",
+          "kind": "expense",
+          "member_id": "m1",
+          "notes": null,
+          "posted_at": "2026-03-05T12:00:00+00:00",
+          "source": "up",
+          "status": "pending"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t3",
+          "account_id": "a1",
+          "amount_cents": -9900,
+          "category_id": null,
+          "description": "",
+          "external_category": "gifts-and-charity",
+          "external_id": "ext-t3",
+          "kind": "expense",
+          "member_id": "m1",
+          "notes": null,
+          "posted_at": "2026-03-05T12:00:00+00:00",
+          "source": "up",
+          "status": "settled"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t4",
+          "account_id": "a1",
+          "amount_cents": -2500,
+          "category_id": null,
+          "description": "Charity run",
+          "external_category": "gifts-and-charity",
+          "external_id": "ext-t4",
+          "kind": "expense",
+          "member_id": "m1",
+          "notes": null,
+          "posted_at": "2026-01-20T12:00:00+00:00",
+          "source": "up",
+          "status": "settled"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t5",
+          "account_id": "a1",
+          "amount_cents": -800,
+          "category_id": null,
+          "description": "Hidden dismissal",
+          "external_category": "gifts-and-charity",
+          "external_id": "ext-t5",
+          "kind": "expense",
+          "member_id": "m1",
+          "notes": null,
+          "posted_at": "2026-04-01T12:00:00+00:00",
+          "source": "up",
+          "status": "settled"
+        }
+      ],
+      "dismissals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "x1",
+          "transaction_id": "t4"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "x2",
+          "transaction_id": "unseen"
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "user_id": "u-m1",
+          "name": "Will",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "user_id": "u-m2",
+          "name": "Sam",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        }
+      ]
+    },
+    "expected": {
+      "occasionGroups": [
+        {
+          "key": "o-ann",
+          "label": "Anniversary",
+          "date": "2026-06-01",
+          "rows": [
+            {
+              "budgetId": "b5",
+              "recipientId": "r-zed",
+              "occasionId": "o-ann",
+              "label": "Zed",
+              "date": "2026-06-01",
+              "totals": {
+                "budgetedCents": 5000,
+                "spentCents": 0,
+                "remainingCents": 5000
+              },
+              "isHidden": false
+            }
+          ],
+          "totals": {
+            "budgetedCents": 5000,
+            "spentCents": 0,
+            "remainingCents": 5000
+          },
+          "isHidden": false
+        },
+        {
+          "key": "o-xmas",
+          "label": "Christmas",
+          "date": "2026-12-25",
+          "rows": [
+            {
+              "budgetId": "b1",
+              "recipientId": "r-mum",
+              "occasionId": "o-xmas",
+              "label": "Mum",
+              "date": "2026-12-25",
+              "totals": {
+                "budgetedCents": 15000,
+                "spentCents": 10550,
+                "remainingCents": 4450
+              },
+              "isHidden": false
+            },
+            {
+              "budgetId": "b2",
+              "recipientId": "r-sam",
+              "occasionId": "o-xmas",
+              "label": "Sam",
+              "date": "2026-12-25",
+              "totals": {
+                "budgetedCents": 20000,
+                "spentCents": 21000,
+                "remainingCents": -1000
+              },
+              "isHidden": false
+            },
+            {
+              "budgetId": "b3",
+              "recipientId": "r-will",
+              "occasionId": "o-xmas",
+              "label": "Will",
+              "date": "2026-12-25",
+              "totals": {
+                "budgetedCents": 25000,
+                "spentCents": 0,
+                "remainingCents": 25000
+              },
+              "isHidden": true
+            }
+          ],
+          "totals": {
+            "budgetedCents": 60000,
+            "spentCents": 31550,
+            "remainingCents": 28450
+          },
+          "isHidden": false
+        },
+        {
+          "key": "o-bday",
+          "label": "Birthday",
+          "date": null,
+          "rows": [
+            {
+              "budgetId": "b4",
+              "recipientId": "r-mum",
+              "occasionId": "o-bday",
+              "label": "Mum",
+              "date": "2026-09-09",
+              "totals": {
+                "budgetedCents": 10000,
+                "spentCents": 0,
+                "remainingCents": 10000
+              },
+              "isHidden": false
+            },
+            {
+              "budgetId": "b6",
+              "recipientId": "r-will",
+              "occasionId": "o-bday",
+              "label": "Will",
+              "date": null,
+              "totals": {
+                "budgetedCents": 7000,
+                "spentCents": 0,
+                "remainingCents": 7000
+              },
+              "isHidden": true
+            }
+          ],
+          "totals": {
+            "budgetedCents": 17000,
+            "spentCents": 0,
+            "remainingCents": 17000
+          },
+          "isHidden": false
+        },
+        {
+          "key": "o-none",
+          "label": "Empty",
+          "date": null,
+          "rows": [],
+          "totals": {
+            "budgetedCents": 0,
+            "spentCents": 0,
+            "remainingCents": 0
+          },
+          "isHidden": false
+        }
+      ],
+      "personGroups": [
+        {
+          "key": "r-idle",
+          "label": "Idle",
+          "date": null,
+          "rows": [],
+          "totals": {
+            "budgetedCents": 0,
+            "spentCents": 0,
+            "remainingCents": 0
+          },
+          "isHidden": false
+        },
+        {
+          "key": "r-mum",
+          "label": "Mum",
+          "date": null,
+          "rows": [
+            {
+              "budgetId": "b4",
+              "recipientId": "r-mum",
+              "occasionId": "o-bday",
+              "label": "Birthday",
+              "date": "2026-09-09",
+              "totals": {
+                "budgetedCents": 10000,
+                "spentCents": 0,
+                "remainingCents": 10000
+              },
+              "isHidden": false
+            },
+            {
+              "budgetId": "b1",
+              "recipientId": "r-mum",
+              "occasionId": "o-xmas",
+              "label": "Christmas",
+              "date": "2026-12-25",
+              "totals": {
+                "budgetedCents": 15000,
+                "spentCents": 10550,
+                "remainingCents": 4450
+              },
+              "isHidden": false
+            }
+          ],
+          "totals": {
+            "budgetedCents": 25000,
+            "spentCents": 10550,
+            "remainingCents": 14450
+          },
+          "isHidden": false
+        },
+        {
+          "key": "r-sam",
+          "label": "Sam",
+          "date": null,
+          "rows": [
+            {
+              "budgetId": "b2",
+              "recipientId": "r-sam",
+              "occasionId": "o-xmas",
+              "label": "Christmas",
+              "date": "2026-12-25",
+              "totals": {
+                "budgetedCents": 20000,
+                "spentCents": 21000,
+                "remainingCents": -1000
+              },
+              "isHidden": false
+            }
+          ],
+          "totals": {
+            "budgetedCents": 20000,
+            "spentCents": 21000,
+            "remainingCents": -1000
+          },
+          "isHidden": false
+        },
+        {
+          "key": "r-will",
+          "label": "Will",
+          "date": null,
+          "rows": [
+            {
+              "budgetId": "b3",
+              "recipientId": "r-will",
+              "occasionId": "o-xmas",
+              "label": "Christmas",
+              "date": "2026-12-25",
+              "totals": {
+                "budgetedCents": 25000,
+                "spentCents": 0,
+                "remainingCents": 25000
+              },
+              "isHidden": true
+            },
+            {
+              "budgetId": "b6",
+              "recipientId": "r-will",
+              "occasionId": "o-bday",
+              "label": "Birthday",
+              "date": null,
+              "totals": {
+                "budgetedCents": 7000,
+                "spentCents": 0,
+                "remainingCents": 7000
+              },
+              "isHidden": true
+            }
+          ],
+          "totals": {
+            "budgetedCents": 32000,
+            "spentCents": 0,
+            "remainingCents": 32000
+          },
+          "isHidden": true
+        },
+        {
+          "key": "r-zed",
+          "label": "Zed",
+          "date": null,
+          "rows": [
+            {
+              "budgetId": "b5",
+              "recipientId": "r-zed",
+              "occasionId": "o-ann",
+              "label": "Anniversary",
+              "date": "2026-06-01",
+              "totals": {
+                "budgetedCents": 5000,
+                "spentCents": 0,
+                "remainingCents": 5000
+              },
+              "isHidden": false
+            }
+          ],
+          "totals": {
+            "budgetedCents": 5000,
+            "spentCents": 0,
+            "remainingCents": 5000
+          },
+          "isHidden": false
+        }
+      ],
+      "overall": {
+        "budgetedCents": 90000,
+        "spentCents": 35784,
+        "remainingCents": 54216
+      },
+      "discretionary": {
+        "budgetedCents": 8000,
+        "spentCents": 4234,
+        "remainingCents": 3766
+      },
+      "unassignedCents": 1500,
+      "candidates": [
+        {
+          "transactionId": "t5",
+          "description": "Hidden dismissal",
+          "amountCents": 800,
+          "postedOn": "2026-04-01",
+          "pending": false
+        },
+        {
+          "transactionId": "t2",
+          "description": "Toy shop",
+          "amountCents": 4200,
+          "postedOn": "2026-03-05",
+          "pending": true
+        },
+        {
+          "transactionId": "t3",
+          "description": "",
+          "amountCents": 9900,
+          "postedOn": "2026-03-05",
+          "pending": false
+        }
+      ],
+      "dismissed": [
+        {
+          "transactionId": "t4",
+          "description": "Charity run",
+          "amountCents": 2500,
+          "postedOn": "2026-01-20",
+          "pending": false,
+          "dismissalId": "x1"
+        }
+      ],
+      "linkChoices": [
+        {
+          "value": "r-mum",
+          "label": "Mum",
+          "occasions": [
+            {
+              "value": "b1",
+              "label": "Christmas"
+            },
+            {
+              "value": "b4",
+              "label": "Birthday"
+            }
+          ]
+        },
+        {
+          "value": "r-sam",
+          "label": "Sam",
+          "occasions": [
+            {
+              "value": "b2",
+              "label": "Christmas"
+            }
+          ]
+        },
+        {
+          "value": "r-zed",
+          "label": "Zed",
+          "occasions": [
+            {
+              "value": "b5",
+              "label": "Anniversary"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -25,6 +25,7 @@ import {
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
 import { summariseBreakdowns } from './breakdowns.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
+import { previewInflowDraft, summariseInflows } from './inflows.ts'
 import { serialise } from './serialise.ts'
 import { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
 
@@ -32,6 +33,8 @@ export type { EstimateInput, EstimateProjection } from './estimate.ts'
 export { projectEstimate } from './estimate.ts'
 export { serialise } from './serialise.ts'
 export { summariseBreakdowns } from './breakdowns.ts'
+export { previewInflowDraft, summariseInflows } from './inflows.ts'
+export type { InflowDraftInput, InflowDraftPreview, InflowsInput } from './inflows.ts'
 export type { BreakdownsInput } from './breakdowns.ts'
 export { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
 export type {
@@ -130,4 +133,6 @@ export const entryPoints = {
   salarySacrifice: entry(salarySacrifice),
   mlsWhatIf: entry(mlsWhatIf),
   householdYear: entry(householdYear),
+  summariseInflows: entry(summariseInflows),
+  previewInflowDraft: entry(previewInflowDraft),
 } satisfies Record<string, Entry>

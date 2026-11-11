@@ -8,7 +8,12 @@
  * between the two concessional rates on a termination payment.
  */
 
-import type { OneOffTaxTreatment, TaxYearConfig } from '@nest/tax'
+import {
+  splitOneOffPayment,
+  type OneOffPaymentSplit,
+  type OneOffTaxTreatment,
+  type TaxYearConfig,
+} from '@nest/tax'
 
 /** A taxable one-off's stored tax treatment. */
 export type StoredOneOffTaxTreatment =
@@ -51,4 +56,37 @@ export function atPreservationAgeOn(
   const reached = new Date(`${dateOfBirth}T00:00:00Z`)
   reached.setUTCFullYear(reached.getUTCFullYear() + config.super.preservationAge)
   return new Date(`${onDate}T00:00:00Z`) >= reached
+}
+
+/** The payment a one-off preview splits: its stored treatment, amount and date. */
+export interface OneOffPreviewInput {
+  readonly treatment: StoredOneOffTaxTreatment
+  readonly amountCents: number
+  /** Completed years of service; absent when none is entered. */
+  readonly yearsOfService?: number
+  readonly dateOfBirth: string | null
+  readonly paidOn: string
+}
+
+/**
+ * How a taxable one-off splits under its treatment, for showing back before it is
+ * saved. The split is measured against NO other income, which is the whole-of-income
+ * cap's best case: the cap on a non-excluded termination payment falls as the member's
+ * other taxable income rises, so the concessional part here is the most that can be
+ * concessional. The FY estimate applies the member's real income.
+ */
+export function previewOneOffPaymentSplit(
+  input: OneOffPreviewInput,
+  config: TaxYearConfig,
+): OneOffPaymentSplit {
+  return splitOneOffPayment(
+    {
+      treatment: ENGINE_ONE_OFF_TREATMENTS[input.treatment],
+      amountCents: input.amountCents,
+      ...(input.yearsOfService !== undefined && { yearsOfService: input.yearsOfService }),
+      atPreservationAge: atPreservationAgeOn(input.dateOfBirth, input.paidOn, config),
+    },
+    0,
+    config,
+  )
 }

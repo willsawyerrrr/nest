@@ -1,0 +1,384 @@
+[
+  {
+    "name": "seven inflows and eight drafts",
+    "rows": {
+      "inflows": [
+        {
+          "id": "salary",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "salary",
+          "taxable": true,
+          "member_id": "m1",
+          "type": "salary",
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 12000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "interval_count": null,
+          "pay_schedule": "fortnightly",
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null,
+          "pay_anchor_date": null
+        },
+        {
+          "id": "wage",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "wage",
+          "taxable": true,
+          "member_id": "m1",
+          "type": "wage",
+          "attracts_super": true,
+          "schedule": "weekly",
+          "amount_cents": null,
+          "hourly_rate_cents": 4550,
+          "hours_per_period": 37.5,
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null,
+          "pay_anchor_date": null
+        },
+        {
+          "id": "every-3-weeks",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "every-3-weeks",
+          "taxable": true,
+          "member_id": "m1",
+          "type": "other",
+          "attracts_super": true,
+          "schedule": "every_n_weeks",
+          "amount_cents": 33333,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "interval_count": 3,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null,
+          "pay_anchor_date": null
+        },
+        {
+          "id": "joint-interest",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "joint-interest",
+          "taxable": true,
+          "member_id": "m1",
+          "type": "other",
+          "attracts_super": true,
+          "schedule": "monthly",
+          "amount_cents": 21000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": true,
+          "member_split_percent": 60,
+          "pay_anchor_date": null
+        },
+        {
+          "id": "ended",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "ended",
+          "taxable": true,
+          "member_id": "m1",
+          "type": "salary",
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": 150000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": "2026-07-01",
+          "ends_on": "2026-09-14",
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null,
+          "pay_anchor_date": null
+        },
+        {
+          "id": "redundancy",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "redundancy",
+          "taxable": true,
+          "member_id": "m1",
+          "type": "salary",
+          "attracts_super": true,
+          "schedule": null,
+          "amount_cents": 8000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-11-20",
+          "one_off_tax_treatment": "genuine_redundancy",
+          "years_of_service": 12,
+          "is_joint": false,
+          "member_split_percent": null,
+          "pay_anchor_date": null
+        },
+        {
+          "id": "gift",
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "name": "gift",
+          "taxable": false,
+          "member_id": null,
+          "type": "gift",
+          "attracts_super": true,
+          "schedule": null,
+          "amount_cents": 50000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-12-25",
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null,
+          "pay_anchor_date": null
+        }
+      ]
+    },
+    "expectedFortnightly": {
+      "items": [
+        {
+          "inflowId": "salary",
+          "fortnightlyCents": 461538
+        },
+        {
+          "inflowId": "wage",
+          "fortnightlyCents": 341250
+        },
+        {
+          "inflowId": "every-3-weeks",
+          "fortnightlyCents": 22222
+        },
+        {
+          "inflowId": "joint-interest",
+          "fortnightlyCents": 9692
+        },
+        {
+          "inflowId": "ended",
+          "fortnightlyCents": 150000
+        },
+        {
+          "inflowId": "redundancy",
+          "fortnightlyCents": null
+        },
+        {
+          "inflowId": "gift",
+          "fortnightlyCents": null
+        }
+      ]
+    },
+    "drafts": [
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "annual",
+          "amountCents": 12000000,
+          "payCadence": "fortnightly"
+        },
+        "expected": {
+          "statedAnnualCents": 12000000,
+          "perPayment": {
+            "cents": 461538,
+            "annualCents": 11999988,
+            "statedAnnualCents": 12000000,
+            "noun": "fortnight"
+          },
+          "split": null
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "annual",
+          "amountCents": 10000100,
+          "payCadence": "monthly"
+        },
+        "expected": {
+          "statedAnnualCents": 10000100,
+          "perPayment": {
+            "cents": 833342,
+            "annualCents": 10000104,
+            "statedAnnualCents": 10000100,
+            "noun": "month"
+          },
+          "split": null
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "fortnightly",
+          "amountCents": 300000,
+          "payCadence": null
+        },
+        "expected": {
+          "statedAnnualCents": 7800000,
+          "perPayment": null,
+          "split": null
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": true,
+          "schedule": "weekly",
+          "hourlyRateCents": 4550,
+          "hoursPerPeriod": 37.5,
+          "payCadence": "every_n_weeks",
+          "payInterval": 2
+        },
+        "expected": {
+          "statedAnnualCents": 8872500,
+          "perPayment": {
+            "cents": 341250,
+            "annualCents": 8872500,
+            "statedAnnualCents": 8872500,
+            "noun": "payment"
+          },
+          "split": null
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "every_n_months",
+          "interval": 5,
+          "amountCents": 77777,
+          "payCadence": null
+        },
+        "expected": {
+          "statedAnnualCents": 186665,
+          "perPayment": null,
+          "split": null
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "annual",
+          "payCadence": null
+        },
+        "expected": {
+          "statedAnnualCents": null,
+          "perPayment": null,
+          "split": null
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "fortnightly",
+          "amountCents": 8000000,
+          "payCadence": null,
+          "oneOff": {
+            "treatment": "genuine_redundancy",
+            "amountCents": 8000000,
+            "yearsOfService": 12,
+            "dateOfBirth": "1970-05-01",
+            "paidOn": "2026-11-20"
+          }
+        },
+        "expected": {
+          "statedAnnualCents": 208000000,
+          "perPayment": null,
+          "split": {
+            "taxFreeCents": 8000000,
+            "assessableCents": 0,
+            "concessionalCents": 0,
+            "concessionalRate": 0.3
+          }
+        }
+      },
+      {
+        "input": {
+          "now": "2026-11-09T00:00:00Z",
+          "isWage": false,
+          "schedule": "fortnightly",
+          "amountCents": 9000000,
+          "payCadence": null,
+          "oneOff": {
+            "treatment": "employment_termination",
+            "amountCents": 9000000,
+            "dateOfBirth": null,
+            "paidOn": "2026-11-20"
+          }
+        },
+        "expected": {
+          "statedAnnualCents": 234000000,
+          "perPayment": null,
+          "split": {
+            "taxFreeCents": 0,
+            "assessableCents": 9000000,
+            "concessionalCents": 9000000,
+            "concessionalRate": 0.3
+          }
+        }
+      }
+    ]
+  }
+]

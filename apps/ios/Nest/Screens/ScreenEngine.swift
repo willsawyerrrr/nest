@@ -52,4 +52,16 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func summariseInflows(_ input: InflowsInput) async throws -> InflowFortnightlies {
+        do { return try await shared.value.summariseInflows(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
+
+    static func previewInflowDraft(_ input: InflowDraftInput) async throws -> InflowDraftPreview {
+        do { return try await shared.value.previewInflowDraft(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

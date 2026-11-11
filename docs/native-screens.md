@@ -288,3 +288,36 @@ and split them.
 
 The Tax estimate and EOFY entries in the nav are unchanged; the screens register
 only through `Route.content`.
+## Inflows
+
+`Route.inflows` is native (`InflowsScreen`), read and write: the household's inflows
+(ordered by name, with ended inflows and paid one-offs sunk to the bottom and dimmed),
+and the add/edit form with every field the web form has (taxability, member, type,
+recurring or one-off, frequency and interval, amount or a wage's rate and hours, the
+pay cadence and its interval, arrives-every-pay-period, employer super, joint income
+and its split, confirmed payday, effective dates, and a one-off's date, tax treatment
+and years of service). It follows the PWA's look: a bordered card per inflow on a
+compact width and a dense ruled row (name, type, amount, cadence badge, fortnightly
+figure) on a wide one, the lime add button, the inline form on the elevated surface
+with each field's label and dimmed description, and the delete confirmation. The form
+controls live in `InflowFormControls.swift`.
+
+`InflowFormState` holds the form's rules (what a change resets, `canSubmit`, the
+columns a save writes) as the PWA's `InflowForm` does, so a save sends the same
+`InflowInput` columns, with every unset one an explicit `null`. A create inserts with
+the household id; an edit patches by id; a delete removes by id. While planning mode
+is on the three writes go into the sandbox's `inflows` layer instead (`PlanningStore.create`
+holds a created row), as the web app's household collection does, and the screen shows
+the sandboxed rows.
+
+Figures come from two engine entry points in `packages/js-core`: `summariseInflows`
+(each inflow's fortnightly figure from its annualised gross, `null` for a one-off) and
+`previewInflowDraft` (the stated annual total, the per-payment note and a one-off's
+tax-free, assessable and concessional split, shown under the fields as the web form
+does). `describePerPayment` and `previewOneOffPaymentSplit` live in `@nest/plan` and
+`@nest/household` so the web form and the engine share them. `InflowsPresentation`
+mirrors `InflowList`'s labels and captions. Parity is held by
+`apps/pwa/src/lib/inflowsParity.test.ts`, which computes the fortnightly figures and
+the form's draft figures with the PWA's own functions and snapshots rows and figures
+into `apps/ios/NestTests/Fixtures/inflows-parity.json`; `InflowsParityTests` runs the
+same rows and drafts through the bundled engine and asserts identical figures.

@@ -5,7 +5,7 @@ import Testing
 
 @MainActor
 @Suite struct HouseholdViewModelTests {
-    private static let householdJSON = """
+    nonisolated private static let householdJSON = """
         [{"id":"h","name":"Home","invite_code":"ABC123","invite_code_expires_at":"2099-01-01T00:00:00Z",\
         "pay_account_id":null,"timezone":"Australia/Sydney",\
         "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]

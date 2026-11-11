@@ -228,7 +228,7 @@ struct DollarField: View {
                     #if os(iOS)
                         .keyboardType(.decimalPad)
                     #endif
-                    .onChange(of: text) { _, new in cents = Self.cents(from: new) }
+                    .onChange(of: text) { _, new in cents = TaxPresentation.cents(fromDollars: new) }
             }
             .font(NestFont.body)
             .padding(NestSpacing.sm)
@@ -240,13 +240,6 @@ struct DollarField: View {
                 RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
                     .strokeBorder(NestColor.border, lineWidth: 1))
         }
-    }
-
-    /// Integer cents from typed dollars; anything unreadable or negative reads as nil.
-    static func cents(from text: String) -> Int {
-        let cleaned = text.filter { $0.isNumber || $0 == "." }
-        guard let dollars = Double(cleaned), dollars > 0 else { return 0 }
-        return Int((dollars * 100).rounded())
     }
 }
 

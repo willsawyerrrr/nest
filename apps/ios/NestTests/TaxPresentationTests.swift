@@ -61,8 +61,8 @@ import Testing
     }
 
     @Test func parsesTypedDollarsToCents() {
-        #expect(DollarField.cents(from: "1,234.56") == 123_456)
-        #expect(DollarField.cents(from: "") == 0)
-        #expect(DollarField.cents(from: "abc") == 0)
+        #expect(TaxPresentation.cents(fromDollars: "1,234.56") == 123_456)
+        #expect(TaxPresentation.cents(fromDollars: "") == 0)
+        #expect(TaxPresentation.cents(fromDollars: "abc") == 0)
     }
 }

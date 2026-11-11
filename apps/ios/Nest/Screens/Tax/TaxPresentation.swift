@@ -268,6 +268,13 @@ enum TaxPresentation {
         )
     }
 
+    /// Integer cents from typed dollars; anything unreadable or non-positive reads as zero.
+    static func cents(fromDollars text: String) -> Int {
+        let cleaned = text.filter { $0.isNumber || $0 == "." }
+        guard let dollars = Double(cleaned), dollars > 0 else { return 0 }
+        return Int((dollars * 100).rounded())
+    }
+
     /// `1 payslip` / `2 payslips`.
     static func payslipCount(_ count: Int) -> String {
         "Withholding summed from \(count) payslip\(count == 1 ? "" : "s")."

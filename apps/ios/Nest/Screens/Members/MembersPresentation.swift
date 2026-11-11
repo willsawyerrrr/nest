@@ -35,10 +35,15 @@ struct MembersPresentation: Equatable, Sendable {
                 id: member.id, name: member.name,
                 residencyLabel: Self.label(residency),
                 hasHospitalCover: profile?.hasPrivateHospitalCover ?? false,
-                dateOfBirthLabel: member.dateOfBirth.map { "Born \(BudgetPresentation.date($0))" }
+                dateOfBirthLabel: member.dateOfBirth.map { "Born \(Self.date($0))" }
                     ?? "No date of birth",
                 residency: residency, dateOfBirth: member.dateOfBirth)
         }
+    }
+
+    /// `5 Sept 1990`: the PWA's en-AU short date, which spells September `Sept`.
+    static func date(_ iso: String) -> String {
+        BudgetPresentation.date(iso).replacingOccurrences(of: " Sep ", with: " Sept ")
     }
 
     static func label(_ residency: TaxResidency) -> String {

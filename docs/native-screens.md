@@ -704,3 +704,39 @@ figures and labels with the PWA's own helpers and snapshots rows, figures and la
 into `apps/ios/NestTests/Fixtures/equity-parity.json`; `EquityParityTests` runs the same
 rows through `EquityRows.input` and the bundled engine and asserts identical figures and
 labels.
+
+## Super
+
+`Route.superannuation` is native (`SuperScreen`), laid out as the PWA's: the
+`Super (FY…)` title and intro; per member a profile row (name, an `Estimated` or
+`Current` pill, fund name, effective balance, and for a dated baseline the
+`$X confirmed on … + $Y accrued from contributions` caption), the concessional and
+non-concessional cap lines with over-cap warnings and the co-contribution note, and
+the contributions list (kind, cadence, FHSS pill, amount or `N% of salary`,
+contributor); then the retirement projection (assumption inputs, and per member an
+age field, the projected balance in today's dollars and nominal, the growth bar,
+years to retirement and net contribution).
+
+Rows are `members`, `inflows`, `super_profile` and `super_contribution` (both
+scoped to the current `financial_year`) and `accounts_with_balance`
+(a member's balance is their profile's linked account). The engine's
+`summariseSuper` (`packages/js-core/src/super.ts`) returns each member's cap
+summary, net annual contribution and effective balance, plus the preservation age
+and default assumptions, from the shared `@nest/household` and `@nest/plan`
+functions at the screen's `now`; `projectSuper` projects each member who has an age.
+`SuperPresentation` only labels the figures.
+
+The assumptions (retirement age, expected return, inflation, contribution growth)
+and each member's age are inputs persisted in `UserDefaults` under
+`super-retirement-assumptions` and `super-retirement-ages`, the PWA's `localStorage`
+keys and shapes; the retirement age defaults to the preservation age until saved.
+Editing a field re-runs `projectSuper`.
+
+Editing profiles and contributions stays in the web app: the screen ends in a
+`WebHandoffCard`.
+
+`apps/pwa/src/lib/superParity.test.ts` computes the cap summaries, net contributions,
+effective balances and projections with the PWA's own functions (at a fixed date)
+and snapshots rows and figures into `apps/ios/NestTests/Fixtures/super-parity.json`;
+`SuperParityTests` runs the same rows through `SuperRows.input` and the bundled
+engine and asserts identical figures.

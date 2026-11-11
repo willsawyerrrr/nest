@@ -99,8 +99,20 @@ enum ScreenEngine {
         }
     }
 
+    static func summariseSuper(_ input: SuperInput) async throws -> SuperSummary {
+        do { return try await shared.value.summariseSuper(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
+
     static func netWorth(_ input: NetWorthInput) async throws -> NetWorthOutcome {
         do { return try await shared.value.netWorth(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
+
+    static func projectSuper(_ input: SuperProjectionsInput) async throws -> [SuperProjection?] {
+        do { return try await shared.value.projectSuper(input) } catch {
             throw NestError(.unknown)
         }
     }

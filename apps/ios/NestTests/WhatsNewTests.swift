@@ -148,7 +148,10 @@ private enum Fixture {
         let model = WhatsNewViewModel(
             changelog: ChangelogSource { throw NestError(.server) }, version: version(latest: nil))
         await model.load()
-        guard case .failed(let error) = model.state else { return Issue.record("not failed") }
+        guard case .failed(let error) = model.state else {
+            Issue.record("not failed")
+            return
+        }
         #expect(error == NestError(.server))
     }
 
@@ -162,7 +165,8 @@ private enum Fixture {
         await model.load()
         await model.load()
         guard case .loaded(let content, _, let refreshError) = model.state else {
-            return Issue.record("not loaded")
+            Issue.record("not loaded")
+            return
         }
         #expect(content.changelog == Fixture.changelog)
         #expect(refreshError == NestError(.offline))

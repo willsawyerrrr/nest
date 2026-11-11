@@ -25,20 +25,10 @@ struct PayslipsContentView: View {
     let model: PayslipsViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: NestSpacing.md) {
-                VStack(alignment: .leading, spacing: NestSpacing.xs) {
-                    Text(presentation.title).font(NestFont.display).tracking(-0.7)
-                        .foregroundStyle(NestColor.text)
-                    Text(PayslipsPresentation.intro)
-                        .font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
-                }
-                ForEach(presentation.members) { section in
-                    MemberPayslipsSection(
-                        section: section, content: presentation.content, model: model)
-                }
+        NestPageSection(title: presentation.title, intro: PayslipsPresentation.intro) {
+            ForEach(presentation.members) { section in
+                MemberPayslipsSection(section: section, content: presentation.content, model: model)
             }
-            .padding(NestSpacing.md)
         }
     }
 }
@@ -130,7 +120,7 @@ private struct MemberPayslipsSection: View {
 
     @ViewBuilder private var list: some View {
         if section.cards.isEmpty && editing != .add {
-            Text("No payslips yet.").font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
+            NestEmptyState(text: "No payslips yet.")
         }
         ForEach(section.cards) { card in
             if editing == .edit(card.id) {

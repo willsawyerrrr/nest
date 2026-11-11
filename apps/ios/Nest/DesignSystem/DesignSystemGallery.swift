@@ -11,7 +11,9 @@ import SwiftUI
     }
     ScrollView {
         VStack(alignment: .leading, spacing: NestSpacing.lg) {
-            Text("Design system").font(NestFont.display).foregroundStyle(NestColor.text)
+            Text("Design system").font(NestFont.display).tracking(-0.76)
+                .foregroundStyle(NestColor.text)
+            NestEmptyState(text: "Nothing here yet.")
             NestCard {
                 VStack(alignment: .leading, spacing: NestSpacing.xs) {
                     NestListRow(title: "Salary", subtitle: "Fortnightly", systemImage: "banknote") {
@@ -19,6 +21,7 @@ import SwiftUI
                     }
                     NestListRow(title: "Rent", systemImage: "house") { MoneyText(cents: -185_000) }
                     NestListRow(title: "Buffer") { MoneyText(cents: 0) }
+                    NestSectionHeader(title: "Items") { NestFortnightlyAmount(cents: 42_000) }
                 }
             }
             HStack {

@@ -24,7 +24,10 @@ A screen is four parts under `Nest/Screens/<Screen>/`, on shared plumbing in
    engine's figures into labelled rows, chart segments and percentages, mirroring
    the PWA component, so both surfaces divide and label identically.
 4. **Screen** (`<Screen>Screen.swift`) — SwiftUI built from design-system
-   primitives, rendered through `ScreenStateView`.
+   primitives, rendered through `ScreenStateView`. The content sits in a
+   `NestPageSection` (the PWA's `PageSection`: display title, optional intro,
+   scrolling body); `docs/design-system.md` maps each PWA primitive to its
+   native equivalent.
 
 Shared plumbing:
 

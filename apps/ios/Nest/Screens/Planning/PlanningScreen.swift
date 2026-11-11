@@ -29,18 +29,19 @@ struct PlanningContentView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NestSpacing.md) {
-                if planning.isActive {
-                    impactCard
-                    pendingCard
-                    editCard
-                    actions
-                } else {
-                    offCard
-                }
+        NestPageSection(
+            title: "Planning",
+            intro:
+                "Every change planning mode is holding, and what it does to your plan. Save to make it real, or discard it."
+        ) {
+            if planning.isActive {
+                pendingCard
+                impactCard
+                editCard
+                actions
+            } else {
+                offCard
             }
-            .padding(NestSpacing.md)
         }
         .sheet(item: $editing) { item in
             PlanningEditSheet(item: item, planning: planning)
@@ -87,10 +88,10 @@ struct PlanningContentView: View {
         -> some View
     {
         HStack {
-            Text(label).font(NestFont.body).foregroundStyle(NestColor.text)
+            Text(label).font(NestFont.small.weight(.medium)).foregroundStyle(NestColor.text)
             Spacer(minLength: NestSpacing.sm)
             ComparedAmount(baselineCents: Int(was), proposedCents: Int(now), colouring: signed)
-                .font(.system(size: 15, weight: .bold))
+                .font(NestFont.small.weight(.bold))
         }
         .accessibilityElement(children: .combine)
     }
@@ -100,8 +101,7 @@ struct PlanningContentView: View {
             VStack(alignment: .leading, spacing: NestSpacing.xs) {
                 Text("Pending changes").font(NestFont.heading).foregroundStyle(NestColor.text)
                 if pending.isEmpty {
-                    Text("Nothing changed yet. Edit an amount below to try it.")
-                        .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+                    NestEmptyState(text: "Nothing changed yet. Edit an amount below to try it.")
                 }
                 ForEach(pending) { change in
                     NestListRow(

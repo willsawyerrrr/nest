@@ -11,7 +11,7 @@ struct PlanningModeScreen: View {
     }
 
     var body: some View {
-        ScrollView {
+        NestPageSection(title: "Planning mode") {
             NestCard {
                 VStack(alignment: .leading, spacing: NestSpacing.sm) {
                     Toggle(
@@ -33,9 +33,7 @@ struct PlanningModeScreen: View {
                     }
                 }
             }
-            .padding(NestSpacing.md)
         }
-        .background(NestColor.background)
         .task { await selectHousehold() }
     }
 

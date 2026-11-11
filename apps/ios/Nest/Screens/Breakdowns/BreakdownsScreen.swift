@@ -26,17 +26,14 @@ struct BreakdownsListView: View {
     let presentation: BreakdownsPresentation
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: NestSpacing.sm) {
-                Text("A breakdown is an itemised list whose items roll up into a single budget item.")
-                    .font(NestFont.caption)
-                    .foregroundStyle(NestColor.dimmedText)
-                if presentation.rows.isEmpty {
-                    Text("No breakdowns yet.")
-                        .foregroundStyle(NestColor.dimmedText)
-                        .frame(maxWidth: .infinity)
-                        .padding(NestSpacing.xl)
-                } else {
+        NestPageSection(
+            title: "Breakdowns",
+            intro: "A breakdown is an itemised list whose items roll up into a single budget item."
+        ) {
+            if presentation.rows.isEmpty {
+                NestEmptyState(text: "No breakdowns yet.")
+            } else {
+                VStack(spacing: NestSpacing.sm) {
                     ForEach(presentation.rows) { row in
                         NavigationLink(value: BreakdownID(id: row.id)) {
                             BreakdownCard(row: row)
@@ -45,7 +42,6 @@ struct BreakdownsListView: View {
                     }
                 }
             }
-            .padding(NestSpacing.md)
         }
         .navigationDestination(for: BreakdownID.self) { target in
             BreakdownDetailView(detail: presentation.detail(id: target.id))
@@ -87,11 +83,9 @@ struct BreakdownDetailView: View {
 
     var body: some View {
         if let detail {
-            ScrollView {
+            NestPageSection(title: detail.row.name) {
                 VStack(alignment: .leading, spacing: NestSpacing.sm) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Items").font(NestFont.heading).foregroundStyle(NestColor.text)
-                        Spacer()
+                    NestSectionHeader(title: "Items") {
                         Text(MoneyFormat.perFortnight(Int(detail.row.fortnightlyCents)))
                             .fontWeight(.bold).monospacedDigit()
                             .foregroundStyle(NestColor.text)
@@ -100,15 +94,11 @@ struct BreakdownDetailView: View {
                     Text("Rolls up to \(MoneyFormat.perYear(Int(detail.row.annualCents))).")
                         .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
                     if detail.items.isEmpty {
-                        Text("No items yet.")
-                            .foregroundStyle(NestColor.dimmedText)
-                            .frame(maxWidth: .infinity)
-                            .padding(NestSpacing.xl)
+                        NestEmptyState(text: "No items yet.")
                     } else {
                         ForEach(detail.items) { ItemCard(item: $0) }
                     }
                 }
-                .padding(NestSpacing.md)
             }
             .navigationTitle(detail.row.name)
             #if os(iOS)
@@ -138,9 +128,7 @@ private struct ItemCard: View {
                     }
                 }
                 Spacer(minLength: NestSpacing.sm)
-                MoneyText(cents: Int(item.fortnightlyCents), colouring: false)
-                    .font(NestFont.body).fontWeight(.semibold)
-                Text("/ fn").font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+                NestFortnightlyAmount(cents: Int(item.fortnightlyCents))
             }
         }
         .accessibilityElement(children: .combine)

@@ -544,6 +544,35 @@ shows (including the en-AU `Sept` abbreviation) into
 `apps/ios/NestTests/Fixtures/members-parity.json`; `MembersParityTests` asserts
 `MembersPresentation` lists the same.
 
+## Connections
+
+`Route.connections` is native (`ConnectionsScreen`), laid out as the PWA's Connections
+page: three cards (Connect Up, Connect a bank, Calendar feed). It reads `members`,
+`redbark_connection` (newest first) and `calendar_feed` through `ConnectionsViewModel`.
+`calendar_feed` is read with the columns the role may select (`NestRow.columns`), never
+`token_hash`.
+
+- **Up**: the signed-in member pastes a personal access token (a secure field, cleared on
+  submit) which goes to `up-connect`; Disconnect calls `up-disconnect`. Every member's
+  status reads Connected, Needs reconnecting or Not connected.
+- **Bank**: `redbark-connect` returns a link session id and Redbark's hosted consent URL,
+  which opens in the system browser with the web Connections page as the return address.
+  The session id is kept in `UserDefaults` (`redbark-link-session-id`); on opening the
+  screen and whenever the app becomes active, a kept id is resolved through
+  `redbark-connect-complete` and cleared whatever the outcome. A connected result runs
+  `redbark-sync` and refreshes the connections and account rows. Failures show the PWA's
+  copy keyed on the edge function's `code` (`NestError.upstreamCode`). Only the signed-in
+  member can disconnect their own connection (confirm alert, `redbark-disconnect`).
+- **Calendar feed**: `create_calendar_feed_token` returns the plaintext token, shown once
+  as `https` and `webcal` URLs with copy buttons; Regenerate and Revoke
+  (`revoke_calendar_feed_token`).
+
+Secrets (the Up token, the feed token) are held only for the call that uses them and are
+never logged or cached. Edge-function and RPC failures show the error's fixed
+`userMessage`. The screen has no engine figure, so there is no parity fixture;
+`ConnectionsViewModelTests` cover load, failure, failed refresh keeping the cache, and each
+action's success and failure.
+
 ## Notifications
 
 `Route.notifications` is native (`NotificationsScreen`), laid out as the PWA's

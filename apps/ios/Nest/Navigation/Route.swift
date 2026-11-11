@@ -160,6 +160,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .payslips: .native(AnyView(PayslipsScreen()))
         case .deductions: .native(AnyView(DeductionsScreen()))
         case .members: .native(AnyView(MembersScreen()))
+        case .connections: .native(AnyView(ConnectionsScreen()))
         case .notifications: .native(AnyView(NotificationsScreen()))
         default: .web(path: path)
         }

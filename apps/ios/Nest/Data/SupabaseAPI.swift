@@ -57,7 +57,7 @@ struct SupabaseAPI: Sendable {
     func select<T: NestRow>(
         _: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil
     ) async throws -> [T] {
-        var items = [URLQueryItem(name: "select", value: "*")]
+        var items = [URLQueryItem(name: "select", value: T.columns)]
         items += filters.map { URLQueryItem(name: $0.column, value: "\($0.op).\($0.value)") }
         if !order.isEmpty {
             let value = order.map { "\($0.column).\($0.ascending ? "asc" : "desc")" }.joined(

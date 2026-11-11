@@ -87,6 +87,7 @@ import Testing
         check(GiftTransactionDismissal.self)
         check(GiftTransaction.self)
         check(AccountDirectoryEntry.self)
+        check(RedbarkConnection.self)
     }
 
     /// The signed-in role reads every `share_grant` column but the credential's hash
@@ -97,6 +98,13 @@ import Testing
             modelled == columns(of: ShareGrant.table).subtracting([
                 "token_hash", "created_by_member_id",
             ]))
+    }
+
+    @Test func calendarFeedReadsOnlyItsGrantedColumns() {
+        let modelled = Set(CalendarFeed.CodingKeys.allCases.map(\.rawValue))
+        #expect(modelled.isSubset(of: columns(of: CalendarFeed.table)))
+        #expect(!modelled.contains("token_hash"))
+        #expect(Set(CalendarFeed.columns.split(separator: ",").map(String.init)) == modelled)
     }
 
     @Test func enumsMatchThePostgresEnums() {

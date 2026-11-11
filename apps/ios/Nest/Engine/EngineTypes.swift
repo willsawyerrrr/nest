@@ -369,44 +369,6 @@ struct PayslipsOverview: Codable, Equatable, Sendable {
 
     struct Member: Codable, Equatable, Sendable {
         var memberId: String
-        var incomeForMlsCents: Int
-        var surchargeCents: Int
-    }
-
-    var familyIncomeCents: Int
-    var dependentChildren: Int
-    var tier: Int
-    var rate: Double
-    var currentFloorCents: Int?
-    var next: Next?
-    var liable: Bool
-    var totalSurchargeCents: Int
-    var members: [Member]
-}
-
-/// The household's combined year figures with the MLS test.
-struct HouseholdYearFigures: Codable, Equatable, Sendable {
-    struct Member: Codable, Equatable, Sendable {
-        var memberId: String
-        var grossIncomeCents: Int
-        var netCapitalGainCents: Int
-        var deductionsCents: Int
-        var taxableIncomeCents: Int
-        var taxCents: Int
-        var concessionalSuperCents: Int
-        var afterTaxCents: Int
-    }
-
-    var members: [Member]
-    var grossIncomeCents: Int
-    var netCapitalGainCents: Int
-    var deductionsCents: Int
-    var taxableIncomeCents: Int
-    var taxCents: Int
-    var concessionalSuperCents: Int
-    var afterTaxCents: Int
-    var mls: MlsTestFigures
-
         var variances: [SlipVariance]
         var totals: Totals
         var reported: Reported?
@@ -415,23 +377,4 @@ struct HouseholdYearFigures: Codable, Equatable, Sendable {
     }
 
     var members: [Member]
-}
-
-/// The Pay splits routing: accounts in routing order, with their exact fortnightly
-/// totals and the budget lines behind them.
-struct PaySplitRoutes: Codable, Equatable, Sendable {
-    struct Line: Codable, Equatable, Sendable {
-        var id: String
-        var name: String
-        var fortnightlyCents: Int
-    }
-
-    struct Account: Codable, Equatable, Sendable {
-        var accountId: String
-        var fortnightlyCents: Int
-        var lines: [Line]
-    }
-
-    var accounts: [Account]
-    var unassignedFortnightlyCents: Int
 }

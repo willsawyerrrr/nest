@@ -543,3 +543,26 @@ stays web.
 shows (including the en-AU `Sept` abbreviation) into
 `apps/ios/NestTests/Fixtures/members-parity.json`; `MembersParityTests` asserts
 `MembersPresentation` lists the same.
+
+## Notifications
+
+`Route.notifications` is native (`NotificationsScreen`), laid out as the PWA's
+`PushNotificationsCard`: the device badge (`On`, since the native app registers its
+own APNs token and has no web opt-in) with its explanation, the "Send test
+notification" button, and a "Notify me about" list of switches for the six
+triggers the PWA offers, each with its label and description, under the
+"These apply to every device you've turned on." note. A test result or failure shows
+as a tinted notice below.
+
+It reads `notification_preference` (row-level security returns only the caller's
+rows; an absent row means on) and `members` through `NotificationsViewModel`. A
+switch upserts `{ household_id, member_id, trigger, enabled }` on `member_id,trigger`
+(`NestData.upsert`, `Prefer: resolution=merge-duplicates`), the member being the
+`members` row whose `user_id` is the session user, then reloads; the switch shows its
+new value while the write is in flight and reverts if it fails. The test button calls
+the `push-test` edge function and `NotificationsPresentation.describe` words the
+counts as the PWA's `describeTestResult` does.
+
+There is no engine figure: tests cover the copy, trigger order, defaults and test
+wording (`NotificationsPresentationTests`) and loading, failure, a failed refresh
+keeping the cache, toggling and the test send (`NotificationsViewModelTests`).

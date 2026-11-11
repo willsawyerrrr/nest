@@ -922,3 +922,37 @@ struct GiftTransaction: NestRow {
         case updatedAt = "updated_at"
     }
 }
+
+/// Postgres enum `notification_trigger`.
+enum NotificationTrigger: String, Codable, CaseIterable, Sendable {
+    case bufferNegative = "buffer_negative"
+    case goalEtaSlipped = "goal_eta_slipped"
+    case temporaryItemExpiring = "temporary_item_expiring"
+    case fyBoundary = "fy_boundary"
+    case giftPurchaseUnassigned = "gift_purchase_unassigned"
+    case giftCandidateNew = "gift_candidate_new"
+    case upDisconnected = "up_disconnected"
+}
+
+/// Row of `notification_preference`.
+struct NotificationPreference: NestRow {
+    static let table = "notification_preference"
+
+    let createdAt: String
+    let enabled: Bool
+    let householdId: String
+    let id: String
+    let memberId: String
+    let trigger: NotificationTrigger
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case enabled
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case trigger
+        case updatedAt = "updated_at"
+    }
+}

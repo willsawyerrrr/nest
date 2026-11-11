@@ -1,0 +1,908 @@
+[
+  {
+    "name": "a pay account is chosen",
+    "rows": {
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Rent",
+          "line_group": "needs",
+          "amount_cents": 240000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a1",
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "Streaming",
+          "line_group": "wants",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a2",
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Holiday",
+          "line_group": "savings",
+          "amount_cents": 30137,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b4",
+          "name": "Shares",
+          "line_group": "investments",
+          "amount_cents": 600000,
+          "frequency": "annual",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g2",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b5",
+          "name": "Coffee",
+          "line_group": "discretionary",
+          "amount_cents": 4000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": "m1",
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b6",
+          "name": "Gym",
+          "line_group": "discretionary",
+          "amount_cents": 9000,
+          "frequency": "every_n_weeks",
+          "interval_count": 3,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b7",
+          "name": "Car",
+          "line_group": "needs",
+          "amount_cents": 8000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a5",
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Japan",
+          "target_amount_cents": 1000000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "a3",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g2",
+          "name": "Shares",
+          "target_amount_cents": 1000000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "a3",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        }
+      ],
+      "accounts": [
+        {
+          "id": "a1",
+          "name": "🏠 Bills",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "manual",
+          "type": "transaction"
+        },
+        {
+          "id": "a2",
+          "name": "Spending",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "manual",
+          "type": "transaction"
+        },
+        {
+          "id": "a3",
+          "name": "✈️ Japan",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        },
+        {
+          "id": "a4",
+          "name": "Super",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        },
+        {
+          "id": "a5",
+          "name": "Emergency",
+          "household_id": "h1",
+          "deleted_from_source_at": "2026-06-01T00:00:00Z",
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        }
+      ],
+      "superProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "fund_name": null,
+          "linked_account_id": "a4",
+          "balance_as_of": null,
+          "carry_forward_cap_cents": 0,
+          "sg_rate_override": null
+        }
+      ],
+      "paySplits": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "ps1",
+          "account_id": "a1",
+          "confirmed_fortnightly_cents": 138500,
+          "confirmed_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "ps2",
+          "account_id": "a3",
+          "confirmed_fortnightly_cents": 20000,
+          "confirmed_at": "2026-01-01T00:00:00Z"
+        }
+      ],
+      "households": [
+        {
+          "id": "h1",
+          "name": "Home",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "invite_code": null,
+          "invite_code_expires_at": null,
+          "pay_account_id": "a2",
+          "timezone": "Australia/Melbourne"
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "memberAllowances": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al1",
+          "member_id": "m1",
+          "amount_cents": 15000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "destination_account_id": "a2"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al2",
+          "member_id": "m2",
+          "amount_cents": 60000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "destination_account_id": "a1"
+        }
+      ]
+    },
+    "expected": {
+      "payAccountId": "a2",
+      "routes": {
+        "accounts": [
+          {
+            "accountId": "a1",
+            "fortnightlyCents": 138461,
+            "lines": [
+              {
+                "id": "b1",
+                "name": "Rent",
+                "fortnightlyCents": 110769
+              },
+              {
+                "id": "allowance:m2",
+                "name": "Ben’s allowance",
+                "fortnightlyCents": 27692
+              }
+            ]
+          },
+          {
+            "accountId": "a2",
+            "fortnightlyCents": 20000,
+            "lines": [
+              {
+                "id": "b2",
+                "name": "Streaming",
+                "fortnightlyCents": 5000
+              },
+              {
+                "id": "allowance:m1",
+                "name": "Ada’s allowance",
+                "fortnightlyCents": 15000
+              }
+            ]
+          },
+          {
+            "accountId": "a3",
+            "fortnightlyCents": 53214,
+            "lines": [
+              {
+                "id": "b3",
+                "name": "Holiday",
+                "fortnightlyCents": 30137
+              },
+              {
+                "id": "b4",
+                "name": "Shares",
+                "fortnightlyCents": 23077
+              }
+            ]
+          },
+          {
+            "accountId": "a5",
+            "fortnightlyCents": 8000,
+            "lines": [
+              {
+                "id": "b7",
+                "name": "Car",
+                "fortnightlyCents": 8000
+              }
+            ]
+          }
+        ],
+        "unassignedFortnightlyCents": 6000
+      },
+      "recommended": [
+        {
+          "accountId": "a1",
+          "label": "Bills",
+          "exactCents": 138461,
+          "roundedCents": 138500,
+          "configuredCents": 138500,
+          "needsUpdate": false,
+          "lines": [
+            {
+              "id": "b1",
+              "name": "Rent",
+              "fortnightlyCents": 110769
+            },
+            {
+              "id": "allowance:m2",
+              "name": "Ben’s allowance",
+              "fortnightlyCents": 27692
+            }
+          ]
+        },
+        {
+          "accountId": "a5",
+          "label": "Emergency",
+          "exactCents": 8000,
+          "roundedCents": 8000,
+          "configuredCents": null,
+          "needsUpdate": true,
+          "lines": [
+            {
+              "id": "b7",
+              "name": "Car",
+              "fortnightlyCents": 8000
+            }
+          ]
+        },
+        {
+          "accountId": "a3",
+          "label": "Japan",
+          "exactCents": 53214,
+          "roundedCents": 53500,
+          "configuredCents": 20000,
+          "needsUpdate": true,
+          "lines": [
+            {
+              "id": "b3",
+              "name": "Holiday",
+              "fortnightlyCents": 30137
+            },
+            {
+              "id": "b4",
+              "name": "Shares",
+              "fortnightlyCents": 23077
+            }
+          ]
+        }
+      ],
+      "stays": [
+        {
+          "accountId": "a2",
+          "label": "Spending",
+          "exactCents": 20000,
+          "roundedCents": 20000,
+          "configuredCents": null,
+          "needsUpdate": true,
+          "lines": [
+            {
+              "id": "b2",
+              "name": "Streaming",
+              "fortnightlyCents": 5000
+            },
+            {
+              "id": "allowance:m1",
+              "name": "Ada’s allowance",
+              "fortnightlyCents": 15000
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "no pay account is chosen",
+    "rows": {
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Rent",
+          "line_group": "needs",
+          "amount_cents": 240000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a1",
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "Streaming",
+          "line_group": "wants",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a2",
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Holiday",
+          "line_group": "savings",
+          "amount_cents": 30137,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b4",
+          "name": "Shares",
+          "line_group": "investments",
+          "amount_cents": 600000,
+          "frequency": "annual",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g2",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b5",
+          "name": "Coffee",
+          "line_group": "discretionary",
+          "amount_cents": 4000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": "m1",
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b6",
+          "name": "Gym",
+          "line_group": "discretionary",
+          "amount_cents": 9000,
+          "frequency": "every_n_weeks",
+          "interval_count": 3,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b7",
+          "name": "Car",
+          "line_group": "needs",
+          "amount_cents": 8000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a5",
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Japan",
+          "target_amount_cents": 1000000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "a3",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g2",
+          "name": "Shares",
+          "target_amount_cents": 1000000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "a3",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        }
+      ],
+      "accounts": [
+        {
+          "id": "a1",
+          "name": "🏠 Bills",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "manual",
+          "type": "transaction"
+        },
+        {
+          "id": "a2",
+          "name": "Spending",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "manual",
+          "type": "transaction"
+        },
+        {
+          "id": "a3",
+          "name": "✈️ Japan",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        },
+        {
+          "id": "a4",
+          "name": "Super",
+          "household_id": "h1",
+          "deleted_from_source_at": null,
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        },
+        {
+          "id": "a5",
+          "name": "Emergency",
+          "household_id": "h1",
+          "deleted_from_source_at": "2026-06-01T00:00:00Z",
+          "owner_member_id": null,
+          "source": "up",
+          "type": "savings"
+        }
+      ],
+      "superProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "fund_name": null,
+          "linked_account_id": "a4",
+          "balance_as_of": null,
+          "carry_forward_cap_cents": 0,
+          "sg_rate_override": null
+        }
+      ],
+      "paySplits": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "ps1",
+          "account_id": "a1",
+          "confirmed_fortnightly_cents": 138500,
+          "confirmed_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "ps2",
+          "account_id": "a3",
+          "confirmed_fortnightly_cents": 20000,
+          "confirmed_at": "2026-01-01T00:00:00Z"
+        }
+      ],
+      "households": [
+        {
+          "id": "h1",
+          "name": "Home",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "invite_code": null,
+          "invite_code_expires_at": null,
+          "pay_account_id": null,
+          "timezone": "Australia/Melbourne"
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "memberAllowances": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al1",
+          "member_id": "m1",
+          "amount_cents": 15000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "destination_account_id": "a2"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al2",
+          "member_id": "m2",
+          "amount_cents": 60000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "destination_account_id": "a1"
+        }
+      ]
+    },
+    "expected": {
+      "payAccountId": null,
+      "routes": {
+        "accounts": [
+          {
+            "accountId": "a1",
+            "fortnightlyCents": 138461,
+            "lines": [
+              {
+                "id": "b1",
+                "name": "Rent",
+                "fortnightlyCents": 110769
+              },
+              {
+                "id": "allowance:m2",
+                "name": "Ben’s allowance",
+                "fortnightlyCents": 27692
+              }
+            ]
+          },
+          {
+            "accountId": "a2",
+            "fortnightlyCents": 20000,
+            "lines": [
+              {
+                "id": "b2",
+                "name": "Streaming",
+                "fortnightlyCents": 5000
+              },
+              {
+                "id": "allowance:m1",
+                "name": "Ada’s allowance",
+                "fortnightlyCents": 15000
+              }
+            ]
+          },
+          {
+            "accountId": "a3",
+            "fortnightlyCents": 53214,
+            "lines": [
+              {
+                "id": "b3",
+                "name": "Holiday",
+                "fortnightlyCents": 30137
+              },
+              {
+                "id": "b4",
+                "name": "Shares",
+                "fortnightlyCents": 23077
+              }
+            ]
+          },
+          {
+            "accountId": "a5",
+            "fortnightlyCents": 8000,
+            "lines": [
+              {
+                "id": "b7",
+                "name": "Car",
+                "fortnightlyCents": 8000
+              }
+            ]
+          }
+        ],
+        "unassignedFortnightlyCents": 6000
+      },
+      "recommended": [
+        {
+          "accountId": "a5",
+          "label": "Emergency",
+          "exactCents": 8000,
+          "roundedCents": 8000,
+          "configuredCents": null,
+          "needsUpdate": true,
+          "lines": [
+            {
+              "id": "b7",
+              "name": "Car",
+              "fortnightlyCents": 8000
+            }
+          ]
+        },
+        {
+          "accountId": "a3",
+          "label": "Japan",
+          "exactCents": 53214,
+          "roundedCents": 53500,
+          "configuredCents": 20000,
+          "needsUpdate": true,
+          "lines": [
+            {
+              "id": "b3",
+              "name": "Holiday",
+              "fortnightlyCents": 30137
+            },
+            {
+              "id": "b4",
+              "name": "Shares",
+              "fortnightlyCents": 23077
+            }
+          ]
+        }
+      ],
+      "stays": [
+        {
+          "accountId": "a1",
+          "label": "Bills",
+          "exactCents": 138461,
+          "roundedCents": 138500,
+          "configuredCents": 138500,
+          "needsUpdate": false,
+          "lines": [
+            {
+              "id": "b1",
+              "name": "Rent",
+              "fortnightlyCents": 110769
+            },
+            {
+              "id": "allowance:m2",
+              "name": "Ben’s allowance",
+              "fortnightlyCents": 27692
+            }
+          ]
+        },
+        {
+          "accountId": "a2",
+          "label": "Spending",
+          "exactCents": 20000,
+          "roundedCents": 20000,
+          "configuredCents": null,
+          "needsUpdate": true,
+          "lines": [
+            {
+              "id": "b2",
+              "name": "Streaming",
+              "fortnightlyCents": 5000
+            },
+            {
+              "id": "allowance:m1",
+              "name": "Ada’s allowance",
+              "fortnightlyCents": 15000
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

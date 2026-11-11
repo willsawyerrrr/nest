@@ -64,4 +64,8 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func paySplitRoutes(_ input: PaySplitRoutesInput) async throws -> PaySplitRoutes {
+        do { return try await shared.value.paySplitRoutes(input) } catch { throw NestError(.unknown) }
+    }
 }

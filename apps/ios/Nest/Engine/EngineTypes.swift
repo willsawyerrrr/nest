@@ -298,3 +298,22 @@ struct HouseholdYearFigures: Codable, Equatable, Sendable {
     var afterTaxCents: Int
     var mls: MlsTestFigures
 }
+
+/// The Pay splits routing: accounts in routing order, with their exact fortnightly
+/// totals and the budget lines behind them.
+struct PaySplitRoutes: Codable, Equatable, Sendable {
+    struct Line: Codable, Equatable, Sendable {
+        var id: String
+        var name: String
+        var fortnightlyCents: Int
+    }
+
+    struct Account: Codable, Equatable, Sendable {
+        var accountId: String
+        var fortnightlyCents: Int
+        var lines: [Line]
+    }
+
+    var accounts: [Account]
+    var unassignedFortnightlyCents: Int
+}

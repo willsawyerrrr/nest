@@ -30,6 +30,7 @@ import { configsByYear, FY2027_CONFIG } from '@nest/tax'
 import { summariseBreakdowns } from './breakdowns.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
 import { previewInflowDraft, summariseInflows } from './inflows.ts'
+import { payslipsOverview } from './payslips.ts'
 import { serialise } from './serialise.ts'
 import { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
 
@@ -39,6 +40,8 @@ export { serialise } from './serialise.ts'
 export { summariseBreakdowns } from './breakdowns.ts'
 export { previewInflowDraft, summariseInflows } from './inflows.ts'
 export type { InflowDraftInput, InflowDraftPreview, InflowsInput } from './inflows.ts'
+export { payslipsOverview } from './payslips.ts'
+export type { PayslipsInput } from './payslips.ts'
 export type { BreakdownsInput } from './breakdowns.ts'
 export { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
 export type {
@@ -168,4 +171,5 @@ export const entryPoints = {
   summariseInflows: entry(summariseInflows),
   previewInflowDraft: entry(previewInflowDraft),
   paySplitRoutes: entry(paySplitRoutes),
+  payslipsOverview: entry(payslipsOverview),
 } satisfies Record<string, Entry>

@@ -60,6 +60,7 @@ import Testing
         check(SavingsGoal.self)
         check(Inflow.self)
         check(Payslip.self)
+        check(PayslipLine.self)
         check(Deduction.self)
         check(PaySplit.self)
         check(TaxProfile.self)

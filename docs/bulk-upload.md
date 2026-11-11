@@ -45,6 +45,14 @@ that are neither PDF nor image, are turned away by the share sheet; files past t
 to the app once queued, so a file shared twice, or handed over twice, makes one
 draft.
 
+## Native app
+
+The native Payslips screen runs the same queue (`UploadQueue`, `BulkUploadPanel` under
+`apps/ios/Nest/Screens/Uploads/`; see [`native-screens.md`](native-screens.md#uploads)):
+one file is stored and read into the Add card's form, several are handed to the queue and
+reviewed as drafts, each saved through `upsert_payslip_with_lines` under the id minted
+when the file was added. The limits, statuses, cleanup and retry rules are those below.
+
 ## The queue
 
 `useUploadQueue` holds every file in a batch and drives it; `BulkUploadPanel` renders

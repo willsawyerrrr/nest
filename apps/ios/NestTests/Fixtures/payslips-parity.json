@@ -1,0 +1,640 @@
+[
+  {
+    "name": "two members, itemised and unitemised slips",
+    "financialYear": 2027,
+    "rows": {
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "salary",
+          "name": "Salary",
+          "type": "salary",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 13000000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": "fortnightly",
+          "arrives_every_pay_period": true,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "oncall",
+          "name": "On-call allowance",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": 30000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": "fortnightly",
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "bonus",
+          "name": "Bonus",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": null,
+          "amount_cents": 500000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-10-15",
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": "ordinary",
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "wage",
+          "name": "Wage",
+          "type": "wage",
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": null,
+          "interval_count": null,
+          "hourly_rate_cents": 4000,
+          "hours_per_period": 76,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": "fortnightly",
+          "arrives_every_pay_period": true,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tp-m1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tp-m2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "contributions": [],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "hd1",
+          "member_id": "m1",
+          "balance_cents": 2000000
+        }
+      ],
+      "deductions": [],
+      "payslips": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p3",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "period_start": "2026-10-05",
+          "period_end": "2026-10-18",
+          "paid_on": "2026-10-21",
+          "gross_cents": 980000,
+          "tax_withheld_cents": 270000,
+          "super_cents": 112700,
+          "net_cents": 710000,
+          "salary_sacrifice_cents": null,
+          "ytd_gross_cents": 4000000,
+          "ytd_tax_withheld_cents": 1000000,
+          "ytd_super_cents": 460000,
+          "file_path": null,
+          "note": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p2",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "period_start": "2026-07-20",
+          "period_end": "2026-08-02",
+          "paid_on": null,
+          "gross_cents": 530000,
+          "tax_withheld_cents": 130000,
+          "super_cents": 60000,
+          "net_cents": 400000,
+          "salary_sacrifice_cents": 10000,
+          "ytd_gross_cents": null,
+          "ytd_tax_withheld_cents": null,
+          "ytd_super_cents": null,
+          "file_path": null,
+          "note": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "period_start": "2026-07-06",
+          "period_end": "2026-07-19",
+          "paid_on": "2026-07-22",
+          "gross_cents": 500000,
+          "tax_withheld_cents": 125000,
+          "super_cents": 57500,
+          "net_cents": 375000,
+          "salary_sacrifice_cents": null,
+          "ytd_gross_cents": null,
+          "ytd_tax_withheld_cents": null,
+          "ytd_super_cents": null,
+          "file_path": null,
+          "note": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p4",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "period_start": "2026-07-06",
+          "period_end": "2026-07-19",
+          "paid_on": "2026-07-22",
+          "gross_cents": 304000,
+          "tax_withheld_cents": 60000,
+          "super_cents": 35000,
+          "net_cents": 244000,
+          "salary_sacrifice_cents": null,
+          "ytd_gross_cents": null,
+          "ytd_tax_withheld_cents": null,
+          "ytd_super_cents": null,
+          "file_path": null,
+          "note": null
+        }
+      ],
+      "lines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l1",
+          "payslip_id": "p3",
+          "kind": "earning",
+          "label": "Salary",
+          "amount_cents": 500000,
+          "source_inflow_id": "salary",
+          "tax_component": null,
+          "attracts_super": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l2",
+          "payslip_id": "p3",
+          "kind": "earning",
+          "label": "On call",
+          "amount_cents": 30000,
+          "source_inflow_id": "oncall",
+          "tax_component": null,
+          "attracts_super": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l3",
+          "payslip_id": "p3",
+          "kind": "earning",
+          "label": "Bonus",
+          "amount_cents": 450000,
+          "source_inflow_id": "bonus",
+          "tax_component": null,
+          "attracts_super": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l4",
+          "payslip_id": "p3",
+          "kind": "tax",
+          "label": "PAYG",
+          "amount_cents": 250000,
+          "source_inflow_id": null,
+          "tax_component": "payg",
+          "attracts_super": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l5",
+          "payslip_id": "p3",
+          "kind": "tax",
+          "label": "STSL",
+          "amount_cents": 20000,
+          "source_inflow_id": null,
+          "tax_component": "stsl",
+          "attracts_super": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l6",
+          "payslip_id": "p2",
+          "kind": "earning",
+          "label": "Expenses",
+          "amount_cents": 20000,
+          "source_inflow_id": null,
+          "tax_component": null,
+          "attracts_super": false
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "l7",
+          "payslip_id": "p2",
+          "kind": "earning",
+          "label": "Salary",
+          "amount_cents": 500000,
+          "source_inflow_id": "salary",
+          "tax_component": null,
+          "attracts_super": true
+        }
+      ]
+    },
+    "expected": {
+      "members": [
+        {
+          "memberId": "m1",
+          "variances": [
+            {
+              "payslipId": "p3",
+              "variance": {
+                "basis": "cadence",
+                "partCycleReason": null,
+                "cadenceInflowId": "salary",
+                "periodDays": 14,
+                "cadencePeriodDays": 14,
+                "financialYearDays": 365,
+                "expectedGrossCents": null,
+                "grossVarianceCents": null,
+                "grossPartlyUnmeasured": true,
+                "unmeasuredGrossCents": 480000,
+                "lineGroups": [
+                  {
+                    "sourceInflowId": "salary",
+                    "labels": [
+                      "Salary"
+                    ],
+                    "actualCents": 500000,
+                    "expectedCents": 500000,
+                    "varianceCents": 0,
+                    "basis": "cadence",
+                    "partCycleReason": null
+                  },
+                  {
+                    "sourceInflowId": "oncall",
+                    "labels": [
+                      "On call"
+                    ],
+                    "actualCents": 30000,
+                    "expectedCents": null,
+                    "varianceCents": null,
+                    "basis": "occasional",
+                    "partCycleReason": null
+                  },
+                  {
+                    "sourceInflowId": "bonus",
+                    "labels": [
+                      "Bonus"
+                    ],
+                    "actualCents": 450000,
+                    "expectedCents": null,
+                    "varianceCents": null,
+                    "basis": "one_off",
+                    "partCycleReason": null
+                  }
+                ],
+                "unallocatedCents": 0,
+                "expectedTaxWithheldCents": 190163,
+                "taxWithheldVarianceCents": 79837,
+                "taxGroups": [
+                  {
+                    "component": "payg",
+                    "labels": [
+                      "PAYG"
+                    ],
+                    "actualCents": 250000,
+                    "expectedCents": 146885,
+                    "varianceCents": 103115
+                  },
+                  {
+                    "component": "stsl",
+                    "labels": [
+                      "STSL"
+                    ],
+                    "actualCents": 20000,
+                    "expectedCents": 43279,
+                    "varianceCents": -23279
+                  }
+                ],
+                "unallocatedTaxCents": 0,
+                "superBaseCents": 980000,
+                "expectedSuperGuaranteeCents": 117600,
+                "expectedConcessionalCents": 0,
+                "expectedSuperCents": 117600,
+                "actualSuperCents": 112700,
+                "superVarianceCents": -4900
+              }
+            },
+            {
+              "payslipId": "p2",
+              "variance": {
+                "basis": "cadence",
+                "partCycleReason": null,
+                "cadenceInflowId": "salary",
+                "periodDays": 14,
+                "cadencePeriodDays": 14,
+                "financialYearDays": 365,
+                "expectedGrossCents": 500000,
+                "grossVarianceCents": 30000,
+                "grossPartlyUnmeasured": false,
+                "unmeasuredGrossCents": 0,
+                "lineGroups": [
+                  {
+                    "sourceInflowId": null,
+                    "labels": [
+                      "Expenses"
+                    ],
+                    "actualCents": 20000,
+                    "expectedCents": null,
+                    "varianceCents": null,
+                    "basis": "calendar_days",
+                    "partCycleReason": null
+                  },
+                  {
+                    "sourceInflowId": "salary",
+                    "labels": [
+                      "Salary"
+                    ],
+                    "actualCents": 500000,
+                    "expectedCents": 500000,
+                    "varianceCents": 0,
+                    "basis": "cadence",
+                    "partCycleReason": null
+                  }
+                ],
+                "unallocatedCents": 10000,
+                "expectedTaxWithheldCents": 190163,
+                "taxWithheldVarianceCents": -60163,
+                "taxGroups": [],
+                "unallocatedTaxCents": 0,
+                "superBaseCents": 510000,
+                "expectedSuperGuaranteeCents": 61200,
+                "expectedConcessionalCents": 0,
+                "expectedSuperCents": 61200,
+                "actualSuperCents": 70000,
+                "superVarianceCents": 8800
+              }
+            },
+            {
+              "payslipId": "p1",
+              "variance": {
+                "basis": "calendar_days",
+                "partCycleReason": null,
+                "cadenceInflowId": null,
+                "periodDays": 14,
+                "cadencePeriodDays": null,
+                "financialYearDays": 365,
+                "expectedGrossCents": null,
+                "grossVarianceCents": null,
+                "grossPartlyUnmeasured": false,
+                "unmeasuredGrossCents": 0,
+                "lineGroups": [],
+                "unallocatedCents": 0,
+                "expectedTaxWithheldCents": 189642,
+                "taxWithheldVarianceCents": -64642,
+                "taxGroups": [],
+                "unallocatedTaxCents": 0,
+                "superBaseCents": 500000,
+                "expectedSuperGuaranteeCents": 60000,
+                "expectedConcessionalCents": 0,
+                "expectedSuperCents": 60000,
+                "actualSuperCents": 57500,
+                "superVarianceCents": -2500
+              }
+            }
+          ],
+          "totals": {
+            "grossCents": 2010000,
+            "taxWithheldCents": 525000,
+            "superCents": 230200,
+            "salarySacrificeCents": 10000,
+            "payslipCount": 3
+          },
+          "reported": {
+            "grossCents": 4000000,
+            "taxWithheldCents": 1000000,
+            "superCents": 460000
+          },
+          "positions": {
+            "gross": {
+              "actualCents": 530000,
+              "expectedCents": 500000,
+              "varianceCents": 30000,
+              "coveredCount": 1,
+              "payslipCount": 3
+            },
+            "taxWithheld": {
+              "actualCents": 525000,
+              "expectedCents": 569968,
+              "varianceCents": -44968,
+              "coveredCount": 3,
+              "payslipCount": 3
+            },
+            "super": {
+              "actualCents": 240200,
+              "expectedCents": 238800,
+              "varianceCents": 1400,
+              "coveredCount": 3,
+              "payslipCount": 3
+            }
+          },
+          "unmeasured": [
+            {
+              "sourceInflowId": "oncall",
+              "actualCents": 30000,
+              "expectedCents": 241479,
+              "varianceCents": -211479,
+              "annualExpectedCents": 780000,
+              "asAt": "2026-10-21"
+            },
+            {
+              "sourceInflowId": "bonus",
+              "actualCents": 450000,
+              "expectedCents": 500000,
+              "varianceCents": -50000,
+              "annualExpectedCents": 500000,
+              "asAt": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "memberId": "m2",
+          "variances": [
+            {
+              "payslipId": "p4",
+              "variance": {
+                "basis": "calendar_days",
+                "partCycleReason": null,
+                "cadenceInflowId": null,
+                "periodDays": 14,
+                "cadencePeriodDays": null,
+                "financialYearDays": 365,
+                "expectedGrossCents": null,
+                "grossVarianceCents": null,
+                "grossPartlyUnmeasured": false,
+                "unmeasuredGrossCents": 0,
+                "lineGroups": [],
+                "unallocatedCents": 0,
+                "expectedTaxWithheldCents": 63684,
+                "taxWithheldVarianceCents": -3684,
+                "taxGroups": [],
+                "unallocatedTaxCents": 0,
+                "superBaseCents": 304000,
+                "expectedSuperGuaranteeCents": 36480,
+                "expectedConcessionalCents": 0,
+                "expectedSuperCents": 36480,
+                "actualSuperCents": 35000,
+                "superVarianceCents": -1480
+              }
+            }
+          ],
+          "totals": {
+            "grossCents": 304000,
+            "taxWithheldCents": 60000,
+            "superCents": 35000,
+            "salarySacrificeCents": 0,
+            "payslipCount": 1
+          },
+          "reported": null,
+          "positions": {
+            "gross": {
+              "actualCents": 0,
+              "expectedCents": null,
+              "varianceCents": null,
+              "coveredCount": 0,
+              "payslipCount": 1
+            },
+            "taxWithheld": {
+              "actualCents": 60000,
+              "expectedCents": 63684,
+              "varianceCents": -3684,
+              "coveredCount": 1,
+              "payslipCount": 1
+            },
+            "super": {
+              "actualCents": 35000,
+              "expectedCents": 36480,
+              "varianceCents": -1480,
+              "coveredCount": 1,
+              "payslipCount": 1
+            }
+          },
+          "unmeasured": []
+        }
+      ]
+    }
+  }
+]

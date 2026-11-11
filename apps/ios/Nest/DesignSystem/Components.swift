@@ -215,18 +215,62 @@ struct NestField: View {
 
 /// The brand-lime primary action.
 struct NestPrimaryButtonStyle: ButtonStyle {
+    var compact = false
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .semibold))
+            .font(.system(size: compact ? 14 : 16, weight: .semibold))
             .foregroundStyle(NestColor.onBrand)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, NestSpacing.sm)
+            .padding(.vertical, compact ? NestSpacing.xs : NestSpacing.sm)
             .background(
                 NestColor.brand,
                 in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
             )
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
+}
+
+/// The default (outlined) action: body text on the elevated surface with a border.
+struct NestSecondaryButtonStyle: ButtonStyle {
+    var compact = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: compact ? 12 : 14, weight: .semibold))
+            .foregroundStyle(NestColor.text)
+            .frame(maxWidth: compact ? nil : .infinity)
+            .padding(.horizontal, compact ? NestSpacing.xs : NestSpacing.sm)
+            .padding(.vertical, compact ? NestSpacing.xxs : NestSpacing.xs)
+            .background(
+                NestColor.surface,
+                in: RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: NestRadius.md, style: .continuous)
+                    .strokeBorder(NestColor.border, lineWidth: 1)
+            )
+            .opacity(!isEnabled ? 0.5 : configuration.isPressed ? 0.8 : 1)
+    }
+}
+
+/// A square checkbox that renders the same on iOS and macOS.
+struct NestCheckboxStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack(spacing: NestSpacing.xs) {
+                Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(configuration.isOn ? NestColor.brand : NestColor.dimmedText)
+                configuration.label
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+extension ToggleStyle where Self == NestCheckboxStyle {
+    static var nestCheckbox: NestCheckboxStyle { NestCheckboxStyle() }
 }
 
 /// A full-screen error state. Callers pass fixed copy for the failure's stable

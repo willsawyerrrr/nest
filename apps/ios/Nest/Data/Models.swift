@@ -395,6 +395,49 @@ struct Payslip: NestRow {
     }
 }
 
+/// Postgres enum `payslip_line_kind`.
+enum PayslipLineKind: String, Codable, CaseIterable, Sendable {
+    case earning
+    case tax
+}
+
+/// Postgres enum `payslip_tax_component`.
+enum PayslipTaxComponent: String, Codable, CaseIterable, Sendable {
+    case payg
+    case stsl
+}
+
+/// Row of `payslip_line`.
+struct PayslipLine: NestRow {
+    static let table = "payslip_line"
+
+    let amountCents: Int
+    let attractsSuper: Bool?
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let kind: PayslipLineKind
+    let label: String
+    let payslipId: String
+    let sourceInflowId: String?
+    let taxComponent: PayslipTaxComponent?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case attractsSuper = "attracts_super"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case kind
+        case label
+        case payslipId = "payslip_id"
+        case sourceInflowId = "source_inflow_id"
+        case taxComponent = "tax_component"
+        case updatedAt = "updated_at"
+    }
+}
+
 /// Row of `deduction`.
 struct Deduction: NestRow {
     static let table = "deduction"

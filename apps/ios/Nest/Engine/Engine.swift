@@ -24,6 +24,7 @@ actor Engine {
         case mlsWhatIf
         case householdYear
         case paySplitRoutes
+        case payslipsOverview
     }
 
     enum Failure: Error, Equatable {
@@ -138,5 +139,10 @@ actor Engine {
     /// total with the lines behind it, and what is routed nowhere.
     func paySplitRoutes(_ input: some Encodable) throws -> PaySplitRoutes {
         try call(.paySplitRoutes, input)
+    }
+
+    /// Every member's payslips measured against the plan, with their year to date.
+    func payslipsOverview(_ input: some Encodable) throws -> PayslipsOverview {
+        try call(.payslipsOverview, input)
     }
 }

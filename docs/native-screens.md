@@ -595,3 +595,27 @@ counts as the PWA's `describeTestResult` does.
 There is no engine figure: tests cover the copy, trigger order, defaults and test
 wording (`NotificationsPresentationTests`) and loading, failure, a failed refresh
 keeping the cache, toggling and the test send (`NotificationsViewModelTests`).
+
+## What's new
+
+`Route.whatsNew` is native (`WhatsNewScreen`), outside the nav and reached from the
+shell's What's new button. It is laid out as the PWA's `ChangelogScreen`: the page
+title, an "Update available" alert, an In progress section and an Implemented
+section. Each change is a compact row (type emoji, description clamped to two
+lines, date); a clamped row shows a chevron and expands on tap, and the date sits in
+a 96pt right column from 768pt and under the description below.
+
+The changelog is the PWA's own source: the `changelog` edge function, called
+through `SupabaseAPI.invoke` and decoded as `Changelog`, every list newest first as
+the function returns it. The native app sends no commit SHA, so `available` is
+empty; the update alert comes from a version check instead of the PWA's reload
+prompt. A failed load shows the PWA's inline error alert, not `ErrorView`.
+
+`VersionSource` compares the bundle's `CFBundleShortVersionString` with the latest
+release on the app's channel (`UpdateChannel`): the App Store on iOS and Mac
+Catalyst (an iTunes lookup by bundle id, linking to `trackViewUrl`), and Homebrew on
+`NestMac` (the `version` in the tap's `Casks/nest.rb`, shown with
+`brew upgrade --cask willsawyerrrr/tap/nest`). `AppVersion` compares numerically
+per component. A failed lookup, or no published release, offers no update; a failed
+changelog fails the screen. Current version, latest release and changelog are
+injected, so tests stub all three.

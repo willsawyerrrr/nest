@@ -473,3 +473,15 @@ struct FinancialYearOptions: Codable, Equatable, Sendable {
     var current: Int
     var available: [Int]
 }
+
+/// One grant's derived facts at an instant, in whole units and cents.
+struct GrantFigures: Codable, Equatable, Sendable {
+    var grantId: String
+    var vested: Int
+    var exercised: Int
+    var sold: Int
+    var held: Int
+    var grossCents: Int64
+    var exerciseCents: Int64
+    var netCents: Int64
+}

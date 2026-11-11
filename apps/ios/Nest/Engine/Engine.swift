@@ -27,6 +27,7 @@ actor Engine {
         case payslipsOverview
         case deductionFigures
         case financialYearOptions
+        case summariseEquity
     }
 
     enum Failure: Error, Equatable {
@@ -157,5 +158,11 @@ actor Engine {
     /// The current financial year and every year with a published tax config.
     func financialYearOptions(_ input: some Encodable) throws -> FinancialYearOptions {
         try call(.financialYearOptions, input)
+    }
+
+    /// Each equity grant's vested quantity, units exercised, sold and held, and
+    /// gross, exercise-cost and net values.
+    func summariseEquity(_ input: some Encodable) throws -> [GrantFigures] {
+        try call(.summariseEquity, input)
     }
 }

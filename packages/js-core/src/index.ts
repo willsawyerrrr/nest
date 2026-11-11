@@ -29,6 +29,7 @@ import {
 import { configsByYear, FY2027_CONFIG } from '@nest/tax'
 import { summariseBreakdowns } from './breakdowns.ts'
 import { deductionFigures, financialYearOptions } from './deductions.ts'
+import { summariseEquity } from './equity.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
 import { previewInflowDraft, summariseInflows } from './inflows.ts'
 import { payslipsOverview } from './payslips.ts'
@@ -53,6 +54,8 @@ export type {
 } from './taxScreen.ts'
 export { deductionFigures, financialYearOptions, workUseAmountCents } from './deductions.ts'
 export type { DeductionFiguresInput, FinancialYearOptionsInput } from './deductions.ts'
+export { summariseEquity } from './equity.ts'
+export type { EquityInput } from './equity.ts'
 
 /** The whole-year tax estimate for a household's rows, projected onto its scalar cents figures. */
 export function estimateTax(input: EstimateInput) {
@@ -177,4 +180,5 @@ export const entryPoints = {
   payslipsOverview: entry(payslipsOverview),
   deductionFigures: entry(deductionFigures),
   financialYearOptions: entry(financialYearOptions),
+  summariseEquity: entry(summariseEquity),
 } satisfies Record<string, Entry>

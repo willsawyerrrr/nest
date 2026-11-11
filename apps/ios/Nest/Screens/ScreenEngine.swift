@@ -92,4 +92,10 @@ enum ScreenEngine {
     static func figures(_ input: DeductionFiguresInput) async -> DeductionFigures {
         (try? await deductionFigures(input)) ?? .zero
     }
+
+    static func summariseEquity(_ input: EquityInput) async throws -> [GrantFigures] {
+        do { return try await shared.value.summariseEquity(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

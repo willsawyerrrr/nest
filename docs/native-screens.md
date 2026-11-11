@@ -637,3 +637,28 @@ shows a fixed alert.
 
 There is no engine figure and no parity fixture; `HouseholdPresentationTests`
 pin the copy, the day rounding and the timestamp parsing.
+
+## Equity
+
+`Route.equity` is native (`EquityScreen`), laid out as the PWA's: the page title and
+intro, then per member (by name) their grants, an Exercises list (shown when the
+member holds an option grant) and a Sales list (shown when they hold any grant). A
+grant is a dense row from 768pt (label with instrument and vesting-frequency badges,
+`vested / quantity vested`, net value, and a caption of the option's vested value and
+exercise cost joined with the exercised, sold and held units) and a bordered card on
+a phone. An exercise or sale is a bordered card (`quantity × grant`, date, strike or
+price per share, market price or fees). It reads `equity_grant` (by grant date),
+`equity_exercise` and `equity_sale` (oldest first) and `members` (by name) through
+`EquityViewModel`. It is read-only: a card at the end opens the web Equity page in a
+sheet (`WebHandoffCard`) for adding, changing and deleting grants, exercises and sales.
+
+Figures come from the engine's `summariseEquity` (in `packages/js-core`): per grant, the
+vested, exercised, sold and held units and the gross, exercise-cost and net values, from
+`@nest/plan`'s `vestedQuantity`, `heldShareQuantity`, `grossVestedValueCents`,
+`exerciseCostCents` and `grantValueCents` after the grant's recorded exercises and
+sales, valued at the device's clock. `EquityPresentation` only looks them up and labels
+them, as `EquityScreen` does. `apps/pwa/src/lib/equityParity.test.ts` computes the
+figures and labels with the PWA's own helpers and snapshots rows, figures and labels
+into `apps/ios/NestTests/Fixtures/equity-parity.json`; `EquityParityTests` runs the same
+rows through `EquityRows.input` and the bundled engine and asserts identical figures and
+labels.

@@ -1,0 +1,265 @@
+[
+  {
+    "name": "options, shares and an unvested grant",
+    "now": "2026-11-11T12:00:00Z",
+    "rows": {
+      "grants": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "member_id": "m1",
+          "label": "Acme options",
+          "instrument_type": "option",
+          "quantity": 10000,
+          "grant_date": "2024-03-15",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "monthly",
+          "strike_price_cents": 50,
+          "price_per_share_cents": 250,
+          "price_as_of": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g2",
+          "member_id": "m1",
+          "label": "Acme shares",
+          "instrument_type": "share",
+          "quantity": 4000,
+          "grant_date": "2025-01-01",
+          "cliff_months": 6,
+          "vesting_period_months": 24,
+          "vesting_frequency": "quarterly",
+          "strike_price_cents": null,
+          "price_per_share_cents": 400,
+          "price_as_of": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g3",
+          "member_id": "m2",
+          "label": "Beta options",
+          "instrument_type": "option",
+          "quantity": 1000,
+          "grant_date": "2026-10-01",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "annual",
+          "strike_price_cents": 100,
+          "price_per_share_cents": 300,
+          "price_as_of": null
+        }
+      ],
+      "exercises": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "e1",
+          "member_id": "m1",
+          "grant_id": "g1",
+          "exercised_on": "2025-09-30",
+          "quantity": 2000,
+          "strike_price_cents": 50,
+          "market_price_per_share_cents": 275
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "e2",
+          "member_id": "m1",
+          "grant_id": "g1",
+          "exercised_on": "2026-02-10",
+          "quantity": 1000,
+          "strike_price_cents": 50,
+          "market_price_per_share_cents": null
+        }
+      ],
+      "sales": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "s1",
+          "member_id": "m1",
+          "grant_id": "g1",
+          "sold_on": "2026-05-01",
+          "quantity": 500,
+          "price_per_share_cents": 250,
+          "fee_cents": 995
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "s2",
+          "member_id": "m1",
+          "grant_id": "g2",
+          "sold_on": "2026-06-20",
+          "quantity": 300,
+          "price_per_share_cents": 250,
+          "fee_cents": 0
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "user_id": "u-m1",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "user_id": "u-m2",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m3",
+          "name": "Cy",
+          "user_id": "u-m3",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        }
+      ]
+    },
+    "expected": {
+      "figures": [
+        {
+          "grantId": "g1",
+          "vested": 6458,
+          "exercised": 3000,
+          "sold": 500,
+          "held": 2500,
+          "grossCents": 1489500,
+          "exerciseCents": 172900,
+          "netCents": 1316600
+        },
+        {
+          "grantId": "g2",
+          "vested": 3500,
+          "exercised": 0,
+          "sold": 300,
+          "held": 3200,
+          "grossCents": 1280000,
+          "exerciseCents": 0,
+          "netCents": 1280000
+        },
+        {
+          "grantId": "g3",
+          "vested": 0,
+          "exercised": 0,
+          "sold": 0,
+          "held": 0,
+          "grossCents": 0,
+          "exerciseCents": 0,
+          "netCents": 0
+        }
+      ],
+      "members": [
+        {
+          "id": "m1",
+          "name": "Ada",
+          "grants": [
+            {
+              "id": "g1",
+              "label": "Acme options",
+              "instrumentLabel": "Options",
+              "isOption": true,
+              "frequencyLabel": "Monthly",
+              "vestedLabel": "6,458 / 10,000 vested",
+              "netCents": 1316600,
+              "valueLine": "Vested value $14,895.00 · Exercise cost $1,729.00",
+              "activityLine": "3,000 exercised · 500 sold · 2,500 shares held"
+            },
+            {
+              "id": "g2",
+              "label": "Acme shares",
+              "instrumentLabel": "Shares",
+              "isOption": false,
+              "frequencyLabel": "Quarterly",
+              "vestedLabel": "3,500 / 4,000 vested",
+              "netCents": 1280000,
+              "valueLine": null,
+              "activityLine": "300 sold · 3,200 shares held"
+            }
+          ],
+          "exercises": [
+            {
+              "id": "e1",
+              "title": "2,000 × Acme options",
+              "detail": "30 Sept 2025 · strike $0.50 · market $2.75"
+            },
+            {
+              "id": "e2",
+              "title": "1,000 × Acme options",
+              "detail": "10 Feb 2026 · strike $0.50"
+            }
+          ],
+          "sales": [
+            {
+              "id": "s1",
+              "title": "500 × Acme options",
+              "detail": "1 May 2026 · $2.50 per share · fees $9.95"
+            },
+            {
+              "id": "s2",
+              "title": "300 × Acme shares",
+              "detail": "20 Jun 2026 · $2.50 per share"
+            }
+          ]
+        },
+        {
+          "id": "m2",
+          "name": "Ben",
+          "grants": [
+            {
+              "id": "g3",
+              "label": "Beta options",
+              "instrumentLabel": "Options",
+              "isOption": true,
+              "frequencyLabel": "Annual",
+              "vestedLabel": "0 / 1,000 vested",
+              "netCents": 0,
+              "valueLine": "Vested value $0.00 · Exercise cost $0.00",
+              "activityLine": null
+            }
+          ],
+          "exercises": [],
+          "sales": []
+        },
+        {
+          "id": "m3",
+          "name": "Cy",
+          "grants": [],
+          "exercises": null,
+          "sales": null
+        }
+      ]
+    }
+  }
+]

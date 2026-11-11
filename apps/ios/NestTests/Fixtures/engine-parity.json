@@ -1853,6 +1853,100 @@
     }
   },
   {
+    "name": "equity: options, shares and an unvested grant",
+    "entry": "summariseEquity",
+    "input": {
+      "grants": [
+        {
+          "id": "g1",
+          "instrument_type": "option",
+          "quantity": 10000,
+          "grant_date": "2024-03-15",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "monthly",
+          "strike_price_cents": 50,
+          "price_per_share_cents": 250
+        },
+        {
+          "id": "g2",
+          "instrument_type": "share",
+          "quantity": 4000,
+          "grant_date": "2025-01-01",
+          "cliff_months": 6,
+          "vesting_period_months": 24,
+          "vesting_frequency": "quarterly",
+          "strike_price_cents": null,
+          "price_per_share_cents": 400
+        },
+        {
+          "id": "g3",
+          "instrument_type": "option",
+          "quantity": 1000,
+          "grant_date": "2026-10-01",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "annual",
+          "strike_price_cents": 100,
+          "price_per_share_cents": 300
+        }
+      ],
+      "exercises": [
+        {
+          "grant_id": "g1",
+          "quantity": 2000
+        },
+        {
+          "grant_id": "g1",
+          "quantity": 1000
+        }
+      ],
+      "sales": [
+        {
+          "grant_id": "g1",
+          "quantity": 500
+        },
+        {
+          "grant_id": "g2",
+          "quantity": 300
+        }
+      ],
+      "now": "2026-11-11T12:00:00Z"
+    },
+    "expected": [
+      {
+        "grantId": "g1",
+        "vested": 6458,
+        "exercised": 3000,
+        "sold": 500,
+        "held": 2500,
+        "grossCents": 1489500,
+        "exerciseCents": 172900,
+        "netCents": 1316600
+      },
+      {
+        "grantId": "g2",
+        "vested": 3500,
+        "exercised": 0,
+        "sold": 300,
+        "held": 3200,
+        "grossCents": 1280000,
+        "exerciseCents": 0,
+        "netCents": 1280000
+      },
+      {
+        "grantId": "g3",
+        "vested": 0,
+        "exercised": 0,
+        "sold": 0,
+        "held": 0,
+        "grossCents": 0,
+        "exerciseCents": 0,
+        "netCents": 0
+      }
+    ]
+  },
+  {
     "name": "budget overview: allowance draw",
     "entry": "budgetOverview",
     "input": {

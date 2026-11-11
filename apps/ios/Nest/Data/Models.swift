@@ -6,6 +6,12 @@ import Foundation
 protocol NestRow: Codable, Identifiable, Sendable, Equatable {
     associatedtype CodingKeys: CodingKey & CaseIterable & RawRepresentable<String>
     static var table: String { get }
+    /// The `select` list: `*` unless the role may read only some columns.
+    static var columns: String { get }
+}
+
+extension NestRow {
+    static var columns: String { "*" }
 }
 
 /// Postgres enum `frequency`.
@@ -920,5 +926,45 @@ struct GiftTransaction: NestRow {
         case source
         case status
         case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `redbark_connection`.
+struct RedbarkConnection: NestRow {
+    static let table = "redbark_connection"
+
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let institutionName: String?
+    let memberId: String
+    let status: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case institutionName = "institution_name"
+        case memberId = "member_id"
+        case status
+        case updatedAt = "updated_at"
+    }
+}
+
+/// The readable columns of `calendar_feed` (never `token_hash`, the credential:
+/// a `select *` fails because the role lacks privilege on it).
+struct CalendarFeed: NestRow {
+    static let table = "calendar_feed"
+    static let columns = "household_id,created_at"
+
+    let createdAt: String
+    let householdId: String
+
+    var id: String { householdId }
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
     }
 }

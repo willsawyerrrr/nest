@@ -25,6 +25,8 @@ actor Engine {
         case householdYear
         case paySplitRoutes
         case payslipsOverview
+        case deductionFigures
+        case financialYearOptions
     }
 
     enum Failure: Error, Equatable {
@@ -144,5 +146,16 @@ actor Engine {
     /// Every member's payslips measured against the plan, with their year to date.
     func payslipsOverview(_ input: some Encodable) throws -> PayslipsOverview {
         try call(.payslipsOverview, input)
+    }
+
+    /// The Deductions form's derived figures: the year's rates and cap, the
+    /// distance and hours deductions and the work-use apportionment.
+    func deductionFigures(_ input: some Encodable) throws -> DeductionFigures {
+        try call(.deductionFigures, input)
+    }
+
+    /// The current financial year and every year with a published tax config.
+    func financialYearOptions(_ input: some Encodable) throws -> FinancialYearOptions {
+        try call(.financialYearOptions, input)
     }
 }

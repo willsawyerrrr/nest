@@ -36,7 +36,8 @@ picked; it primes `deduction-extract` and is each draft's starting category, sti
 
 In the native iOS app, a PDF or image shared to Nest from another app (see
 [`ios.md`](ios.md#share-extension)) joins the signed-in member's deduction queue
-as though picked on the Add card: the member lands on Tax deductions and sees a
+as though picked on the Add card (the native Deductions screen reads the App Group
+inbox itself, and a sheet over the shell opens it when files are waiting): the member lands on Tax deductions and sees a
 draft per file above the list. The kind is work expense, the Add card's default,
 and each draft's category stays editable. Shared files never go to a co-member's
 list, a form inside a group, or the payslip and trade queues. Files over 25 MB, or

@@ -22,7 +22,7 @@ struct ContentView: View {
             case .signedOut:
                 SignInView()
             case .signedIn:
-                NavigationShell()
+                NavigationShell().sharedReceiptsHandoff()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

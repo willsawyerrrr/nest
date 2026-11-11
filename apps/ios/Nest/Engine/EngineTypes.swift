@@ -297,6 +297,7 @@ struct HouseholdYearFigures: Codable, Equatable, Sendable {
     var concessionalSuperCents: Int
     var afterTaxCents: Int
     var mls: MlsTestFigures
+}
 
 /// The Pay splits routing: accounts in routing order, with their exact fortnightly
 /// totals and the budget lines behind them.

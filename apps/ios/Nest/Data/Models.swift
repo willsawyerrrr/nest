@@ -653,37 +653,6 @@ struct AccountDirectoryEntry: NestRow {
     }
 }
 
-/// Row of `super_profile`.
-struct SuperProfile: NestRow {
-    static let table = "super_profile"
-
-    let balanceAsOf: String?
-    let carryForwardCapCents: Int
-    let createdAt: String
-    let financialYear: Int
-    let fundName: String?
-    let householdId: String
-    let id: String
-    let linkedAccountId: String?
-    let memberId: String
-    let sgRateOverride: Double?
-    let updatedAt: String
-
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case balanceAsOf = "balance_as_of"
-        case carryForwardCapCents = "carry_forward_cap_cents"
-        case createdAt = "created_at"
-        case financialYear = "financial_year"
-        case fundName = "fund_name"
-        case householdId = "household_id"
-        case id
-        case linkedAccountId = "linked_account_id"
-        case memberId = "member_id"
-        case sgRateOverride = "sg_rate_override"
-        case updatedAt = "updated_at"
-    }
-}
-
 /// Row of `breakdown`.
 struct Breakdown: NestRow {
     static let table = "breakdown"

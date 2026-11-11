@@ -218,11 +218,33 @@ updates both.
 - **Money** (`MoneyFormat`, `MoneySign`) — integer cents in `en_AU` AUD, compact
   axis labels, per-fortnight and per-year rates, and the one sign-to-colour
   rule.
-- **Components** — `NestCard`, `NestListRow`, `MoneyText`, `NestPill`,
-  `NestField` / `NestTextFieldStyle`, `NestPrimaryButtonStyle`, `ErrorView`
-  (strings only, never an upstream body) and `NestBarChart` / `NestLineChart`
-  (Swift Charts with token axes and series colours). The gallery `#Preview` in
+- **Components** — one native equivalent per PWA primitive, so a native screen
+  composes the same pieces as its PWA screen. The gallery `#Preview` in
   `DesignSystemGallery.swift` shows each.
+
+  | PWA                              | Native                                                              |
+  | -------------------------------- | ------------------------------------------------------------------- |
+  | `PageSection`                    | `NestPageSection` — display title, tight tracking, intro, scrolling body |
+  | `AppCard`                        | `NestCard` (`padding:` defaults to `lg`, the comfortable preset; `sm` is compact) |
+  | `ListRow`                        | `NestListRow`                                                       |
+  | `GroupSection` header            | `NestSectionHeader` — title with a bold trailing figure             |
+  | `MoneyText`                      | `MoneyText`                                                         |
+  | `FortnightlyAmount`              | `NestFortnightlyAmount` — bold figure, dimmed `/ fn`                |
+  | `ComparedAmount`                 | `ComparedAmount`                                                    |
+  | `EmptyState`                     | `NestEmptyState`                                                    |
+  | `Badge`                          | `NestPill`                                                          |
+  | `TextInput` with label           | `NestField` / `NestTextFieldStyle`                                  |
+  | `Button` (primary, `AddButton`)  | `NestPrimaryButtonStyle`                                            |
+  | charts                           | `NestBarChart` / `NestLineChart` (Swift Charts, token axes and series colours) |
+
+  `ErrorView` is the full-screen failure state (strings only, never an upstream
+  body).
+
+- **Page layout** — a page title is the display `Title` (38pt bold rounded,
+  `-0.76` tracking) with the optional intro in 14pt dimmed text beneath, both
+  inside `NestPageSection`; the page body is spaced `md`. Card titles use
+  `NestFont.heading`, body copy and row labels `NestFont.small` (14pt), captions
+  `NestFont.caption`. Summary cards use `md` padding and its ledger card `xs`.
 
 ## Logo
 

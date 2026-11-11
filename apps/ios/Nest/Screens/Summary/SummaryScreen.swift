@@ -27,34 +27,29 @@ struct SummaryContentView: View {
     private var presentation: SummaryPresentation { .init(summary: content.summary) }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NestSpacing.md) {
-                PlanningBanner()
-                if presentation.hasData {
-                    AllocationCard(presentation: presentation, basis: $basis)
-                    AllowanceCard(summary: content.summary, members: content.members)
-                    cashFlowCard
-                    LedgerCard(
-                        presentation: presentation, baseline: content.baseline.map(SummaryPresentation.init),
-                        basis: basis)
-                    if content.summary.oneOffCents != 0 {
-                        Text(
-                            "\(MoneyFormat.cents(Int(content.summary.oneOffCents))) of one-off money lands this financial year — severance, a bonus, a gift. It is left out of every figure above, because money that arrives once has no fortnightly share to plan against."
-                        )
-                        .font(NestFont.caption)
-                        .foregroundStyle(NestColor.dimmedText)
-                        .accessibilityIdentifier("one-off-note")
-                    }
-                } else {
+        NestPageSection(title: "Summary") {
+            PlanningBanner()
+            if presentation.hasData {
+                AllocationCard(presentation: presentation, basis: $basis)
+                AllowanceCard(summary: content.summary, members: content.members)
+                cashFlowCard
+                LedgerCard(
+                    presentation: presentation, baseline: content.baseline.map(SummaryPresentation.init),
+                    basis: basis)
+                if content.summary.oneOffCents != 0 {
                     Text(
-                        "Nothing to reconcile yet. Add inflows and budget items to see how your money is allocated."
+                        "\(MoneyFormat.cents(Int(content.summary.oneOffCents))) of one-off money lands this financial year — severance, a bonus, a gift. It is left out of every figure above, because money that arrives once has no fortnightly share to plan against."
                     )
+                    .font(NestFont.caption)
                     .foregroundStyle(NestColor.dimmedText)
-                    .multilineTextAlignment(.center)
-                    .padding(NestSpacing.xl)
+                    .accessibilityIdentifier("one-off-note")
                 }
+            } else {
+                NestEmptyState(
+                    text:
+                        "Nothing to reconcile yet. Add inflows and budget items to see how your money is allocated."
+                )
             }
-            .padding(NestSpacing.md)
         }
         .sheet(isPresented: $showsCashFlow) {
             VStack(spacing: 0) {
@@ -68,7 +63,7 @@ struct SummaryContentView: View {
     }
 
     private var cashFlowCard: some View {
-        NestCard {
+        NestCard(padding: NestSpacing.md) {
             VStack(alignment: .leading, spacing: NestSpacing.xs) {
                 Text("Fortnightly cash flow").font(NestFont.heading).foregroundStyle(NestColor.text)
                 Text("The cash-flow diagram is drawn by the web app.")
@@ -87,7 +82,7 @@ private struct AllocationCard: View {
         let segments = presentation.segments(basis)
         let summary = presentation.summary
         if !segments.isEmpty {
-            NestCard {
+            NestCard(padding: NestSpacing.md) {
                 VStack(spacing: NestSpacing.md) {
                     HStack {
                         Text("Fortnightly allocation").font(NestFont.heading)
@@ -121,7 +116,7 @@ private struct AllocationCard: View {
                     .accessibilityLabel(
                         "Allocation, \(MoneyFormat.cents(Int(summary.afterSaving.fortnightlyCents))) buffer")
 
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3)) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: NestSpacing.xs) {
                         if basis == .gross {
                             tile("Gross", presentation.gross.fortnightlyCents)
                             tile("Tax", summary.tax.fortnightlyCents)
@@ -136,11 +131,11 @@ private struct AllocationCard: View {
                         ForEach(segments) { segment in
                             HStack(spacing: NestSpacing.xs) {
                                 Circle().fill(segment.color.color).frame(width: 12, height: 12)
-                                Text(segment.name).font(NestFont.body)
+                                Text(segment.name).font(NestFont.small)
                                     .foregroundStyle(NestColor.text)
                                 Spacer()
                                 Text(SummaryPresentation.percent(segment.portion))
-                                    .font(NestFont.body).monospacedDigit()
+                                    .font(NestFont.small).monospacedDigit()
                                     .foregroundStyle(NestColor.dimmedText)
                             }
                         }
@@ -153,7 +148,7 @@ private struct AllocationCard: View {
     private func tile(_ label: String, _ cents: Int64, signed: Bool = false) -> some View {
         VStack(spacing: 0) {
             Text(label).font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
-            MoneyText(cents: Int(cents), colouring: signed).font(.system(size: 15, weight: .bold))
+            MoneyText(cents: Int(cents), colouring: signed).font(NestFont.small.weight(.bold))
         }
     }
 }
@@ -164,7 +159,7 @@ private struct AllowanceCard: View {
 
     var body: some View {
         if !summary.allowances.isEmpty {
-            NestCard {
+            NestCard(padding: NestSpacing.md) {
                 VStack(alignment: .leading, spacing: NestSpacing.sm) {
                     Text("Allowances").font(NestFont.heading).foregroundStyle(NestColor.text)
                     ForEach(summary.allowances, id: \.memberId) { allowance in
@@ -204,34 +199,58 @@ private struct LedgerCard: View {
     }
 
     var body: some View {
-        NestCard {
-            VStack(spacing: NestSpacing.xxs) {
+        NestCard(padding: NestSpacing.xs) {
+            VStack(spacing: 2) {
                 ForEach(presentation.ledger(basis)) { row in
                     HStack(spacing: NestSpacing.sm) {
                         Text(row.label)
-                            .font(.system(size: 15, weight: row.running ? .bold : .regular))
+                            .font(NestFont.small.weight(row.running ? .bold : .regular))
                             .foregroundStyle(NestColor.text)
                         Spacer(minLength: NestSpacing.sm)
                         ComparedAmount(
                             baselineCents: baselineCents(row),
                             proposedCents: Int(row.amounts.fortnightlyCents), colouring: row.signed
                         )
-                        .font(.system(size: 15, weight: .bold))
+                        .font(NestFont.small.weight(.bold))
                         Text(
                             SummaryPresentation.percent(
                                 presentation.portion(of: row.amounts.fortnightlyCents, basis: basis))
                         )
                         .font(.system(size: 12, weight: .bold)).monospacedDigit()
                         .foregroundStyle(NestColor.dimmedText)
-                        .frame(width: 56, alignment: .trailing)
+                        .frame(width: 48, alignment: .trailing)
                     }
                     .padding(NestSpacing.xs)
                     .background(
-                        row.running ? NestColor.brand.opacity(0.12) : .clear,
+                        row.running ? NestColor.brand.opacity(0.15) : .clear,
                         in: RoundedRectangle(cornerRadius: NestRadius.sm, style: .continuous))
                     .accessibilityElement(children: .combine)
                 }
             }
         }
     }
+}
+
+#Preview("Summary") {
+    @Previewable @State var basis = IncomeBasis.takeHome
+    func amounts(_ fortnightly: Int64) -> BudgetSummary.Amounts {
+        .init(fortnightlyCents: fortnightly, annualCents: fortnightly * 26)
+    }
+    func group(_ fortnightly: Int64) -> BudgetSummary.Group {
+        .init(fortnightlyCents: fortnightly, annualCents: fortnightly * 26, portion: 0)
+    }
+    let summary = BudgetSummary(
+        oneOffCents: 0,
+        available: amounts(310_000),
+        groups: .init(
+            needs: group(120_000), wants: group(40_000), discretionary: group(30_000),
+            temporary: group(0), savings: group(60_000), investments: group(20_000)),
+        allowances: [],
+        outgoings: amounts(190_000), savingsBlock: amounts(80_000),
+        afterOutgoing: amounts(120_000), afterSaving: amounts(40_000),
+        tax: amounts(90_000), salarySacrifice: amounts(15_000))
+    return SummaryContentView(
+        content: SummaryContent(summary: summary, members: []), basis: $basis
+    )
+    .background(NestColor.background)
 }

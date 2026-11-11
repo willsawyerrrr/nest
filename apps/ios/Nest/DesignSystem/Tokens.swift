@@ -90,9 +90,10 @@ enum NestRadius {
 /// Type scale. Headings use the rounded system design (Space Grotesk is not
 /// bundled); money figures take tabular digits via `monospacedDigit()`.
 enum NestFont {
-    static let display = Font.system(size: 34, weight: .bold, design: .rounded)
+    static let display = Font.system(size: 38, weight: .bold, design: .rounded)
     static let title = Font.system(size: 22, weight: .bold, design: .rounded)
     static let heading = Font.system(size: 17, weight: .semibold, design: .rounded)
     static let body = Font.system(size: 15)
+    static let small = Font.system(size: 14)
     static let caption = Font.system(size: 12)
 }

@@ -20,6 +20,83 @@ struct NestCard<Content: View>: View {
     }
 }
 
+/// The page scaffold: a display title with tight tracking, optional dimmed
+/// intro copy and the page body, in a scrolling column on the page canvas.
+struct NestPageSection<Content: View>: View {
+    let title: String
+    var intro: String?
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: NestSpacing.md) {
+                VStack(alignment: .leading, spacing: NestSpacing.xxs) {
+                    Text(title)
+                        .font(NestFont.display)
+                        .tracking(-0.76)
+                        .foregroundStyle(NestColor.text)
+                        .accessibilityAddTraits(.isHeader)
+                    if let intro {
+                        Text(intro)
+                            .font(NestFont.small)
+                            .foregroundStyle(NestColor.dimmedText)
+                    }
+                }
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(NestSpacing.md)
+        }
+        .background(NestColor.background)
+    }
+}
+
+/// The "nothing here yet" message shown in place of a list's items.
+struct NestEmptyState: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(NestFont.small)
+            .foregroundStyle(NestColor.dimmedText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A card's section title with an optional bold trailing figure.
+struct NestSectionHeader<Trailing: View>: View {
+    let title: String
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(NestFont.heading).foregroundStyle(NestColor.text)
+            Spacer(minLength: NestSpacing.sm)
+            trailing
+        }
+    }
+}
+
+extension NestSectionHeader where Trailing == EmptyView {
+    init(title: String) {
+        self.init(title: title) { EmptyView() }
+    }
+}
+
+/// The emphasised fortnightly figure with a dimmed `/ fn` suffix, baseline-aligned.
+struct NestFortnightlyAmount: View {
+    let cents: Int
+    var baselineCents: Int?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
+            ComparedAmount(baselineCents: baselineCents, proposedCents: cents, colouring: false)
+                .font(NestFont.small.weight(.bold))
+            Text("/ fn").font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+        }
+    }
+}
+
 /// A money figure in tabular digits, coloured by sign unless `colouring` is off.
 struct MoneyText: View {
     let cents: Int

@@ -22,25 +22,22 @@ struct BudgetContentView: View {
     let presentation: BudgetPresentation
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NestSpacing.md) {
-                PlanningBanner()
-                ForEach(presentation.groups) { section in
-                    GroupCard(section: section) {
-                        if section.group == .discretionary {
-                            AllowancesBlock(rows: presentation.allowances)
-                        }
+        NestPageSection(title: "Budget") {
+            PlanningBanner()
+            ForEach(presentation.groups) { section in
+                GroupCard(section: section) {
+                    if section.group == .discretionary {
+                        AllowancesBlock(rows: presentation.allowances)
                     }
                 }
-                if !presentation.temporaryItems.isEmpty {
-                    TemporaryCard(items: presentation.temporaryItems)
-                }
-                WebHandoffCard(
-                    title: "Edit budget",
-                    message: "Adding and changing budget items happens in the web app.",
-                    action: "Open Budget on the web", path: Route.budget.path)
             }
-            .padding(NestSpacing.md)
+            if !presentation.temporaryItems.isEmpty {
+                TemporaryCard(items: presentation.temporaryItems)
+            }
+            WebHandoffCard(
+                title: "Edit budget",
+                message: "Adding and changing budget items happens in the web app.",
+                action: "Open Budget on the web", path: Route.budget.path)
         }
     }
 }
@@ -64,8 +61,7 @@ private struct GroupCard<Header: View>: View {
                 }
                 header
                 if section.lines.isEmpty {
-                    Text("No \(section.title.lowercased()) items yet.")
-                        .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+                    NestEmptyState(text: "No \(section.title.lowercased()) items yet.")
                 }
                 ForEach(section.lines) { BudgetLineRowView(row: $0) }
             }
@@ -117,11 +113,14 @@ private struct AllowancesBlock: View {
 
 struct AllowanceRowView: View {
     let row: AllowanceRow
+    var showsTitle = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: NestSpacing.xxs) {
             HStack {
-                Text(row.title).font(NestFont.body).foregroundStyle(NestColor.text)
+                if showsTitle {
+                    Text(row.title).font(NestFont.body).foregroundStyle(NestColor.text)
+                }
                 Spacer()
                 if row.isOwn {
                     Image(systemName: "chevron.right").font(.caption)

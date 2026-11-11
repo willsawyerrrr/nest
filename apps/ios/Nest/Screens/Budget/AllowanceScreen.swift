@@ -22,43 +22,40 @@ struct AllowanceContentView: View {
     let presentation: BudgetPresentation
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NestSpacing.md) {
-                if let allowance = presentation.ownAllowance {
-                    NestCard {
-                        VStack(alignment: .leading, spacing: NestSpacing.xs) {
-                            Text(allowance.title).font(NestFont.heading)
-                                .foregroundStyle(NestColor.text)
-                            AllowanceRowView(row: allowance)
-                            Text(BudgetPresentation.allowanceNote)
-                                .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
-                        }
+        NestPageSection(title: presentation.ownAllowance?.title ?? "Allowance") {
+            if let allowance = presentation.ownAllowance {
+                NestCard {
+                    VStack(alignment: .leading, spacing: NestSpacing.xs) {
+                        AllowanceRowView(row: allowance, showsTitle: false)
+                        Text(BudgetPresentation.allowanceNote)
+                            .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
                     }
-                    NestCard {
-                        VStack(alignment: .leading, spacing: NestSpacing.xs) {
-                            Text("Items").font(NestFont.heading).foregroundStyle(NestColor.text)
-                            if presentation.drawnLines.isEmpty {
-                                Text("Nothing drawn from your allowance yet.")
-                                    .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
-                            }
-                            ForEach(presentation.drawnLines) { BudgetLineRowView(row: $0) }
-                            Text(BudgetPresentation.overdrawGuard)
-                                .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
-                                .accessibilityIdentifier("overdraw-guard")
-                        }
-                    }
-                    WebHandoffCard(
-                        title: "Edit allowance",
-                        message: "Adding and changing allowance items happens in the web app.",
-                        action: "Open Allowance on the web", path: Route.allowance.path)
-                } else {
-                    Text("You have no spending allowance yet.")
-                        .foregroundStyle(NestColor.dimmedText)
-                        .multilineTextAlignment(.center)
-                        .padding(NestSpacing.xl)
                 }
+                NestCard {
+                    VStack(alignment: .leading, spacing: NestSpacing.xs) {
+                        NestSectionHeader(title: "Items") {
+                            if let drawn = allowance.drawnCents {
+                                Text(MoneyFormat.perFortnight(Int(drawn)))
+                                    .font(.system(size: 15, weight: .bold)).monospacedDigit()
+                                    .foregroundStyle(NestColor.text)
+                            }
+                        }
+                        if presentation.drawnLines.isEmpty {
+                            NestEmptyState(text: "Nothing drawn from your allowance yet.")
+                        }
+                        ForEach(presentation.drawnLines) { BudgetLineRowView(row: $0) }
+                        Text(BudgetPresentation.overdrawGuard)
+                            .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+                            .accessibilityIdentifier("overdraw-guard")
+                    }
+                }
+                WebHandoffCard(
+                    title: "Edit allowance",
+                    message: "Adding and changing allowance items happens in the web app.",
+                    action: "Open Allowance on the web", path: Route.allowance.path)
+            } else {
+                NestEmptyState(text: "You have no spending allowance yet.")
             }
-            .padding(NestSpacing.md)
         }
     }
 }

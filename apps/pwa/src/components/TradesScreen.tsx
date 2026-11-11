@@ -1,13 +1,22 @@
 import { ActionIcon, Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core'
 import { IconFileText } from '@tabler/icons-react'
-import { MICRO_UNITS_PER_UNIT, unitsValueCents } from '@nest/tax'
 import { useIsWide } from '../hooks/useIsWide'
 import type { Member } from '../hooks/useMembers'
 import type { TradeDocumentRow, UseTradeDocumentsResult } from '../hooks/useTradeDocuments'
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import { formatIsoDate } from '../lib/dates'
 import { formatCents, formatUnitPrice } from '../lib/money'
-import { memberPortfolio, type HoldingView } from '../lib/trades'
+import {
+  brokerageLabel,
+  formatUnits,
+  gainsLine,
+  holdingLine,
+  memberPortfolio,
+  tradeValueCents,
+  unitsText,
+  type HoldingView,
+  type SummaryLine,
+} from '../lib/trades'
 import { AppCard } from './AppCard'
 import { EditableList } from './EditableList'
 import { EditDeleteActions } from './EditDeleteActions'
@@ -33,24 +42,7 @@ interface TradesScreenProps {
   >
 }
 
-/** A units figure without trailing zeros, grouped by thousands. */
-function formatUnits(units: number): string {
-  return units.toLocaleString('en-AU', { maximumFractionDigits: 6 })
-}
-
-/** A units figure with its noun, e.g. `1 unit`, `1.5 units`. */
-function unitsText(units: number): string {
-  return `${formatUnits(units)} ${units === 1 ? 'unit' : 'units'}`
-}
-
-interface SummaryRowProps {
-  title: string
-  /** Muted figures between the title and the figure, each a fixed-width column on wide rows. */
-  cells: string[]
-  figure: number
-  /** Muted label beneath the figure. */
-  figureCaption: string
-}
+type SummaryRowProps = SummaryLine
 
 /**
  * One summary line, laid out like the app's budget lines: a dense table-like row
@@ -104,18 +96,7 @@ function SummaryRow({ title, cells, figure, figureCaption }: SummaryRowProps) {
 
 /** One current holding: its units and average cost, with cost base and market value. */
 function HoldingRow({ holding }: { holding: HoldingView }) {
-  return (
-    <SummaryRow
-      title={holding.ticker}
-      cells={[
-        unitsText(holding.units),
-        `Avg cost ${formatUnitPrice(holding.averageCostMicrodollars)}`,
-        `Cost base ${formatCents(holding.costBaseCents)}`,
-      ]}
-      figure={holding.valueCents}
-      figureCaption={`at ${formatUnitPrice(holding.lastPriceMicrodollars)}`}
-    />
-  )
+  return <SummaryRow {...holdingLine(holding)} />
 }
 
 interface TradeItemProps {
@@ -134,19 +115,6 @@ function unitsLabel(trade: TradeRow): string {
 /** A trade's exact unit price, e.g. `at $33.083072`. */
 function priceLabel(trade: TradeRow): string {
   return `at ${formatUnitPrice(trade.price_per_unit_microdollars)}`
-}
-
-/** A trade's brokerage, e.g. `$9.50 brokerage`, or an empty string when there is none. */
-function brokerageLabel(trade: TradeRow): string {
-  return trade.fee_cents > 0 ? `${formatCents(trade.fee_cents)} brokerage` : ''
-}
-
-/** A trade's value before brokerage: its units at its price, to the nearest cent. */
-function tradeValueCents(trade: TradeRow): number {
-  return unitsValueCents(
-    Math.round(Number(trade.units) * MICRO_UNITS_PER_UNIT),
-    trade.price_per_unit_microdollars,
-  )
 }
 
 /** The side pill, ticker, and document link of a trade. */
@@ -320,19 +288,7 @@ function MemberTrades({
             Realised gains
           </Text>
           {gainsByYear.map((summary) => (
-            <SummaryRow
-              key={summary.financialYear}
-              title={`FY${summary.financialYear}`}
-              cells={[
-                `Gains ${formatCents(summary.gainsCents + summary.discountableGainsCents)}`,
-                `Losses ${formatCents(summary.lossesCents + summary.carriedInLossesCents)}`,
-                summary.discountCents > 0
-                  ? `CGT discount ${formatCents(summary.discountCents)}`
-                  : '',
-              ]}
-              figure={summary.netCapitalGainCents}
-              figureCaption="net capital gain"
-            />
+            <SummaryRow key={summary.financialYear} {...gainsLine(summary)} />
           ))}
         </Stack>
       )}

@@ -1,0 +1,463 @@
+[
+  {
+    "name": "two members",
+    "rows": {
+      "trades": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2023-08-01",
+          "units": 100,
+          "price_per_unit_microdollars": 90500000,
+          "fee_cents": 950,
+          "document_id": "d1",
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2024-02-15",
+          "units": 2,
+          "price_per_unit_microdollars": 33083072,
+          "fee_cents": 0,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t3",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "sell",
+          "traded_on": "2025-03-10",
+          "units": 60.5,
+          "price_per_unit_microdollars": 130000000,
+          "fee_cents": 950,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t4",
+          "member_id": "m1",
+          "ticker": "NDQ",
+          "side": "buy",
+          "traded_on": "2024-09-01",
+          "units": 1234.567891,
+          "price_per_unit_microdollars": 45123456,
+          "fee_cents": 1100,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t5",
+          "member_id": "m1",
+          "ticker": "NDQ",
+          "side": "sell",
+          "traded_on": "2025-01-20",
+          "units": 1300,
+          "price_per_unit_microdollars": 44000000,
+          "fee_cents": 1100,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t6",
+          "member_id": "m2",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2024-02-15",
+          "units": 1,
+          "price_per_unit_microdollars": 1000000,
+          "fee_cents": 0,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t7",
+          "member_id": "m2",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2024-02-15",
+          "units": 1,
+          "price_per_unit_microdollars": 1000000,
+          "fee_cents": 0,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t8",
+          "member_id": "m1",
+          "ticker": "VGS",
+          "side": "buy",
+          "traded_on": "2024-09-30",
+          "units": 10,
+          "price_per_unit_microdollars": 120000000,
+          "fee_cents": 0,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t9",
+          "member_id": "m1",
+          "ticker": "VGS",
+          "side": "sell",
+          "traded_on": "2025-09-01",
+          "units": 4,
+          "price_per_unit_microdollars": 80000000,
+          "fee_cents": 500,
+          "document_id": null,
+          "source": "manual",
+          "external_id": null
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Alex",
+          "user_id": "u-m1",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Sam",
+          "user_id": "u-m2",
+          "email": null,
+          "date_of_birth": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null
+        }
+      ],
+      "documents": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "id": "d1",
+          "storage_path": "h1/d1/note.pdf"
+        }
+      ]
+    },
+    "expected": {
+      "portfolio": {
+        "members": [
+          {
+            "memberId": "m1",
+            "holdings": [
+              {
+                "memberId": "m1",
+                "ticker": "VAS",
+                "units": 41.5,
+                "costBaseCents": 364467,
+                "averageCostMicrodollars": 87823373,
+                "lastPriceMicrodollars": 130000000,
+                "valueCents": 539500
+              },
+              {
+                "memberId": "m1",
+                "ticker": "VGS",
+                "units": 6,
+                "costBaseCents": 72000,
+                "averageCostMicrodollars": 120000000,
+                "lastPriceMicrodollars": 80000000,
+                "valueCents": 48000
+              }
+            ],
+            "gainsByYear": [
+              {
+                "financialYear": 2026,
+                "gainsCents": 0,
+                "discountableGainsCents": 0,
+                "lossesCents": 16500,
+                "carriedInLossesCents": 0,
+                "discountCents": 0,
+                "netCapitalGainCents": 0,
+                "carriedForwardLossesCents": 16500
+              },
+              {
+                "financialYear": 2025,
+                "gainsCents": 0,
+                "discountableGainsCents": 237450,
+                "lossesCents": 140843,
+                "carriedInLossesCents": 0,
+                "discountCents": 48303,
+                "netCapitalGainCents": 48304,
+                "carriedForwardLossesCents": 0
+              }
+            ],
+            "unmatchedSales": [
+              {
+                "memberId": "m1",
+                "ticker": "NDQ",
+                "soldOn": "2025-01-20",
+                "units": 65.432109
+              }
+            ]
+          },
+          {
+            "memberId": "m2",
+            "holdings": [
+              {
+                "memberId": "m2",
+                "ticker": "VAS",
+                "units": 2,
+                "costBaseCents": 200,
+                "averageCostMicrodollars": 1000000,
+                "lastPriceMicrodollars": 130000000,
+                "valueCents": 26000
+              }
+            ],
+            "gainsByYear": [],
+            "unmatchedSales": []
+          }
+        ],
+        "tradeValues": [
+          {
+            "tradeId": "t1",
+            "valueCents": 905000
+          },
+          {
+            "tradeId": "t2",
+            "valueCents": 6617
+          },
+          {
+            "tradeId": "t3",
+            "valueCents": 786500
+          },
+          {
+            "tradeId": "t4",
+            "valueCents": 5570797
+          },
+          {
+            "tradeId": "t5",
+            "valueCents": 5720000
+          },
+          {
+            "tradeId": "t6",
+            "valueCents": 100
+          },
+          {
+            "tradeId": "t7",
+            "valueCents": 100
+          },
+          {
+            "tradeId": "t8",
+            "valueCents": 120000
+          },
+          {
+            "tradeId": "t9",
+            "valueCents": 32000
+          }
+        ]
+      },
+      "members": [
+        {
+          "memberId": "m1",
+          "holdings": [
+            {
+              "title": "VAS",
+              "cells": [
+                "41.5 units",
+                "Avg cost $87.823373",
+                "Cost base $3,644.67"
+              ],
+              "figure": 539500,
+              "figureCaption": "at $130.00"
+            },
+            {
+              "title": "VGS",
+              "cells": [
+                "6 units",
+                "Avg cost $120.00",
+                "Cost base $720.00"
+              ],
+              "figure": 48000,
+              "figureCaption": "at $80.00"
+            }
+          ],
+          "gains": [
+            {
+              "title": "FY2026",
+              "cells": [
+                "Gains $0.00",
+                "Losses $165.00",
+                ""
+              ],
+              "figure": 0,
+              "figureCaption": "net capital gain"
+            },
+            {
+              "title": "FY2025",
+              "cells": [
+                "Gains $2,374.50",
+                "Losses $1,408.43",
+                "CGT discount $483.03"
+              ],
+              "figure": 48304,
+              "figureCaption": "net capital gain"
+            }
+          ],
+          "unmatched": [
+            "65.432109 NDQ sold on 20 Jan 2025 exceed the units bought, so they are left out of the gains. Check the trades below."
+          ],
+          "trades": [
+            {
+              "id": "t9",
+              "date": "1 Sept 2025",
+              "units": "4 units",
+              "price": "at $80.00",
+              "brokerage": "$5.00 brokerage",
+              "fee": "$5.00",
+              "valueCents": 32000,
+              "hasDocument": false
+            },
+            {
+              "id": "t3",
+              "date": "10 Mar 2025",
+              "units": "60.5 units",
+              "price": "at $130.00",
+              "brokerage": "$9.50 brokerage",
+              "fee": "$9.50",
+              "valueCents": 786500,
+              "hasDocument": false
+            },
+            {
+              "id": "t5",
+              "date": "20 Jan 2025",
+              "units": "1,300 units",
+              "price": "at $44.00",
+              "brokerage": "$11.00 brokerage",
+              "fee": "$11.00",
+              "valueCents": 5720000,
+              "hasDocument": false
+            },
+            {
+              "id": "t8",
+              "date": "30 Sept 2024",
+              "units": "10 units",
+              "price": "at $120.00",
+              "brokerage": "",
+              "fee": null,
+              "valueCents": 120000,
+              "hasDocument": false
+            },
+            {
+              "id": "t4",
+              "date": "1 Sept 2024",
+              "units": "1,234.567891 units",
+              "price": "at $45.123456",
+              "brokerage": "$11.00 brokerage",
+              "fee": "$11.00",
+              "valueCents": 5570797,
+              "hasDocument": false
+            },
+            {
+              "id": "t2",
+              "date": "15 Feb 2024",
+              "units": "2 units",
+              "price": "at $33.083072",
+              "brokerage": "",
+              "fee": null,
+              "valueCents": 6617,
+              "hasDocument": false
+            },
+            {
+              "id": "t1",
+              "date": "1 Aug 2023",
+              "units": "100 units",
+              "price": "at $90.50",
+              "brokerage": "$9.50 brokerage",
+              "fee": "$9.50",
+              "valueCents": 905000,
+              "hasDocument": true
+            }
+          ]
+        },
+        {
+          "memberId": "m2",
+          "holdings": [
+            {
+              "title": "VAS",
+              "cells": [
+                "2 units",
+                "Avg cost $1.00",
+                "Cost base $2.00"
+              ],
+              "figure": 26000,
+              "figureCaption": "at $130.00"
+            }
+          ],
+          "gains": [],
+          "unmatched": [],
+          "trades": [
+            {
+              "id": "t6",
+              "date": "15 Feb 2024",
+              "units": "1 unit",
+              "price": "at $1.00",
+              "brokerage": "",
+              "fee": null,
+              "valueCents": 100,
+              "hasDocument": false
+            },
+            {
+              "id": "t7",
+              "date": "15 Feb 2024",
+              "units": "1 unit",
+              "price": "at $1.00",
+              "brokerage": "",
+              "fee": null,
+              "valueCents": 100,
+              "hasDocument": false
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

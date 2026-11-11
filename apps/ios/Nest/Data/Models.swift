@@ -89,6 +89,12 @@ enum BreakdownKind: String, Codable, CaseIterable, Sendable {
     case generic
 }
 
+/// Postgres enum `trade_side`.
+enum TradeSide: String, Codable, CaseIterable, Sendable {
+    case buy
+    case sell
+}
+
 /// Postgres enum `tax_residency`.
 enum TaxResidency: String, Codable, CaseIterable, Sendable {
     case resident
@@ -1000,5 +1006,22 @@ struct NotificationPreference: NestRow {
         case memberId = "member_id"
         case trigger
         case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `trade_document`.
+struct TradeDocument: NestRow {
+    static let table = "trade_document"
+
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let storagePath: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case storagePath = "storage_path"
     }
 }

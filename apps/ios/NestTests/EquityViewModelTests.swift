@@ -18,7 +18,7 @@ private enum EquityFixture {
         "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]
         """
     static let exerciseJSON = """
-        [{"id":"e1","household_id":"h","member_id":"m1","grant_id":"g1","exercised_on":"2025-09-30",\
+        [{"id":"e1","household_id":"h","member_id":"m1","grant_id":"g1","exercised_on":"2025-08-30",\
         "quantity":100,"strike_price_cents":50,"market_price_per_share_cents":null,\
         "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]
         """
@@ -147,7 +147,7 @@ private enum EquityFixture {
     @Test func listsExercisesAndSalesWithTheirGrant() throws {
         let member = try #require(EquityPresentation(content: content()).members.first)
         #expect(member.exercises?.first?.title == "100 × Acme options")
-        #expect(member.exercises?.first?.detail == "30 Sept 2025 · strike $0.50")
+        #expect(member.exercises?.first?.detail == "30 Aug 2025 · strike $0.50")
         #expect(member.sales?.first?.detail == "1 May 2026 · $2.50 per share")
     }
 

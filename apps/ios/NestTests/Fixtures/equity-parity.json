@@ -64,7 +64,7 @@
           "id": "e1",
           "member_id": "m1",
           "grant_id": "g1",
-          "exercised_on": "2025-09-30",
+          "exercised_on": "2025-08-30",
           "quantity": 2000,
           "strike_price_cents": 50,
           "market_price_per_share_cents": 275
@@ -102,7 +102,7 @@
           "id": "s2",
           "member_id": "m1",
           "grant_id": "g2",
-          "sold_on": "2026-06-20",
+          "sold_on": "2026-04-20",
           "quantity": 300,
           "price_per_share_cents": 250,
           "fee_cents": 0
@@ -212,7 +212,7 @@
             {
               "id": "e1",
               "title": "2,000 × Acme options",
-              "detail": "30 Sept 2025 · strike $0.50 · market $2.75"
+              "detail": "30 Aug 2025 · strike $0.50 · market $2.75"
             },
             {
               "id": "e2",
@@ -229,7 +229,7 @@
             {
               "id": "s2",
               "title": "300 × Acme shares",
-              "detail": "20 Jun 2026 · $2.50 per share"
+              "detail": "20 Apr 2026 · $2.50 per share"
             }
           ]
         },

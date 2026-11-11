@@ -124,12 +124,12 @@ const grants = [
   }),
 ]
 const exercises = [
-  exercise('e1', 'm1', 'g1', '2025-09-30', 2_000, 275),
+  exercise('e1', 'm1', 'g1', '2025-08-30', 2_000, 275),
   exercise('e2', 'm1', 'g1', '2026-02-10', 1_000, null),
 ]
 const sales = [
   sale('s1', 'm1', 'g1', '2026-05-01', 500, 995),
-  sale('s2', 'm1', 'g2', '2026-06-20', 300, 0),
+  sale('s2', 'm1', 'g2', '2026-04-20', 300, 0),
 ]
 
 const instrumentLabel = (type: string) =>

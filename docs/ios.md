@@ -399,24 +399,15 @@ a draft deduction to review.
   never reads a half-copied file. Types are decided by extension as in the PWA
   (PDF, JPEG, PNG, GIF, WebP, HEIC/HEIF); a name without one takes the
   extension its type identifier implies.
-- **Hand-off.** `WebView.swift`'s coordinator sends pending files to the page after
-  each load and whenever the app becomes active, after purging files older than
-  seven days. The web view exists only while signed in, so a file shared while
-  signed out stays in the inbox until the member signs in. Each file crosses as
-  `window.__nestShare.begin(id, name, type)`, base64 `chunk`s of 384 KiB (each
-  encoded separately), and `finish(id)` (`ShareBridge.swift`). The PWA queues the
-  file and posts `{ type: 'queued', ids }` to the `nestShare` message handler;
-  only then does the app delete its copy. A page that has no bridge (an older
-  build) or reloads before queuing leaves the file in the inbox for the next
-  attempt. The app sends each id once per page load, and the PWA ignores an id it
-  has already received, so a file never becomes two drafts.
-- **PWA side** (`lib/nativeShare.ts`, `hooks/useSharedFiles.ts`,
-  `components/SharedFilesRedirect.tsx`; gated on `window.__NEST_NATIVE_SHELL__`):
-  arriving files wait in memory. `SharedFilesRedirect` takes the member to
-  `/deductions`, where the signed-in member's receipt queue
-  (`useDeductionReceiptQueue`, see [`bulk-upload.md`](bulk-upload.md)) adds them
-  as work expenses, each a draft whose category stays editable. A co-member's
-  list never takes them.
+- **Hand-off.** The native Deductions screen reads the inbox directly
+  (`Screens/Deductions/SharedReceipts.swift`). On launch and whenever the app becomes
+  active, `ContentView` presents the screen in a sheet when files are waiting (after
+  purging files older than seven days); the sheet's screen copies each file to a
+  temporary file, queues it as a work expense on the signed-in member's receipt queue
+  and only then deletes its inbox copy, so a file shared twice, or handed over twice,
+  makes one draft. The web view takes no part. A file shared while signed out stays in
+  the inbox until the member signs in. A co-member's list never takes shared files, and
+  neither does any other screen (Payslips and the trade documents take none).
 
 ## Push notifications
 
@@ -546,7 +537,7 @@ the anon key.
   not committed.
 - `Nest/` — Swift sources: `NestApp.swift`, `ContentView.swift`, `Navigation/`,
   `DesignSystem/`, `Screens/` (the [native screens](native-screens.md)), `WebView.swift`,
-  `SessionBridge.swift`, `ShareBridge.swift`, `Supabase.swift`, `Auth.swift`,
+  `SessionBridge.swift`, `Supabase.swift`, `Auth.swift`,
   `PushNotifications.swift`, `Data/` (the [native data layer](#native-data-layer)),
   `NestAppDelegate+iOS.swift` /
   `NestAppDelegate+macOS.swift`, and `Intents/`. The iOS/macOS divergence in
@@ -562,7 +553,7 @@ the anon key.
 - `NestTests/` — Swift Testing unit tests for the Intent logic (each service's
   phrasing, its request shape, and the signed-out / HTTP-failure sentence
   mapping), for `SessionBridge`'s injected JavaScript and string escaping, for
-  the share inbox (storing, limits, ordering, cleanup, hand-off scripts), and for
+  the share inbox (storing, limits, ordering, cleanup), and for
   push registration (token encoding, notification routes, the register/unregister
   requests, and the registrar's retry behaviour), money formatting and sign
   colour, the route table and route-to-URL mapping, for the data layer (request

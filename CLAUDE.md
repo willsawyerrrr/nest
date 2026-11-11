@@ -16,7 +16,11 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   own macOS share extension) wraps the PWA in a SwiftUI navigation shell (burger
   menu and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's collapsible nav groups) whose per-route `.native` / `.web`
   switch embeds each not-yet-native screen in a `WKWebView` (design system in
+<<<<<<< HEAD
   `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts and Pay splits so far) follow
+=======
+  `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Payslips, Planning mode and Deductions so far) follow
+>>>>>>> fe28222 (feat(ios): Deductions are now native)
   the pattern in [`docs/native-screens.md`](docs/native-screens.md)),
   runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
   bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the
@@ -38,8 +42,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   extension (`apps/ios/ShareExtension`, App Group `group.dev.willsawyerrrr.nest`)
   lets a PDF or image shared from Mail, Files, Photos, or Safari reach the member's
   deduction receipt queue as a work-expense draft: the extension copies files
-  into the group inbox, and the app hands them to the PWA over the `nestShare`
-  bridge on its next foreground, deleting each only once the page acknowledges it.
+  into the group inbox, and the native Deductions screen reads the inbox on the
+  app's next foreground, deleting each file only once it is queued.
   See [`docs/ios.md`](docs/ios.md#share-extension). The native app also carries a
   data layer (typed Supabase access, a per-user row cache, `NestError`) for native
   screens; see [`docs/ios.md`](docs/ios.md#native-data-layer). The native Mac app ships
@@ -738,7 +742,8 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   cannot duplicate; a draft discarded, or a panel closed, deletes the stored files
   no saved record references. Replacing a single deduction's receipt stays a
   single-file control. In the native iOS app, files shared in from other apps join
-  the signed-in member's deduction queue as work expenses. See
+  the signed-in member's deduction queue as work expenses (the native screen runs
+  the same queue, `Screens/Uploads`). See
   [`docs/bulk-upload.md`](docs/bulk-upload.md).
 - Budgeting is plan-only and fortnightly: the household allocates projected
   after-tax income across grouped categories (Needs / Wants / Discretionary /

@@ -1,0 +1,710 @@
+{
+  "figures": [
+    {
+      "input": {
+        "financialYear": 2027,
+        "distanceKm": 1000,
+        "hours": 100,
+        "fullAmountCents": 100000,
+        "workUsePercent": 60
+      },
+      "expected": {
+        "centsPerKm": 91,
+        "maxClaimableKm": 5000,
+        "centsPerHour": 70,
+        "distanceCents": 91000,
+        "hoursCents": 7000,
+        "apportionedCents": 60000
+      }
+    },
+    {
+      "input": {
+        "financialYear": 2026,
+        "distanceKm": 123.45,
+        "hours": 37.5,
+        "fullAmountCents": 33333,
+        "workUsePercent": 33.33
+      },
+      "expected": {
+        "centsPerKm": 88,
+        "maxClaimableKm": 5000,
+        "centsPerHour": 70,
+        "distanceCents": 10864,
+        "hoursCents": 2625,
+        "apportionedCents": 11110
+      }
+    },
+    {
+      "input": {
+        "financialYear": 2027,
+        "distanceKm": 6000
+      },
+      "expected": {
+        "centsPerKm": 91,
+        "maxClaimableKm": 5000,
+        "centsPerHour": 70,
+        "distanceCents": 546000,
+        "hoursCents": 0,
+        "apportionedCents": 0
+      }
+    },
+    {
+      "input": {
+        "financialYear": 2099,
+        "hours": 10,
+        "fullAmountCents": 1,
+        "workUsePercent": 0.01
+      },
+      "expected": {
+        "centsPerKm": 91,
+        "maxClaimableKm": 5000,
+        "centsPerHour": 70,
+        "distanceCents": 0,
+        "hoursCents": 700,
+        "apportionedCents": 0
+      }
+    },
+    {
+      "input": {
+        "financialYear": 2027
+      },
+      "expected": {
+        "centsPerKm": 91,
+        "maxClaimableKm": 5000,
+        "centsPerHour": 70,
+        "distanceCents": 0,
+        "hoursCents": 0,
+        "apportionedCents": 0
+      }
+    }
+  ],
+  "years": [
+    {
+      "input": {
+        "now": "2026-06-30T23:59:59Z"
+      },
+      "expected": {
+        "current": 2026,
+        "available": [
+          2027,
+          2026
+        ]
+      }
+    },
+    {
+      "input": {
+        "now": "2026-07-01T00:00:00Z"
+      },
+      "expected": {
+        "current": 2027,
+        "available": [
+          2027,
+          2026
+        ]
+      }
+    },
+    {
+      "input": {
+        "now": "2027-03-15T10:00:00Z"
+      },
+      "expected": {
+        "current": 2027,
+        "available": [
+          2027,
+          2026
+        ]
+      }
+    }
+  ],
+  "household": {
+    "rows": {
+      "deductions": [
+        {
+          "id": "adobe-1",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "adobe-1",
+          "amount_cents": 5999,
+          "full_amount_cents": 5999,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "work_expense",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": "adobe",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "adobe-2",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "adobe-2",
+          "amount_cents": 5999,
+          "full_amount_cents": 5999,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "work_expense",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": "adobe",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "flight",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "flight",
+          "amount_cents": 120000,
+          "full_amount_cents": 120000,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "work_expense",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": "trip",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "charity",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "charity",
+          "amount_cents": 5000,
+          "full_amount_cents": 5000,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "donation",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": "gifts",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "laptop",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "laptop",
+          "amount_cents": 60000,
+          "full_amount_cents": 100000,
+          "work_use_percent": 60,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "work_expense",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": null,
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "commute",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "commute",
+          "amount_cents": 91000,
+          "full_amount_cents": 91000,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "distance",
+          "category": "work_expense",
+          "distance_km": 1000,
+          "work_from_home_hours": null,
+          "group_id": null,
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "wfh",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "wfh",
+          "amount_cents": 7000,
+          "full_amount_cents": 7000,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "hours",
+          "category": "work_expense",
+          "distance_km": null,
+          "work_from_home_hours": 100,
+          "group_id": null,
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "agent",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "description": "agent",
+          "amount_cents": 25000,
+          "full_amount_cents": 25000,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "tax_agent_fees",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": null,
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "theirs",
+          "household_id": "h1",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "description": "theirs",
+          "amount_cents": 9900,
+          "full_amount_cents": 9900,
+          "work_use_percent": 100,
+          "deduction_date": "2026-08-01",
+          "basis": "amount",
+          "category": "work_expense",
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": null,
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        }
+      ],
+      "groups": [
+        {
+          "id": "adobe",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "standard",
+          "name": "adobe",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "trip",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "standard",
+          "name": "trip",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "gifts",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "donations",
+          "name": "gifts",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "other-member",
+          "household_id": "h1",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "kind": "standard",
+          "name": "other-member",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "id": "last-year",
+          "household_id": "h1",
+          "member_id": "m1",
+          "financial_year": 2026,
+          "kind": "standard",
+          "name": "last-year",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        }
+      ]
+    },
+    "expected": {
+      "memberTotalCents": 319998,
+      "groups": [
+        {
+          "id": "adobe",
+          "paymentIds": [
+            "adobe-1",
+            "adobe-2"
+          ],
+          "totalCents": 11998
+        },
+        {
+          "id": "trip",
+          "paymentIds": [
+            "flight"
+          ],
+          "totalCents": 120000
+        },
+        {
+          "id": "gifts",
+          "paymentIds": [
+            "charity"
+          ],
+          "totalCents": 5000
+        }
+      ],
+      "ungroupedIds": [
+        "laptop",
+        "commute",
+        "wfh",
+        "agent"
+      ],
+      "drops": [
+        {
+          "deductionId": "adobe-1",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": true
+        },
+        {
+          "deductionId": "adobe-1",
+          "dropId": "group:adobe",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-1",
+          "dropId": "group:trip",
+          "result": "trip",
+          "valid": true
+        },
+        {
+          "deductionId": "adobe-1",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-1",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-1",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-1",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": true
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "group:adobe",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "group:trip",
+          "result": "trip",
+          "valid": true
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "adobe-2",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": true
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "group:adobe",
+          "result": "adobe",
+          "valid": true
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "group:trip",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "flight",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "group:adobe",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "group:trip",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "charity",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "group:adobe",
+          "result": "adobe",
+          "valid": true
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "group:trip",
+          "result": "trip",
+          "valid": true
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "laptop",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "group:adobe",
+          "result": "adobe",
+          "valid": true
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "group:trip",
+          "result": "trip",
+          "valid": true
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "commute",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "group:adobe",
+          "result": "adobe",
+          "valid": true
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "group:trip",
+          "result": "trip",
+          "valid": true
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "wfh",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "ungrouped",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "group:adobe",
+          "result": "adobe",
+          "valid": true
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "group:trip",
+          "result": "trip",
+          "valid": true
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "group:gifts",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "group:other-member",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "group:last-year",
+          "result": null,
+          "valid": false
+        },
+        {
+          "deductionId": "agent",
+          "dropId": "group:missing",
+          "result": null,
+          "valid": false
+        }
+      ]
+    }
+  }
+}

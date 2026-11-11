@@ -178,21 +178,3 @@ import Testing
         #expect(ShareSummary().message == "Nothing to save.")
     }
 }
-
-@Suite struct ShareBridgeTests {
-    @Test func scriptsEscapeTheirArguments() {
-        #expect(
-            ShareBridge.beginScript(id: "i", name: #"a"b.pdf"#, mimeType: "application/pdf")
-                == #"window.__nestShare.begin("i", "a\"b.pdf", "application\/pdf"); true;"#)
-        #expect(
-            ShareBridge.chunkScript(id: "i", base64: "QUJD") == #"window.__nestShare.chunk("i", "QUJD"); true;"#)
-        #expect(ShareBridge.finishScript(id: "i") == #"window.__nestShare.finish("i"); true;"#)
-    }
-
-    @Test func readsOnlyValidIDsFromAQueuedMessage() {
-        let id = UUID().uuidString
-        #expect(ShareBridge.queuedIDs(from: ["type": "queued", "ids": [id, "../x"]]) == [id])
-        #expect(ShareBridge.queuedIDs(from: ["type": "other", "ids": [id]]).isEmpty)
-        #expect(ShareBridge.queuedIDs(from: "nope").isEmpty)
-    }
-}

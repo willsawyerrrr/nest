@@ -65,7 +65,6 @@ struct WebView: PlatformViewRepresentable {
             )
         )
         configuration.userContentController.add(context.coordinator, name: "nestAuth")
-        configuration.userContentController.add(context.coordinator, name: "nestShare")
         configuration.userContentController.add(context.coordinator, name: "nestReady")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -77,7 +76,6 @@ struct WebView: PlatformViewRepresentable {
 
     private static func dismantle(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestAuth")
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestShare")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "nestReady")
         coordinator.stop()
     }
@@ -87,12 +85,6 @@ struct WebView: PlatformViewRepresentable {
         private let parent: WebView
         private weak var webView: WKWebView?
         private var sessionObservation: Task<Void, Never>?
-        private var foregroundObservation: NSObjectProtocol?
-        private let inbox = ShareInbox.shared()
-        /// Ids already sent to the current page load. A reload starts the page
-        /// afresh, so it forgets them too.
-        private var delivered: Set<String> = []
-        private var isDelivering = false
 
         init(_ parent: WebView) {
             self.parent = parent
@@ -114,10 +106,6 @@ struct WebView: PlatformViewRepresentable {
             NotificationRouter.shared.handler = nil
             sessionObservation?.cancel()
             sessionObservation = nil
-            if let foregroundObservation {
-                NotificationCenter.default.removeObserver(foregroundObservation)
-                self.foregroundObservation = nil
-            }
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -128,13 +116,8 @@ struct WebView: PlatformViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             parent.isLoading = false
             self.webView = webView
-            delivered = []
-            Task {
-                await pushCurrentSession()
-                await deliverSharedFiles()
-            }
+            Task { await pushCurrentSession() }
             observeSessionChanges()
-            observeForeground()
             openNotificationURLs(in: webView)
         }
 
@@ -188,68 +171,8 @@ struct WebView: PlatformViewRepresentable {
                 }
             case "nestReady":
                 Task { await pushCurrentSession() }
-            case "nestShare":
-                // The page has queued these files, so they leave the inbox.
-                for id in ShareBridge.queuedIDs(from: message.body) {
-                    inbox?.remove(id: id)
-                }
             default:
                 break
-            }
-        }
-
-        #if os(macOS)
-        private static let didBecomeActive = NSApplication.didBecomeActiveNotification
-        #else
-        private static let didBecomeActive = UIApplication.didBecomeActiveNotification
-        #endif
-
-        /// Hands files waiting in the share inbox to the page's deduction
-        /// receipt queue whenever the app comes back to the foreground.
-        private func observeForeground() {
-            guard foregroundObservation == nil else { return }
-            foregroundObservation = NotificationCenter.default.addObserver(
-                forName: Self.didBecomeActive, object: nil, queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor in await self?.deliverSharedFiles() }
-            }
-        }
-
-        /// Sends each pending shared file to the page, once per page load. The
-        /// file stays in the inbox until the page acknowledges it, so a page
-        /// that cannot take it yet (not loaded, an older build) leaves it for
-        /// the next foreground or load.
-        private func deliverSharedFiles() async {
-            guard let inbox, let webView, !isDelivering else { return }
-            isDelivering = true
-            defer { isDelivering = false }
-
-            inbox.purgeStale()
-            let items = ShareInbox.undelivered(inbox.pending(), delivered: delivered)
-            guard !items.isEmpty,
-                (try? await webView.evaluateJavaScript(ShareBridge.readyScript)) as? Bool == true
-            else { return }
-
-            for item in items {
-                guard await send(item, to: webView) else { continue }
-                delivered.insert(item.id)
-            }
-        }
-
-        private func send(_ item: ShareInbox.Item, to webView: WKWebView) async -> Bool {
-            guard let handle = try? FileHandle(forReadingFrom: item.fileURL) else { return false }
-            defer { try? handle.close() }
-            do {
-                _ = try await webView.evaluateJavaScript(
-                    ShareBridge.beginScript(id: item.id, name: item.name, mimeType: item.mimeType))
-                while let data = try handle.read(upToCount: ShareBridge.chunkBytes), !data.isEmpty {
-                    _ = try await webView.evaluateJavaScript(
-                        ShareBridge.chunkScript(id: item.id, base64: data.base64EncodedString()))
-                }
-                _ = try await webView.evaluateJavaScript(ShareBridge.finishScript(id: item.id))
-                return true
-            } catch {
-                return false
             }
         }
 

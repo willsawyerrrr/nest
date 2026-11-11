@@ -191,6 +191,51 @@ figures into `apps/ios/NestTests/Fixtures/goals-parity.json`; `GoalsParityTests`
 the same rows through `GoalsEngine` and `GoalsPresentation` over the bundled engine
 and asserts identical figures.
 
+## Deductions
+
+`Route.deductions` is native (`DeductionsScreen`): each member's deductions for a
+financial year with a running total, groups of payments, the receipt-first Add card,
+the bulk receipt review and drag-to-group filing, laid out like the web
+`DeductionsScreen` (`FormKit.swift` in `DesignSystem/` holds the matching page title,
+cards, inputs, segmented control, select, alert and Add button). Rows come from
+`member`, `deduction` and `deduction_group` (scoped to the year, ordered as the PWA
+hooks read them) and `deduction_receipt`. The financial-year picker offers the years the
+engine reports (`financialYearOptions`), opening on the current one.
+
+- **Add card.** Opens on the kind of deduction (work expense, donation, tax agent fee),
+  the receipt input (a file, a photo, or files dropped on it) and "Enter details
+  manually". One receipt is stored under the id the form minted and read through
+  `deduction-extract` (primed for the kind); the read pre-fills the description, amount
+  and date the member has not typed (`DeductionFormState.prefill`), and every failure
+  reads as its own note without blocking the save. Several receipts go to the bulk
+  review instead. A deduction saves through `create_deduction_with_receipt`.
+- **Bases.** A work expense is a dollar amount (apportioned by a work-use percentage), a
+  distance (cents per kilometre, with the ATO cap warning) or hours worked from home
+  (fixed rate). The figures come from the engine's `deductionFigures`; a donation or tax
+  agent fee is always claimed in full. Editing keeps the basis and reopens on the full
+  cost.
+- **Groups.** A group collapses to its name, payment count and total (summed from its
+  payments). A payment's grip drags it onto a group, between groups, or onto the
+  ungrouped list; valid targets are outlined while dragging (`DeductionDrop`, the rules
+  of `deductionDrop.ts`). A donation files itself into the donations group and has no
+  grip.
+- **Uploads.** `Screens/Uploads/` holds the shared upload rules (25 MiB limit, stored
+  content type, key names, HEIC to JPEG), the bulk queue (at most 20 files open, three
+  read at once, independent failures, a halt when reading is off) and `BulkUploadPanel`,
+  the review with Save selected. Receipts are stored in the private `receipts` bucket.
+  The queue and review are reusable by any surface that reads uploaded documents.
+- **Shared files.** Files shared from other apps reach the signed-in member's queue as
+  described in [`ios.md`](ios.md#share-extension). Only Deductions takes them: a sheet
+  over the shell opens it whichever screen is showing, and the Payslips screen never
+  reads the inbox.
+
+`apps/pwa/src/lib/deductionsParity.test.ts` computes the form figures (cents per
+kilometre, fixed-rate hours, work-use apportionment), the year options, each group's
+payments and total, and every drop's outcome with the PWA's own functions, and snapshots
+rows and figures into `apps/ios/NestTests/Fixtures/deductions-parity.json`.
+`DeductionsParityTests` runs the bundled engine and the screen's presentation over the same
+rows and asserts identical results.
+
 ## Planning mode
 
 Planning mode is native: `Route.planning` (`PlanningScreen`) and

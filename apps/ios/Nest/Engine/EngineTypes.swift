@@ -439,3 +439,37 @@ struct PayslipsOverview: Codable, Equatable, Sendable {
 
     var members: [Member]
 }
+
+/// The engine's `DeductionFiguresInput`: a figure whose input is absent is zero.
+struct DeductionFiguresInput: Encodable, Equatable, Sendable {
+    var financialYear: Int
+    var distanceKm: Double?
+    var hours: Double?
+    var fullAmountCents: Int?
+    var workUsePercent: Double?
+}
+
+/// The Deductions form's derived figures for a financial year.
+struct DeductionFigures: Codable, Equatable, Sendable {
+    var centsPerKm: Double
+    var maxClaimableKm: Double
+    var centsPerHour: Double
+    var distanceCents: Int
+    var hoursCents: Int
+    var apportionedCents: Int
+
+    static let zero = DeductionFigures(
+        centsPerKm: 0, maxClaimableKm: 0, centsPerHour: 0, distanceCents: 0, hoursCents: 0,
+        apportionedCents: 0)
+}
+
+/// The engine's `FinancialYearOptionsInput`: the ISO 8601 instant picking the current year.
+struct FinancialYearOptionsInput: Encodable, Equatable, Sendable {
+    var now: String
+}
+
+/// The current financial year and every year with a published tax config, most recent first.
+struct FinancialYearOptions: Codable, Equatable, Sendable {
+    var current: Int
+    var available: [Int]
+}

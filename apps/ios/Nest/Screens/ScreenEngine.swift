@@ -74,4 +74,22 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+    static func deductionFigures(_ input: DeductionFiguresInput) async throws -> DeductionFigures {
+        do { return try await shared.value.deductionFigures(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
+
+    static func financialYearOptions(_ input: FinancialYearOptionsInput) async throws
+        -> FinancialYearOptions
+    {
+        do { return try await shared.value.financialYearOptions(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
+
+    /// The Deductions form's figures; a failed engine call leaves them at zero.
+    static func figures(_ input: DeductionFiguresInput) async -> DeductionFigures {
+        (try? await deductionFigures(input)) ?? .zero
+    }
 }

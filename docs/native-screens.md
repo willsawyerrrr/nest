@@ -71,6 +71,15 @@ asserts each group equals the Summary's, and snapshots
 `apps/ios/NestTests/Fixtures/budget-parity.json`. `BudgetParityTests` runs
 `BudgetRows.input` through the bundled engine and asserts identical JSON.
 
+`apps/pwa/src/lib/taxParity.test.ts` does the same for the Tax estimate and EOFY
+screens: it computes, with the PWA's own lib functions, the estimate (withholding,
+HELP, a capital gain, projected interest and a joint inflow included), each member's
+super cap summary, HELP payoff and payslip count, the household year summary and
+Medicare levy surcharge test, the private-hospital-cover what-if, a salary-sacrifice
+what-if and the planning baseline, and snapshots
+`apps/ios/NestTests/Fixtures/tax-parity.json`. `TaxParityTests` runs
+`TaxRows.input` through the bundled engine and asserts identical figures.
+
 ## Summary
 
 `Route.summary` is native (`SummaryScreen`): the allocation donut (Swift Charts
@@ -245,3 +254,37 @@ There is no engine figure: parity is the order, owner and amount of each row.
 `apps/pwa/src/lib/wishlistParity.test.ts` snapshots rows and, for all four sorts,
 the rows `WishlistScreen` lists into `apps/ios/NestTests/Fixtures/wishlist-parity.json`;
 `WishlistParityTests` asserts `WishlistPresentation` lists the same.
+
+## Tax estimate and EOFY
+
+`Route.tax` (`TaxScreen`) and `Route.eofy` (`EofyScreen`) are native, sharing
+`TaxRows`, `TaxViewModel` (`Mode.tax` / `Mode.eofy`) and `TaxPresentation`, laid out
+as the PWA's `TaxEstimateView` and `EofyScreen` (cards, type, spacing and copy).
+Rows are scoped to the financial year as the PWA hooks scope them (`tax_profile`,
+`super_contribution`, `super_profile`, `deduction`, `payslip`, and on EOFY
+`deduction_group`), and the figures come from the engine's `taxScreen`
+(`packages/js-core/src/taxScreen.ts`), which runs the same estimate, super cap
+summary, HELP payoff and payslip withholding the PWA runs; the screens only label
+and split them.
+
+- **Tax** shows the Household card and a card per member: take-home headline,
+  gross and total tax, the take-home-versus-tax bar, the one-off and capital-gain
+  notes, the withholding position, the HELP payoff line, the gross-to-take-home
+  waterfall and income and tax build-up tables behind "Show breakdown", the
+  salary-sacrifice what-if (`salarySacrifice`), and the Medicare levy surcharge
+  what-if for private hospital cover (`mlsWhatIf`). While planning mode is on the
+  estimate is computed from the sandboxed inflows and goals and from the real ones,
+  and each card shows `real → proposed (±change)`.
+- **EOFY** reads the selected financial year (any year with a tax config): the
+  share control, the Household year summary with the Medicare levy surcharge test
+  (`householdYear`, the dependent-children count is local state), and a card per
+  member with the tax estimate and withholding position, deductions (grouped, each
+  with its receipt link and workings), super caps, HELP debt and payslip documents.
+  Receipt and payslip links sign a short-lived Storage URL on tap and open it.
+- **Share link** creation calls the `share-create` edge function and revoking calls
+  `revoke_share_grant`, as the PWA does (see [`eofy-sharing.md`](eofy-sharing.md)).
+  The plaintext link is shown once after creation, with Copy link; the share page
+  `/share/eofy/:token` stays web.
+
+The Tax estimate and EOFY entries in the nav are unchanged; the screens register
+only through `Route.content`.

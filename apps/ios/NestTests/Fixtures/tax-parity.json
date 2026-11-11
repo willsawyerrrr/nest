@@ -1,0 +1,875 @@
+[
+  {
+    "name": "a two-member household",
+    "now": "2026-12-01T00:00:00Z",
+    "financialYear": 2027,
+    "rows": {
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1988-09-20",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "name": "Ada salary",
+          "type": "salary",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 15000000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "name": "Ben wage",
+          "type": "wage",
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": null,
+          "interval_count": null,
+          "hourly_rate_cents": 5500,
+          "hours_per_period": 76,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i3",
+          "name": "Joint interest",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": false,
+          "schedule": "annual",
+          "amount_cents": 200000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": true,
+          "member_split_percent": 60
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i4",
+          "name": "Bonus",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": false,
+          "schedule": null,
+          "amount_cents": 800000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-10-15",
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c1",
+          "member_id": "m1",
+          "contributor_member_id": null,
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "amount",
+          "amount_cents": 20000,
+          "percent_bp": null,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "fhss_eligible": false
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c2",
+          "member_id": "m2",
+          "contributor_member_id": null,
+          "financial_year": 2027,
+          "kind": "personal_non_concessional",
+          "mode": "amount",
+          "amount_cents": 100000,
+          "percent_bp": null,
+          "frequency": "annual",
+          "interval_count": null,
+          "fhss_eligible": false
+        }
+      ],
+      "superProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "carry_forward_cap_cents": 1000000,
+          "balance_as_of": null,
+          "fund_name": null,
+          "linked_account_id": null,
+          "sg_rate_override": null
+        }
+      ],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "d1",
+          "member_id": "m2",
+          "balance_cents": 1800000
+        }
+      ],
+      "deductions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "x1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "deduction_date": "2026-08-01",
+          "description": "Laptop",
+          "category": "work_expense",
+          "basis": "amount",
+          "amount_cents": 90000,
+          "full_amount_cents": 150000,
+          "work_use_percent": 60,
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": "dg1"
+        }
+      ],
+      "deductionGroups": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "dg1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "custom",
+          "name": "Home office"
+        }
+      ],
+      "deductionReceipts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "r1",
+          "deduction_id": "x1",
+          "storage_path": "h1/laptop.pdf"
+        }
+      ],
+      "payslips": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p1",
+          "member_id": "m1",
+          "paid_on": "2026-08-14",
+          "period_start": "2026-08-01",
+          "period_end": "2026-08-14",
+          "financial_year": 2027,
+          "gross_cents": 576900,
+          "net_cents": 430000,
+          "super_cents": 69200,
+          "tax_withheld_cents": 140000,
+          "salary_sacrifice_cents": null,
+          "ytd_gross_cents": null,
+          "ytd_super_cents": null,
+          "ytd_tax_withheld_cents": null,
+          "file_path": "h1/p1.pdf",
+          "note": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p2",
+          "member_id": "m1",
+          "paid_on": "2026-08-28",
+          "period_start": "2026-08-01",
+          "period_end": "2026-08-28",
+          "financial_year": 2027,
+          "gross_cents": 576900,
+          "net_cents": 430000,
+          "super_cents": 69200,
+          "tax_withheld_cents": 140000,
+          "salary_sacrifice_cents": null,
+          "ytd_gross_cents": null,
+          "ytd_super_cents": null,
+          "ytd_tax_withheld_cents": null,
+          "file_path": null,
+          "note": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p3",
+          "member_id": "m2",
+          "paid_on": "2026-08-28",
+          "period_start": "2026-08-01",
+          "period_end": "2026-08-28",
+          "financial_year": 2027,
+          "gross_cents": 576900,
+          "net_cents": 430000,
+          "super_cents": 69200,
+          "tax_withheld_cents": 140000,
+          "salary_sacrifice_cents": null,
+          "ytd_gross_cents": null,
+          "ytd_super_cents": null,
+          "ytd_tax_withheld_cents": null,
+          "file_path": null,
+          "note": null
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1500000,
+          "current_balance_cents": 300000,
+          "annual_interest_bps": 480,
+          "linked_account_id": "a1",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": "2027-12-31"
+        }
+      ],
+      "savers": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "Saver",
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-1",
+          "owner_member_id": "m1",
+          "source": "up",
+          "type": "savings",
+          "balance_cents": 1200000
+        }
+      ],
+      "trades": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tr1",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2025-01-10",
+          "units": 100,
+          "price_per_unit_microdollars": 90000000,
+          "fee_cents": 995,
+          "source": "manual",
+          "external_id": null,
+          "document_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tr2",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "sell",
+          "traded_on": "2026-09-10",
+          "units": 100,
+          "price_per_unit_microdollars": 105000000,
+          "fee_cents": 995,
+          "source": "manual",
+          "external_id": null,
+          "document_id": null
+        }
+      ],
+      "equityGrants": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "eg1",
+          "member_id": "m2",
+          "label": "Employer shares",
+          "instrument_type": "share",
+          "quantity": 50,
+          "grant_date": "2024-07-01",
+          "cliff_months": 0,
+          "price_as_of": null,
+          "price_per_share_cents": 2000,
+          "strike_price_cents": null,
+          "vesting_frequency": "annual",
+          "vesting_period_months": 12
+        }
+      ],
+      "equityExercises": [],
+      "equitySales": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "es1",
+          "member_id": "m2",
+          "grant_id": "eg1",
+          "sold_on": "2026-10-01",
+          "quantity": 50,
+          "price_per_share_cents": 3000,
+          "fee_cents": 995
+        }
+      ]
+    },
+    "baselineInflows": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "i1",
+        "name": "Ada salary",
+        "type": "salary",
+        "member_id": "m1",
+        "taxable": true,
+        "attracts_super": true,
+        "schedule": "annual",
+        "amount_cents": 14000000,
+        "interval_count": null,
+        "hourly_rate_cents": null,
+        "hours_per_period": null,
+        "starts_on": null,
+        "ends_on": null,
+        "paid_on": null,
+        "pay_anchor_date": null,
+        "pay_interval_count": null,
+        "pay_schedule": null,
+        "arrives_every_pay_period": false,
+        "one_off_tax_treatment": null,
+        "years_of_service": null,
+        "is_joint": false,
+        "member_split_percent": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "i2",
+        "name": "Ben wage",
+        "type": "wage",
+        "member_id": "m2",
+        "taxable": true,
+        "attracts_super": true,
+        "schedule": "fortnightly",
+        "amount_cents": null,
+        "interval_count": null,
+        "hourly_rate_cents": 5500,
+        "hours_per_period": 76,
+        "starts_on": null,
+        "ends_on": null,
+        "paid_on": null,
+        "pay_anchor_date": null,
+        "pay_interval_count": null,
+        "pay_schedule": null,
+        "arrives_every_pay_period": false,
+        "one_off_tax_treatment": null,
+        "years_of_service": null,
+        "is_joint": false,
+        "member_split_percent": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "i3",
+        "name": "Joint interest",
+        "type": "other",
+        "member_id": "m1",
+        "taxable": true,
+        "attracts_super": false,
+        "schedule": "annual",
+        "amount_cents": 200000,
+        "interval_count": null,
+        "hourly_rate_cents": null,
+        "hours_per_period": null,
+        "starts_on": null,
+        "ends_on": null,
+        "paid_on": null,
+        "pay_anchor_date": null,
+        "pay_interval_count": null,
+        "pay_schedule": null,
+        "arrives_every_pay_period": false,
+        "one_off_tax_treatment": null,
+        "years_of_service": null,
+        "is_joint": true,
+        "member_split_percent": 60
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "i4",
+        "name": "Bonus",
+        "type": "other",
+        "member_id": "m1",
+        "taxable": true,
+        "attracts_super": false,
+        "schedule": null,
+        "amount_cents": 800000,
+        "interval_count": null,
+        "hourly_rate_cents": null,
+        "hours_per_period": null,
+        "starts_on": null,
+        "ends_on": null,
+        "paid_on": "2026-10-15",
+        "pay_anchor_date": null,
+        "pay_interval_count": null,
+        "pay_schedule": null,
+        "arrives_every_pay_period": false,
+        "one_off_tax_treatment": null,
+        "years_of_service": null,
+        "is_joint": false,
+        "member_split_percent": null
+      }
+    ],
+    "expected": {
+      "taxScreen": {
+        "financialYear": 2027,
+        "availableFinancialYears": [
+          2027,
+          2026
+        ],
+        "deductionRates": {
+          "centsPerKm": 91,
+          "centsPerHour": 70
+        },
+        "estimate": {
+          "annualGrossCents": 27074108,
+          "annualTaxCents": 7456663,
+          "annualAfterTaxCents": 19097445,
+          "annualOneOffGrossCents": 800000,
+          "fortnightlyGrossCents": 1004831,
+          "fortnightlyTaxCents": 272338,
+          "fortnightlyAfterTaxCents": 712493,
+          "members": [
+            {
+              "memberId": "m1",
+              "annualGrossCents": 16051605,
+              "annualConcessionalContributionsCents": 520000,
+              "annualDeductionsCents": 90000,
+              "annualTaxCents": 4129226,
+              "annualAfterTaxCents": 11402379,
+              "annualOneOffGrossCents": 800000,
+              "annualNetCapitalGainCents": 74005,
+              "fortnightlyGrossCents": 583754,
+              "fortnightlyTaxCents": 145706,
+              "fortnightlyAfterTaxCents": 418048,
+              "employmentTerminationCents": 800000,
+              "breakdown": {
+                "taxableIncomeCents": 15441605,
+                "incomeForSurchargeCents": 15961605,
+                "incomeTaxCents": 3820394,
+                "litoOffsetCents": 0,
+                "oneOffOffsetCents": 0,
+                "medicareLevyCents": 308832,
+                "medicareLevySurchargeCents": 0,
+                "helpRepaymentCents": 0,
+                "division293Cents": 0,
+                "totalLiabilityCents": 4129226,
+                "paygWithheldCents": 280000,
+                "balanceCents": 3849226,
+                "repaymentIncomeCents": 15961605
+              }
+            },
+            {
+              "memberId": "m2",
+              "annualGrossCents": 11022503,
+              "annualConcessionalContributionsCents": 0,
+              "annualDeductionsCents": 0,
+              "annualTaxCents": 3327437,
+              "annualAfterTaxCents": 7695066,
+              "annualOneOffGrossCents": 0,
+              "annualNetCapitalGainCents": 74503,
+              "fortnightlyGrossCents": 421077,
+              "fortnightlyTaxCents": 126632,
+              "fortnightlyAfterTaxCents": 294445,
+              "employmentTerminationCents": 0,
+              "breakdown": {
+                "taxableIncomeCents": 11022503,
+                "incomeForSurchargeCents": 11022503,
+                "incomeTaxCents": 2358751,
+                "litoOffsetCents": 0,
+                "oneOffOffsetCents": 0,
+                "medicareLevyCents": 220450,
+                "medicareLevySurchargeCents": 137781,
+                "helpRepaymentCents": 610455,
+                "division293Cents": 0,
+                "totalLiabilityCents": 3327437,
+                "paygWithheldCents": 140000,
+                "balanceCents": 3187437,
+                "repaymentIncomeCents": 11022503
+              }
+            }
+          ]
+        },
+        "baseline": {
+          "annualGrossCents": 26074108,
+          "annualTaxCents": 7066663,
+          "annualAfterTaxCents": 18487445,
+          "annualOneOffGrossCents": 800000,
+          "fortnightlyGrossCents": 966369,
+          "fortnightlyTaxCents": 257338,
+          "fortnightlyAfterTaxCents": 689031,
+          "members": [
+            {
+              "memberId": "m1",
+              "annualGrossCents": 15051605,
+              "annualConcessionalContributionsCents": 520000,
+              "annualDeductionsCents": 90000,
+              "annualTaxCents": 3739226,
+              "annualAfterTaxCents": 10792379,
+              "annualOneOffGrossCents": 800000,
+              "annualNetCapitalGainCents": 74005,
+              "fortnightlyGrossCents": 545292,
+              "fortnightlyTaxCents": 130706,
+              "fortnightlyAfterTaxCents": 394586,
+              "employmentTerminationCents": 800000,
+              "breakdown": {
+                "taxableIncomeCents": 14441605,
+                "incomeForSurchargeCents": 14961605,
+                "incomeTaxCents": 3450394,
+                "litoOffsetCents": 0,
+                "oneOffOffsetCents": 0,
+                "medicareLevyCents": 288832,
+                "medicareLevySurchargeCents": 0,
+                "helpRepaymentCents": 0,
+                "division293Cents": 0,
+                "totalLiabilityCents": 3739226,
+                "paygWithheldCents": 280000,
+                "balanceCents": 3459226,
+                "repaymentIncomeCents": 14961605
+              }
+            },
+            {
+              "memberId": "m2",
+              "annualGrossCents": 11022503,
+              "annualConcessionalContributionsCents": 0,
+              "annualDeductionsCents": 0,
+              "annualTaxCents": 3327437,
+              "annualAfterTaxCents": 7695066,
+              "annualOneOffGrossCents": 0,
+              "annualNetCapitalGainCents": 74503,
+              "fortnightlyGrossCents": 421077,
+              "fortnightlyTaxCents": 126632,
+              "fortnightlyAfterTaxCents": 294445,
+              "employmentTerminationCents": 0,
+              "breakdown": {
+                "taxableIncomeCents": 11022503,
+                "incomeForSurchargeCents": 11022503,
+                "incomeTaxCents": 2358751,
+                "litoOffsetCents": 0,
+                "oneOffOffsetCents": 0,
+                "medicareLevyCents": 220450,
+                "medicareLevySurchargeCents": 137781,
+                "helpRepaymentCents": 610455,
+                "division293Cents": 0,
+                "totalLiabilityCents": 3327437,
+                "paygWithheldCents": 140000,
+                "balanceCents": 3187437,
+                "repaymentIncomeCents": 11022503
+              }
+            }
+          ]
+        },
+        "memberExtras": [
+          {
+            "memberId": "m1",
+            "capSummary": {
+              "concessionalCents": 520000,
+              "concessionalCapCents": 4250000,
+              "concessionalOverCap": false,
+              "nonConcessionalCents": 0,
+              "nonConcessionalCapCents": 13000000,
+              "nonConcessionalOverCap": false,
+              "coContributionCents": 0
+            },
+            "helpPayoff": null,
+            "projectedInterestCents": 57600,
+            "payslipCount": 2
+          },
+          {
+            "memberId": "m2",
+            "capSummary": {
+              "concessionalCents": 0,
+              "concessionalCapCents": 3250000,
+              "concessionalOverCap": false,
+              "nonConcessionalCents": 100000,
+              "nonConcessionalCapCents": 13000000,
+              "nonConcessionalOverCap": false,
+              "coContributionCents": 0
+            },
+            "helpPayoff": {
+              "paidOffFinancialYear": 2030,
+              "yearsToPayOff": 4,
+              "summary": "HELP debt projected paid off in FY2030 (4 years)"
+            },
+            "projectedInterestCents": 0,
+            "payslipCount": 1
+          }
+        ]
+      },
+      "householdYear": [
+        {
+          "members": [
+            {
+              "memberId": "m1",
+              "grossIncomeCents": 16051605,
+              "netCapitalGainCents": 74005,
+              "deductionsCents": 90000,
+              "taxableIncomeCents": 15441605,
+              "taxCents": 4129226,
+              "concessionalSuperCents": 520000,
+              "afterTaxCents": 11402379
+            },
+            {
+              "memberId": "m2",
+              "grossIncomeCents": 11022503,
+              "netCapitalGainCents": 74503,
+              "deductionsCents": 0,
+              "taxableIncomeCents": 11022503,
+              "taxCents": 3327437,
+              "concessionalSuperCents": 0,
+              "afterTaxCents": 7695066
+            }
+          ],
+          "grossIncomeCents": 27074108,
+          "netCapitalGainCents": 148508,
+          "deductionsCents": 90000,
+          "taxableIncomeCents": 26464108,
+          "taxCents": 7456663,
+          "concessionalSuperCents": 520000,
+          "afterTaxCents": 19097445,
+          "mls": {
+            "familyIncomeCents": 26984108,
+            "dependentChildren": 0,
+            "tier": 2,
+            "rate": 0.0125,
+            "currentFloorCents": 24600000,
+            "next": {
+              "floorCents": 32800000,
+              "distanceCents": 5815892
+            },
+            "liable": true,
+            "totalSurchargeCents": 137781,
+            "members": [
+              {
+                "memberId": "m1",
+                "incomeForMlsCents": 15961605,
+                "surchargeCents": 0
+              },
+              {
+                "memberId": "m2",
+                "incomeForMlsCents": 11022503,
+                "surchargeCents": 137781
+              }
+            ]
+          }
+        },
+        {
+          "members": [
+            {
+              "memberId": "m1",
+              "grossIncomeCents": 16051605,
+              "netCapitalGainCents": 74005,
+              "deductionsCents": 90000,
+              "taxableIncomeCents": 15441605,
+              "taxCents": 4129226,
+              "concessionalSuperCents": 520000,
+              "afterTaxCents": 11402379
+            },
+            {
+              "memberId": "m2",
+              "grossIncomeCents": 11022503,
+              "netCapitalGainCents": 74503,
+              "deductionsCents": 0,
+              "taxableIncomeCents": 11022503,
+              "taxCents": 3327437,
+              "concessionalSuperCents": 0,
+              "afterTaxCents": 7695066
+            }
+          ],
+          "grossIncomeCents": 27074108,
+          "netCapitalGainCents": 148508,
+          "deductionsCents": 90000,
+          "taxableIncomeCents": 26464108,
+          "taxCents": 7456663,
+          "concessionalSuperCents": 520000,
+          "afterTaxCents": 19097445,
+          "mls": {
+            "familyIncomeCents": 26984108,
+            "dependentChildren": 2,
+            "tier": 2,
+            "rate": 0.0125,
+            "currentFloorCents": 24750000,
+            "next": {
+              "floorCents": 32950000,
+              "distanceCents": 5965892
+            },
+            "liable": true,
+            "totalSurchargeCents": 137781,
+            "members": [
+              {
+                "memberId": "m1",
+                "incomeForMlsCents": 15961605,
+                "surchargeCents": 0
+              },
+              {
+                "memberId": "m2",
+                "incomeForMlsCents": 11022503,
+                "surchargeCents": 137781
+              }
+            ]
+          }
+        }
+      ],
+      "mlsWhatIf": [
+        {
+          "combinedIncomeForSurchargeCents": 26984108,
+          "tierRate": 0.0125,
+          "thresholdCents": 24600000,
+          "perMemberSurchargeCents": [
+            199520,
+            137781
+          ],
+          "totalSurchargeCents": 337301
+        },
+        {
+          "combinedIncomeForSurchargeCents": 26984108,
+          "tierRate": 0.0125,
+          "thresholdCents": 24750000,
+          "perMemberSurchargeCents": [
+            199520,
+            137781
+          ],
+          "totalSurchargeCents": 337301
+        }
+      ],
+      "salarySacrifice": {
+        "additionalConcessionalCents": 500000,
+        "taxSavedCents": 195000,
+        "contributionsTaxCents": 75000,
+        "netToSuperCents": 425000,
+        "takeHomeChangeCents": -305000,
+        "division293DeltaCents": 0
+      }
+    }
+  }
+]

@@ -17,6 +17,10 @@ actor Engine {
         case projectGoalQueue
         case summariseBreakdowns
         case budgetOverview
+        case taxScreen
+        case salarySacrifice
+        case mlsWhatIf
+        case householdYear
     }
 
     enum Failure: Error, Equatable {
@@ -95,5 +99,25 @@ actor Engine {
     /// each allowance reconciled and which temporary items are active.
     func budgetOverview(_ input: some Encodable) throws -> BudgetOverview {
         try call(.budgetOverview, input)
+    }
+
+    /// The Tax estimate and EOFY screens' figures.
+    func taxScreen(_ input: some Encodable) throws -> TaxScreenFigures {
+        try call(.taxScreen, input)
+    }
+
+    /// A member's salary-sacrifice what-if.
+    func salarySacrifice(_ input: some Encodable) throws -> SalarySacrificeResult {
+        try call(.salarySacrifice, input)
+    }
+
+    /// The family Medicare levy surcharge if no member held private hospital cover.
+    func mlsWhatIf(_ input: some Encodable) throws -> FamilyMlsFigures {
+        try call(.mlsWhatIf, input)
+    }
+
+    /// The household's combined year figures and its Medicare levy surcharge test.
+    func householdYear(_ input: some Encodable) throws -> HouseholdYearFigures {
+        try call(.householdYear, input)
     }
 }

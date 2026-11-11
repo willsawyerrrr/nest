@@ -28,4 +28,28 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func taxScreen(_ input: TaxScreenInput) async throws -> TaxScreenFigures {
+        do { return try await shared.value.taxScreen(input) } catch { throw NestError(.unknown) }
+    }
+
+    static func salarySacrifice(_ input: SalarySacrificeInput) async throws
+        -> SalarySacrificeResult
+    {
+        do { return try await shared.value.salarySacrifice(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
+
+    static func mlsWhatIf(_ input: DependentChildrenInput) async throws -> FamilyMlsFigures {
+        do { return try await shared.value.mlsWhatIf(input) } catch { throw NestError(.unknown) }
+    }
+
+    static func householdYear(_ input: DependentChildrenInput) async throws
+        -> HouseholdYearFigures
+    {
+        do { return try await shared.value.householdYear(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

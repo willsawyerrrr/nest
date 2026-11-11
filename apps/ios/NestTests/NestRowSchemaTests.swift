@@ -71,6 +71,23 @@ import Testing
         check(Breakdown.self)
         check(BreakdownItem.self)
         check(WishlistItem.self)
+        check(Trade.self)
+        check(EquityGrant.self)
+        check(EquityExercise.self)
+        check(EquitySale.self)
+        check(SuperProfile.self)
+        check(DeductionGroup.self)
+        check(DeductionReceipt.self)
+    }
+
+    /// The signed-in role reads every `share_grant` column but the credential's hash
+    /// and the creator.
+    @Test func shareGrantModelsTheReadableColumns() {
+        let modelled = Set(ShareGrant.CodingKeys.allCases.map(\.rawValue))
+        #expect(
+            modelled == columns(of: ShareGrant.table).subtracting([
+                "token_hash", "created_by_member_id",
+            ]))
     }
 
     @Test func enumsMatchThePostgresEnums() {

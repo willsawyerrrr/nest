@@ -22,8 +22,8 @@ import Testing
     @Test func keyNamesAreSafe() {
         #expect(UploadRules.storageKeyName("My Payslip (1).pdf") == "My_Payslip_1_.pdf")
         #expect(UploadRules.storageKeyName("résumé.pdf") == "resume.pdf")
-        #expect(UploadRules.storageKeyName("..hidden") == "hidden")
-        #expect(UploadRules.storageKeyName("???") == "_")
+        #expect(UploadRules.storageKeyName("..hidden") == "file.hidden")
+        #expect(UploadRules.storageKeyName("???") == "file")
         #expect(UploadRules.storageKeyName("") == "file")
         let long = UploadRules.storageKeyName(String(repeating: "a", count: 300) + ".pdf")
         #expect(long.count == 100 && long.hasSuffix(".pdf"))

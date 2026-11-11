@@ -1,0 +1,87 @@
+{
+  "rows": {
+    "members": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m1",
+        "name": "Alex",
+        "user_id": "u-m1",
+        "email": null,
+        "date_of_birth": "1990-09-05",
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m2",
+        "name": "Sam",
+        "user_id": "u-m2",
+        "email": null,
+        "date_of_birth": "1985-02-28",
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "m3",
+        "name": "Jo",
+        "user_id": "u-m3",
+        "email": null,
+        "date_of_birth": null,
+        "up_connected_at": null,
+        "up_sync_failed_at": null
+      }
+    ],
+    "taxProfiles": [
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "t1",
+        "member_id": "m1",
+        "financial_year": 2027,
+        "residency": "resident",
+        "has_private_hospital_cover": true
+      },
+      {
+        "household_id": "h1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "id": "t2",
+        "member_id": "m2",
+        "financial_year": 2027,
+        "residency": "foreign_resident",
+        "has_private_hospital_cover": false
+      }
+    ]
+  },
+  "expected": [
+    {
+      "id": "m1",
+      "name": "Alex",
+      "residency": "Resident",
+      "hospitalCover": true,
+      "dateOfBirth": "Born 5 Sept 1990"
+    },
+    {
+      "id": "m2",
+      "name": "Sam",
+      "residency": "Foreign resident",
+      "hospitalCover": false,
+      "dateOfBirth": "Born 28 Feb 1985"
+    },
+    {
+      "id": "m3",
+      "name": "Jo",
+      "residency": "Resident",
+      "hospitalCover": false,
+      "dateOfBirth": "No date of birth"
+    }
+  ]
+}

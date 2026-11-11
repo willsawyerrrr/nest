@@ -521,3 +521,25 @@ the id the form minted, so a retry rewrites the same slip.
 Shared files from other apps join the deduction queue only (see
 [`bulk-upload.md`](bulk-upload.md#receipts-shared-from-other-ios-apps)); the payslip
 queue takes files picked or dropped on the Add card.
+
+## Members and tax profiles
+
+`Route.members` is native (`MembersScreen`), laid out as the PWA's: the page title,
+a `Tax profiles (FY2027)` heading, and one item per member, a dense row on iPad and
+Mac (name, residency pill, hospital-cover pill or a muted note, date of birth, an
+`Edit <name>’s tax profile` pencil) and a bordered card on iPhone. The pencil swaps
+the item for the inline editor (residency, private hospital cover, optional date of
+birth with its termination-payment hint, Save and Cancel). A member with no profile
+reads as a resident without cover.
+
+It reads `members` (ordered by name) and `tax_profile` scoped to the current financial
+year through `MembersViewModel`. Saving follows the PWA: the member's profile is
+updated by member and year (inserted, with the household and year, when none exists),
+then `set_member_date_of_birth` records the date (`null` clears it), then the rows
+reload. There is no engine figure; the HELP debt balance is a separate PWA tab and
+stays web.
+
+`apps/pwa/src/lib/membersParity.test.ts` snapshots rows and what `TaxProfileList`
+shows (including the en-AU `Sept` abbreviation) into
+`apps/ios/NestTests/Fixtures/members-parity.json`; `MembersParityTests` asserts
+`MembersPresentation` lists the same.

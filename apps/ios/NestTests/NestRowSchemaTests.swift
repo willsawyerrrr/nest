@@ -78,6 +78,13 @@ import Testing
         check(SuperProfile.self)
         check(DeductionGroup.self)
         check(DeductionReceipt.self)
+        check(GiftRecipient.self)
+        check(GiftOccasion.self)
+        check(GiftBudget.self)
+        check(GiftPurchase.self)
+        check(GiftDiscretionaryBudget.self)
+        check(GiftTransactionDismissal.self)
+        check(GiftTransaction.self)
     }
 
     /// The signed-in role reads every `share_grant` column but the credential's hash

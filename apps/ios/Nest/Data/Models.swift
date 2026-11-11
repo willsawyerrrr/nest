@@ -677,3 +677,180 @@ struct BreakdownItem: NestRow {
         case updatedAt = "updated_at"
     }
 }
+
+/// Row of `gift_recipient`.
+struct GiftRecipient: NestRow {
+    static let table = "gift_recipient"
+
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let memberId: String?
+    let name: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case memberId = "member_id"
+        case name
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `gift_occasion`.
+struct GiftOccasion: NestRow {
+    static let table = "gift_occasion"
+
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let name: String
+    let occasionDate: String?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case name
+        case occasionDate = "occasion_date"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `gift_budget`.
+struct GiftBudget: NestRow {
+    static let table = "gift_budget"
+
+    let budgetedAmountCents: Int
+    let createdAt: String
+    let eventDate: String?
+    let householdId: String
+    let id: String
+    let occasionId: String
+    let recipientId: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case budgetedAmountCents = "budgeted_amount_cents"
+        case createdAt = "created_at"
+        case eventDate = "event_date"
+        case householdId = "household_id"
+        case id
+        case occasionId = "occasion_id"
+        case recipientId = "recipient_id"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `gift_purchase`.
+struct GiftPurchase: NestRow {
+    static let table = "gift_purchase"
+
+    let amountCents: Int
+    let createdAt: String
+    let description: String
+    let giftBudgetId: String?
+    let giftDiscretionaryBudgetId: String?
+    let householdId: String
+    let id: String
+    let purchasedOn: String
+    let recipientId: String?
+    let transactionId: String?
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case amountCents = "amount_cents"
+        case createdAt = "created_at"
+        case description
+        case giftBudgetId = "gift_budget_id"
+        case giftDiscretionaryBudgetId = "gift_discretionary_budget_id"
+        case householdId = "household_id"
+        case id
+        case purchasedOn = "purchased_on"
+        case recipientId = "recipient_id"
+        case transactionId = "transaction_id"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `gift_discretionary_budget`.
+struct GiftDiscretionaryBudget: NestRow {
+    static let table = "gift_discretionary_budget"
+
+    let budgetedAmountCents: Int
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case budgetedAmountCents = "budgeted_amount_cents"
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `gift_transaction_dismissal`.
+struct GiftTransactionDismissal: NestRow {
+    static let table = "gift_transaction_dismissal"
+
+    let createdAt: String
+    let householdId: String
+    let id: String
+    let transactionId: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case createdAt = "created_at"
+        case householdId = "household_id"
+        case id
+        case transactionId = "transaction_id"
+        case updatedAt = "updated_at"
+    }
+}
+
+/// Row of `transactions`, as the gift inbox reads it.
+struct GiftTransaction: NestRow {
+    static let table = "transactions"
+
+    let accountId: String
+    let amountCents: Int
+    let categoryId: String?
+    let createdAt: String
+    let description: String
+    let externalCategory: String?
+    let externalId: String?
+    let householdId: String
+    let id: String
+    let kind: String
+    let memberId: String?
+    let notes: String?
+    let postedAt: String
+    let source: LedgerSource
+    let status: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case accountId = "account_id"
+        case amountCents = "amount_cents"
+        case categoryId = "category_id"
+        case createdAt = "created_at"
+        case description
+        case externalCategory = "external_category"
+        case externalId = "external_id"
+        case householdId = "household_id"
+        case id
+        case kind
+        case memberId = "member_id"
+        case notes
+        case postedAt = "posted_at"
+        case source
+        case status
+        case updatedAt = "updated_at"
+    }
+}

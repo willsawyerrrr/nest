@@ -34,20 +34,23 @@ struct NestData: Sendable {
     /// Yields the cached rows first (when there are any), then the fetched rows,
     /// which replace the cache. A failed fetch ends the stream with a
     /// `NestError` after any cached snapshot, so the screen can keep showing it.
+    /// With `cached` off the cache is neither read nor written, for rows that
+    /// row-level security can withdraw from the signed-in user between fetches.
     func rows<T: NestRow>(
-        _ type: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil
+        _ type: T.Type, filters: [Filter] = [], order: [Order] = [], limit: Int? = nil,
+        cached: Bool = true
     ) -> AsyncThrowingStream<Snapshot<T>, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let user = try await scope()
                     let key = QueryKey(table: T.table, filters: filters, order: order, limit: limit)
-                    if let cached = await cache.read(T.self, key: key, user: user) {
-                        continuation.yield(Snapshot(rows: cached, isCached: true))
+                    if cached, let rows = await cache.read(T.self, key: key, user: user) {
+                        continuation.yield(Snapshot(rows: rows, isCached: true))
                     }
                     let fresh = try await api.select(
                         T.self, filters: filters, order: order, limit: limit)
-                    await cache.write(fresh, key: key, user: user)
+                    if cached { await cache.write(fresh, key: key, user: user) }
                     continuation.yield(Snapshot(rows: fresh, isCached: false))
                     continuation.finish()
                 } catch {

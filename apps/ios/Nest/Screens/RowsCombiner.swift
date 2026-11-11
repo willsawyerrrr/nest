@@ -11,13 +11,14 @@ struct ScreenSnapshot<Rows: Sendable>: Sendable {
 struct TableSource<Rows: Sendable>: Sendable {
     let run: @Sendable (NestData, @Sendable (_ apply: @Sendable (inout Rows) -> Void, _ isCached: Bool) async -> Void) async throws -> Void
 
-    /// Reads `T` with `filters` and stores each snapshot with `assign`.
+    /// Reads `T` with `filters` and stores each snapshot with `assign`. With
+    /// `cached` off the rows bypass the cache (see `NestData.rows`).
     static func table<T: NestRow>(
-        _ type: T.Type, filters: [Filter] = [], order: [Order] = [],
+        _ type: T.Type, filters: [Filter] = [], order: [Order] = [], cached: Bool = true,
         assign: @escaping @Sendable (inout Rows, [T]) -> Void
     ) -> TableSource {
         TableSource { data, report in
-            for try await snapshot in data.rows(T.self, filters: filters, order: order) {
+            for try await snapshot in data.rows(T.self, filters: filters, order: order, cached: cached) {
                 await report({ assign(&$0, snapshot.rows) }, snapshot.isCached)
             }
         }

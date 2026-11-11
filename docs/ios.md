@@ -44,7 +44,7 @@ the route changes, so pushed details keep a back button.
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
 route not yet native is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
 path in `WebView` (with its session mirroring) and shows `ErrorView` with a
-retry on failure. A screen migrates by returning `.native` for its route (Summary, Breakdowns, Budget, Allowance, Planning mode, Tax estimate, EOFY, Inflows and Gifts are native;
+retry on failure. A screen migrates by returning `.native` for its route (Summary, Breakdowns, Budget, Allowance, Planning mode, Tax estimate, EOFY, Inflows, Gifts and What's new are native;
 see [`native-screens.md`](native-screens.md) for the screen pattern). The
 shell shows one web view at a time, recreated when the route changes.
 

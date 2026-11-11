@@ -16,7 +16,7 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   own macOS share extension) wraps the PWA in a SwiftUI navigation shell (burger
   menu and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's collapsible nav groups) whose per-route `.native` / `.web`
   switch embeds each not-yet-native screen in a `WKWebView` (design system in
-  `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Connections and What's new so far) follow
+  `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Connections, Notifications and What's new so far) follow
   the pattern in [`docs/native-screens.md`](docs/native-screens.md)),
   runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
   bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the
@@ -1030,7 +1030,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   where a tapped native notification opens the web view (an in-app path only; the
   app ignores anything else). The native app's web view reports its device as on
   in the Notifications settings (status `native`, gated on
-  `__NEST_NATIVE_SHELL__`), with no web opt-in. **Deciding when to notify** is
+  `__NEST_NATIVE_SHELL__`), with no web opt-in; the native Notifications screen
+  shows the same state, reads and upserts `notification_preference` on
+  `member_id,trigger`, and sends the test through `push-test`. **Deciding when to notify** is
   the `notify-eval` edge function: a daily `pg_cron` POST evaluates
   today's-data triggers per household with the pure `@nest/plan` / `@nest/tax`
   engines — the fortnightly buffer going negative

@@ -88,6 +88,7 @@ import Testing
         check(GiftTransaction.self)
         check(AccountDirectoryEntry.self)
         check(RedbarkConnection.self)
+        check(NotificationPreference.self)
     }
 
     /// The signed-in role reads every `share_grant` column but the credential's hash
@@ -123,6 +124,7 @@ import Testing
         #expect(values(TaxResidency.self) == enumValues("tax_residency"))
         #expect(values(SuperContributionKind.self) == enumValues("super_contribution_kind"))
         #expect(values(SuperContributionMode.self) == enumValues("super_contribution_mode"))
+        #expect(values(NotificationTrigger.self) == enumValues("notification_trigger"))
     }
 
     @Test func decodesARowWithEveryColumn() throws {

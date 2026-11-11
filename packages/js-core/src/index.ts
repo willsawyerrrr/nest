@@ -8,9 +8,11 @@
 
 import {
   estimateHouseholdTaxFromRows,
+  netWorthOfRows,
   projectedInterestIncomeInputs,
   summariseHouseholdFromRows,
   type BudgetSummaryBundle,
+  type NetWorthRows,
 } from '@nest/household'
 import {
   assignmentsByAccount,
@@ -151,6 +153,14 @@ export function paySplitRoutes(input: PaySplitRoutesInput) {
   }
 }
 
+/** The input of {@link netWorthAt}: the rows `netWorthOfRows` reads, with `now` as an ISO 8601 instant. */
+export type NetWorthInput = Omit<NetWorthRows, 'now'> & { now: string }
+
+/** The Net worth screen's breakdown and projection at `input.now`. */
+export function netWorthAt(input: NetWorthInput) {
+  return netWorthOfRows({ ...input, now: new Date(input.now) })
+}
+
 /** A bridge entry point: parses its JSON argument, runs an engine, returns JSON. */
 type Entry = (inputJson: string) => string
 
@@ -181,4 +191,5 @@ export const entryPoints = {
   deductionFigures: entry(deductionFigures),
   financialYearOptions: entry(financialYearOptions),
   summariseEquity: entry(summariseEquity),
+  netWorth: entry(netWorthAt),
 } satisfies Record<string, Entry>

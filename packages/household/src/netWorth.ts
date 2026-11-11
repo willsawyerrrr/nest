@@ -1,0 +1,573 @@
+/**
+ * The household's net worth and its forward projection from raw rows: assets
+ * (super, other accounts, vested equity, held shares) less liabilities (home
+ * loans, HELP debt), the accrual-adjusted super balances, and the year-by-year
+ * projection in `@nest/plan`. The PWA's Net worth tab and the native app both
+ * run this, so one set of rows gives one set of figures.
+ */
+
+import {
+  accruedBalanceCents,
+  DEFAULT_ASSUMPTIONS,
+  fortnightlyCents,
+  grantValueCents,
+  projectNetWorth,
+  type EquityGrant,
+  type Frequency,
+  type NetWorthGoal,
+  type NetWorthProjectionPoint,
+  type RetirementAssumptions,
+} from '@nest/plan'
+import {
+  configsByYear,
+  financialYearForDate,
+  FY2027_CONFIG,
+  type HelpPayoffProjection,
+} from '@nest/tax'
+import {
+  equityGrantToPlan,
+  heldEquityHoldings,
+  heldMemberName,
+  type GrantUnitsRow,
+  type NetWorthEquityGrantRow,
+  type NetWorthMemberRow,
+} from './netWorthEquity.ts'
+import type {
+  DeductionRow,
+  HelpDebtRow,
+  InflowRow,
+  MemberRow,
+  SuperContributionRow,
+  TaxProfileRow,
+  TradeRow,
+} from './rows.ts'
+import { estimateHouseholdTaxFromRows } from './tax/estimate.ts'
+import { helpPayoffByMember } from './tax/helpPayoff.ts'
+import { netAnnualSuperContributionFromRows } from './tax/superBases.ts'
+
+/** The `accounts_with_balance` columns net worth reads. */
+export interface NetWorthAccountRow {
+  id: string
+  name: string
+  type: string
+  balance_cents: number
+  exclude_from_net_worth: boolean
+}
+
+/** The `super_profile` columns the effective super balance reads; an absent key reads as null. */
+export interface NetWorthSuperProfileRow {
+  member_id: string
+  linked_account_id: string | null
+  balance_as_of: string | null
+}
+
+/** The `savings_goal` columns the projection's cash component reads. */
+export interface NetWorthGoalRow {
+  id: string
+  linked_account_id: string | null
+  current_balance_cents: number
+  target_amount_cents: number
+  queue_position: number | null
+  planned_contribution_cents: number | null
+}
+
+/** The `budget_line` columns a goal's funding reads. */
+export interface NetWorthLineRow {
+  goal_id: string | null
+  amount_cents: number
+  frequency: string
+}
+
+/** The set of account ids linked as a member's super balance, across all profiles. */
+export function superAccountIds(
+  profiles: readonly Pick<NetWorthSuperProfileRow, 'linked_account_id'>[],
+): Set<string> {
+  return new Set(
+    profiles.map((profile) => profile.linked_account_id).filter((id): id is string => id != null),
+  )
+}
+
+/**
+ * Returns `accounts` with each super account's `balance_cents` replaced by its
+ * effective balance today (baseline + accrued contributions for the account's
+ * member). Non-super accounts, and super accounts whose profile has no as-of
+ * date, are returned unchanged.
+ */
+export function accountsWithEffectiveSuperBalances<A extends NetWorthAccountRow>(
+  accounts: readonly A[],
+  profiles: readonly NetWorthSuperProfileRow[],
+  netContributionByMember: ReadonlyMap<string, number>,
+  today: Date,
+): A[] {
+  const profileByAccountId = new Map(
+    profiles
+      .filter((profile) => profile.linked_account_id != null)
+      .map((profile) => [profile.linked_account_id as string, profile]),
+  )
+  return accounts.map((account) => {
+    const profile = profileByAccountId.get(account.id)
+    if (!profile) {
+      return account
+    }
+    return {
+      ...account,
+      balance_cents: accruedBalanceCents(
+        account.balance_cents,
+        profile.balance_as_of ?? null,
+        netContributionByMember.get(profile.member_id) ?? 0,
+        today,
+      ),
+    }
+  })
+}
+
+/** A named liability that reduces net worth, e.g. a member's HELP debt. */
+export interface Liability {
+  label: string
+  balanceCents: number
+}
+
+/**
+ * The amount owed on a home-loan account, as a positive figure. Up reports a
+ * home loan's balance as a negative number — the amount still owing — so the
+ * debt is its magnitude.
+ */
+export function homeLoanOwedCents(account: Pick<NetWorthAccountRow, 'balance_cents'>): number {
+  return Math.abs(account.balance_cents)
+}
+
+/**
+ * Each home-loan account as a named liability, its balance the positive amount
+ * owed. Accounts flagged `exclude_from_net_worth` are left out, like any account.
+ */
+export function homeLoanLiabilities(accounts: readonly NetWorthAccountRow[]): Liability[] {
+  return accounts
+    .filter((account) => account.type === 'home_loan' && !account.exclude_from_net_worth)
+    .map((account) => ({ label: account.name, balanceCents: homeLoanOwedCents(account) }))
+}
+
+/**
+ * A named equity holding that adds to net worth: the current vested value of a
+ * member's equity grant, already valued as of the reporting date.
+ */
+export interface EquityHolding {
+  label: string
+  valueCents: number
+}
+
+/**
+ * Net worth split into super vs other accounts, equity holdings, and
+ * liabilities, each with a subtotal and a grand total, alongside the accounts the
+ * household has excluded from net-worth tracking (surfaced so they can be toggled
+ * back, never counted in the totals). The grand total is assets (super, other,
+ * and vested equity) less liabilities.
+ */
+export interface NetWorthBreakdown<A extends NetWorthAccountRow = NetWorthAccountRow> {
+  superAccounts: A[]
+  otherAccounts: A[]
+  excludedAccounts: A[]
+  equityHoldings: EquityHolding[]
+  liabilities: Liability[]
+  superTotalCents: number
+  otherTotalCents: number
+  equityTotalCents: number
+  liabilitiesTotalCents: number
+  totalCents: number
+}
+
+/** The sum of every account's `balance_cents`. */
+function sumBalances(accounts: readonly NetWorthAccountRow[]): number {
+  return accounts.reduce((total, account) => total + account.balance_cents, 0)
+}
+
+/**
+ * Splits the included accounts into super accounts (those whose id is a
+ * `super_account_id`) and everything else, with per-group subtotals. A home-loan
+ * account is not an "other" account: it becomes a named liability (the amount
+ * owed), listed ahead of the supplied `liabilities`. Accounts flagged
+ * `exclude_from_net_worth` are collected separately and left out of every
+ * subtotal and the total. The grand total is assets (super, other accounts, and
+ * the supplied vested `equityHoldings`) less the liabilities (the home loans and
+ * the supplied ones, e.g. each member's HELP debt).
+ */
+export function netWorthBreakdown<A extends NetWorthAccountRow>(
+  accounts: readonly A[],
+  superIds: ReadonlySet<string>,
+  liabilities: readonly Liability[] = [],
+  equityHoldings: readonly EquityHolding[] = [],
+): NetWorthBreakdown<A> {
+  const excludedAccounts = accounts.filter((account) => account.exclude_from_net_worth)
+  const includedAccounts = accounts.filter((account) => !account.exclude_from_net_worth)
+  const superAccounts = includedAccounts.filter((account) => superIds.has(account.id))
+  const nonSuperAccounts = includedAccounts.filter((account) => !superIds.has(account.id))
+  const otherAccounts = nonSuperAccounts.filter((account) => account.type !== 'home_loan')
+  const allLiabilities = [...homeLoanLiabilities(nonSuperAccounts), ...liabilities]
+  const superTotalCents = sumBalances(superAccounts)
+  const otherTotalCents = sumBalances(otherAccounts)
+  const equityTotalCents = equityHoldings.reduce((total, holding) => total + holding.valueCents, 0)
+  const liabilitiesTotalCents = allLiabilities.reduce(
+    (total, liability) => total + liability.balanceCents,
+    0,
+  )
+  return {
+    superAccounts,
+    otherAccounts,
+    excludedAccounts,
+    equityHoldings: [...equityHoldings],
+    liabilities: allLiabilities,
+    superTotalCents,
+    otherTotalCents,
+    equityTotalCents,
+    liabilitiesTotalCents,
+    totalCents: superTotalCents + otherTotalCents + equityTotalCents - liabilitiesTotalCents,
+  }
+}
+
+/** Default projection horizon in years when no member age pins it to retirement. */
+export const DEFAULT_PROJECTION_HORIZON_YEARS = 30
+
+/**
+ * How far the net-worth projection runs: a fixed number of years, or `retirement`
+ * to track the retirement-age-derived horizon.
+ */
+export type ProjectionHorizonOption = '5y' | '10y' | '20y' | '30y' | 'retirement'
+
+/**
+ * The projection horizon in whole years: the longest span to `retirementAge`
+ * across members whose age is known, or `DEFAULT_PROJECTION_HORIZON_YEARS` when
+ * none is known (or every known member is already at or past retirement).
+ */
+export function projectionHorizonYears(ages: readonly number[], retirementAge: number): number {
+  const spans = ages.map((age) => Math.round(retirementAge - age)).filter((years) => years > 0)
+  return spans.length > 0 ? Math.max(...spans) : DEFAULT_PROJECTION_HORIZON_YEARS
+}
+
+/** Whole-year length of each fixed horizon option. */
+const FIXED_HORIZON_YEARS: Record<Exclude<ProjectionHorizonOption, 'retirement'>, number> = {
+  '5y': 5,
+  '10y': 10,
+  '20y': 20,
+  '30y': 30,
+}
+
+/**
+ * The horizon in whole years for the selected option: a fixed span, or the
+ * retirement-age-derived `retirementHorizonYears` when `retirement` is chosen.
+ */
+export function resolveHorizonYears(
+  option: ProjectionHorizonOption,
+  retirementHorizonYears: number,
+): number {
+  return option === 'retirement' ? retirementHorizonYears : FIXED_HORIZON_YEARS[option]
+}
+
+/**
+ * The household's total HELP balance at each projected year (index 0 = now),
+ * combining the members' payoff schedules: year 0 is `currentTotalCents`, and each
+ * later year sums each member's closing balance for that year (0 once a schedule
+ * has cleared or ended). Runs to `horizonYears`.
+ */
+export function combinedHelpCentsByYear(
+  payoffs: Iterable<HelpPayoffProjection>,
+  currentTotalCents: number,
+  horizonYears: number,
+): number[] {
+  const schedules = [...payoffs].map((payoff) => payoff.schedule)
+  const result = [currentTotalCents]
+  for (let year = 1; year <= horizonYears; year++) {
+    let sum = 0
+    for (const schedule of schedules) {
+      sum += schedule[year - 1]?.closingBalanceCents ?? 0
+    }
+    result.push(sum)
+  }
+  return result
+}
+
+/**
+ * Maps the household's savings goals to the projection's goal shape. Each goal's
+ * effective current balance is its linked saver's synced balance (from
+ * `balanceByAccountId`, falling back to the manual figure when the account is not
+ * visible) or, for an unlinked goal, its manually entered balance — the same
+ * balance the Goals tab shows. The fortnightly contribution is the sum of the
+ * budget lines routed to the goal, matching the Goals tab's funding rate.
+ */
+export function netWorthGoals(
+  goals: readonly NetWorthGoalRow[],
+  lines: readonly NetWorthLineRow[],
+  balanceByAccountId: ReadonlyMap<string, number>,
+): NetWorthGoal[] {
+  return goals.map((goal) => {
+    const currentBalanceCents =
+      goal.linked_account_id != null
+        ? (balanceByAccountId.get(goal.linked_account_id) ?? goal.current_balance_cents)
+        : goal.current_balance_cents
+    const fortnightlyContributionCents = lines
+      .filter((line) => line.goal_id === goal.id)
+      .reduce(
+        (total, line) => total + fortnightlyCents(line.amount_cents, line.frequency as Frequency),
+        0,
+      )
+    return {
+      targetAmountCents: goal.target_amount_cents,
+      currentBalanceCents,
+      fortnightlyContributionCents,
+      queuePosition: goal.queue_position,
+      plannedContributionCents: goal.planned_contribution_cents,
+    }
+  })
+}
+
+/** The cash (non-negative balances) and debt (magnitude of negative balances) split. */
+export interface CashDebtSplit {
+  cashCents: number
+  debtCents: number
+}
+
+/**
+ * Splits accounts into cash and debt: positive balances sum into `cashCents`, while
+ * negative balances (credit cards, loans) sum, as a positive magnitude, into
+ * `debtCents`. Pass the net-worth-included, non-super accounts so a debt account
+ * surfaces as its own liability rather than sinking the cash total.
+ */
+export function splitCashAndDebt(accounts: readonly NetWorthAccountRow[]): CashDebtSplit {
+  let cashCents = 0
+  let debtCents = 0
+  for (const account of accounts) {
+    if (account.balance_cents < 0) {
+      debtCents -= account.balance_cents
+    } else {
+      cashCents += account.balance_cents
+    }
+  }
+  return { cashCents, debtCents }
+}
+
+/** The rows and settings a net-worth outcome is computed from. */
+export interface NetWorthComputeInput<A extends NetWorthAccountRow = NetWorthAccountRow> {
+  accounts: A[]
+  superProfiles: NetWorthSuperProfileRow[]
+  contributions: SuperContributionRow[]
+  taxProfiles: TaxProfileRow[]
+  helpDebts: HelpDebtRow[]
+  deductions: DeductionRow[]
+  members: readonly MemberRow[]
+  /** Equity grants already mapped to the plan's shape (`equityGrantToPlan`). */
+  planGrants: EquityGrant[]
+  /** Named liabilities (each member's HELP debt) subtracted from the total. */
+  liabilities: Liability[]
+  /** Equity holdings (vested grants and held shares) added to the total. */
+  equity: EquityHolding[]
+  /** The part of `equity` that is shares and ETFs already held, kept flat in the projection. */
+  heldEquityCents?: number
+  inflows: InflowRow[]
+  goals: NetWorthGoalRow[]
+  budgetLines: NetWorthLineRow[]
+  assumptions: RetirementAssumptions
+  /** The projection horizon in whole years. */
+  horizonYears: number
+  now: Date
+}
+
+/** A net-worth outcome: the accrual-adjusted accounts, the current total, and the projection. */
+export interface NetWorthComputeResult<A extends NetWorthAccountRow = NetWorthAccountRow> {
+  effectiveAccounts: A[]
+  totalCents: number
+  projection: NetWorthProjectionPoint[]
+}
+
+/**
+ * The current net worth and its forward projection from the household's rows.
+ * The effective super balances accrue the modelled contributions the inflows
+ * imply, so a sandbox inflow edit moves both the current total and the
+ * projection; goal and budget-line edits move the projection through the
+ * savings-goal contributions folded into it. Pure — the Net worth tab and the
+ * planning roll-up both call it, once per row set, so their figures agree by
+ * construction.
+ */
+export function computeNetWorth<A extends NetWorthAccountRow>({
+  accounts,
+  superProfiles,
+  contributions,
+  taxProfiles,
+  helpDebts,
+  deductions,
+  members,
+  planGrants,
+  liabilities,
+  equity,
+  heldEquityCents = 0,
+  inflows,
+  goals,
+  budgetLines,
+  assumptions,
+  horizonYears,
+  now,
+}: NetWorthComputeInput<A>): NetWorthComputeResult<A> {
+  const superIds = superAccountIds(superProfiles)
+  const netContributionByMember = netAnnualSuperContributionFromRows(
+    inflows,
+    contributions,
+    members,
+  )
+  const effectiveAccounts = accountsWithEffectiveSuperBalances(
+    accounts,
+    superProfiles,
+    netContributionByMember,
+    now,
+  )
+  const breakdown = netWorthBreakdown(effectiveAccounts, superIds)
+  const totalCents = netWorthBreakdown(effectiveAccounts, superIds, liabilities, equity).totalCents
+
+  const config = configsByYear[financialYearForDate(now)] ?? FY2027_CONFIG
+  const estimate = estimateHouseholdTaxFromRows(
+    inflows,
+    taxProfiles,
+    contributions,
+    helpDebts,
+    deductions,
+    config,
+    undefined,
+    members,
+  )
+  const helpNowCents = helpDebts.reduce((total, debt) => total + Math.max(0, debt.balance_cents), 0)
+  const helpCentsByYear = combinedHelpCentsByYear(
+    helpPayoffByMember(estimate, helpDebts, config, now).values(),
+    helpNowCents,
+    horizonYears,
+  )
+  const totalNetContributionCents = [...netContributionByMember.values()].reduce(
+    (total, cents) => total + cents,
+    0,
+  )
+  const balanceByAccountId = new Map(
+    effectiveAccounts.map((account) => [account.id, account.balance_cents]),
+  )
+  const savingsGoals = netWorthGoals(goals, budgetLines, balanceByAccountId)
+  const { cashCents, debtCents } = splitCashAndDebt(breakdown.otherAccounts)
+  // A home loan is split out of the accounts into its own liability, so its owed
+  // amount joins the projection's debt band alongside the negative-balance
+  // accounts and is held flat.
+  const homeLoanDebtCents = homeLoanLiabilities(effectiveAccounts).reduce(
+    (total, liability) => total + liability.balanceCents,
+    0,
+  )
+  const projection = projectNetWorth({
+    asOf: now,
+    horizonYears,
+    superInput: {
+      currentBalanceCents: breakdown.superTotalCents,
+      annualContributionCents: totalNetContributionCents,
+      nominalReturnRate: assumptions.expectedReturnPct / 100,
+      contributionGrowthRate: assumptions.contributionGrowthPct / 100,
+    },
+    otherCents: cashCents,
+    equityGrants: planGrants,
+    heldEquityCents,
+    helpCentsByYear,
+    savingsGoals,
+    debtCents: debtCents + homeLoanDebtCents,
+  })
+  return { effectiveAccounts, totalCents, projection }
+}
+
+/** The input of {@link netWorthOfRows}: every table the Net worth tab reads, and the settings. */
+export interface NetWorthRows<A extends NetWorthAccountRow = NetWorthAccountRow> {
+  accounts: A[]
+  superProfiles: NetWorthSuperProfileRow[]
+  contributions: SuperContributionRow[]
+  taxProfiles: TaxProfileRow[]
+  helpDebts: HelpDebtRow[]
+  deductions: DeductionRow[]
+  members: NetWorthMemberRow[]
+  inflows: InflowRow[]
+  goals: NetWorthGoalRow[]
+  budgetLines: NetWorthLineRow[]
+  equityGrants: NetWorthEquityGrantRow[]
+  equityExercises: GrantUnitsRow[]
+  equitySales: GrantUnitsRow[]
+  trades: TradeRow[]
+  /** The projection horizon option; `retirement` tracks the members' ages to the retirement age. */
+  horizon: ProjectionHorizonOption
+  /** Each member's age by member id, when known. */
+  ages?: Record<string, number>
+  /** The retirement assumptions; absent reads as `DEFAULT_ASSUMPTIONS`. */
+  assumptions?: RetirementAssumptions
+  now: Date
+}
+
+/** What the Net worth tab shows: its breakdown and the projection. */
+export interface NetWorthOutcome<A extends NetWorthAccountRow = NetWorthAccountRow> {
+  breakdown: NetWorthBreakdown<A>
+  projection: NetWorthProjectionPoint[]
+  /** The calendar year of the projection's first point. */
+  projectionBaseYear: number
+}
+
+/**
+ * The Net worth tab's figures from the household's rows: each member's HELP debt
+ * and every equity grant at its vested value as of `now`, held shares at the last
+ * traded price, then the accrual-adjusted breakdown and the projection.
+ */
+export function netWorthOfRows<A extends NetWorthAccountRow>(
+  rows: NetWorthRows<A>,
+): NetWorthOutcome<A> {
+  const { members, now } = rows
+  const assumptions = rows.assumptions ?? DEFAULT_ASSUMPTIONS
+  const liabilities: Liability[] = rows.helpDebts
+    .filter((debt) => debt.balance_cents > 0)
+    .map((debt) => ({
+      label: `${heldMemberName(members, debt.member_id)}'s HELP debt`,
+      balanceCents: debt.balance_cents,
+    }))
+  const toPlanGrant = (grant: NetWorthEquityGrantRow) =>
+    equityGrantToPlan(grant, rows.equityExercises, rows.equitySales)
+  const heldEquity = heldEquityHoldings(rows.trades, members)
+  const heldEquityCents = heldEquity.reduce((total, holding) => total + holding.valueCents, 0)
+  const equity: EquityHolding[] = [
+    ...rows.equityGrants
+      .map((grant) => ({
+        label: `${heldMemberName(members, grant.member_id)} — ${grant.label}`,
+        valueCents: grantValueCents(toPlanGrant(grant), now),
+      }))
+      .filter((holding) => holding.valueCents > 0),
+    ...heldEquity,
+  ]
+  const ages = rows.ages ?? {}
+  const horizonYears = resolveHorizonYears(
+    rows.horizon,
+    projectionHorizonYears(
+      members.map((member) => ages[member.id]).filter((age): age is number => age !== undefined),
+      assumptions.retirementAge,
+    ),
+  )
+  const { effectiveAccounts, projection } = computeNetWorth({
+    accounts: rows.accounts,
+    superProfiles: rows.superProfiles,
+    contributions: rows.contributions,
+    taxProfiles: rows.taxProfiles,
+    helpDebts: rows.helpDebts,
+    deductions: rows.deductions,
+    members,
+    planGrants: rows.equityGrants.map(toPlanGrant),
+    liabilities,
+    equity,
+    heldEquityCents,
+    inflows: rows.inflows,
+    goals: rows.goals,
+    budgetLines: rows.budgetLines,
+    assumptions,
+    horizonYears,
+    now,
+  })
+  return {
+    breakdown: netWorthBreakdown(
+      effectiveAccounts,
+      superAccountIds(rows.superProfiles),
+      liabilities,
+      equity,
+    ),
+    projection,
+    projectionBaseYear: now.getFullYear(),
+  }
+}

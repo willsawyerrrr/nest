@@ -1,7 +1,4 @@
-import { accruedBalanceCents } from '@nest/plan'
-import type { Account } from '../hooks/useAccounts'
 import type { SuperContributionKind } from '../hooks/useSuperContributions'
-import type { SuperProfile } from '../hooks/useSuperProfiles'
 
 /** Human-readable labels for each super-contribution kind, for forms and lists. */
 export const SUPER_CONTRIBUTION_KINDS: { value: SuperContributionKind; label: string }[] = [
@@ -20,145 +17,11 @@ export function superAccountName(fundName: string | null, memberName: string): s
   return trimmed ? trimmed : `${memberName} Super`
 }
 
-/** The set of account ids linked as a member's super balance, across all profiles. */
-export function superAccountIds(profiles: readonly SuperProfile[]): Set<string> {
-  return new Set(
-    profiles.map((profile) => profile.linked_account_id).filter((id): id is string => id !== null),
-  )
-}
-
-/**
- * Returns `accounts` with each super account's `balance_cents` replaced by its
- * effective balance today (baseline + accrued contributions for the account's
- * member). Non-super accounts, and super accounts whose profile has no as-of
- * date, are returned unchanged.
- */
-export function accountsWithEffectiveSuperBalances(
-  accounts: readonly Account[],
-  profiles: readonly SuperProfile[],
-  netContributionByMember: ReadonlyMap<string, number>,
-  today: Date,
-): Account[] {
-  const profileByAccountId = new Map(
-    profiles
-      .filter((profile) => profile.linked_account_id !== null)
-      .map((profile) => [profile.linked_account_id as string, profile]),
-  )
-  return accounts.map((account) => {
-    const profile = profileByAccountId.get(account.id)
-    if (!profile) {
-      return account
-    }
-    return {
-      ...account,
-      balance_cents: accruedBalanceCents(
-        account.balance_cents,
-        profile.balance_as_of,
-        netContributionByMember.get(profile.member_id) ?? 0,
-        today,
-      ),
-    }
-  })
-}
-
-/** A named liability that reduces net worth, e.g. a member's HELP debt. */
-export interface Liability {
-  label: string
-  balanceCents: number
-}
-
-/**
- * The amount owed on a home-loan account, as a positive figure. Up reports a
- * home loan's balance as a negative number — the amount still owing — so the
- * debt is its magnitude.
- */
-export function homeLoanOwedCents(account: Pick<Account, 'balance_cents'>): number {
-  return Math.abs(account.balance_cents)
-}
-
-/**
- * Each home-loan account as a named liability, its balance the positive amount
- * owed. Accounts flagged `exclude_from_net_worth` are left out, like any account.
- */
-export function homeLoanLiabilities(accounts: readonly Account[]): Liability[] {
-  return accounts
-    .filter((account) => account.type === 'home_loan' && !account.exclude_from_net_worth)
-    .map((account) => ({ label: account.name, balanceCents: homeLoanOwedCents(account) }))
-}
-
-/**
- * A named equity holding that adds to net worth: the current vested value of a
- * member's equity grant, already valued as of the reporting date.
- */
-export interface EquityHolding {
-  label: string
-  valueCents: number
-}
-
-/**
- * Net worth split into super vs other accounts, equity holdings, and
- * liabilities, each with a subtotal and a grand total, alongside the accounts the
- * household has excluded from net-worth tracking (surfaced so they can be toggled
- * back, never counted in the totals). The grand total is assets (super, other,
- * and vested equity) less liabilities.
- */
-export interface NetWorthBreakdown {
-  superAccounts: Account[]
-  otherAccounts: Account[]
-  excludedAccounts: Account[]
-  equityHoldings: EquityHolding[]
-  liabilities: Liability[]
-  superTotalCents: number
-  otherTotalCents: number
-  equityTotalCents: number
-  liabilitiesTotalCents: number
-  totalCents: number
-}
-
-/** The sum of every account's `balance_cents`. */
-function sumBalances(accounts: readonly Account[]): number {
-  return accounts.reduce((total, account) => total + account.balance_cents, 0)
-}
-
-/**
- * Splits the included accounts into super accounts (those whose id is a
- * `super_account_id`) and everything else, with per-group subtotals. A home-loan
- * account is not an "other" account: it becomes a named liability (the amount
- * owed), listed ahead of the supplied `liabilities`. Accounts flagged
- * `exclude_from_net_worth` are collected separately and left out of every
- * subtotal and the total. The grand total is assets (super, other accounts, and
- * the supplied vested `equityHoldings`) less the liabilities (the home loans and
- * the supplied ones, e.g. each member's HELP debt).
- */
-export function netWorthBreakdown(
-  accounts: readonly Account[],
-  superIds: ReadonlySet<string>,
-  liabilities: readonly Liability[] = [],
-  equityHoldings: readonly EquityHolding[] = [],
-): NetWorthBreakdown {
-  const excludedAccounts = accounts.filter((account) => account.exclude_from_net_worth)
-  const includedAccounts = accounts.filter((account) => !account.exclude_from_net_worth)
-  const superAccounts = includedAccounts.filter((account) => superIds.has(account.id))
-  const nonSuperAccounts = includedAccounts.filter((account) => !superIds.has(account.id))
-  const otherAccounts = nonSuperAccounts.filter((account) => account.type !== 'home_loan')
-  const allLiabilities = [...homeLoanLiabilities(nonSuperAccounts), ...liabilities]
-  const superTotalCents = sumBalances(superAccounts)
-  const otherTotalCents = sumBalances(otherAccounts)
-  const equityTotalCents = equityHoldings.reduce((total, holding) => total + holding.valueCents, 0)
-  const liabilitiesTotalCents = allLiabilities.reduce(
-    (total, liability) => total + liability.balanceCents,
-    0,
-  )
-  return {
-    superAccounts,
-    otherAccounts,
-    excludedAccounts,
-    equityHoldings: [...equityHoldings],
-    liabilities: allLiabilities,
-    superTotalCents,
-    otherTotalCents,
-    equityTotalCents,
-    liabilitiesTotalCents,
-    totalCents: superTotalCents + otherTotalCents + equityTotalCents - liabilitiesTotalCents,
-  }
-}
+export {
+  accountsWithEffectiveSuperBalances,
+  homeLoanLiabilities,
+  homeLoanOwedCents,
+  netWorthBreakdown,
+  superAccountIds,
+} from '@nest/household'
+export type { EquityHolding, Liability, NetWorthBreakdown } from '@nest/household'

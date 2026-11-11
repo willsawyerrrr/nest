@@ -1,0 +1,1590 @@
+[
+  {
+    "name": "a two-member household, 10y",
+    "now": "2026-12-01T00:00:00Z",
+    "horizon": "10y",
+    "rows": {
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1988-09-15",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "accounts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "Bills",
+          "type": "transaction",
+          "balance_cents": 420000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a2",
+          "name": "Emergency",
+          "type": "savings",
+          "balance_cents": 1800000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-1",
+          "owner_member_id": null,
+          "source": "up"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a3",
+          "name": "Ada Super",
+          "type": "other",
+          "balance_cents": 9200000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a4",
+          "name": "Ben Super",
+          "type": "other",
+          "balance_cents": 6150000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a5",
+          "name": "Home loan",
+          "type": "home_loan",
+          "balance_cents": -41000000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-2",
+          "owner_member_id": null,
+          "source": "up"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a6",
+          "name": "Credit card",
+          "type": "credit",
+          "balance_cents": -125000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a7",
+          "name": "Old savings",
+          "type": "savings",
+          "balance_cents": 330000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": true,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a8",
+          "name": "Gone account",
+          "type": "savings",
+          "balance_cents": 60000,
+          "currency": "AUD",
+          "deleted_from_source_at": "2026-10-01T00:00:00Z",
+          "exclude_from_net_worth": false,
+          "external_id": "up-3",
+          "owner_member_id": null,
+          "source": "up"
+        }
+      ],
+      "superProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "fund_name": "Aus Super",
+          "linked_account_id": "a3",
+          "balance_as_of": "2026-07-01",
+          "carry_forward_cap_cents": 0,
+          "sg_rate_override": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "fund_name": null,
+          "linked_account_id": "a4",
+          "balance_as_of": null,
+          "carry_forward_cap_cents": 0,
+          "sg_rate_override": null
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sc1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "amount",
+          "amount_cents": 30000,
+          "percent_bp": null,
+          "frequency": "monthly",
+          "interval_count": null,
+          "fhss_eligible": false,
+          "contributor_member_id": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tp2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "hd1",
+          "member_id": "m2",
+          "balance_cents": 2140000
+        }
+      ],
+      "deductions": [],
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "member_id": "m1",
+          "name": "Salary",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "amount_cents": 13000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "pay_anchor_date": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "member_id": "m2",
+          "name": "Salary",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "amount_cents": 9500000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "pay_anchor_date": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1200000,
+          "current_balance_cents": 200000,
+          "annual_interest_bps": null,
+          "linked_account_id": null,
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g2",
+          "name": "Rainy day",
+          "target_amount_cents": 2500000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "a2",
+          "planned_contribution_cents": null,
+          "queue_position": 0,
+          "target_date": null
+        }
+      ],
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Holiday fund",
+          "line_group": "savings",
+          "amount_cents": 25000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "equityGrants": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "eg1",
+          "member_id": "m1",
+          "label": "Startup options",
+          "instrument_type": "option",
+          "quantity": 40000,
+          "grant_date": "2024-07-01",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "monthly",
+          "strike_price_cents": 50,
+          "price_per_share_cents": 250,
+          "price_as_of": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "eg2",
+          "member_id": "m2",
+          "label": "Granted shares",
+          "instrument_type": "share",
+          "quantity": 10000,
+          "grant_date": "2024-07-01",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "monthly",
+          "strike_price_cents": null,
+          "price_per_share_cents": 180,
+          "price_as_of": null
+        }
+      ],
+      "equityExercises": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "ex1",
+          "grant_id": "eg1",
+          "member_id": "m1",
+          "exercised_on": "2026-03-01",
+          "quantity": 5000,
+          "strike_price_cents": 50,
+          "market_price_per_share_cents": 200
+        }
+      ],
+      "equitySales": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "es1",
+          "grant_id": "eg1",
+          "member_id": "m1",
+          "sold_on": "2026-06-01",
+          "quantity": 1000,
+          "price_per_share_cents": 220,
+          "fee_cents": 0
+        }
+      ],
+      "trades": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2025-02-03",
+          "units": 120,
+          "price_per_unit_microdollars": 95500000,
+          "fee_cents": 995,
+          "source": "manual",
+          "document_id": null,
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m2",
+          "ticker": "NDQ",
+          "side": "buy",
+          "traded_on": "2025-02-03",
+          "units": 40,
+          "price_per_unit_microdollars": 48250000,
+          "fee_cents": 995,
+          "source": "manual",
+          "document_id": null,
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t3",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "sell",
+          "traded_on": "2026-05-01",
+          "units": 20,
+          "price_per_unit_microdollars": 101000000,
+          "fee_cents": 995,
+          "source": "manual",
+          "document_id": null,
+          "external_id": null
+        }
+      ]
+    },
+    "expected": {
+      "breakdown": {
+        "superAccounts": [
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a3",
+            "name": "Ada Super",
+            "type": "other",
+            "balance_cents": 9884099,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a4",
+            "name": "Ben Super",
+            "type": "other",
+            "balance_cents": 6150000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          }
+        ],
+        "otherAccounts": [
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a1",
+            "name": "Bills",
+            "type": "transaction",
+            "balance_cents": 420000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a2",
+            "name": "Emergency",
+            "type": "savings",
+            "balance_cents": 1800000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": "up-1",
+            "owner_member_id": null,
+            "source": "up"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a6",
+            "name": "Credit card",
+            "type": "credit",
+            "balance_cents": -125000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a8",
+            "name": "Gone account",
+            "type": "savings",
+            "balance_cents": 60000,
+            "currency": "AUD",
+            "deleted_from_source_at": "2026-10-01T00:00:00Z",
+            "exclude_from_net_worth": false,
+            "external_id": "up-3",
+            "owner_member_id": null,
+            "source": "up"
+          }
+        ],
+        "excludedAccounts": [
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a7",
+            "name": "Old savings",
+            "type": "savings",
+            "balance_cents": 330000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": true,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          }
+        ],
+        "equityHoldings": [
+          {
+            "label": "Ada — Startup options",
+            "valueCents": 4833200
+          },
+          {
+            "label": "Ben — Granted shares",
+            "valueCents": 1087380
+          },
+          {
+            "label": "Ada — VAS",
+            "valueCents": 1010000
+          },
+          {
+            "label": "Ben — NDQ",
+            "valueCents": 193000
+          }
+        ],
+        "liabilities": [
+          {
+            "label": "Home loan",
+            "balanceCents": 41000000
+          },
+          {
+            "label": "Ben's HELP debt",
+            "balanceCents": 2140000
+          }
+        ],
+        "superTotalCents": 16034099,
+        "otherTotalCents": 2155000,
+        "equityTotalCents": 7123580,
+        "liabilitiesTotalCents": 43140000,
+        "totalCents": -17827321
+      },
+      "projection": [
+        {
+          "year": 0,
+          "superCents": 16034099,
+          "otherCents": 2280000,
+          "equityCents": 7123580,
+          "helpCents": 2140000,
+          "debtCents": 41125000,
+          "totalCents": -17827321
+        },
+        {
+          "year": 1,
+          "superCents": 19757486,
+          "otherCents": 2930000,
+          "equityCents": 9573580,
+          "helpCents": 1832820,
+          "debtCents": 41125000,
+          "totalCents": -10696754
+        },
+        {
+          "year": 2,
+          "superCents": 23741510,
+          "otherCents": 3605000,
+          "equityCents": 11003000,
+          "helpCents": 1514889,
+          "debtCents": 41125000,
+          "totalCents": -4290379
+        },
+        {
+          "year": 3,
+          "superCents": 28004416,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 1185830,
+          "debtCents": 41125000,
+          "totalCents": 676586
+        },
+        {
+          "year": 4,
+          "superCents": 32565725,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 845254,
+          "debtCents": 41125000,
+          "totalCents": 5578471
+        },
+        {
+          "year": 5,
+          "superCents": 37446325,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 492758,
+          "debtCents": 41125000,
+          "totalCents": 10811567
+        },
+        {
+          "year": 6,
+          "superCents": 42668568,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 127925,
+          "debtCents": 41125000,
+          "totalCents": 16398643
+        },
+        {
+          "year": 7,
+          "superCents": 48256368,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 22114368
+        },
+        {
+          "year": 8,
+          "superCents": 54235314,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 28093314
+        },
+        {
+          "year": 9,
+          "superCents": 60632786,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 34490786
+        },
+        {
+          "year": 10,
+          "superCents": 67478081,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 41336081
+        }
+      ],
+      "projectionBaseYear": 2026
+    }
+  },
+  {
+    "name": "a two-member household, retirement",
+    "now": "2026-12-01T00:00:00Z",
+    "horizon": "retirement",
+    "rows": {
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1988-09-15",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "accounts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "Bills",
+          "type": "transaction",
+          "balance_cents": 420000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a2",
+          "name": "Emergency",
+          "type": "savings",
+          "balance_cents": 1800000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-1",
+          "owner_member_id": null,
+          "source": "up"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a3",
+          "name": "Ada Super",
+          "type": "other",
+          "balance_cents": 9200000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a4",
+          "name": "Ben Super",
+          "type": "other",
+          "balance_cents": 6150000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a5",
+          "name": "Home loan",
+          "type": "home_loan",
+          "balance_cents": -41000000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-2",
+          "owner_member_id": null,
+          "source": "up"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a6",
+          "name": "Credit card",
+          "type": "credit",
+          "balance_cents": -125000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a7",
+          "name": "Old savings",
+          "type": "savings",
+          "balance_cents": 330000,
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": true,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a8",
+          "name": "Gone account",
+          "type": "savings",
+          "balance_cents": 60000,
+          "currency": "AUD",
+          "deleted_from_source_at": "2026-10-01T00:00:00Z",
+          "exclude_from_net_worth": false,
+          "external_id": "up-3",
+          "owner_member_id": null,
+          "source": "up"
+        }
+      ],
+      "superProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "fund_name": "Aus Super",
+          "linked_account_id": "a3",
+          "balance_as_of": "2026-07-01",
+          "carry_forward_cap_cents": 0,
+          "sg_rate_override": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sp2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "fund_name": null,
+          "linked_account_id": "a4",
+          "balance_as_of": null,
+          "carry_forward_cap_cents": 0,
+          "sg_rate_override": null
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "sc1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "amount",
+          "amount_cents": 30000,
+          "percent_bp": null,
+          "frequency": "monthly",
+          "interval_count": null,
+          "fhss_eligible": false,
+          "contributor_member_id": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tp1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tp2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "hd1",
+          "member_id": "m2",
+          "balance_cents": 2140000
+        }
+      ],
+      "deductions": [],
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "member_id": "m1",
+          "name": "Salary",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "amount_cents": 13000000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "pay_anchor_date": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "member_id": "m2",
+          "name": "Salary",
+          "taxable": true,
+          "attracts_super": true,
+          "type": "salary",
+          "schedule": "annual",
+          "interval_count": null,
+          "pay_schedule": null,
+          "pay_interval_count": null,
+          "arrives_every_pay_period": true,
+          "amount_cents": 9500000,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "pay_anchor_date": null,
+          "paid_on": null,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1200000,
+          "current_balance_cents": 200000,
+          "annual_interest_bps": null,
+          "linked_account_id": null,
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g2",
+          "name": "Rainy day",
+          "target_amount_cents": 2500000,
+          "current_balance_cents": 0,
+          "annual_interest_bps": null,
+          "linked_account_id": "a2",
+          "planned_contribution_cents": null,
+          "queue_position": 0,
+          "target_date": null
+        }
+      ],
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Holiday fund",
+          "line_group": "savings",
+          "amount_cents": 25000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "equityGrants": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "eg1",
+          "member_id": "m1",
+          "label": "Startup options",
+          "instrument_type": "option",
+          "quantity": 40000,
+          "grant_date": "2024-07-01",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "monthly",
+          "strike_price_cents": 50,
+          "price_per_share_cents": 250,
+          "price_as_of": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "eg2",
+          "member_id": "m2",
+          "label": "Granted shares",
+          "instrument_type": "share",
+          "quantity": 10000,
+          "grant_date": "2024-07-01",
+          "cliff_months": 12,
+          "vesting_period_months": 48,
+          "vesting_frequency": "monthly",
+          "strike_price_cents": null,
+          "price_per_share_cents": 180,
+          "price_as_of": null
+        }
+      ],
+      "equityExercises": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "ex1",
+          "grant_id": "eg1",
+          "member_id": "m1",
+          "exercised_on": "2026-03-01",
+          "quantity": 5000,
+          "strike_price_cents": 50,
+          "market_price_per_share_cents": 200
+        }
+      ],
+      "equitySales": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "es1",
+          "grant_id": "eg1",
+          "member_id": "m1",
+          "sold_on": "2026-06-01",
+          "quantity": 1000,
+          "price_per_share_cents": 220,
+          "fee_cents": 0
+        }
+      ],
+      "trades": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "buy",
+          "traded_on": "2025-02-03",
+          "units": 120,
+          "price_per_unit_microdollars": 95500000,
+          "fee_cents": 995,
+          "source": "manual",
+          "document_id": null,
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m2",
+          "ticker": "NDQ",
+          "side": "buy",
+          "traded_on": "2025-02-03",
+          "units": 40,
+          "price_per_unit_microdollars": 48250000,
+          "fee_cents": 995,
+          "source": "manual",
+          "document_id": null,
+          "external_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t3",
+          "member_id": "m1",
+          "ticker": "VAS",
+          "side": "sell",
+          "traded_on": "2026-05-01",
+          "units": 20,
+          "price_per_unit_microdollars": 101000000,
+          "fee_cents": 995,
+          "source": "manual",
+          "document_id": null,
+          "external_id": null
+        }
+      ]
+    },
+    "expected": {
+      "breakdown": {
+        "superAccounts": [
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a3",
+            "name": "Ada Super",
+            "type": "other",
+            "balance_cents": 9884099,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a4",
+            "name": "Ben Super",
+            "type": "other",
+            "balance_cents": 6150000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          }
+        ],
+        "otherAccounts": [
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a1",
+            "name": "Bills",
+            "type": "transaction",
+            "balance_cents": 420000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a2",
+            "name": "Emergency",
+            "type": "savings",
+            "balance_cents": 1800000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": "up-1",
+            "owner_member_id": null,
+            "source": "up"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a6",
+            "name": "Credit card",
+            "type": "credit",
+            "balance_cents": -125000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": false,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          },
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a8",
+            "name": "Gone account",
+            "type": "savings",
+            "balance_cents": 60000,
+            "currency": "AUD",
+            "deleted_from_source_at": "2026-10-01T00:00:00Z",
+            "exclude_from_net_worth": false,
+            "external_id": "up-3",
+            "owner_member_id": null,
+            "source": "up"
+          }
+        ],
+        "excludedAccounts": [
+          {
+            "household_id": "h1",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "id": "a7",
+            "name": "Old savings",
+            "type": "savings",
+            "balance_cents": 330000,
+            "currency": "AUD",
+            "deleted_from_source_at": null,
+            "exclude_from_net_worth": true,
+            "external_id": null,
+            "owner_member_id": null,
+            "source": "manual"
+          }
+        ],
+        "equityHoldings": [
+          {
+            "label": "Ada — Startup options",
+            "valueCents": 4833200
+          },
+          {
+            "label": "Ben — Granted shares",
+            "valueCents": 1087380
+          },
+          {
+            "label": "Ada — VAS",
+            "valueCents": 1010000
+          },
+          {
+            "label": "Ben — NDQ",
+            "valueCents": 193000
+          }
+        ],
+        "liabilities": [
+          {
+            "label": "Home loan",
+            "balanceCents": 41000000
+          },
+          {
+            "label": "Ben's HELP debt",
+            "balanceCents": 2140000
+          }
+        ],
+        "superTotalCents": 16034099,
+        "otherTotalCents": 2155000,
+        "equityTotalCents": 7123580,
+        "liabilitiesTotalCents": 43140000,
+        "totalCents": -17827321
+      },
+      "projection": [
+        {
+          "year": 0,
+          "superCents": 16034099,
+          "otherCents": 2280000,
+          "equityCents": 7123580,
+          "helpCents": 2140000,
+          "debtCents": 41125000,
+          "totalCents": -17827321
+        },
+        {
+          "year": 1,
+          "superCents": 19757486,
+          "otherCents": 2930000,
+          "equityCents": 9573580,
+          "helpCents": 1832820,
+          "debtCents": 41125000,
+          "totalCents": -10696754
+        },
+        {
+          "year": 2,
+          "superCents": 23741510,
+          "otherCents": 3605000,
+          "equityCents": 11003000,
+          "helpCents": 1514889,
+          "debtCents": 41125000,
+          "totalCents": -4290379
+        },
+        {
+          "year": 3,
+          "superCents": 28004416,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 1185830,
+          "debtCents": 41125000,
+          "totalCents": 676586
+        },
+        {
+          "year": 4,
+          "superCents": 32565725,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 845254,
+          "debtCents": 41125000,
+          "totalCents": 5578471
+        },
+        {
+          "year": 5,
+          "superCents": 37446325,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 492758,
+          "debtCents": 41125000,
+          "totalCents": 10811567
+        },
+        {
+          "year": 6,
+          "superCents": 42668568,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 127925,
+          "debtCents": 41125000,
+          "totalCents": 16398643
+        },
+        {
+          "year": 7,
+          "superCents": 48256368,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 22114368
+        },
+        {
+          "year": 8,
+          "superCents": 54235314,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 28093314
+        },
+        {
+          "year": 9,
+          "superCents": 60632786,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 34490786
+        },
+        {
+          "year": 10,
+          "superCents": 67478081,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 41336081
+        },
+        {
+          "year": 11,
+          "superCents": 74802546,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 48660546
+        },
+        {
+          "year": 12,
+          "superCents": 82639725,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 56497725
+        },
+        {
+          "year": 13,
+          "superCents": 91025505,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 64883505
+        },
+        {
+          "year": 14,
+          "superCents": 99998291,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 73856291
+        },
+        {
+          "year": 15,
+          "superCents": 109599171,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 83457171
+        },
+        {
+          "year": 16,
+          "superCents": 119872113,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 93730113
+        },
+        {
+          "year": 17,
+          "superCents": 130864161,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 104722161
+        },
+        {
+          "year": 18,
+          "superCents": 142625652,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 116483652
+        },
+        {
+          "year": 19,
+          "superCents": 155210448,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 129068448
+        },
+        {
+          "year": 20,
+          "superCents": 168676179,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 142534179
+        },
+        {
+          "year": 21,
+          "superCents": 183084512,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 156942512
+        },
+        {
+          "year": 22,
+          "superCents": 198501428,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 172359428
+        },
+        {
+          "year": 23,
+          "superCents": 214997528,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 188855528
+        },
+        {
+          "year": 24,
+          "superCents": 232648355,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 206506355
+        },
+        {
+          "year": 25,
+          "superCents": 251534739,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 225392739
+        },
+        {
+          "year": 26,
+          "superCents": 271743171,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 245601171
+        },
+        {
+          "year": 27,
+          "superCents": 293366193,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 267224193
+        },
+        {
+          "year": 28,
+          "superCents": 316502827,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 290360827
+        },
+        {
+          "year": 29,
+          "superCents": 341259024,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 315117024
+        },
+        {
+          "year": 30,
+          "superCents": 367748156,
+          "otherCents": 3980000,
+          "equityCents": 11003000,
+          "helpCents": 0,
+          "debtCents": 41125000,
+          "totalCents": 341606156
+        }
+      ],
+      "projectionBaseYear": 2026
+    }
+  }
+]

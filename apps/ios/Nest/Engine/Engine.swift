@@ -28,6 +28,7 @@ actor Engine {
         case deductionFigures
         case financialYearOptions
         case summariseEquity
+        case netWorth
     }
 
     enum Failure: Error, Equatable {
@@ -164,5 +165,10 @@ actor Engine {
     /// gross, exercise-cost and net values.
     func summariseEquity(_ input: some Encodable) throws -> [GrantFigures] {
         try call(.summariseEquity, input)
+    }
+
+    /// The Net worth screen's breakdown and year-by-year projection.
+    func netWorth(_ input: some Encodable) throws -> NetWorthOutcome {
+        try call(.netWorth, input)
     }
 }

@@ -236,6 +236,48 @@ rows and figures into `apps/ios/NestTests/Fixtures/deductions-parity.json`.
 `DeductionsParityTests` runs the bundled engine and the screen's presentation over the same
 rows and asserts identical results.
 
+## Net worth
+
+`Route.netWorth` is native (`NetWorthScreen`), laid out as the PWA's Net worth tab: the
+page title, an Edit / Done button (shown when an other or excluded account exists), the
+Total net worth card, the collapsible **Projected forward** card with the projected end
+figure under it, then the Super, Other accounts, Equity (with its valuation note),
+Liabilities and collapsed Excluded from net worth groups. An account is a dense row (name,
+balance, a "Deleted at source" pill and caption for one its source dropped); the glyphs
+and chart bands use the PWA's net worth hues (`NetWorthColor`). Equity lists each grant at
+its vested value and each held share or ETF at its last traded price; liabilities show the
+home loans and each member's HELP debt as negative figures.
+
+Rows are `accounts_with_balance` (by name), `members`, `super_profile`,
+`super_contribution`, `tax_profile` and `deduction` (scoped to the financial year),
+`help_debt`, `inflows`, `savings_goal`, `budget_line`, `equity_grant`, `equity_exercise`,
+`equity_sale` and `trade`. The figures come from the engine's `netWorth`
+(`netWorthOfRows` in `@nest/household`, which the PWA's `computeNetWorth` and
+`NetWorthSection` use too): the super balances accrued by the contributions the inflows
+imply, each grant valued by `@nest/plan`, held shares valued by `@nest/tax`, the HELP
+payoff schedule, and `projectNetWorth` year by year. `NetWorthPresentation` only words and
+groups them. Under planning mode the sandboxed inflows, goals and budget lines are
+computed and the real rows are computed again, so the total and the projected end figure
+read `real → proposed (±change)`.
+
+The projection chart (Swift Charts: stacked areas for super, cash and other, and equity
+when any vests, with the net worth line) has the horizon control (5y, 10y, 20y, 30y, To
+retirement), persisted in `UserDefaults` under `net-worth-projection-horizon`; touching the
+chart shows that year's itemised assets and liabilities, as the PWA's tooltip does. The
+retirement assumptions and member ages live in the web app's storage, so the screen uses
+the default assumptions and no ages, which makes To retirement 30 years.
+
+In Edit mode an other or excluded account's eye control saves
+`accounts.exclude_from_net_worth` (a household-wide flag). Removing an account its source
+dropped stays in the web app.
+
+`apps/pwa/src/lib/netWorthParity.test.ts` assembles the Net worth tab's figures the way
+`NetWorthSection` does (a household with super, a home loan, a credit card, an excluded
+and a dropped account, a HELP debt, option and share grants with an exercise and a sale,
+and trades) and snapshots rows and figures into
+`apps/ios/NestTests/Fixtures/net-worth-parity.json`; `NetWorthParityTests` runs the same
+rows through `NetWorthRows.input` and the bundled engine and asserts identical figures.
+
 ## Planning mode
 
 Planning mode is native: `Route.planning` (`PlanningScreen`) and

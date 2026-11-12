@@ -11,3 +11,5 @@
 export * from './rows.ts'
 export * from './summary.ts'
 export * from './tax.ts'
+export * from './netWorth.ts'
+export * from './netWorthEquity.ts'

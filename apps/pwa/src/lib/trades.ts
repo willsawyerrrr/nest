@@ -7,11 +7,8 @@ import {
   type Holding,
   type UnmatchedSale,
 } from '@nest/tax'
-import type { Member } from '../hooks/useMembers'
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import type { TradeSide } from './domain'
-import { memberName } from './members'
-import type { EquityHolding } from './super'
 import { toTradeInputs } from './tax'
 
 /** Human-readable labels for each trade side, for the form and lists. */
@@ -63,23 +60,7 @@ export function memberPortfolio(trades: readonly TradeRow[], memberId: string): 
   }
 }
 
-/**
- * Every member's holdings as net-worth equity holdings, valued at the last traded
- * price: one entry per member and ticker with a positive value.
- */
-export function heldEquityHoldings(
-  trades: readonly TradeRow[],
-  members: Member[],
-): EquityHolding[] {
-  const inputs = toTradeInputs(trades)
-  const prices = lastPriceByTicker(inputs)
-  return matchTrades(inputs)
-    .holdings.map((holding) => ({
-      label: `${memberName(members, holding.memberId)} — ${holding.ticker}`,
-      valueCents: holdingValueCents(holding, prices.get(holding.ticker)!),
-    }))
-    .filter((holding) => holding.valueCents > 0)
-}
+export { heldEquityHoldings } from '@nest/household'
 
 /**
  * The existing trade a candidate looks like a repeat of — same member, ticker,

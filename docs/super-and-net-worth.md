@@ -57,6 +57,9 @@ persisted in localStorage, not stored in the database.
 
 ## Net worth tab
 
+The totals and the projection are computed by `netWorthOfRows` in `@nest/household`, shared
+by the PWA and the native app (see [`native-screens.md`](native-screens.md#net-worth)).
+
 The Net worth tab totals assets less liabilities. Assets are the `balance_cents`
 of every account the member can see, split into Super vs Other accounts, plus the
 current vested value of each equity grant (from the `equity_grant` table — see the

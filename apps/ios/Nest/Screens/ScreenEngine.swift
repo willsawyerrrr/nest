@@ -98,4 +98,10 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func netWorth(_ input: NetWorthInput) async throws -> NetWorthOutcome {
+        do { return try await shared.value.netWorth(input) } catch {
+            throw NestError(.unknown)
+        }
+    }
 }

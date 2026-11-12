@@ -11,9 +11,7 @@ import {
 } from '@nest/tax'
 import type { TradeInput, TradeRow } from '../hooks/useTrades'
 import type { TradeSide } from './domain'
-import { memberName } from './members'
 import { formatCents, formatUnitPrice } from './money'
-import type { EquityHolding } from './super'
 import { toTradeInputs } from './tax'
 
 /** Human-readable labels for each trade side, for the form and lists. */

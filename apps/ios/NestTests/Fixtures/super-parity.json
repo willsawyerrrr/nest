@@ -1,0 +1,303 @@
+[
+  {
+    "name": "two members, caps exceeded, a co-contribution and a true-up",
+    "rows": {
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "name": "Ada salary",
+          "type": "salary",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 15000000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "name": "Ben wage",
+          "type": "wage",
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": null,
+          "interval_count": null,
+          "hourly_rate_cents": 2800,
+          "hours_per_period": 60,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "profiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "p1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "fund_name": "AusSuper",
+          "linked_account_id": "a1",
+          "balance_as_of": "2026-07-01",
+          "carry_forward_cap_cents": 500000,
+          "sg_rate_override": null
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "percent",
+          "amount_cents": null,
+          "percent_bp": 1050,
+          "frequency": "annual",
+          "interval_count": null,
+          "fhss_eligible": false,
+          "contributor_member_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c2",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "personal_deductible",
+          "mode": "amount",
+          "amount_cents": 250000,
+          "percent_bp": null,
+          "frequency": "monthly",
+          "interval_count": null,
+          "fhss_eligible": false,
+          "contributor_member_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c3",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "kind": "personal_non_concessional",
+          "mode": "amount",
+          "amount_cents": 14000000,
+          "percent_bp": null,
+          "frequency": "annual",
+          "interval_count": null,
+          "fhss_eligible": false,
+          "contributor_member_id": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c4",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "kind": "personal_non_concessional",
+          "mode": "amount",
+          "amount_cents": 100000,
+          "percent_bp": null,
+          "frequency": "annual",
+          "interval_count": null,
+          "fhss_eligible": false,
+          "contributor_member_id": null
+        }
+      ],
+      "accounts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "a1 fund",
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": null,
+          "owner_member_id": null,
+          "source": "manual",
+          "type": "other",
+          "balance_cents": 25000000
+        }
+      ]
+    },
+    "ages": {
+      "m1": 35
+    },
+    "assumptions": {
+      "retirementAge": 67,
+      "expectedReturnPct": 7.5,
+      "inflationPct": 2.5,
+      "contributionGrowthPct": 1.5
+    },
+    "expected": {
+      "summary": {
+        "preservationAge": 60,
+        "defaultAssumptions": {
+          "retirementAge": 60,
+          "expectedReturnPct": 7,
+          "inflationPct": 2.5,
+          "contributionGrowthPct": 0
+        },
+        "members": [
+          {
+            "memberId": "m1",
+            "caps": {
+              "concessionalCents": 4575000,
+              "concessionalCapCents": 3750000,
+              "concessionalOverCap": true,
+              "nonConcessionalCents": 14000000,
+              "nonConcessionalCapCents": 13000000,
+              "nonConcessionalOverCap": true,
+              "coContributionCents": 0
+            },
+            "netAnnualContributionCents": 19418750,
+            "effectiveBalanceCents": 33139914
+          },
+          {
+            "memberId": "m2",
+            "caps": {
+              "concessionalCents": 0,
+              "concessionalCapCents": 3250000,
+              "concessionalOverCap": false,
+              "nonConcessionalCents": 100000,
+              "nonConcessionalCapCents": 13000000,
+              "nonConcessionalOverCap": false,
+              "coContributionCents": 50000
+            },
+            "netAnnualContributionCents": 595536,
+            "effectiveBalanceCents": 0
+          }
+        ]
+      },
+      "projections": [
+        {
+          "nominalCents": 3088585451,
+          "realCents": 1401509122,
+          "yearsToRetirement": 32
+        },
+        null
+      ]
+    }
+  },
+  {
+    "name": "a member with no profile and no contributions",
+    "rows": {
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": null,
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        }
+      ],
+      "inflows": [],
+      "profiles": [],
+      "contributions": [],
+      "accounts": []
+    },
+    "ages": {
+      "m1": 70
+    },
+    "assumptions": {
+      "retirementAge": 67,
+      "expectedReturnPct": 7.5,
+      "inflationPct": 2.5,
+      "contributionGrowthPct": 1.5
+    },
+    "expected": {
+      "summary": {
+        "preservationAge": 60,
+        "defaultAssumptions": {
+          "retirementAge": 60,
+          "expectedReturnPct": 7,
+          "inflationPct": 2.5,
+          "contributionGrowthPct": 0
+        },
+        "members": [
+          {
+            "memberId": "m1",
+            "caps": null,
+            "netAnnualContributionCents": 0,
+            "effectiveBalanceCents": 0
+          }
+        ]
+      },
+      "projections": [
+        {
+          "nominalCents": 0,
+          "realCents": 0,
+          "yearsToRetirement": 0
+        }
+      ]
+    }
+  }
+]

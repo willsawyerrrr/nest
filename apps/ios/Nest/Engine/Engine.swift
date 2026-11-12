@@ -17,6 +17,8 @@ actor Engine {
         case projectGoalQueue
         case summariseBreakdowns
         case budgetOverview
+        case summariseSuper
+        case projectSuper
         case summariseInflows
         case previewInflowDraft
         case taxScreen
@@ -170,5 +172,15 @@ actor Engine {
     /// The Net worth screen's breakdown and year-by-year projection.
     func netWorth(_ input: some Encodable) throws -> NetWorthOutcome {
         try call(.netWorth, input)
+    }
+
+    /// Each member's super cap usage, net annual contribution and effective balance.
+    func summariseSuper(_ input: some Encodable) throws -> SuperSummary {
+        try call(.summariseSuper, input)
+    }
+
+    /// Each entry's projected balance at retirement; `nil` where no age was given.
+    func projectSuper(_ input: some Encodable) throws -> [SuperProjection?] {
+        try call(.projectSuper, input)
     }
 }

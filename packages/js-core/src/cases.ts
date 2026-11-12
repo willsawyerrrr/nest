@@ -12,6 +12,7 @@ import {
   type TaxParityCase,
 } from '../../household/src/goldenCases.ts'
 import type { BreakdownItemInput, BreakdownsInput } from './breakdowns.ts'
+import type { EquityInput } from './equity.ts'
 import type { EstimateInput } from './estimate.ts'
 import type { GoalQueueInput } from './index.ts'
 
@@ -20,6 +21,7 @@ export type ParityEntry =
   | 'summariseHousehold'
   | 'projectGoalQueue'
   | 'summariseBreakdowns'
+  | 'summariseEquity'
   | 'budgetOverview'
 
 export interface ParityCase {
@@ -164,6 +166,54 @@ const breakdownRollupCase: BreakdownsInput = {
   ],
 }
 
+/** An option grant part-exercised and part-sold, a share grant, and one before its cliff. */
+const equityCase: EquityInput = {
+  grants: [
+    {
+      id: 'g1',
+      instrument_type: 'option',
+      quantity: 10_000,
+      grant_date: '2024-03-15',
+      cliff_months: 12,
+      vesting_period_months: 48,
+      vesting_frequency: 'monthly',
+      strike_price_cents: 50,
+      price_per_share_cents: 250,
+    },
+    {
+      id: 'g2',
+      instrument_type: 'share',
+      quantity: 4_000,
+      grant_date: '2025-01-01',
+      cliff_months: 6,
+      vesting_period_months: 24,
+      vesting_frequency: 'quarterly',
+      strike_price_cents: null,
+      price_per_share_cents: 400,
+    },
+    {
+      id: 'g3',
+      instrument_type: 'option',
+      quantity: 1_000,
+      grant_date: '2026-10-01',
+      cliff_months: 12,
+      vesting_period_months: 48,
+      vesting_frequency: 'annual',
+      strike_price_cents: 100,
+      price_per_share_cents: 300,
+    },
+  ],
+  exercises: [
+    { grant_id: 'g1', quantity: 2_000 },
+    { grant_id: 'g1', quantity: 1_000 },
+  ],
+  sales: [
+    { grant_id: 'g1', quantity: 500 },
+    { grant_id: 'g2', quantity: 300 },
+  ],
+  now: '2026-11-11T12:00:00Z',
+}
+
 const budgetOverviewCase = {
   lines: [
     { group: 'needs', amountCents: 1_000_00, frequency: 'monthly' },
@@ -210,6 +260,11 @@ export const parityCases: ParityCase[] = [
     name: 'breakdown roll-up: every frequency',
     entry: 'summariseBreakdowns',
     input: breakdownRollupCase,
+  },
+  {
+    name: 'equity: options, shares and an unvested grant',
+    entry: 'summariseEquity',
+    input: equityCase,
   },
   { name: 'budget overview: allowance draw', entry: 'budgetOverview', input: budgetOverviewCase },
 ]

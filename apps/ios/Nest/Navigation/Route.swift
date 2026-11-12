@@ -164,6 +164,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .connections: .native(AnyView(ConnectionsScreen()))
         case .notifications: .native(AnyView(NotificationsScreen()))
         case .whatsNew: .native(AnyView(WhatsNewScreen()))
+        case .equity: .native(AnyView(EquityScreen()))
         default: .web(path: path)
         }
     }

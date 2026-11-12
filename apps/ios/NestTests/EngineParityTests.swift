@@ -83,7 +83,7 @@ import Testing
         #expect(
             entries == [
                 "estimateTax", "summariseHousehold", "projectGoalQueue", "summariseBreakdowns",
-                "budgetOverview",
+                "budgetOverview", "summariseEquity",
             ])
     }
 

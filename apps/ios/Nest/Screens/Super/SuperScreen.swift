@@ -156,7 +156,7 @@ private struct RetirementBlock: View {
                 .foregroundStyle(NestColor.dimmedText)
             AssumptionsCard(assumptions: presentation.assumptions, model: model)
             ForEach(presentation.sections) { section in
-                ProjectionCard(
+                SuperProjectionPanel(
                     section: section, age: presentation.ages[section.id], model: model)
             }
         }
@@ -258,7 +258,7 @@ private struct Figure: View {
     }
 }
 
-private struct ProjectionCard: View {
+private struct SuperProjectionPanel: View {
     let section: SuperMemberSection
     let age: Double?
     let model: SuperViewModel

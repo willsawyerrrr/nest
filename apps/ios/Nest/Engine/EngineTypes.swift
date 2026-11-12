@@ -485,3 +485,68 @@ struct GrantFigures: Codable, Equatable, Sendable {
     var exerciseCents: Int64
     var netCents: Int64
 }
+
+/// Every member's holdings, realised gains and oversold units, and each trade's
+/// value before brokerage. Money is integer cents; prices are microdollars.
+struct Portfolio: Codable, Equatable, Sendable {
+    struct Holding: Codable, Equatable, Sendable {
+        var ticker: String
+        var units: Double
+        var costBaseCents: Int64
+        var averageCostMicrodollars: Int64
+        var lastPriceMicrodollars: Int64
+        var valueCents: Int64
+    }
+
+    struct GainsYear: Codable, Equatable, Sendable {
+        var financialYear: Int
+        var gainsCents: Int64
+        var discountableGainsCents: Int64
+        var lossesCents: Int64
+        var carriedInLossesCents: Int64
+        var discountCents: Int64
+        var netCapitalGainCents: Int64
+        var carriedForwardLossesCents: Int64
+    }
+
+    struct UnmatchedSale: Codable, Equatable, Sendable {
+        var ticker: String
+        var soldOn: String
+        var units: Double
+    }
+
+    struct Member: Codable, Equatable, Sendable {
+        var memberId: String
+        var holdings: [Holding]
+        var gainsByYear: [GainsYear]
+        var unmatchedSales: [UnmatchedSale]
+    }
+
+    struct TradeValue: Codable, Equatable, Sendable {
+        var tradeId: String
+        var valueCents: Int64
+    }
+
+    var members: [Member]
+    var tradeValues: [TradeValue]
+}
+
+/// The trade form's typed amounts as stored figures; `nil` where blank or not a number.
+struct TradeFigures: Codable, Equatable, Sendable {
+    var units: Double?
+    var priceMicrodollars: Int64?
+    var feeCents: Int64
+}
+
+/// The engine's `PortfolioInput`: every trade (with its columns) and the members to report.
+struct PortfolioInput: Encodable, Sendable {
+    let trades: [Trade]
+    let memberIds: [String]
+}
+
+/// The engine's `TradeFiguresInput`: the form's typed units, price and fee.
+struct TradeFiguresInput: Encodable, Sendable, Equatable {
+    let units: String
+    let price: String
+    let fee: String
+}

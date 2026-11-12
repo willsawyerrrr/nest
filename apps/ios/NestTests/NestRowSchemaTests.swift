@@ -99,6 +99,7 @@ import Testing
             modelled == columns(of: ShareGrant.table).subtracting([
                 "token_hash", "created_by_member_id",
             ]))
+        check(TradeDocument.self)
     }
 
     @Test func calendarFeedReadsOnlyItsGrantedColumns() {
@@ -120,6 +121,7 @@ import Testing
         #expect(values(OneOffTaxTreatment.self) == enumValues("one_off_tax_treatment"))
         #expect(values(DeductionBasis.self) == enumValues("deduction_basis"))
         #expect(values(DeductionCategory.self) == enumValues("deduction_category"))
+        #expect(values(TradeSide.self) == enumValues("trade_side"))
         #expect(values(BreakdownKind.self) == enumValues("breakdown_kind"))
         #expect(values(TaxResidency.self) == enumValues("tax_residency"))
         #expect(values(SuperContributionKind.self) == enumValues("super_contribution_kind"))

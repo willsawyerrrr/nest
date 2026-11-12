@@ -740,3 +740,42 @@ effective balances and projections with the PWA's own functions (at a fixed date
 and snapshots rows and figures into `apps/ios/NestTests/Fixtures/super-parity.json`;
 `SuperParityTests` runs the same rows through `SuperRows.input` and the bundled
 engine and asserts identical figures.
+
+## Investments
+
+`Route.investments` is native (`InvestmentsScreen`), laid out as the PWA's Investments
+tab: the page title and intro, then a section per member (ordered by name) with
+Holdings, Realised gains, a red note for oversold units, and Trades, each trade a
+dense row from 768pt (side pill and ticker, date, units, price, brokerage pill or an
+em dash, value, document, edit and delete controls) and a bordered card below it.
+Holdings and each financial year's gains read as a title, muted cells and a
+right-aligned figure over a caption.
+
+Rows are `trade` (ordered by `traded_on`, `created_at`, every year, since a sale
+matches earlier purchases), `members` and `trade_document`. The figures come from
+two `@nest/js-core` entries: `portfolio`, which FIFO-matches trades into each
+member's holdings (valued at each ticker's last traded price), gains per financial
+year and oversold units, and values each trade before brokerage; and `tradeFigures`,
+which parses the form's typed units, price and fee into units, integer microdollars
+and integer cents (a price stays exact, so no microdollar or FIFO arithmetic is in
+Swift). `InvestmentsPresentation` only labels them, mirroring the `lib/trades.ts`
+helpers (`holdingLine`, `gainsLine`, `unitsText`, `brokerageLabel`).
+
+Writes use the PWA's calls: `POST` (with the household from the members rows),
+`PATCH` and `DELETE` on `trade`. The form (`TradeForm`/`TradeDraft`) has the PWA's
+fields (side, ticker stored upper-case, date, units, price per unit, brokerage fee),
+validation (ticker, positive units and a price required) and the repeat-trade
+warning. A trade's **Document** control opens the stored file through a short-lived
+signed URL from the `receipts` bucket.
+
+Adding trades from a contract note (upload, `trade-extract`, draft review) is not
+native: it needs a Storage upload and the bulk review flow, which have no native
+counterpart yet. The screen ends in a card opening the web Investments page in a
+sheet (`WebHandoffCard`).
+
+`apps/pwa/src/lib/tradesParity.test.ts` computes each member's holdings, gains,
+oversold notes and trade labels with the PWA's own `memberPortfolio` and label
+helpers and snapshots rows and figures into
+`apps/ios/NestTests/Fixtures/trades-parity.json`; `TradesParityTests` runs the same
+rows through the bundled engine and `InvestmentsPresentation` and asserts identical
+figures and labels.

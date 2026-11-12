@@ -38,7 +38,7 @@ struct RouteTests {
             .summary, .breakdowns, .budget, .goals, .gifts, .allowance, .planning, .planningMode,
             .wishlist, .tax, .eofy, .inflows, .splits, .payslips, .deductions, .members,
             .connections, .household, .notifications, .whatsNew, .equity, .netWorth,
-            .superannuation,
+            .superannuation, .investments,
         ]
         for route in Route.allCases {
             switch route.content {

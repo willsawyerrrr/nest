@@ -116,4 +116,12 @@ enum ScreenEngine {
             throw NestError(.unknown)
         }
     }
+
+    static func portfolio(_ input: PortfolioInput) async throws -> Portfolio {
+        do { return try await shared.value.portfolio(input) } catch { throw NestError(.unknown) }
+    }
+
+    static func tradeFigures(_ input: TradeFiguresInput) async throws -> TradeFigures {
+        do { return try await shared.value.tradeFigures(input) } catch { throw NestError(.unknown) }
+    }
 }

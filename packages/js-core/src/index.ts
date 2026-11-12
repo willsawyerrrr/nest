@@ -35,6 +35,7 @@ import { summariseEquity } from './equity.ts'
 import { projectEstimate, type EstimateInput } from './estimate.ts'
 import { previewInflowDraft, summariseInflows } from './inflows.ts'
 import { payslipsOverview } from './payslips.ts'
+import { portfolioOf, tradeFigures } from './portfolio.ts'
 import { serialise } from './serialise.ts'
 import { projectSuper, summariseSuper } from './super.ts'
 import { householdYear, mlsWhatIf, salarySacrifice, taxScreen } from './taxScreen.ts'
@@ -61,6 +62,8 @@ export { summariseEquity } from './equity.ts'
 export type { EquityInput } from './equity.ts'
 export { projectSuper, summariseSuper } from './super.ts'
 export type { SuperInput, SuperProjectionsInput } from './super.ts'
+export { portfolioOf, tradeFigures } from './portfolio.ts'
+export type { PortfolioInput, TradeFiguresInput } from './portfolio.ts'
 
 /** The whole-year tax estimate for a household's rows, projected onto its scalar cents figures. */
 export function estimateTax(input: EstimateInput) {
@@ -197,4 +200,6 @@ export const entryPoints = {
   netWorth: entry(netWorthAt),
   summariseSuper: entry(summariseSuper),
   projectSuper: entry(projectSuper),
+  portfolio: entry(portfolioOf),
+  tradeFigures: entry(tradeFigures),
 } satisfies Record<string, Entry>

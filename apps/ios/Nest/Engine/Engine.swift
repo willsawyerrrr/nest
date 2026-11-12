@@ -31,6 +31,8 @@ actor Engine {
         case financialYearOptions
         case summariseEquity
         case netWorth
+        case portfolio
+        case tradeFigures
     }
 
     enum Failure: Error, Equatable {
@@ -182,5 +184,15 @@ actor Engine {
     /// Each entry's projected balance at retirement; `nil` where no age was given.
     func projectSuper(_ input: some Encodable) throws -> [SuperProjection?] {
         try call(.projectSuper, input)
+    }
+
+    /// Each member's holdings, realised gains and oversold units, and each trade's value.
+    func portfolio(_ input: some Encodable) throws -> Portfolio {
+        try call(.portfolio, input)
+    }
+
+    /// The trade form's typed amounts as units, microdollars and cents.
+    func tradeFigures(_ input: some Encodable) throws -> TradeFigures {
+        try call(.tradeFigures, input)
     }
 }

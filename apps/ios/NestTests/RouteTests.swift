@@ -37,7 +37,7 @@ struct RouteTests {
         let native: Set<Route> = [
             .summary, .breakdowns, .budget, .goals, .gifts, .allowance, .planning, .planningMode,
             .wishlist, .tax, .eofy, .inflows, .splits, .payslips, .deductions, .members,
-            .connections, .notifications, .whatsNew,
+            .connections, .household, .notifications, .whatsNew,
         ]
         for route in Route.allCases {
             switch route.content {

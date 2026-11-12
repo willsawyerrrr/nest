@@ -619,3 +619,21 @@ Catalyst (an iTunes lookup by bundle id, linking to `trackViewUrl`), and Homebre
 per component. A failed lookup, or no published release, offers no update; a failed
 changelog fails the screen. Current version, latest release and changelog are
 injected, so tests stub all three.
+
+## Household
+
+`Route.household` is native (`HouseholdScreen`), laid out as the PWA's `HouseholdScreen`:
+a card with the household name, `Signed in as <email>` and Sign out, and an
+"Invite someone" card. It reads `households` (the first row, as the PWA picks it)
+through `HouseholdViewModel`; the email comes from the native session.
+
+Sign out unregisters the push token and clears the native session, as the web
+view's `nestAuth` request does. The invite card shows the code, a Copy button
+(which reads Copied for a second), the single-use hint with `Expires in N days`
+(or `Expires within a day`), Regenerate and Revoke; with no code, or an expired
+one, it offers Create invite code. Create and Regenerate call `create_invite_code`,
+Revoke calls `revoke_invite_code`, each invalidating `households`. A failed call
+shows a fixed alert.
+
+There is no engine figure and no parity fixture; `HouseholdPresentationTests`
+pin the copy, the day rounding and the timestamp parsing.

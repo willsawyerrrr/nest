@@ -1,13 +1,26 @@
 # iOS and macOS app
 
-`apps/ios` is a thin native app with two Xcode targets built from one set of
+`apps/ios` is the native Nest app, with two Xcode targets built from one set of
 sources: `Nest` (iOS and Mac Catalyst destinations) and `NestMac` (a native
-AppKit/SwiftUI macOS app). The PWA
-(`https://nest.willsawyerrrr.dev`) is the entire product UI; the native app
-embeds it in a `WKWebView` and adds Siri / App Intents access to key figures.
-Four read-only queries so far: the household's fortnightly buffer after
-saving, its savings-goal progress, how much a named budget line is planned
-at, and its recommended pay split.
+AppKit/SwiftUI macOS app). It is a SwiftUI app built on:
+
+- a burger-menu [navigation shell](#navigation-shell) over a route registry
+  (`Route.swift`) that renders each route natively or in a web view;
+- native screens following one [pattern](native-screens.md), drawn with the
+  [native design system](#native-design-system);
+- a [data layer](#native-data-layer) over the same tables, RPCs and edge
+  functions as the PWA, under the same RLS;
+- the PWA's tax, plan and household engines, run in
+  [JavaScriptCore](#engines-in-javascriptcore), so native screens show the PWA's
+  figures;
+- Siri / App Intents access to key figures: the household's fortnightly buffer
+  after saving, its savings-goal progress, how much a named budget line is
+  planned at, and its recommended pay split.
+
+A route that is not native loads the PWA (`https://nest.willsawyerrrr.dev`) in a
+`WKWebView`, and a native screen hands what it leaves to the web app off to that
+page in a sheet (`WebHandoffCard`). The PWA stays in service in its own right,
+in the browser and installed via Safari.
 
 Nothing about how the PWA is built, deployed, or served changes because this
 app exists. `Nest`'s two destinations differ only by
@@ -44,8 +57,9 @@ the route changes, so pushed details keep a back button.
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
 route not yet native is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
 path in `WebView` (with its session mirroring) and shows `ErrorView` with a
-retry on failure. A screen migrates by returning `.native` for its route (Summary, Breakdowns, Budget, Allowance, Planning mode, Tax estimate, EOFY, Inflows, Gifts and What's new are native;
-see [`native-screens.md`](native-screens.md) for the screen pattern). The
+retry on failure. A screen migrates by returning `.native` for its route; see
+[`native-screens.md`](native-screens.md) for the screen pattern and which screens
+are native. The
 shell shows one web view at a time, recreated when the route changes.
 
 ### Native design system
@@ -54,7 +68,8 @@ shell shows one web view at a time, recreated when the route changes.
 [`design-system.md`](design-system.md#native-swiftui)): `Tokens.swift`
 (colours, chart hues, spacing, radius, type), `Money.swift` (AU currency
 formatting and sign colour), `Components.swift` (card, list row, money text,
-pill, form field, primary button, `ErrorView`), `NestCharts.swift` (tokenised
+pill, form field, primary button, `ErrorView`), `FormKit.swift` (page section,
+add button, form card and the PWA's form primitives), `NestCharts.swift` (tokenised
 Swift Charts wrappers) and a `#Preview` gallery in `DesignSystemGallery.swift`.
 `ErrorView` takes strings only, so callers pass fixed copy per error code and an
 upstream response body never reaches the screen.
@@ -97,15 +112,13 @@ voice invocation of an App Shortcut is unavailable on macOS (see above).
 
 ## The shell
 
-A single-screen SwiftUI app:
-
-- `WebView.swift` — a `UIViewRepresentable` (`NSViewRepresentable` on macOS) around `WKWebView` loading the
-  production PWA URL directly (no local build, no bundled assets), on the
-  default persistent `WKWebsiteDataStore`. It also mirrors the native session
-  into the page (below).
 - `ContentView.swift` — a blocking sign-in gate: `SignInView` while signed out,
-  the web view (plus a loading indicator and a Retry-able "couldn't load"
-  state) once signed in.
+  `NavigationShell` once signed in.
+- `WebView.swift` — a `UIViewRepresentable` (`NSViewRepresentable` on macOS)
+  around `WKWebView`, used by `WebRouteView` for non-native routes and web
+  hand-offs. It loads the production PWA URL directly (no local build, no
+  bundled assets) on the default persistent `WKWebsiteDataStore`, and mirrors
+  the native session into the page (below).
 
 ## One login: native owns the session, the web view mirrors it
 

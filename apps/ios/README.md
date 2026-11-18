@@ -1,17 +1,19 @@
 # Nest iOS and macOS app
 
-A thin native app that embeds the production PWA
-(`https://nest.willsawyerrrr.dev`) in a `WKWebView` and adds Siri / App Intents
-access to key figures. One native Google sign-in covers both the
-shell and the embedded web app: the native app owns the Supabase session and
-mirrors it into the web view. See [`docs/ios.md`](../../docs/ios.md) for the full
-design.
+The native Nest app: a SwiftUI burger-menu navigation shell over a route
+registry, native screens built on the native design system and data layer, the
+PWA's engines run in JavaScriptCore, and Siri / App Intents access to key
+figures. A route that is not native loads the production PWA
+(`https://nest.willsawyerrrr.dev`) in a `WKWebView`. One native Google sign-in
+covers both: the native app owns the Supabase session and mirrors it into the
+web view. See [`docs/ios.md`](../../docs/ios.md) for the design and
+[`docs/native-screens.md`](../../docs/native-screens.md) for the screens.
 
 The `Nest` target is a single iOS codebase built for two destinations — iOS and
-Mac Catalyst — with no source changes between them: the same
-`WKWebView` shell, the same `AuthModel`/Keychain session, and the same four
-App Intents run on both. The one behavioural difference is Siri voice
-invocation, which macOS does not support for App Intents at all (see
+Mac Catalyst — with no source changes between them: the same shell, screens,
+`AuthModel`/Keychain session, and App Intents run on both. The one behavioural
+difference is Siri voice invocation, which macOS does not support for App
+Intents at all (see
 [`docs/ios.md`](../../docs/ios.md#apple-developer-program)) — the Shortcuts app
 and Spotlight still work on both platforms.
 
@@ -24,11 +26,22 @@ and Spotlight still work on both platforms.
 - `Nest/`
   - `NestApp.swift` — SwiftUI entry point; injects `AuthModel`, starts its
     session observation, forwards `onOpenURL` to the Supabase client.
-  - `ContentView.swift` — the sign-in gate: `SignInView` while signed out, the
-    web view (plus loading and error overlays) once signed in.
+  - `ContentView.swift` — the sign-in gate: `SignInView` while signed out,
+    `NavigationShell` once signed in.
+  - `Navigation/` — `NavigationShell` (drawer on iPhone, sidebar on iPad and
+    Mac), `NavMenu`, and `Route`, the route registry choosing each route's
+    native screen or web fallback.
+  - `Screens/` — the native screens, one folder each, and their shared plumbing
+    (`ScreenState`, `RowsCombiner`, `ScreenEngine`, `WebHandoffCard`); see
+    [`docs/native-screens.md`](../../docs/native-screens.md).
+  - `DesignSystem/` — the PWA's tokens and primitives in SwiftUI; see
+    [`docs/design-system.md`](../../docs/design-system.md#native-swiftui).
+  - `Data/` — typed Supabase access, the per-user row cache, the `Codable`
+    models and `NestError`; see
+    [`docs/ios.md`](../../docs/ios.md#native-data-layer).
   - `WebView.swift` — `UIViewRepresentable` (`NSViewRepresentable` on macOS) around `WKWebView` on the default
-    persistent data store; mirrors the native session into the page and takes
-    its sign-out request back.
+    persistent data store, behind `WebRouteView`; mirrors the native session
+    into the page and takes its sign-out request back.
   - `SessionBridge.swift` — builds the JavaScript the shell injects: the
     `window.__NEST_NATIVE_SHELL__` marker and the apply/clear-session calls.
   - `Supabase.swift` — project URL + anon key, read from `Info.plist`, and the shared `AuthClient` (default
@@ -176,7 +189,7 @@ either platform.
 4. Test the intents from the Shortcuts app (search "Check Fortnightly Buffer" /
    "Check Savings Goals" / "Check Pay Split") or Spotlight — **on a real device**. The Simulator
    fails to invoke an App Shortcut ("Unable to run App Shortcut") whatever the
-   code; it is fine for the sign-in flow, the web shell, and `xcodebuild test`.
+   code; it is fine for the sign-in flow, the app's screens, and `xcodebuild test`.
 
 A Mac Catalyst build has no simulator equivalent — running it from Xcode (or a
 built `.app`) is already the "real device" case above: the sign-in flow, the App

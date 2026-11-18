@@ -8,16 +8,20 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
 
 ## Fixed scope decisions
 
-- Platform: the PWA (installed via Safari on iOS, or the browser on web) is the
-  product and the whole app UI. Alongside it, a thin native app (`apps/ios`: the `Nest`
+- Platform: two clients over one backend. The native app (`apps/ios`: the `Nest`
   target is one codebase built for two destinations — iOS and Mac Catalyst, via
   `project.yml`'s `supportedDestinations: [iOS, macCatalyst]` — and `NestMac` is
   a native AppKit/SwiftUI macOS target compiled from the same sources, with its
-  own macOS share extension) wraps the PWA in a SwiftUI navigation shell (burger
-  menu and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's collapsible nav groups) whose per-route `.native` / `.web`
-  switch embeds each not-yet-native screen in a `WKWebView` (design system in
-  `apps/ios/Nest/DesignSystem/`; native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Super and Investments so far) follow
-  the pattern in [`docs/native-screens.md`](docs/native-screens.md)),
+  own macOS share extension) is a SwiftUI app: a navigation shell (burger menu
+  and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's
+  collapsible nav groups) over a route registry (`Route.swift`) whose per-route
+  `.native` / `.web` switch renders each screen natively or, where not yet
+  native, in a `WKWebView` of the PWA. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Super and Investments so far) follow
+  the pattern in [`docs/native-screens.md`](docs/native-screens.md) on the native
+  design system (`apps/ios/Nest/DesignSystem/`) and data layer (typed Supabase
+  access, a per-user row cache, `NestError`; see
+  [`docs/ios.md`](docs/ios.md#native-data-layer)), and hand anything they leave
+  to the web app off to it in a sheet (`WebHandoffCard`). The app
   runs the tax, plan and household engines in JavaScriptCore (`packages/js-core`
   bundles them into `apps/ios/Nest/Engine/nest-engines.js`, called through the
   Swift `Engine` actor) so native screens compute the PWA's figures, and
@@ -40,9 +44,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   deduction receipt queue as a work-expense draft: the extension copies files
   into the group inbox, and the native Deductions screen reads the inbox on the
   app's next foreground, deleting each file only once it is queued.
-  See [`docs/ios.md`](docs/ios.md#share-extension). The native app also carries a
-  data layer (typed Supabase access, a per-user row cache, `NestError`) for native
-  screens; see [`docs/ios.md`](docs/ios.md#native-data-layer). The native Mac app ships
+  See [`docs/ios.md`](docs/ios.md#share-extension). The PWA (installed via
+  Safari on iOS, or the browser on web) stays in service alongside it, serving
+  every screen. The native Mac app ships
   through the `willsawyerrrr/tap` Homebrew tap (`brew install --cask
   willsawyerrrr/tap/nest`) as a Developer ID–signed, notarised `Nest.zip`
   released on each `apps/ios/**` merge to `main`; see

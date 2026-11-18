@@ -6,8 +6,11 @@
   Auth, auto-generated REST API (PostgREST), Edge Functions (Deno/TypeScript),
   Vault (secrets), and Storage. Hosted in the **Sydney (AU)** region on the
   **Pro** tier (no project pausing; daily backups).
-- **Clients:** a single **React PWA** (TypeScript) serving both iOS (installed
-  via Safari → Add to Home Screen) and web. One frontend, no native app.
+- **Clients:** a **React PWA** (TypeScript) serving both iOS (installed via
+  Safari → Add to Home Screen) and web, and a **native SwiftUI app**
+  (`apps/ios`: iOS, Mac Catalyst and macOS) that renders each screen natively
+  or, where not native, as the PWA in a web view, on the same backend and RLS. See
+  [`ios.md`](ios.md).
 - **Frontend hosting:** [Vercel](https://vercel.com/) — the PWA's static build is
   deployed from the repo (Root Directory `apps/pwa`, Vite preset). Merges to
   `main` deploy to production; each PR gets a preview deployment. `apps/pwa/vercel.json`
@@ -288,9 +291,9 @@ token.
 
 ### Push notifications
 
-The installed PWA is the primary device, so alerts go out over Web Push (RFC 8291
-payload encryption, RFC 8292 VAPID auth); the native iOS app, whose web view
-cannot receive Web Push, is reached over APNs. No third-party push vendor. The
+Alerts reach the installed PWA over Web Push (RFC 8291 payload encryption,
+RFC 8292 VAPID auth) and the native iOS app, whose web view cannot receive Web
+Push, over APNs. No third-party push vendor. The
 infrastructure is a device store per channel, a key endpoint, and a send path per
 channel:
 

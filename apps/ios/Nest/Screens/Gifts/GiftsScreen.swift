@@ -23,7 +23,6 @@ struct GiftsContentView: View {
 
     @AppStorage("gift-group-by") private var groupByRaw = GiftGroupBy.occasion.rawValue
     @State private var managing = false
-    @State private var pendingDelete: GiftPurchase?
 
     private var groupBy: GiftGroupBy { GiftGroupBy(rawValue: groupByRaw) ?? .occasion }
 
@@ -50,9 +49,9 @@ struct GiftsContentView: View {
                     }
                 }
                 GiftUnassignedCard(
-                    model: model, presentation: presentation, delete: { pendingDelete = $0 })
+                    model: model, presentation: presentation, delete: deletePurchase)
                 GiftAdHocCard(
-                    model: model, presentation: presentation, delete: { pendingDelete = $0 })
+                    model: model, presentation: presentation, delete: deletePurchase)
                 if managing {
                     WebHandoffCard(
                         title: "Manage gifts",
@@ -68,17 +67,11 @@ struct GiftsContentView: View {
             }
             .padding(NestSpacing.md)
         }
-        .confirmationDialog(
-            "Delete purchase?", isPresented: Binding(
-                get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
-            titleVisibility: .visible, presenting: pendingDelete
-        ) { purchase in
-            Button("Delete", role: .destructive) {
-                Task { _ = await model.deletePurchase(id: purchase.id) }
-            }
-        } message: { purchase in
-            Text(purchase.description.isEmpty ? "Purchase" : purchase.description)
-        }
+    }
+
+    /// Deletes a purchase once its row's own confirmation is accepted.
+    private func deletePurchase(_ purchase: GiftPurchase) {
+        Task { _ = await model.deletePurchase(id: purchase.id) }
     }
 
     private var header: some View {
@@ -123,7 +116,7 @@ struct GiftsContentView: View {
             ForEach(groups) { group in
                 GiftGroupCard(
                     model: model, presentation: presentation, group: group,
-                    delete: { pendingDelete = $0 })
+                    delete: deletePurchase)
             }
         }
     }
@@ -136,6 +129,9 @@ struct GiftPurchaseRowView: View {
     var onAssign: (() -> Void)?
     let onEdit: () -> Void
     let onDelete: () -> Void
+    @State private var confirmingDelete = false
+
+    private var name: String { purchase.description.isEmpty ? "Purchase" : purchase.description }
 
     var body: some View {
         GiftListRow {
@@ -162,7 +158,16 @@ struct GiftPurchaseRowView: View {
                 }
                 GiftIconButton(systemImage: "pencil", label: "Edit", action: onEdit)
                 GiftIconButton(
-                    systemImage: "trash", label: "Delete", tone: NestColor.negative, action: onDelete)
+                    systemImage: "trash", label: "Delete", tone: NestColor.negative
+                ) { confirmingDelete = true }
+                // Anchored to the trash button so the popover points at the row being deleted.
+                .confirmationDialog(
+                    "Delete purchase?", isPresented: $confirmingDelete, titleVisibility: .visible
+                ) {
+                    Button("Delete", role: .destructive, action: onDelete)
+                } message: {
+                    Text(name)
+                }
             }
         }
     }

@@ -55,16 +55,16 @@ struct CashFlowSankeyChart: View {
 
     /// The minimum height, matching the PWA's loading placeholder.
     private static let placeholderHeight: Double = 240 + 2 * 14
-    /// Stroke that keeps a flow too small for a full point visible.
-    private static let hairline: Double = 0.75
-    private static let fontSize: Double = 11
-
     private var input: SankeyLayoutInput { .init(graph: graph, width: width, order: order) }
 
     var body: some View {
         let current = laidOut.flatMap { $0.input == input ? $0.layout : nil }
-        Canvas { context, _ in
-            if let current { draw(current, in: &context) }
+        Group {
+            if let current {
+                SankeyCanvas(graph: graph, chart: current)
+            } else {
+                Color.clear
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: laidOut?.layout.frame.height ?? Self.placeholderHeight)
@@ -78,6 +78,21 @@ struct CashFlowSankeyChart: View {
         .accessibilityChildren {
             ForEach(graph.descriptions, id: \.self) { Text($0) }
         }
+    }
+}
+
+/// `graph` drawn from its laid-out `chart`: translucent ribbons in their source's
+/// colour, solid bars, and each bar's name and value beside it.
+struct SankeyCanvas: View {
+    let graph: CashFlowGraph
+    let chart: SankeyChartLayout
+
+    /// Stroke that keeps a flow too small for a full point visible.
+    private static let hairline: Double = 0.75
+    private static let fontSize: Double = 11
+
+    var body: some View {
+        Canvas { context, _ in draw(chart, in: &context) }
     }
 
     private func draw(_ chart: SankeyChartLayout, in context: inout GraphicsContext) {
@@ -113,14 +128,11 @@ struct CashFlowSankeyChart: View {
         _ text: String, colour: Color, at point: CGPoint, anchor: UnitPoint,
         in context: inout GraphicsContext
     ) {
-        let font = Font.system(size: Self.fontSize)
-        let halo = context.resolve(Text(text).font(font).foregroundStyle(NestColor.surface))
-        for dx in [-2.0, 0, 2] {
-            for dy in [-2.0, 0, 2] where dx != 0 || dy != 0 {
-                context.draw(halo, at: CGPoint(x: point.x + dx, y: point.y + dy), anchor: anchor)
-            }
-        }
-        context.draw(Text(text).font(font).foregroundStyle(colour), at: point, anchor: anchor)
+        let text = context.resolve(Text(text).font(.system(size: Self.fontSize)).foregroundStyle(colour))
+        var halo = context
+        halo.addFilter(.shadow(color: NestColor.surface, radius: 1.5))
+        for _ in 0..<4 { halo.draw(text, at: point, anchor: anchor) }
+        context.draw(text, at: point, anchor: anchor)
     }
 
     /// A ribbon's outline: an S-curve top edge, down its thickness, and the same curve back.
@@ -145,4 +157,30 @@ struct CashFlowSankeyChart: View {
     static func clip(_ text: String, _ maxChars: Int) -> String {
         text.count > maxChars ? "\(text.prefix(max(1, maxChars - 1)))…" : text
     }
+}
+
+#Preview("Cash flow") {
+    let graph = CashFlowGraph(
+        nodes: [
+            .init(name: "Ada salary", color: .buffer, valueCents: 4_000_00),
+            .init(name: "Ben wage", color: .buffer, valueCents: 1_200_00),
+            .init(name: "Available", color: .buffer, valueCents: 5_200_00),
+            .init(name: "Needs", color: .needs, valueCents: 2_400_00),
+            .init(name: "Wants", color: .wants, valueCents: 800_00),
+            .init(name: "Savings", color: .savings, valueCents: 1_000_00),
+            .init(name: "Buffer", color: .buffer, valueCents: 1_000_00),
+        ],
+        links: [
+            .init(source: 0, target: 2, value: 4_000_00), .init(source: 1, target: 2, value: 1_200_00),
+            .init(source: 2, target: 3, value: 2_400_00), .init(source: 2, target: 4, value: 800_00),
+            .init(source: 2, target: 5, value: 1_000_00), .init(source: 2, target: 6, value: 1_000_00),
+        ])
+    CashFlowSankeyCard(
+        graphs: .init(
+            takeHome: .init(grouped: graph, drilled: graph), gross: .init(grouped: graph, drilled: graph),
+            hasLines: true),
+        basis: .takeHome
+    )
+    .padding()
+    .background(NestColor.background)
 }

@@ -82,7 +82,7 @@ import Testing
     }
 
     @Test func clipsLabelsToTheirMargin() {
-        #expect(CashFlowSankeyChart.clip("Salary sacrifice", 8) == "Salary …")
-        #expect(CashFlowSankeyChart.clip("Tax", 8) == "Tax")
+        #expect(SankeyCanvas.clip("Salary sacrifice", 8) == "Salary …")
+        #expect(SankeyCanvas.clip("Tax", 8) == "Tax")
     }
 }

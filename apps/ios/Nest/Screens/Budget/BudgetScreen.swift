@@ -1,50 +1,190 @@
 import SwiftUI
 
 /// The native Budget route: budget lines by group with the engine's fortnightly
-/// subtotals, each member's allowance, and temporary items.
+/// subtotals, each member's allowance, and temporary items, with the PWA's
+/// add, edit and delete for lines and the allowance edit. A `draft` (a wishlist
+/// item promoted to a budget line) opens a prefilled add form above the list.
 struct BudgetScreen: View {
     @State private var model: BudgetViewModel
+    @State private var draft: BudgetLineDraft?
     private let planning = PlanningStore.shared
 
-    init(model: BudgetViewModel = BudgetViewModel()) {
+    init(model: BudgetViewModel = BudgetViewModel(), draft: BudgetLineDraft? = nil) {
         _model = State(initialValue: model)
+        _draft = State(initialValue: draft)
     }
 
     var body: some View {
         ScreenStateView(state: model.state, retry: { Task { await model.retry() } }) { content in
-            BudgetContentView(presentation: BudgetPresentation(content: content))
+            BudgetContentView(
+                model: model, presentation: BudgetPresentation(content: content), draft: $draft)
         }
         .task(id: planning.revision) { await model.load() }
     }
 }
 
+/// Which inline form is open on the Budget screen.
+enum BudgetEditing: Equatable {
+    /// The top-level "Add item" form.
+    case addItem
+    /// A group's own add form.
+    case add(BudgetGroup)
+    case line(String)
+    case allowance(String)
+}
+
 struct BudgetContentView: View {
+    let model: BudgetViewModel
     let presentation: BudgetPresentation
+    @Binding var draft: BudgetLineDraft?
+
+    @State private var editing: BudgetEditing?
+    @State private var deleting: BudgetLineRow?
 
     var body: some View {
         NestPageSection(title: "Budget") {
             PlanningBanner()
+            if let draft {
+                VStack(alignment: .leading, spacing: NestSpacing.xs) {
+                    Text(
+                        "New budget item from your wishlist item “\(draft.name)”. Pick a frequency for the amount, adjust, and save it — or cancel to leave the wishlist item as it is."
+                    )
+                    .font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
+                    lineForm(
+                        BudgetLineFormState(
+                            draft: draft, defaultGroup: .discretionary,
+                            allowances: presentation.allowanceChoices),
+                        onSaved: { self.draft = nil }
+                    ) { try await model.createLine($0) }
+                }
+            }
+            InflowAddButton(label: "Add item") { editing = .addItem }
+                .accessibilityIdentifier("add-budget-item")
+            if editing == .addItem {
+                lineForm(BudgetLineFormState(allowances: presentation.allowanceChoices)) {
+                    try await model.createLine($0)
+                }
+            }
             ForEach(presentation.groups) { section in
                 GroupCard(section: section) {
                     if section.group == .discretionary {
-                        AllowancesBlock(rows: presentation.allowances)
+                        AllowancesBlock(
+                            rows: presentation.allowances, editing: $editing,
+                            form: allowanceForm)
+                    }
+                } lines: {
+                    if section.lines.isEmpty && editing != .add(section.group) {
+                        NestEmptyState(text: "No \(section.title.lowercased()) items yet.")
+                    }
+                    ForEach(section.lines) { row in
+                        lineRow(row)
+                    }
+                    if editing == .add(section.group) {
+                        lineForm(
+                            BudgetLineFormState(
+                                defaultGroup: section.group,
+                                allowances: presentation.allowanceChoices)
+                        ) { try await model.createLine($0) }
+                    } else {
+                        InflowAddButton(label: "Add \(section.title) item") {
+                            editing = .add(section.group)
+                        }
                     }
                 }
             }
             if !presentation.temporaryItems.isEmpty {
                 TemporaryCard(items: presentation.temporaryItems)
             }
-            WebHandoffCard(
-                title: "Edit budget",
-                message: "Adding and changing budget items happens in the web app.",
-                action: "Open Budget on the web", path: Route.budget.path)
+        }
+        .budgetLineDeleteAlert($deleting) { try await model.deleteLine(id: $0) }
+    }
+
+    @ViewBuilder private func lineRow(_ row: BudgetLineRow) -> some View {
+        if editing == .line(row.id), let line = presentation.line(id: row.id) {
+            if row.source != nil {
+                DerivedLineFormView(
+                    line: row,
+                    form: DerivedLineFormState(
+                        line: line, breakdown: presentation.breakdown(owning: row.id)),
+                    accounts: presentation.accountOptions,
+                    onSubmit: { values in
+                        try await model.updateDerivedLine(line, values)
+                        editing = nil
+                    },
+                    onCancel: { editing = nil })
+            } else {
+                lineForm(
+                    BudgetLineFormState(initial: line, allowances: presentation.allowanceChoices)
+                ) { try await model.updateLine(id: row.id, $0) }
+            }
+        } else if row.source != nil {
+            // A derived line's edit writes its breakdown, which the sandbox does
+            // not cover, so it is read-only in planning mode.
+            BudgetLineRowView(
+                row: row, onEdit: model.isPlanning ? nil : { editing = .line(row.id) })
+        } else {
+            BudgetLineRowView(
+                row: row, onEdit: { editing = .line(row.id) }, onDelete: { deleting = row })
+        }
+    }
+
+    private func lineForm(
+        _ form: BudgetLineFormState, onSaved: (() -> Void)? = nil,
+        submit: @escaping (BudgetLineInput) async throws -> Void
+    ) -> some View {
+        BudgetLineFormView(
+            form: form, goals: presentation.goalOptions, accounts: presentation.accountOptions,
+            onSubmit: { input in
+                try await submit(input)
+                editing = nil
+                onSaved?()
+            },
+            onCancel: {
+                if let onSaved { onSaved() } else { editing = nil }
+            })
+    }
+
+    private func allowanceForm(_ row: AllowanceRow) -> AnyView {
+        guard let allowance = presentation.allowance(of: row.memberID),
+            let member = presentation.content.rows.members.first(where: { $0.id == row.memberID })
+        else { return AnyView(EmptyView()) }
+        return AnyView(
+            MemberAllowanceFormView(
+                memberName: member.name,
+                form: MemberAllowanceFormState(
+                    initial: allowance,
+                    drawnAnnualCents: presentation.drawnAnnualCents(of: row.memberID)),
+                accounts: presentation.accountOptions,
+                onSubmit: { input in
+                    try await model.updateAllowance(id: allowance.id, input)
+                    editing = nil
+                },
+                onCancel: { editing = nil }))
+    }
+}
+
+extension View {
+    /// The PWA's "Delete budget item?" confirmation for `target`, deleting with `delete`.
+    func budgetLineDeleteAlert(
+        _ target: Binding<BudgetLineRow?>, delete: @escaping (String) async throws -> Void
+    ) -> some View {
+        alert(
+            "Delete budget item?",
+            isPresented: Binding(get: { target.wrappedValue != nil }, set: { if !$0 { target.wrappedValue = nil } }),
+            presenting: target.wrappedValue
+        ) { row in
+            Button("Delete", role: .destructive) { Task { try? await delete(row.id) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { row in
+            Text("Delete \(row.name)? This cannot be undone.")
         }
     }
 }
 
-private struct GroupCard<Header: View>: View {
+private struct GroupCard<Header: View, Lines: View>: View {
     let section: BudgetGroupSection
     @ViewBuilder var header: Header
+    @ViewBuilder var lines: Lines
 
     var body: some View {
         NestCard {
@@ -60,36 +200,61 @@ private struct GroupCard<Header: View>: View {
                         )
                 }
                 header
-                if section.lines.isEmpty {
-                    NestEmptyState(text: "No \(section.title.lowercased()) items yet.")
-                }
-                ForEach(section.lines) { BudgetLineRowView(row: $0) }
+                lines
             }
         }
     }
 }
 
+/// One budget line: name (with its management link), cadence and route, the
+/// amount and its fortnightly figure, then its controls — edit and delete for a
+/// manual line, edit (when offered) and a chevron to its source for a derived one.
 struct BudgetLineRowView: View {
     let row: BudgetLineRow
+    var onEdit: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     var body: some View {
-        NestListRow(
-            title: row.name,
-            subtitle: [row.cadence, row.route].compactMap { $0 }.joined(separator: " · ")
-        ) {
-            VStack(alignment: .trailing, spacing: NestSpacing.xxs) {
-                MoneyText(cents: row.amountCents, colouring: false).font(NestFont.body)
-                Text(MoneyFormat.perFortnight(Int(row.fortnightlyCents)))
-                    .font(NestFont.caption).monospacedDigit()
-                    .foregroundStyle(NestColor.dimmedText)
+        HStack(spacing: NestSpacing.xs) {
+            NestListRow(
+                title: row.name,
+                subtitle: [row.cadence, row.route].compactMap { $0 }.joined(separator: " · ")
+            ) {
+                VStack(alignment: .trailing, spacing: NestSpacing.xxs) {
+                    MoneyText(cents: row.amountCents, colouring: false).font(NestFont.body)
+                    Text(MoneyFormat.perFortnight(Int(row.fortnightlyCents)))
+                        .font(NestFont.caption).monospacedDigit()
+                        .foregroundStyle(NestColor.dimmedText)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            if let url = row.managementURL {
+                Link(destination: url) {
+                    Image(systemName: "arrow.up.right.square").font(.system(size: 14))
+                        .foregroundStyle(NestColor.dimmedText).frame(width: 28, height: 28)
+                }
+                .accessibilityLabel("Manage \(row.name) subscription")
+            }
+            if let onEdit {
+                EditDeleteActions(onEdit: onEdit, onDelete: row.source == nil ? onDelete : nil)
+            }
+            if let source = row.source {
+                NavigationLink(value: source.route) {
+                    Image(systemName: "chevron.right").font(.system(size: 14))
+                        .foregroundStyle(NestColor.dimmedText).frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(source == .gifts ? "Open gifts" : "Open breakdown")
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("budget-line-row")
     }
 }
 
 private struct AllowancesBlock: View {
     let rows: [AllowanceRow]
+    @Binding var editing: BudgetEditing?
+    let form: (AllowanceRow) -> AnyView
 
     var body: some View {
         if !rows.isEmpty {
@@ -99,11 +264,20 @@ private struct AllowancesBlock: View {
                 Text("An amount each person can spend on themselves. \(BudgetPresentation.allowanceNote)")
                     .font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
                 ForEach(rows) { row in
-                    if row.isOwn {
-                        NavigationLink(value: Route.allowance) { AllowanceRowView(row: row) }
-                            .buttonStyle(.plain)
+                    if editing == .allowance(row.memberID) {
+                        form(row)
                     } else {
-                        AllowanceRowView(row: row)
+                        HStack(alignment: .top, spacing: NestSpacing.xxs) {
+                            if row.isOwn {
+                                NavigationLink(value: Route.allowance) { AllowanceRowView(row: row) }
+                                    .buttonStyle(.plain)
+                            } else {
+                                AllowanceRowView(row: row)
+                            }
+                            EditDeleteActions(
+                                onEdit: { editing = .allowance(row.memberID) },
+                                editLabel: "Edit \(row.title)")
+                        }
                     }
                 }
             }
@@ -122,7 +296,10 @@ struct AllowanceRowView: View {
                     Text(row.title).font(NestFont.body).foregroundStyle(NestColor.text)
                 }
                 Spacer()
-                if row.isOwn {
+                if !row.isOwn, let route = row.route {
+                    Text(route).font(NestFont.caption).foregroundStyle(NestColor.dimmedText)
+                }
+                if row.isOwn && showsTitle {
                     Image(systemName: "chevron.right").font(.caption)
                         .foregroundStyle(NestColor.dimmedText)
                 }

@@ -52,6 +52,19 @@ struct BudgetLineRow: Equatable, Identifiable, Sendable {
     let fortnightlyCents: Int64
     /// Where the line sends its money: its allowance, goal or funding account.
     let route: String?
+    /// The page managing or cancelling the subscription the line pays for.
+    var managementURL: URL?
+    /// What a derived line rolls up from; `nil` for a manual line.
+    var source: DerivedSource?
+
+    /// Where a derived line's amount comes from and is edited.
+    enum DerivedSource: Equatable, Sendable {
+        case gifts
+        case breakdown(id: String)
+
+        /// The screen the line's chevron opens.
+        var route: Route { self == .gifts ? .gifts : .breakdowns }
+    }
 }
 
 struct BudgetGroupSection: Equatable, Identifiable, Sendable {
@@ -72,6 +85,8 @@ struct AllowanceRow: Equatable, Identifiable, Sendable {
     let fortnightlyCents: Int64
     let drawnCents: Int64?
     let remainingCents: Int64?
+    /// The account funding the allowance, shown on a co-member's row.
+    var route: String?
 
     var id: String { memberID }
     var isOwn: Bool { drawnCents != nil }
@@ -120,7 +135,55 @@ struct BudgetPresentation: Sendable {
             id: line.id, name: line.name, amountCents: line.amountCents,
             cadence: line.frequency.label(interval: line.intervalCount),
             fortnightlyCents: content.overview.lines[index].fortnightlyCents,
-            route: route(of: line))
+            route: route(of: line),
+            managementURL: line.managementUrl.flatMap(URL.init(string:)),
+            source: line.isGiftLine
+                ? .gifts : line.breakdownId.map { BudgetLineRow.DerivedSource.breakdown(id: $0) })
+    }
+
+    /// The budget line `id`, as stored (or as the sandbox holds it).
+    func line(id: String) -> BudgetLine? { rows.budgetLines.first { $0.id == id } }
+
+    /// The breakdown owning the line `id`, when it is a generic derived line.
+    func breakdown(owning id: String) -> Breakdown? {
+        guard let breakdownID = line(id: id)?.breakdownId else { return nil }
+        return rows.breakdowns.first { $0.id == breakdownID }
+    }
+
+    /// The member allowance row of `memberID`.
+    func allowance(of memberID: String) -> MemberAllowance? {
+        rows.memberAllowances.first { $0.memberId == memberID }
+    }
+
+    /// The signed-in member's allowance as the one a Discretionary line may draw
+    /// from, with what is left of it over a year, as the PWA's `allowanceChoices`.
+    var allowanceChoices: [AllowanceChoice] {
+        guard let own = content.currentMemberID,
+            let summary = content.overview.allowances.first(where: { $0.memberId == own }),
+            let member = rows.members.first(where: { $0.id == own })
+        else { return [] }
+        return [
+            AllowanceChoice(
+                memberId: own, name: Self.allowanceName(member.name),
+                remainingAnnualCents: Int(summary.remaining.annualCents))
+        ]
+    }
+
+    /// The annual cents drawn from `memberID`'s allowance that the signed-in member can read.
+    func drawnAnnualCents(of memberID: String) -> Int {
+        Int(content.overview.allowances.first { $0.memberId == memberID }?.drawn.annualCents ?? 0)
+    }
+
+    /// The goals a Savings/Investments line may link, as the form offers them.
+    var goalOptions: [(id: String, name: String)] { rows.savingsGoals.map { ($0.id, $0.name) } }
+
+    /// The accounts a line or allowance may be funded from.
+    var accountOptions: [(id: String, name: String)] { rows.fundingAccounts }
+
+    /// The funding account's label for `memberID`'s allowance, when it has one.
+    func allowanceRoute(of memberID: String) -> String? {
+        guard let account = allowance(of: memberID)?.destinationAccountId else { return nil }
+        return rows.accounts.first { $0.id == account }?.name.map(accountLabel)
     }
 
     /// Where `line` sends its money. A line drawn from an allowance names it; a
@@ -132,8 +195,7 @@ struct BudgetPresentation: Sendable {
         if line.lineGroup == .savings || line.lineGroup == .investments {
             return rows.savingsGoals.first { $0.id == line.goalId }.map { accountLabel($0.name) }
         }
-        return rows.accounts.first { $0.id == line.destinationAccountId }
-            .map { accountLabel($0.name) }
+        return rows.accounts.first { $0.id == line.destinationAccountId }?.name.map(accountLabel)
     }
 
     /// The five groups with the engine's subtotals. The signed-in member's
@@ -165,7 +227,8 @@ struct BudgetPresentation: Sendable {
                 cadence: allowance.frequency.label(interval: allowance.intervalCount),
                 fortnightlyCents: summary.allowance.fortnightlyCents,
                 drawnCents: own ? summary.drawn.fortnightlyCents : nil,
-                remainingCents: own ? summary.remaining.fortnightlyCents : nil)
+                remainingCents: own ? summary.remaining.fortnightlyCents : nil,
+                route: allowanceRoute(of: summary.memberId))
         }
     }
 

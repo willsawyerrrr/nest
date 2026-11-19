@@ -173,7 +173,7 @@ struct GiftEntityForm: View {
     let onCancel: () -> Void
 
     @State private var name: String
-    @State private var date: Date?
+    @State private var date: String?
     @State private var failed = false
     @State private var submitting = false
 
@@ -188,7 +188,7 @@ struct GiftEntityForm: View {
         self.onSubmit = onSubmit
         self.onCancel = onCancel
         _name = State(initialValue: initialName ?? "")
-        _date = State(initialValue: initialDate.flatMap(GiftPurchaseForm.parse))
+        _date = State(initialValue: initialDate)
     }
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespaces) }
@@ -200,7 +200,7 @@ struct GiftEntityForm: View {
             canSubmit: !trimmed.isEmpty, isSubmitting: submitting,
             onSubmit: {
                 guard !trimmed.isEmpty else { return }
-                let iso = kind == .occasion ? date.map(GiftPurchaseForm.format) : nil
+                let iso = kind == .occasion ? date : nil
                 Task {
                     submitting = true
                     failed = !(await onSubmit(trimmed, iso))
@@ -210,38 +210,7 @@ struct GiftEntityForm: View {
         ) {
             NestField(label: "Name", text: $name)
             if kind == .occasion {
-                GiftOptionalDateField(
-                    label: "Date", description: "Optional. When the occasion falls.", date: $date)
-            }
-        }
-    }
-}
-
-/// A clearable date: blank until set, with a Clear control once it is.
-struct GiftOptionalDateField: View {
-    let label: String
-    let description: String
-    @Binding var date: Date?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: NestSpacing.xxs) {
-            Text(label).font(.system(size: 14, weight: .medium)).foregroundStyle(NestColor.text)
-            GiftCaption(text: description)
-            if let value = date {
-                HStack(spacing: NestSpacing.xs) {
-                    DatePicker(
-                        label, selection: Binding(get: { value }, set: { date = $0 }),
-                        displayedComponents: .date
-                    )
-                    .labelsHidden().tint(NestColor.brand)
-                    Spacer(minLength: 0)
-                    Button("Clear") { date = nil }
-                        .buttonStyle(GiftButtonStyle(variant: .subtle, small: true))
-                        .accessibilityLabel("Clear \(label.lowercased())")
-                }
-            } else {
-                Button("Set a date") { date = Date() }
-                    .buttonStyle(GiftButtonStyle(variant: .outline, small: true))
+                IsoDateField(label: "Date", description: "Optional. When the occasion falls.", iso: $date)
             }
         }
     }
@@ -261,7 +230,7 @@ struct GiftBudgetForm: View {
     @State private var recipientID: String?
     @State private var occasionID: String?
     @State private var amount: String
-    @State private var eventDate: Date?
+    @State private var eventDate: String?
     @State private var failed = false
     @State private var submitting = false
 
@@ -283,7 +252,7 @@ struct GiftBudgetForm: View {
             initialValue: initial?.occasionId ?? lockedOccasionID
                 ?? presentation.rows.occasions.first?.id)
         _amount = State(initialValue: GiftMoneyInput.text(cents: initial?.budgetedAmountCents))
-        _eventDate = State(initialValue: initial?.eventDate.flatMap(GiftPurchaseForm.parse))
+        _eventDate = State(initialValue: initial?.eventDate)
     }
 
     private var check: GiftBudgetDraftCheck {
@@ -291,7 +260,7 @@ struct GiftBudgetForm: View {
             GiftBudgetDraft(
                 recipientId: recipientID ?? "", occasionId: occasionID ?? "",
                 budgetedAmountCents: GiftMoneyInput.cents(amount),
-                eventDate: eventDate.map(GiftPurchaseForm.format)),
+                eventDate: eventDate),
             editing: initial)
     }
 
@@ -330,11 +299,11 @@ struct GiftBudgetForm: View {
                 Text("Uses the occasion’s date — \(GiftsPresentation.date(occasionDate))")
                     .font(.system(size: 14)).foregroundStyle(NestColor.dimmedText)
             } else {
-                GiftOptionalDateField(
+                IsoDateField(
                     label: "Date",
                     description:
                         "Optional. When this gift is due — e.g. this person's birthday. Falls back to the occasion's date.",
-                    date: $eventDate)
+                    iso: $eventDate)
             }
             if check.duplicate {
                 Text("A budget already exists for this recipient and occasion.")

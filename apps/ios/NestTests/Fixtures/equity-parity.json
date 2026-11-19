@@ -260,6 +260,71 @@
           "sales": null
         }
       ]
-    }
+    },
+    "limits": [
+      {
+        "kind": "exercise",
+        "grantId": "g1",
+        "quantity": 7000,
+        "ignoreId": null,
+        "error": null
+      },
+      {
+        "kind": "exercise",
+        "grantId": "g1",
+        "quantity": 7001,
+        "ignoreId": null,
+        "error": "Only 7,000 options are left to exercise."
+      },
+      {
+        "kind": "exercise",
+        "grantId": "g1",
+        "quantity": 8000,
+        "ignoreId": "e2",
+        "error": null
+      },
+      {
+        "kind": "exercise",
+        "grantId": "g3",
+        "quantity": 1001,
+        "ignoreId": null,
+        "error": "Only 1,000 options are left to exercise."
+      },
+      {
+        "kind": "sale",
+        "grantId": "g1",
+        "quantity": 2500,
+        "ignoreId": null,
+        "error": null
+      },
+      {
+        "kind": "sale",
+        "grantId": "g1",
+        "quantity": 2501,
+        "ignoreId": null,
+        "error": "Only 2,500 shares are left to sell."
+      },
+      {
+        "kind": "sale",
+        "grantId": "g1",
+        "quantity": 3000,
+        "ignoreId": "s1",
+        "error": null
+      },
+      {
+        "kind": "sale",
+        "grantId": "g2",
+        "quantity": 3701,
+        "ignoreId": null,
+        "error": "Only 3,700 shares are left to sell."
+      },
+      {
+        "kind": "sale",
+        "grantId": "g3",
+        "quantity": 1,
+        "ignoreId": null,
+        "error": "Only 0 shares are left to sell."
+      }
+    ]
   }
 ]

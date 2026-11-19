@@ -23,11 +23,15 @@ struct NestError: Error, Equatable, Sendable {
     let status: Int?
     /// Upstream error `code` (a PostgREST/Postgres SQLSTATE or edge-function code), for diagnostics only.
     let upstreamCode: String?
+    /// The stable token a database guard raised (e.g. `equity_sale_exceeds_holding`),
+    /// for a screen to map to its own fixed copy; `nil` for any other failure.
+    let refusal: String?
 
-    init(_ code: Code, status: Int? = nil, upstreamCode: String? = nil) {
+    init(_ code: Code, status: Int? = nil, upstreamCode: String? = nil, refusal: String? = nil) {
         self.code = code
         self.status = status
         self.upstreamCode = upstreamCode
+        self.refusal = refusal
     }
 
     /// Fixed copy for `code`.
@@ -69,7 +73,8 @@ struct NestError: Error, Equatable, Sendable {
         case (500..., _): code = .server
         default: code = .unknown
         }
-        return NestError(code, status: status, upstreamCode: upstream.code)
+        return NestError(
+            code, status: status, upstreamCode: upstream.code, refusal: upstream.refusal)
     }
 
     /// Maps any thrown error: a `NestError` passes through, `URLError`s become
@@ -92,16 +97,24 @@ struct NestError: Error, Equatable, Sendable {
 }
 
 /// The JSON error shapes upstream services use: PostgREST (`code`), Storage
-/// (`statusCode`) and edge functions (`code` or bare `error`). Only a code is
-/// read; message text is ignored.
+/// (`statusCode`) and edge functions (`code` or bare `error`). A code is read, and
+/// a check violation's or raised exception's message only when it is a bare
+/// snake_case token, the fixed refusal a database guard raises; other message
+/// text is ignored.
 private struct UpstreamBody {
     let code: String?
+    let refusal: String?
 
     init(_ data: Data) {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             code = nil
+            refusal = nil
             return
         }
         code = object["code"] as? String
+        let message = object["message"] as? String
+        refusal =
+            ["23514", "P0001"].contains(code ?? "")
+                && message?.wholeMatch(of: /[a-z][a-z0-9_]*/) != nil ? message : nil
     }
 }

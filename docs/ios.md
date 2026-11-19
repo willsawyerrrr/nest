@@ -539,7 +539,11 @@ the anon key.
   fixed `userMessage` per code. The code comes from the HTTP status, refined by
   the upstream JSON `code` (PostgREST `PGRST301`, Postgres SQLSTATE classes
   `42501`, `23505`, `22`/`23`); `URLError`s map to `offline` / `timeout`, decode
-  failures to `decoding`. Upstream message text is never read or shown.
+  failures to `decoding`. Upstream message text is never shown, and read only to
+  carry a database guard's refusal: a check violation (`23514`) or raised
+  exception (`P0001`) whose message is a bare snake_case token (e.g.
+  `equity_sale_exceeds_holding`) sets `refusal`, which a screen maps to its own
+  fixed copy.
 
 ## Project structure
 

@@ -40,10 +40,19 @@ import Testing
             var sales: [Activity]?
         }
 
+        struct Limit: Decodable, Sendable {
+            var kind: String
+            var grantId: String
+            var quantity: Int
+            var ignoreId: String?
+            var error: String?
+        }
+
         var name: String
         var now: String
         var rows: EquityRows
         var expected: Expected
+        var limits: [Limit]
     }
 
     private final class BundleLocator {}
@@ -89,6 +98,23 @@ import Testing
                 }
                 #expect(activity(actual.exercises) == expected.exercises, "\(expected.name) exercises")
                 #expect(activity(actual.sales) == expected.sales, "\(expected.name) sales")
+            }
+        }
+    }
+
+    @Test func formLimitsMatchThePWA() throws {
+        for fixture in Self.fixtures {
+            for limit in fixture.limits {
+                let grant = try #require(fixture.rows.grants.first { $0.id == limit.grantId })
+                let error =
+                    limit.kind == "exercise"
+                    ? EquityLimits.exerciseError(
+                        grant, exercises: fixture.rows.exercises, sales: fixture.rows.sales,
+                        quantity: limit.quantity, ignoring: limit.ignoreId)
+                    : EquityLimits.saleError(
+                        grant, exercises: fixture.rows.exercises, sales: fixture.rows.sales,
+                        quantity: limit.quantity, ignoring: limit.ignoreId)
+                #expect(error == limit.error, "\(limit.kind) \(limit.grantId) \(limit.quantity)")
             }
         }
     }

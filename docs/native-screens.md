@@ -689,10 +689,27 @@ grant is a dense row from 768pt (label with instrument and vesting-frequency bad
 `vested / quantity vested`, net value, and a caption of the option's vested value and
 exercise cost joined with the exercised, sold and held units) and a bordered card on
 a phone. An exercise or sale is a bordered card (`quantity × grant`, date, strike or
-price per share, market price or fees). It reads `equity_grant` (by grant date),
-`equity_exercise` and `equity_sale` (oldest first) and `members` (by name) through
-`EquityViewModel`. It is read-only: a card at the end opens the web Equity page in a
-sheet (`WebHandoffCard`) for adding, changing and deleting grants, exercises and sales.
+price per share, market price or fees). Every row carries edit and delete controls,
+and each list ends in its add button (`Add grant`, `Record exercise`, `Record sale`).
+It reads `equity_grant` (by grant date), `equity_exercise` and `equity_sale` (oldest
+first) and `members` (by name) through `EquityViewModel`.
+
+Adding and editing open the PWA's forms inline (`EquityForms.swift`), in place of the
+row or the add button: a grant's label, options/shares toggle, quantity, grant date,
+cliff and vesting period, vesting frequency, strike (options only), price per share and
+an optional price-as-of date; an exercise's option grant, date, options exercised,
+strike paid (a new exercise takes the picked grant's strike) and an optional market
+price; a sale's grant, date, shares sold, price per share and fees. `GrantDraft`,
+`ExerciseDraft` and `SaleDraft` hold the PWA's rules for when a form can save and how a
+blank field reads, and `EquityLimits` gives the PWA's `exerciseError` / `saleError`
+copy while a quantity would take exercises past the grant, below the shares already
+sold, or sales past the shares held. The view model inserts into the household,
+patches by id and deletes by id against the three tables, a grant's delete cascading to
+its exercises and sales; a delete asks first (`Delete grant?`). The database triggers'
+refusals (`equity_exercise_not_option`, `equity_exercise_exceeds_grant`,
+`equity_sale_exceeds_holding`) reach the form as `NestError.refusal` and read as fixed
+copy (`EquityPresentation.failure`); any other failure reads as the form's own
+`Could not save this … Please try again.`
 
 Figures come from the engine's `summariseEquity` (in `packages/js-core`): per grant, the
 vested, exercised, sold and held units and the gross, exercise-cost and net values, from
@@ -703,7 +720,8 @@ them, as `EquityScreen` does. `apps/pwa/src/lib/equityParity.test.ts` computes t
 figures and labels with the PWA's own helpers and snapshots rows, figures and labels
 into `apps/ios/NestTests/Fixtures/equity-parity.json`; `EquityParityTests` runs the same
 rows through `EquityRows.input` and the bundled engine and asserts identical figures and
-labels.
+labels. The fixture's `limits` are the PWA's `exerciseError` / `saleError` over the same
+rows, editing included, which `EquityLimits` must give word for word.
 
 ## Super
 

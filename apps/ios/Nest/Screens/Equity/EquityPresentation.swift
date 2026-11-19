@@ -27,6 +27,8 @@ struct ActivityRow: Equatable, Identifiable, Sendable {
     let id: String
     let title: String
     let detail: String
+    /// The label of the grant it was recorded against, naming it in the delete prompt.
+    let grantLabel: String
 }
 
 /// One member's grants, exercises and sales.
@@ -51,6 +53,27 @@ struct EquityPresentation: Sendable {
     static let noGrants = "No grants yet."
     static let noExercises = "No exercises recorded."
     static let noSales = "No sales recorded."
+    static let instrumentTypes = [("option", "Options"), ("share", "Shares")]
+    static let vestingFrequencies = [
+        ("monthly", "Monthly"), ("quarterly", "Quarterly"), ("annual", "Annual"),
+    ]
+
+    /// What a failed write says: the fixed copy for a quantity guard's refusal, else
+    /// the form's own `fallback`.
+    static func failure(_ error: Error, fallback: String) -> String {
+        switch (error as? NestError)?.refusal {
+        case "equity_exercise_not_option":
+            "Only an option grant can have exercises recorded against it."
+        case "equity_exercise_exceeds_grant": "Exercised options cannot exceed the options granted."
+        case "equity_sale_exceeds_holding": "Sold shares cannot exceed the shares held."
+        default: fallback
+        }
+    }
+
+    static let grantSaveError = "Could not save this grant. Please try again."
+    static let exerciseSaveError = "Could not save this exercise. Please try again."
+    static let saleSaveError = "Could not save this sale. Please try again."
+    static let deleteError = "Something went wrong. Try again."
 
     let content: EquityContent
 
@@ -136,7 +159,7 @@ struct EquityPresentation: Sendable {
                 date(exercise.exercisedOn),
                 "strike \(MoneyFormat.cents(exercise.strikePriceCents))",
                 exercise.marketPricePerShareCents.map { "market \(MoneyFormat.cents($0))" },
-            ].compactMap { $0 }.joined(separator: " · "))
+            ].compactMap { $0 }.joined(separator: " · "), grantLabel: grantLabel)
     }
 
     static func sale(_ sale: EquitySale, grantLabel: String) -> ActivityRow {
@@ -146,7 +169,7 @@ struct EquityPresentation: Sendable {
                 date(sale.soldOn),
                 "\(MoneyFormat.cents(sale.pricePerShareCents)) per share",
                 sale.feeCents > 0 ? "fees \(MoneyFormat.cents(sale.feeCents))" : nil,
-            ].compactMap { $0 }.joined(separator: " · "))
+            ].compactMap { $0 }.joined(separator: " · "), grantLabel: grantLabel)
     }
 
     /// A whole quantity with thousands separators, as `toLocaleString()`.

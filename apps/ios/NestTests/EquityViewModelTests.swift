@@ -43,9 +43,15 @@ private enum EquityFixture {
         ]
         var failing: Set<String> = []
         private let lock = NSLock()
-        private var recorded: [String] = []
-        var paths: [String] { lock.withLock { recorded } }
-        func record(_ path: String) { lock.withLock { recorded.append(path) } }
+        private var recorded: [(method: String, table: String, body: String)] = []
+        var paths: [String] { lock.withLock { recorded.map(\.table) } }
+        var requests: [(method: String, table: String, body: String)] { lock.withLock { recorded } }
+        func record(_ method: String, _ table: String, _ body: Data?) {
+            lock.withLock {
+                recorded.append(
+                    (method, table, body.flatMap { String(data: $0, encoding: .utf8) } ?? ""))
+            }
+        }
     }
 
     private func makeData(_ server: Server, directory: URL) -> NestData {
@@ -55,7 +61,7 @@ private enum EquityFixture {
                 accessToken: { "t" },
                 send: { request in
                     let table = request.url!.path.split(separator: "/").last.map(String.init) ?? ""
-                    server.record(table)
+                    server.record(request.httpMethod ?? "", table, request.httpBody)
                     let failed = server.failing.contains(table)
                     return (
                         Data((failed ? "{}" : server.bodies[table] ?? "[]").utf8),
@@ -115,6 +121,56 @@ private enum EquityFixture {
         }
         #expect(content.figures == EquityFixture.figures)
         #expect(error?.code == .server)
+    }
+
+    private let grantInput = EquityGrantInput(
+        memberID: "m1", label: "Acme", instrumentType: "share", quantity: 100,
+        grantDate: "2025-01-01", cliffMonths: 0, vestingPeriodMonths: 12,
+        vestingFrequency: "monthly", strikePriceCents: nil, pricePerShareCents: 250,
+        priceAsOf: nil)
+
+    @Test func addingAGrantInsertsIntoTheHouseholdWithEveryColumn() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        try await model.saveGrant(grantInput)
+        let post = try #require(
+            server.requests.first { $0.method == "POST" && $0.table == "equity_grant" })
+        let body = try #require(
+            JSONSerialization.jsonObject(with: Data(post.body.utf8)) as? [String: Any])
+        #expect(body["household_id"] as? String == "h")
+        #expect(body["label"] as? String == "Acme")
+        #expect(body.keys.contains("strike_price_cents") && body.keys.contains("price_as_of"))
+        #expect(server.requests.last?.method == "GET")
+    }
+
+    @Test func editingAnExercisePatchesThatRow() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        let input = EquityExerciseInput(
+            memberID: "m1", grantID: "g1", exercisedOn: "2025-09-01", quantity: 10,
+            strikePriceCents: 50, marketPricePerShareCents: nil)
+        try await model.saveExercise(input, id: "e1")
+        let patch = try #require(server.requests.first { $0.method == "PATCH" })
+        #expect(patch.table == "equity_exercise" && !patch.body.contains("household_id"))
+    }
+
+    @Test func deletesEachKindOfRow() async throws {
+        let server = Server()
+        let model = model(makeData(server, directory: directory()))
+        await model.load()
+        try await model.removeGrant(id: "g1")
+        try await model.removeExercise(id: "e1")
+        try await model.removeSale(id: "s1")
+        #expect(
+            server.requests.filter { $0.method == "DELETE" }.map(\.table)
+                == ["equity_grant", "equity_exercise", "equity_sale"])
+    }
+
+    @Test func addingBeforeAnythingLoadsIsRefused() async {
+        let model = model(makeData(Server(), directory: directory()))
+        await #expect(throws: NestError.self) { try await model.saveGrant(grantInput) }
     }
 }
 

@@ -11,7 +11,9 @@ import { formatIsoDate } from './dates'
 import {
   EQUITY_INSTRUMENT_TYPES,
   equityGrantToPlan,
+  exerciseError,
   grantHoldings,
+  saleError,
   VESTING_FREQUENCIES,
 } from './equity'
 import { formatCents } from './money'
@@ -23,7 +25,9 @@ import { formatCents } from './money'
  * `equityGrantToPlan`), and the labels it builds from them. The fixture is
  * committed beside the iOS tests (`vitest -u` rewrites it); `EquityParityTests`
  * decodes the same rows, runs the bundled engine and must produce identical
- * figures and labels.
+ * figures and labels. `limits` are the exercise and sale forms' quantity checks
+ * (`exerciseError` / `saleError`) over the same rows, which the native forms must
+ * give word for word.
  */
 const FIXTURE = '../../../ios/NestTests/Fixtures/equity-parity.json'
 const NOW = '2026-11-11T12:00:00Z'
@@ -223,6 +227,36 @@ const expectedMembers = members.map((owner) => {
   }
 })
 
+/** A form's quantity check: an exercise or sale of `quantity` against `grantId`, `ignoreId` being edited. */
+const limit = (
+  kind: 'exercise' | 'sale',
+  grantId: string,
+  quantity: number,
+  ignoreId: string | null = null,
+) => {
+  const row = grants.find((entry) => entry.id === grantId)!
+  const check = kind === 'exercise' ? exerciseError : saleError
+  return {
+    kind,
+    grantId,
+    quantity,
+    ignoreId,
+    error: check(row, exercises, sales, quantity, ignoreId ?? undefined),
+  }
+}
+
+const limits = [
+  limit('exercise', 'g1', 7_000),
+  limit('exercise', 'g1', 7_001),
+  limit('exercise', 'g1', 8_000, 'e2'),
+  limit('exercise', 'g3', 1_001),
+  limit('sale', 'g1', 2_500),
+  limit('sale', 'g1', 2_501),
+  limit('sale', 'g1', 3_000, 's1'),
+  limit('sale', 'g2', 3_701),
+  limit('sale', 'g3', 1),
+]
+
 describe('the native Equity parity fixture', () => {
   const text = `${JSON.stringify(
     [
@@ -231,6 +265,7 @@ describe('the native Equity parity fixture', () => {
         now: NOW,
         rows: { grants, exercises, sales, members },
         expected: { figures, members: expectedMembers },
+        limits,
       },
     ],
     null,
@@ -246,5 +281,11 @@ describe('the native Equity parity fixture', () => {
     expect(figures[2]).toMatchObject({ vested: 0, netCents: 0 })
     expect(expectedMembers[2]).toMatchObject({ grants: [], exercises: null, sales: null })
     expect(expectedMembers[1]?.exercises).toEqual([])
+  })
+
+  it('covers quantity checks that pass and refuse, editing included', () => {
+    expect(limits.filter((entry) => entry.error === null)).toHaveLength(4)
+    expect(limits[1]?.error).toBe('Only 7,000 options are left to exercise.')
+    expect(limits[8]?.error).toBe('Only 0 shares are left to sell.')
   })
 })

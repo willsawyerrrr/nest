@@ -1,0 +1,343 @@
+{
+  "memberId": "m1",
+  "trades": [
+    {
+      "household_id": "h1",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "id": "t1",
+      "member_id": "m1",
+      "ticker": "VAS",
+      "side": "buy",
+      "traded_on": "2024-02-15",
+      "units": 2,
+      "price_per_unit_microdollars": 33083072,
+      "fee_cents": 0,
+      "document_id": null,
+      "source": "manual",
+      "external_id": null
+    },
+    {
+      "household_id": "h1",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "id": "t2",
+      "member_id": "m2",
+      "ticker": "NDQ",
+      "side": "buy",
+      "traded_on": "2025-01-20",
+      "units": 1300,
+      "price_per_unit_microdollars": 44000000,
+      "fee_cents": 0,
+      "document_id": null,
+      "source": "manual",
+      "external_id": null
+    }
+  ],
+  "replies": [
+    {
+      "name": "a repeat of a saved trade, exact to the microdollar",
+      "body": {
+        "model": "claude-haiku-4-5",
+        "trades": [
+          {
+            "fields": {
+              "ticker": "vas",
+              "side": "buy",
+              "traded_on": "2024-02-15",
+              "units": 2,
+              "price_per_unit_microdollars": 33083072,
+              "fee_cents": 1000
+            },
+            "missing": [],
+            "unreadable": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "values": {
+            "ticker": "vas",
+            "side": "buy",
+            "traded_on": "2024-02-15",
+            "units": 2,
+            "price_per_unit_microdollars": 33083072,
+            "fee_cents": 1000
+          },
+          "check": [],
+          "input": {
+            "member_id": "m1",
+            "ticker": "VAS",
+            "side": "buy",
+            "traded_on": "2024-02-15",
+            "units": 2,
+            "price_per_unit_microdollars": 33083072,
+            "fee_cents": 1000
+          },
+          "repeat": true
+        }
+      ]
+    },
+    {
+      "name": "several trades: fractional units, a tiny and a large price, no fee shown",
+      "body": {
+        "model": "claude-haiku-4-5",
+        "trades": [
+          {
+            "fields": {
+              "ticker": "NDQ",
+              "side": "sell",
+              "traded_on": "2025-01-20",
+              "units": 1234.567891,
+              "price_per_unit_microdollars": 45123456,
+              "fee_cents": null
+            },
+            "missing": [
+              "fee_cents"
+            ],
+            "unreadable": []
+          },
+          {
+            "fields": {
+              "ticker": "XYZ",
+              "side": "buy",
+              "traded_on": "2025-03-01",
+              "units": 1000000,
+              "price_per_unit_microdollars": 1,
+              "fee_cents": 0
+            },
+            "missing": [],
+            "unreadable": []
+          },
+          {
+            "fields": {
+              "ticker": "BRK",
+              "side": "buy",
+              "traded_on": "2025-03-02",
+              "units": 0.5,
+              "price_per_unit_microdollars": 123456789012,
+              "fee_cents": 1995
+            },
+            "missing": [],
+            "unreadable": []
+          },
+          {
+            "fields": {
+              "ticker": "NDQ",
+              "side": "buy",
+              "traded_on": "2025-01-20",
+              "units": 1300,
+              "price_per_unit_microdollars": 44000000,
+              "fee_cents": 1100
+            },
+            "missing": [],
+            "unreadable": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "values": {
+            "ticker": "NDQ",
+            "side": "sell",
+            "traded_on": "2025-01-20",
+            "units": 1234.567891,
+            "price_per_unit_microdollars": 45123456
+          },
+          "check": [],
+          "input": {
+            "member_id": "m1",
+            "ticker": "NDQ",
+            "side": "sell",
+            "traded_on": "2025-01-20",
+            "units": 1234.567891,
+            "price_per_unit_microdollars": 45123456,
+            "fee_cents": 0
+          },
+          "repeat": false
+        },
+        {
+          "values": {
+            "ticker": "XYZ",
+            "side": "buy",
+            "traded_on": "2025-03-01",
+            "units": 1000000,
+            "price_per_unit_microdollars": 1,
+            "fee_cents": 0
+          },
+          "check": [],
+          "input": {
+            "member_id": "m1",
+            "ticker": "XYZ",
+            "side": "buy",
+            "traded_on": "2025-03-01",
+            "units": 1000000,
+            "price_per_unit_microdollars": 1,
+            "fee_cents": 0
+          },
+          "repeat": false
+        },
+        {
+          "values": {
+            "ticker": "BRK",
+            "side": "buy",
+            "traded_on": "2025-03-02",
+            "units": 0.5,
+            "price_per_unit_microdollars": 123456789012,
+            "fee_cents": 1995
+          },
+          "check": [],
+          "input": {
+            "member_id": "m1",
+            "ticker": "BRK",
+            "side": "buy",
+            "traded_on": "2025-03-02",
+            "units": 0.5,
+            "price_per_unit_microdollars": 123456789012,
+            "fee_cents": 1995
+          },
+          "repeat": false
+        },
+        {
+          "values": {
+            "ticker": "NDQ",
+            "side": "buy",
+            "traded_on": "2025-01-20",
+            "units": 1300,
+            "price_per_unit_microdollars": 44000000,
+            "fee_cents": 1100
+          },
+          "check": [],
+          "input": {
+            "member_id": "m1",
+            "ticker": "NDQ",
+            "side": "buy",
+            "traded_on": "2025-01-20",
+            "units": 1300,
+            "price_per_unit_microdollars": 44000000,
+            "fee_cents": 1100
+          },
+          "repeat": false
+        }
+      ]
+    },
+    {
+      "name": "fields left to check",
+      "body": {
+        "model": "claude-haiku-4-5",
+        "trades": [
+          {
+            "fields": {
+              "ticker": null,
+              "side": "hold",
+              "traded_on": "2025-05-05",
+              "units": -3,
+              "price_per_unit_microdollars": 1500000,
+              "fee_cents": -1
+            },
+            "missing": [
+              "ticker",
+              "side"
+            ],
+            "unreadable": [
+              "units",
+              "not_a_field"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "values": {
+            "traded_on": "2025-05-05",
+            "price_per_unit_microdollars": 1500000
+          },
+          "check": [
+            "ticker",
+            "side",
+            "units"
+          ],
+          "input": null,
+          "repeat": false
+        }
+      ]
+    },
+    {
+      "name": "a body that is not a reply",
+      "body": {
+        "trades": []
+      },
+      "expected": null
+    },
+    {
+      "name": "a trade that is not one",
+      "body": {
+        "model": "m",
+        "trades": [
+          {
+            "fields": "x"
+          }
+        ]
+      },
+      "expected": null
+    }
+  ],
+  "failures": [
+    {
+      "body": {
+        "code": "unsupported_type",
+        "error": "Ignored."
+      },
+      "expected": {
+        "status": "unsupported",
+        "message": "This document is attached, but it can't be read automatically. Enter the trade by hand."
+      }
+    },
+    {
+      "body": {
+        "code": "out_of_credit",
+        "error": "Reading is paused: the account is out of credit."
+      },
+      "expected": {
+        "status": "off",
+        "message": "Reading is paused: the account is out of credit."
+      }
+    },
+    {
+      "body": {
+        "code": "not_configured",
+        "error": "Reading is not set up."
+      },
+      "expected": {
+        "status": "off",
+        "message": "Reading is not set up."
+      }
+    },
+    {
+      "body": {
+        "code": "model_failed",
+        "error": "The model could not read this document."
+      },
+      "expected": {
+        "status": "failed",
+        "message": "The model could not read this document."
+      }
+    },
+    {
+      "body": {
+        "error": "An upstream message with no code."
+      },
+      "expected": {
+        "status": "failed",
+        "message": "Could not read this document. Enter the trades by hand."
+      }
+    },
+    {
+      "body": null,
+      "expected": {
+        "status": "failed",
+        "message": "Could not read this document. Enter the trades by hand."
+      }
+    }
+  ]
+}

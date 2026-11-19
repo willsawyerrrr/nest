@@ -152,7 +152,7 @@ final class SuperViewModel {
 
     /// The account name for a member's super, as the PWA's `superAccountName`: the
     /// trimmed fund name, else `<member> Super`.
-    static func accountName(fundName: String?, memberName: String) -> String {
+    nonisolated static func accountName(fundName: String?, memberName: String) -> String {
         let trimmed = fundName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? "\(memberName) Super" : trimmed
     }

@@ -14,9 +14,9 @@ modelling, spending plans, and savings goals. See [`README.md`](README.md) and
   a native AppKit/SwiftUI macOS target compiled from the same sources, with its
   own macOS share extension) is a SwiftUI app: a navigation shell (burger menu
   and drawer on iPhone, persistent sidebar on iPad and Mac, both the PWA's
-  collapsible nav groups) over a route registry (`Route.swift`) whose per-route
-  `.native` / `.web` switch renders each screen natively or, where not yet
-  native, in a `WKWebView` of the PWA. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Super and Investments so far) follow
+  collapsible nav groups) over a route registry (`Route.swift`) whose every route
+  is a native screen, with a `WKWebView` of the PWA for web hand-offs and tapped
+  notifications. Native screens (Summary, Budget, Allowance, Breakdowns, Goals, Payslips, Deductions, Planning mode, Wishlist, Tax estimate, EOFY, Inflows, Gifts, Pay splits, Members, Household, Connections, Notifications, What's new, Equity, Net worth, Super, Investments and HELP debt) follow
   the pattern in [`docs/native-screens.md`](docs/native-screens.md) on the native
   design system (`apps/ios/Nest/DesignSystem/`) and data layer (typed Supabase
   access, a per-user row cache, `NestError`; see

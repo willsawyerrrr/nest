@@ -1,8 +1,9 @@
 # Native screens
 
 How a screen in `apps/ios` is built. Each native screen is one route that
-returns `.native` from `Route.content` (see [`ios.md`](ios.md#navigation-shell));
-every route not yet native keeps the `WKWebView` fallback.
+returns `.native` from `Route.content` (see [`ios.md`](ios.md#navigation-shell)).
+Every route is native; the `WKWebView` serves the web hand-off cards and tapped
+notifications.
 
 ## The pattern
 
@@ -578,8 +579,8 @@ It reads `members` (ordered by name) and `tax_profile` scoped to the current fin
 year through `MembersViewModel`. Saving follows the PWA: the member's profile is
 updated by member and year (inserted, with the household and year, when none exists),
 then `set_member_date_of_birth` records the date (`null` clears it), then the rows
-reload. There is no engine figure; the HELP debt balance is a separate PWA tab and
-stays web.
+reload. There is no engine figure; the HELP debt balance is its own tab
+([HELP debt](#help-debt)).
 
 `apps/pwa/src/lib/membersParity.test.ts` snapshots rows and what `TaxProfileList`
 shows (including the en-AU `Sept` abbreviation) into
@@ -779,3 +780,22 @@ helpers and snapshots rows and figures into
 `apps/ios/NestTests/Fixtures/trades-parity.json`; `TradesParityTests` runs the same
 rows through the bundled engine and `InvestmentsPresentation` and asserts identical
 figures and labels.
+
+## HELP debt
+
+`Route.helpDebt` is native (`HelpDebtScreen`), laid out as the PWA's HELP debt tab:
+the page title and intro, then one item per member, a dense row on iPad and Mac
+(name, right-aligned balance, an `Edit <name>’s HELP debt` pencil) and a bordered
+card on iPhone. The pencil swaps the item for the inline editor (a dollar balance,
+Save and Cancel). A member with no row reads as `$0.00` with an empty editor.
+
+It reads `members` (ordered by name) and `help_debt` (one standing row per member,
+not financial-year-scoped) through `HelpDebtViewModel`. Saving upserts the balance
+on `member_id` with the household, as the PWA does (empty input saves zero), then
+the rows reload. There is no engine figure; the Tax tab's repayment and the Net
+worth liability read the same rows.
+
+`apps/pwa/src/lib/helpDebtParity.test.ts` snapshots rows, what `HelpDebtScreen`
+shows (balance and the editor's starting value) and the cents typed balances save as
+into `apps/ios/NestTests/Fixtures/help-debt-parity.json`; `HelpDebtParityTests`
+asserts `HelpDebtPresentation` lists and saves the same.

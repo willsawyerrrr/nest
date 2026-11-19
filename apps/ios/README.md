@@ -3,8 +3,8 @@
 The native Nest app: a SwiftUI burger-menu navigation shell over a route
 registry, native screens built on the native design system and data layer, the
 PWA's engines run in JavaScriptCore, and Siri / App Intents access to key
-figures. A route that is not native loads the production PWA
-(`https://nest.willsawyerrrr.dev`) in a `WKWebView`. One native Google sign-in
+figures. Every route is native; web hand-offs and tapped notifications load the
+production PWA (`https://nest.willsawyerrrr.dev`) in a `WKWebView`. One native Google sign-in
 covers both: the native app owns the Supabase session and mirrors it into the
 web view. See [`docs/ios.md`](../../docs/ios.md) for the design and
 [`docs/native-screens.md`](../../docs/native-screens.md) for the screens.
@@ -29,8 +29,8 @@ and Spotlight still work on both platforms.
   - `ContentView.swift` — the sign-in gate: `SignInView` while signed out,
     `NavigationShell` once signed in.
   - `Navigation/` — `NavigationShell` (drawer on iPhone, sidebar on iPad and
-    Mac), `NavMenu`, and `Route`, the route registry choosing each route's
-    native screen or web fallback.
+    Mac), `NavMenu`, and `Route`, the route registry mapping each route to
+    its native screen.
   - `Screens/` — the native screens, one folder each, and their shared plumbing
     (`ScreenState`, `RowsCombiner`, `ScreenEngine`, `WebHandoffCard`); see
     [`docs/native-screens.md`](../../docs/native-screens.md).

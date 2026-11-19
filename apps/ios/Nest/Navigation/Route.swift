@@ -63,8 +63,7 @@ enum RouteContent {
     case web(path: String)
 }
 
-/// Every destination the PWA serves, keyed by its path. Screens migrate one at
-/// a time: a route moves from `.web` to `.native` in `content`.
+/// Every destination the PWA serves, keyed by its path.
 enum Route: String, CaseIterable, Identifiable, Hashable {
     case summary = "/summary"
     case inflows = "/inflows"
@@ -140,8 +139,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// The route's renderer: its native screen, or the web fallback for a route
-    /// not yet migrated.
+    /// The route's native screen.
     var content: RouteContent {
         switch self {
         case .summary: .native(AnyView(SummaryScreen()))
@@ -168,7 +166,7 @@ enum Route: String, CaseIterable, Identifiable, Hashable {
         case .equity: .native(AnyView(EquityScreen()))
         case .superannuation: .native(AnyView(SuperScreen()))
         case .investments: .native(AnyView(InvestmentsScreen()))
-        default: .web(path: path)
+        case .helpDebt: .native(AnyView(HelpDebtScreen()))
         }
     }
 

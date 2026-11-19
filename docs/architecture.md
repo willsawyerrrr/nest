@@ -8,8 +8,9 @@
   **Pro** tier (no project pausing; daily backups).
 - **Clients:** a **React PWA** (TypeScript) serving both iOS (installed via
   Safari → Add to Home Screen) and web, and a **native SwiftUI app**
-  (`apps/ios`: iOS, Mac Catalyst and macOS) that renders each screen natively
-  or, where not native, as the PWA in a web view, on the same backend and RLS. See
+  (`apps/ios`: iOS, Mac Catalyst and macOS) that renders every screen natively,
+  with the PWA in a web view for web hand-offs and tapped notifications, on the
+  same backend and RLS. See
   [`ios.md`](ios.md).
 - **Frontend hosting:** [Vercel](https://vercel.com/) — the PWA's static build is
   deployed from the repo (Root Directory `apps/pwa`, Vite preset). Merges to

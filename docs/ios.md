@@ -55,11 +55,10 @@ changes. The selected route renders in its own `NavigationStack`, recreated when
 the route changes, so pushed details keep a back button.
 
 `Route.content` returns `.native(AnyView)` or `.web(path:)` per route. Every
-route not yet native is `.web` and renders `WebRouteView`, which loads `WebApp.url` plus the
-path in `WebView` (with its session mirroring) and shows `ErrorView` with a
-retry on failure. A screen migrates by returning `.native` for its route; see
-[`native-screens.md`](native-screens.md) for the screen pattern and which screens
-are native. The
+route is `.native` (see [`native-screens.md`](native-screens.md) for the screen
+pattern and the screens); `.web` renders `WebRouteView`, which loads `WebApp.url`
+plus the path in `WebView` (with its session mirroring) and shows `ErrorView` with
+a retry on failure, and also backs the web hand-off cards and tapped notifications. The
 shell shows one web view at a time, recreated when the route changes.
 
 ### Native design system

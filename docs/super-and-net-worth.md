@@ -133,7 +133,8 @@ The HELP debt tab shows each member's single standing HELP/HECS balance (one
 pencil Edit affordance that swaps it for an inline balance form with Save and
 Cancel, matching the tax profiles and the rest of the app. The balance drives the
 compulsory HELP repayment on the Tax tab and counts as a liability on the Net
-worth tab.
+worth tab. The native app's tab matches it (see
+[`native-screens.md`](native-screens.md#help-debt)).
 
 ## Equity tab
 

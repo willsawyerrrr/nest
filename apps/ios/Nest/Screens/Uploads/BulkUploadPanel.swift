@@ -1,9 +1,14 @@
 import Observation
 import SwiftUI
 
-/// How one draft's save ended during a Save selected run.
-enum DraftSaveOutcome: Sendable {
-    case saved, needsAttention
+/// How one file's save ended during a Save selected run: how many records it saved,
+/// and whether anything on it still needs the member.
+struct DraftSaveOutcome: Equatable, Sendable {
+    var saved: Int
+    var needsAttention: Bool
+
+    static let saved = DraftSaveOutcome(saved: 1, needsAttention: false)
+    static let needsAttention = DraftSaveOutcome(saved: 0, needsAttention: true)
 }
 
 /// How a draft's form reports back to the queue it was opened from.
@@ -14,6 +19,11 @@ struct DraftControls {
     /// Runs the save, and on success records that the stored file is now referenced and
     /// ends the file's review as saved.
     let save: @MainActor (_ run: @MainActor () async throws -> Void) async throws -> Void
+    /// Runs one of several saves from the same file, recording on success that the
+    /// stored file is referenced but leaving its review open for `finish`.
+    let saveOne: @MainActor (_ run: @MainActor () async throws -> Void) async throws -> Void
+    /// Ends the file's review: `saved` leaves a saved row, otherwise the file is removed.
+    let finish: @MainActor (_ saved: Bool) -> Void
     /// Drops the draft and deletes the stored file.
     let discard: @MainActor () -> Void
     /// Whether the last Save selected run left this file needing the member's attention.
@@ -88,6 +98,11 @@ struct BulkUploadPanel<Draft: Sendable, DraftContent: View>: View {
                                 queue.keep(item.id)
                                 queue.finish(item.id, saved: true)
                             },
+                            saveOne: { run in
+                                try await run()
+                                queue.keep(item.id)
+                            },
+                            finish: { queue.finish(item.id, saved: $0) },
                             discard: { queue.finish(item.id, saved: false) },
                             attention: attention.contains(item.id)))
                 }
@@ -185,7 +200,8 @@ struct BulkUploadPanel<Draft: Sendable, DraftContent: View>: View {
         var saved = 0
         for (index, item) in targets.enumerated() {
             let outcome = await registry.savers[item.id]?() ?? .needsAttention
-            if outcome == .saved { saved += 1 } else { needAttention.insert(item.id) }
+            saved += outcome.saved
+            if outcome.needsAttention { needAttention.insert(item.id) }
             progress = (index + 1, targets.count)
         }
         progress = nil

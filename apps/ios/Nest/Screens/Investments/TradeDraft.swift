@@ -13,6 +13,17 @@ struct TradeDraft: Equatable, Sendable {
 
     init(today: String) { tradedOn = today }
 
+    /// A draft opening on what was read from a document; a field it did not give keeps
+    /// the blank form's value, as the PWA's `TradeForm` starts from `initial`.
+    init(values: TradeValues, today: String) {
+        side = values.side ?? .buy
+        ticker = values.ticker ?? ""
+        tradedOn = values.tradedOn ?? today
+        units = values.units.map(Self.decimal) ?? ""
+        price = values.priceMicrodollars.map(Self.microdollars) ?? ""
+        fee = values.feeCents.map(Self.cents) ?? ""
+    }
+
     init(trade: Trade) {
         side = TradeSide(rawValue: trade.side) ?? .buy
         ticker = trade.ticker

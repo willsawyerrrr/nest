@@ -148,4 +148,28 @@ private enum Investments {
         server.failing = ["trade"]
         await #expect(throws: NestError.self) { try await model.save(input, id: "t1") }
     }
+
+    @Test func aTradeFromADocumentIsWrittenWithItThenReloads() async throws {
+        let server = Server()
+        let data = makeData(server, directory: directory())
+        let model = InvestmentsViewModel(
+            data: data, documents: TradeDocumentsService(data: data),
+            derive: { _ in Investments.portfolio },
+            figures: { _ in TradeFigures(units: 1, priceMicrodollars: 1_000_000, feeCents: 0) })
+        await model.load()
+        try await model.saveFromDocument(
+            TradeFromDocument(documentID: "d2", path: "h/d2/x-note.pdf", id: "t9", input: input))
+        let call = try #require(
+            server.requests.first { $0.method == "POST" && $0.table == "create_trades_with_document" })
+        let body = try #require(
+            try JSONSerialization.jsonObject(with: Data(call.body.utf8)) as? [String: Any])
+        #expect(body["p_household_id"] as? String == "h")
+        #expect(body["p_document_id"] as? String == "d2")
+        #expect(body["p_document_path"] as? String == "h/d2/x-note.pdf")
+        let trades = try #require(body["p_trades"] as? [[String: Any]])
+        #expect(trades.count == 1)
+        #expect(trades.first?["id"] as? String == "t9")
+        #expect((trades.first?["price_per_unit_microdollars"] as? NSNumber)?.int64Value == 33_083_072)
+        #expect(server.requests.last?.method == "GET")
+    }
 }

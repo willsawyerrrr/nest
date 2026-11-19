@@ -620,13 +620,15 @@ the id the form minted, so a retry rewrites the same slip.
   unsupported-type message.
 - `BulkUploadPanel` — the review: a card per file with its status, the surface's own
   form once read, and **Save selected (n)**, which runs each selected card's own
-  validating save in turn with a progress bar and a summary.
+  validating save in turn with a progress bar and a summary counting records saved. A
+  file holding several drafts (a contract note with several trades) saves each with
+  `saveOne` and ends its review with `finish` once the last is resolved.
 - `FileImport` — copies picked or dropped files onto the app's disk (`PickedFile`) and
   turns a share-inbox item into one, so a surface can queue shared files.
 
 Shared files from other apps join the deduction queue only (see
 [`bulk-upload.md`](bulk-upload.md#receipts-shared-from-other-ios-apps)); the payslip
-queue takes files picked or dropped on the Add card.
+and trade-document queues take files picked or dropped on their Add card.
 
 ## Members and tax profiles
 
@@ -863,17 +865,37 @@ validation (ticker, positive units and a price required) and the repeat-trade
 warning. A trade's **Document** control opens the stored file through a short-lived
 signed URL from the `receipts` bucket.
 
-Adding trades from a contract note (upload, `trade-extract`, draft review) is not
-native: it needs a Storage upload and the bulk review flow, which have no native
-counterpart yet. The screen ends in a card opening the web Investments page in a
-sheet (`WebHandoffCard`).
+The **Add trade** card (`TradeAddCard`) opens on the PWA's **Contract notes** prompt:
+the file input (any type, one file or several, or dropped on the card), **Enter
+details manually**, and the fields once the member chooses to type or once a note has
+been stored and read, or could not be. It runs the shared queue (see
+[Uploads](#uploads)) through `TradeDocumentsService`: each file is stored in the
+`receipts` bucket under `<household_id>/<document_id>/…` (the document id minted when
+the file is added), read through `trade-extract` with the current financial year, and
+read into drafts by `TradeExtractionReader` (the PWA's `tradeExtraction.ts`, failures
+included; reading being off halts the queue). One file with one trade prefills the
+form, with the read-from note and the fields to check; picking again replaces it and
+**Remove contract note** deletes it. Several files, or one document holding several
+trades, open the bulk review: a draft form per trade (`TradeDocumentDrafts`), each
+saved or discarded on its own or with **Save selected**, the document's review ending
+once every draft is resolved, then **Close**. Each confirmed trade is written with its
+document by `create_trades_with_document` under the id minted for its draft, so a
+retry cannot duplicate it, and a document no saved trade references is deleted again.
+A draft's price stays integer microdollars: it opens as the exact dollars text and the
+engine's `tradeFigures` parses it back, as the PWA's form round-trips it; the
+repeat-trade warning applies to drafts as to manual entry. Editing a trade takes no
+document.
 
 `apps/pwa/src/lib/tradesParity.test.ts` computes each member's holdings, gains,
 oversold notes and trade labels with the PWA's own `memberPortfolio` and label
 helpers and snapshots rows and figures into
 `apps/ios/NestTests/Fixtures/trades-parity.json`; `TradesParityTests` runs the same
 rows through the bundled engine and `InvestmentsPresentation` and asserts identical
-figures and labels.
+figures and labels. `apps/pwa/src/lib/tradeDocumentsParity.test.ts` snapshots
+`trade-extract` replies and failure bodies with what the PWA reads from them, the input
+its form submits for each draft left as read and whether the repeat warning shows into
+`trade-documents-parity.json`; `TradeDocumentsParityTests` asserts the native reader,
+`TradeDraft` and `InvestmentsPresentation.isRepeat` agree.
 
 ## HELP debt
 

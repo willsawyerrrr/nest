@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The native Investments route: each member's holdings, realised gains and trades,
-/// with add, edit and delete. Reading trades from a contract note stays in the web app.
+/// with add (by hand or from a contract note), edit and delete.
 struct InvestmentsScreen: View {
     @State private var model: InvestmentsViewModel
 
@@ -40,10 +40,6 @@ struct InvestmentsContentView: View {
                         section: section, presentation: presentation, editing: $editing,
                         model: model, onDelete: { deleting = $0 }, onDocument: open)
                 }
-                WebHandoffCard(
-                    title: InvestmentsPresentation.handoffTitle,
-                    message: InvestmentsPresentation.handoffMessage,
-                    action: InvestmentsPresentation.handoffAction, path: Route.investments.path)
         }
         .alert(
             InvestmentsPresentation.deleteTitle,
@@ -132,14 +128,9 @@ private struct InvestmentsMemberSection: View {
                 }
             }
             if editing == .adding(memberID: section.memberID) {
-                TradeForm(
-                    memberID: section.memberID, editing: nil, presentation: presentation,
-                    figures: { await model.figures(for: $0) },
-                    onSubmit: { input in
-                        try await model.save(input)
-                        editing = .none
-                    },
-                    onCancel: { editing = .none })
+                TradeAddCard(
+                    memberID: section.memberID, presentation: presentation, model: model,
+                    onClose: { editing = .none })
             } else {
                 AddButton(label: InvestmentsPresentation.addLabel) {
                     editing = .adding(memberID: section.memberID)

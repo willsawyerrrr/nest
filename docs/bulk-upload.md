@@ -48,11 +48,12 @@ draft.
 
 ## Native app
 
-The native Payslips screen runs the same queue (`UploadQueue`, `BulkUploadPanel` under
-`apps/ios/Nest/Screens/Uploads/`; see [`native-screens.md`](native-screens.md#uploads)):
-one file is stored and read into the Add card's form, several are handed to the queue and
-reviewed as drafts, each saved through `upsert_payslip_with_lines` under the id minted
-when the file was added. The limits, statuses, cleanup and retry rules are those below.
+The native Payslips and Investments screens run the same queue (`UploadQueue`,
+`BulkUploadPanel` under `apps/ios/Nest/Screens/Uploads/`; see
+[`native-screens.md`](native-screens.md#uploads)): one file is stored and read into the
+Add card's form, several are handed to the queue and reviewed as drafts, each payslip
+saved through `upsert_payslip_with_lines` under the id minted when the file was added,
+and each trade through `create_trades_with_document` under the id minted for its draft. The limits, statuses, cleanup and retry rules are those below.
 
 ## The queue
 

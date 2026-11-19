@@ -23,6 +23,9 @@ struct EquityRows: Codable, Sendable, Equatable {
         ]
     }
 
+    /// The household new rows belong to (every member row shares it).
+    var householdID: String? { members.first?.householdId }
+
     /// The engine input at `now`: every grant with its exercises and sales.
     func input(now: Date) -> EquityInput {
         EquityInput(
@@ -58,4 +61,110 @@ struct EquityInput: Encodable, Sendable {
     let exercises: [Movement]
     let sales: [Movement]
     let now: String
+}
+
+/// The fields the grant form supplies, as the PWA's `EquityGrantInput`. Every
+/// column encodes, a cleared one as `null`, so an edit can unset it.
+struct EquityGrantInput: Encodable, Equatable, Sendable {
+    let memberID: String
+    let label: String
+    let instrumentType: String
+    let quantity: Int
+    let grantDate: String
+    let cliffMonths: Int
+    let vestingPeriodMonths: Int
+    let vestingFrequency: String
+    let strikePriceCents: Int?
+    let pricePerShareCents: Int
+    let priceAsOf: String?
+
+    enum CodingKeys: String, CodingKey {
+        case label, quantity
+        case memberID = "member_id"
+        case instrumentType = "instrument_type"
+        case grantDate = "grant_date"
+        case cliffMonths = "cliff_months"
+        case vestingPeriodMonths = "vesting_period_months"
+        case vestingFrequency = "vesting_frequency"
+        case strikePriceCents = "strike_price_cents"
+        case pricePerShareCents = "price_per_share_cents"
+        case priceAsOf = "price_as_of"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(memberID, forKey: .memberID)
+        try container.encode(label, forKey: .label)
+        try container.encode(instrumentType, forKey: .instrumentType)
+        try container.encode(quantity, forKey: .quantity)
+        try container.encode(grantDate, forKey: .grantDate)
+        try container.encode(cliffMonths, forKey: .cliffMonths)
+        try container.encode(vestingPeriodMonths, forKey: .vestingPeriodMonths)
+        try container.encode(vestingFrequency, forKey: .vestingFrequency)
+        try container.encode(strikePriceCents, forKey: .strikePriceCents)
+        try container.encode(pricePerShareCents, forKey: .pricePerShareCents)
+        try container.encode(priceAsOf, forKey: .priceAsOf)
+    }
+}
+
+/// The fields the exercise form supplies, as the PWA's `EquityExerciseInput`.
+struct EquityExerciseInput: Encodable, Equatable, Sendable {
+    let memberID: String
+    let grantID: String
+    let exercisedOn: String
+    let quantity: Int
+    let strikePriceCents: Int
+    let marketPricePerShareCents: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case quantity
+        case memberID = "member_id"
+        case grantID = "grant_id"
+        case exercisedOn = "exercised_on"
+        case strikePriceCents = "strike_price_cents"
+        case marketPricePerShareCents = "market_price_per_share_cents"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(memberID, forKey: .memberID)
+        try container.encode(grantID, forKey: .grantID)
+        try container.encode(exercisedOn, forKey: .exercisedOn)
+        try container.encode(quantity, forKey: .quantity)
+        try container.encode(strikePriceCents, forKey: .strikePriceCents)
+        try container.encode(marketPricePerShareCents, forKey: .marketPricePerShareCents)
+    }
+}
+
+/// The fields the sale form supplies, as the PWA's `EquitySaleInput`.
+struct EquitySaleInput: Encodable, Equatable, Sendable {
+    let memberID: String
+    let grantID: String
+    let soldOn: String
+    let quantity: Int
+    let pricePerShareCents: Int
+    let feeCents: Int
+
+    enum CodingKeys: String, CodingKey {
+        case quantity
+        case memberID = "member_id"
+        case grantID = "grant_id"
+        case soldOn = "sold_on"
+        case pricePerShareCents = "price_per_share_cents"
+        case feeCents = "fee_cents"
+    }
+}
+
+/// An insert body: a form's input plus the owning household.
+struct EquityInsert<Input: Encodable & Sendable>: Encodable, Sendable {
+    let householdID: String
+    let input: Input
+
+    enum CodingKeys: String, CodingKey { case householdID = "household_id" }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(householdID, forKey: .householdID)
+        try input.encode(to: encoder)
+    }
 }

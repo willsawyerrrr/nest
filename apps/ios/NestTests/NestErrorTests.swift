@@ -38,6 +38,18 @@ import Testing
         #expect(!error.userMessage.contains("secret"))
     }
 
+    @Test func keepsAGuardsRefusalTokenOnly() {
+        func refusal(_ body: String) -> String? {
+            NestError.response(status: 400, body: Data(body.utf8)).refusal
+        }
+        #expect(
+            refusal(#"{"code":"23514","message":"equity_sale_exceeds_holding"}"#)
+                == "equity_sale_exceeds_holding")
+        #expect(refusal(#"{"code":"P0001","message":"allowance_overdrawn"}"#) == "allowance_overdrawn")
+        #expect(refusal(#"{"code":"23514","message":"new row violates check \"x\""}"#) == nil)
+        #expect(refusal(#"{"code":"23505","message":"duplicate_key"}"#) == nil)
+    }
+
     @Test func toleratesABodyThatIsNotJSON() {
         #expect(code(500, "<html>Bad gateway</html>") == .server)
         #expect(code(401, "{\"error\":\"nope\"}") == .unauthenticated)

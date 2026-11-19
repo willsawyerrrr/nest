@@ -250,14 +250,14 @@ final class PayslipDraft {
     // MARK: Formatting
 
     /// Whole cents as the dollars text a field holds: two fixed decimals, `""` when unset.
-    static func dollars(_ cents: Int?) -> String {
+    nonisolated static func dollars(_ cents: Int?) -> String {
         guard let cents else { return "" }
         return String(format: "%.2f", Double(cents) / 100)
     }
 
     /// The cents a dollars field holds, rounded half up as the PWA's `dollarsToCents`
     /// does; nil when blank or not a number. A `$` and thousands commas are ignored.
-    static func cents(_ text: String) -> Int? {
+    nonisolated static func cents(_ text: String) -> Int? {
         let cleaned = text.replacingOccurrences(of: "$", with: "")
             .replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
         guard !cleaned.isEmpty, let dollars = Double(cleaned), dollars.isFinite else { return nil }

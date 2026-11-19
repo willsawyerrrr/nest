@@ -8,7 +8,8 @@ struct EquityContent: Equatable, Sendable {
 }
 
 /// Loads the household's equity grants, exercises and sales through the cache, runs
-/// the vesting and valuation figures in the engine and publishes the result.
+/// the vesting and valuation figures in the engine, publishes the result and writes
+/// grants, exercises and sales.
 @MainActor @Observable
 final class EquityViewModel {
     private(set) var state: ScreenState<EquityContent> = .loading
@@ -55,6 +56,57 @@ final class EquityViewModel {
     /// Discards the shown state and loads again.
     func retry() async {
         if state.value == nil { state = .loading }
+        await load()
+    }
+
+    /// Adds a grant (or, with `id`, changes it), then reloads.
+    func saveGrant(_ input: EquityGrantInput, id: String? = nil) async throws {
+        try await save(EquityGrant.self, input, id: id)
+    }
+
+    /// Records an exercise (or, with `id`, changes it), then reloads.
+    func saveExercise(_ input: EquityExerciseInput, id: String? = nil) async throws {
+        try await save(EquityExercise.self, input, id: id)
+    }
+
+    /// Records a sale (or, with `id`, changes it), then reloads.
+    func saveSale(_ input: EquitySaleInput, id: String? = nil) async throws {
+        try await save(EquitySale.self, input, id: id)
+    }
+
+    /// Deletes a grant (its exercises and sales cascade with it), then reloads.
+    func removeGrant(id: String) async throws {
+        try await data.delete(
+            EquityGrant.self, filters: [.eq("id", id)],
+            also: [EquityExercise.table, EquitySale.table])
+        await load()
+    }
+
+    /// Deletes an exercise, then reloads.
+    func removeExercise(id: String) async throws {
+        try await data.delete(EquityExercise.self, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Deletes a sale, then reloads.
+    func removeSale(id: String) async throws {
+        try await data.delete(EquitySale.self, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Updates row `id` of `T` to `input`, or inserts it into the household, then reloads.
+    private func save<T: NestRow, Input: Encodable & Sendable>(
+        _ type: T.Type, _ input: Input, id: String?
+    ) async throws {
+        if let id {
+            try await data.update(T.self, values: input, filters: [.eq("id", id)])
+        } else {
+            guard let household = state.value?.rows.householdID else {
+                throw NestError(.invalidRequest)
+            }
+            try await data.insert(
+                T.self, values: EquityInsert(householdID: household, input: input))
+        }
         await load()
     }
 }

@@ -82,6 +82,7 @@ struct FieldChrome: ViewModifier {
 /// An ISO date (`YYYY-MM-DD`) field: a compact date picker, clearable where optional.
 struct IsoDateField: View {
     let label: String
+    var description: String?
     var placeholder = ""
     var error: String?
     var clearable = true
@@ -94,7 +95,7 @@ struct IsoDateField: View {
     }
 
     var body: some View {
-        FieldLabel(label: label) {
+        FieldLabel(label: label, description: description) {
             HStack(spacing: NestSpacing.xs) {
                 if let value = iso {
                     DatePicker(

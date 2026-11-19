@@ -4,7 +4,7 @@ import { DateInput } from '@mantine/dates'
 import { useFormSubmit } from '../hooks/useFormSubmit'
 import type { GiftBudget, GiftBudgetInput, GiftOccasion, GiftRecipient } from '../hooks/useGifts'
 import { formatIsoDate } from '../lib/dates'
-import { pairKey } from '../lib/gifts'
+import { checkGiftBudgetDraft } from '../lib/gifts'
 import { centsToDollars, dollarsToCents } from '../lib/money'
 import { FormError } from './FormError'
 import { FormShell } from './FormShell'
@@ -48,28 +48,30 @@ export function GiftBudgetForm({
   const [eventDate, setEventDate] = useState<string | null>(initial?.event_date ?? null)
 
   // When the chosen occasion carries its own date, that date governs and no
-  // per-gift override is offered.
-  const selectedOccasion = occasions.find((occasion) => occasion.id === occasionId)
-  const occasionDate = selectedOccasion?.occasion_date ?? null
-  const occasionHasDate = occasionDate !== null
-
-  // A new pairing must be unique; an edit keeps its own pairing.
-  const isNewPair =
-    pairKey(recipientId, occasionId) !==
-    (initial ? pairKey(initial.recipient_id, initial.occasion_id) : '')
-  const duplicate = isNewPair && takenPairs.has(pairKey(recipientId, occasionId))
-
-  const canSubmit = recipientId !== '' && occasionId !== '' && amount !== '' && !duplicate
+  // per-gift override is offered. A new pairing must be unique; an edit keeps
+  // its own pairing.
+  const check = checkGiftBudgetDraft(
+    {
+      recipientId,
+      occasionId,
+      budgetedAmountCents: dollarsToCents(amount),
+      eventDate,
+    },
+    occasions,
+    takenPairs,
+    initial,
+  )
+  const { occasionDate, duplicate, canSubmit } = check
 
   const { submitting, error, handleSubmit } = useFormSubmit({
     canSubmit,
     errorMessage: 'Could not save this gift budget. Please try again.',
     onSubmit,
     buildInput: (): GiftBudgetInput => ({
-      recipient_id: recipientId,
-      occasion_id: occasionId,
-      budgeted_amount_cents: dollarsToCents(amount) ?? 0,
-      event_date: occasionHasDate ? null : eventDate,
+      recipient_id: check.recipient_id,
+      occasion_id: check.occasion_id,
+      budgeted_amount_cents: check.budgeted_amount_cents,
+      event_date: check.event_date,
     }),
   })
 

@@ -15,6 +15,14 @@ import Testing
         var candidates: [GiftCandidate]
         var dismissed: [GiftCandidate]
         var linkChoices: [GiftLinkRecipient]
+        var budgetDrafts: [DraftCase]
+    }
+
+    struct DraftCase: Decodable, Sendable {
+        var name: String
+        var initialBudgetId: String?
+        var draft: GiftBudgetDraft
+        var check: GiftBudgetDraftCheck
     }
 
     struct Fixture: Decodable, Sendable {
@@ -46,6 +54,19 @@ import Testing
             #expect(presentation.candidates == expected.candidates)
             #expect(presentation.dismissed == expected.dismissed)
             #expect(presentation.linkChoices == expected.linkChoices)
+        }
+    }
+
+    @Test func budgetFormChecksMatchThePWA() {
+        for fixture in Self.fixtures {
+            let presentation = GiftsContent(
+                rows: fixture.rows, currentMemberID: fixture.currentMemberId
+            ).presentation
+            for entry in fixture.expected.budgetDrafts {
+                let initial = entry.initialBudgetId.flatMap(presentation.budget(id:))
+                #expect(
+                    presentation.check(entry.draft, editing: initial) == entry.check, "\(entry.name)")
+            }
         }
     }
 }

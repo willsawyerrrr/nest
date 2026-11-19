@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { Tables } from './database.types'
 import { dismissedGiftCandidates, giftCandidates, linkableGiftRecipients } from './giftCandidates'
 import {
+  checkGiftBudgetDraft,
   discretionaryTotals,
   groupGifts,
   overallGiftTotals,
+  pairKey,
   unassignedSpentCents,
+  type GiftBudgetDraft,
   type GiftGroup,
   type GiftGroupBy,
 } from './gifts'
@@ -174,6 +177,77 @@ const triple = (t: { budgetedCents: number; spentCents: number; remainingCents: 
   remainingCents: t.remainingCents,
 })
 
+const takenPairs = new Set(budgets.map((row) => pairKey(row.recipient_id, row.occasion_id)))
+
+/** Gift budget form drafts, each against the budget it edits (or none for an add). */
+const draftCases: { name: string; initialBudgetId: string | null; draft: GiftBudgetDraft }[] = [
+  {
+    name: 'a new pairing on a dated occasion drops its own date',
+    initialBudgetId: null,
+    draft: {
+      recipientId: 'r-idle',
+      occasionId: 'o-xmas',
+      budgetedAmountCents: 5000,
+      eventDate: '2026-07-01',
+    },
+  },
+  {
+    name: 'a new pairing on an undated occasion keeps its own date',
+    initialBudgetId: null,
+    draft: {
+      recipientId: 'r-idle',
+      occasionId: 'o-bday',
+      budgetedAmountCents: 0,
+      eventDate: '2026-08-08',
+    },
+  },
+  {
+    name: 'a pairing that already has a budget is a duplicate',
+    initialBudgetId: null,
+    draft: {
+      recipientId: 'r-mum',
+      occasionId: 'o-xmas',
+      budgetedAmountCents: 100,
+      eventDate: null,
+    },
+  },
+  {
+    name: 'an edit keeps its own pairing',
+    initialBudgetId: 'b4',
+    draft: {
+      recipientId: 'r-mum',
+      occasionId: 'o-bday',
+      budgetedAmountCents: 12345,
+      eventDate: null,
+    },
+  },
+  {
+    name: 'a blank amount cannot be saved',
+    initialBudgetId: 'b1',
+    draft: {
+      recipientId: 'r-mum',
+      occasionId: 'o-xmas',
+      budgetedAmountCents: null,
+      eventDate: null,
+    },
+  },
+  {
+    name: 'no recipient cannot be saved',
+    initialBudgetId: null,
+    draft: { recipientId: '', occasionId: 'o-none', budgetedAmountCents: 100, eventDate: null },
+  },
+]
+
+const budgetDrafts = draftCases.map((entry) => ({
+  ...entry,
+  check: checkGiftBudgetDraft(
+    entry.draft,
+    occasions,
+    takenPairs,
+    budgets.find((row) => row.id === entry.initialBudgetId),
+  ),
+}))
+
 const expected = {
   occasionGroups: groups('occasion'),
   personGroups: groups('person'),
@@ -183,6 +257,7 @@ const expected = {
   candidates: giftCandidates(transactions, purchases, dismissals),
   dismissed: dismissedGiftCandidates(transactions, dismissals),
   linkChoices: linkableGiftRecipients(budgets, recipients, occasions, hiddenBudgetIds),
+  budgetDrafts,
 }
 
 describe('the native Gifts parity fixture', () => {
@@ -219,5 +294,7 @@ describe('the native Gifts parity fixture', () => {
     expect(expected.candidates.some((c) => c.pending)).toBe(true)
     expect(expected.dismissed.map((c) => c.transactionId)).toEqual(['t4'])
     expect(expected.linkChoices.map((c) => c.label)).not.toContain('Will')
+    expect(budgetDrafts.map((d) => d.check.duplicate)).toContain(true)
+    expect(budgetDrafts.map((d) => d.check.canSubmit)).toContain(false)
   })
 })

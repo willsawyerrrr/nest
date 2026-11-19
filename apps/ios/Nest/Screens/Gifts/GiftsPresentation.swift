@@ -89,15 +89,58 @@ struct GiftLinkRecipient: Codable, Equatable, Sendable, Identifiable {
     var id: String { value }
 }
 
+/// What the gift budget form holds: a pairing, the typed budget, and an optional own date.
+struct GiftBudgetDraft: Codable, Equatable, Sendable {
+    var recipientId: String
+    var occasionId: String
+    /// The typed budget in cents, or nil while the field is blank.
+    var budgetedAmountCents: Int?
+    var eventDate: String?
+}
+
+/// The gift budget form's validation and the row it writes: a port of the
+/// PWA's `checkGiftBudgetDraft`.
+struct GiftBudgetDraftCheck: Codable, Equatable, Sendable {
+    /// The chosen occasion's own date, which governs the gift's date when set.
+    var occasionDate: String?
+    /// The pairing already has a budget (an edit keeping its own pairing never does).
+    var duplicate: Bool
+    var canSubmit: Bool
+    var recipientId: String
+    var occasionId: String
+    var budgetedAmountCents: Int
+    /// Nil whenever the occasion carries its own date.
+    var eventDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case occasionDate, duplicate, canSubmit
+        case recipientId = "recipient_id"
+        case occasionId = "occasion_id"
+        case budgetedAmountCents = "budgeted_amount_cents"
+        case eventDate = "event_date"
+    }
+
+    /// The `gift_budget` columns it writes, `event_date` cleared explicitly.
+    var values: GiftValues {
+        GiftValues(fields: [
+            "recipient_id": .text(recipientId), "occasion_id": .text(occasionId),
+            "budgeted_amount_cents": .cents(budgetedAmountCents),
+            "event_date": eventDate.map { .text($0) } ?? .null,
+        ])
+    }
+}
+
 /// What the Gifts screen renders, derived from the visible rows: a port of the
 /// PWA's `lib/gifts.ts` and `lib/giftCandidates.ts`, so both surfaces group,
 /// total and order identically.
 struct GiftsPresentation: Equatable, Sendable {
     let rows: GiftsRows
     let hiddenBudgetIDs: Set<String>
+    let currentMemberID: String?
 
     init(rows: GiftsRows, currentMemberID: String?) {
         self.rows = rows
+        self.currentMemberID = currentMemberID
         hiddenBudgetIDs = rows.hiddenBudgetIDs(for: currentMemberID)
     }
 
@@ -200,6 +243,36 @@ struct GiftsPresentation: Equatable, Sendable {
     /// Budget ids already taken, as `recipient:occasion` pairs.
     var takenPairs: Set<String> {
         Set(rows.budgets.map { Self.pairKey($0.recipientId, $0.occasionId) })
+    }
+
+    /// Checks a gift budget draft: a recipient, an occasion and an amount are
+    /// required, a new pairing must be unique, and an occasion with its own date
+    /// overrides the gift's date.
+    func check(_ draft: GiftBudgetDraft, editing initial: GiftBudget? = nil) -> GiftBudgetDraftCheck {
+        let occasionDate = rows.occasions.first { $0.id == draft.occasionId }?.occasionDate
+        let key = Self.pairKey(draft.recipientId, draft.occasionId)
+        let own = initial.map { Self.pairKey($0.recipientId, $0.occasionId) } ?? ""
+        let duplicate = key != own && takenPairs.contains(key)
+        return GiftBudgetDraftCheck(
+            occasionDate: occasionDate, duplicate: duplicate,
+            canSubmit: !draft.recipientId.isEmpty && !draft.occasionId.isEmpty
+                && draft.budgetedAmountCents != nil && !duplicate,
+            recipientId: draft.recipientId, occasionId: draft.occasionId,
+            budgetedAmountCents: draft.budgetedAmountCents ?? 0,
+            eventDate: occasionDate == nil ? draft.eventDate : nil)
+    }
+
+    func budget(id: String) -> GiftBudget? { rows.budgets.first { $0.id == id } }
+
+    /// Members' own recipients, permanent and fixed, in the rows' name order.
+    var memberRecipients: [GiftRecipient] { rows.recipients.filter { $0.memberId != nil } }
+
+    /// External recipients, editable, in the rows' name order.
+    var externalRecipients: [GiftRecipient] { rows.recipients.filter { $0.memberId == nil } }
+
+    /// A member recipient's display name: the member's own name where known.
+    func memberRecipientName(_ recipient: GiftRecipient) -> String {
+        rows.members.first { $0.id == recipient.memberId }?.name ?? recipient.name
     }
 
     static func pairKey(_ recipientID: String, _ occasionID: String) -> String {

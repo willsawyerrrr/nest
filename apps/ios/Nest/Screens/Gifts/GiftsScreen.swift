@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The native Gifts route: the card-spending inbox, totals, unassigned and ad
-/// hoc purchases, and budgets grouped by occasion or person.
+/// hoc purchases, recipient and occasion management, and budgets grouped by
+/// occasion or person.
 struct GiftsScreen: View {
     @State private var model: GiftsViewModel
 
@@ -52,13 +53,7 @@ struct GiftsContentView: View {
                     model: model, presentation: presentation, delete: deletePurchase)
                 GiftAdHocCard(
                     model: model, presentation: presentation, delete: deletePurchase)
-                if managing {
-                    WebHandoffCard(
-                        title: "Manage gifts",
-                        message:
-                            "Adding and changing recipients, occasions and gift budgets happens in the web app.",
-                        action: "Open Gifts on the web", path: Route.gifts.path)
-                }
+                if managing { GiftManagementView(model: model, presentation: presentation) }
                 GiftSegmented(
                     options: GiftGroupBy.allCases.map { ($0, $0.label) },
                     selection: Binding(get: { groupBy }, set: { groupByRaw = $0.rawValue }),
@@ -115,7 +110,7 @@ struct GiftsContentView: View {
             }
             ForEach(groups) { group in
                 GiftGroupCard(
-                    model: model, presentation: presentation, group: group,
+                    model: model, presentation: presentation, group: group, groupBy: groupBy,
                     delete: deletePurchase)
             }
         }
@@ -173,13 +168,16 @@ struct GiftPurchaseRowView: View {
     }
 }
 
-/// A collapsible group: its title and money, then its pairing rows.
+/// A collapsible group: its title and money, then its pairing rows and an
+/// add-budget affordance fixed to the group's occasion or recipient.
 struct GiftGroupCard: View {
     let model: GiftsViewModel
     let presentation: GiftsPresentation
     let group: GiftGroup
+    let groupBy: GiftGroupBy
     let delete: (GiftPurchase) -> Void
     @State private var isOpen = false
+    @State private var addingBudget = false
 
     var body: some View {
         NestCard(padding: NestSpacing.sm) {
@@ -190,9 +188,24 @@ struct GiftGroupCard: View {
                 }
             } content: {
                 VStack(alignment: .leading, spacing: NestSpacing.xs) {
-                    if group.rows.isEmpty { GiftEmptyState(text: "No gift budgets yet.") }
+                    if group.rows.isEmpty && !addingBudget {
+                        GiftEmptyState(text: "No gift budgets yet.")
+                    }
                     ForEach(group.rows) { row in
                         GiftRowCard(model: model, presentation: presentation, row: row, delete: delete)
+                    }
+                    if addingBudget {
+                        GiftBudgetForm(
+                            presentation: presentation,
+                            lockedRecipientID: groupBy == .person ? group.key : nil,
+                            lockedOccasionID: groupBy == .occasion ? group.key : nil,
+                            onSubmit: { check in
+                                let saved = await model.createBudget(check)
+                                if saved { addingBudget = false }
+                                return saved
+                            }, onCancel: { addingBudget = false })
+                    } else {
+                        GiftAddButton(label: "Add gift budget") { addingBudget = true }
                     }
                 }
             }
@@ -200,8 +213,9 @@ struct GiftGroupCard: View {
     }
 }
 
-/// One pairing: its money, expandable to its purchases. A gift for the
-/// signed-in member shows only its budget.
+/// One pairing: its money, expandable to its purchases and budget edit and
+/// delete. A gift for the signed-in member shows only its budget, which they
+/// may still edit since it is jointly planned.
 struct GiftRowCard: View {
     let model: GiftsViewModel
     let presentation: GiftsPresentation
@@ -210,6 +224,8 @@ struct GiftRowCard: View {
     @State private var isOpen = false
     @State private var adding = false
     @State private var editingID: String?
+    @State private var editingBudget = false
+    @State private var confirmingDelete = false
 
     var body: some View {
         if row.isHidden {
@@ -219,7 +235,26 @@ struct GiftRowCard: View {
         }
     }
 
+    @ViewBuilder private var budgetEditForm: some View {
+        if let budget = presentation.budget(id: row.budgetId) {
+            GiftBudgetForm(
+                presentation: presentation, initial: budget,
+                onSubmit: { check in
+                    let saved = await model.updateBudget(id: row.budgetId, check)
+                    if saved { editingBudget = false }
+                    return saved
+                }, onCancel: { editingBudget = false })
+        }
+    }
+
     private var hiddenRow: some View {
+        VStack(alignment: .leading, spacing: NestSpacing.xs) {
+            hiddenSummary
+            if editingBudget { budgetEditForm }
+        }
+    }
+
+    private var hiddenSummary: some View {
         GiftListRow {
             HStack(spacing: 6) {
                 Text(row.label).font(.system(size: 14, weight: .semibold))
@@ -230,6 +265,7 @@ struct GiftRowCard: View {
             Text(MoneyFormat.cents(row.totals.budgetedCents))
                 .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(NestColor.text)
+            GiftIconButton(systemImage: "pencil", label: "Edit budget") { editingBudget = true }
         } caption: {
             GiftCaption(text: "Spending on this gift is hidden from you — this is a gift for you.")
         }
@@ -296,16 +332,43 @@ struct GiftRowCard: View {
                                 if saved { adding = false }
                                 return saved
                             }, onCancel: { adding = false })
+                    } else if editingBudget {
+                        budgetEditForm
                     } else {
-                        Button("Add purchase") {
-                            editingID = nil
-                            adding = true
-                        }
-                        .buttonStyle(GiftButtonStyle(variant: .light, small: true))
+                        budgetActions
                     }
                 }
                 .padding(.leading, NestSpacing.xs)
             }
+        }
+    }
+
+    private var budgetActions: some View {
+        HStack(spacing: NestSpacing.xs) {
+            Button("Add purchase") {
+                editingID = nil
+                editingBudget = false
+                adding = true
+            }
+            .buttonStyle(GiftButtonStyle(variant: .light, small: true))
+            Button("Edit budget") {
+                adding = false
+                editingBudget = true
+            }
+            .buttonStyle(GiftButtonStyle(variant: .subtle, small: true))
+            Button("Delete budget") { confirmingDelete = true }
+                .buttonStyle(GiftButtonStyle(variant: .danger, small: true))
+                .confirmationDialog(
+                    "Delete gift budget?", isPresented: $confirmingDelete, titleVisibility: .visible
+                ) {
+                    Button("Delete", role: .destructive) {
+                        Task { _ = await model.deleteBudget(id: row.budgetId) }
+                    }
+                } message: {
+                    Text(
+                        "\(row.label)\n\nThis also removes every purchase recorded against it. This cannot be undone."
+                    )
+                }
         }
     }
 }

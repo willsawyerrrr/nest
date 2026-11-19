@@ -733,6 +733,122 @@
             }
           ]
         }
+      ],
+      "budgetDrafts": [
+        {
+          "name": "a new pairing on a dated occasion drops its own date",
+          "initialBudgetId": null,
+          "draft": {
+            "recipientId": "r-idle",
+            "occasionId": "o-xmas",
+            "budgetedAmountCents": 5000,
+            "eventDate": "2026-07-01"
+          },
+          "check": {
+            "occasionDate": "2026-12-25",
+            "duplicate": false,
+            "canSubmit": true,
+            "recipient_id": "r-idle",
+            "occasion_id": "o-xmas",
+            "budgeted_amount_cents": 5000,
+            "event_date": null
+          }
+        },
+        {
+          "name": "a new pairing on an undated occasion keeps its own date",
+          "initialBudgetId": null,
+          "draft": {
+            "recipientId": "r-idle",
+            "occasionId": "o-bday",
+            "budgetedAmountCents": 0,
+            "eventDate": "2026-08-08"
+          },
+          "check": {
+            "occasionDate": null,
+            "duplicate": false,
+            "canSubmit": true,
+            "recipient_id": "r-idle",
+            "occasion_id": "o-bday",
+            "budgeted_amount_cents": 0,
+            "event_date": "2026-08-08"
+          }
+        },
+        {
+          "name": "a pairing that already has a budget is a duplicate",
+          "initialBudgetId": null,
+          "draft": {
+            "recipientId": "r-mum",
+            "occasionId": "o-xmas",
+            "budgetedAmountCents": 100,
+            "eventDate": null
+          },
+          "check": {
+            "occasionDate": "2026-12-25",
+            "duplicate": true,
+            "canSubmit": false,
+            "recipient_id": "r-mum",
+            "occasion_id": "o-xmas",
+            "budgeted_amount_cents": 100,
+            "event_date": null
+          }
+        },
+        {
+          "name": "an edit keeps its own pairing",
+          "initialBudgetId": "b4",
+          "draft": {
+            "recipientId": "r-mum",
+            "occasionId": "o-bday",
+            "budgetedAmountCents": 12345,
+            "eventDate": null
+          },
+          "check": {
+            "occasionDate": null,
+            "duplicate": false,
+            "canSubmit": true,
+            "recipient_id": "r-mum",
+            "occasion_id": "o-bday",
+            "budgeted_amount_cents": 12345,
+            "event_date": null
+          }
+        },
+        {
+          "name": "a blank amount cannot be saved",
+          "initialBudgetId": "b1",
+          "draft": {
+            "recipientId": "r-mum",
+            "occasionId": "o-xmas",
+            "budgetedAmountCents": null,
+            "eventDate": null
+          },
+          "check": {
+            "occasionDate": "2026-12-25",
+            "duplicate": false,
+            "canSubmit": false,
+            "recipient_id": "r-mum",
+            "occasion_id": "o-xmas",
+            "budgeted_amount_cents": 0,
+            "event_date": null
+          }
+        },
+        {
+          "name": "no recipient cannot be saved",
+          "initialBudgetId": null,
+          "draft": {
+            "recipientId": "",
+            "occasionId": "o-none",
+            "budgetedAmountCents": 100,
+            "eventDate": null
+          },
+          "check": {
+            "occasionDate": null,
+            "duplicate": false,
+            "canSubmit": false,
+            "recipient_id": "",
+            "occasion_id": "o-none",
+            "budgeted_amount_cents": 100,
+            "event_date": null
+          }
+        }
       ]
     }
   }

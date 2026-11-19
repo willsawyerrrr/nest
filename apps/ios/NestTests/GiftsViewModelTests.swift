@@ -62,8 +62,19 @@ private enum GiftFixtures {
         var failing: Set<String> = []
         private let lock = NSLock()
         private var recorded: [String] = []
+        private var recordedWrites: [(method: String, table: String, body: [String: Any])] = []
         var paths: [String] { lock.withLock { recorded } }
+        var writes: [(method: String, table: String, body: [String: Any])] {
+            lock.withLock { recordedWrites }
+        }
         func record(_ path: String) { lock.withLock { recorded.append(path) } }
+        func record(_ request: URLRequest, table: String) {
+            let method = request.httpMethod ?? "GET"
+            guard method != "GET" else { return }
+            let json = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) }
+            let body = (json as? [String: Any]) ?? (json as? [[String: Any]])?.first ?? [:]
+            lock.withLock { recordedWrites.append((method, table, body)) }
+        }
     }
 
     private func makeData(
@@ -76,6 +87,7 @@ private enum GiftFixtures {
                 send: { request in
                     let table = request.url!.path.split(separator: "/").last.map(String.init) ?? ""
                     server.record(table)
+                    server.record(request, table: table)
                     let failed = server.failing.contains(table)
                     return (
                         Data((failed ? "{}" : server.bodies[table] ?? "[]").utf8),
@@ -151,6 +163,82 @@ private enum GiftFixtures {
         }
         #expect(content.rows.budgets.count == 2)
         #expect(error?.code == .server)
+    }
+
+    // MARK: Management writes
+
+    @Test func addsAnExternalRecipientUnlinkedToAnyMember() async throws {
+        let server = Server()
+        let model = GiftsViewModel(data: makeData(server, directory: directory()))
+        await model.load()
+        #expect(await model.createRecipient(name: "Gran"))
+        let write = try #require(server.writes.first)
+        #expect(write.method == "POST" && write.table == "gift_recipient")
+        #expect(write.body["name"] as? String == "Gran")
+        #expect(write.body["household_id"] as? String == "h")
+        #expect(write.body["member_id"] is NSNull)
+    }
+
+    @Test func savesAnOccasionWithAClearedDate() async throws {
+        let server = Server()
+        let model = GiftsViewModel(data: makeData(server, directory: directory()))
+        await model.load()
+        #expect(await model.updateOccasion(id: "o", name: "Xmas", date: nil))
+        let write = try #require(server.writes.first)
+        #expect(write.method == "PATCH" && write.table == "gift_occasion")
+        #expect(write.body["occasion_date"] is NSNull)
+    }
+
+    @Test func theRecipientMayEditTheirOwnGiftsAgreedAmount() async throws {
+        let server = Server()
+        let model = GiftsViewModel(data: makeData(server, directory: directory()))
+        await model.load()
+        let presentation = try #require(model.state.value).presentation
+        let own = try #require(presentation.budget(id: "b-me"))
+        let check = presentation.check(
+            GiftBudgetDraft(
+                recipientId: own.recipientId, occasionId: own.occasionId,
+                budgetedAmountCents: 25000, eventDate: "2026-12-01"),
+            editing: own)
+        #expect(check.canSubmit && check.eventDate == nil)
+        #expect(await model.updateBudget(id: "b-me", check))
+        let write = try #require(server.writes.first)
+        #expect(write.method == "PATCH" && write.table == "gift_budget")
+        #expect(write.body["budgeted_amount_cents"] as? Int == 25000)
+        #expect(write.body["event_date"] is NSNull)
+        // Still no spend reaches the member for their own gift.
+        let row = model.state.value?.presentation.groups(by: .person).first { $0.key == "r-me" }
+        #expect(row?.isHidden == true)
+    }
+
+    @Test func aDuplicatePairingCannotBeAdded() async throws {
+        let server = Server()
+        let model = GiftsViewModel(data: makeData(server, directory: directory()))
+        await model.load()
+        let presentation = try #require(model.state.value).presentation
+        let check = presentation.check(
+            GiftBudgetDraft(
+                recipientId: "r-mum", occasionId: "o", budgetedAmountCents: 1, eventDate: nil))
+        #expect(check.duplicate && !check.canSubmit)
+    }
+
+    @Test func aFailedDeleteSurfacesItsMessage() async {
+        let server = Server()
+        let model = GiftsViewModel(data: makeData(server, directory: directory()))
+        await model.load()
+        server.failing = ["gift_occasion"]
+        #expect(!(await model.deleteOccasion(id: "o")))
+        #expect(model.actionError == "Could not delete this occasion. Please try again.")
+    }
+
+    @Test func membersRecipientsAreFixedAndExternalOnesEditable() async throws {
+        let server = Server()
+        let model = GiftsViewModel(data: makeData(server, directory: directory()))
+        await model.load()
+        let presentation = try #require(model.state.value).presentation
+        #expect(presentation.memberRecipients.map(\.id) == ["r-me"])
+        #expect(presentation.externalRecipients.map(\.id) == ["r-mum"])
+        #expect(presentation.memberRecipientName(presentation.memberRecipients[0]) == "m1")
     }
 
     // MARK: Privacy
@@ -282,7 +370,7 @@ private enum GiftFixtures {
     }
 
     @Test func purchaseValuesEncodeNullsExplicitly() throws {
-        let values = GiftPurchaseValues(fields: ["recipient_id": .null, "amount_cents": .cents(5)])
+        let values = GiftValues(fields: ["recipient_id": .null, "amount_cents": .cents(5)])
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(values))
             as! [String: Any]
         #expect(json["recipient_id"] is NSNull)

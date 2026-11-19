@@ -9,7 +9,7 @@ struct GiftPurchaseForm: View {
     var discretionaryID: String?
     /// Recipients offered as the optional ad hoc tag; nil hides the tag.
     var tagChoices: [GiftLinkOption]?
-    let onSubmit: (GiftPurchaseValues) async -> Bool
+    let onSubmit: (GiftValues) async -> Bool
     let onCancel: () -> Void
 
     @State private var description: String
@@ -22,7 +22,7 @@ struct GiftPurchaseForm: View {
     init(
         initial: GiftPurchase? = nil, budgetID: String? = nil, discretionaryID: String? = nil,
         tagChoices: [GiftLinkOption]? = nil,
-        onSubmit: @escaping (GiftPurchaseValues) async -> Bool, onCancel: @escaping () -> Void
+        onSubmit: @escaping (GiftValues) async -> Bool, onCancel: @escaping () -> Void
     ) {
         self.initial = initial
         self.budgetID = budgetID
@@ -61,7 +61,7 @@ struct GiftPurchaseForm: View {
 
     private func submit() {
         guard let cents else { return }
-        var values = GiftPurchaseValues.details(
+        var values = GiftValues.details(
             amountCents: cents, description: description, purchasedOn: Self.format(date))
         if let budgetID { values = values.with("gift_budget_id", .text(budgetID)) }
         if let discretionaryID {
@@ -123,7 +123,7 @@ struct GiftBudgetPicker: View {
 struct GiftCandidateLinkForm: View {
     let candidate: GiftCandidate
     let choices: [GiftLinkRecipient]
-    let onSubmit: (GiftPurchaseValues) async -> Bool
+    let onSubmit: (GiftValues) async -> Bool
     let onCancel: () -> Void
 
     @State private var recipientID: String?
@@ -134,7 +134,7 @@ struct GiftCandidateLinkForm: View {
 
     init(
         candidate: GiftCandidate, choices: [GiftLinkRecipient],
-        onSubmit: @escaping (GiftPurchaseValues) async -> Bool, onCancel: @escaping () -> Void
+        onSubmit: @escaping (GiftValues) async -> Bool, onCancel: @escaping () -> Void
     ) {
         self.candidate = candidate
         self.choices = choices
@@ -154,7 +154,7 @@ struct GiftCandidateLinkForm: View {
             canSubmit: budgetID != nil, isSubmitting: submitting,
             onSubmit: {
                 guard let budgetID else { return }
-                let values = GiftPurchaseValues.details(
+                let values = GiftValues.details(
                     amountCents: candidate.amountCents, description: description,
                     purchasedOn: candidate.postedOn
                 )
@@ -180,7 +180,7 @@ struct GiftPurchaseAssignForm: View {
     let choices: [GiftLinkRecipient]
     let discretionaryID: String?
     let tagChoices: [GiftLinkOption]
-    let onSubmit: (GiftPurchaseValues) async -> Bool
+    let onSubmit: (GiftValues) async -> Bool
     let onCancel: () -> Void
 
     private enum Destination { case gift, adHoc }
@@ -194,7 +194,7 @@ struct GiftPurchaseAssignForm: View {
 
     init(
         choices: [GiftLinkRecipient], discretionaryID: String?, tagChoices: [GiftLinkOption],
-        onSubmit: @escaping (GiftPurchaseValues) async -> Bool, onCancel: @escaping () -> Void
+        onSubmit: @escaping (GiftValues) async -> Bool, onCancel: @escaping () -> Void
     ) {
         self.choices = choices
         self.discretionaryID = discretionaryID
@@ -214,11 +214,11 @@ struct GiftPurchaseAssignForm: View {
             error: failed ? "Could not assign this purchase. Please try again." : nil,
             canSubmit: canSubmit, isSubmitting: submitting,
             onSubmit: {
-                let values: GiftPurchaseValues
+                let values: GiftValues
                 if destination == .gift, let budgetID {
-                    values = GiftPurchaseValues(fields: ["gift_budget_id": .text(budgetID)])
+                    values = GiftValues(fields: ["gift_budget_id": .text(budgetID)])
                 } else if let discretionaryID {
-                    values = GiftPurchaseValues(fields: [
+                    values = GiftValues(fields: [
                         "gift_discretionary_budget_id": .text(discretionaryID),
                         "recipient_id": tag.map { .text($0) } ?? .null,
                     ])

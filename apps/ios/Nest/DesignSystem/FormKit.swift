@@ -271,12 +271,15 @@ struct EditDeleteActions: View {
 /// whole-number interval input beneath it when the cadence is every N weeks or months.
 struct FrequencyInput: View {
     var label = "Frequency"
+    var description: String?
     @Binding var frequency: Frequency
     @Binding var interval: String
     /// The interval input's label for the selected cadence.
     var intervalLabel: (Frequency) -> String = {
         "\($0 == .everyNMonths ? "Months" : "Weeks") between payments"
     }
+    /// The interval input's description for the selected cadence, when it has one.
+    var intervalDescription: (Frequency) -> String? = { _ in nil }
 
     /// Every cadence, fixed ones first, then the interval ones.
     static let cadences: [Frequency] = [
@@ -291,11 +294,13 @@ struct FrequencyInput: View {
 
     var body: some View {
         SelectInput(
-            label: label,
+            label: label, description: description,
             options: Self.cadences.map { ($0, $0.label(interval: nil)) },
             selection: $frequency)
         if Self.takesInterval(frequency) {
-            TextInput(label: intervalLabel(frequency), text: $interval)
+            TextInput(
+                label: intervalLabel(frequency), description: intervalDescription(frequency),
+                text: $interval)
                 #if os(iOS)
                     .keyboardType(.numberPad)
                 #endif

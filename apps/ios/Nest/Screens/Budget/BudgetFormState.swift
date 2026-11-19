@@ -2,7 +2,7 @@ import Foundation
 
 extension Frequency {
     /// Whether the cadence reads an interval count.
-    var isEveryN: Bool { self == .everyNWeeks || self == .everyNMonths }
+    var isEveryN: Bool { FrequencyInput.takesInterval(self) }
 
     /// `amountCents` annualised to whole cents, as `@nest/plan`'s `annualCents`: a
     /// fixed cadence multiplies exactly, an every-N one rounds `amount × 52 (or 12) /

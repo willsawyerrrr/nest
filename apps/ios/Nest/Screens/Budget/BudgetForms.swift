@@ -64,15 +64,18 @@ private struct ReadOnlyField: View {
 
 private enum BudgetFormOptions {
     static let groups: [(BudgetGroup, String)] = BudgetGroup.allCases.map { ($0, $0.title) }
-    static let frequencies: [(Frequency, String)] = InflowFormState.frequencies.map {
-        ($0, $0.label(interval: nil))
-    }
 
     /// `options` behind a leading `nil` choice reading `placeholder`, as a clearable select.
     static func clearable(_ options: [(id: String, name: String)], placeholder: String)
         -> [(String?, String)]
     {
         [(nil, placeholder)] + options.map { (Optional($0.id), $0.name) }
+    }
+
+    /// The interval input's description: how far apart each `noun` lands.
+    static func intervalDescription(_ frequency: Frequency, noun: String) -> String {
+        let unit = intervalUnit(frequency).unit
+        return "How many \(unit) apart each \(noun) lands (e.g. 4 for once every four \(unit))."
     }
 
     /// `Weeks` or `Months`, and their lower-case unit.
@@ -139,20 +142,11 @@ struct BudgetLineFormView: View {
             InflowField(label: "Name") {
                 InflowTextInput(text: $form.name, identifier: "budget-line-name")
             }
-            InflowField(
-                label: "Frequency",
-                description: "The app converts every amount to fortnightly and annual."
-            ) {
-                InflowSelect(options: BudgetFormOptions.frequencies, selection: $form.frequency)
-            }
-            if form.frequency.isEveryN {
-                let unit = BudgetFormOptions.intervalUnit(form.frequency)
-                InflowField(
-                    label: "\(unit.title) between allocations",
-                    description:
-                        "How many \(unit.unit) apart each allocation lands (e.g. 4 for once every four \(unit.unit))."
-                ) { InflowTextInput(text: $form.interval, numeric: true) }
-            }
+            FrequencyInput(
+                description: "The app converts every amount to fortnightly and annual.",
+                frequency: $form.frequency, interval: $form.interval,
+                intervalLabel: { "\(BudgetFormOptions.intervalUnit($0).title) between allocations" },
+                intervalDescription: { BudgetFormOptions.intervalDescription($0, noun: "allocation") })
             InflowField(label: "Amount") {
                 InflowTextInput(
                     text: $form.amount, prefix: "$", numeric: true, identifier: "budget-line-amount")
@@ -270,17 +264,10 @@ struct MemberAllowanceFormView: View {
                     text: $form.amount, prefix: "$", numeric: true, identifier: "allowance-amount")
                 FieldError(message: form.belowDrawn ? AllowanceCopy.belowDrawn : nil)
             }
-            InflowField(label: "Frequency") {
-                InflowSelect(options: BudgetFormOptions.frequencies, selection: $form.frequency)
-            }
-            if form.frequency.isEveryN {
-                let unit = BudgetFormOptions.intervalUnit(form.frequency)
-                InflowField(
-                    label: "\(unit.title) between allowances",
-                    description:
-                        "How many \(unit.unit) apart each allowance lands (e.g. 4 for once every four \(unit.unit))."
-                ) { InflowTextInput(text: $form.interval, numeric: true) }
-            }
+            FrequencyInput(
+                frequency: $form.frequency, interval: $form.interval,
+                intervalLabel: { "\(BudgetFormOptions.intervalUnit($0).title) between allowances" },
+                intervalDescription: { BudgetFormOptions.intervalDescription($0, noun: "allowance") })
             InflowField(
                 label: "Funded from",
                 description:

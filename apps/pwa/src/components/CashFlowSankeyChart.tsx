@@ -1,7 +1,14 @@
 import { useElementSize } from '@mantine/hooks'
 import type { CashFlowGraph } from '../lib/cashFlow'
 import { formatCents } from '../lib/money'
-import { ribbonPath, sankeyLayout, type SankeyOrder } from '../lib/sankeyLayout'
+import {
+  LABEL_GAP,
+  ribbonPath,
+  sankeyFrame,
+  sankeyLayout,
+  VERTICAL_MARGIN,
+  type SankeyOrder,
+} from '../lib/sankeyLayout'
 
 interface CashFlowSankeyChartProps {
   graph: CashFlowGraph
@@ -9,24 +16,9 @@ interface CashFlowSankeyChartProps {
   order?: SankeyOrder
 }
 
-const NODE_WIDTH = 8
-const NODE_PADDING = 24
-/** Vertical room one node's two-line label needs, so labels never collide. */
-const ROW_HEIGHT = 32
-const MIN_HEIGHT = 240
-const LABEL_GAP = 6
-/** Room above and below the bars for the end labels' second line. */
-const VERTICAL_MARGIN = 14
 /** Stroke that keeps a flow too small for a full pixel visible without changing its geometry. */
 const HAIRLINE = 0.75
 const FONT_SIZE = 11
-/** Approximate width of one label character at `FONT_SIZE`. */
-const CHAR_WIDTH = 6
-
-/** The label margin each side reserves: the first column's labels sit left, the last column's right. */
-function labelMargin(width: number): number {
-  return Math.min(140, Math.round(width * 0.27))
-}
 
 /** `text`, cut with an ellipsis to fit `maxChars`. */
 function clip(text: string, maxChars: number): string {
@@ -42,19 +34,13 @@ function clip(text: string, maxChars: number): string {
  */
 export default function CashFlowSankeyChart({ graph, order = 'input' }: CashFlowSankeyChartProps) {
   const { ref, width } = useElementSize()
-  const rows = graph.nodes.filter(
-    (_, index) => !graph.links.some((link) => link.source === index),
-  ).length
-  const height = Math.max(MIN_HEIGHT, rows * ROW_HEIGHT) + 2 * VERTICAL_MARGIN
-  const margin = labelMargin(width)
-  const layout = sankeyLayout(graph.nodes.length, graph.links, {
-    width: width - 2 * margin,
-    height: height - 2 * VERTICAL_MARGIN,
-    nodeWidth: NODE_WIDTH,
-    nodePadding: NODE_PADDING,
+  const { height, margin, maxChars, options } = sankeyFrame(
+    graph.nodes.length,
+    graph.links,
+    width,
     order,
-  })
-  const maxChars = Math.floor((margin - LABEL_GAP) / CHAR_WIDTH)
+  )
+  const layout = sankeyLayout(graph.nodes.length, graph.links, options)
 
   return (
     <div ref={ref} style={{ width: '100%', height }}>

@@ -1,0 +1,3819 @@
+[
+  {
+    "name": "a two-member household",
+    "now": "2026-12-01T00:00:00Z",
+    "rows": {
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "name": "Ada salary",
+          "type": "salary",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 15000000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "name": "Ben wage",
+          "type": "wage",
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": null,
+          "interval_count": null,
+          "hourly_rate_cents": 5500,
+          "hours_per_period": 76,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i3",
+          "name": "Bonus",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": false,
+          "schedule": null,
+          "amount_cents": 800000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-10-15",
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c1",
+          "member_id": "m1",
+          "contributor_member_id": null,
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "amount",
+          "amount_cents": 20000,
+          "percent_bp": null,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "fhss_eligible": false
+        }
+      ],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "d1",
+          "member_id": "m2",
+          "balance_cents": 1800000
+        }
+      ],
+      "deductions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "x1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "deduction_date": "2026-08-01",
+          "description": "Laptop",
+          "category": "work_expense",
+          "basis": "amount",
+          "amount_cents": 90000,
+          "full_amount_cents": 150000,
+          "work_use_percent": 60,
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": null
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1988-09-20",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Rent",
+          "line_group": "needs",
+          "amount_cents": 240000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "Utilities",
+          "line_group": "needs",
+          "amount_cents": 520000,
+          "frequency": "annual",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": "bd1",
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Streaming",
+          "line_group": "wants",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b4",
+          "name": "Coffee",
+          "line_group": "discretionary",
+          "amount_cents": 4000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": "m1",
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b5",
+          "name": "Holiday",
+          "line_group": "savings",
+          "amount_cents": 30000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b6",
+          "name": "Shares",
+          "line_group": "investments",
+          "amount_cents": 50000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "memberAllowances": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al1",
+          "member_id": "m1",
+          "amount_cents": 15000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "destination_account_id": null
+        }
+      ],
+      "temporaryItems": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tmp1",
+          "name": "Course",
+          "contribution_cents": 8000,
+          "target_date": "2027-03-31"
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1500000,
+          "current_balance_cents": 300000,
+          "annual_interest_bps": 480,
+          "linked_account_id": "a1",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": "2027-12-31"
+        }
+      ],
+      "savers": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "Saver",
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-1",
+          "owner_member_id": "m1",
+          "source": "up",
+          "type": "savings",
+          "balance_cents": 1200000
+        }
+      ]
+    },
+    "cashFlow": {
+      "takeHome": {
+        "grouped": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 410616
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 297505
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 130769
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Buffer",
+              "color": "buffer",
+              "valueCents": 496275
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 410616
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 297505
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 130769
+            },
+            {
+              "source": 1,
+              "target": 4,
+              "value": 5000
+            },
+            {
+              "source": 1,
+              "target": 5,
+              "value": 15000
+            },
+            {
+              "source": 1,
+              "target": 6,
+              "value": 8000
+            },
+            {
+              "source": 1,
+              "target": 7,
+              "value": 30000
+            },
+            {
+              "source": 1,
+              "target": 8,
+              "value": 23077
+            },
+            {
+              "source": 1,
+              "target": 9,
+              "value": 496275
+            }
+          ]
+        },
+        "drilled": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 410616
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 297505
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 130769
+            },
+            {
+              "name": "Rent",
+              "color": "needs",
+              "valueCents": 110769
+            },
+            {
+              "name": "Utilities",
+              "color": "needs",
+              "valueCents": 20000
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Streaming",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Ada’s allowance",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Course",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Holiday",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Shares",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Buffer",
+              "color": "buffer",
+              "valueCents": 496275
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 410616
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 297505
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 130769
+            },
+            {
+              "source": 3,
+              "target": 4,
+              "value": 110769
+            },
+            {
+              "source": 3,
+              "target": 5,
+              "value": 20000
+            },
+            {
+              "source": 1,
+              "target": 6,
+              "value": 5000
+            },
+            {
+              "source": 6,
+              "target": 7,
+              "value": 5000
+            },
+            {
+              "source": 1,
+              "target": 8,
+              "value": 15000
+            },
+            {
+              "source": 8,
+              "target": 9,
+              "value": 15000
+            },
+            {
+              "source": 1,
+              "target": 10,
+              "value": 8000
+            },
+            {
+              "source": 10,
+              "target": 11,
+              "value": 8000
+            },
+            {
+              "source": 1,
+              "target": 12,
+              "value": 30000
+            },
+            {
+              "source": 12,
+              "target": 13,
+              "value": 30000
+            },
+            {
+              "source": 1,
+              "target": 14,
+              "value": 23077
+            },
+            {
+              "source": 14,
+              "target": 15,
+              "value": 23077
+            },
+            {
+              "source": 1,
+              "target": 16,
+              "value": 496275
+            }
+          ]
+        }
+      },
+      "gross": {
+        "grouped": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 578207
+            },
+            {
+              "name": "Gross income",
+              "color": "buffer",
+              "valueCents": 997138
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 418931
+            },
+            {
+              "name": "Tax",
+              "color": "tax",
+              "valueCents": 272017
+            },
+            {
+              "name": "Salary sacrifice",
+              "color": "sacrifice",
+              "valueCents": 17000
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 130769
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Buffer",
+              "color": "buffer",
+              "valueCents": 496275
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 578207
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 418931
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 272017
+            },
+            {
+              "source": 1,
+              "target": 4,
+              "value": 17000
+            },
+            {
+              "source": 1,
+              "target": 5,
+              "value": 708121
+            },
+            {
+              "source": 5,
+              "target": 6,
+              "value": 130769
+            },
+            {
+              "source": 5,
+              "target": 7,
+              "value": 5000
+            },
+            {
+              "source": 5,
+              "target": 8,
+              "value": 15000
+            },
+            {
+              "source": 5,
+              "target": 9,
+              "value": 8000
+            },
+            {
+              "source": 5,
+              "target": 10,
+              "value": 30000
+            },
+            {
+              "source": 5,
+              "target": 11,
+              "value": 23077
+            },
+            {
+              "source": 5,
+              "target": 12,
+              "value": 496275
+            }
+          ]
+        },
+        "drilled": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 578207
+            },
+            {
+              "name": "Gross income",
+              "color": "buffer",
+              "valueCents": 997138
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 418931
+            },
+            {
+              "name": "Tax",
+              "color": "tax",
+              "valueCents": 272017
+            },
+            {
+              "name": "Salary sacrifice",
+              "color": "sacrifice",
+              "valueCents": 17000
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 130769
+            },
+            {
+              "name": "Rent",
+              "color": "needs",
+              "valueCents": 110769
+            },
+            {
+              "name": "Utilities",
+              "color": "needs",
+              "valueCents": 20000
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Streaming",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Ada’s allowance",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Course",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Holiday",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Shares",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Buffer",
+              "color": "buffer",
+              "valueCents": 496275
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 578207
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 418931
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 272017
+            },
+            {
+              "source": 1,
+              "target": 4,
+              "value": 17000
+            },
+            {
+              "source": 1,
+              "target": 5,
+              "value": 708121
+            },
+            {
+              "source": 5,
+              "target": 6,
+              "value": 130769
+            },
+            {
+              "source": 6,
+              "target": 7,
+              "value": 110769
+            },
+            {
+              "source": 6,
+              "target": 8,
+              "value": 20000
+            },
+            {
+              "source": 5,
+              "target": 9,
+              "value": 5000
+            },
+            {
+              "source": 9,
+              "target": 10,
+              "value": 5000
+            },
+            {
+              "source": 5,
+              "target": 11,
+              "value": 15000
+            },
+            {
+              "source": 11,
+              "target": 12,
+              "value": 15000
+            },
+            {
+              "source": 5,
+              "target": 13,
+              "value": 8000
+            },
+            {
+              "source": 13,
+              "target": 14,
+              "value": 8000
+            },
+            {
+              "source": 5,
+              "target": 15,
+              "value": 30000
+            },
+            {
+              "source": 15,
+              "target": 16,
+              "value": 30000
+            },
+            {
+              "source": 5,
+              "target": 17,
+              "value": 23077
+            },
+            {
+              "source": 17,
+              "target": 18,
+              "value": 23077
+            },
+            {
+              "source": 5,
+              "target": 19,
+              "value": 496275
+            }
+          ]
+        }
+      },
+      "hasLines": true
+    },
+    "descriptions": [
+      [
+        "Ada salary to Available: $4,106.16",
+        "Ben wage to Available: $2,975.05",
+        "Available to Needs: $1,307.69",
+        "Available to Wants: $50.00",
+        "Available to Discretionary: $150.00",
+        "Available to Temporary: $80.00",
+        "Available to Savings: $300.00",
+        "Available to Investments: $230.77",
+        "Available to Buffer: $4,962.75"
+      ],
+      [
+        "Ada salary to Available: $4,106.16",
+        "Ben wage to Available: $2,975.05",
+        "Available to Needs: $1,307.69",
+        "Needs to Rent: $1,107.69",
+        "Needs to Utilities: $200.00",
+        "Available to Wants: $50.00",
+        "Wants to Streaming: $50.00",
+        "Available to Discretionary: $150.00",
+        "Discretionary to Ada’s allowance: $150.00",
+        "Available to Temporary: $80.00",
+        "Temporary to Course: $80.00",
+        "Available to Savings: $300.00",
+        "Savings to Holiday: $300.00",
+        "Available to Investments: $230.77",
+        "Investments to Shares: $230.77",
+        "Available to Buffer: $4,962.75"
+      ],
+      [
+        "Ada salary to Gross income: $5,782.07",
+        "Ben wage to Gross income: $4,189.31",
+        "Gross income to Tax: $2,720.17",
+        "Gross income to Salary sacrifice: $170.00",
+        "Gross income to Available: $7,081.21",
+        "Available to Needs: $1,307.69",
+        "Available to Wants: $50.00",
+        "Available to Discretionary: $150.00",
+        "Available to Temporary: $80.00",
+        "Available to Savings: $300.00",
+        "Available to Investments: $230.77",
+        "Available to Buffer: $4,962.75"
+      ],
+      [
+        "Ada salary to Gross income: $5,782.07",
+        "Ben wage to Gross income: $4,189.31",
+        "Gross income to Tax: $2,720.17",
+        "Gross income to Salary sacrifice: $170.00",
+        "Gross income to Available: $7,081.21",
+        "Available to Needs: $1,307.69",
+        "Needs to Rent: $1,107.69",
+        "Needs to Utilities: $200.00",
+        "Available to Wants: $50.00",
+        "Wants to Streaming: $50.00",
+        "Available to Discretionary: $150.00",
+        "Discretionary to Ada’s allowance: $150.00",
+        "Available to Temporary: $80.00",
+        "Temporary to Course: $80.00",
+        "Available to Savings: $300.00",
+        "Savings to Holiday: $300.00",
+        "Available to Investments: $230.77",
+        "Investments to Shares: $230.77",
+        "Available to Buffer: $4,962.75"
+      ]
+    ],
+    "layouts": [
+      {
+        "graph": "takeHome.grouped",
+        "width": 358,
+        "order": "input",
+        "expected": {
+          "frame": {
+            "height": 268,
+            "margin": 97,
+            "maxChars": 15,
+            "labelGap": 6,
+            "verticalMargin": 14
+          },
+          "layout": {
+            "nodes": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 69.58404001576002,
+                "column": 0
+              },
+              {
+                "x": 78,
+                "y": 0,
+                "width": 8,
+                "height": 120,
+                "column": 1
+              },
+              {
+                "x": 0,
+                "y": 189.58404001576002,
+                "width": 8,
+                "height": 50.41595998423998,
+                "column": 0
+              },
+              {
+                "x": 156,
+                "y": 0,
+                "width": 8,
+                "height": 22.160449979593885,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 42.160449979593885,
+                "width": 8,
+                "height": 0.847312818007092,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 63.007762797600975,
+                "width": 8,
+                "height": 2.541938454021276,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 85.54970125162225,
+                "width": 8,
+                "height": 1.3557005088113472,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 106.90540176043359,
+                "width": 8,
+                "height": 5.083876908042552,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 131.98927866847615,
+                "width": 8,
+                "height": 3.910687580229933,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 155.89996624870608,
+                "width": 8,
+                "height": 84.10003375129392,
+                "column": 2
+              }
+            ],
+            "columns": 3,
+            "links": [
+              {
+                "source": 0,
+                "target": 1,
+                "value": 410616,
+                "x0": 8,
+                "x1": 78,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 69.58404001576002
+              },
+              {
+                "source": 2,
+                "target": 1,
+                "value": 297505,
+                "x0": 8,
+                "x1": 78,
+                "y0": 189.58404001576002,
+                "y1": 69.58404001576002,
+                "thickness": 50.41595998423998
+              },
+              {
+                "source": 1,
+                "target": 3,
+                "value": 130769,
+                "x0": 86,
+                "x1": 156,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 22.160449979593885
+              },
+              {
+                "source": 1,
+                "target": 4,
+                "value": 5000,
+                "x0": 86,
+                "x1": 156,
+                "y0": 22.160449979593885,
+                "y1": 42.160449979593885,
+                "thickness": 0.847312818007092
+              },
+              {
+                "source": 1,
+                "target": 5,
+                "value": 15000,
+                "x0": 86,
+                "x1": 156,
+                "y0": 23.00776279760098,
+                "y1": 63.007762797600975,
+                "thickness": 2.541938454021276
+              },
+              {
+                "source": 1,
+                "target": 6,
+                "value": 8000,
+                "x0": 86,
+                "x1": 156,
+                "y0": 25.549701251622256,
+                "y1": 85.54970125162225,
+                "thickness": 1.3557005088113472
+              },
+              {
+                "source": 1,
+                "target": 7,
+                "value": 30000,
+                "x0": 86,
+                "x1": 156,
+                "y0": 26.9054017604336,
+                "y1": 106.90540176043359,
+                "thickness": 5.083876908042552
+              },
+              {
+                "source": 1,
+                "target": 8,
+                "value": 23077,
+                "x0": 86,
+                "x1": 156,
+                "y0": 31.989278668476153,
+                "y1": 131.98927866847615,
+                "thickness": 3.910687580229933
+              },
+              {
+                "source": 1,
+                "target": 9,
+                "value": 496275,
+                "x0": 86,
+                "x1": 156,
+                "y0": 35.899966248706086,
+                "y1": 155.89996624870608,
+                "thickness": 84.10003375129392
+              }
+            ]
+          }
+        }
+      },
+      {
+        "graph": "gross.drilled",
+        "width": 358,
+        "order": "input",
+        "expected": {
+          "frame": {
+            "height": 348,
+            "margin": 97,
+            "maxChars": 15,
+            "labelGap": 6,
+            "verticalMargin": 14
+          },
+          "layout": {
+            "nodes": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 92.77865250346491,
+                "column": 0
+              },
+              {
+                "x": 39,
+                "y": 0,
+                "width": 8,
+                "height": 160,
+                "column": 1
+              },
+              {
+                "x": 0,
+                "y": 252.7786525034649,
+                "width": 8,
+                "height": 67.22134749653507,
+                "column": 0
+              },
+              {
+                "x": 156,
+                "y": 0,
+                "width": 8,
+                "height": 43.647639544376,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 61.42541732215378,
+                "width": 8,
+                "height": 2.727806983587026,
+                "column": 4
+              },
+              {
+                "x": 78,
+                "y": 0,
+                "width": 8,
+                "height": 113.62455347203696,
+                "column": 2
+              },
+              {
+                "x": 117,
+                "y": 0,
+                "width": 8,
+                "height": 20.983093613923046,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 81.93100208351858,
+                "width": 8,
+                "height": 17.773908927350075,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 117.48268878864643,
+                "width": 8,
+                "height": 3.209184686572972,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 78.18456422280566,
+                "width": 8,
+                "height": 0.802296171643243,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 138.46965125299718,
+                "width": 8,
+                "height": 0.802296171643243,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 136.1883310033315,
+                "width": 8,
+                "height": 2.4068885149297286,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 157.0497252024182,
+                "width": 8,
+                "height": 2.4068885149297286,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 195.79669012714385,
+                "width": 8,
+                "height": 1.2836738746291887,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 177.2343914951257,
+                "width": 8,
+                "height": 1.2836738746291887,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 254.28183461065566,
+                "width": 8,
+                "height": 4.813777029859457,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 196.29584314753265,
+                "width": 8,
+                "height": 4.813777029859457,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 316.29708224939776,
+                "width": 8,
+                "height": 3.7029177506022233,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 218.8873979551699,
+                "width": 8,
+                "height": 3.7029177506022233,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 240.3680934835499,
+                "width": 8,
+                "height": 79.63190651645007,
+                "column": 4
+              }
+            ],
+            "columns": 5,
+            "links": [
+              {
+                "source": 0,
+                "target": 1,
+                "value": 578207,
+                "x0": 8,
+                "x1": 39,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 92.77865250346491
+              },
+              {
+                "source": 2,
+                "target": 1,
+                "value": 418931,
+                "x0": 8,
+                "x1": 39,
+                "y0": 252.7786525034649,
+                "y1": 92.77865250346491,
+                "thickness": 67.22134749653507
+              },
+              {
+                "source": 1,
+                "target": 3,
+                "value": 272017,
+                "x0": 47,
+                "x1": 156,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 43.647639544376
+              },
+              {
+                "source": 1,
+                "target": 4,
+                "value": 17000,
+                "x0": 47,
+                "x1": 156,
+                "y0": 157.27219301641296,
+                "y1": 61.42541732215378,
+                "thickness": 2.727806983587026
+              },
+              {
+                "source": 1,
+                "target": 5,
+                "value": 708121,
+                "x0": 47,
+                "x1": 78,
+                "y0": 43.647639544376,
+                "y1": 0,
+                "thickness": 113.62455347203696
+              },
+              {
+                "source": 5,
+                "target": 6,
+                "value": 130769,
+                "x0": 86,
+                "x1": 117,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 20.983093613923046
+              },
+              {
+                "source": 6,
+                "target": 7,
+                "value": 110769,
+                "x0": 125,
+                "x1": 156,
+                "y0": 0,
+                "y1": 81.93100208351858,
+                "thickness": 17.773908927350075
+              },
+              {
+                "source": 6,
+                "target": 8,
+                "value": 20000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 17.773908927350075,
+                "y1": 117.48268878864643,
+                "thickness": 3.209184686572972
+              },
+              {
+                "source": 5,
+                "target": 9,
+                "value": 5000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 20.983093613923046,
+                "y1": 78.18456422280566,
+                "thickness": 0.802296171643243
+              },
+              {
+                "source": 9,
+                "target": 10,
+                "value": 5000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 78.18456422280566,
+                "y1": 138.46965125299718,
+                "thickness": 0.802296171643243
+              },
+              {
+                "source": 5,
+                "target": 11,
+                "value": 15000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 21.785389785566288,
+                "y1": 136.1883310033315,
+                "thickness": 2.4068885149297286
+              },
+              {
+                "source": 11,
+                "target": 12,
+                "value": 15000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 136.1883310033315,
+                "y1": 157.0497252024182,
+                "thickness": 2.4068885149297286
+              },
+              {
+                "source": 5,
+                "target": 13,
+                "value": 8000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 24.192278300496017,
+                "y1": 195.79669012714385,
+                "thickness": 1.2836738746291887
+              },
+              {
+                "source": 13,
+                "target": 14,
+                "value": 8000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 195.79669012714385,
+                "y1": 177.2343914951257,
+                "thickness": 1.2836738746291887
+              },
+              {
+                "source": 5,
+                "target": 15,
+                "value": 30000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 25.475952175125204,
+                "y1": 254.28183461065566,
+                "thickness": 4.813777029859457
+              },
+              {
+                "source": 15,
+                "target": 16,
+                "value": 30000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 254.28183461065566,
+                "y1": 196.29584314753265,
+                "thickness": 4.813777029859457
+              },
+              {
+                "source": 5,
+                "target": 17,
+                "value": 23077,
+                "x0": 86,
+                "x1": 117,
+                "y0": 109.92163572143474,
+                "y1": 316.29708224939776,
+                "thickness": 3.7029177506022233
+              },
+              {
+                "source": 17,
+                "target": 18,
+                "value": 23077,
+                "x0": 125,
+                "x1": 156,
+                "y0": 316.29708224939776,
+                "y1": 218.8873979551699,
+                "thickness": 3.7029177506022233
+              },
+              {
+                "source": 5,
+                "target": 19,
+                "value": 496275,
+                "x0": 86,
+                "x1": 156,
+                "y0": 30.28972920498466,
+                "y1": 240.3680934835499,
+                "thickness": 79.63190651645007
+              }
+            ]
+          }
+        }
+      },
+      {
+        "graph": "gross.drilled",
+        "width": 358,
+        "order": "largest",
+        "expected": {
+          "frame": {
+            "height": 348,
+            "margin": 97,
+            "maxChars": 15,
+            "labelGap": 6,
+            "verticalMargin": 14
+          },
+          "layout": {
+            "nodes": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 92.77865250346491,
+                "column": 0
+              },
+              {
+                "x": 39,
+                "y": 0,
+                "width": 8,
+                "height": 160,
+                "column": 1
+              },
+              {
+                "x": 0,
+                "y": 252.7786525034649,
+                "width": 8,
+                "height": 67.22134749653507,
+                "column": 0
+              },
+              {
+                "x": 156,
+                "y": 0,
+                "width": 8,
+                "height": 43.647639544376,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 61.42541732215378,
+                "width": 8,
+                "height": 2.727806983587026,
+                "column": 4
+              },
+              {
+                "x": 78,
+                "y": 0,
+                "width": 8,
+                "height": 113.62455347203696,
+                "column": 2
+              },
+              {
+                "x": 117,
+                "y": 0,
+                "width": 8,
+                "height": 20.983093613923046,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 81.93100208351858,
+                "width": 8,
+                "height": 17.773908927350075,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 117.48268878864643,
+                "width": 8,
+                "height": 3.209184686572972,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 78.18456422280566,
+                "width": 8,
+                "height": 0.802296171643243,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 138.46965125299718,
+                "width": 8,
+                "height": 0.802296171643243,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 136.1883310033315,
+                "width": 8,
+                "height": 2.4068885149297286,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 157.0497252024182,
+                "width": 8,
+                "height": 2.4068885149297286,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 195.79669012714385,
+                "width": 8,
+                "height": 1.2836738746291887,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 177.2343914951257,
+                "width": 8,
+                "height": 1.2836738746291887,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 254.28183461065566,
+                "width": 8,
+                "height": 4.813777029859457,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 196.29584314753265,
+                "width": 8,
+                "height": 4.813777029859457,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 316.29708224939776,
+                "width": 8,
+                "height": 3.7029177506022233,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 218.8873979551699,
+                "width": 8,
+                "height": 3.7029177506022233,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 240.3680934835499,
+                "width": 8,
+                "height": 79.63190651645007,
+                "column": 4
+              }
+            ],
+            "columns": 5,
+            "links": [
+              {
+                "source": 0,
+                "target": 1,
+                "value": 578207,
+                "x0": 8,
+                "x1": 39,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 92.77865250346491
+              },
+              {
+                "source": 2,
+                "target": 1,
+                "value": 418931,
+                "x0": 8,
+                "x1": 39,
+                "y0": 252.7786525034649,
+                "y1": 92.77865250346491,
+                "thickness": 67.22134749653507
+              },
+              {
+                "source": 1,
+                "target": 3,
+                "value": 272017,
+                "x0": 47,
+                "x1": 156,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 43.647639544376
+              },
+              {
+                "source": 1,
+                "target": 4,
+                "value": 17000,
+                "x0": 47,
+                "x1": 156,
+                "y0": 157.27219301641296,
+                "y1": 61.42541732215378,
+                "thickness": 2.727806983587026
+              },
+              {
+                "source": 1,
+                "target": 5,
+                "value": 708121,
+                "x0": 47,
+                "x1": 78,
+                "y0": 43.647639544376,
+                "y1": 0,
+                "thickness": 113.62455347203696
+              },
+              {
+                "source": 5,
+                "target": 6,
+                "value": 130769,
+                "x0": 86,
+                "x1": 117,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 20.983093613923046
+              },
+              {
+                "source": 6,
+                "target": 7,
+                "value": 110769,
+                "x0": 125,
+                "x1": 156,
+                "y0": 0,
+                "y1": 81.93100208351858,
+                "thickness": 17.773908927350075
+              },
+              {
+                "source": 6,
+                "target": 8,
+                "value": 20000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 17.773908927350075,
+                "y1": 117.48268878864643,
+                "thickness": 3.209184686572972
+              },
+              {
+                "source": 5,
+                "target": 9,
+                "value": 5000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 20.983093613923046,
+                "y1": 78.18456422280566,
+                "thickness": 0.802296171643243
+              },
+              {
+                "source": 9,
+                "target": 10,
+                "value": 5000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 78.18456422280566,
+                "y1": 138.46965125299718,
+                "thickness": 0.802296171643243
+              },
+              {
+                "source": 5,
+                "target": 11,
+                "value": 15000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 21.785389785566288,
+                "y1": 136.1883310033315,
+                "thickness": 2.4068885149297286
+              },
+              {
+                "source": 11,
+                "target": 12,
+                "value": 15000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 136.1883310033315,
+                "y1": 157.0497252024182,
+                "thickness": 2.4068885149297286
+              },
+              {
+                "source": 5,
+                "target": 13,
+                "value": 8000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 24.192278300496017,
+                "y1": 195.79669012714385,
+                "thickness": 1.2836738746291887
+              },
+              {
+                "source": 13,
+                "target": 14,
+                "value": 8000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 195.79669012714385,
+                "y1": 177.2343914951257,
+                "thickness": 1.2836738746291887
+              },
+              {
+                "source": 5,
+                "target": 15,
+                "value": 30000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 25.475952175125204,
+                "y1": 254.28183461065566,
+                "thickness": 4.813777029859457
+              },
+              {
+                "source": 15,
+                "target": 16,
+                "value": 30000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 254.28183461065566,
+                "y1": 196.29584314753265,
+                "thickness": 4.813777029859457
+              },
+              {
+                "source": 5,
+                "target": 17,
+                "value": 23077,
+                "x0": 86,
+                "x1": 117,
+                "y0": 109.92163572143474,
+                "y1": 316.29708224939776,
+                "thickness": 3.7029177506022233
+              },
+              {
+                "source": 17,
+                "target": 18,
+                "value": 23077,
+                "x0": 125,
+                "x1": 156,
+                "y0": 316.29708224939776,
+                "y1": 218.8873979551699,
+                "thickness": 3.7029177506022233
+              },
+              {
+                "source": 5,
+                "target": 19,
+                "value": 496275,
+                "x0": 86,
+                "x1": 156,
+                "y0": 30.28972920498466,
+                "y1": 240.3680934835499,
+                "thickness": 79.63190651645007
+              }
+            ]
+          }
+        }
+      },
+      {
+        "graph": "gross.drilled",
+        "width": 358,
+        "order": "smallest",
+        "expected": {
+          "frame": {
+            "height": 348,
+            "margin": 97,
+            "maxChars": 15,
+            "labelGap": 6,
+            "verticalMargin": 14
+          },
+          "layout": {
+            "nodes": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 92.77865250346491,
+                "column": 0
+              },
+              {
+                "x": 39,
+                "y": 0,
+                "width": 8,
+                "height": 160,
+                "column": 1
+              },
+              {
+                "x": 0,
+                "y": 252.7786525034649,
+                "width": 8,
+                "height": 67.22134749653507,
+                "column": 0
+              },
+              {
+                "x": 156,
+                "y": 20.505584761364805,
+                "width": 8,
+                "height": 43.647639544376,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 0,
+                "width": 8,
+                "height": 2.727806983587026,
+                "column": 4
+              },
+              {
+                "x": 78,
+                "y": 0,
+                "width": 8,
+                "height": 113.62455347203696,
+                "column": 2
+              },
+              {
+                "x": 117,
+                "y": 0,
+                "width": 8,
+                "height": 20.983093613923046,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 102.91796454786933,
+                "width": 8,
+                "height": 17.773908927350075,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 81.93100208351858,
+                "width": 8,
+                "height": 3.209184686572972,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 78.18456422280566,
+                "width": 8,
+                "height": 0.802296171643243,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 138.46965125299718,
+                "width": 8,
+                "height": 0.802296171643243,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 136.1883310033315,
+                "width": 8,
+                "height": 2.4068885149297286,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 157.0497252024182,
+                "width": 8,
+                "height": 2.4068885149297286,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 195.79669012714385,
+                "width": 8,
+                "height": 1.2836738746291887,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 177.2343914951257,
+                "width": 8,
+                "height": 1.2836738746291887,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 254.28183461065566,
+                "width": 8,
+                "height": 4.813777029859457,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 196.29584314753265,
+                "width": 8,
+                "height": 4.813777029859457,
+                "column": 4
+              },
+              {
+                "x": 117,
+                "y": 316.29708224939776,
+                "width": 8,
+                "height": 3.7029177506022233,
+                "column": 3
+              },
+              {
+                "x": 156,
+                "y": 218.8873979551699,
+                "width": 8,
+                "height": 3.7029177506022233,
+                "column": 4
+              },
+              {
+                "x": 156,
+                "y": 240.3680934835499,
+                "width": 8,
+                "height": 79.63190651645007,
+                "column": 4
+              }
+            ],
+            "columns": 5,
+            "links": [
+              {
+                "source": 0,
+                "target": 1,
+                "value": 578207,
+                "x0": 8,
+                "x1": 39,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 92.77865250346491
+              },
+              {
+                "source": 2,
+                "target": 1,
+                "value": 418931,
+                "x0": 8,
+                "x1": 39,
+                "y0": 252.7786525034649,
+                "y1": 92.77865250346491,
+                "thickness": 67.22134749653507
+              },
+              {
+                "source": 1,
+                "target": 3,
+                "value": 272017,
+                "x0": 47,
+                "x1": 156,
+                "y0": 2.727806983587026,
+                "y1": 20.505584761364805,
+                "thickness": 43.647639544376
+              },
+              {
+                "source": 1,
+                "target": 4,
+                "value": 17000,
+                "x0": 47,
+                "x1": 156,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 2.727806983587026
+              },
+              {
+                "source": 1,
+                "target": 5,
+                "value": 708121,
+                "x0": 47,
+                "x1": 78,
+                "y0": 46.37544652796302,
+                "y1": 0,
+                "thickness": 113.62455347203696
+              },
+              {
+                "source": 5,
+                "target": 6,
+                "value": 130769,
+                "x0": 86,
+                "x1": 117,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 20.983093613923046
+              },
+              {
+                "source": 6,
+                "target": 7,
+                "value": 110769,
+                "x0": 125,
+                "x1": 156,
+                "y0": 3.209184686572972,
+                "y1": 102.91796454786933,
+                "thickness": 17.773908927350075
+              },
+              {
+                "source": 6,
+                "target": 8,
+                "value": 20000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 0,
+                "y1": 81.93100208351858,
+                "thickness": 3.209184686572972
+              },
+              {
+                "source": 5,
+                "target": 9,
+                "value": 5000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 20.983093613923046,
+                "y1": 78.18456422280566,
+                "thickness": 0.802296171643243
+              },
+              {
+                "source": 9,
+                "target": 10,
+                "value": 5000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 78.18456422280566,
+                "y1": 138.46965125299718,
+                "thickness": 0.802296171643243
+              },
+              {
+                "source": 5,
+                "target": 11,
+                "value": 15000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 21.785389785566288,
+                "y1": 136.1883310033315,
+                "thickness": 2.4068885149297286
+              },
+              {
+                "source": 11,
+                "target": 12,
+                "value": 15000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 136.1883310033315,
+                "y1": 157.0497252024182,
+                "thickness": 2.4068885149297286
+              },
+              {
+                "source": 5,
+                "target": 13,
+                "value": 8000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 24.192278300496017,
+                "y1": 195.79669012714385,
+                "thickness": 1.2836738746291887
+              },
+              {
+                "source": 13,
+                "target": 14,
+                "value": 8000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 195.79669012714385,
+                "y1": 177.2343914951257,
+                "thickness": 1.2836738746291887
+              },
+              {
+                "source": 5,
+                "target": 15,
+                "value": 30000,
+                "x0": 86,
+                "x1": 117,
+                "y0": 25.475952175125204,
+                "y1": 254.28183461065566,
+                "thickness": 4.813777029859457
+              },
+              {
+                "source": 15,
+                "target": 16,
+                "value": 30000,
+                "x0": 125,
+                "x1": 156,
+                "y0": 254.28183461065566,
+                "y1": 196.29584314753265,
+                "thickness": 4.813777029859457
+              },
+              {
+                "source": 5,
+                "target": 17,
+                "value": 23077,
+                "x0": 86,
+                "x1": 117,
+                "y0": 109.92163572143474,
+                "y1": 316.29708224939776,
+                "thickness": 3.7029177506022233
+              },
+              {
+                "source": 17,
+                "target": 18,
+                "value": 23077,
+                "x0": 125,
+                "x1": 156,
+                "y0": 316.29708224939776,
+                "y1": 218.8873979551699,
+                "thickness": 3.7029177506022233
+              },
+              {
+                "source": 5,
+                "target": 19,
+                "value": 496275,
+                "x0": 86,
+                "x1": 156,
+                "y0": 30.28972920498466,
+                "y1": 240.3680934835499,
+                "thickness": 79.63190651645007
+              }
+            ]
+          }
+        }
+      },
+      {
+        "graph": "takeHome.drilled",
+        "width": 700,
+        "order": "largest",
+        "expected": {
+          "frame": {
+            "height": 284,
+            "margin": 140,
+            "maxChars": 22,
+            "labelGap": 6,
+            "verticalMargin": 14
+          },
+          "layout": {
+            "nodes": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 74.22297601681068,
+                "column": 0
+              },
+              {
+                "x": 137.33333333333334,
+                "y": 0,
+                "width": 8,
+                "height": 127.99999999999999,
+                "column": 1
+              },
+              {
+                "x": 0,
+                "y": 202.22297601681066,
+                "width": 8,
+                "height": 53.77702398318931,
+                "column": 0
+              },
+              {
+                "x": 274.6666666666667,
+                "y": 0,
+                "width": 8,
+                "height": 23.637813311566806,
+                "column": 2
+              },
+              {
+                "x": 412,
+                "y": 0,
+                "width": 8,
+                "height": 20.022611954736547,
+                "column": 3
+              },
+              {
+                "x": 412,
+                "y": 38.30832624045083,
+                "width": 8,
+                "height": 3.615201356830259,
+                "column": 3
+              },
+              {
+                "x": 274.6666666666667,
+                "y": 67.17915384517617,
+                "width": 8,
+                "height": 0.9038003392075648,
+                "column": 2
+              },
+              {
+                "x": 412,
+                "y": 60.20924188299537,
+                "width": 8,
+                "height": 0.9038003392075648,
+                "column": 3
+              },
+              {
+                "x": 274.6666666666667,
+                "y": 111.62429471799311,
+                "width": 8,
+                "height": 2.7114010176226944,
+                "column": 2
+              },
+              {
+                "x": 412,
+                "y": 79.39875650791723,
+                "width": 8,
+                "height": 2.7114010176226944,
+                "column": 3
+              },
+              {
+                "x": 274.6666666666667,
+                "y": 157.87703626922516,
+                "width": 8,
+                "height": 1.4460805427321035,
+                "column": 2
+              },
+              {
+                "x": 412,
+                "y": 100.39587181125421,
+                "width": 8,
+                "height": 1.4460805427321035,
+                "column": 3
+              },
+              {
+                "x": 274.6666666666667,
+                "y": 202.86445734556662,
+                "width": 8,
+                "height": 5.422802035245389,
+                "column": 2
+              },
+              {
+                "x": 412,
+                "y": 120.1276666397006,
+                "width": 8,
+                "height": 5.422802035245389,
+                "column": 3
+              },
+              {
+                "x": 274.6666666666667,
+                "y": 251.82859991442137,
+                "width": 8,
+                "height": 4.171400085578594,
+                "column": 2
+              },
+              {
+                "x": 412,
+                "y": 143.83618296066027,
+                "width": 8,
+                "height": 4.171400085578594,
+                "column": 3
+              },
+              {
+                "x": 412,
+                "y": 166.29329733195314,
+                "width": 8,
+                "height": 89.70670266804684,
+                "column": 3
+              }
+            ],
+            "columns": 4,
+            "links": [
+              {
+                "source": 0,
+                "target": 1,
+                "value": 410616,
+                "x0": 8,
+                "x1": 137.33333333333334,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 74.22297601681068
+              },
+              {
+                "source": 2,
+                "target": 1,
+                "value": 297505,
+                "x0": 8,
+                "x1": 137.33333333333334,
+                "y0": 202.22297601681066,
+                "y1": 74.22297601681068,
+                "thickness": 53.77702398318931
+              },
+              {
+                "source": 1,
+                "target": 3,
+                "value": 130769,
+                "x0": 145.33333333333334,
+                "x1": 274.6666666666667,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 23.637813311566806
+              },
+              {
+                "source": 3,
+                "target": 4,
+                "value": 110769,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 20.022611954736547
+              },
+              {
+                "source": 3,
+                "target": 5,
+                "value": 20000,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 20.022611954736547,
+                "y1": 38.30832624045083,
+                "thickness": 3.615201356830259
+              },
+              {
+                "source": 1,
+                "target": 6,
+                "value": 5000,
+                "x0": 145.33333333333334,
+                "x1": 274.6666666666667,
+                "y0": 23.637813311566806,
+                "y1": 67.17915384517617,
+                "thickness": 0.9038003392075648
+              },
+              {
+                "source": 6,
+                "target": 7,
+                "value": 5000,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 67.17915384517617,
+                "y1": 60.20924188299537,
+                "thickness": 0.9038003392075648
+              },
+              {
+                "source": 1,
+                "target": 8,
+                "value": 15000,
+                "x0": 145.33333333333334,
+                "x1": 274.6666666666667,
+                "y0": 24.54161365077437,
+                "y1": 111.62429471799311,
+                "thickness": 2.7114010176226944
+              },
+              {
+                "source": 8,
+                "target": 9,
+                "value": 15000,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 111.62429471799311,
+                "y1": 79.39875650791723,
+                "thickness": 2.7114010176226944
+              },
+              {
+                "source": 1,
+                "target": 10,
+                "value": 8000,
+                "x0": 145.33333333333334,
+                "x1": 274.6666666666667,
+                "y0": 27.253014668397064,
+                "y1": 157.87703626922516,
+                "thickness": 1.4460805427321035
+              },
+              {
+                "source": 10,
+                "target": 11,
+                "value": 8000,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 157.87703626922516,
+                "y1": 100.39587181125421,
+                "thickness": 1.4460805427321035
+              },
+              {
+                "source": 1,
+                "target": 12,
+                "value": 30000,
+                "x0": 145.33333333333334,
+                "x1": 274.6666666666667,
+                "y0": 28.69909521112917,
+                "y1": 202.86445734556662,
+                "thickness": 5.422802035245389
+              },
+              {
+                "source": 12,
+                "target": 13,
+                "value": 30000,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 202.86445734556662,
+                "y1": 120.1276666397006,
+                "thickness": 5.422802035245389
+              },
+              {
+                "source": 1,
+                "target": 14,
+                "value": 23077,
+                "x0": 145.33333333333334,
+                "x1": 274.6666666666667,
+                "y0": 123.8285999144214,
+                "y1": 251.82859991442137,
+                "thickness": 4.171400085578594
+              },
+              {
+                "source": 14,
+                "target": 15,
+                "value": 23077,
+                "x0": 282.6666666666667,
+                "x1": 412,
+                "y0": 251.82859991442137,
+                "y1": 143.83618296066027,
+                "thickness": 4.171400085578594
+              },
+              {
+                "source": 1,
+                "target": 16,
+                "value": 496275,
+                "x0": 145.33333333333334,
+                "x1": 412,
+                "y0": 34.12189724637456,
+                "y1": 166.29329733195314,
+                "thickness": 89.70670266804684
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "an overspent household",
+    "now": "2026-12-01T00:00:00Z",
+    "rows": {
+      "inflows": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i1",
+          "name": "Ada salary",
+          "type": "salary",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "annual",
+          "amount_cents": 15000000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i2",
+          "name": "Ben wage",
+          "type": "wage",
+          "member_id": "m2",
+          "taxable": true,
+          "attracts_super": true,
+          "schedule": "fortnightly",
+          "amount_cents": null,
+          "interval_count": null,
+          "hourly_rate_cents": 5500,
+          "hours_per_period": 76,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": null,
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "i3",
+          "name": "Bonus",
+          "type": "other",
+          "member_id": "m1",
+          "taxable": true,
+          "attracts_super": false,
+          "schedule": null,
+          "amount_cents": 800000,
+          "interval_count": null,
+          "hourly_rate_cents": null,
+          "hours_per_period": null,
+          "starts_on": null,
+          "ends_on": null,
+          "paid_on": "2026-10-15",
+          "pay_anchor_date": null,
+          "pay_interval_count": null,
+          "pay_schedule": null,
+          "arrives_every_pay_period": false,
+          "one_off_tax_treatment": null,
+          "years_of_service": null,
+          "is_joint": false,
+          "member_split_percent": null
+        }
+      ],
+      "taxProfiles": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": true
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "t2",
+          "member_id": "m2",
+          "financial_year": 2027,
+          "residency": "resident",
+          "has_private_hospital_cover": false
+        }
+      ],
+      "contributions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "c1",
+          "member_id": "m1",
+          "contributor_member_id": null,
+          "financial_year": 2027,
+          "kind": "salary_sacrifice",
+          "mode": "amount",
+          "amount_cents": 20000,
+          "percent_bp": null,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "fhss_eligible": false
+        }
+      ],
+      "helpDebts": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "d1",
+          "member_id": "m2",
+          "balance_cents": 1800000
+        }
+      ],
+      "deductions": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "x1",
+          "member_id": "m1",
+          "financial_year": 2027,
+          "deduction_date": "2026-08-01",
+          "description": "Laptop",
+          "category": "work_expense",
+          "basis": "amount",
+          "amount_cents": 90000,
+          "full_amount_cents": 150000,
+          "work_use_percent": 60,
+          "distance_km": null,
+          "work_from_home_hours": null,
+          "group_id": null
+        }
+      ],
+      "members": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m1",
+          "name": "Ada",
+          "date_of_birth": "1990-04-02",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m1"
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "m2",
+          "name": "Ben",
+          "date_of_birth": "1988-09-20",
+          "email": null,
+          "up_connected_at": null,
+          "up_sync_failed_at": null,
+          "user_id": "u-m2"
+        }
+      ],
+      "budgetLines": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b1",
+          "name": "Rent",
+          "line_group": "needs",
+          "amount_cents": 240000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b2",
+          "name": "Utilities",
+          "line_group": "needs",
+          "amount_cents": 520000,
+          "frequency": "annual",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": "bd1",
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b3",
+          "name": "Streaming",
+          "line_group": "wants",
+          "amount_cents": 2500,
+          "frequency": "weekly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b4",
+          "name": "Coffee",
+          "line_group": "discretionary",
+          "amount_cents": 4000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": "m1",
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b5",
+          "name": "Holiday",
+          "line_group": "savings",
+          "amount_cents": 30000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": "g1",
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b6",
+          "name": "Shares",
+          "line_group": "investments",
+          "amount_cents": 50000,
+          "frequency": "monthly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        },
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "b7",
+          "name": "Mortgage",
+          "line_group": "needs",
+          "amount_cents": 900000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "allowance_member_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "gift_recipient_member_id": null,
+          "goal_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      ],
+      "memberAllowances": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "al1",
+          "member_id": "m1",
+          "amount_cents": 15000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "destination_account_id": null
+        }
+      ],
+      "temporaryItems": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "tmp1",
+          "name": "Course",
+          "contribution_cents": 8000,
+          "target_date": "2027-03-31"
+        }
+      ],
+      "savingsGoals": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "g1",
+          "name": "Holiday",
+          "target_amount_cents": 1500000,
+          "current_balance_cents": 300000,
+          "annual_interest_bps": 480,
+          "linked_account_id": "a1",
+          "planned_contribution_cents": null,
+          "queue_position": null,
+          "target_date": "2027-12-31"
+        }
+      ],
+      "savers": [
+        {
+          "household_id": "h1",
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z",
+          "id": "a1",
+          "name": "Saver",
+          "currency": "AUD",
+          "deleted_from_source_at": null,
+          "exclude_from_net_worth": false,
+          "external_id": "up-1",
+          "owner_member_id": "m1",
+          "source": "up",
+          "type": "savings",
+          "balance_cents": 1200000
+        }
+      ]
+    },
+    "cashFlow": {
+      "takeHome": {
+        "grouped": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 410616
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 297505
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 1030769
+            },
+            {
+              "name": "Shortfall",
+              "color": "tax",
+              "valueCents": 403725
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 410616
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 297505
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 708121
+            },
+            {
+              "source": 4,
+              "target": 3,
+              "value": 322648
+            },
+            {
+              "source": 4,
+              "target": 5,
+              "value": 5000
+            },
+            {
+              "source": 4,
+              "target": 6,
+              "value": 15000
+            },
+            {
+              "source": 4,
+              "target": 7,
+              "value": 8000
+            },
+            {
+              "source": 4,
+              "target": 8,
+              "value": 30000
+            },
+            {
+              "source": 4,
+              "target": 9,
+              "value": 23077
+            }
+          ]
+        },
+        "drilled": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 410616
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 297505
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 1030769
+            },
+            {
+              "name": "Shortfall",
+              "color": "tax",
+              "valueCents": 403725
+            },
+            {
+              "name": "Rent",
+              "color": "needs",
+              "valueCents": 110769
+            },
+            {
+              "name": "Utilities",
+              "color": "needs",
+              "valueCents": 20000
+            },
+            {
+              "name": "Mortgage",
+              "color": "needs",
+              "valueCents": 900000
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Streaming",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Ada’s allowance",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Course",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Holiday",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Shares",
+              "color": "investments",
+              "valueCents": 23077
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 410616
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 297505
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 708121
+            },
+            {
+              "source": 4,
+              "target": 3,
+              "value": 322648
+            },
+            {
+              "source": 3,
+              "target": 5,
+              "value": 110769
+            },
+            {
+              "source": 3,
+              "target": 6,
+              "value": 20000
+            },
+            {
+              "source": 3,
+              "target": 7,
+              "value": 900000
+            },
+            {
+              "source": 4,
+              "target": 8,
+              "value": 5000
+            },
+            {
+              "source": 8,
+              "target": 9,
+              "value": 5000
+            },
+            {
+              "source": 4,
+              "target": 10,
+              "value": 15000
+            },
+            {
+              "source": 10,
+              "target": 11,
+              "value": 15000
+            },
+            {
+              "source": 4,
+              "target": 12,
+              "value": 8000
+            },
+            {
+              "source": 12,
+              "target": 13,
+              "value": 8000
+            },
+            {
+              "source": 4,
+              "target": 14,
+              "value": 30000
+            },
+            {
+              "source": 14,
+              "target": 15,
+              "value": 30000
+            },
+            {
+              "source": 4,
+              "target": 16,
+              "value": 23077
+            },
+            {
+              "source": 16,
+              "target": 17,
+              "value": 23077
+            }
+          ]
+        }
+      },
+      "gross": {
+        "grouped": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 578207
+            },
+            {
+              "name": "Gross income",
+              "color": "buffer",
+              "valueCents": 997138
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 418931
+            },
+            {
+              "name": "Tax",
+              "color": "tax",
+              "valueCents": 272017
+            },
+            {
+              "name": "Salary sacrifice",
+              "color": "sacrifice",
+              "valueCents": 17000
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 1030769
+            },
+            {
+              "name": "Shortfall",
+              "color": "tax",
+              "valueCents": 403725
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 578207
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 418931
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 272017
+            },
+            {
+              "source": 1,
+              "target": 4,
+              "value": 17000
+            },
+            {
+              "source": 1,
+              "target": 5,
+              "value": 708121
+            },
+            {
+              "source": 5,
+              "target": 6,
+              "value": 708121
+            },
+            {
+              "source": 7,
+              "target": 6,
+              "value": 322648
+            },
+            {
+              "source": 7,
+              "target": 8,
+              "value": 5000
+            },
+            {
+              "source": 7,
+              "target": 9,
+              "value": 15000
+            },
+            {
+              "source": 7,
+              "target": 10,
+              "value": 8000
+            },
+            {
+              "source": 7,
+              "target": 11,
+              "value": 30000
+            },
+            {
+              "source": 7,
+              "target": 12,
+              "value": 23077
+            }
+          ]
+        },
+        "drilled": {
+          "nodes": [
+            {
+              "name": "Ada salary",
+              "color": "buffer",
+              "valueCents": 578207
+            },
+            {
+              "name": "Gross income",
+              "color": "buffer",
+              "valueCents": 997138
+            },
+            {
+              "name": "Ben wage",
+              "color": "buffer",
+              "valueCents": 418931
+            },
+            {
+              "name": "Tax",
+              "color": "tax",
+              "valueCents": 272017
+            },
+            {
+              "name": "Salary sacrifice",
+              "color": "sacrifice",
+              "valueCents": 17000
+            },
+            {
+              "name": "Available",
+              "color": "buffer",
+              "valueCents": 708121
+            },
+            {
+              "name": "Needs",
+              "color": "needs",
+              "valueCents": 1030769
+            },
+            {
+              "name": "Shortfall",
+              "color": "tax",
+              "valueCents": 403725
+            },
+            {
+              "name": "Rent",
+              "color": "needs",
+              "valueCents": 110769
+            },
+            {
+              "name": "Utilities",
+              "color": "needs",
+              "valueCents": 20000
+            },
+            {
+              "name": "Mortgage",
+              "color": "needs",
+              "valueCents": 900000
+            },
+            {
+              "name": "Wants",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Streaming",
+              "color": "wants",
+              "valueCents": 5000
+            },
+            {
+              "name": "Discretionary",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Ada’s allowance",
+              "color": "discretionary",
+              "valueCents": 15000
+            },
+            {
+              "name": "Temporary",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Course",
+              "color": "temporary",
+              "valueCents": 8000
+            },
+            {
+              "name": "Savings",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Holiday",
+              "color": "savings",
+              "valueCents": 30000
+            },
+            {
+              "name": "Investments",
+              "color": "investments",
+              "valueCents": 23077
+            },
+            {
+              "name": "Shares",
+              "color": "investments",
+              "valueCents": 23077
+            }
+          ],
+          "links": [
+            {
+              "source": 0,
+              "target": 1,
+              "value": 578207
+            },
+            {
+              "source": 2,
+              "target": 1,
+              "value": 418931
+            },
+            {
+              "source": 1,
+              "target": 3,
+              "value": 272017
+            },
+            {
+              "source": 1,
+              "target": 4,
+              "value": 17000
+            },
+            {
+              "source": 1,
+              "target": 5,
+              "value": 708121
+            },
+            {
+              "source": 5,
+              "target": 6,
+              "value": 708121
+            },
+            {
+              "source": 7,
+              "target": 6,
+              "value": 322648
+            },
+            {
+              "source": 6,
+              "target": 8,
+              "value": 110769
+            },
+            {
+              "source": 6,
+              "target": 9,
+              "value": 20000
+            },
+            {
+              "source": 6,
+              "target": 10,
+              "value": 900000
+            },
+            {
+              "source": 7,
+              "target": 11,
+              "value": 5000
+            },
+            {
+              "source": 11,
+              "target": 12,
+              "value": 5000
+            },
+            {
+              "source": 7,
+              "target": 13,
+              "value": 15000
+            },
+            {
+              "source": 13,
+              "target": 14,
+              "value": 15000
+            },
+            {
+              "source": 7,
+              "target": 15,
+              "value": 8000
+            },
+            {
+              "source": 15,
+              "target": 16,
+              "value": 8000
+            },
+            {
+              "source": 7,
+              "target": 17,
+              "value": 30000
+            },
+            {
+              "source": 17,
+              "target": 18,
+              "value": 30000
+            },
+            {
+              "source": 7,
+              "target": 19,
+              "value": 23077
+            },
+            {
+              "source": 19,
+              "target": 20,
+              "value": 23077
+            }
+          ]
+        }
+      },
+      "hasLines": true
+    },
+    "descriptions": [
+      [
+        "Ada salary to Available: $4,106.16",
+        "Ben wage to Available: $2,975.05",
+        "Available to Needs: $7,081.21",
+        "Shortfall to Needs: $3,226.48",
+        "Shortfall to Wants: $50.00",
+        "Shortfall to Discretionary: $150.00",
+        "Shortfall to Temporary: $80.00",
+        "Shortfall to Savings: $300.00",
+        "Shortfall to Investments: $230.77"
+      ],
+      [
+        "Ada salary to Available: $4,106.16",
+        "Ben wage to Available: $2,975.05",
+        "Available to Needs: $7,081.21",
+        "Shortfall to Needs: $3,226.48",
+        "Needs to Rent: $1,107.69",
+        "Needs to Utilities: $200.00",
+        "Needs to Mortgage: $9,000.00",
+        "Shortfall to Wants: $50.00",
+        "Wants to Streaming: $50.00",
+        "Shortfall to Discretionary: $150.00",
+        "Discretionary to Ada’s allowance: $150.00",
+        "Shortfall to Temporary: $80.00",
+        "Temporary to Course: $80.00",
+        "Shortfall to Savings: $300.00",
+        "Savings to Holiday: $300.00",
+        "Shortfall to Investments: $230.77",
+        "Investments to Shares: $230.77"
+      ],
+      [
+        "Ada salary to Gross income: $5,782.07",
+        "Ben wage to Gross income: $4,189.31",
+        "Gross income to Tax: $2,720.17",
+        "Gross income to Salary sacrifice: $170.00",
+        "Gross income to Available: $7,081.21",
+        "Available to Needs: $7,081.21",
+        "Shortfall to Needs: $3,226.48",
+        "Shortfall to Wants: $50.00",
+        "Shortfall to Discretionary: $150.00",
+        "Shortfall to Temporary: $80.00",
+        "Shortfall to Savings: $300.00",
+        "Shortfall to Investments: $230.77"
+      ],
+      [
+        "Ada salary to Gross income: $5,782.07",
+        "Ben wage to Gross income: $4,189.31",
+        "Gross income to Tax: $2,720.17",
+        "Gross income to Salary sacrifice: $170.00",
+        "Gross income to Available: $7,081.21",
+        "Available to Needs: $7,081.21",
+        "Shortfall to Needs: $3,226.48",
+        "Needs to Rent: $1,107.69",
+        "Needs to Utilities: $200.00",
+        "Needs to Mortgage: $9,000.00",
+        "Shortfall to Wants: $50.00",
+        "Wants to Streaming: $50.00",
+        "Shortfall to Discretionary: $150.00",
+        "Discretionary to Ada’s allowance: $150.00",
+        "Shortfall to Temporary: $80.00",
+        "Temporary to Course: $80.00",
+        "Shortfall to Savings: $300.00",
+        "Savings to Holiday: $300.00",
+        "Shortfall to Investments: $230.77",
+        "Investments to Shares: $230.77"
+      ]
+    ],
+    "layouts": [
+      {
+        "graph": "takeHome.grouped",
+        "width": 358,
+        "order": "input",
+        "expected": {
+          "frame": {
+            "height": 268,
+            "margin": 97,
+            "maxChars": 15,
+            "labelGap": 6,
+            "verticalMargin": 14
+          },
+          "layout": {
+            "nodes": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 44.31721659294543,
+                "column": 0
+              },
+              {
+                "x": 78,
+                "y": 0,
+                "width": 8,
+                "height": 76.4265195000027,
+                "column": 1
+              },
+              {
+                "x": 0,
+                "y": 104.31721659294543,
+                "width": 8,
+                "height": 32.10930290705727,
+                "column": 0
+              },
+              {
+                "x": 156,
+                "y": 0,
+                "width": 8,
+                "height": 111.24947159948411,
+                "column": 2
+              },
+              {
+                "x": 0,
+                "y": 196.4265195000027,
+                "width": 8,
+                "height": 43.5734804999973,
+                "column": 0
+              },
+              {
+                "x": 156,
+                "y": 135.2494715994841,
+                "width": 8,
+                "height": 0.5396430800668438,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 159.78911467955095,
+                "width": 8,
+                "height": 1.6189292402005313,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 185.4080439197515,
+                "width": 8,
+                "height": 0.86342892810695,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 210.27147284785843,
+                "width": 8,
+                "height": 3.2378584804010626,
+                "column": 2
+              },
+              {
+                "x": 156,
+                "y": 237.5093313282595,
+                "width": 8,
+                "height": 2.490668671740511,
+                "column": 2
+              }
+            ],
+            "columns": 3,
+            "links": [
+              {
+                "source": 0,
+                "target": 1,
+                "value": 410616,
+                "x0": 8,
+                "x1": 78,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 44.31721659294543
+              },
+              {
+                "source": 2,
+                "target": 1,
+                "value": 297505,
+                "x0": 8,
+                "x1": 78,
+                "y0": 104.31721659294543,
+                "y1": 44.31721659294543,
+                "thickness": 32.10930290705727
+              },
+              {
+                "source": 1,
+                "target": 3,
+                "value": 708121,
+                "x0": 86,
+                "x1": 156,
+                "y0": 0,
+                "y1": 0,
+                "thickness": 76.4265195000027
+              },
+              {
+                "source": 4,
+                "target": 3,
+                "value": 322648,
+                "x0": 8,
+                "x1": 156,
+                "y0": 196.4265195000027,
+                "y1": 76.4265195000027,
+                "thickness": 34.822952099481405
+              },
+              {
+                "source": 4,
+                "target": 5,
+                "value": 5000,
+                "x0": 8,
+                "x1": 156,
+                "y0": 231.2494715994841,
+                "y1": 135.2494715994841,
+                "thickness": 0.5396430800668438
+              },
+              {
+                "source": 4,
+                "target": 6,
+                "value": 15000,
+                "x0": 8,
+                "x1": 156,
+                "y0": 231.78911467955095,
+                "y1": 159.78911467955095,
+                "thickness": 1.6189292402005313
+              },
+              {
+                "source": 4,
+                "target": 7,
+                "value": 8000,
+                "x0": 8,
+                "x1": 156,
+                "y0": 233.4080439197515,
+                "y1": 185.4080439197515,
+                "thickness": 0.86342892810695
+              },
+              {
+                "source": 4,
+                "target": 8,
+                "value": 30000,
+                "x0": 8,
+                "x1": 156,
+                "y0": 234.27147284785843,
+                "y1": 210.27147284785843,
+                "thickness": 3.2378584804010626
+              },
+              {
+                "source": 4,
+                "target": 9,
+                "value": 23077,
+                "x0": 8,
+                "x1": 156,
+                "y0": 237.50933132825952,
+                "y1": 237.5093313282595,
+                "thickness": 2.490668671740511
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]

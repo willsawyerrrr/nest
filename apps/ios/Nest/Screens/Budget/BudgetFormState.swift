@@ -405,3 +405,63 @@ struct DerivedLineFormState: Equatable, Sendable {
             destinationAccountId: destinationAccountId)
     }
 }
+
+/// The columns a temporary item's save writes.
+struct TemporaryItemInput: Codable, Equatable, Sendable {
+    var name: String
+    var contributionCents: Int
+    var targetDate: String
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case contributionCents = "contribution_cents"
+        case targetDate = "target_date"
+    }
+
+    /// The row a create writes: the columns plus the household.
+    func insertValues(householdID: String) -> InsertValues {
+        InsertValues(input: self, householdId: householdID)
+    }
+
+    struct InsertValues: Encodable, Sendable {
+        let input: TemporaryItemInput
+        let householdId: String
+
+        func encode(to encoder: Encoder) throws {
+            try input.encode(to: encoder)
+            var container = encoder.container(keyedBy: ExtraKey.self)
+            try container.encode(householdId, forKey: .householdId)
+        }
+
+        private enum ExtraKey: String, CodingKey { case householdId = "household_id" }
+    }
+}
+
+/// The temporary item add/edit form's fields and rules, mirroring the PWA's
+/// `TemporaryItemForm`: a new item's target date starts on `today`.
+struct TemporaryItemFormState: Equatable, Sendable {
+    var name: String
+    var contribution: String
+    var targetDate: String?
+    let isEditing: Bool
+
+    init(initial: TemporaryItem? = nil, today: String) {
+        name = initial?.name ?? ""
+        contribution = InflowFormState.dollars(initial?.contributionCents)
+        targetDate = initial?.targetDate ?? today
+        isEditing = initial != nil
+    }
+
+    private var cents: Int? { InflowFormState.cents(contribution).flatMap { $0 >= 0 ? $0 : nil } }
+
+    var canSubmit: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && cents != nil && targetDate != nil
+    }
+
+    var input: TemporaryItemInput? {
+        guard canSubmit, let cents, let targetDate else { return nil }
+        return TemporaryItemInput(
+            name: name.trimmingCharacters(in: .whitespaces), contributionCents: cents,
+            targetDate: targetDate)
+    }
+}

@@ -61,6 +61,8 @@ const line = (overrides: Partial<Tables<'budget_line'>>): Tables<'budget_line'> 
 })
 
 const rows = {
+  breakdowns: [],
+  superProfiles: [],
   members: [member('m1', 'Ada'), member('m2', 'Ben')],
   accounts: [account('a1', 'Bills'), account('a2', 'Spending')],
   budgetLines: [

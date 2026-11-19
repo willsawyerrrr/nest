@@ -392,3 +392,48 @@ struct DerivedLineFormView: View {
         ) { try await onSubmit(values) }
     }
 }
+
+/// The temporary item add/edit form, mirroring the PWA's `TemporaryItemForm`.
+struct TemporaryItemFormView: View {
+    let onSubmit: (TemporaryItemInput) async throws -> Void
+    let onCancel: () -> Void
+
+    @State private var form: TemporaryItemFormState
+    @State private var submitting = false
+    @State private var error: String?
+
+    init(
+        form: TemporaryItemFormState,
+        onSubmit: @escaping (TemporaryItemInput) async throws -> Void, onCancel: @escaping () -> Void
+    ) {
+        _form = State(initialValue: form)
+        self.onSubmit = onSubmit
+        self.onCancel = onCancel
+    }
+
+    var body: some View {
+        BudgetFormShell(
+            submitLabel: form.isEditing ? "Save changes" : "Add item", canSubmit: form.canSubmit,
+            submitting: submitting, error: error, onSubmit: submit, onCancel: onCancel
+        ) {
+            InflowField(label: "Name") {
+                InflowTextInput(text: $form.name, identifier: "temporary-item-name")
+            }
+            InflowField(label: "Contribution", description: "The fortnightly amount put toward this item.") {
+                InflowTextInput(text: $form.contribution, prefix: "$", numeric: true)
+            }
+            InflowField(label: "Target date", description: "The item is an active outflow until this date.") {
+                InflowDateInput(iso: $form.targetDate)
+            }
+        }
+        .accessibilityIdentifier("temporary-item-form")
+    }
+
+    private func submit() {
+        guard let input = form.input else { return }
+        save(
+            submitting: $submitting, error: $error,
+            message: { _ in "Could not save this temporary item. Please try again." }
+        ) { try await onSubmit(input) }
+    }
+}

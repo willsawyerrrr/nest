@@ -1,0 +1,516 @@
+{
+  "lines": [
+    {
+      "name": "a plain needs line",
+      "line": {
+        "id": "rent",
+        "household_id": "h1",
+        "line_group": "needs",
+        "name": "Line",
+        "amount_cents": 240000,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [],
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "line_group": "needs",
+          "name": "Line",
+          "amount_cents": 240000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "goal_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "allowance_member_id": null,
+          "gift_recipient_member_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      }
+    },
+    {
+      "name": "an every-3-weeks line with a funding account and a bare-domain link",
+      "line": {
+        "id": "netflix",
+        "household_id": "h1",
+        "line_group": "wants",
+        "name": "Line",
+        "amount_cents": 2299,
+        "frequency": "every_n_weeks",
+        "interval_count": 3,
+        "goal_id": null,
+        "destination_account_id": "a1",
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": "netflix.com/account",
+        "allowance_member_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [],
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "line_group": "wants",
+          "name": "Line",
+          "amount_cents": 2299,
+          "frequency": "every_n_weeks",
+          "interval_count": 3,
+          "goal_id": null,
+          "breakdown_id": null,
+          "destination_account_id": "a1",
+          "allowance_member_id": null,
+          "gift_recipient_member_id": null,
+          "is_gift_line": false,
+          "management_url": "https://netflix.com/account"
+        }
+      }
+    },
+    {
+      "name": "a savings line linked to a goal",
+      "line": {
+        "id": "holiday",
+        "household_id": "h1",
+        "line_group": "savings",
+        "name": "Line",
+        "amount_cents": 30000,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "goal_id": "g1",
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [],
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "line_group": "savings",
+          "name": "Line",
+          "amount_cents": 30000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "goal_id": "g1",
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "allowance_member_id": null,
+          "gift_recipient_member_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      }
+    },
+    {
+      "name": "a drawn line within what is left",
+      "line": {
+        "id": "coffee",
+        "household_id": "h1",
+        "line_group": "discretionary",
+        "name": "Line",
+        "amount_cents": 2000,
+        "frequency": "weekly",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": "m1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [
+        {
+          "memberId": "m1",
+          "name": "Ada’s allowance",
+          "remainingAnnualCents": 100000
+        }
+      ],
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "line_group": "discretionary",
+          "name": "Line",
+          "amount_cents": 2000,
+          "frequency": "weekly",
+          "interval_count": null,
+          "goal_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "allowance_member_id": "m1",
+          "gift_recipient_member_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      }
+    },
+    {
+      "name": "a drawn line whose allowance is already overdrawn by others",
+      "line": {
+        "id": "games",
+        "household_id": "h1",
+        "line_group": "discretionary",
+        "name": "Line",
+        "amount_cents": 5000,
+        "frequency": "monthly",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": "m1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [
+        {
+          "memberId": "m1",
+          "name": "Ada’s allowance",
+          "remainingAnnualCents": -100
+        }
+      ],
+      "expected": {
+        "canSubmit": false,
+        "input": null
+      }
+    },
+    {
+      "name": "a discretionary line drawn from an allowance the editor cannot draw from",
+      "line": {
+        "id": "ben",
+        "household_id": "h1",
+        "line_group": "discretionary",
+        "name": "Line",
+        "amount_cents": 1000,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": "m2",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [
+        {
+          "memberId": "m1",
+          "name": "Ada’s allowance",
+          "remainingAnnualCents": 100000
+        }
+      ],
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "line_group": "discretionary",
+          "name": "Line",
+          "amount_cents": 1000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "goal_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "allowance_member_id": null,
+          "gift_recipient_member_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      }
+    },
+    {
+      "name": "an every-N-months line with no interval",
+      "line": {
+        "id": "rates",
+        "household_id": "h1",
+        "line_group": "needs",
+        "name": "Line",
+        "amount_cents": 50000,
+        "frequency": "every_n_months",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [],
+      "expected": {
+        "canSubmit": false,
+        "input": null
+      }
+    },
+    {
+      "name": "a line with a non-http link",
+      "line": {
+        "id": "bad",
+        "household_id": "h1",
+        "line_group": "wants",
+        "name": "Line",
+        "amount_cents": 100,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": "ftp://example.com",
+        "allowance_member_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [],
+      "expected": {
+        "canSubmit": false,
+        "input": null
+      }
+    },
+    {
+      "name": "a zero-amount line",
+      "line": {
+        "id": "free",
+        "household_id": "h1",
+        "line_group": "wants",
+        "name": "Line",
+        "amount_cents": 0,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "goal_id": null,
+        "destination_account_id": null,
+        "breakdown_id": null,
+        "gift_recipient_member_id": null,
+        "is_gift_line": false,
+        "management_url": null,
+        "allowance_member_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "allowances": [],
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "line_group": "wants",
+          "name": "Line",
+          "amount_cents": 0,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "goal_id": null,
+          "breakdown_id": null,
+          "destination_account_id": null,
+          "allowance_member_id": null,
+          "gift_recipient_member_id": null,
+          "is_gift_line": false,
+          "management_url": null
+        }
+      }
+    }
+  ],
+  "allowances": [
+    {
+      "name": "an allowance above what is drawn",
+      "allowance": {
+        "id": "al1",
+        "household_id": "h1",
+        "member_id": "m1",
+        "amount_cents": 20000,
+        "frequency": "fortnightly",
+        "interval_count": null,
+        "destination_account_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "drawnAnnualCents": 100000,
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "amount_cents": 20000,
+          "frequency": "fortnightly",
+          "interval_count": null,
+          "destination_account_id": null
+        }
+      }
+    },
+    {
+      "name": "an allowance below what is drawn",
+      "allowance": {
+        "id": "al1",
+        "household_id": "h1",
+        "member_id": "m1",
+        "amount_cents": 2000,
+        "frequency": "monthly",
+        "interval_count": null,
+        "destination_account_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "drawnAnnualCents": 100000,
+      "expected": {
+        "canSubmit": false,
+        "input": null
+      }
+    },
+    {
+      "name": "an every-2-months allowance with a funding account",
+      "allowance": {
+        "id": "al1",
+        "household_id": "h1",
+        "member_id": "m1",
+        "amount_cents": 30000,
+        "frequency": "every_n_months",
+        "interval_count": 2,
+        "destination_account_id": "a1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "drawnAnnualCents": 0,
+      "expected": {
+        "canSubmit": true,
+        "input": {
+          "amount_cents": 30000,
+          "frequency": "every_n_months",
+          "interval_count": 2,
+          "destination_account_id": "a1"
+        }
+      }
+    },
+    {
+      "name": "an every-N-weeks allowance with no interval",
+      "allowance": {
+        "id": "al1",
+        "household_id": "h1",
+        "member_id": "m1",
+        "amount_cents": 20000,
+        "frequency": "every_n_weeks",
+        "interval_count": null,
+        "destination_account_id": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      "drawnAnnualCents": 0,
+      "expected": {
+        "canSubmit": false,
+        "input": null
+      }
+    }
+  ],
+  "links": [
+    {
+      "value": "",
+      "valid": true,
+      "normalised": null
+    },
+    {
+      "value": "   ",
+      "valid": true,
+      "normalised": null
+    },
+    {
+      "value": "netflix.com/account",
+      "valid": true,
+      "normalised": "https://netflix.com/account"
+    },
+    {
+      "value": "Example.COM",
+      "valid": true,
+      "normalised": "https://Example.COM"
+    },
+    {
+      "value": "https://spotify.com/account?x=1",
+      "valid": true,
+      "normalised": "https://spotify.com/account?x=1"
+    },
+    {
+      "value": "http://example.com",
+      "valid": true,
+      "normalised": "http://example.com"
+    },
+    {
+      "value": "javascript:alert(1)",
+      "valid": false,
+      "normalised": null
+    },
+    {
+      "value": "ftp://example.com",
+      "valid": false,
+      "normalised": null
+    },
+    {
+      "value": "not a url",
+      "valid": false,
+      "normalised": null
+    },
+    {
+      "value": "localhost",
+      "valid": false,
+      "normalised": null
+    },
+    {
+      "value": "https://",
+      "valid": false,
+      "normalised": null
+    },
+    {
+      "value": "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": false,
+      "normalised": null
+    }
+  ],
+  "cadences": [
+    {
+      "amountCents": 10000,
+      "frequency": "weekly",
+      "interval": null,
+      "annualCents": 520000
+    },
+    {
+      "amountCents": 10000,
+      "frequency": "biannual",
+      "interval": null,
+      "annualCents": 20000
+    },
+    {
+      "amountCents": 33333,
+      "frequency": "every_n_weeks",
+      "interval": 3,
+      "annualCents": 577772
+    },
+    {
+      "amountCents": 10001,
+      "frequency": "every_n_months",
+      "interval": 5,
+      "annualCents": 24002
+    },
+    {
+      "amountCents": 10000,
+      "frequency": "every_n_weeks",
+      "interval": null,
+      "annualCents": 0
+    }
+  ]
+}

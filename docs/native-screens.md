@@ -147,11 +147,51 @@ The overdraw guard is fixed copy on Allowance
 (`BudgetPresentation.overdrawGuard`): the database refuses an item that draws
 more than is left, and an allowance lowered below what is drawn.
 
-Editing (adding, changing and deleting items, allowances and temporary items)
-stays in the web app for now: each screen ends in a card opening the web page in
-a sheet (`WebHandoffCard`). `Route.allowance` is outside the nav, so it is
-reached by `NavigationLink(value:)` from Budget; the sidebar's detail pane is a
-`NavigationStack` for the push.
+Both screens edit as the PWA does, inline in place of the row
+(`BudgetForms.swift`, rules in `BudgetFormState.swift`):
+
+- **Budget lines.** "Add item" at the top and "Add <group> item" in each group open
+  `BudgetLineFormView` (`BudgetLineForm`): group, name, frequency (every-N weeks or
+  months with its interval), amount, then by group a goal (Savings/Investments), a
+  "Draw from allowance" choice (Discretionary, the signed-in member's own allowance
+  only) or a "Funded from" account (every `account_directory` account but a super
+  fund's balance account), and the management link (a bare domain gains
+  `https://`; any other scheme is refused, as `managementUrl.ts`). A group change
+  clears what the new group cannot carry. A drawn item that would draw more over a
+  year than is left (counting back what the line already draws) shows the fixed
+  overdraw copy and cannot be saved; a database `allowance_overdrawn` refusal
+  (`NestError.refusal`) shows the same copy. Edit and delete (behind "Delete budget
+  item?") sit on each manual line; a line with a management link opens it.
+- **Derived lines** (a gift line or a generic breakdown's) carry an edit pencil and
+  a chevron to Gifts or Breakdowns instead of delete. `DerivedLineFormView`
+  (`DerivedBudgetLineForm`) edits the group (Needs, Wants or Discretionary), the
+  name (read-only on a gift line) and the funding account (a note on a gift member
+  line); the amount shows locked. A generic line's name and group are written to
+  its breakdown and the line, a gift line's group to the line alone
+  (`useDerivedLineEditor`). In planning mode a derived line is read-only.
+- **Allowances.** Each allowance row has an edit pencil opening
+  `MemberAllowanceFormView` (`MemberAllowanceForm`): amount, cadence and funding
+  account, refused below what is drawn (pre-validated, and the refusal's fixed copy).
+- **Allowance** lists the member's drawn items with edit and delete, and "Add
+  allowance item" opens the form in Discretionary drawn from their allowance.
+- **Temporary items** are a Temporary group (the active items' subtotal) with add,
+  edit and delete (`TemporaryItemForm`: name, fortnightly contribution, target date
+  defaulting to today).
+
+Budget-line writes go to the database, or into the planning sandbox while it is on
+(a create included); allowances, breakdowns and temporary items are never
+sandboxed. `BudgetScreen(draft:)` opens a prefilled add form (name and amount,
+Discretionary) above the list with the PWA's wishlist note, the entry point for a
+promoted wishlist item. The PWA's search and sort of the line list are not native.
+
+`apps/pwa/src/lib/budgetFormParity.test.tsx` opens the PWA's own `BudgetLineForm`
+and `MemberAllowanceForm` on stored rows, records whether each can be saved and the
+columns it writes, and runs `normaliseManagementUrl` and `annualCents` over a set of
+inputs, into `apps/ios/NestTests/Fixtures/budget-form-parity.json`;
+`BudgetFormParityTests` opens the native form state on the same rows and must agree.
+
+`Route.allowance` is outside the nav, so it is reached by `NavigationLink(value:)`
+from Budget; the sidebar's detail pane is a `NavigationStack` for the push.
 
 ## Goals
 
@@ -298,8 +338,8 @@ fresh) whenever the sandbox moves.
 
 - **Summary** computes the engine's `summariseHousehold` twice while the sandbox
   is on, once from the sandboxed rows and once from the real ones; `LedgerCard`
-  shows `ComparedAmount` per row. **Budget** and **Allowance** read the sandboxed
-  lines and goals. Breakdowns are not sandboxed, as in the web app.
+  shows `ComparedAmount` per row. **Budget** and **Allowance** read and write the
+  sandboxed lines and read the sandboxed goals. Breakdowns are not sandboxed, as in the web app.
 - **Planning** shows the projected impact (buffer, available, outgoings, saving:
   real vs proposed vs change), the pending changes (an Edited / New / Removed pill,
   `was → now`, and a Reset per row), a what-if list (an inflow's stated amount, a
@@ -309,10 +349,10 @@ fresh) whenever the sandbox moves.
 - **Save** calls `commit_planning_changes` with the same nine arguments as the web
   app (`CommitPlanningParams`), invalidating the three tables' cached rows. A
   failed save keeps every pending change and shows the error's fixed message.
-- Goals creates, edits, deletes and reorders into the sandbox. Creating a budget line
-  or an inflow in the sandbox is not offered natively yet; the layer already holds,
-  applies, lists and saves a created row (as one made in the web app's sandbox shape
-  would be).
+- Goals creates, edits, deletes and reorders into the sandbox, and Budget and
+  Allowance create, edit and delete manual budget lines in it. Creating an inflow in
+  the sandbox is not offered natively yet; the layer already holds, applies, lists
+  and saves a created row (as one made in the web app's sandbox shape would be).
 
 `apps/pwa/src/lib/planningParity.test.ts` applies a sandbox (an edited and a hidden
 inflow, edited, hidden and added budget lines, an edited goal) with the PWA's own
@@ -339,7 +379,7 @@ requires a name and a positive amount and trims the name and note, as `WishlistF
 Promote to a savings goal or a budget line opens the web Goals or Budget page in a
 sheet with `?promoteName=…&promoteAmountCents=…`; the PWA's `takeGoalDraft` and
 `takeBudgetDraft` read those parameters when no draft was stashed, so the add form
-opens prefilled. They move to native when Goals and Budget editing do.
+opens prefilled.
 
 There is no engine figure: parity is the order, owner and amount of each row.
 `apps/pwa/src/lib/wishlistParity.test.ts` snapshots rows and, for all four sorts,

@@ -31,6 +31,9 @@ enum BudgetEditing: Equatable {
     case add(BudgetGroup)
     case line(String)
     case allowance(String)
+    /// The temporary item add form.
+    case addTemporary
+    case temporary(String)
 }
 
 struct BudgetContentView: View {
@@ -40,6 +43,7 @@ struct BudgetContentView: View {
 
     @State private var editing: BudgetEditing?
     @State private var deleting: BudgetLineRow?
+    @State private var deletingTemporary: TemporaryRow?
 
     var body: some View {
         NestPageSection(title: "Budget") {
@@ -92,11 +96,40 @@ struct BudgetContentView: View {
                     }
                 }
             }
-            if !presentation.temporaryItems.isEmpty {
-                TemporaryCard(items: presentation.temporaryItems)
-            }
+            TemporaryCard(
+                presentation: presentation, editing: $editing, deleting: $deletingTemporary,
+                form: temporaryForm)
         }
         .budgetLineDeleteAlert($deleting) { try await model.deleteLine(id: $0) }
+        .alert(
+            "Delete temporary item?",
+            isPresented: Binding(
+                get: { deletingTemporary != nil }, set: { if !$0 { deletingTemporary = nil } }),
+            presenting: deletingTemporary
+        ) { row in
+            Button("Delete", role: .destructive) {
+                Task { try? await model.deleteTemporaryItem(id: row.id) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { row in
+            Text("Delete \(row.name)? This cannot be undone.")
+        }
+    }
+
+    private func temporaryForm(_ id: String?) -> AnyView {
+        AnyView(
+            TemporaryItemFormView(
+                form: TemporaryItemFormState(
+                    initial: id.flatMap(presentation.temporaryItem(id:)), today: model.today),
+                onSubmit: { input in
+                    if let id {
+                        try await model.updateTemporaryItem(id: id, input)
+                    } else {
+                        try await model.createTemporaryItem(input)
+                    }
+                    editing = nil
+                },
+                onCancel: { editing = nil }))
     }
 
     @ViewBuilder private func lineRow(_ row: BudgetLineRow) -> some View {
@@ -326,27 +359,54 @@ struct AllowanceRowView: View {
     }
 }
 
+/// The Temporary group: active items' subtotal, each item with its active or
+/// expired flag, edit and delete, and the add affordance, as the PWA's `TemporaryItemList`.
 private struct TemporaryCard: View {
-    let items: [TemporaryRow]
+    let presentation: BudgetPresentation
+    @Binding var editing: BudgetEditing?
+    @Binding var deleting: TemporaryRow?
+    let form: (String?) -> AnyView
 
     var body: some View {
         NestCard {
             VStack(alignment: .leading, spacing: NestSpacing.xs) {
-                Text("Temporary items").font(NestFont.heading).foregroundStyle(NestColor.text)
-                ForEach(items) { item in
-                    NestListRow(
-                        title: item.name,
-                        subtitle: "until \(BudgetPresentation.date(item.targetDate))"
-                    ) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Temporary").font(NestFont.heading).foregroundStyle(NestColor.text)
+                    Spacer()
+                    Text(MoneyFormat.perFortnight(presentation.temporarySubtotalCents))
+                        .font(.system(size: 15, weight: .bold)).monospacedDigit()
+                        .foregroundStyle(NestColor.text)
+                }
+                if presentation.temporaryItems.isEmpty && editing != .addTemporary {
+                    NestEmptyState(text: "No temporary items yet.")
+                }
+                ForEach(presentation.temporaryItems) { item in
+                    if editing == .temporary(item.id) {
+                        form(item.id)
+                    } else {
                         HStack(spacing: NestSpacing.xs) {
-                            NestPill(
-                                text: item.isActive ? "Active" : "Expired",
-                                tone: item.isActive ? .positive : .neutral)
-                            MoneyText(cents: item.contributionCents, colouring: false)
-                                .font(NestFont.body)
+                            NestListRow(
+                                title: item.name,
+                                subtitle: "until \(BudgetPresentation.date(item.targetDate))"
+                            ) {
+                                HStack(spacing: NestSpacing.xs) {
+                                    NestPill(
+                                        text: item.isActive ? "Active" : "Expired",
+                                        tone: item.isActive ? .positive : .neutral)
+                                    MoneyText(cents: item.contributionCents, colouring: false)
+                                        .font(NestFont.body)
+                                }
+                            }
+                            .accessibilityElement(children: .combine)
+                            EditDeleteActions(
+                                onEdit: { editing = .temporary(item.id) }, onDelete: { deleting = item })
                         }
                     }
-                    .accessibilityElement(children: .combine)
+                }
+                if editing == .addTemporary {
+                    form(nil)
+                } else {
+                    InflowAddButton(label: "Add temporary item") { editing = .addTemporary }
                 }
             }
         }

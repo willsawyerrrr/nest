@@ -13,8 +13,8 @@ struct BudgetContent: Equatable, Sendable {
 /// Loads the household's budget rows through the cache, runs the figures in the
 /// engine and publishes the result. Budget and Allowance share it: each screen
 /// projects `BudgetContent` its own way. Budget-line writes go to the database,
-/// or into the planning sandbox while planning mode is on; allowances and
-/// breakdowns are not sandboxed, so their writes are always real.
+/// or into the planning sandbox while planning mode is on; allowances,
+/// breakdowns and temporary items are not sandboxed, so their writes are always real.
 @MainActor @Observable
 final class BudgetViewModel {
     private(set) var state: ScreenState<BudgetContent> = .loading
@@ -139,6 +139,30 @@ final class BudgetViewModel {
         try await data.update(MemberAllowance.self, values: input, filters: [.eq("id", id)])
         await load()
     }
+
+    /// Adds a temporary item, then reloads. Temporary items are not sandboxed.
+    func createTemporaryItem(_ input: TemporaryItemInput) async throws {
+        guard let household = state.value?.rows.members.first?.householdId else {
+            throw NestError(.invalidRequest)
+        }
+        try await data.insert(TemporaryItem.self, values: input.insertValues(householdID: household))
+        await load()
+    }
+
+    /// Saves `input` over the temporary item `id`, then reloads.
+    func updateTemporaryItem(id: String, _ input: TemporaryItemInput) async throws {
+        try await data.update(TemporaryItem.self, values: input, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Removes the temporary item `id`, then reloads.
+    func deleteTemporaryItem(id: String) async throws {
+        try await data.delete(TemporaryItem.self, filters: [.eq("id", id)])
+        await load()
+    }
+
+    /// Today as an ISO date, a new temporary item's default target.
+    var today: String { InflowsPresentation.isoDate(now()) }
 
     /// A whole budget line row for the sandbox: the input's columns plus the ones
     /// the database would set.

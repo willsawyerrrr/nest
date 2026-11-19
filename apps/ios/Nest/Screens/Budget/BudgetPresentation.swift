@@ -243,6 +243,14 @@ struct BudgetPresentation: Sendable {
         }
     }
 
+    /// The temporary item `id`, as stored.
+    func temporaryItem(id: String) -> TemporaryItem? { rows.temporaryItems.first { $0.id == id } }
+
+    /// The active temporary items' fortnightly contributions, the Temporary group's subtotal.
+    var temporarySubtotalCents: Int {
+        temporaryItems.filter(\.isActive).reduce(0) { $0 + $1.contributionCents }
+    }
+
     var temporaryItems: [TemporaryRow] {
         rows.temporaryItems.enumerated().map { index, item in
             TemporaryRow(

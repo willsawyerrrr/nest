@@ -62,6 +62,16 @@ private enum BudgetFixtures {
             now: { Date(timeIntervalSince1970: 1_796_083_200) }, planning: planning ?? self.planning())
     }
 
+    @Test func theLineSortPersistsUnderThePWAKey() {
+        let defaults = UserDefaults(suiteName: "BudgetLineSort-\(UUID())")!
+        let data = makeData(Server(), directory: directory())
+        let model = BudgetViewModel(data: data, planning: planning(), defaults: defaults)
+        #expect(model.lineSort == BudgetLineSort())
+        model.lineSort = BudgetLineSort(key: .amount, direction: .desc)
+        #expect(BudgetLineSort.stored(in: defaults) == BudgetLineSort(key: .amount, direction: .desc))
+        #expect(defaults.data(forKey: "budget-line-sort") != nil)
+    }
+
     private static let lineJSON = """
         [{"id":"b1","household_id":"h","name":"Gym","line_group":"wants","amount_cents":5000,\
         "frequency":"fortnightly","interval_count":null,"allowance_member_id":null,\

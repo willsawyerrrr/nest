@@ -34,7 +34,7 @@ import Testing
         return try! JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
     }()
 
-    private func listed(_ key: WishlistSortKey, _ direction: WishlistSortDirection) -> [Listed] {
+    private func listed(_ key: WishlistSortKey, _ direction: SortDirection) -> [Listed] {
         WishlistPresentation(
             rows: Self.fixture.rows, sort: WishlistSort(key: key, direction: direction)
         ).rows.map {
